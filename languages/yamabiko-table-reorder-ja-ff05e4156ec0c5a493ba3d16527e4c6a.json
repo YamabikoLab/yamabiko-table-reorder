@@ -1,0 +1,83 @@
+{
+	"translation-revision-date": "2026-08-20 06:05+0900",
+	"generator": "WP-CLI/2.12.0",
+	"source": "build/editor-extensions/table-reorder/index.js",
+	"domain": "messages",
+	"locale_data": {
+		"messages": {
+			"": { "domain": "messages", "lang": "ja", "plural-forms": "nplurals=1; plural=0;" },
+			"Empty row": [ "\u7a7a\u306e\u884c" ],
+			"Drag to move, or click to choose a destination.": [
+				"\u30c9\u30e9\u30c3\u30b0\u3067\u79fb\u52d5\u3000\u30af\u30ea\u30c3\u30af\u3067\u79fb\u52d5\u5148\u3092\u9078\u629e"
+			],
+			"Enter / Space: start moving": [ "Enter / Space: \u79fb\u52d5\u958b\u59cb" ],
+			"\u2191\u2193 Move\u3000Enter / Space Confirm\u3000Esc Cancel": [
+				"\u2191\u2193 \u79fb\u52d5\u3000Enter / Space \u6c7a\u5b9a\u3000Esc \u30ad\u30e3\u30f3\u30bb\u30eb"
+			],
+			"Click destination\u3000Esc Cancel": [
+				"\u79fb\u52d5\u5148\u3092\u30af\u30ea\u30c3\u30af\u3000Esc \u30ad\u30e3\u30f3\u30bb\u30eb"
+			],
+			"Handle: drag to move / tap to choose destination\u3000Cell: tap to edit": [
+				"\u30cf\u30f3\u30c9\u30eb: \u30c9\u30e9\u30c3\u30b0\u3067\u79fb\u52d5 / \u30bf\u30c3\u30d7\u3067\u79fb\u52d5\u5148\u9078\u629e\u3000\u30bb\u30eb: \u30bf\u30c3\u30d7\u3067\u7de8\u96c6"
+			],
+			"Tap destination": [ "\u79fb\u52d5\u5148\u3092\u30bf\u30c3\u30d7" ],
+			"Reorder rows with the keyboard. Select \u201cReorder rows\u201d in the toolbar, then use Tab / Shift+Tab to choose a row to reorder.": [
+				"\u30ad\u30fc\u30dc\u30fc\u30c9\u3067\u884c\u3092\u4e26\u3079\u66ff\u3048\u3089\u308c\u307e\u3059\u3002\u30c4\u30fc\u30eb\u30d0\u30fc\u306e\u300c\u884c\u3092\u4e26\u3079\u66ff\u3048\u300d\u3092\u9078\u629e\u3057\u3001Tab / Shift+Tab \u3067\u4e26\u3079\u66ff\u3048\u308b\u884c\u3092\u9078\u3079\u307e\u3059\u3002"
+			],
+			"Tap \u201cReorder rows\u201d in the toolbar to begin.": [
+				"\u30c4\u30fc\u30eb\u30d0\u30fc\u306e\u300c\u884c\u3092\u4e26\u3079\u66ff\u3048\u300d\u3092\u30bf\u30c3\u30d7\u3057\u3066\u958b\u59cb"
+			],
+			"Reorder row %1$d: %2$s": [
+				"%1$d\u884c\u76ee\u300c%2$s\u300d\u3092\u4e26\u3079\u66ff\u3048"
+			],
+			"Drag to move this row, or activate to choose a destination.": [
+				"\u30c9\u30e9\u30c3\u30b0\u3057\u3066\u884c\u3092\u79fb\u52d5\u3067\u304d\u307e\u3059\u3002\u5b9f\u884c\u3059\u308b\u3068\u79fb\u52d5\u5148\u3092\u9078\u629e\u3067\u304d\u307e\u3059\u3002"
+			],
+			"Press Enter or Space to start moving this row.": [
+				"Enter\u307e\u305f\u306fSpace\u30ad\u30fc\u3067\u3001\u3053\u306e\u884c\u306e\u79fb\u52d5\u3092\u958b\u59cb\u3057\u307e\u3059\u3002"
+			],
+			"Move before row %1$d: %2$s": [
+				"%1$d\u884c\u76ee\u300c%2$s\u300d\u306e\u524d\u3078\u79fb\u52d5"
+			],
+			"Move to the end of the table.": [ "\u8868\u306e\u672b\u5c3e\u3078\u79fb\u52d5" ],
+			"Cancel": [ "\u30ad\u30e3\u30f3\u30bb\u30eb" ],
+			"Close guidance": [ "\u6848\u5185\u3092\u9589\u3058\u308b" ],
+			"Reorder rows": [ "\u884c\u3092\u4e26\u3079\u66ff\u3048" ],
+			"Move table rows using drag and drop, the keyboard, or destination selection.": [
+				"\u30c9\u30e9\u30c3\u30b0\u3001\u30ad\u30fc\u30dc\u30fc\u30c9\u3001\u307e\u305f\u306f\u79fb\u52d5\u5148\u306e\u9078\u629e\u3067\u8868\u306e\u884c\u3092\u79fb\u52d5\u3057\u307e\u3059\u3002"
+			],
+			"This row is in a row-spanning cell and can\u2019t be moved.": [
+				"\u3053\u306e\u884c\u306f\u7e26\u7d50\u5408\u30bb\u30eb\u5185\u306e\u305f\u3081\u79fb\u52d5\u3067\u304d\u307e\u305b\u3093\u3002"
+			],
+			"No rows can be reordered.": [
+				"\u4e26\u3079\u66ff\u3048\u3067\u304d\u308b\u884c\u304c\u3042\u308a\u307e\u305b\u3093\u3002"
+			],
+			"Moving %1$s, row %2$d of %3$d.": [
+				"%1$s\u3001\u5168%3$d\u884c\u4e2d%2$d\u884c\u76ee\u306e\u79fb\u52d5\u3092\u958b\u59cb\u3057\u307e\u3057\u305f\u3002"
+			],
+			"%1$s selected. Choose a destination.": [
+				"%1$s\u3092\u9078\u629e\u3057\u307e\u3057\u305f\u3002\u79fb\u52d5\u5148\u3092\u9078\u3093\u3067\u304f\u3060\u3055\u3044\u3002"
+			],
+			"Move %1$s to position %2$d of %3$d.": [
+				"%1$s\u3092\u5168%3$d\u884c\u4e2d%2$d\u884c\u76ee\u3078\u79fb\u52d5\u3057\u307e\u3059\u3002"
+			],
+			"Moved %1$s from position %2$d to %3$d.": [
+				"%1$s\u3092%2$d\u884c\u76ee\u304b\u3089%3$d\u884c\u76ee\u3078\u79fb\u52d5\u3057\u307e\u3057\u305f\u3002"
+			],
+			"Canceled moving %1$s. It remains at position %2$d.": [
+				"%1$s\u306e\u79fb\u52d5\u3092\u30ad\u30e3\u30f3\u30bb\u30eb\u3057\u307e\u3057\u305f\u3002\u4f4d\u7f6e\u306f%2$d\u884c\u76ee\u306e\u307e\u307e\u3067\u3059\u3002"
+			],
+			"up": [ "\u4e0a" ],
+			"down": [ "\u4e0b" ],
+			"%1$s cannot move any farther %2$s.": [
+				"%1$s\u306f\u3001\u3053\u308c\u4ee5\u4e0a%2$s\u3078\u79fb\u52d5\u3067\u304d\u307e\u305b\u3093\u3002"
+			],
+			"%1$s cannot be moved because it is within a cell that spans multiple rows.": [
+				"%1$s\u306f\u3001\u8907\u6570\u884c\u306b\u307e\u305f\u304c\u308b\u7d50\u5408\u30bb\u30eb\u306e\u7bc4\u56f2\u5185\u306b\u3042\u308b\u305f\u3081\u79fb\u52d5\u3067\u304d\u307e\u305b\u3093\u3002"
+			],
+			"There are no rows that can be reordered in this table.": [
+				"\u3053\u306e\u8868\u306b\u306f\u4e26\u3079\u66ff\u3048\u3067\u304d\u308b\u884c\u304c\u3042\u308a\u307e\u305b\u3093\u3002"
+			]
+		}
+	}
+}

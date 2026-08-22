@@ -1,5 +1,5 @@
 {
-	"name": "yamabiko-editor-tools",
+	"name": "yamabiko-table-reorder",
 	"version": "0.0.0",
 	"private": true,
 	"files": [
@@ -7,7 +7,7 @@
 		"languages/",
 		"THIRD_PARTY_NOTICES.md",
 		"readme.txt",
-		"yamabiko-editor-tools.php"
+		"yamabiko-table-reorder.php"
 	],
 	"scripts": {
 		"start": "wp-scripts start --hot",
@@ -27,16 +27,20 @@
 		"test:e2e": "npm run build && playwright test",
 		"test:e2e:auth": "playwright test --project=setup",
 		"test:e2e:ui": "npm run test:e2e:auth && playwright test --project=chromium --ui --ui-host=0.0.0.0 --ui-port=9323",
-		"i18n:pot": "wp i18n make-pot . languages/yamabiko-editor-tools.pot --domain=yamabiko-editor-tools --include=src",
-		"i18n:po": "wp i18n update-po languages/yamabiko-editor-tools.pot languages/yamabiko-editor-tools-ja.po",
-		"i18n:json": "wp i18n make-json languages/yamabiko-editor-tools-ja.po languages --domain=yamabiko-editor-tools --extensions=js,jsx,ts,tsx --no-purge --pretty-print",
+		"i18n:extract-js": "rm -f languages/.yamabiko-table-reorder-js.pot languages/.i18n-messages.js && babel src/editor-extensions/table-reorder/messages.ts --out-file languages/.i18n-messages.js --config-file ./babel.i18n.config.js",
+		"i18n:pot": "npm run i18n:extract-js && wp i18n make-pot . languages/yamabiko-table-reorder.pot --domain=yamabiko-table-reorder --include=yamabiko-table-reorder.php --skip-js --merge=languages/.yamabiko-table-reorder-js.pot && rm -f languages/.yamabiko-table-reorder-js.pot languages/.i18n-messages.js",
+		"i18n:po": "wp i18n update-po languages/yamabiko-table-reorder.pot languages/yamabiko-table-reorder-ja.po",
+		"i18n:json": "wp i18n make-json languages/yamabiko-table-reorder-ja.po languages --domain=yamabiko-table-reorder --extensions=ts,tsx --use-map='{\"src/editor-extensions/table-reorder/messages.ts\":\"build/editor-extensions/table-reorder/index.js\"}' --no-purge && prettier --write \"languages/*.json\"",
 		"i18n": "npm run i18n:pot && npm run i18n:po && npm run i18n:json"
 	},
 	"devDependencies": {
+		"@babel/cli": "^7.29.7",
 		"@playwright/test": "1.62.1",
 		"@types/jest": "^30.0.0",
 		"@types/node": "20.17.10",
 		"@types/wordpress__block-editor": "^15.0.6",
+		"@wordpress/babel-plugin-makepot": "^6.53.0",
+		"@wordpress/babel-preset-default": "8.52.0",
 		"@wordpress/e2e-test-utils-playwright": "^1.52.0",
 		"@wordpress/eslint-plugin": "^25.8.0",
 		"@wordpress/prettier-config": "^4.52.0",
