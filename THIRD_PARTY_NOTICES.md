@@ -5,7 +5,7 @@ Yamabiko Table Reorder includes third-party software whose license terms are rep
 ## SortableJS
 
 SortableJS is included in the distributed plugin at
-`build/editor-extensions/table-reorder/sortable.min.js`.
+`build/sortable.min.js`.
 
 Source: https://github.com/SortableJS/Sortable
 
