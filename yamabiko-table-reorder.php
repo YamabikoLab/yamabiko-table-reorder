@@ -66,14 +66,14 @@ final class Plugin {
 			return;
 		}
 
-		$file_path = __DIR__ . '/build/editor-extensions/table-reorder/index.css';
+		$file_path = __DIR__ . '/build/index.css';
 		if ( ! is_readable( $file_path ) ) {
 			return;
 		}
 
 		wp_enqueue_style(
 			'yamabiko-table-reorder-style',
-			plugins_url( 'build/editor-extensions/table-reorder/index.css', __FILE__ ),
+			plugins_url( 'build/index.css', __FILE__ ),
 			array( 'wp-components' ),
 			(string) filemtime( $file_path )
 		);
@@ -85,8 +85,8 @@ final class Plugin {
 	 * @return string|null Script handle when the asset is available.
 	 */
 	private static function enqueue_table_reorder_script(): ?string {
-		$asset_path = __DIR__ . '/build/editor-extensions/table-reorder/index.asset.php';
-		$file_path  = __DIR__ . '/build/editor-extensions/table-reorder/index.js';
+		$asset_path = __DIR__ . '/build/index.asset.php';
+		$file_path  = __DIR__ . '/build/index.js';
 
 		if ( ! is_readable( $asset_path ) || ! is_readable( $file_path ) ) {
 			return null;
@@ -113,7 +113,7 @@ final class Plugin {
 
 		wp_enqueue_script(
 			$handle,
-			plugins_url( 'build/editor-extensions/table-reorder/index.js', __FILE__ ),
+			plugins_url( 'build/index.js', __FILE__ ),
 			$dependencies,
 			$version,
 			true
@@ -153,7 +153,7 @@ final class Plugin {
 	 * @param string $handle Enqueued Table Reorder script handle.
 	 */
 	private static function add_table_reorder_runtime_config( string $handle ): void {
-		$file_path = __DIR__ . '/build/editor-extensions/table-reorder/sortable.min.js';
+		$file_path = __DIR__ . '/build/sortable.min.js';
 
 		if ( ! is_readable( $file_path ) ) {
 			return;
@@ -162,7 +162,7 @@ final class Plugin {
 		$config = wp_json_encode(
 			array(
 				'runtimeUrl' => plugins_url(
-					'build/editor-extensions/table-reorder/sortable.min.js',
+					'build/sortable.min.js',
 					__FILE__
 				),
 			)

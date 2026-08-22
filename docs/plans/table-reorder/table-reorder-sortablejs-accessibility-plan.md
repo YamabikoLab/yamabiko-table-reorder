@@ -395,7 +395,7 @@ Touchでは「行を並び替え」モードをOFFにした場合も、activeな
   - iframe / non-iframeの両環境で `index.css` がeditorへ配信され、row control / target / 案内のstyleが適用されることを確認する。
   - 既存PC handle drag、Touch handle drag、rowspan制約、DOM restore before commit、Undo、セル編集、通常スクロールを回帰確認する。
   - WordPress i18n用の翻訳データを既存のリポジトリ手順に従って更新する。`i18n:json` をsource → build mapping対応へ拡張し、`wp i18n make-json --use-map` 等で `src/editor-extensions/table-reorder/messages.ts` の翻訳元を `build/editor-extensions/table-reorder/index.js` に対応付けたJSONを生成する。
-  - `src/editor-extensions/table-reorder/README.md` のfile責務とcontrol flowを更新する。
+  - `src/README.md` のfile責務とcontrol flowを更新する。
 - Validation:
   - Node品質gate、production build、repository diff checkを通す。
   - 実ブラウザーで要件・基本設計の受け入れ確認を行う。
@@ -415,8 +415,8 @@ Touchでは「行を並び替え」モードをOFFにした場合も、activeな
 - Gutenberg再描画をまたぐfocus復元requestだけを `use-table-reorder.ts` がrefで保持する。
 - 行control / target /案内 / live statusは `reorder-ui.ts` に集約し、drag専用UIは `drag-ui.ts` に残す。
 - `touch-press.ts` は廃止し、Touch専用の長押しtimer、開始threshold、セル短tap判定を持たない。
-- persistentなaccessibility UIの見た目は `editor.scss` に置く。Table ReorderのJS / runtime configは既存 `enqueue_block_editor_assets` を維持し、`yamabiko-editor-tools.php` の追加責務は生成された `build/editor-extensions/table-reorder/index.css` の `enqueue_block_assets` + `is_admin()` によるeditor content配信と、Table Reorder script handleへの `wp_set_script_translations()` による翻訳関連付けに限定する。
-- JavaScript翻訳JSONは既存i18n手順のsource → build mappingだけを追加し、`messages.ts` の翻訳元を実際にenqueueされる `build/editor-extensions/table-reorder/index.js` に対応付けて生成する。新しい汎用翻訳基盤は作らない。
+- persistentなaccessibility UIの見た目は `editor.scss` に置く。Table ReorderのJS / runtime configは既存 `enqueue_block_editor_assets` を維持し、`yamabiko-editor-tools.php` の追加責務は生成された `build/index.css` の `enqueue_block_assets` + `is_admin()` によるeditor content配信と、Table Reorder script handleへの `wp_set_script_translations()` による翻訳関連付けに限定する。
+- JavaScript翻訳JSONは既存i18n手順のsource → build mappingだけを追加し、`messages.ts` の翻訳元を実際にenqueueされる `build/index.js` に対応付けて生成する。新しい汎用翻訳基盤は作らない。
 - single-pointer sessionのcancelは、PCでは `Escape`、touchでは案内に併設する明示的なキャンセル操作を主経路とする。touch reorder modeをOFFにする場合もactive sessionをcancelしてからcleanupする。
 - PCポインター操作には初回コーチマークを設けない。PCキーボード利用時にはToolbar入口へ初回コーチマークを表示し、アイコンを強調するが、表示のためのfocus移動は行わない。
 - PCキーボード版とタッチ版の初回コーチマークは本実装に含め、Toolbar入口に紐づける。dismiss状態は別々に永続化し、一方を閉じても他方の初回表示を抑制しない。
@@ -464,7 +464,7 @@ Touchでは「行を並び替え」モードをOFFにした場合も、activeな
 - `npm test`
   - format、JavaScript lint、CSS lint、typecheck、Jest unit testが成功する。
 - `npm run build`
-  - `editor.scss` を含むTable Reorder production assetとして `build/editor-extensions/table-reorder/index.css` が生成できる。
+  - `editor.scss` を含むTable Reorder production assetとして `build/index.css` が生成できる。
 - `git diff --check origin/main...HEAD`
   - whitespace errorがない。
 - focused Jest

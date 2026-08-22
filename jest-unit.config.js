@@ -7,7 +7,7 @@ module.exports = {
 		'!src/**/*.test.{ts,tsx}',
 		'!src/**/*.test-utils.ts',
 		'!src/types/**',
-		'!src/editor-extensions/table-reorder/index.tsx',
+		'!src/index.tsx',
 	],
 	coverageThreshold: {
 		global: {

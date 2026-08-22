@@ -6,13 +6,14 @@ These instructions apply to plugin source files under `src/`.
 
 - The repository root is the plugin root.
 - Run npm, Composer, PHP, and build commands from the repository root.
-- Source files live under `src/`; generated production assets live under `build/` and are not committed.
+- `src/` is the Table Reorder source boundary; generated production assets live under `build/` and are not committed.
 
 ## Implementation rules
 
 - Prefer public WordPress APIs, hooks, components, and data stores.
-- Keep each block under `src/blocks/<block-name>/` and each non-block editor extension under its owning feature directory, following `../docs/development/source-organization.md`.
-- Do not create `shared/`, `utils/`, or `helpers/` until multiple real features need the same code.
+- Keep Table Reorder implementation directly under `src/` or an existing focused responsibility directory such as `src/controller/`, following `../docs/development/source-organization.md`.
+- Add a new source directory only when an implemented responsibility requires it; do not recreate a redundant feature wrapper around the whole plugin.
+- Do not create `shared/`, `utils/`, or `helpers/` until multiple real consumers need the same code.
 - Keep entry files small. They should register or compose a feature, not contain unrelated implementation details.
 - Treat saved block markup, attributes, identifiers, hooks, and persisted data as compatibility contracts.
 

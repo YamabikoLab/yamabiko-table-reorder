@@ -54,7 +54,7 @@ WordPress Playground で、インストール不要で行の並べ替えを体�
 
 ## 開発者向け
 
-実装は [`src/editor-extensions/table-reorder/`](src/editor-extensions/table-reorder/) にあります。
+実装は [`src/`](src/) にあります。
 
 ### 依存関係をインストール
 

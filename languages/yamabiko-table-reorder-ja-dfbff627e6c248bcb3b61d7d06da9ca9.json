@@ -1,7 +1,7 @@
 {
 	"translation-revision-date": "2026-08-20 06:05+0900",
 	"generator": "WP-CLI/2.12.0",
-	"source": "build/editor-extensions/table-reorder/index.js",
+	"source": "build/index.js",
 	"domain": "messages",
 	"locale_data": {
 		"messages": {

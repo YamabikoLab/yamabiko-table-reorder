@@ -1,6 +1,6 @@
 # Source organization
 
-Yamabiko Table Reorder keeps each editor feature in one owning directory. Keep metadata, entry code, UI, styles, focused logic, and tests close to the feature that owns them.
+Yamabiko Table Reorder is an independent plugin repository, so `src/` itself is the owning source boundary for Table Reorder. Keep the entry code, UI, styles, focused logic, and tests close to the implementation they belong to.
 
 Keep the structure concrete and small. Add a directory only when current implementation requires it.
 
@@ -11,38 +11,36 @@ The repository root is the WordPress plugin root.
 ```text
 .
 ├── src/
-│   └── editor-extensions/
-│       └── table-reorder/
+│   ├── index.tsx
+│   ├── editor.scss
+│   ├── block-support.ts
+│   ├── messages.ts
+│   ├── controller/
+│   └── types/
 ├── build/              # generated, not committed
 ├── package.json
 ├── composer.json
 └── yamabiko-table-reorder.php
 ```
 
-`src/editor-extensions/table-reorder/` is the current reference implementation. It keeps the Table Reorder entry point, editor UI, SortableJS integration, focused modules, styles, and tests together under one feature directory.
+`src/` is the current Table Reorder implementation boundary. Do not reintroduce a redundant `editor-extensions/table-reorder/` wrapper inside this dedicated plugin repository.
 
-## Feature directories
+## Source directories
 
-Use feature-first directories so a developer can find everything owned by one feature in one place.
+Keep files directly under `src/` while that remains the clearest location for their responsibility. Add focused subdirectories only when a real group of implementation responsibilities needs one.
 
-The current implemented source boundary is:
-
-```text
-src/editor-extensions/<extension-name>/
-```
-
-Use lowercase kebab-case feature directory names.
+The current `controller/` directory owns imperative reorder behavior and its UI helpers. The current `types/` directory owns source-level type declarations.
 
 Do not organize implementations into language-oriented trees such as `php/`, `js/`, `styles/`, or `includes/`.
 
-Other source categories such as custom blocks or rich-text formats should be introduced only when a real feature requires them. Define their concrete directory shape at that time rather than keeping unused scaffolding in advance.
+Do not add placeholder source categories for possible future features. Define a concrete directory shape only when an implemented responsibility requires it.
 
-## Table Reorder example
+## Table Reorder structure
 
-Table Reorder currently follows this feature-first shape:
+The current implementation follows this shape:
 
 ```text
-src/editor-extensions/table-reorder/
+src/
 ├── index.tsx
 ├── editor.scss
 ├── block-support.ts
@@ -69,9 +67,9 @@ Dependencies may flow from Table Reorder controller consumers into `controller/r
 
 ## Entry files
 
-Each feature's `index.ts` or `index.tsx` is a thin entry point. It may import implementations and styles, then register or compose the feature with public WordPress APIs.
+`src/index.tsx` is a thin entry point. It may import implementations and styles, then register or compose Table Reorder with public WordPress APIs.
 
-It must not become the main location for substantial UI, state management, transformations, validation, network operations, or unrelated behavior. Move those responsibilities into clearly named files inside the owning feature.
+It must not become the main location for substantial UI, state management, transformations, validation, network operations, or unrelated behavior. Move those responsibilities into clearly named files under `src/` or an existing focused subdirectory.
 
 ## Editor boundaries
 
@@ -79,13 +77,13 @@ Editor components own the editing experience, including controls, labels, select
 
 Use semantic markup and ensure that meaning is not communicated by color alone.
 
-If a future feature introduces front-end rendering or another runtime boundary, keep that boundary inside the owning feature and document its responsibility when it becomes real.
+If a future feature introduces front-end rendering or another runtime boundary, keep that boundary explicit and document its responsibility when it becomes real.
 
 ## Shared code
 
 Do not create generic `shared/`, `utils/`, or `helpers/` directories for possible future reuse.
 
-Keep code inside its owning feature until at least two real features need the same stable behavior. When extracting shared code, give it a specific responsibility, keep its public surface small, avoid dependencies on one feature's internal details, and update imports and tests in the same change.
+Keep code with its owning responsibility until at least two real consumers need the same stable behavior. When extracting shared code, give it a specific responsibility, keep its public surface small, avoid dependencies on one consumer's internal details, and update imports and tests in the same change.
 
 Small duplication is preferable to an unclear abstraction.
 
@@ -93,7 +91,7 @@ Small duplication is preferable to an unclear abstraction.
 
 Keep focused TypeScript tests beside the modules they verify. Use a top-level test directory only for repository-wide, integration, PHP, or end-to-end behavior that does not belong naturally beside one source module.
 
-`build/` is generated by `npm run build` or `npm start`. Do not edit or commit it. `node_modules/` and `vendor/` are installed dependencies and are also not committed. Lockfiles remain committed so installations are reproducible.
+`build/` is generated by `npm run build` or `npm start`. Production assets are emitted directly under `build/`, including the Table Reorder entry assets and `sortable.min.js`. Do not edit or commit `build/`. `node_modules/` and `vendor/` are installed dependencies and are also not committed. Lockfiles remain committed so installations are reproducible.
 
 ## Evolving the structure
 

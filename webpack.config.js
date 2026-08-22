@@ -2,7 +2,7 @@ const fs = require( 'node:fs' );
 
 const defaultConfig = require( '@wordpress/scripts/config/webpack.config' );
 
-const SORTABLEJS_TABLE_REORDER_ASSET = 'editor-extensions/table-reorder/sortable.min.js';
+const SORTABLEJS_TABLE_REORDER_ASSET = 'sortable.min.js';
 
 class EmitSortableJsTableReorderRuntimePlugin {
 	apply( compiler ) {
@@ -32,7 +32,7 @@ class EmitSortableJsTableReorderRuntimePlugin {
 module.exports = {
 	...defaultConfig,
 	entry: {
-		'editor-extensions/table-reorder/index': './src/editor-extensions/table-reorder/index.tsx',
+		index: './src/index.tsx',
 	},
 	plugins: [ ...( defaultConfig.plugins ?? [] ), new EmitSortableJsTableReorderRuntimePlugin() ],
 };
