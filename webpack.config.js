@@ -32,7 +32,7 @@ class EmitSortableJsTableReorderRuntimePlugin {
 module.exports = {
 	...defaultConfig,
 	entry: {
-		'editor-extensions/table-reorder/index': './src/editor-extensions/table-reorder/index.tsx',
+		'editor-extensions/table-reorder/index': './src/index.tsx',
 	},
 	plugins: [ ...( defaultConfig.plugins ?? [] ), new EmitSortableJsTableReorderRuntimePlugin() ],
 };

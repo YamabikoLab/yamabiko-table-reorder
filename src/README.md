@@ -89,7 +89,7 @@ The dependency direction stays from the Gutenberg / React boundary toward lower-
 The extension entry is:
 
 ```text
-src/editor-extensions/table-reorder/index.tsx
+src/index.tsx
 ```
 
 `webpack.config.js` emits the npm-provided `sortablejs/Sortable.min.js` runtime into the Table Reorder build directory. `yamabiko-table-reorder.php` enqueues the editor entry and exposes the local runtime URL to the editor script.

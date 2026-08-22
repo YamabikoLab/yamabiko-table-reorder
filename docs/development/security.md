@@ -21,7 +21,7 @@ These areas should be reassessed when the product starts using them rather than 
 
 The PHP entry point is responsible primarily for registering and enqueueing local plugin assets. Existing WPCS and PHPStan checks continue to cover coding-standard and static-analysis concerns, while Gitleaks covers committed secrets.
 
-Table Reorder loads its SortableJS runtime by assigning `runtimeUrl` to a script element. This URL is generated in PHP with `plugins_url()` for the plugin-owned `build/editor-extensions/table-reorder/sortable.min.js` asset and is serialized with `wp_json_encode()`. It is not derived from request data or another external input. Treat this local-asset origin as the important boundary if the runtime-loading design changes.
+Table Reorder loads its SortableJS runtime by assigning `runtimeUrl` to a script element. This URL is generated in PHP with `plugins_url()` for the plugin-owned `build/sortable.min.js` asset and is serialized with `wp_json_encode()`. It is not derived from request data or another external input. Treat this local-asset origin as the important boundary if the runtime-loading design changes.
 
 DOM updates should continue to use React or safe DOM text/property APIs for user-visible values. If future code accepts request, stored, decoded, or external values, apply the validation, authorization, sanitization, and final-context escaping rules in `foundation.md`.
 
