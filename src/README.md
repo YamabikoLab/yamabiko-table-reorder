@@ -23,7 +23,7 @@ Table Reorder extends the Core Table block with row reordering powered by Sortab
 ## Files and responsibilities
 
 ```text
-table-reorder/
+src/
 ├─ index.tsx
 ├─ with-table-reorder.tsx
 ├─ use-table-reorder.ts
@@ -50,8 +50,8 @@ table-reorder/
 │  ├─ drag-ui.test.ts
 │  ├─ row-order.ts
 │  ├─ row-order.test.ts
-│  ├─ sortable-runtime.ts
-│  └─ sortable-runtime.test.ts
+│  ├─ sortable-runtime-loader.ts
+│  └─ sortable-runtime-loader.test.ts
 ├─ table-context.ts
 ├─ table-context.test.ts
 ├─ rowspan.ts
@@ -62,7 +62,7 @@ table-reorder/
 Responsibility boundaries:
 
 - `index.tsx`: registers the HOC with `editor.BlockEdit` and loads the editor styles.
-- `with-table-reorder.tsx`: identifies `core/table`, renders the original `BlockEdit`, renders touch reorder controls, and provides the hidden anchor used to locate the Table DOM.
+- `with-table-reorder.tsx`: identifies supported table blocks, renders the original `BlockEdit`, renders touch reorder controls, and provides the hidden anchor used to locate the Table DOM.
 - `use-table-reorder.ts`: connects Gutenberg notices and `setAttributes()` to the lower-level Table Reorder hooks and returns the state / commands consumed by the HOC.
 - `use-table-reorder-interaction.ts`: owns hover capability, input modality, touch reorder mode, coachmark preferences, and the interaction mode passed to the controller lifecycle.
 - `use-table-reorder-controller.ts`: owns controller creation / destruction / recreation, delayed lifecycle safety, and focus restoration after body commits.
@@ -73,26 +73,24 @@ Responsibility boundaries:
 - `controller/reorder-ui/row-move-targets.ts`: owns pointer / touch destination buttons, touch cancellation, tap-vs-swipe handling, positioning, guidance integration, and cleanup.
 - `controller/reorder-ui/live-status.ts`: owns document-scoped assistive-technology status announcements and their visually-hidden / ARIA contract.
 - `table-context.ts`: resolves the Table block and its owning `document`, `window`, `table`, and `tbody`, including iframe fallback.
-- `controller/sortable-runtime.ts`: loads or reuses the SortableJS runtime in the owning editor window.
+- `controller/sortable-runtime-loader.ts`: loads or reuses the SortableJS runtime in the owning editor window.
 - `controller/drag-ui.ts`: owns short-lived drag UI and restoration, including the insertion line and fallback row widths.
 - `controller/row-order.ts`: owns deterministic row reordering, movement validation, insertion index calculation, valid destination calculation, and restoration of the original DOM row order.
 - `rowspan.ts`: owns vertical-merge range analysis and movement / insertion restrictions.
 - `messages.ts`: owns translated Table Reorder messages and accessible labels.
 - `editor.scss`: owns editor-side presentation for row controls and destination-selection UI.
 
-The former `controller/touch-press.ts` long-press tracker is no longer needed. Touch DnD uses the same handle boundary as PC, so cell taps and normal table scrolling do not require a separate press tracker or touch-mode pointer-event suppression.
-
 The dependency direction stays from the Gutenberg / React boundary toward lower-level modules. Current consumers continue to import the reorder UI contract through `controller/reorder-ui`; among the UI modules, `row-move-targets.ts` depends only on `row-controls.ts` and `reorder-guidance.ts`, and the lower-level UI modules do not depend back on the facade.
 
 ## Build integration
 
-The extension entry is:
+The entry is:
 
 ```text
 src/index.tsx
 ```
 
-`webpack.config.js` emits the npm-provided `sortablejs/Sortable.min.js` runtime into the Table Reorder build directory. `yamabiko-table-reorder.php` enqueues the editor entry and exposes the local runtime URL to the editor script.
+`webpack.config.js` emits the entry assets and the npm-provided `sortablejs/Sortable.min.js` runtime directly under `build/`. `yamabiko-table-reorder.php` enqueues the editor entry and exposes the local runtime URL to the editor script.
 
 Run:
 

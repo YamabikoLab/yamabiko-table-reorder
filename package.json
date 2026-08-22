@@ -30,7 +30,7 @@
 		"i18n:extract-js": "rm -f languages/.yamabiko-table-reorder-js.pot languages/.i18n-messages.js && babel src/messages.ts --out-file languages/.i18n-messages.js --config-file ./babel.i18n.config.js",
 		"i18n:pot": "npm run i18n:extract-js && wp i18n make-pot . languages/yamabiko-table-reorder.pot --domain=yamabiko-table-reorder --include=yamabiko-table-reorder.php --skip-js --merge=languages/.yamabiko-table-reorder-js.pot && rm -f languages/.yamabiko-table-reorder-js.pot languages/.i18n-messages.js",
 		"i18n:po": "wp i18n update-po languages/yamabiko-table-reorder.pot languages/yamabiko-table-reorder-ja.po",
-		"i18n:json": "wp i18n make-json languages/yamabiko-table-reorder-ja.po languages --domain=yamabiko-table-reorder --extensions=ts,tsx --use-map='{\"src/messages.ts\":\"build/editor-extensions/table-reorder/index.js\"}' --no-purge && prettier --write \"languages/*.json\"",
+		"i18n:json": "wp i18n make-json languages/yamabiko-table-reorder-ja.po languages --domain=yamabiko-table-reorder --extensions=ts,tsx --use-map='{\"src/messages.ts\":\"build/index.js\"}' --no-purge && prettier --write \"languages/*.json\"",
 		"i18n": "npm run i18n:pot && npm run i18n:po && npm run i18n:json"
 	},
 	"devDependencies": {
