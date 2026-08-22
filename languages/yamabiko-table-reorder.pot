@@ -3,141 +3,157 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: Yamabiko Table Reorder 0.3.3\n"
-"Report-Msgid-Bugs-To: https://wordpress.org/support/plugin/yamabiko-table-reorder\n"
+"Report-Msgid-Bugs-To: https://wordpress.org/support/plugin/project\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-08-23T06:38:00+09:00\n"
+"POT-Creation-Date: 2026-08-23T07:22:06+09:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: yamabiko-table-reorder\n"
 
+#: src/editor-extensions/table-reorder/messages.ts:102
+msgid "No rows can be reordered."
+msgstr ""
+
+#. 1: representative row text, 2: current row number, 3: total row count.
+#: src/editor-extensions/table-reorder/messages.ts:117
+msgid "Moving %1$s, row %2$d of %3$d."
+msgstr ""
+
+#: src/editor-extensions/table-reorder/messages.ts:12
+msgid "Enter / Space: start moving"
+msgstr ""
+
+#. 1: representative row text.
+#: src/editor-extensions/table-reorder/messages.ts:128
+msgid "%1$s selected. Choose a destination."
+msgstr ""
+
+#. 1: representative row text, 2: destination row number, 3: total row count.
+#: src/editor-extensions/table-reorder/messages.ts:145
+msgid "Move %1$s to position %2$d of %3$d."
+msgstr ""
+
+#: src/editor-extensions/table-reorder/messages.ts:16
+msgid "↑↓ Move　Enter / Space Confirm　Esc Cancel"
+msgstr ""
+
+#. 1: representative row text, 2: original row number, 3: destination row number.
+#: src/editor-extensions/table-reorder/messages.ts:162
+msgid "Moved %1$s from position %2$d to %3$d."
+msgstr ""
+
+#. 1: representative row text, 2: unchanged row number.
+#: src/editor-extensions/table-reorder/messages.ts:174
+msgid "Canceled moving %1$s. It remains at position %2$d."
+msgstr ""
+
+#: src/editor-extensions/table-reorder/messages.ts:196
+msgid "up"
+msgstr ""
+
+#: src/editor-extensions/table-reorder/messages.ts:197
+msgid "down"
+msgstr ""
+
+#. 1: representative row text, 2: translated movement direction.
+#: src/editor-extensions/table-reorder/messages.ts:199
+msgid "%1$s cannot move any farther %2$s."
+msgstr ""
+
+#: src/editor-extensions/table-reorder/messages.ts:20
+msgid "Click destination　Esc Cancel"
+msgstr ""
+
+#. 1: representative row text.
+#: src/editor-extensions/table-reorder/messages.ts:210
+msgid "%1$s cannot be moved because it is within a cell that spans multiple rows."
+msgstr ""
+
+#: src/editor-extensions/table-reorder/messages.ts:219
+msgid "There are no rows that can be reordered in this table."
+msgstr ""
+
+#: src/editor-extensions/table-reorder/messages.ts:24
+msgid "Handle: drag to move / tap to choose destination　Cell: tap to edit"
+msgstr ""
+
+#: src/editor-extensions/table-reorder/messages.ts:31
+msgid "Tap destination"
+msgstr ""
+
+#: src/editor-extensions/table-reorder/messages.ts:35
+msgid "Reorder rows with the keyboard. Select “Reorder rows” in the toolbar, then use Tab / Shift+Tab to choose a row to reorder."
+msgstr ""
+
+#: src/editor-extensions/table-reorder/messages.ts:4
+msgid "Empty row"
+msgstr ""
+
+#: src/editor-extensions/table-reorder/messages.ts:42
+msgid "Tap “Reorder rows” in the toolbar to begin."
+msgstr ""
+
+#. 1: row number, 2: representative row text.
+#: src/editor-extensions/table-reorder/messages.ts:52
+msgid "Reorder row %1$d: %2$s"
+msgstr ""
+
+#: src/editor-extensions/table-reorder/messages.ts:58
+msgid "Drag to move this row, or activate to choose a destination."
+msgstr ""
+
+#: src/editor-extensions/table-reorder/messages.ts:62
+msgid "Press Enter or Space to start moving this row."
+msgstr ""
+
+#. 1: row number, 2: representative row text.
+#: src/editor-extensions/table-reorder/messages.ts:72
+msgid "Move before row %1$d: %2$s"
+msgstr ""
+
+#: src/editor-extensions/table-reorder/messages.ts:78
+msgid "Move to the end of the table."
+msgstr ""
+
+#: src/editor-extensions/table-reorder/messages.ts:8
+msgid "Drag to move, or click to choose a destination."
+msgstr ""
+
+#: src/editor-extensions/table-reorder/messages.ts:81
+msgid "Cancel"
+msgstr ""
+
+#: src/editor-extensions/table-reorder/messages.ts:84
+msgid "Close guidance"
+msgstr ""
+
+#: src/editor-extensions/table-reorder/messages.ts:87
+msgid "Reorder rows"
+msgstr ""
+
+#: src/editor-extensions/table-reorder/messages.ts:91
+msgid "Move table rows using drag and drop, the keyboard, or destination selection."
+msgstr ""
+
+#: src/editor-extensions/table-reorder/messages.ts:98
+msgid "This row is in a row-spanning cell and can’t be moved."
+msgstr ""
+
+#. Plugin Name of the plugin
 #: yamabiko-table-reorder.php
 msgid "Yamabiko Table Reorder"
 msgstr ""
 
+#. Description of the plugin
 #: yamabiko-table-reorder.php
 msgid "Accessible table row reordering for supported blocks in the WordPress block editor."
 msgstr ""
 
-#: build/editor-extensions/table-reorder/index.js:1
-msgid "Empty row"
-msgstr ""
-
-#: build/editor-extensions/table-reorder/index.js:1
-msgid "Drag to move, or click to choose a destination."
-msgstr ""
-
-#: build/editor-extensions/table-reorder/index.js:1
-msgid "Enter / Space: start moving"
-msgstr ""
-
-#: build/editor-extensions/table-reorder/index.js:1
-msgid "↑↓ Move　Enter / Space Confirm　Esc Cancel"
-msgstr ""
-
-#: build/editor-extensions/table-reorder/index.js:1
-msgid "Click destination　Esc Cancel"
-msgstr ""
-
-#: build/editor-extensions/table-reorder/index.js:1
-msgid "Handle: drag to move / tap to choose destination　Cell: tap to edit"
-msgstr ""
-
-#: build/editor-extensions/table-reorder/index.js:1
-msgid "Tap destination"
-msgstr ""
-
-#: build/editor-extensions/table-reorder/index.js:1
-msgid "Reorder rows with the keyboard. Select “Reorder rows” in the toolbar, then use Tab / Shift+Tab to choose a row to reorder."
-msgstr ""
-
-#: build/editor-extensions/table-reorder/index.js:1
-msgid "Tap “Reorder rows” in the toolbar to begin."
-msgstr ""
-
-#: build/editor-extensions/table-reorder/index.js:1
-msgid "Reorder row %1$d: %2$s"
-msgstr ""
-
-#: build/editor-extensions/table-reorder/index.js:1
-msgid "Drag to move this row, or activate to choose a destination."
-msgstr ""
-
-#: build/editor-extensions/table-reorder/index.js:1
-msgid "Press Enter or Space to start moving this row."
-msgstr ""
-
-#: build/editor-extensions/table-reorder/index.js:1
-msgid "Move before row %1$d: %2$s"
-msgstr ""
-
-#: build/editor-extensions/table-reorder/index.js:1
-msgid "Move to the end of the table."
-msgstr ""
-
-#: build/editor-extensions/table-reorder/index.js:1
-msgid "Cancel"
-msgstr ""
-
-#: build/editor-extensions/table-reorder/index.js:1
-msgid "Close guidance"
-msgstr ""
-
-#: build/editor-extensions/table-reorder/index.js:1
-msgid "Reorder rows"
-msgstr ""
-
-#: build/editor-extensions/table-reorder/index.js:1
-msgid "Move table rows using drag and drop, the keyboard, or destination selection."
-msgstr ""
-
-#: build/editor-extensions/table-reorder/index.js:1
-msgid "This row is in a row-spanning cell and can’t be moved."
-msgstr ""
-
-#: build/editor-extensions/table-reorder/index.js:1
-msgid "No rows can be reordered."
-msgstr ""
-
-#: build/editor-extensions/table-reorder/index.js:1
-msgid "Moving %1$s, row %2$d of %3$d."
-msgstr ""
-
-#: build/editor-extensions/table-reorder/index.js:1
-msgid "%1$s selected. Choose a destination."
-msgstr ""
-
-#: build/editor-extensions/table-reorder/index.js:1
-msgid "Move %1$s to position %2$d of %3$d."
-msgstr ""
-
-#: build/editor-extensions/table-reorder/index.js:1
-msgid "Moved %1$s from position %2$d to %3$d."
-msgstr ""
-
-#: build/editor-extensions/table-reorder/index.js:1
-msgid "Canceled moving %1$s. It remains at position %2$d."
-msgstr ""
-
-#: build/editor-extensions/table-reorder/index.js:1
-msgid "up"
-msgstr ""
-
-#: build/editor-extensions/table-reorder/index.js:1
-msgid "down"
-msgstr ""
-
-#: build/editor-extensions/table-reorder/index.js:1
-msgid "%1$s cannot move any farther %2$s."
-msgstr ""
-
-#: build/editor-extensions/table-reorder/index.js:1
-msgid "%1$s cannot be moved because it is within a cell that spans multiple rows."
-msgstr ""
-
-#: build/editor-extensions/table-reorder/index.js:1
-msgid "There are no rows that can be reordered in this table."
+#. Author of the plugin
+#: yamabiko-table-reorder.php
+msgid "YamabikoLab"
 msgstr ""
