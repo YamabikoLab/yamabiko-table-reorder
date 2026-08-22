@@ -4,6 +4,9 @@
 	"jest": {
 		"config": [ "jest-unit.config.js" ]
 	},
+	"babel": {
+		"config": [ "babel.i18n.config.js" ]
+	},
 	"eslint": true,
 	"ignoreDependencies": [ "@wordpress/jest-preset-default" ],
 	"ignoreBinaries": [ "wp" ]
