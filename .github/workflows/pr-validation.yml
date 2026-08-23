@@ -2,6 +2,12 @@ name: PR Validation
 
 on:
   workflow_dispatch:
+    inputs:
+      run_e2e:
+        description: 'Run E2E tests'
+        required: true
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -99,6 +105,7 @@ jobs:
         run: composer analyse:php
 
   e2e:
+    if: ${{ inputs.run_e2e }}
     name: E2E (${{ matrix.wordpress_version }} / ${{ matrix.editor_mode }})
     runs-on: ubuntu-latest
     timeout-minutes: 30
