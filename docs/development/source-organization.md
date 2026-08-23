@@ -1,6 +1,6 @@
 # Source organization
 
-Yamabiko Table Reorder is an independent plugin repository, so `src/` itself is the owning source boundary for Table Reorder. Keep the entry code, UI, styles, focused logic, and tests close to the implementation they belong to.
+Yamabiko Table Reorder is an independent plugin repository. `src/` is the owning source boundary, with explicit feature and environment boundaries inside it.
 
 Keep the structure concrete and small. Add a directory only when current implementation requires it.
 
@@ -12,10 +12,8 @@ The repository root is the WordPress plugin root.
 .
 ├── src/
 │   ├── index.tsx
-│   ├── editor.scss
-│   ├── block-support.ts
-│   ├── messages.ts
-│   ├── controller/
+│   ├── common/
+│   ├── row-reorder/
 │   └── types/
 ├── build/              # generated, not committed
 ├── package.json
@@ -23,67 +21,113 @@ The repository root is the WordPress plugin root.
 └── yamabiko-table-reorder.php
 ```
 
-`src/` is the current Table Reorder implementation boundary. Do not reintroduce a redundant `editor-extensions/table-reorder/` wrapper inside this dedicated plugin repository.
+Do not reintroduce the former `editor-extensions/table-reorder/` wrapper inside this dedicated plugin repository.
 
-## Source directories
+## Source boundaries
 
-Keep files directly under `src/` while that remains the clearest location for their responsibility. Add focused subdirectories only when a real group of implementation responsibilities needs one.
+### `src/index.tsx`
 
-The current `controller/` directory owns imperative reorder behavior and its UI helpers. The current `types/` directory owns source-level type declarations.
+`src/index.tsx` is the thin plugin-wide entry point. It may import implemented feature boundaries and styles, then register or compose them with public WordPress APIs.
 
-Do not organize implementations into language-oriented trees such as `php/`, `js/`, `styles/`, or `includes/`.
+It must not become the main location for substantial UI, state management, transformations, validation, network operations, or unrelated behavior.
 
-Do not add placeholder source categories for possible future features. Define a concrete directory shape only when an implemented responsibility requires it.
+### `src/row-reorder/`
 
-## Table Reorder structure
+`row-reorder/` owns code that knows about rows, `tbody`, `rowspan`, row movement, row controls, or the row-reorder interaction model.
 
-The current implementation follows this shape:
+That includes the supported-block boundary, Table DOM context, messages, editor styles, React integration, row constraints, and the imperative controller/UI implementation.
+
+The row-specific controller lives under:
+
+```text
+src/row-reorder/controller/
+```
+
+There is no repository-level `src/controller/` source boundary.
+
+### `src/common/`
+
+`common/` owns only infrastructure whose responsibility is independent of row reordering and can remain the same for another implemented feature.
+
+The current common responsibilities are:
+
+```text
+src/common/
+├── editor-environment.ts
+├── editor-environment.test.ts
+├── sortable-runtime-loader.ts
+└── sortable-runtime-loader.test.ts
+```
+
+`editor-environment.ts` owns iframe / non-iframe editor browsing-context discovery and resolves the current editor `document` / `window` without caching them across editor lifecycle changes.
+
+`sortable-runtime-loader.ts` owns loading or reusing the SortableJS runtime in the owning editor window.
+
+`common/` must not depend on `row-reorder/`.
+
+Do not move Table DOM context, block support, guidance, live status, scrolling, interaction models, drag UI, or controller lifecycle into `common/` merely because they might be reusable later. Extract only after multiple real consumers demonstrate the same stable responsibility.
+
+### `src/types/`
+
+`types/` owns source-level declarations that are not implementation of a feature.
+
+## Current structure
+
+The implementation follows this responsibility shape:
 
 ```text
 src/
 ├── index.tsx
-├── editor.scss
-├── block-support.ts
-├── block-support.test.ts
-├── editor-environment.ts
-├── editor-environment.test.ts
-├── use-table-reorder.ts
-├── with-table-reorder.tsx
-├── messages.ts
-├── messages.test.ts
-├── rowspan.ts
-├── rowspan.test.ts
-├── table-context.ts
-├── table-context.test.ts
-└── controller/
-    └── reorder-ui/
+├── AGENTS.md
+├── README.md
+├── common/
+│   ├── editor-environment.ts
+│   ├── editor-environment.test.ts
+│   ├── sortable-runtime-loader.ts
+│   └── sortable-runtime-loader.test.ts
+├── row-reorder/
+│   ├── block-support.ts
+│   ├── block-support.test.ts
+│   ├── table-context.ts
+│   ├── table-context.test.ts
+│   ├── rowspan.ts
+│   ├── rowspan.test.ts
+│   ├── messages.ts
+│   ├── messages.test.ts
+│   ├── editor.scss
+│   ├── use-table-reorder.ts
+│   ├── use-table-reorder-controller.ts
+│   ├── use-table-reorder-interaction.ts
+│   ├── with-table-reorder.tsx
+│   └── controller/
+│       ├── sortable-controller.ts
+│       ├── row-order.ts
+│       ├── drag-ui.ts
+│       ├── scroll-target.ts
+│       └── reorder-ui/
+└── types/
+    └── styles.d.ts
 ```
 
-The exact file set is driven by current responsibilities. New files or subdirectories should be added only when they make an existing responsibility clearer.
+Tests stay beside the modules they verify.
 
-`block-support.ts` is the thin boundary for differences between Table Reorder-supported block types. It owns only supported block-name recognition and the minimal block-specific attribute differences needed by Table Reorder. Higher-level BlockEdit integration may depend on this boundary, while controller lifecycle, DOM discovery, row-order logic, and UI modules must remain block-independent.
+A future `column-reorder/` boundary should be added only when column reordering is actually implemented. Row and column behavior should remain separate until real implementation demonstrates a stable responsibility worth moving into `common/`.
 
-`editor-environment.ts` is the thin boundary for editor browsing-context discovery. It owns iframe / non-iframe detection and resolves the current editor `document` / `window` without caching them across editor lifecycle changes. It must not become a general DOM or browser API wrapper; consumers may continue to use node-local context and standard Web APIs directly when that use is unrelated to editor-context discovery.
+## Dependency direction
 
-`table-context.ts` consumes the Editor Environment boundary and owns Table-specific DOM resolution such as the target block element, table, and tbody. It must not duplicate iframe detection or editor browsing-context fallback logic.
+The intended dependency direction is:
 
-`controller/reorder-ui/` is owned by the Table Reorder controller UI boundary. Its `index.ts` is the compatibility facade used by controller consumers, while the sibling modules inside that directory own focused row-control, guidance, row-move-target, and live-status UI lifecycles.
+```text
+src/index.tsx
+    ↓
+row-reorder/
+    ↓
+common/
+```
 
-Dependencies may flow from Table Reorder controller consumers into `controller/reorder-ui/index.ts`, and from `row-move-targets.ts` into `row-controls.ts` and `reorder-guidance.ts`. The focused UI modules may depend on lower-level Table Reorder modules such as `messages.ts` and `controller/row-order.ts`, but they must not depend back on the facade or on higher-level controller consumers.
+`common/` must not import from `row-reorder/`.
 
-## Entry files
-
-`src/index.tsx` is a thin entry point. It may import implementations and styles, then register or compose Table Reorder with public WordPress APIs.
-
-It must not become the main location for substantial UI, state management, transformations, validation, network operations, or unrelated behavior. Move those responsibilities into clearly named files under `src/` or an existing focused subdirectory.
-
-## Editor boundaries
-
-Editor components own the editing experience, including controls, labels, selection behavior, and editor-facing validation messages.
-
-Use semantic markup and ensure that meaning is not communicated by color alone.
-
-If a future feature introduces front-end rendering or another runtime boundary, keep that boundary explicit and document its responsibility when it becomes real.
+Within `row-reorder/`, keep the existing focused controller and `reorder-ui` responsibilities. Do not introduce a generic row/column controller or `axis: 'row' | 'column'` abstraction in anticipation of future column support.
 
 ## Shared code
 
