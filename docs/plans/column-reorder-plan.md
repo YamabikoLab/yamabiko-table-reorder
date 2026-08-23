@@ -1,50 +1,50 @@
-# PLAN-422: Column Reorder implementation
+# PLAN-422: 列並べ替え実装
 
-## References
+## 参照
 
-- Parent issue: #422
-- Requirements: #422 discussion and the current column-reorder design decisions
-- Design: `docs/development/source-organization.md`, especially the `common` / `row-reorder` ownership rules established by #449 / PR #450
+- 親 Issue: #422
+- 要件: #422 の議論および現在の列並べ替えに関する設計判断
+- 設計: `docs/development/source-organization.md`。特に #449 / PR #450 で確立した `common` / `row-reorder` の責務境界
 
-## Goal
+## 目的
 
-Define a staged implementation path for adding accessible column reordering to Core Table and Flexible Table Block without coupling column behavior to the existing row-reorder implementation or introducing shared abstractions before real reuse is proven.
+既存の行並べ替え実装へ列固有の振る舞いを結合せず、また実際の再利用が確認される前に共通 abstraction を導入せずに、Core Table / Flexible Table Block へアクセシブルな列並べ替えを追加するための段階的な実装経路を定義する。
 
-The plan should be detailed enough to create one implementation parent issue and a small set of child issues whose boundaries are stable and independently reviewable.
+このプランは、実装親 Issue と、境界が安定し個別にレビュー可能な少数の子 Issue を作成できる粒度まで具体化する。
 
-## Scope
+## スコープ
 
-### Included
+### 対象
 
-- Add column reordering as an independent `src/column-reorder/` feature boundary.
-- Define the canonical data transformation for moving one column across `head` / `body` / `foot`.
-- Define the DOM/context boundary needed by column UI without changing row-specific context prematurely.
-- Define the column control model and interaction flow for pointer, keyboard, single-pointer, and touch operation.
-- Reuse the existing Editor Environment and SortableJS runtime loader from `src/common/`.
-- Define when row/column duplication should remain local and when a responsibility may move to `common/`.
-- Stage merged-cell support behind a later logical-grid phase.
-- Define the unit, integration, and E2E validation strategy.
-- Produce a child-issue breakdown after this plan is reviewed.
+- 列並べ替えを独立した `src/column-reorder/` feature boundary として追加する。
+- `head` / `body` / `foot` を横断して1列を移動する canonical data transformation を定義する。
+- 行専用 context を先回りして変更せず、列 UI に必要な DOM / context 境界を定義する。
+- Pointer / Keyboard / single pointer / Touch に対応する column control と interaction flow を定義する。
+- `src/common/` の既存 Editor Environment と SortableJS runtime loader を再利用する。
+- row / column 間の重複を feature 内に残す条件と、`common/` へ移す条件を定義する。
+- 結合セル対応は後続の logical grid フェーズとして分離する。
+- unit / integration / E2E の検証方針を定義する。
+- このプランのレビュー後に、子 Issue の分割案を確定する。
 
-### Not included
+### 対象外
 
-- Implementing column reordering in this plan task.
-- Refactoring row reorder into a generic row/column controller before column implementation exists.
-- Adding `axis: 'row' | 'column'` abstractions across existing row code.
-- Moving row-specific block support, table context, guidance, live status, scrolling, drag UI, or controller lifecycle into `common/` in anticipation of future reuse.
-- Replacing SortableJS.
-- Multiple-column selection or multi-column movement.
-- Moving a merged multi-column region as one unit.
-- Column resizing.
-- Simultaneous row and column drag.
-- Changes to Flexible Table Block itself.
-- A generic adapter framework for arbitrary table blocks.
+- このプラン作成タスク内で列並べ替えを実装すること。
+- 列実装が存在する前に、行並べ替えを汎用 row / column controller へリファクタリングすること。
+- 既存の行実装へ `axis: 'row' | 'column'` abstraction を導入すること。
+- 将来の再利用を見越して、行固有の block support、table context、guidance、live status、scroll、drag UI、controller lifecycle を `common/` へ移すこと。
+- SortableJS の置き換え。
+- 複数列の選択・同時移動。
+- 複数列にまたがる結合領域を1単位として移動すること。
+- 列幅リサイズ。
+- 行と列の同時 drag。
+- Flexible Table Block 本体への変更。
+- 任意の table block に対応する汎用 adapter framework の構築。
 
-## Approach
+## 方針
 
-Treat column reorder as a separate feature first, then compare the completed row and column implementations before extracting shared code.
+まず列並べ替えを独立 feature として実装し、行・列の実装が両方存在してから共通コードを比較・抽出する。
 
-The initial dependency shape is:
+初期の依存関係は次とする。
 
 ```text
                    src/index.tsx
@@ -56,98 +56,98 @@ The initial dependency shape is:
                       common/
 ```
 
-`column-reorder/` must not import implementation details from `row-reorder/`.
+`column-reorder/` から `row-reorder/` の実装詳細へ依存させない。
 
-Only responsibilities that are already feature-neutral and stable are shared from the start:
+最初から共有するのは、すでに feature-neutral かつ責務が安定している次のものだけとする。
 
 - `src/common/editor-environment.ts`
 - `src/common/sortable-runtime-loader.ts`
 
-For other areas, small duplication is preferable to an unclear abstraction. A shared extraction is considered only after both row and column consumers demonstrate the same stable responsibility.
+その他については、不明瞭な abstraction より小さな重複を許容する。共通化は、row / column の両 consumer が同じ安定した責務を必要とすることを実装上確認してから検討する。
 
-Column movement uses Gutenberg attributes as the canonical data source. The live table DOM is never the authoritative state for the final order.
+列移動では Gutenberg attributes を canonical data source とする。最終的な列順について、実 table DOM を authoritative state としない。
 
-The first implementation milestone intentionally excludes merged cells. This keeps the first data transformation simple and gives UI/controller work a stable base before introducing logical-grid complexity.
+最初の実装 milestone では結合セルを対象外とする。これにより、最初の data transformation を単純に保ち、logical grid の複雑さを導入する前に UI / controller が依存できる安定した基盤を作る。
 
-## Architecture
+## アーキテクチャ
 
 ### Plugin entry
 
-`src/index.tsx` remains the thin plugin-wide entry. Once column reorder is implemented, it may compose both feature adapters but must not absorb feature logic.
+`src/index.tsx` は plugin 全体の薄い entry のまま維持する。列並べ替え実装後は row / column の両 feature adapter を compose してよいが、feature logic 自体は持たせない。
 
 ### `src/common/`
 
-Keep the existing shared environment/runtime responsibilities:
+既存の共通 environment / runtime 責務を維持する。
 
-- `editor-environment.ts`: resolve the current iframe or non-iframe editor browsing context without caching stale lifecycle state.
-- `sortable-runtime-loader.ts`: load/reuse the SortableJS runtime in the owning editor window.
+- `editor-environment.ts`: stale な lifecycle state を cache せず、現在の iframe / non-iframe editor browsing context を解決する。
+- `sortable-runtime-loader.ts`: owning editor window で SortableJS runtime を load / reuse する。
 
-Do not expand `common/` during the first column phases merely because row and column code look similar.
+row と column のコードが似ているという理由だけで、初期フェーズ中に `common/` を拡張しない。
 
 ### `src/row-reorder/`
 
-Remain unchanged unless real column implementation demonstrates a stable shared responsibility.
+実際の column implementation により安定した共通責務が確認されない限り変更しない。
 
-The following stay row-owned initially:
+少なくとも初期段階では、次を row 側の責務として維持する。
 
 - row block support
 - row table context
-- `rowspan` constraints
+- `rowspan` 制約
 - row order
-- row controls and move targets
-- row messages/styles
+- row control / move target
+- row message / style
 - row controller lifecycle
-- row guidance/live status/scroll behavior
+- row guidance / live status / scroll behavior
 
 ### `src/column-reorder/`
 
-Create this boundary only when implementation begins. Expected responsibilities are:
+実装開始時にこの boundary を作成する。想定責務は次のとおり。
 
 ```text
 src/column-reorder/
 ├── column-order.ts
 ├── column-order.test.ts
-├── block-support.ts              # only if needed by real implementation
-├── table-context.ts              # only if needed by real implementation
-├── messages.ts                   # as user-visible column UI appears
-├── editor.scss                   # as column UI appears
-├── use-column-reorder*.ts(x)     # shape determined by actual integration pressure
+├── block-support.ts              # 実実装で必要になった場合のみ
+├── table-context.ts              # 実実装で必要になった場合のみ
+├── messages.ts                   # user-visible な列 UI が必要になった時点
+├── editor.scss                   # 列 UI が必要になった時点
+├── use-column-reorder*.ts(x)     # 実際の integration pressure に応じて決定
 └── controller/
     ├── sortable-controller.ts    # column-owned controller
-    └── reorder-ui/               # column controls / destinations / status as needed
+    └── reorder-ui/               # 必要な column control / destination / status
 ```
 
-This is a responsibility sketch, not a requirement to create placeholder files or mirror the row tree exactly.
+これは責務の概略であり、placeholder file を作成したり、row 側の tree をそのまま再現したりすることを要求するものではない。
 
-### Column data transformation
+### 列データ変換
 
-The first pure function moves one zero-based column index to another across every existing table section in one deterministic transformation.
+最初の pure function では、既存の各 table section に対して、0-based の1つの column index を別の位置へ決定的に移動する。
 
-Conceptually:
+概念的には次の形とする。
 
 ```ts
 moveColumn( attributes, oldColumnIndex, newColumnIndex )
 ```
 
-The exact public API may differ, but the behavior must satisfy these rules:
+実際の public API は異なってよいが、振る舞いは次を満たす必要がある。
 
-- process `head`, `body`, and `foot` when present;
-- move the same column index in every row;
-- preserve missing sections;
-- preserve cell objects and cell data, changing only array order;
-- do not modify unrelated attributes such as caption data;
-- reject the transformation safely when participating rows do not have a consistent usable column shape;
-- return data suitable for one Gutenberg `setAttributes()` commit so save/reload and Undo work naturally.
+- 存在する `head` / `body` / `foot` を処理する。
+- 各 row で同じ column index を移動する。
+- 存在しない section はそのまま維持する。
+- cell object と cell data を保持し、配列順だけを変更する。
+- caption data 等の無関係な attributes を変更しない。
+- 対象 row が一貫した利用可能な列構造を持たない場合は、安全に変換を拒否する。
+- 保存・再読込・Undo が Gutenberg の1回の `setAttributes()` commit として自然に成立する data を返す。
 
-The pure transformation must not depend on DOM, SortableJS, React, or WordPress editor context.
+この pure transformation は DOM、SortableJS、React、WordPress editor context に依存させない。
 
 ### Column DOM context
 
-Do not extend `row-reorder/table-context.ts` before column code exists.
+column code が存在する前に `row-reorder/table-context.ts` を拡張しない。
 
-The column feature should first define only the DOM context it actually needs, likely including the block element, table element, editor document/window, and section/cell geometry needed to place controls.
+column feature 側で、実際に必要な DOM context だけを最初に定義する。想定されるのは、block element、table element、editor document / window、および control 配置に必要な section / cell geometry である。
 
-If both row and column contexts later duplicate the same stable base discovery, consider extracting a narrow common table context, for example:
+後に row / column の context が同じ安定した base discovery を重複して持つことが確認された場合は、例えば次のような狭い common table context の抽出を検討する。
 
 ```text
 common/table-context.ts
@@ -166,265 +166,265 @@ column-reorder/table-context.ts
 common base + column-specific section/geometry resolution
 ```
 
-This extraction is optional and must be justified by the implemented consumers.
+この抽出は任意であり、実際に存在する consumer によって正当化される必要がある。
 
 ### Block support
 
-Do not add `colspanProperty` to the existing row-owned support type in advance.
+既存の row-owned support type へ、先回りして `colspanProperty` を追加しない。
 
-Column implementation may begin with its own block-specific support boundary if schema differences require it. If row and column later share the same supported-block recognition or property mapping responsibility, extract only that stable part.
+block schema 差分が必要であれば、column implementation は独自の block-specific support boundary から始めてよい。後に row / column が同じ supported-block recognition や property mapping 責務を共有すると確認できた場合に、その安定した部分だけを抽出する。
 
 ### Column control layer
 
-Do not make real `td` / `th` nodes the SortableJS sibling list.
+実際の `td` / `th` node を SortableJS の sibling list にしない。
 
-Create a column-control layer positioned from table geometry. SortableJS, where used, reorders controls horizontally while the actual table cells remain owned by Gutenberg/React.
+table geometry から配置する column-control layer を作成する。SortableJS を使用する場合、実 table cell は Gutenberg / React が所有したままとし、control のみを水平方向へ並べ替える。
 
-At commit time, convert the resolved `oldColumnIndex` / `newColumnIndex` into one attribute transformation.
+commit 時に、確定した `oldColumnIndex` / `newColumnIndex` を1回の attribute transformation へ変換する。
 
-The control implementation must account for:
+control 実装では少なくとも次を扱う必要がある。
 
-- table position and column widths;
-- editor iframe/non-iframe ownership;
-- horizontal table scrolling;
-- control geometry refresh after editor/table changes;
-- coexistence with row controls;
-- focus restoration after commit/cancel.
+- table position と column width
+- editor iframe / non-iframe の owning context
+- table の horizontal scroll
+- editor / table の変化後の control geometry refresh
+- row control との共存
+- commit / cancel 後の focus restoration
 
-Exact geometry/update mechanisms should be selected during implementation based on the smallest reliable solution rather than predetermined in this plan.
+geometry 更新の具体的な仕組みはこのプランで固定せず、実装時に必要十分で信頼できる最小の方法を選ぶ。
 
 ### Interaction model
 
-Keep the user-facing mental model aligned with row reorder where practical, while allowing column-specific mechanics.
+column 固有の mechanics は許容しつつ、可能な範囲で row reorder と同じ user-facing mental model を維持する。
 
-Expected behavior:
+想定する振る舞いは次のとおり。
 
-- Pointer drag: drag a column control horizontally.
-- Single pointer: activate a column control, then choose a destination.
-- Keyboard: start/confirm with `Enter` or `Space`, move with `ArrowLeft` / `ArrowRight`, cancel with `Escape`.
-- Touch: enter column reorder mode, then use a destination tap and/or long-press drag according to the implemented interaction design.
+- Pointer drag: column control を水平方向へ drag する。
+- Single pointer: column control を activate し、移動先を選択する。
+- Keyboard: `Enter` / `Space` で開始・確定、`ArrowLeft` / `ArrowRight` で移動、`Escape` で cancel する。
+- Touch: column reorder mode に入り、実装した interaction design に応じて destination tap および / または long-press drag を使用する。
 
-Keyboard focus, announcements, guidance, and invalid-move feedback are part of feature completeness, not optional polish.
+Keyboard focus、announcement、guidance、invalid move feedback は optional polish ではなく feature completeness の一部として扱う。
 
-### Shared-code review point
+### 共通化レビューのタイミング
 
-After basic column pointer/keyboard behavior exists, compare row and column implementations.
+基本的な column pointer / keyboard behavior が成立した後、row / column 実装を比較する。
 
-Candidate responsibilities include:
+共通化候補には次が含まれる。
 
-- live status / announcement plumbing;
-- guidance lifecycle;
-- scroll-target logic;
-- focus restoration helpers;
-- common controller setup/cleanup pieces;
-- common interaction state pieces;
-- supported-block recognition;
-- base table-context discovery.
+- live status / announcement plumbing
+- guidance lifecycle
+- scroll-target logic
+- focus restoration helper
+- controller setup / cleanup の共通部分
+- interaction state の共通部分
+- supported-block recognition
+- base table-context discovery
 
-Move code to `common/` only when the two implementations require the same contract and behavior. Similar names or similar-looking code are not sufficient justification.
+2つの実装が同じ contract と behavior を必要とする場合にのみ `common/` へ移動する。名前や見た目が似ているだけでは共通化の根拠にしない。
 
-### Merged cells and logical grid
+### 結合セルと logical grid
 
-Do not introduce logical-grid code in the initial non-merged implementation.
+最初の結合セルなし実装には logical grid code を導入しない。
 
-When `rowSpan` / `colSpan` support begins, add a pure logical table/column grid capable of resolving, for each cell:
+`rowSpan` / `colSpan` 対応を開始する段階で、各 cell について次を解決できる pure logical table / column grid を追加する。
 
-- section;
-- row index;
-- attribute/DOM cell index;
-- logical start column;
-- logical columns occupied by `colSpan`;
-- logical rows occupied by `rowSpan`.
+- section
+- row index
+- attribute / DOM cell index
+- logical start column
+- `colSpan` により占有する logical column
+- `rowSpan` により占有する logical row
 
-The merged-cell constraints are:
+結合セルに関する制約は次のとおり。
 
-- a logical column inside a multi-column `colSpan` region is not independently movable;
-- an insertion boundary inside a `colSpan` region is invalid;
-- invalid moves must not change attributes;
-- moving an entire merged multi-column region as one unit remains out of scope;
-- `rowSpan` is not inherently a reason to disable a column, but the grid must resolve the correct column position across rows whose physical cell indexes differ.
+- 複数列にまたがる `colSpan` 領域内部の logical column を単独で移動できない。
+- `colSpan` 領域内部の insertion boundary は無効とする。
+- 無効な移動では attributes を変更しない。
+- 結合された複数列領域全体を1単位で移動する機能は対象外とする。
+- `rowSpan` 自体は列を無効化する理由ではないが、physical cell index が row ごとに異なる場合でも grid が正しい column position を解決する必要がある。
 
-Keep `row-reorder/rowspan.ts` row-specific. Do not grow it into a whole-table grid parser.
+`row-reorder/rowspan.ts` は row-specific のまま維持し、whole-table grid parser へ拡張しない。
 
-## Implementation phases
+## 実装フェーズ
 
-### Phase 1: Pure column-order foundation
+### Phase 1: Pure column-order 基盤
 
-- Outcome: column movement is defined independently of DOM/UI and can safely transform non-merged Core Table / Flexible Table Block-shaped attributes.
-- Tasks:
-  - create `src/column-reorder/`;
-  - implement `column-order.ts` and focused tests;
-  - support `head` / `body` / `foot` when present;
-  - preserve unrelated attributes and cell objects;
-  - reject inconsistent row shapes safely;
-  - document the new feature boundary when it becomes real.
-- Validation:
-  - focused Jest coverage for normal moves, boundary indexes, missing sections, inconsistent rows, and immutability expectations;
-  - repository Node/build checks when code is introduced.
+- 成果: column movement を DOM / UI から独立して定義し、結合セルのない Core Table / Flexible Table Block 形状の attributes を安全に変換できる。
+- 作業:
+  - `src/column-reorder/` を作成する。
+  - `column-order.ts` と focused test を実装する。
+  - 存在する `head` / `body` / `foot` を処理する。
+  - 無関係な attributes と cell object を保持する。
+  - 不整合な row shape を安全に拒否する。
+  - feature boundary が実体化した時点で source organization を文書化する。
+- 検証:
+  - 通常移動、境界 index、section 不在、不整合 row、immutability expectation を focused Jest で確認する。
+  - code 導入時は repository の Node / build checks を行う。
 
-### Phase 2: Column integration boundary and control prototype
+### Phase 2: Column integration boundary と control prototype
 
-- Outcome: the editor can resolve a supported table and render stable column controls aligned to non-merged columns without committing a move through DOM mutation.
-- Tasks:
-  - add only the block-support and table-context capabilities required by column reorder;
-  - connect the feature from the thin plugin entry;
-  - render/position column controls;
-  - define coexistence rules with row controls;
-  - establish geometry refresh and focus ownership.
-- Validation:
-  - focused jsdom tests where deterministic;
-  - manual verification in iframe and non-iframe editors;
-  - no row-reorder behavior regression.
+- 成果: editor が対応 table を解決し、DOM mutation によって移動を commit せずに、結合セルのない列へ安定した column control を配置できる。
+- 作業:
+  - column reorder に実際に必要な block-support / table-context 能力だけを追加する。
+  - 薄い plugin entry から feature を接続する。
+  - column control を render / position する。
+  - row control との共存ルールを定義する。
+  - geometry refresh と focus ownership を確立する。
+- 検証:
+  - deterministic に確認できる範囲は focused jsdom test を追加する。
+  - iframe / non-iframe editor で manual verification を行う。
+  - row-reorder の behavior regression がないことを確認する。
 
-### Phase 3: Keyboard and single-pointer reorder
+### Phase 3: Keyboard / single-pointer 列並べ替え
 
-- Outcome: column reorder is usable without drag and has an accessible deterministic state model.
-- Tasks:
-  - implement activation, destination movement, commit, cancel, and focus restoration;
-  - support `ArrowLeft` / `ArrowRight` keyboard movement;
-  - add appropriate announcements/guidance;
-  - implement single-pointer destination selection.
-- Validation:
-  - focused controller/UI Jest tests;
-  - keyboard/manual accessibility checks;
-  - save/reload and Undo checks after commit.
+- 成果: drag を使わずに列を並べ替えられ、アクセシブルかつ決定的な state model が成立する。
+- 作業:
+  - activation、destination movement、commit、cancel、focus restoration を実装する。
+  - `ArrowLeft` / `ArrowRight` による keyboard movement を実装する。
+  - 必要な announcement / guidance を追加する。
+  - single-pointer destination selection を実装する。
+- 検証:
+  - focused controller / UI Jest test を追加する。
+  - keyboard / manual accessibility check を行う。
+  - commit 後の保存・再読込・Undo を確認する。
 
-### Phase 4: Pointer drag with SortableJS
+### Phase 4: SortableJS による Pointer drag
 
-- Outcome: pointer users can drag column controls horizontally while real table cell DOM remains untouched during drag.
-- Tasks:
-  - use `common/sortable-runtime-loader.ts`;
-  - configure horizontal SortableJS behavior for the control layer;
-  - resolve old/new indexes and commit through `column-order`;
-  - implement necessary horizontal scrolling behavior;
-  - preserve cancellation and focus behavior.
-- Validation:
-  - focused controller tests with mocked SortableJS where useful;
-  - real-browser pointer DnD E2E;
-  - verify no canonical table DOM ownership conflict during drag.
+- 成果: Pointer user が column control を水平方向に drag でき、drag 中も実 table cell DOM は変更されない。
+- 作業:
+  - `common/sortable-runtime-loader.ts` を利用する。
+  - control layer 向けに horizontal SortableJS behavior を構成する。
+  - old / new index を解決し、`column-order` 経由で commit する。
+  - 必要な horizontal scrolling behavior を実装する。
+  - cancel / focus behavior を維持する。
+- 検証:
+  - 有効な箇所では mocked SortableJS を使った focused controller test を追加する。
+  - real browser で Pointer DnD E2E を行う。
+  - drag 中に canonical table DOM ownership と競合しないことを確認する。
 
 ### Phase 5: Touch interaction
 
-- Outcome: touch users can reorder columns with the same safety and feedback expectations as row reorder.
-- Tasks:
-  - define the smallest consistent touch mode;
-  - support destination tap and/or long-press drag based on implementation findings;
-  - prevent accidental table editing while the reorder interaction is active;
-  - add touch-specific guidance and focus handling where required.
-- Validation:
-  - focused touch controller tests;
-  - real touch/pointer Playwright coverage.
+- 成果: Touch user が row reorder と同等の安全性・feedback expectation で列を並べ替えられる。
+- 作業:
+  - 必要十分で一貫した touch mode を定義する。
+  - 実装結果に応じて destination tap および / または long-press drag をサポートする。
+  - reorder interaction 中の意図しない table editing を防ぐ。
+  - 必要に応じて touch-specific guidance / focus handling を追加する。
+- 検証:
+  - focused touch controller test を追加する。
+  - real touch / pointer の Playwright coverage を追加する。
 
-### Phase 6: Shared-responsibility review
+### Phase 6: 共通責務レビュー
 
-- Outcome: only demonstrated stable row/column duplication is extracted to `common/`.
-- Tasks:
-  - compare completed row/column contexts, block support, controller lifecycle, focus, status, guidance, and scrolling;
-  - keep feature-local code where contracts differ;
-  - extract narrowly scoped common modules only when they reduce duplication without introducing row/column conditionals.
-- Validation:
-  - existing row tests remain unchanged or become simpler;
-  - column tests continue to prove their feature contract;
-  - `common/` does not depend on either feature.
+- 成果: 実際に確認された安定した row / column の重複だけを `common/` へ抽出する。
+- 作業:
+  - 実装済みの row / column context、block support、controller lifecycle、focus、status、guidance、scroll を比較する。
+  - contract が異なるものは feature-local のまま維持する。
+  - row / column conditional を持ち込まずに重複を減らせる場合だけ、狭い common module を抽出する。
+- 検証:
+  - 既存 row test が変わらない、またはより単純になることを確認する。
+  - column test が引き続き feature contract を証明することを確認する。
+  - `common/` がどちらの feature にも依存しないことを確認する。
 
-### Phase 7: Merged-cell logical grid and constraints
+### Phase 7: 結合セル logical grid と制約
 
-- Outcome: column reorder can reason correctly about `rowSpan` / `colSpan` without corrupting table structure.
-- Tasks:
-  - implement pure logical-grid resolution;
-  - detect invalid source columns and insertion boundaries;
-  - integrate the grid with column-order validation and UI availability;
-  - preserve all merged-cell data while allowing only structurally safe moves.
-- Validation:
-  - exhaustive unit cases for grid occupancy and valid/invalid boundaries;
-  - Core Table and Flexible Table Block merged-cell browser checks;
-  - save/reload and Undo validation.
+- 成果: table structure を壊さず、`rowSpan` / `colSpan` を正しく扱って列並べ替え可否を判断できる。
+- 作業:
+  - pure logical-grid resolution を実装する。
+  - 無効な source column と insertion boundary を検出する。
+  - grid を column-order validation と UI availability に統合する。
+  - 結合セル data をすべて保持しつつ、構造的に安全な移動だけを許可する。
+- 検証:
+  - grid occupancy と valid / invalid boundary を網羅する unit case を追加する。
+  - Core Table / Flexible Table Block の結合セルを real browser で確認する。
+  - 保存・再読込・Undo を確認する。
 
-### Phase 8: End-to-end completion
+### Phase 8: E2E 完成
 
-- Outcome: supported column-reorder workflows are covered across representative WordPress editor environments.
-- Tasks:
-  - add E2E for core user flows and data persistence;
-  - cover pointer, keyboard, touch, save/reload, Undo, iframe/non-iframe, and merged-cell constraints according to implemented scope;
-  - avoid duplicating deterministic unit cases in E2E.
-- Validation:
-  - existing PR Validation matrix for WordPress 6.8.3, 7.0.4, and 7.1.0;
-  - focused manual checks for behavior that remains impractical to assert reliably in E2E.
+- 成果: 対応する column-reorder workflow を、代表的な WordPress editor environment 全体で検証できる。
+- 作業:
+  - core user flow と data persistence の E2E を追加する。
+  - 実装済み scope に応じて Pointer、Keyboard、Touch、保存・再読込、Undo、iframe / non-iframe、結合セル制約をカバーする。
+  - deterministic な unit case を E2E へ重複させない。
+- 検証:
+  - 既存 PR Validation matrix の WordPress 6.8.3 / 7.0.4 / 7.1.0 で確認する。
+  - E2E で安定して assertion しにくい behavior は focused manual check を行う。
 
-## Decisions and validation questions
+## 設計判断と実装中の確認事項
 
-### Decide before implementation
+### 実装前に確定する事項
 
-The following are fixed architectural decisions for child issues:
+子 Issue の前提となる architecture decision は次のとおり。
 
-- `column-reorder/` is an independent feature boundary.
-- `column-reorder/` does not depend on `row-reorder/`.
-- Gutenberg attributes are the canonical data source and commit target.
-- The first implementation excludes `rowSpan` / `colSpan`.
-- Logical-grid parsing is deferred to the merged-cell phase.
-- Real table cells are not the SortableJS sortable sibling list.
-- Editor Environment and SortableJS runtime loading are the only existing responsibilities assumed shared from the start.
-- Existing row-owned block support and table context are not expanded preemptively for column needs.
-- No generic row/column controller or `axis` abstraction is introduced before concrete duplication is demonstrated.
+- `column-reorder/` は独立した feature boundary とする。
+- `column-reorder/` から `row-reorder/` へ依存させない。
+- Gutenberg attributes を canonical data source / commit target とする。
+- 最初の実装では `rowSpan` / `colSpan` を対象外とする。
+- logical-grid parsing は結合セルフェーズまで導入しない。
+- 実 table cell を SortableJS の sortable sibling list にしない。
+- 既存責務のうち、最初から共有前提とするのは Editor Environment と SortableJS runtime loading のみとする。
+- 既存の row-owned block support / table context を column 対応のために先回りして拡張しない。
+- 実際の重複が確認される前に generic row / column controller や `axis` abstraction を導入しない。
 
-### Validate during implementation
+### 実装中に確認する事項
 
-The following should be answered through implementation evidence instead of premature design:
+次は先回りして固定せず、実装結果を根拠に判断する。
 
-- What is the smallest reliable column-control DOM structure?
-- What geometry refresh mechanism is required for editor/table resizing and horizontal scrolling?
-- Should the first control layer use one control per logical column or separate handle/destination elements?
-- How should row controls and column controls arbitrate hover/activation when both are visible?
-- Which guidance/live-status/focus behaviors are truly identical to row reorder?
-- Is base block recognition identical enough to share, or do row/column support contracts remain different?
-- Is base table DOM discovery stable enough to extract to `common/` after both implementations exist?
-- Which horizontal auto-scroll behavior can reuse row scrolling mechanics unchanged, if any?
-- What touch interaction gives the clearest behavior without interfering with cell editing?
+- 必要十分で信頼できる column-control DOM structure は何か。
+- editor / table resize と horizontal scroll に対して、どの geometry refresh mechanism が必要か。
+- 最初の control layer は logical column ごとに1 control とするか、handle / destination を分けるか。
+- row control と column control が同時表示される場合、hover / activation の優先関係をどうするか。
+- guidance / live-status / focus のどこまでが row reorder と本当に同一責務か。
+- base block recognition は共有できるほど同一か、それとも row / column の support contract は別のままか。
+- row / column 両方が存在した後、base table DOM discovery は `common/` へ抽出できるほど安定しているか。
+- horizontal auto-scroll のどこまでを row scrolling mechanics からそのまま再利用できるか。
+- cell editing を妨げず、最も分かりやすい touch interaction は何か。
 
-## Issue breakdown
+## Issue 分割案
 
-Create the implementation parent and child issues only after this plan is reviewed. The recommended initial breakdown is:
+実装親 Issue と子 Issue は、このプランのレビュー後に作成する。初期案は次のとおり。
 
-- [ ] Parent: implement column reordering for supported Table blocks.
-- [ ] Child: add `column-reorder` boundary and pure non-merged `column-order` transformation.
-- [ ] Child: add column block/context integration and column-control UI.
-- [ ] Child: implement keyboard and single-pointer column reorder.
-- [ ] Child: implement pointer drag and horizontal scrolling with SortableJS.
-- [ ] Child: implement touch column reorder.
-- [ ] Child: review row/column duplication and extract only proven common responsibilities.
-- [ ] Child: add logical grid and merged-cell column constraints.
-- [ ] Child: complete column-reorder E2E coverage and persistence/Undo scenarios.
+- [ ] 親: 対応 Table block に列並べ替えを実装する。
+- [ ] 子: `column-reorder` boundary と結合セルなしの pure `column-order` transformation を追加する。
+- [ ] 子: column block / context integration と column-control UI を追加する。
+- [ ] 子: Keyboard / single-pointer 列並べ替えを実装する。
+- [ ] 子: SortableJS による Pointer drag と horizontal scrolling を実装する。
+- [ ] 子: Touch 列並べ替えを実装する。
+- [ ] 子: row / column の重複をレビューし、確認できた共通責務だけを抽出する。
+- [ ] 子: logical grid と結合セルの列制約を追加する。
+- [ ] 子: column-reorder E2E と保存・Undo scenario を完成させる。
 
-If implementation evidence shows one child is too broad or two children are tightly coupled, adjust the breakdown before opening the affected issues rather than forcing this provisional list.
+実装上、1つの子 Issue が広すぎる、または2つの子 Issue が強く結合していることが分かった場合は、この暫定リストへ無理に合わせず、該当 Issue を作成する前に分割を調整する。
 
-## Validation
+## 検証
 
-For this plan-only change:
+このプラン作成のみの変更では次を確認する。
 
 - `git diff --check origin/main...HEAD`
-- Review the rendered Markdown and confirm that #422 can become a concise plan-creation issue without duplicating this document.
+- rendered Markdown を確認し、#422 がこの document と詳細設計を重複せず、簡潔な plan-creation Issue として成立することを確認する。
 
-For future implementation work, use `docs/development/testing.md` as the command source of truth. Expected validation by phase includes:
+今後の実装では `docs/development/testing.md` を command source of truth とする。各フェーズで想定する検証は次のとおり。
 
-- focused Jest tests while developing pure/controller/UI logic;
-- `npm test` and `npm run build` before handoff for product source changes;
-- `git diff --check origin/main...HEAD`;
-- Playwright E2E for real WordPress/browser interaction, iframe/non-iframe behavior, SortableJS, touch, save/reload, and Undo where applicable.
+- pure / controller / UI logic の開発中は focused Jest test を使用する。
+- product source 変更の handoff 前に `npm test` と `npm run build` を実行する。
+- `git diff --check origin/main...HEAD` を実行する。
+- real WordPress / browser interaction、iframe / non-iframe、SortableJS、Touch、保存・再読込、Undo が関係する場合は Playwright E2E を使用する。
 
-## Completion criteria
+## 完了条件
 
-This planning issue is complete when:
+この planning Issue は次を満たしたときに完了とする。
 
-- this plan reflects the source boundaries established by #449 / PR #450;
-- the non-merged minimum implementation and later merged-cell expansion are separated clearly;
-- row-owned code is not designated shared without a second real consumer;
-- column data, DOM, controller, UI, accessibility, and validation responsibilities are sufficiently defined for implementation issues;
-- unresolved implementation details are identified as validation questions rather than hidden assumptions;
-- a stable parent/child issue breakdown can be created from this plan after review;
-- #422 can point to this plan as the design source of truth instead of duplicating the detailed design.
+- #449 / PR #450 で確立した source boundary がこのプランへ反映されている。
+- 結合セルなしの最小実装と、後続の結合セル対応が明確に分離されている。
+- 第2の実 consumer が存在しない row-owned code を shared として扱っていない。
+- column data、DOM、controller、UI、accessibility、validation の責務が、実装 Issue を作成できる粒度で定義されている。
+- 未確定の実装詳細が hidden assumption ではなく、実装中の確認事項として明示されている。
+- レビュー後、このプランから安定した親子 Issue 分割を作成できる。
+- #422 が詳細設計を重複せず、このプランを design source of truth として参照できる。
 
-## Notes
+## 補足
 
-The implementation phases are intentionally ordered from data correctness to interaction complexity. The plan does not require each phase to map one-to-one to a pull request, but each child issue should produce a reviewable outcome and should not mix unrelated future abstraction work into the feature step.
+実装フェーズは、data correctness から interaction complexity へ進む順番としている。各フェーズを必ず1 PR に対応させる必要はないが、各子 Issue は個別にレビュー可能な成果を持ち、feature 実装へ無関係な将来の abstraction work を混在させない。
 
-The key guardrail is to let implementation pressure reveal shared responsibilities. The goal is not to duplicate row reorder forever, but to avoid turning the newly clarified `common` boundary into a speculative shared bucket before column reorder provides real evidence.
+最も重要な guardrail は、実装上の必要性から共通責務を発見することである。row reorder を永遠に重複実装することが目的ではない。column reorder という実例が存在する前に、PR #450 で明確化した `common` boundary を speculative shared bucket へ戻さないことを優先する。
