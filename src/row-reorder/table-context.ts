@@ -5,7 +5,7 @@
  * この module は解決済み editor document から対象 Table block と tbody を組み立てる。
  */
 
-import { resolveEditorEnvironment } from './editor-environment';
+import { resolveEditorEnvironment } from '@/common/editor-environment';
 
 /**
  * 解決済みTable blockが利用するDOM context。
