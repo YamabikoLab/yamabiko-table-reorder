@@ -5,8 +5,9 @@
  * WordPress notice APIとsetAttributesをHOC向けstate / commandへ接続する。
  */
 
+import { useMergeRefs } from '@wordpress/compose';
 import { useDispatch } from '@wordpress/data';
-import { useMemo, useRef, type RefObject } from '@wordpress/element';
+import { useMemo, useRef } from '@wordpress/element';
 import { store as noticesStore } from '@wordpress/notices';
 
 import { announceLiveStatus } from './controller/reorder-ui';
@@ -32,7 +33,7 @@ type UseTableReorderOptions = {
 
 /** HOCが描画とtoolbar操作に利用する最小state。 */
 type TableReorderHookResult = {
-	anchorRef: RefObject< HTMLSpanElement >;
+	anchorRef: ( anchor: HTMLSpanElement | null ) => void;
 	consumeTouchToolbarFocusRequest: () => void;
 	dismissKeyboardCoachmark: () => void;
 	dismissTouchCoachmark: () => void;
@@ -53,7 +54,7 @@ type TableReorderHookResult = {
  */
 export const useTableReorder = ( options: UseTableReorderOptions ): TableReorderHookResult => {
 	const { body, clientId, enabled, isSelected, rowspanProperty, setAttributes } = options;
-	const anchorRef = useRef< HTMLSpanElement >( null );
+	const anchorElementRef = useRef< HTMLSpanElement >( null );
 	const { createNotice } = useDispatch( noticesStore );
 	const { forbiddenInsertionIndices, nonMovableRowIndices } = useMemo( () => {
 		const rowspanRanges = rowspanProperty ? getRowspanRanges( body, rowspanProperty ) : [];
@@ -63,6 +64,7 @@ export const useTableReorder = ( options: UseTableReorderOptions ): TableReorder
 		};
 	}, [ body, rowspanProperty ] );
 	const {
+		anchorRef: interactionAnchorRef,
 		consumeTouchToolbarFocusRequest,
 		dismissKeyboardCoachmark,
 		dismissTouchCoachmark,
@@ -74,14 +76,12 @@ export const useTableReorder = ( options: UseTableReorderOptions ): TableReorder
 		isTouchToolbarFocusRequested,
 		toggleTouchReorderMode,
 	} = useTableReorderInteraction( {
-		anchorRef,
 		clientId,
 		enabled,
 		isSelected,
 	} );
 
-	const { focusRowControl } = useTableReorderController( {
-		anchorRef,
+	const { anchorRef: controllerAnchorRef, focusRowControl } = useTableReorderController( {
 		body,
 		clientId,
 		enabled,
@@ -92,6 +92,7 @@ export const useTableReorder = ( options: UseTableReorderOptions ): TableReorder
 			setAttributes( { body: reorderedBody } );
 		},
 	} );
+	const anchorRef = useMergeRefs( [ anchorElementRef, interactionAnchorRef, controllerAnchorRef ] );
 
 	const createNoMovableRowsNotice = () => {
 		void createNotice( 'warning', getNoMovableRowsMessage(), {
@@ -101,7 +102,7 @@ export const useTableReorder = ( options: UseTableReorderOptions ): TableReorder
 
 	const notifyTouchNoMovableRows = () => {
 		createNoMovableRowsNotice();
-		const anchor = anchorRef.current;
+		const anchor = anchorElementRef.current;
 		const context = anchor ? resolveTableContext( anchor, clientId ) : null;
 		if ( context ) {
 			announceLiveStatus( context.document, getNoMovableRowsAnnouncement() );
