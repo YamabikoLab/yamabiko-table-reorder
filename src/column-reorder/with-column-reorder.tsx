@@ -26,9 +26,7 @@ type ControlGeometry = {
 	top: number;
 };
 
-const getControlGeometry = (
-	columns: HTMLTableCellElement[]
-): ControlGeometry | null => {
+const getControlGeometry = ( columns: HTMLTableCellElement[] ): ControlGeometry | null => {
 	if ( columns.length === 0 ) {
 		return null;
 	}
@@ -84,9 +82,8 @@ export const withColumnReorder = ( BlockEdit: ComponentType< TableBlockEditProps
 			context.window.addEventListener( 'resize', refreshGeometry );
 			context.window.addEventListener( 'scroll', refreshGeometry, true );
 
-			const ResizeObserverConstructor = (
-				context.window as Window & typeof globalThis
-			).ResizeObserver;
+			const ResizeObserverConstructor = ( context.window as Window & typeof globalThis )
+				.ResizeObserver;
 			if ( ResizeObserverConstructor ) {
 				resizeObserver = new ResizeObserverConstructor( refreshGeometry );
 				resizeObserver.observe( context.table );
