@@ -1,4 +1,4 @@
-import { createElement, createRoot, type RefObject } from '@wordpress/element';
+import { createElement, createRoot } from '@wordpress/element';
 
 import {
 	createSortableController,
@@ -59,16 +59,16 @@ const createMockController = ( focusResult = true ): MockController => ( {
 	focusRowControlAt: jest.fn< boolean, [ number ] >( () => focusResult ),
 } );
 
-const Harness = ( options: HookOptions ) => {
-	useTableReorderController( options );
-	return null;
+const Harness = ( props: {
+	anchorKey: string;
+	options: HookOptions;
+	renderAnchor: boolean;
+} ) => {
+	const { anchorRef } = useTableReorderController( props.options );
+	return props.renderAnchor ? createElement( 'span', { key: props.anchorKey, ref: anchorRef } ) : null;
 };
 
-const createAnchorRef = ( anchor: HTMLSpanElement | null ): RefObject< HTMLSpanElement > =>
-	( { current: anchor } ) as RefObject< HTMLSpanElement >;
-
 const createOptions = ( overrides: Partial< HookOptions > = {} ): HookOptions => ( {
-	anchorRef: createAnchorRef( document.createElement( 'span' ) ),
 	body: [ 'a', 'b', 'c' ],
 	clientId: 'table-client-id',
 	enabled: true,
@@ -79,21 +79,32 @@ const createOptions = ( overrides: Partial< HookOptions > = {} ): HookOptions =>
 	...overrides,
 } );
 
-const mountHook = ( initialOptions: HookOptions ) => {
+const mountHook = ( initialOptions: HookOptions, initialRenderAnchor = true ) => {
 	const container = document.createElement( 'div' );
 	document.body.append( container );
 	const root = createRoot( container );
 	let options = initialOptions;
-	act( () => {
-		root.render( createElement( Harness, options ) );
-	} );
+	let anchorKey = 'anchor-a';
+	let renderAnchor = initialRenderAnchor;
+	const render = () => {
+		act( () => {
+			root.render( createElement( Harness, { anchorKey, options, renderAnchor } ) );
+		} );
+	};
+	render();
 
 	return {
 		rerender: ( overrides: Partial< HookOptions > ) => {
 			options = { ...options, ...overrides };
-			act( () => {
-				root.render( createElement( Harness, options ) );
-			} );
+			render();
+		},
+		replaceAnchor: () => {
+			anchorKey = anchorKey === 'anchor-a' ? 'anchor-b' : 'anchor-a';
+			render();
+		},
+		removeAnchor: () => {
+			renderAnchor = false;
+			render();
 		},
 		unmount: () => {
 			act( () => {
@@ -142,7 +153,7 @@ afterEach( () => {
 
 describe( 'useTableReorderController', () => {
 	it( 'does not resolve table context when the anchor is unavailable', () => {
-		const harness = mountHook( createOptions( { anchorRef: createAnchorRef( null ) } ) );
+		const harness = mountHook( createOptions(), false );
 		flushLifecycleMicrotasks();
 
 		expect( resolveTableContextMock ).not.toHaveBeenCalled();
@@ -181,10 +192,42 @@ describe( 'useTableReorderController', () => {
 
 	it( 'does not create a controller when cleanup happens before its creation microtask', () => {
 		const harness = mountHook( createOptions() );
-		harness.unmount();
+		harness.removeAnchor();
 		flushLifecycleMicrotasks();
 
 		expect( createSortableControllerMock ).not.toHaveBeenCalled();
+		harness.unmount();
+	} );
+
+	it( 'cleans up and recreates the controller when the anchor DOM node is replaced', () => {
+		const firstContext = createContext();
+		const secondContext = createContext();
+		const firstController = createMockController();
+		const secondController = createMockController();
+		resolveTableContextMock
+			.mockReturnValueOnce( firstContext )
+			.mockReturnValueOnce( secondContext );
+		createSortableControllerMock
+			.mockReturnValueOnce( firstController )
+			.mockReturnValueOnce( secondController );
+		const harness = mountHook( createOptions() );
+		flushLifecycleMicrotasks();
+		const firstAnchor = resolveTableContextMock.mock.calls[ 0 ]?.[ 0 ];
+
+		harness.replaceAnchor();
+		flushLifecycleMicrotasks();
+		const secondAnchor = resolveTableContextMock.mock.calls[ 1 ]?.[ 0 ];
+
+		expect( firstController.destroy ).toHaveBeenCalledTimes( 1 );
+		expect( firstAnchor ).toBeInstanceOf( HTMLSpanElement );
+		expect( secondAnchor ).toBeInstanceOf( HTMLSpanElement );
+		expect( secondAnchor ).not.toBe( firstAnchor );
+		expect( createSortableControllerMock ).toHaveBeenNthCalledWith(
+			2,
+			expect.objectContaining( { context: secondContext } )
+		);
+		harness.unmount();
+		flushLifecycleMicrotasks();
 	} );
 
 	it( 'keeps pending focus until a recreated controller restores it successfully', () => {
