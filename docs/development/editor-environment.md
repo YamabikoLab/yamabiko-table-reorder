@@ -52,7 +52,7 @@ iframe がなければ、ページ全体の `document` を使えばよいケー�
 
 つまり、**本来作りたい機能とは関係のない「iframe をどう扱うか」という知識が、製品コードのあちこちへ広がる**可能性があります。
 
-### 技術に詳しくない人向けに言うと
+### イメージで捉えると
 
 WordPress の編集画面の中に、もう一つ別の「作業部屋」があると考えると分かりやすくなります。
 
@@ -114,7 +114,7 @@ type EditorEnvironment = {
 
 これは今回の PoC で特に重要な結果です。
 
-### 技術に詳しくない人向けに言うと
+### イメージで捉えると
 
 各機能が自分で「どの部屋にいるか」を調べるのをやめて、入口に案内係を置いた形です。
 
@@ -261,19 +261,19 @@ iframe / non-iframe editor
 
 今回の結果は、単に「動いた」という感想だけではなく、いくつかの数字で確認できます。
 
-| 指標 | 結果 |
-| --- | --- |
-| WordPress 7.1 iframe E2E | PASS |
-| WordPress 6.8.3 non-iframe E2E | PASS |
-| ローカル iframe 確認 | PASS |
-| ローカル non-iframe 確認 | PASS |
-| iframe 固有知識を持つ production module | 1 (`editor-environment.ts`) |
-| Editor Environment 外の `contentDocument` / `contentWindow` 参照 | 0 |
-| 変更が必要だった既存 production module | 1 (`table-context.ts`) |
-| Editor Environment が公開する capability | 2 (`document`, `window`) |
-| 新しく追加した browser API wrapper | 0 |
-| Editor Environment 対応のため変更が必要だった既存 consumer | 0 |
-| iframe 再生成の focused test | PASS |
+| 指標                                                             | 結果                        |
+| ---------------------------------------------------------------- | --------------------------- |
+| WordPress 7.1 iframe E2E                                         | PASS                        |
+| WordPress 6.8.3 non-iframe E2E                                   | PASS                        |
+| ローカル iframe 確認                                             | PASS                        |
+| ローカル non-iframe 確認                                         | PASS                        |
+| iframe 固有知識を持つ production module                          | 1 (`editor-environment.ts`) |
+| Editor Environment 外の `contentDocument` / `contentWindow` 参照 | 0                           |
+| 変更が必要だった既存 production module                           | 1 (`table-context.ts`)      |
+| Editor Environment が公開する capability                         | 2 (`document`, `window`)    |
+| 新しく追加した browser API wrapper                               | 0                           |
+| Editor Environment 対応のため変更が必要だった既存 consumer       | 0                           |
+| iframe 再生成の focused test                                     | PASS                        |
 
 この中で特に重要なのは、コードの行数ではありません。
 
