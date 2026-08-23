@@ -1,60 +1,101 @@
 # Editor Environment
 
-## Overview
+## はじめに
 
-Table Reorder supports both iframe and non-iframe WordPress editors.
+WordPress 7.1 では、投稿エディターが常に iframe 内で動作するようになります。
 
-The Editor Environment is a small internal boundary that hides only one difference between those editor modes: **how Table Reorder finds the current editor browsing context**.
+WordPress 公式の開発者向け案内では、iframe 内には管理画面とは別の `document` と `window` が存在するため、エディター内部の要素を扱うときは、グローバルな `document` / `window` ではなく、対象要素の `ownerDocument` や `defaultView` を使うことが推奨されています。
 
-The important idea is simple:
+参考:
 
-> Product code should be able to work with normal DOM and Web APIs without needing to know whether the editor is inside an iframe.
+- [Iframed Editor Changes in WordPress 7.1](https://make.wordpress.org/core/2026/08/03/iframed-editor-changes-in-wordpress-7-1/)
 
-The Editor Environment is therefore not a browser abstraction layer. It does not wrap `focus()`, geometry APIs, selection APIs, scrolling, or other normal browser capabilities. It only answers the question: **which editor `document` and `window` should Table Reorder use right now?**
+この対応方法そのものは正しいものです。
 
-This document records the result of the PoC implemented for issue #430 and PR #441.
+今回の PoC で検討したのは、その一歩先です。
 
-## Why this PoC was needed
+> iframe 対応を、それぞれの機能コードが毎回意識しなくてもよい形にできないか？
 
-Before the PoC, `table-context.ts` was responsible for both:
+この問いに対して、Table Reorder を実際の題材として検証しました。
 
-- finding the correct editor context, including iframe fallback;
-- finding the Table block, `table`, and `tbody` inside that context.
+結論から言うと、**今回の PoC では、その形を実現できました。**
 
-That worked, but it meant Table-specific DOM resolution also knew about WordPress editor iframe details.
+## 1. WordPress 7.1 対応をそのまま各機能へ書くと何が問題なのか
 
-The PoC tested whether that iframe knowledge could be moved behind a small boundary without spreading a new abstraction through the rest of Table Reorder.
+WordPress 7.1 の iframe 化によって、エディターを拡張するコードは「どの `document` と `window` を使うべきか」を正しく判断する必要があります。
 
-The main question was:
+たとえば、エディター内のボタンや表を操作したいとします。
 
-> Can iframe / non-iframe discovery and lifecycle concerns be isolated while consumers continue to use standard Web APIs directly?
+iframe がなければ、ページ全体の `document` を使えばよいケースが多くあります。しかし iframe の中に編集領域がある場合、管理画面の `document` と編集領域の `document` は別物です。
 
-## Result
+間違った `document` を使うと、要素を見つけられなかったり、イベントやフォーカス、スクロールなどが期待した場所で動かなかったりします。
 
-The PoC supports a **yes** for the current Table Reorder architecture.
+### ここで本当に困ること
 
-The iframe-specific discovery logic is now isolated in `editor-environment.ts`, while `table-context.ts` handles only Table-specific DOM resolution.
+公式の案内に従って各機能が正しい `document` / `window` を取得すれば、個々の問題は解決できます。
 
-No controller, drag UI, keyboard, pointer, touch, focus, or scroll implementation needed to be rewritten for the new boundary.
-
-The resulting flow is:
+ただし、その判断を機能ごとに書き始めると、次のような状態になりやすくなります。
 
 ```text
-Table Reorder consumer
-        |
-        v
-Table Context
-        |
-        |  resolves block / table / tbody
-        v
-Editor Environment
-        |
-        |  resolves current document / window
-        v
-iframe / non-iframe editor
+並べ替え機能
+  ├─ iframe か確認する
+  ├─ 正しい document を探す
+  ├─ 正しい window を探す
+  └─ 本来の並べ替え処理を書く
+
+別の機能
+  ├─ iframe か確認する
+  ├─ 正しい document を探す
+  ├─ 正しい window を探す
+  └─ 本来の機能を書く
 ```
 
-The Editor Environment contract stayed smaller than the initial illustrative idea. The production contract currently exposes only:
+つまり、**本来作りたい機能とは関係のない「iframe をどう扱うか」という知識が、製品コードのあちこちへ広がる**可能性があります。
+
+### 技術に詳しくない人向けに言うと
+
+WordPress の編集画面の中に、もう一つ別の「作業部屋」があると考えると分かりやすくなります。
+
+機能を作るたびに、開発者が毎回、
+
+> 今いるのは外の部屋か、中の部屋か？
+
+を確認しなければならない状態です。
+
+確認方法が複数の機能へ散らばるほど、将来エディターの構造が変わったときに、影響箇所も増えていきます。
+
+## 2. 解決策: Editor Environment
+
+今回の PoC では、iframe / non-iframe の違いを判断する役割を **Editor Environment** という小さな境界へ集約しました。
+
+考え方は単純です。
+
+```text
+Before
+
+製品コード
+  ├─ iframe を探す
+  ├─ document を選ぶ
+  ├─ window を選ぶ
+  └─ 本来の機能を書く
+
+
+After
+
+製品コード
+      |
+      v
+Editor Environment
+      |
+      ├─ iframe / non-iframe を判断する
+      └─ 正しい document / window を返す
+```
+
+製品コードは、iframe の構造を直接調べません。
+
+必要になったときに Editor Environment から「現在のエディターで使うべき `document` と `window`」を受け取ります。
+
+今回の実装で Editor Environment が提供するものは、この2つだけです。
 
 ```ts
 type EditorEnvironment = {
@@ -63,91 +104,190 @@ type EditorEnvironment = {
 };
 ```
 
-`root` and `scrollContainer` were not added because current production code does not need them for browsing-context discovery.
+当初は `root` や `scrollContainer` まで必要になる可能性も考えていましたが、実際に試したところ、そこまで抽象化する必要はありませんでした。
 
-## What moved behind the boundary
+### PoC の結果
 
-`editor-environment.ts` now owns:
+**この方式で iframe / non-iframe の両方が正常に動作しました。**
 
-- deciding whether the target block is in the anchor's owning document;
-- falling back to `iframe[name="editor-canvas"]` when needed;
-- reading the iframe's current `contentDocument` and `contentWindow`;
-- returning the matching editor `document` and `window`.
+さらに、iframe 固有の処理を1か所へ集約しても、既存の controller、drag UI、キーボード操作、タッチ操作、フォーカス、スクロール処理を書き換える必要はありませんでした。
 
-`table-context.ts` consumes that result and then resolves:
+これは今回の PoC で特に重要な結果です。
 
-- the target block element;
-- the `table`;
-- the first `tbody`.
+### 技術に詳しくない人向けに言うと
 
-This separation keeps WordPress editor discovery and Table DOM discovery as two different responsibilities.
+各機能が自分で「どの部屋にいるか」を調べるのをやめて、入口に案内係を置いた形です。
 
-## What deliberately stayed outside the boundary
+```text
+機能
+  ↓
+「今使うべき編集画面はどこ？」
+  ↓
+Editor Environment
+  ↓
+「こちらです」
+```
 
-Normal DOM-local and browser operations remain direct Web API usage.
+機能側は、案内された場所で本来の仕事をすればよくなります。
 
-For example, consumers may still use APIs such as:
+## 3. この仕組みで何が嬉しいのか
 
-- `element.ownerDocument`;
-- `document.defaultView` when it is derived from a concrete local DOM node rather than used to discover the editor context;
-- `focus()`;
-- `getBoundingClientRect()`;
-- `getComputedStyle()`;
-- `Selection`;
-- `Range`;
-- observers;
-- normal DOM traversal and scrolling logic.
+Editor Environment の目的は、単に iframe 対応コードを別ファイルへ移すことではありません。
 
-The Editor Environment should not become a mandatory gateway for these APIs.
+一番大きな価値は、**製品コードが iframe の存在を意識しなくてよい範囲を広げられること**です。
 
-This is an important part of the result. The PoC did not merely hide iframe details. It did so **without making ordinary Web development harder**.
+### 機能を書くコードを、本来の仕事へ集中させられる
 
-## Lifecycle behavior
+たとえば行の並べ替えを実装するとき、本来考えたいのは次のようなことです。
 
-The resolver is stateless. It does not cache an editor `document` or `window` between calls.
+- どの行を移動するか
+- どこへ移動するか
+- キーボードでどう操作するか
+- タッチ操作をどう扱うか
+- フォーカスをどこへ戻すか
+- スクロールをどう扱うか
 
-That matters because an editor iframe may be detached and recreated. A cached reference could then point to an old browsing context.
+ここへ「iframe かどうか」を混ぜる必要がなくなります。
 
-The focused test covers this sequence:
+目指しているのは、次の変化です。
 
-1. resolve the first iframe context;
-2. remove that iframe;
-3. create a replacement iframe;
-4. resolve again;
-5. confirm that the second result uses the new iframe document instead of the old one.
+> 「iframe 対応を書くコード」から、「普通の機能を書くコード」へ寄せる
 
-This verifies the intended stale-context protection at the resolver boundary.
+### WordPress 側の変更による影響を狭くできる
 
-A dedicated real-browser scenario that forces Gutenberg itself to tear down and recreate the iframe is not currently part of the E2E suite. That remains a possible future strengthening of lifecycle coverage.
+将来、WordPress のエディター内部構造や browsing context の扱いが変わった場合でも、iframe 固有知識が1か所にまとまっていれば、まず Editor Environment を確認できます。
 
-## PoC measurements
+製品コード全体から iframe 対応箇所を探し回る必要を減らせます。
 
-The PoC is useful because its result can be described with concrete measurements rather than only architectural preference.
+### テストの責務を分けやすくなる
 
-| Measurement | Result |
+「並べ替え機能が正しいか」と「正しい editor context を取得できるか」は、別の問題です。
+
+Editor Environment を境界にすることで、将来的には次のように整理しやすくなります。
+
+```text
+製品機能のテスト
+  └─ 並べ替え、キーボード、タッチ、フォーカスなど
+
+Editor Environment のテスト
+  └─ iframe / non-iframe、lifecycle など
+```
+
+ただし、今回の PoC だけを理由に iframe / non-iframe の E2E をすぐ削除するものではありません。テスト構成の整理は、PoC の成果を踏まえた次の検討事項です。
+
+### Web API は普通に使える
+
+Editor Environment は、Web ブラウザーそのものを隠すための仕組みではありません。
+
+次のような標準 Web API は、これまで通り必要な場所で直接使います。
+
+- `ownerDocument`
+- `defaultView`
+- `focus()`
+- `getBoundingClientRect()`
+- `getComputedStyle()`
+- `Selection`
+- `Range`
+- observers
+- DOM traversal
+- scrolling
+
+重要なのは、`ownerDocument` や `defaultView` を禁止することではありません。
+
+**「現在のエディターがどの browsing context なのかを探す責務」だけを Editor Environment に集める**ことです。
+
+## 4. Table Reorder とは
+
+今回の PoC では、Yamabiko Table Reorder を実証用の製品コードとして使用しました。
+
+Table Reorder は、WordPress の表の行を並べ替えるためのプラグインです。
+
+マウスだけでなく、タッチ操作やキーボード操作でも利用できるように実装されています。
+
+行の並べ替えでは、単にデータの順番を変更するだけではありません。
+
+実際には、次のようなブラウザー機能と深く関わります。
+
+- DOM 要素の探索
+- ドラッグ＆ドロップ
+- pointer / touch interaction
+- keyboard interaction
+- focus
+- scroll
+- 一時的な DOM 操作と cleanup
+
+そのため、iframe の影響を受けやすい機能が複数含まれています。
+
+つまり Table Reorder は、
+
+> Editor Environment が実際の製品コードでも成立するか
+
+を試す題材として適していました。
+
+## 5. Table Reorder で何を変更したのか
+
+PoC 前は、`table-context.ts` が2つの責務を持っていました。
+
+```text
+table-context.ts
+  ├─ iframe / non-iframe の editor context を探す
+  └─ Table block / table / tbody を探す
+```
+
+PoC 後は、次のように分離しました。
+
+```text
+Table Reorder
+      |
+      v
+table-context.ts
+      |
+      | Table 固有の DOM を解決
+      v
+editor-environment.ts
+      |
+      | 現在の document / window を解決
+      v
+iframe / non-iframe editor
+```
+
+`editor-environment.ts` は editor browsing context の discovery だけを担当します。
+
+`table-context.ts` は、解決済みの `document` の中から Table block、`table`、`tbody` を探すことだけに集中します。
+
+この分離によって、Table Reorder の他の実装へ iframe 固有処理を広げずに済みました。
+
+## 6. PoC の成果を数字で見る
+
+今回の結果は、単に「動いた」という感想だけではなく、いくつかの数字で確認できます。
+
+| 指標 | 結果 |
 | --- | --- |
-| iframe E2E | PASS |
-| non-iframe E2E | PASS |
-| Manual local iframe verification | PASS |
-| Manual local non-iframe verification | PASS |
-| iframe-specific production modules | 1 (`editor-environment.ts`) |
-| `contentDocument` / `contentWindow` references outside the boundary | 0 |
-| Existing production modules that required modification | 1 (`table-context.ts`) |
-| Editor Environment capabilities | 2 (`document`, `window`) |
-| Browser API wrappers added | 0 |
-| Existing consumer modules that required adaptation | 0 |
-| Focused iframe recreation test | PASS |
+| WordPress 7.1 iframe E2E | PASS |
+| WordPress 6.8.3 non-iframe E2E | PASS |
+| ローカル iframe 確認 | PASS |
+| ローカル non-iframe 確認 | PASS |
+| iframe 固有知識を持つ production module | 1 (`editor-environment.ts`) |
+| Editor Environment 外の `contentDocument` / `contentWindow` 参照 | 0 |
+| 変更が必要だった既存 production module | 1 (`table-context.ts`) |
+| Editor Environment が公開する capability | 2 (`document`, `window`) |
+| 新しく追加した browser API wrapper | 0 |
+| Editor Environment 対応のため変更が必要だった既存 consumer | 0 |
+| iframe 再生成の focused test | PASS |
 
-The most important measurements are not line counts. They show that the boundary is **small and non-invasive**:
+この中で特に重要なのは、コードの行数ではありません。
 
-- iframe knowledge has one production owner;
-- existing consumers did not need to become Environment-aware;
-- standard browser APIs remain directly usable;
-- the contract contains only the capabilities currently required.
+次の3点です。
 
-## How to check isolation
+1. **iframe 固有の知識を1つの production module に集約できた**
+2. **既存 consumer を Editor Environment 対応に書き換える必要がなかった**
+3. **普通の Web API を包む新しい wrapper を増やさずに済んだ**
 
-The following search provides a simple regression check for iframe-specific production code:
+つまり、小さな境界を追加しただけで、既存の製品コードの大部分はそのまま動きました。
+
+## 7. iframe 固有コードが漏れていないか確認する方法
+
+production code に iframe 固有処理が増えていないかは、次の検索で確認できます。
 
 ```bash
 rg 'contentDocument|contentWindow|iframe\[name="editor-canvas"\]' src \
@@ -156,13 +296,9 @@ rg 'contentDocument|contentWindow|iframe\[name="editor-canvas"\]' src \
   --glob '!**/*.test.*'
 ```
 
-For the current implementation, the expected production-code result is only:
+現在の期待結果は `src/editor-environment.ts` だけです。
 
-```text
-src/editor-environment.ts
-```
-
-A narrower check for direct iframe DOM API access is:
+`contentDocument` / `contentWindow` の直接利用だけを見る場合は、次の検索を使えます。
 
 ```bash
 rg -l 'contentDocument|contentWindow' src \
@@ -171,84 +307,121 @@ rg -l 'contentDocument|contentWindow' src \
   --glob '!**/*.test.*'
 ```
 
-The expected result is again only `src/editor-environment.ts`.
+こちらも期待結果は `src/editor-environment.ts` だけです。
 
-These searches are not intended to prohibit ordinary `ownerDocument` or `defaultView` usage. Those APIs are valid when they are used for a concrete DOM node's local context rather than for editor browsing-context discovery.
+これは `ownerDocument` / `defaultView` の通常利用まで禁止するためのチェックではありません。
 
-## Validation evidence
+目的は、**editor browsing-context discovery が再び製品コード全体へ広がっていないかを見ること**です。
 
-The PoC was validated through the existing repository checks and editor-mode coverage.
+## 8. iframe の作り直しにも古い context を残さない
 
-GitHub Actions run:
+iframe は、エディターの lifecycle の中で破棄・再生成される可能性があります。
+
+もし Editor Environment が古い `document` や `window` をずっと cache してしまうと、すでに使われていない iframe を参照し続ける危険があります。
+
+今回の resolver は stateless にしました。
+
+呼び出されるたびに、現在の editor context を解決します。
+
+focused test では次を確認しています。
+
+1. 最初の iframe を解決する
+2. その iframe を削除する
+3. 新しい iframe を作る
+4. もう一度解決する
+5. 古い iframe ではなく、新しい iframe の `document` / `window` が返ることを確認する
+
+このテストは PASS しています。
+
+一方で、Gutenberg 自身に実ブラウザー上で iframe teardown / recreation を強制する専用 E2E は、今回の PoC にはまだ含めていません。
+
+これは今後さらに lifecycle coverage を強化する場合の候補です。
+
+## 9. 検証結果
+
+GitHub Actions:
 
 - https://github.com/YamabikoLab/yamabiko-table-reorder/actions/runs/32609568439
 
-That run completed successfully, including:
+この CI では、次を含む検証が成功しました。
 
-- Node quality checks and build;
-- PHP checks;
-- WordPress 7.1 iframe E2E;
-- WordPress 6.8.3 non-iframe E2E.
+- Node.js quality checks
+- production build
+- PHP checks
+- WordPress 7.1 iframe E2E
+- WordPress 6.8.3 non-iframe E2E
 
-Manual local verification also confirmed normal Table Reorder behavior in both iframe and non-iframe editors.
+さらにローカル環境でも、iframe / non-iframe の両方で Table Reorder の正常動作を確認しました。
 
-## What this PoC demonstrates
+## 10. この PoC で分かったこと
 
-The result suggests that most Table Reorder product code does not need to know about iframe structure at all.
+今回の実験から、少なくとも Table Reorder では、次のことが確認できました。
 
-The editor mode is an environment concern, not a drag-and-drop concern, keyboard concern, touch concern, focus concern, or Table row-order concern.
+> iframe / non-iframe の detection、discovery、lifecycle concern を小さな境界へ集約しても、残りの製品コードはほぼそのまま通常の Web コードとして動かせる。
 
-That distinction is the main architectural value of the PoC.
+これは、Editor Environment を「Web を隠す abstraction」として作る必要がないことも示しています。
 
-The boundary can therefore be described as:
+今回成立した境界は、もっと小さなものです。
 
-> A thin guide to the current editor context, not a layer that hides the Web platform.
+> **どの editor context を使うべきかだけを案内する薄い boundary**
 
-This is deliberately different from creating a large Canvas or browser abstraction. The Editor Environment only contains the editor-specific discovery knowledge that consumers should not have to duplicate.
+Editor Environment が iframe を知っています。
 
-## What the PoC does not prove
+Table Reorder の並べ替えロジック、キーボード処理、タッチ処理、フォーカス処理、スクロール処理などは、その事実を知る必要がありません。
 
-The current result does not yet prove that the same abstraction should become a standalone package or a WordPress public API.
+今回の PoC の中心的な成果はここにあります。
 
-It also does not prove that non-iframe E2E coverage can immediately be removed. During the PoC, both editor modes remain important evidence that the boundary behaves correctly.
+## 11. この PoC だけではまだ分からないこと
 
-Before reducing integration coverage or extracting the abstraction, further evidence may be useful around:
+今回の結果だけで、次のことまで決定したわけではありません。
 
-- real-browser iframe teardown and recreation;
-- whether future editor-context requirements keep the contract small;
-- whether other consumers have the same discovery problem;
-- whether WordPress eventually provides a public API that can replace some or all of the discovery implementation.
+- non-iframe E2E を削除できるか
+- Editor Environment を standalone package にすべきか
+- 他の WordPress プラグインでも同じ abstraction がそのまま有効か
+- WordPress / Gutenberg の public API として成立するか
+- 将来必要な capability が増えても、この境界を小さく保てるか
 
-## Architectural conclusion
+これらは、今回得られた結果を基準にして次に検討できます。
 
-For Table Reorder, the PoC achieved the intended separation with a small blast radius.
+特に重要なのは、今後 capability が必要になるたびに Editor Environment を巨大化させないことです。
 
-The practical architecture is now:
+Editor Environment の役割は、あくまで editor context の案内役です。
+
+## まとめ
+
+WordPress 7.1 の iframe 化に対応するには、正しい editor `document` / `window` を扱う必要があります。
+
+しかし、その知識を各機能がそれぞれ持つ必要はありません。
+
+今回 Table Reorder で試した結果、iframe 固有の discovery を Editor Environment という1つの薄い境界へ集約しながら、既存の製品コードの大部分を変更せず、iframe / non-iframe の両方で正常に動かすことができました。
 
 ```text
-Product code
+製品コード
   |
-  | normal DOM / Web APIs
+  | 普通の DOM / Web API を使う
   v
-Table-specific behavior
+本来の機能
   |
-  | asks only for the current editor context
+  | editor context が必要なときだけ問い合わせる
   v
 Editor Environment
   |
-  | iframe-specific discovery and lifecycle boundary
+  | iframe / non-iframe の違いを吸収する
   v
-WordPress editor browsing context
+WordPress Editor
 ```
 
-The key result is not simply that both editor modes still work.
+目指しているのは、iframe をなくすことではありません。
 
-It is that **they still work while iframe-specific knowledge is concentrated in one thin production boundary and the rest of Table Reorder remains ordinary Web application code**.
+**iframe が存在していても、製品コードの大部分は iframe を知らなくてよい状態にすること**です。
+
+今回の PoC は、その方向が Table Reorder の実製品コードで成立することを示しました。
 
 ## References
 
+- [Iframed Editor Changes in WordPress 7.1](https://make.wordpress.org/core/2026/08/03/iframed-editor-changes-in-wordpress-7-1/)
 - Issue #430: PoC: isolate editor browsing context behind an Editor Environment
 - PR #441: PoC implementation
-- `docs/plans/table-reorder/editor-environment-poc-plan.md`: implementation plan
-- `src/editor-environment.ts`: browsing-context boundary
+- `docs/plans/table-reorder/editor-environment-poc-plan.md`: PoC implementation plan
+- `src/editor-environment.ts`: editor browsing-context boundary
 - `src/table-context.ts`: Table-specific DOM resolution
