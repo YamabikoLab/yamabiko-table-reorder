@@ -1,10 +1,10 @@
 /**
- * Column Reorder が利用する table DOM context を解決する。
+ * Column Reorderが利用するtable DOM contextを解決する。
  */
 
 import { resolveEditorEnvironment } from '@/common/editor-environment';
 
-/** Column control prototype が必要とする DOM context。 */
+/** Column control prototypeが必要とするDOM context。 */
 export type ColumnTableContext = {
 	blockElement: HTMLElement;
 	columns: HTMLTableCellElement[];
@@ -14,12 +14,13 @@ export type ColumnTableContext = {
 };
 
 /**
- * 結合セルを含まない table から、列 geometry の代表 cell を返す。
+ * 結合セルを含まないtableから、列geometryの代表cellを返す。
  *
- * Phase 2 では logical grid を導入しないため、row / col span を含む table は対象外とする。
+ * logical gridを使用しない単純なphysical columnとして扱えるtableだけを対象とし、
+ * rowSpan / colSpanを含むtableは対象外とする。
  *
- * @param table 対象 table element。
- * @return 各列の代表 cell。対象外 shape では null。
+ * @param table 対象table element。
+ * @return 各列の代表cell。対象外shapeではnull。
  */
 export const getColumnCells = ( table: HTMLTableElement ): HTMLTableCellElement[] | null => {
 	const rows = Array.from( table.rows );
@@ -45,11 +46,11 @@ export const getColumnCells = ( table: HTMLTableElement ): HTMLTableCellElement[
 };
 
 /**
- * anchor の current editor context から Column Reorder の table context を組み立てる。
+ * anchorのcurrent editor contextからColumn Reorderのtable contextを組み立てる。
  *
- * @param anchor   editor context 探索の起点となる DOM element。
- * @param clientId 解決対象 Gutenberg block の clientId。
- * @return Column Reorder 用 context。対象外 shape / 未解決では null。
+ * @param anchor   editor context探索の起点となるDOM element。
+ * @param clientId 解決対象Gutenberg blockのclientId。
+ * @return Column Reorder用context。対象外shape / 未解決ではnull。
  */
 export const resolveColumnTableContext = (
 	anchor: Element,
