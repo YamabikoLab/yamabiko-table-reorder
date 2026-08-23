@@ -172,6 +172,14 @@ UI Mode listens on `0.0.0.0:9323` inside the Dev Container so VS Code can forwar
 
 PR Validation uses a separate, CI-only environment defined in `tests/e2e/compose.ci.yaml`. It starts the pinned WordPress, MariaDB, and WP-CLI images needed by the E2E job, activates the checked-out plugin, and runs the existing suite with the official Playwright Docker image whose version matches `@playwright/test`. This CI Compose file does not replace `wp-dev` as the local development environment.
 
+The CI E2E matrix intentionally covers three representative WordPress editor environments rather than expanding into a PHP-version matrix:
+
+- WordPress 6.8.3 / non-iframe: minimum supported line and non-iframe regression coverage.
+- WordPress 7.0.4 / iframe: intermediate generation between the minimum and latest supported lines.
+- WordPress 7.1.0 / iframe: latest supported line and current iframe regression coverage.
+
+All three environments run the same existing Playwright suite. The 6.8.3 job keeps the dedicated non-iframe fixture, while the 7.0.4 and 7.1.0 jobs verify iframe mode through the existing editor-mode setup check. Failure artifacts include the WordPress version and editor mode in their names so parallel matrix jobs remain distinguishable.
+
 The CI E2E job does not run `playwright install --with-deps chromium`. Chromium and its Linux dependencies come from the pinned Playwright image. Failed runs upload `playwright-report/`, `test-results/`, and `docker-compose.log` when available.
 
 Playwright writes authentication state to `.playwright/`, HTML reports to `playwright-report/`, and test artifacts to `test-results/`. Failed tests retain trace, screenshot, and video artifacts for investigation. All of these paths are excluded from Git.
