@@ -140,7 +140,37 @@ Editor Environment
 
 Editor Environment の目的は、単に iframe 対応コードを別ファイルへ移すことではありません。
 
-一番大きな価値は、**製品コードが iframe の存在を意識しなくてよい範囲を広げられること**です。
+### 「iframe 対応 = 全コードの書き換え」ではない
+
+今回の PoC で一番大きな成果は、次の一点です。
+
+> **iframe 対応の知識を、わずか1ファイル（`editor-environment.ts`）だけに完全に幽閉できる。**
+
+ここでいう「iframe 対応の知識」とは、iframe / non-iframe の違いを判断し、現在使うべき editor `document` / `window` を解決するための知識です。
+
+少なくとも今回の Table Reorder では、WordPress 7.1 でエディターが iframe 化されても、既存の製品コード全体を iframe 対応へ書き換える必要はありませんでした。
+
+実際に変更が必要だった既存 production module は `table-context.ts` の1つだけです。既存の controller、drag UI、キーボード操作、タッチ操作、フォーカス、スクロール処理は、そのまま動かすことができました。
+
+つまり、
+
+```text
+iframe 化
+  ↓
+既存機能をすべて iframe 対応へ書き換える
+```
+
+のではなく、
+
+```text
+iframe 化
+  ↓
+iframe 対応の知識を editor-environment.ts に幽閉する
+  ↓
+既存の製品コードは、本来の機能に集中する
+```
+
+という形にできます。
 
 ### 機能を書くコードを、本来の仕事へ集中させられる
 
@@ -155,9 +185,13 @@ Editor Environment の目的は、単に iframe 対応コードを別ファイ�
 
 ここへ「iframe かどうか」を混ぜる必要がなくなります。
 
+各機能を実装するたびに「今は iframe か」「どの `document` を使うか」を考えるのではなく、Editor Environment に問い合わせればよくなります。
+
 目指しているのは、次の変化です。
 
-> 「iframe 対応を書くコード」から、「普通の機能を書くコード」へ寄せる
+> **「iframe 対応を書くコード」から、「普通の機能を書くコード」へ寄せる**
+
+開発者は iframe / non-iframe の違いではなく、ドラッグ＆ドロップやキーボード操作など、その機能本来の問題に集中できます。
 
 ### editor context の変化による影響を狭くできる
 
