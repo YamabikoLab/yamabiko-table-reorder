@@ -50,7 +50,7 @@ const getControlGeometry = ( columns: HTMLTableCellElement[] ): ControlGeometry 
  */
 export const withColumnReorder = ( BlockEdit: ComponentType< TableBlockEditProps > ) =>
 	function WithColumnReorder( props: TableBlockEditProps ) {
-		const { clientId, isSelected, name } = props;
+		const { attributes, clientId, isSelected, name } = props;
 		const [ anchor, setAnchor ] = useState< HTMLSpanElement | null >( null );
 		const [ geometry, setGeometry ] = useState< ControlGeometry | null >( null );
 
@@ -94,7 +94,7 @@ export const withColumnReorder = ( BlockEdit: ComponentType< TableBlockEditProps
 				context.window.removeEventListener( 'scroll', refreshGeometry, true );
 				resizeObserver?.disconnect();
 			};
-		}, [ anchor, clientId, isSelected, name ] );
+		}, [ anchor, attributes, clientId, isSelected, name ] );
 
 		const showControls = isSelected && supportsColumnReorder( name ) && geometry;
 
