@@ -2,55 +2,59 @@
 
 ## はじめに
 
-WordPress 7.1 では、投稿エディターが常に iframe 内で動作するようになります。
+WordPress では、エディターを iframe 内で動かす取り組みが段階的に進められてきました。WordPress 7.1 では、その流れの中で投稿エディターも常に iframe 内で動作するようになります。
 
-WordPress 公式の開発者向け案内では、iframe 内には管理画面とは別の `document` と `window` が存在するため、エディター内部の要素を扱うときは、グローバルな `document` / `window` ではなく、対象要素の `ownerDocument` や `defaultView` を使うことが推奨されています。
+[Iframed Editor Changes in WordPress 7.1](https://make.wordpress.org/core/2026/08/03/iframed-editor-changes-in-wordpress-7-1/) では、この変更の背景と、ブロックやエディター拡張を iframe 内でも正しく動かすための考え方が分かりやすく整理されています。
 
-参考:
+iframe 内の編集領域には、管理画面とは別の `document` と `window` があります。そのため、エディター内部の要素を扱うときは、グローバルな `document` / `window` ではなく、対象要素の `ownerDocument` や `defaultView` から適切な context を取得することが重要になります。
 
-- [Iframed Editor Changes in WordPress 7.1](https://make.wordpress.org/core/2026/08/03/iframed-editor-changes-in-wordpress-7-1/)
+この考え方を前提に、今回の PoC ではもう一つ設計上の問いを立てました。
 
-この対応方法そのものは正しいものです。
+> iframe / non-iframe の違いを正しく扱いながら、その違いを各機能が毎回意識しなくてもよい形にできないか？
 
-今回の PoC で検討したのは、その一歩先です。
+これは WordPress 7.1 だけのための対応ではありません。
 
-> iframe 対応を、それぞれの機能コードが毎回意識しなくてもよい形にできないか？
+Table Reorder はこれまでも iframe / non-iframe の両方で動作してきました。今回検証したのは、その **editor browsing context の違いを、製品コードの中でどのように扱うと分かりやすく保てるか** です。
 
-この問いに対して、Table Reorder を実際の題材として検証しました。
+Table Reorder を実際の題材として試した結果、**今回の PoC では、その違いを小さな境界へ集約しながら、iframe / non-iframe の両方を正常に動かすことができました。**
 
-結論から言うと、**今回の PoC では、その形を実現できました。**
+## 1. iframe / non-iframe の違いを、どこで扱うとよいか
 
-## 1. WordPress 7.1 対応をそのまま各機能へ書くと何が問題なのか
-
-WordPress 7.1 の iframe 化によって、エディターを拡張するコードは「どの `document` と `window` を使うべきか」を正しく判断する必要があります。
+iframe editor を扱うときは、「どの `document` と `window` を使うべきか」を正しく判断する必要があります。
 
 たとえば、エディター内のボタンや表を操作したいとします。
 
-iframe がなければ、ページ全体の `document` を使えばよいケースが多くあります。しかし iframe の中に編集領域がある場合、管理画面の `document` と編集領域の `document` は別物です。
+non-iframe では、編集領域が管理画面と同じ `document` にあります。一方、iframe では編集領域が別の `document` にあります。
 
-間違った `document` を使うと、要素を見つけられなかったり、イベントやフォーカス、スクロールなどが期待した場所で動かなかったりします。
+そのため、対象となる DOM 要素がどの document に属しているかを基準に、適切な context を利用する必要があります。
 
-### ここで本当に困ること
+WordPress の公式記事では、この違いを安全に扱うための方法が示されています。各機能がその考え方に沿って実装すれば、iframe 内でも正しく動作できます。
 
-公式の案内に従って各機能が正しい `document` / `window` を取得すれば、個々の問題は解決できます。
+### ここで考えたいこと
 
-ただし、その判断を機能ごとに書き始めると、次のような状態になりやすくなります。
+Table Reorder の PoC で着目したのは、**その判断を製品コードのどこに置くか**です。
+
+同じ種類の判断を複数の機能がそれぞれ持つようになると、たとえば次のような形になります。
 
 ```text
 並べ替え機能
-  ├─ iframe か確認する
+  ├─ iframe / non-iframe を判定する
   ├─ 正しい document を探す
   ├─ 正しい window を探す
   └─ 本来の並べ替え処理を書く
 
 別の機能
-  ├─ iframe か確認する
+  ├─ iframe / non-iframe を判定する
   ├─ 正しい document を探す
   ├─ 正しい window を探す
   └─ 本来の機能を書く
 ```
 
-つまり、**本来作りたい機能とは関係のない「iframe をどう扱うか」という知識が、製品コードのあちこちへ広がる**可能性があります。
+これは間違った実装という意味ではありません。
+
+ただ、機能が増えるにつれて **editor browsing context をどう解決するかという知識が、製品コードの複数箇所へ広がっていく可能性があります。**
+
+そこで今回の PoC では、その知識を一か所へまとめられないかを試しました。
 
 ### イメージで捉えると
 
@@ -60,9 +64,9 @@ WordPress の編集画面の中に、もう一つ別の「作業部屋」があ�
 
 > 今いるのは外の部屋か、中の部屋か？
 
-を確認しなければならない状態です。
+を確認することもできます。
 
-確認方法が複数の機能へ散らばるほど、将来エディターの構造が変わったときに、影響箇所も増えていきます。
+今回試したのは、その確認を各機能で繰り返すのではなく、**「今使うべき作業部屋はどこか」を案内する役割を一か所にまとめる**方法です。
 
 ## 2. 解決策: Editor Environment
 
@@ -74,7 +78,7 @@ WordPress の編集画面の中に、もう一つ別の「作業部屋」があ�
 Before
 
 製品コード
-  ├─ iframe を探す
+  ├─ iframe / non-iframe を判断する
   ├─ document を選ぶ
   ├─ window を選ぶ
   └─ 本来の機能を書く
@@ -153,11 +157,11 @@ Editor Environment の目的は、単に iframe 対応コードを別ファイ�
 
 > 「iframe 対応を書くコード」から、「普通の機能を書くコード」へ寄せる
 
-### WordPress 側の変更による影響を狭くできる
+### editor context の変化による影響を狭くできる
 
-将来、WordPress のエディター内部構造や browsing context の扱いが変わった場合でも、iframe 固有知識が1か所にまとまっていれば、まず Editor Environment を確認できます。
+将来、WordPress のエディター内部構造や browsing context の扱いが変わった場合でも、editor context の解決に関する知識が1か所にまとまっていれば、まず Editor Environment を確認できます。
 
-製品コード全体から iframe 対応箇所を探し回る必要を減らせます。
+製品コード全体から iframe / non-iframe の判定箇所を探し回る必要を減らせます。
 
 ### テストの責務を分けやすくなる
 
@@ -389,11 +393,11 @@ Editor Environment の役割は、あくまで editor context の案内役です
 
 ## まとめ
 
-WordPress 7.1 の iframe 化に対応するには、正しい editor `document` / `window` を扱う必要があります。
+iframe editor を扱うには、適切な editor `document` / `window` を参照する必要があります。
 
-しかし、その知識を各機能がそれぞれ持つ必要はありません。
+WordPress の公式記事では、そのための考え方と実装上のポイントが整理されています。今回の PoC はその知見を前提として、**iframe / non-iframe の違いを製品コードのどこで扱うとよいか**を検証したものです。
 
-今回 Table Reorder で試した結果、iframe 固有の discovery を Editor Environment という1つの薄い境界へ集約しながら、既存の製品コードの大部分を変更せず、iframe / non-iframe の両方で正常に動かすことができました。
+Table Reorder で試した結果、iframe 固有の discovery を Editor Environment という1つの薄い境界へ集約しながら、既存の製品コードの大部分を変更せず、iframe / non-iframe の両方で正常に動かすことができました。
 
 ```text
 製品コード
