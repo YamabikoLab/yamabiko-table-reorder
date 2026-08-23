@@ -29,6 +29,13 @@ These instructions apply to the entire repository.
 - Do not commit secrets, credentials, personal paths, machine names, or other local-only environment details.
 - Preserve released identifiers and saved content unless the issue explicitly includes a compatibility decision.
 
+## GitHub Actions
+
+- Keep existing CI, security, and release workflows limited to their intended purpose. Do not reuse them for unrelated ad-hoc or one-off work, and do not change their `permissions`, triggers, or jobs solely to run temporary processing. Changes to a workflow are allowed when changing that workflow is itself part of the task.
+- Perform temporary processing locally when practical. If GitHub Actions is required, use a dedicated workflow with a narrowly scoped purpose, trigger, and minimum necessary permissions.
+- Remove temporary workflows before merge unless there is a clear reason to keep them permanently.
+- When `.github/workflows/` changes, review the final diff before merge and confirm that no unrelated workflow changes or temporary workflows remain.
+
 ## Documentation responsibilities
 
 - Put direct working instructions in `AGENTS.md` files.
