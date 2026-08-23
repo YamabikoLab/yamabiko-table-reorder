@@ -65,13 +65,13 @@ export const withColumnReorder = ( BlockEdit: ComponentType< TableBlockEditProps
 			let resizeObserver: ResizeObserver | null = null;
 
 			const refreshGeometry = () => {
-				const context = resolveColumnTableContext( anchor, clientId );
-				if ( ! context ) {
+				const currentContext = resolveColumnTableContext( anchor, clientId );
+				if ( ! currentContext ) {
 					setGeometry( null );
 					return;
 				}
 
-				setGeometry( getControlGeometry( context.columns ) );
+				setGeometry( getControlGeometry( currentContext.columns ) );
 			};
 
 			const context = resolveColumnTableContext( anchor, clientId );
@@ -84,8 +84,11 @@ export const withColumnReorder = ( BlockEdit: ComponentType< TableBlockEditProps
 			context.window.addEventListener( 'resize', refreshGeometry );
 			context.window.addEventListener( 'scroll', refreshGeometry, true );
 
-			if ( 'ResizeObserver' in context.window ) {
-				resizeObserver = new context.window.ResizeObserver( refreshGeometry );
+			const ResizeObserverConstructor = (
+				context.window as Window & typeof globalThis
+			).ResizeObserver;
+			if ( ResizeObserverConstructor ) {
+				resizeObserver = new ResizeObserverConstructor( refreshGeometry );
 				resizeObserver.observe( context.table );
 			}
 
