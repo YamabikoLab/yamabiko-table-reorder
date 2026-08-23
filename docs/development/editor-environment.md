@@ -18,7 +18,7 @@ Table Reorder はこれまでも iframe / non-iframe の両方で動作してき
 
 Table Reorder を実際の題材として試した結果、**今回の PoC では、その違いを小さな境界へ集約しながら、iframe / non-iframe の両方を正常に動かすことができました。**
 
-## 1. iframe / non-iframe の違いを、どこで扱うとよいか
+## 1. iframe / non-iframe 対応で見えてきた課題
 
 iframe editor を扱うときは、「どの `document` と `window` を使うべきか」を正しく判断する必要があります。
 
