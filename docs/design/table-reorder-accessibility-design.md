@@ -365,5 +365,5 @@ iframe・non-iframe の両方で、次を同じ意味で成立させる。
 - 基本要件: `../requirements/table-reorder-requirements.md`
 - アクセシビリティ要件: `../requirements/table-reorder-accessibility-requirements.md`
 - 通常操作基本設計: `table-reorder-design.md`
-- 文書同期プラン: `../../plans/table-reorder-document-sync-plan.md`
-- 文書同期 差分分析: `../../plans/table-reorder-document-sync-gap-analysis.md`
+- 文書同期プラン: `../plans/table-reorder-document-sync-plan.md`
+- 文書同期 差分分析: `../plans/table-reorder-document-sync-gap-analysis.md`
