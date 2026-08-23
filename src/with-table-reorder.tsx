@@ -7,9 +7,11 @@
 import { BlockControls } from '@wordpress/block-editor';
 import type { BlockEditProps } from '@wordpress/blocks';
 import { Button, Popover, ToolbarButton } from '@wordpress/components';
+import { useMergeRefs, useRefEffect } from '@wordpress/compose';
 import { useEffect, useLayoutEffect, useState, type ComponentType } from '@wordpress/element';
 import { dragHandle, Icon, keyboard } from '@wordpress/icons';
 
+import { getTableReorderBlockSupport, type TableReorderBlockSupport } from './block-support';
 import {
 	getCloseGuidanceName,
 	getKeyboardCoachmarkMessage,
@@ -17,7 +19,7 @@ import {
 	getToolbarReorderName,
 	getTouchCoachmarkMessage,
 } from './messages';
-import { getTableReorderBlockSupport, type TableReorderBlockSupport } from './block-support';
+import { resolveTableContext } from './table-context';
 import { useTableReorder } from './use-table-reorder';
 
 /** Table Reorder対応blockのbodyを含むattribute形。 */
@@ -99,6 +101,33 @@ const TableReorderEdit = ( componentProps: TableReorderEditProps ) => {
 		rowspanProperty: support.rowspanProperty,
 		setAttributes,
 	} );
+	const lifecycleProbeRef = useRefEffect< HTMLSpanElement >( ( anchor ) => {
+		const context = resolveTableContext( anchor, clientId );
+
+		// PoC for #442: verify whether the existing hidden anchor lifecycle follows
+		// editor iframe teardown / recreation closely enough for useRefEffect to be
+		// the lifecycle signal used by Table Reorder.
+		// eslint-disable-next-line no-console
+		console.info( '[Table Reorder #442 PoC] anchor connected', {
+			anchor,
+			clientId,
+			document: context?.document ?? null,
+			tbody: context?.tbody ?? null,
+			window: context?.window ?? null,
+		} );
+
+		return () => {
+			// eslint-disable-next-line no-console
+			console.info( '[Table Reorder #442 PoC] anchor disconnected', {
+				anchor,
+				clientId,
+				document: context?.document ?? null,
+				tbody: context?.tbody ?? null,
+				window: context?.window ?? null,
+			} );
+		};
+	}, [ clientId ] );
+	const mergedAnchorRef = useMergeRefs( [ anchorRef, lifecycleProbeRef ] );
 
 	useLayoutEffect( () => {
 		if ( isKeyboardCoachmarkVisible && toolbarButton ) {
@@ -183,7 +212,7 @@ const TableReorderEdit = ( componentProps: TableReorderEditProps ) => {
 					) }
 				</BlockControls>
 			) }
-			<span aria-hidden="true" hidden ref={ anchorRef } />
+			<span aria-hidden="true" hidden ref={ mergedAnchorRef } />
 		</>
 	);
 };
