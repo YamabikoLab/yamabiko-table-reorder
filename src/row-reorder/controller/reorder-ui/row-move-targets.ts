@@ -4,8 +4,8 @@ import {
 	getDestinationEndName,
 	getPcPointerActiveMessage,
 	getTouchPointerActiveMessage,
-} from '@/messages';
-import type { RowMoveTarget } from '@/controller/row-order';
+} from '@/row-reorder/messages';
+import type { RowMoveTarget } from '@/row-reorder/controller/row-order';
 import { createReorderGuidance } from './reorder-guidance';
 import { getRowRepresentativeText } from './row-controls';
 

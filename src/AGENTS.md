@@ -8,12 +8,21 @@ These instructions apply to plugin source files under `src/`.
 - Run npm, Composer, PHP, and build commands from the repository root.
 - `src/` is the Table Reorder source boundary; generated production assets live under `build/` and are not committed.
 
+## Source boundaries
+
+- Keep `src/index.tsx` as the thin plugin-wide entry point.
+- Put row / `tbody` / `rowspan` specific implementation under `src/row-reorder/`.
+- Put row-specific imperative controller and UI behavior under `src/row-reorder/controller/`.
+- Put only clearly responsibility-neutral editor/runtime infrastructure under `src/common/`. Code in `common/` must not depend on `row-reorder/`.
+- Keep source-level declarations under `src/types/`.
+- Add a future feature boundary such as `column-reorder/` only when that feature is actually implemented.
+
 ## Implementation rules
 
 - Prefer public WordPress APIs, hooks, components, and data stores.
-- Keep Table Reorder implementation directly under `src/` or an existing focused responsibility directory such as `src/controller/`, following `../docs/development/source-organization.md`.
-- Add a new source directory only when an implemented responsibility requires it; do not recreate a redundant feature wrapper around the whole plugin.
-- Do not create `shared/`, `utils/`, or `helpers/` until multiple real consumers need the same code.
+- Follow `../docs/development/source-organization.md` when adding or moving source files.
+- Do not move code into `common/` merely because it might be reusable later. Keep code with its current owning feature until multiple real consumers prove a stable shared responsibility.
+- Do not create generic `shared/`, `utils/`, or `helpers/` directories for possible future reuse.
 - Keep entry files small. They should register or compose a feature, not contain unrelated implementation details.
 - Treat saved block markup, attributes, identifiers, hooks, and persisted data as compatibility contracts.
 
