@@ -57,6 +57,8 @@ const useTableReorderInteractionMock = useTableReorderInteraction as jest.Mocked
 >;
 
 const createNoticeMock = jest.fn();
+const interactionAnchorRefMock = jest.fn();
+const controllerAnchorRefMock = jest.fn();
 const consumeTouchToolbarFocusRequestMock = jest.fn();
 const dismissKeyboardCoachmarkMock = jest.fn();
 const dismissTouchCoachmarkMock = jest.fn();
@@ -88,6 +90,7 @@ const createBody = ( ...labels: string[] ): unknown[] =>
 const createInteractionResult = (
 	overrides: Partial< InteractionResult > = {}
 ): InteractionResult => ( {
+	anchorRef: interactionAnchorRefMock,
 	consumeTouchToolbarFocusRequest: consumeTouchToolbarFocusRequestMock,
 	dismissKeyboardCoachmark: dismissKeyboardCoachmarkMock,
 	dismissTouchCoachmark: dismissTouchCoachmarkMock,
@@ -144,6 +147,8 @@ beforeEach( () => {
 	latestResult = null;
 	activeRoot = null;
 	createNoticeMock.mockReset();
+	interactionAnchorRefMock.mockReset();
+	controllerAnchorRefMock.mockReset();
 	consumeTouchToolbarFocusRequestMock.mockReset();
 	dismissKeyboardCoachmarkMock.mockReset();
 	dismissTouchCoachmarkMock.mockReset();
@@ -159,6 +164,7 @@ beforeEach( () => {
 	useTableReorderInteractionMock.mockReturnValue( createInteractionResult() );
 	focusRowControlMock.mockReturnValue( 'focused' );
 	useTableReorderControllerMock.mockReturnValue( {
+		anchorRef: controllerAnchorRefMock,
 		focusRowControl: focusRowControlMock,
 	} );
 	resolveTableContextMock.mockReturnValue( createContext() );
@@ -174,6 +180,13 @@ afterEach( () => {
 } );
 
 describe( 'useTableReorder local contract', () => {
+	it( 'connects interaction and controller refs to the hidden anchor', () => {
+		mountHook();
+
+		expect( interactionAnchorRefMock ).toHaveBeenCalledWith( expect.any( HTMLSpanElement ) );
+		expect( controllerAnchorRefMock ).toHaveBeenCalledWith( expect.any( HTMLSpanElement ) );
+	} );
+
 	it( 'commits reordered body through setAttributes', () => {
 		const setAttributes = jest.fn();
 		const reorderedBody = createBody( 'b', 'a', 'c' );
