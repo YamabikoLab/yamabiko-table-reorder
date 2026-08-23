@@ -1,4 +1,4 @@
-import type { TableContext } from '../table-context';
+import type { TableContext } from '@/table-context';
 import { resolveAutoScrollTarget } from './scroll-target';
 
 const createContext = () => {
