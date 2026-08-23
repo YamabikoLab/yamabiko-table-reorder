@@ -5,7 +5,8 @@
  * Gutenberg固有のsetAttributesやnotice処理とはcallback / command境界で接続する。
  */
 
-import { useEffect, useRef, type RefObject } from '@wordpress/element';
+import { useRefEffect } from '@wordpress/compose';
+import { useEffect, useRef } from '@wordpress/element';
 
 import {
 	createSortableController,
@@ -27,7 +28,6 @@ type TableReorderConfigWindow = Window & {
 
 /** controller lifecycle hookへ渡すReact側の入力。 */
 type UseTableReorderControllerOptions = {
-	anchorRef: RefObject< HTMLSpanElement >;
 	body: unknown;
 	clientId: string;
 	enabled: boolean;
@@ -39,6 +39,7 @@ type UseTableReorderControllerOptions = {
 
 /** controller lifecycle hookが親へ公開する最小command API。 */
 type TableReorderControllerCommands = {
+	anchorRef: ( anchor: HTMLSpanElement | null ) => void;
 	focusRowControl: () => FocusRowControlResult | undefined;
 };
 
@@ -46,13 +47,12 @@ type TableReorderControllerCommands = {
  * Table Reorderのcontroller生成・cleanupとcommit後のfocus復元を所有する。
  *
  * @param options controller生成に必要なTable情報、算出済み制約、body commit callback。
- * @return Toolbarから利用するcontroller command。
+ * @return hidden anchor用refとToolbarから利用するcontroller command。
  */
 export const useTableReorderController = (
 	options: UseTableReorderControllerOptions
 ): TableReorderControllerCommands => {
 	const {
-		anchorRef,
 		body,
 		clientId,
 		enabled,
@@ -69,100 +69,91 @@ export const useTableReorderController = (
 		onBodyCommitRef.current = onBodyCommit;
 	}, [ onBodyCommit ] );
 
-	useEffect( () => {
-		controllerRef.current = null;
-		if ( ! enabled || ! interactionMode ) {
-			return;
-		}
-
-		const anchor = anchorRef.current;
-		if ( ! anchor ) {
-			return;
-		}
-
-		const configWindow = window as TableReorderConfigWindow;
-		const runtimeUrl =
-			configWindow.yamabikoTableReorder?.runtimeUrl ??
-			configWindow.yamabikoEditorToolsTableReorder?.runtimeUrl;
-		if ( ! runtimeUrl ) {
-			return;
-		}
-
-		const context = resolveTableContext( anchor, clientId );
-		if ( ! context ) {
-			return;
-		}
-
-		if (
-			interactionMode === 'hover' &&
-			! context.window.matchMedia( '(hover: hover) and (pointer: fine)' ).matches
-		) {
-			return;
-		}
-
-		let controller: SortableController | null = null;
-		let disposed = false;
-
-		queueMicrotask( () => {
-			if ( disposed ) {
+	const anchorRef = useRefEffect(
+		( anchor: HTMLSpanElement ) => {
+			controllerRef.current = null;
+			if ( ! enabled || ! interactionMode ) {
 				return;
 			}
 
-			const createdController = createSortableController( {
-				context,
-				forbiddenInsertionIndices,
-				interactionMode,
-				nonMovableRowIndices,
-				onCommit: ( reorderedBody, focusRowIndex ) => {
-					if ( focusRowIndex !== undefined ) {
-						pendingFocusRowIndexRef.current = focusRowIndex;
-					}
-					onBodyCommitRef.current( reorderedBody );
-				},
-				rows: Array.isArray( body ) ? body : null,
-				runtimeUrl,
+			const configWindow = window as TableReorderConfigWindow;
+			const runtimeUrl =
+				configWindow.yamabikoTableReorder?.runtimeUrl ??
+				configWindow.yamabikoEditorToolsTableReorder?.runtimeUrl;
+			if ( ! runtimeUrl ) {
+				return;
+			}
+
+			const context = resolveTableContext( anchor, clientId );
+			if ( ! context ) {
+				return;
+			}
+
+			if (
+				interactionMode === 'hover' &&
+				! context.window.matchMedia( '(hover: hover) and (pointer: fine)' ).matches
+			) {
+				return;
+			}
+
+			let controller: SortableController | null = null;
+			let disposed = false;
+
+			queueMicrotask( () => {
+				if ( disposed ) {
+					return;
+				}
+
+				const createdController = createSortableController( {
+					context,
+					forbiddenInsertionIndices,
+					interactionMode,
+					nonMovableRowIndices,
+					onCommit: ( reorderedBody, focusRowIndex ) => {
+						if ( focusRowIndex !== undefined ) {
+							pendingFocusRowIndexRef.current = focusRowIndex;
+						}
+						onBodyCommitRef.current( reorderedBody );
+					},
+					rows: Array.isArray( body ) ? body : null,
+					runtimeUrl,
+				} );
+
+				if ( disposed ) {
+					createdController.destroy();
+					return;
+				}
+
+				controller = createdController;
+				controllerRef.current = createdController;
+				const pendingFocusRowIndex = pendingFocusRowIndexRef.current;
+				if (
+					pendingFocusRowIndex !== null &&
+					createdController.focusRowControlAt( pendingFocusRowIndex )
+				) {
+					pendingFocusRowIndexRef.current = null;
+				}
 			} );
 
-			if ( disposed ) {
-				createdController.destroy();
-				return;
-			}
-
-			controller = createdController;
-			controllerRef.current = createdController;
-			const pendingFocusRowIndex = pendingFocusRowIndexRef.current;
-			if (
-				pendingFocusRowIndex !== null &&
-				createdController.focusRowControlAt( pendingFocusRowIndex )
-			) {
-				pendingFocusRowIndexRef.current = null;
-			}
-		} );
-
-		return () => {
-			disposed = true;
-			const controllerToDestroy = controller;
-			controller = null;
-			if ( controllerRef.current === controllerToDestroy ) {
-				controllerRef.current = null;
-			}
-			if ( controllerToDestroy ) {
-				queueMicrotask( () => {
-					controllerToDestroy.destroy();
-				} );
-			}
-		};
-	}, [
-		anchorRef,
-		body,
-		clientId,
-		enabled,
-		forbiddenInsertionIndices,
-		interactionMode,
-		nonMovableRowIndices,
-	] );
+			return () => {
+				disposed = true;
+				const controllerToDestroy = controller;
+				controller = null;
+				if ( controllerRef.current === controllerToDestroy ) {
+					controllerRef.current = null;
+				}
+				if ( controllerToDestroy ) {
+					queueMicrotask( () => {
+						controllerToDestroy.destroy();
+					} );
+				}
+			};
+		},
+		[ body, clientId, enabled, forbiddenInsertionIndices, interactionMode, nonMovableRowIndices ]
+	);
 
 	return {
+		anchorRef,
 		focusRowControl: () => controllerRef.current?.focusRowControl(),
 	};
 };

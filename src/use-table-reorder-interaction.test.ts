@@ -41,16 +41,22 @@ type MatchMediaHarness = {
 	setMatches: ( matches: boolean ) => void;
 };
 
-const createContext = (): TableContext => {
-	const blockElement = document.createElement( 'div' );
-	const table = document.createElement( 'table' );
-	const tbody = document.createElement( 'tbody' );
+type HookHarnessProps = {
+	anchorKey: string;
+	enabled: boolean;
+	isSelected: boolean;
+};
+
+const createContext = ( contextDocument: Document = document ): TableContext => {
+	const blockElement = contextDocument.createElement( 'div' );
+	const table = contextDocument.createElement( 'table' );
+	const tbody = contextDocument.createElement( 'tbody' );
 	table.append( tbody );
 	blockElement.append( table );
 
 	return {
 		blockElement,
-		document,
+		document: contextDocument,
 		tbody,
 		window,
 	};
@@ -99,15 +105,13 @@ const installMatchMedia = ( initialMatches: boolean ): MatchMediaHarness => {
 	};
 };
 
-const HookHarness = ( props: { enabled: boolean; isSelected: boolean } ) => {
-	const anchorRef = { current: document.createElement( 'span' ) };
+const HookHarness = ( props: HookHarnessProps ) => {
 	latestResult = useTableReorderInteraction( {
-		anchorRef,
 		clientId: 'table-client-id',
 		enabled: props.enabled,
 		isSelected: props.isSelected,
 	} );
-	return createElement( 'span' );
+	return createElement( 'span', { key: props.anchorKey, ref: latestResult.anchorRef } );
 };
 
 const getResult = () => {
@@ -117,27 +121,36 @@ const getResult = () => {
 	return latestResult;
 };
 
-const mountHook = ( props: { enabled?: boolean; isSelected?: boolean } = {} ) => {
+const mountHook = ( props: Partial< HookHarnessProps > = {} ) => {
 	const container = document.createElement( 'div' );
 	document.body.append( container );
 	const root = createRoot( container );
-	let currentProps = {
+	let currentProps: HookHarnessProps = {
+		anchorKey: 'anchor-a',
 		enabled: true,
 		isSelected: true,
 		...props,
 	};
 	activeRoot = root;
 
-	act( () => {
-		root.render( createElement( HookHarness, currentProps ) );
-	} );
+	const render = () => {
+		act( () => {
+			root.render( createElement( HookHarness, currentProps ) );
+		} );
+	};
+	render();
 
 	return {
-		rerender: ( nextProps: Partial< typeof currentProps > ) => {
+		rerender: ( nextProps: Partial< HookHarnessProps > ) => {
 			currentProps = { ...currentProps, ...nextProps };
-			act( () => {
-				root.render( createElement( HookHarness, currentProps ) );
-			} );
+			render();
+		},
+		replaceAnchor: () => {
+			currentProps = {
+				...currentProps,
+				anchorKey: currentProps.anchorKey === 'anchor-a' ? 'anchor-b' : 'anchor-a',
+			};
+			render();
 		},
 	};
 };
@@ -183,9 +196,42 @@ afterEach( () => {
 		} );
 	}
 	document.body.replaceChildren();
+	jest.restoreAllMocks();
 } );
 
 describe( 'useTableReorderInteraction', () => {
+	it( 'moves context-dependent listeners to the new editor document when the anchor is replaced', () => {
+		installMatchMedia( true );
+		const firstEditorDocument = document.implementation.createHTMLDocument( 'first editor' );
+		const secondEditorDocument = document.implementation.createHTMLDocument( 'second editor' );
+		const firstContext = createContext( firstEditorDocument );
+		const secondContext = createContext( secondEditorDocument );
+		const firstRemoveEventListener = jest.spyOn( firstEditorDocument, 'removeEventListener' );
+		const secondAddEventListener = jest.spyOn( secondEditorDocument, 'addEventListener' );
+		resolveTableContextMock
+			.mockReturnValueOnce( firstContext )
+			.mockReturnValueOnce( secondContext );
+		const harness = mountHook();
+		const firstAnchor = resolveTableContextMock.mock.calls[ 0 ]?.[ 0 ];
+
+		harness.replaceAnchor();
+		const secondAnchor = resolveTableContextMock.mock.calls[ 1 ]?.[ 0 ];
+
+		expect( firstAnchor ).toBeInstanceOf( HTMLSpanElement );
+		expect( secondAnchor ).toBeInstanceOf( HTMLSpanElement );
+		expect( secondAnchor ).not.toBe( firstAnchor );
+		expect( firstRemoveEventListener ).toHaveBeenCalledWith(
+			'keydown',
+			expect.any( Function ),
+			true
+		);
+		expect( secondAddEventListener ).toHaveBeenCalledWith(
+			'keydown',
+			expect.any( Function ),
+			true
+		);
+	} );
+
 	it( 'keeps keyboard coachmark visible after pointer input until dismissed', () => {
 		installMatchMedia( true );
 		mountHook();

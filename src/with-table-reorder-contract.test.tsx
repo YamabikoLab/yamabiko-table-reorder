@@ -78,7 +78,7 @@ const toggleTouchReorderModeMock = jest.fn();
 const createHookResult = (
 	overrides: Partial< ReturnType< typeof useTableReorder > > = {}
 ): ReturnType< typeof useTableReorder > => ( {
-	anchorRef: { current: null },
+	anchorRef: jest.fn(),
 	consumeTouchToolbarFocusRequest: consumeTouchToolbarFocusRequestMock,
 	dismissKeyboardCoachmark: dismissKeyboardCoachmarkMock,
 	dismissTouchCoachmark: dismissTouchCoachmarkMock,

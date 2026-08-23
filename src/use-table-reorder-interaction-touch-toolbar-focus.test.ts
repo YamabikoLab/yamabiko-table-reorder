@@ -66,12 +66,11 @@ const createContext = (): TableContext => {
 
 const HookHarness = ( props: { isSelected: boolean } ) => {
 	latestResult = useTableReorderInteraction( {
-		anchorRef: { current: document.createElement( 'span' ) },
 		clientId: 'table-client-id',
 		enabled: true,
 		isSelected: props.isSelected,
 	} );
-	return createElement( 'span' );
+	return createElement( 'span', { ref: latestResult.anchorRef } );
 };
 
 const getResult = () => {
