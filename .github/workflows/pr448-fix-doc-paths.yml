@@ -1,0 +1,100 @@
+name: PR 448 fix flattened doc paths
+
+on:
+  push:
+    branches:
+      - docs/447-flatten-docs-structure
+
+permissions:
+  contents: write
+
+jobs:
+  fix-doc-paths:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: docs/447-flatten-docs-structure
+          fetch-depth: 0
+
+      - name: Update flattened documentation references
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          replacements = {
+              'docs/design/table-reorder/': 'docs/design/',
+              'docs/plans/table-reorder/': 'docs/plans/',
+              'docs/requirements/table-reorder/': 'docs/requirements/',
+          }
+
+          for path in Path('.').rglob('*'):
+              if not path.is_file() or '.git' in path.parts:
+                  continue
+              try:
+                  text = path.read_text(encoding='utf-8')
+              except UnicodeDecodeError:
+                  continue
+              updated = text
+              for old, new in replacements.items():
+                  updated = updated.replace(old, new)
+              if updated != text:
+                  path.write_text(updated, encoding='utf-8')
+
+          tailored = {
+              Path('docs/design/table-reorder-design.md'): {
+                  '../../requirements/table-reorder/': '../requirements/',
+              },
+              Path('docs/design/table-reorder-accessibility-design.md'): {
+                  '../../requirements/table-reorder/': '../requirements/',
+              },
+              Path('docs/design/archive/table-reorder-design.md'): {
+                  '../../../requirements/table-reorder/archive/': '../../requirements/archive/',
+              },
+              Path('docs/design/archive/table-reorder-accessibility-design.md'): {
+                  '../../../requirements/table-reorder/archive/': '../../requirements/archive/',
+              },
+          }
+
+          for path, path_replacements in tailored.items():
+              text = path.read_text(encoding='utf-8')
+              updated = text
+              for old, new in path_replacements.items():
+                  updated = updated.replace(old, new)
+              if updated != text:
+                  path.write_text(updated, encoding='utf-8')
+          PY
+
+      - name: Verify obsolete documentation paths are gone
+        run: |
+          if grep -RInE 'docs/(design|plans|requirements)/table-reorder/' . \
+            --exclude-dir=.git \
+            --exclude='pr448-fix-doc-paths.yml'; then
+            echo 'Old table-reorder documentation paths remain.' >&2
+            exit 1
+          fi
+
+          if grep -RInE 'docs/(design|plans|requirements)/outline/' . \
+            --exclude-dir=.git \
+            --exclude='pr448-fix-doc-paths.yml'; then
+            echo 'Deleted outline documentation paths remain.' >&2
+            exit 1
+          fi
+
+          if grep -RInE '(\.\./){2,}requirements/table-reorder/' docs/design \
+            --include='*.md'; then
+            echo 'Old relative requirements paths remain in design docs.' >&2
+            exit 1
+          fi
+
+      - name: Commit documentation fixes
+        run: |
+          git rm .github/workflows/pr448-fix-doc-paths.yml
+          git add -A
+          if git diff --cached --quiet; then
+            exit 0
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'Fix flattened docs references'
+          git push origin HEAD:docs/447-flatten-docs-structure
