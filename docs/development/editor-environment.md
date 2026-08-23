@@ -371,6 +371,7 @@ Table Reorder は、WordPress の表の行を並べ替えるためのプラグ�
 
 つまり Table Reorder は、
 
+> [!NOTE]
 > Editor Environment が実際の製品コードでも成立するか
 
 を試す題材として適していました。
@@ -508,12 +509,14 @@ GitHub Actions:
 
 今回の実験から、少なくとも Table Reorder では、次のことが確認できました。
 
+> [!IMPORTANT]
 > iframe / non-iframe の detection、discovery、lifecycle concern を小さな境界へ集約しても、残りの製品コードはほぼそのまま通常の Web コードとして動かせる。
 
 これは、Editor Environment を「Web を隠す abstraction」として作る必要がないことも示しています。
 
 今回成立した境界は、もっと小さなものです。
 
+> [!NOTE]
 > **どの editor context を使うべきかだけを案内する薄い boundary**
 
 Editor Environment が iframe を知っています。
