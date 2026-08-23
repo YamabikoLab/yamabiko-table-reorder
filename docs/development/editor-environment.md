@@ -173,6 +173,7 @@ Editor Environment は、**現在のエディターで利用すべき browsing c
 > **対象ブロックが存在する現在の editor browsing context を安全に解決し、その `document` と `window` を返す。解決できない場合は `null` を返し、解決結果は保持しない。**  
 > という小さな仕様を持つ境界です。
 
+<img width="1448" height="1086" alt="editor-environment-spec" src="https://github.com/user-attachments/assets/fbf83f46-d79d-4c1a-9cd7-682f4f310f7d" />
 
 ### PoC の結果
 
