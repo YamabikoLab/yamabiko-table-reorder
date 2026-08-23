@@ -37,8 +37,6 @@ Table Reorder の PoC で着目したのは、**その判断を製品コード�
 
 同じ種類の判断を複数の機能がそれぞれ持つようになると、たとえば次のような形になります。
 
-<img width="1448" height="1086" alt="iframe-problem" src="https://github.com/user-attachments/assets/cdb02345-d9fa-4f7a-8f4f-a3dab6d59ad4" />
-
 ```text
 並べ替え機能
   ├─ iframe / non-iframe を判定する
@@ -86,8 +84,6 @@ WordPress の公式記事では、この違いを安全に扱うための方法�
 
 Table Reorder の PoC では、この判断を各機能に任せるのではなく、Editor Environment へ集約できないかを試しました。
 
-<img width="1484" height="1060" alt="problems" src="https://github.com/user-attachments/assets/b6e0289a-946d-4da1-8cc0-ddeb24c3d7ca" />
-
 ### WordPress / Gutenberg の実例から見える設計上のポイント
 
 iframe を利用するエディターでは、browsing context や iframe lifecycle によって、通常の DOM 操作ではあまり意識しない状態が発生することがあります。
@@ -133,8 +129,6 @@ WordPress / Gutenberg でも、こうしたケースへの対応が重ねられ�
 今回の PoC では、iframe / non-iframe の editor browsing-context discovery を **Editor Environment** という小さな境界へ集約しました。
 
 考え方は単純です。
-
-<img width="1448" height="1086" alt="solution-editor-environment" src="https://github.com/user-attachments/assets/9562c7a9-38d6-4549-8d02-ae17360c42c4" />
 
 ```text
 Before
@@ -229,8 +223,6 @@ type EditorEnvironment = {
 > つまり Editor Environment は、
 > **対象 block が存在する editor browsing context を resolve 時点ごとに解決し、その `document` と `window` を返す。解決できない場合は `null` を返し、解決結果は保持しない。**
 > という小さな仕様を持つ境界です。
-
-<img width="1448" height="1086" alt="editor-environment-spec" src="https://github.com/user-attachments/assets/fbf83f46-d79d-4c1a-9cd7-682f4f310f7d" />
 
 ### PoC の結果
 
