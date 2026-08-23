@@ -6,9 +6,9 @@
 - Implementation issue: #253
 - Prototype PR: #307
 - Test responsibility map: `docs/development/testing.md`
-- Requirements: `docs/requirements/table-reorder/table-reorder-sortablejs-requirements.md`
-- Accessibility requirements: `docs/requirements/table-reorder/table-reorder-sortablejs-accessibility-requirements.md`
-- Accessibility design: `docs/design/table-reorder/table-reorder-sortablejs-accessibility-design.md`
+- Requirements: `docs/requirements/table-reorder-sortablejs-requirements.md`
+- Accessibility requirements: `docs/requirements/table-reorder-sortablejs-accessibility-requirements.md`
+- Accessibility design: `docs/design/table-reorder-sortablejs-accessibility-design.md`
 
 ## Goal
 

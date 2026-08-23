@@ -3,8 +3,8 @@
 ## References
 
 - Parent issue: #365
-- Requirements: `docs/requirements/table-reorder/table-reorder-accessibility-requirements.md`
-- Design: `docs/design/table-reorder/table-reorder-accessibility-design.md`
+- Requirements: `docs/requirements/table-reorder-accessibility-requirements.md`
+- Design: `docs/design/table-reorder-accessibility-design.md`
 
 ## Goal
 
@@ -60,7 +60,7 @@
   - 実 Gutenberg 上で plain Arrow がフォーカスを動かさず、Tab が引き続き移動することを確認する。
 - `tests/e2e/table-reorder-ui.spec.ts`
   - 新しいコーチマーク文言、ToolbarButton focus、表示直後の Enter 入口を確認する。
-- `docs/design/table-reorder/table-reorder-accessibility-design.md`
+- `docs/design/table-reorder-accessibility-design.md`
   - 利用者向け操作仕様と初回案内を実装に同期する。
 
 ## Implementation phases

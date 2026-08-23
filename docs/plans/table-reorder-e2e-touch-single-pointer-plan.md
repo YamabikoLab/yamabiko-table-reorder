@@ -7,10 +7,10 @@
 - Touch DnD: #258
 - Touch first-guidance E2E follow-up: #382
 - Test responsibility map: `docs/development/testing.md`
-- Requirements: `docs/requirements/table-reorder/table-reorder-requirements.md`
-- Accessibility requirements: `docs/requirements/table-reorder/table-reorder-accessibility-requirements.md`
-- Design: `docs/design/table-reorder/table-reorder-design.md`
-- Accessibility design: `docs/design/table-reorder/table-reorder-accessibility-design.md`
+- Requirements: `docs/requirements/table-reorder-requirements.md`
+- Accessibility requirements: `docs/requirements/table-reorder-accessibility-requirements.md`
+- Design: `docs/design/table-reorder-design.md`
+- Accessibility design: `docs/design/table-reorder-accessibility-design.md`
 
 ## Goal
 

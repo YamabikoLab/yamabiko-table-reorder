@@ -2,7 +2,7 @@
 
 ## 位置づけ
 
-本書は `docs/plans/table-reorder/table-reorder-document-sync-plan.md` の **Phase 1: 文書原則と現行仕様との差分を確定する** の成果物である。
+本書は `docs/plans/table-reorder-document-sync-plan.md` の **Phase 1: 文書原則と現行仕様との差分を確定する** の成果物である。
 
 対象は現在の `main` に実装済みの利用者向け振る舞いと既存文書の差分確認に限定する。
 
@@ -20,9 +20,9 @@
 
 ### 既存文書
 
-- `docs/requirements/table-reorder/table-reorder-requirements.md`
-- `docs/requirements/table-reorder/table-reorder-accessibility-requirements.md`
-- `docs/design/table-reorder/table-reorder-accessibility-design.md`
+- `docs/requirements/table-reorder-requirements.md`
+- `docs/requirements/table-reorder-accessibility-requirements.md`
+- `docs/design/table-reorder-accessibility-design.md`
 
 ### 現行仕様の確認に使用した主な実装
 

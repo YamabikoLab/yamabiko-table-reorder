@@ -166,7 +166,7 @@ Table Reorder が追加・変更する UI について、**WCAG 2.2 Level AA** �
 
 ## 関連
 
-- 基本要件: `docs/requirements/table-reorder/table-reorder-requirements.md`
-- 文書同期プラン: `docs/plans/table-reorder/table-reorder-document-sync-plan.md`
-- 文書同期 差分分析: `docs/plans/table-reorder/table-reorder-document-sync-gap-analysis.md`
+- 基本要件: `docs/requirements/table-reorder-requirements.md`
+- 文書同期プラン: `docs/plans/table-reorder-document-sync-plan.md`
+- 文書同期 差分分析: `docs/plans/table-reorder-document-sync-gap-analysis.md`
 - WCAG 2.2: https://www.w3.org/TR/WCAG22/

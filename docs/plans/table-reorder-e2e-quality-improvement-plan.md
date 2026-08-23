@@ -8,15 +8,15 @@
 - PC pointer DnD E2E issue: #255
 - PC single-pointer E2E issue: #256
 - Touch single-pointer E2E issue: #360
-- Startup / UI E2E plan: `docs/plans/table-reorder/table-reorder-e2e-startup-ui-plan.md`
-- PC pointer DnD E2E plan: `docs/plans/table-reorder/table-reorder-e2e-pc-pointer-dnd-plan.md`
-- PC single-pointer E2E plan: `docs/plans/table-reorder/table-reorder-e2e-pc-single-pointer-plan.md`
+- Startup / UI E2E plan: `docs/plans/table-reorder-e2e-startup-ui-plan.md`
+- PC pointer DnD E2E plan: `docs/plans/table-reorder-e2e-pc-pointer-dnd-plan.md`
+- PC single-pointer E2E plan: `docs/plans/table-reorder-e2e-pc-single-pointer-plan.md`
 - Test responsibility map: `docs/development/testing.md`
 - E2E implementation instructions: `tests/e2e/AGENTS.md`
-- Requirements: `docs/requirements/table-reorder/table-reorder-requirements.md`
-- Accessibility requirements: `docs/requirements/table-reorder/table-reorder-accessibility-requirements.md`
-- Design: `docs/design/table-reorder/table-reorder-design.md`
-- Accessibility design: `docs/design/table-reorder/table-reorder-accessibility-design.md`
+- Requirements: `docs/requirements/table-reorder-requirements.md`
+- Accessibility requirements: `docs/requirements/table-reorder-accessibility-requirements.md`
+- Design: `docs/design/table-reorder-design.md`
+- Accessibility design: `docs/design/table-reorder-accessibility-design.md`
 
 ## Goal
 
@@ -230,7 +230,7 @@ Tasks:
 - 確定後、移動後の同じ論理行に対応する row control を再取得して focus を確認する。
 - Escape 後、操作開始時の同じ論理行に対応する row control を再取得して focus を確認する。
 - 既存の行順・guidance・destination lifecycle assertion は残し、focus だけにテスト責務を寄せすぎない。
-- `docs/plans/table-reorder/table-reorder-e2e-pc-single-pointer-plan.md` の Included / Approach / Phase / Completion criteria のうち必要な箇所へ focus lifecycle を同期する。
+- `docs/plans/table-reorder-e2e-pc-single-pointer-plan.md` の Included / Approach / Phase / Completion criteria のうち必要な箇所へ focus lifecycle を同期する。
 
 Validation:
 

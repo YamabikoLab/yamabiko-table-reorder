@@ -9,10 +9,10 @@
 - Touch 初回 UI フォローアップ: #382
 - テスト責務マップ: `docs/development/testing.md`
 - E2E 実装指示: `tests/e2e/AGENTS.md`
-- 要件定義書: `docs/requirements/table-reorder/table-reorder-requirements.md`
-- アクセシビリティ要件定義書: `docs/requirements/table-reorder/table-reorder-accessibility-requirements.md`
-- 基本設計書: `docs/design/table-reorder/table-reorder-design.md`
-- アクセシビリティ基本設計書: `docs/design/table-reorder/table-reorder-accessibility-design.md`
+- 要件定義書: `docs/requirements/table-reorder-requirements.md`
+- アクセシビリティ要件定義書: `docs/requirements/table-reorder-accessibility-requirements.md`
+- 基本設計書: `docs/design/table-reorder-design.md`
+- アクセシビリティ基本設計書: `docs/design/table-reorder-accessibility-design.md`
 
 ## 目的
 

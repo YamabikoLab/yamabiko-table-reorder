@@ -5,10 +5,10 @@
 - Parent issue: #252
 - Implementation issue: #257
 - Test responsibility map: `docs/development/testing.md`
-- Requirements: `docs/requirements/table-reorder/table-reorder-requirements.md`
-- Accessibility requirements: `docs/requirements/table-reorder/table-reorder-accessibility-requirements.md`
-- Design: `docs/design/table-reorder/table-reorder-design.md`
-- Accessibility design: `docs/design/table-reorder/table-reorder-accessibility-design.md`
+- Requirements: `docs/requirements/table-reorder-requirements.md`
+- Accessibility requirements: `docs/requirements/table-reorder-accessibility-requirements.md`
+- Design: `docs/design/table-reorder-design.md`
+- Accessibility design: `docs/design/table-reorder-accessibility-design.md`
 
 ## Goal
 

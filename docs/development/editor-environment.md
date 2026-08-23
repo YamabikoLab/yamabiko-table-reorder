@@ -594,6 +594,6 @@ WordPress Editor
 - [Gutenberg Issue #79118: Block editor crashes on pattern insertion](https://github.com/WordPress/gutenberg/issues/79118)
 - Issue #430: PoC: isolate editor browsing context behind an Editor Environment
 - PR #441: PoC implementation
-- `docs/plans/table-reorder/editor-environment-poc-plan.md`: PoC implementation plan
+- `docs/plans/editor-environment-poc-plan.md`: PoC implementation plan
 - `src/editor-environment.ts`: editor browsing-context boundary
 - `src/table-context.ts`: Table-specific DOM resolution

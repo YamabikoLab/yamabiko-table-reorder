@@ -7,7 +7,7 @@
 - Current implementation: `src/editor-extensions/table-reorder/use-table-reorder.ts`
 - Gutenberg adapter: `src/editor-extensions/table-reorder/with-table-reorder.tsx`
 - Controller: `src/editor-extensions/table-reorder/controller/sortable-controller.ts`
-- Related plan: `docs/plans/table-reorder/table-reorder-commit-row-move-plan.md`
+- Related plan: `docs/plans/table-reorder-commit-row-move-plan.md`
 
 ## Goal
 

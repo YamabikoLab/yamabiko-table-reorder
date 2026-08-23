@@ -3,9 +3,9 @@
 ## References
 
 - Parent issue: #338
-- Basic requirements: `docs/requirements/table-reorder/table-reorder-requirements.md`
-- Accessibility requirements: `docs/requirements/table-reorder/table-reorder-accessibility-requirements.md`
-- Accessibility design: `docs/design/table-reorder/table-reorder-accessibility-design.md`
+- Basic requirements: `docs/requirements/table-reorder-requirements.md`
+- Accessibility requirements: `docs/requirements/table-reorder-accessibility-requirements.md`
+- Accessibility design: `docs/design/table-reorder-accessibility-design.md`
 - Current behavior: current `main`
 
 ## Goal
@@ -276,7 +276,7 @@ iframe / non-iframeの両方で同じ意味の操作を提供する要件は、�
 
 成果物:
 
-`docs/plans/table-reorder/table-reorder-document-sync-gap-analysis.md`
+`docs/plans/table-reorder-document-sync-gap-analysis.md`
 
 - Outcome:
   - 後続文書更新で、何をどの文書へ書くかが明確になる。

@@ -3,11 +3,11 @@
 ## References
 
 - Parent issue: https://github.com/YamabikoLab/yamabiko-editor-tools/issues/104
-- Requirements: `docs/requirements/table-reorder/archive/table-reorder-accessibility-requirements.md`
-- Design: `docs/design/table-reorder/archive/table-reorder-accessibility-design.md`
-- Base requirements: `docs/requirements/table-reorder/archive/table-reorder-requirements.md`
-- Base design: `docs/design/table-reorder/archive/table-reorder-design.md`
-- Base plan: `docs/plans/table-reorder/archive/table-reorder-plan.md`
+- Requirements: `docs/requirements/archive/table-reorder-accessibility-requirements.md`
+- Design: `docs/design/archive/table-reorder-accessibility-design.md`
+- Base requirements: `docs/requirements/archive/table-reorder-requirements.md`
+- Base design: `docs/design/archive/table-reorder-design.md`
+- Base plan: `docs/plans/archive/table-reorder-plan.md`
 - Current implementation: `src/editor-extensions/table-reorder/`
 
 ## Goal

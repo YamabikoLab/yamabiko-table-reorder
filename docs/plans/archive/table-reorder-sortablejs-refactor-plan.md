@@ -7,7 +7,7 @@
 - 既存のrowspanロジック: `src/editor-extensions/table-reorder/rowspan.ts`
 - ソース構成方針: `docs/development/source-organization.md`
 - テストと検証: `docs/development/testing.md`
-- 過去のdnd-kit版リファクタリングプラン（アーカイブ）: `docs/plans/table-reorder/archive/table-reorder-controller-refactor-plan.md`
+- 過去のdnd-kit版リファクタリングプラン（アーカイブ）: `docs/plans/archive/table-reorder-controller-refactor-plan.md`
 
 過去のcontrollerリファクタリングプランは、以前のdnd-kitベース実装を対象としており、現在は履歴資料として `archive/` に保管している。本プランは現在のSortableJS実装を前提とし、旧プランのcontrollerやhookの境界を機械的には再利用しない。
 
