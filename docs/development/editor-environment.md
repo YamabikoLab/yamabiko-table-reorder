@@ -168,11 +168,10 @@ Editor Environment は、**現在のエディターで利用すべき browsing c
   * `focus()`、スクロール、DOM traversal などの標準 Web API はラップしません。
   * Editor Environment が引き受けるのは、**「現在どの browsing context を使うべきかを判断する責務」だけ**です。
 
-つまり Editor Environment は、
-
-> **対象ブロックが存在する現在の editor browsing context を安全に解決し、その `document` と `window` を返す。解決できない場合は `null` を返し、解決結果は保持しない。**
-
-という小さな仕様を持つ境界です。
+> [!IMPORTANT]
+> つまり Editor Environment は、  
+> **対象ブロックが存在する現在の editor browsing context を安全に解決し、その `document` と `window` を返す。解決できない場合は `null` を返し、解決結果は保持しない。**  
+> という小さな仕様を持つ境界です。
 
 
 ### PoC の結果
