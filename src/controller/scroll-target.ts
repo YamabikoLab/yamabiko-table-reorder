@@ -1,4 +1,4 @@
-import type { TableContext } from '../table-context';
+import type { TableContext } from '@/table-context';
 
 /** SortableJSへ渡すauto-scroll target。 */
 export type AutoScrollTarget = boolean | HTMLElement;
