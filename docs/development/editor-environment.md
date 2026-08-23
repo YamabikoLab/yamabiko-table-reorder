@@ -256,6 +256,7 @@ Editor Environment の目的は、単に iframe 対応コードを別ファイ�
 
 今回の PoC で一番大きな成果は、次の一点です。
 
+> [!IMPORTANT]
 > **editor browsing-context discovery に必要な iframe 固有の知識を、`editor-environment.ts` に集約できる。**
 
 少なくとも今回の Table Reorder では、WordPress 7.1 でエディターが iframe 化されても、既存の製品コード全体を iframe 対応へ書き換える必要はありませんでした。
