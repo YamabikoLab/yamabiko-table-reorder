@@ -94,19 +94,22 @@ iframe を利用するエディターでは、browsing context や iframe lifecy
 
 WordPress / Gutenberg でも、こうしたケースへの対応が重ねられてきました。
 
-* **iframe の unmount 後は `contentWindow` が利用できないことがある**
+> [!CAUTION]
+> * **iframe の unmount 後は `contentWindow` が利用できないことがある**
 
   * Site Editor では、preview iframe の unmount 後に cleanup が実行された際、すでに iframe が DOM から外れていたため `contentWindow` が `null` となるケースがありました。
   * iframe の lifecycle をまたぐ処理では、参照している browsing context がまだ有効かどうかを考慮する必要があることが分かります。
   * [Gutenberg PR #59992: Block Editor: fix crash when unmounting an editor iframe](https://github.com/WordPress/gutenberg/pull/59992)
 
-* **エディターの browsing context は操作の途中で変わることがある**
+> [!CAUTION]
+> * **エディターの browsing context は操作の途中で変わることがある**
 
   * non-iframe で動作している投稿エディターでも、Patterns タブを開いて Zoom Out が有効になることで、iframe として動作するケースがありました。
   * これは、**一度判定した editor context が、その後も同じとは限らない**ことを示しています。
   * [Gutenberg Issue #66671: Zoom out: Pattern inserter always forces iframe editor](https://github.com/WordPress/gutenberg/issues/66671)
 
-* **DOM 要素が残っていても、その browsing context が有効とは限らない**
+> [!CAUTION]
+> * **DOM 要素が残っていても、その browsing context が有効とは限らない**
 
   * WordPress 7.0 では、iframe の teardown / recreation の途中で、以前の iframe に属していた DOM 要素が一時的に残り、その `ownerDocument.defaultView` がすでに `null` になっているケースがありました。
   * DOM 要素そのものが存在していても、その `document` / `window` が現在も利用可能とは限らないことが分かります。
