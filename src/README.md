@@ -111,9 +111,11 @@ The Editor Environment resolves the current editor context with this rule:
 
 1. Start from the React anchor's owning `document`.
 2. If `[data-block="<clientId>"]` exists there, use that document and its `defaultView`.
-3. Otherwise, fall back to `iframe[name="editor-canvas"]` and use that iframe's current `contentDocument` / `contentWindow` when it contains the target block.
+3. Otherwise, inspect every `iframe[name="editor-canvas"]` in document order and select the first current `contentDocument` that contains the target block.
+4. Return that document together with its own `defaultView`, so `document` and `window` always belong to the same browsing context.
+5. If no matching current context can be resolved, return `null`.
 
-The resolver is stateless and does not retain `document` / `window` references across calls, so iframe teardown / recreation is resolved against the current editor context.
+The resolver is stateless and does not retain `document` / `window` references across calls, so iframe teardown / recreation is resolved against the current editor context. A returned context is only guaranteed to be current at resolve time; consumers should resolve again when the editor context may have changed.
 
 `table-context.ts` receives that resolved environment and performs only Table-specific DOM resolution. Controller, drag UI, focus, scroll, and other consumers continue to use standard Web APIs and DOM-local context directly when appropriate; they do not need to know whether the editor is iframe or non-iframe.
 
