@@ -45,6 +45,8 @@ src/
 ├── editor.scss
 ├── block-support.ts
 ├── block-support.test.ts
+├── editor-environment.ts
+├── editor-environment.test.ts
 ├── use-table-reorder.ts
 ├── with-table-reorder.tsx
 ├── messages.ts
@@ -60,6 +62,10 @@ src/
 The exact file set is driven by current responsibilities. New files or subdirectories should be added only when they make an existing responsibility clearer.
 
 `block-support.ts` is the thin boundary for differences between Table Reorder-supported block types. It owns only supported block-name recognition and the minimal block-specific attribute differences needed by Table Reorder. Higher-level BlockEdit integration may depend on this boundary, while controller lifecycle, DOM discovery, row-order logic, and UI modules must remain block-independent.
+
+`editor-environment.ts` is the thin boundary for editor browsing-context discovery. It owns iframe / non-iframe detection and resolves the current editor `document` / `window` without caching them across editor lifecycle changes. It must not become a general DOM or browser API wrapper; consumers may continue to use node-local context and standard Web APIs directly when that use is unrelated to editor-context discovery.
+
+`table-context.ts` consumes the Editor Environment boundary and owns Table-specific DOM resolution such as the target block element, table, and tbody. It must not duplicate iframe detection or editor browsing-context fallback logic.
 
 `controller/reorder-ui/` is owned by the Table Reorder controller UI boundary. Its `index.ts` is the compatibility facade used by controller consumers, while the sibling modules inside that directory own focused row-control, guidance, row-move-target, and live-status UI lifecycles.
 
