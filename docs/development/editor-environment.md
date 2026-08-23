@@ -36,6 +36,8 @@ Table Reorder の PoC で着目したのは、**その判断を製品コード�
 
 同じ種類の判断を複数の機能がそれぞれ持つようになると、たとえば次のような形になります。
 
+<img width="1448" height="1086" alt="iframe-problem" src="https://github.com/user-attachments/assets/cdb02345-d9fa-4f7a-8f4f-a3dab6d59ad4" />
+
 ```text
 並べ替え機能
   ├─ iframe / non-iframe を判定する
