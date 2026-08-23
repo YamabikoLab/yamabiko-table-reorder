@@ -110,17 +110,18 @@ WordPress / Gutenberg でも、こうしたケースへの対応が重ねられ�
   * DOM 要素そのものが存在していても、その `document` / `window` が現在も利用可能とは限らないことが分かります。
   * [Gutenberg Issue #79118: Block editor crashes on pattern insertion](https://github.com/WordPress/gutenberg/issues/79118)
 
-これらは、Editor Environment が過去の個別の問題をそのまま解決する、という意味ではありません。
-
-重要なのは、これらの実例から、
-
-* editor context は途中で変化する可能性がある
-* iframe の lifecycle によって古い context が無効になることがある
-* DOM 要素が存在していても、その browsing context が有効とは限らない
-
-という性質が見えてくることです。
-
-Editor Environment は、こうした性質を前提として、**その時点で利用すべき editor browsing context を都度解決するための小さな境界**として設計しています。
+> [!IMPORTANT]
+> これらは、Editor Environment が過去の個別の問題をそのまま解決する、という意味ではありません。
+> 
+> 重要なのは、これらの実例から、
+> 
+> * editor context は途中で変化する可能性がある
+> * iframe の lifecycle によって古い context が無効になることがある
+> * DOM 要素が存在していても、その browsing context が有効とは限らない
+> 
+> という性質が見えてくることです。
+> 
+> Editor Environment は、こうした性質を前提として、**その時点で利用すべき editor browsing context を都度解決するための小さな境界**として設計しています。
 
 
 ## 2. 解決策: Editor Environment
