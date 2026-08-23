@@ -162,7 +162,8 @@ Editor Environment
 
 必要になったときに Editor Environment から「現在のエディターで使うべき `document` と `window`」を受け取ります。
 
-今回の実装で Editor Environment が提供するものは、この2つだけです。
+> [!IMPORTANT]
+> 今回の実装で Editor Environment が提供するものは、この2つだけです。
 
 ```ts
 type EditorEnvironment = {
