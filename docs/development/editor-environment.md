@@ -205,8 +205,10 @@ type EditorEnvironment = {
 
 * **解決結果は保持しない**
 
-  * 呼び出されるたびに現在の editor context を解決します。
-  * iframe が再生成された場合でも、古い `document` や `window` を使い続けません。
+  * 呼び出されるたびに、その resolve 時点での current editor context を解決します。
+  * 返される `document` / `window` は、resolve 時点で current な browsing context を表します。
+  * 返却済みの `document` / `window` が、その後の iframe teardown / recreation をまたいで current であり続けることは保証しません。
+  * editor context が変化し得る場合は、必要に応じて再度 resolve します。
 
 * **担当するのは editor context の探索だけ**
 
