@@ -2,7 +2,7 @@
 require_once '/wordpress/wp-load.php';
 
 $page_id      = 100;
-$demo_version = '0.3.3';
+$demo_version = '0.4.0';
 
 if ( get_post( $page_id ) ) {
 	wp_delete_post( $page_id, true );
