@@ -26,6 +26,15 @@ These instructions apply to plugin source files under `src/`.
 - Keep entry files small. They should register or compose a feature, not contain unrelated implementation details.
 - Treat saved block markup, attributes, identifiers, hooks, and persisted data as compatibility contracts.
 
+## Table Reorder implementation rules
+
+- Treat row and column reordering as independent feature boundaries. Do not make either feature depend on the other's internal implementation.
+- Do not preemptively combine row and column behavior into a generic abstraction such as `axis: 'row' | 'column'`. Extract shared behavior only after real implementations demonstrate a stable common responsibility.
+- Treat Gutenberg block attributes and block data as the source of truth for committed reorder results. DOM changes made temporarily during DnD must not be treated as persisted state.
+- Keep Core Table, Flexible Table Block, and other block-specific differences inside clear boundaries within each feature instead of scattering block-specific conditionals throughout the implementation.
+- Resolve the editor `document` and `window` from the current editor context. Do not assume global browsing contexts or cache editor contexts across iframe / non-iframe lifecycle changes.
+- Pointer, touch, keyboard, and destination-selection UI may differ by input method, but reorder eligibility and commit rules must remain domain rules rather than being duplicated or independently redefined for each input path.
+
 ## Security and data handling
 
 - Treat request, stored, decoded, and external values as untrusted.
