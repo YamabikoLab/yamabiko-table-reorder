@@ -13,9 +13,9 @@ These instructions apply to plugin source files under `src/`.
 - Keep `src/index.tsx` as the thin plugin-wide entry point.
 - Put row / `tbody` / `rowspan` specific implementation under `src/row-reorder/`.
 - Put row-specific imperative controller and UI behavior under `src/row-reorder/controller/`.
-- Put only clearly responsibility-neutral editor/runtime infrastructure under `src/common/`. Code in `common/` must not depend on `row-reorder/`.
+- Put column-specific data transformation and interaction implementation under `src/column-reorder/`.
+- Put only clearly responsibility-neutral editor/runtime infrastructure under `src/common/`. Code in `common/` must not depend on `row-reorder/` or `column-reorder/`.
 - Keep source-level declarations under `src/types/`.
-- Add a future feature boundary such as `column-reorder/` only when that feature is actually implemented.
 
 ## Implementation rules
 

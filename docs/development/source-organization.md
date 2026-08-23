@@ -14,6 +14,7 @@ The repository root is the WordPress plugin root.
 │   ├── index.tsx
 │   ├── common/
 │   ├── row-reorder/
+│   ├── column-reorder/
 │   └── types/
 ├── build/              # generated, not committed
 ├── package.json
@@ -45,9 +46,25 @@ src/row-reorder/controller/
 
 There is no repository-level `src/controller/` source boundary.
 
+### `src/column-reorder/`
+
+`column-reorder/` owns code that knows about columns, column movement, column controls, or the column-reorder interaction model.
+
+The current boundary begins with the pure attribute transformation:
+
+```text
+src/column-reorder/
+├── column-order.ts
+└── column-order.test.ts
+```
+
+`column-order.ts` moves one physical column consistently across existing `head` / `body` / `foot` sections while preserving cell objects and unrelated attributes. It rejects malformed or inconsistent row shapes instead of guessing a column mapping.
+
+Column-specific DOM context, block support, controllers, UI, messages, or styles should be added here only when their implementation phase requires them. Do not make `column-reorder/` depend on `row-reorder/` internals.
+
 ### `src/common/`
 
-`common/` owns only infrastructure whose responsibility is independent of row reordering and can remain the same for another implemented feature.
+`common/` owns only infrastructure whose responsibility is independent of row or column reordering and can remain the same for multiple implemented features.
 
 The current common responsibilities are:
 
@@ -63,7 +80,7 @@ src/common/
 
 `sortable-runtime-loader.ts` owns loading or reusing the SortableJS runtime in the owning editor window.
 
-`common/` must not depend on `row-reorder/`.
+`common/` must not depend on `row-reorder/` or `column-reorder/`.
 
 Do not move Table DOM context, block support, guidance, live status, scrolling, interaction models, drag UI, or controller lifecycle into `common/` merely because they might be reusable later. Extract only after multiple real consumers demonstrate the same stable responsibility.
 
@@ -105,27 +122,32 @@ src/
 │       ├── drag-ui.ts
 │       ├── scroll-target.ts
 │       └── reorder-ui/
+├── column-reorder/
+│   ├── column-order.ts
+│   └── column-order.test.ts
 └── types/
     └── styles.d.ts
 ```
 
 Tests stay beside the modules they verify.
 
-A future `column-reorder/` boundary should be added only when column reordering is actually implemented. Row and column behavior should remain separate until real implementation demonstrates a stable responsibility worth moving into `common/`.
+Row and column behavior should remain separate until real implementation demonstrates a stable responsibility worth moving into `common/`.
 
 ## Dependency direction
 
 The intended dependency direction is:
 
 ```text
-src/index.tsx
-    ↓
-row-reorder/
-    ↓
-common/
+             src/index.tsx
+             /           \
+            ↓             ↓
+    row-reorder/    column-reorder/
+            \             /
+             ↓           ↓
+                common/
 ```
 
-`common/` must not import from `row-reorder/`.
+`row-reorder/` and `column-reorder/` must not depend on each other's internal implementation. `common/` must not import from either feature boundary.
 
 Within `row-reorder/`, keep the existing focused controller and `reorder-ui` responsibilities. Do not introduce a generic row/column controller or `axis: 'row' | 'column'` abstraction in anticipation of future column support.
 
