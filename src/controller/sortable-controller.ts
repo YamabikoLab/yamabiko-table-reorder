@@ -17,8 +17,8 @@ import {
 	getNoMovableRowsAnnouncement,
 	getRowspanBlockedAnnouncement,
 	getTouchModeMessage,
-} from '../messages';
-import type { TableContext } from '../table-context';
+} from '@/messages';
+import type { TableContext } from '@/table-context';
 import { createInsertionLine, fixFallbackRowCellWidths } from './drag-ui';
 import {
 	announceLiveStatus,
