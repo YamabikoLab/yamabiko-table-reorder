@@ -7,7 +7,7 @@
   - `docs/requirements/table-reorder/table-reorder-requirements.md`
   - `docs/requirements/table-reorder/table-reorder-accessibility-requirements.md`
 - Design: `docs/design/table-reorder/table-reorder-accessibility-design.md`
-- Current implementation overview: `src/editor-extensions/table-reorder/README.md`
+- Current implementation overview: `src/README.md`
 - Plan template: `docs/plans/TEMPLATE.md`
 - Historical reference only: `docs/plans/table-reorder/archive/table-reorder-accessibility-plan.md`
 - Touch handle DnD update: #246
@@ -43,7 +43,7 @@ Touch の DnD は #246 で行ハンドル操作へ統一する。並べ替えモ
 - キーボード・単一ポインター操作時の縦スクロール追従と Focus Not Obscured
 - iframe / non-iframeで同じ意味の操作を成立させるためのDOM / window境界
 - 既存単体テストの拡張と、Gutenberg上で必要なE2E / 手動確認
-- 実装完了時の `src/editor-extensions/table-reorder/README.md` 更新
+- 実装完了時の `src/README.md` 更新
 
 ### Not included
 
@@ -119,7 +119,7 @@ PC・タッチとも SortableJS の drag start は共通の行ハンドルに限
 
 `reorder-ui.ts` 自身は利用者向け文言を定義せず、`messages.ts` から基本設計8章に対応する文言を受け取って表示する。controllerも利用者向け文字列を直接持たず、状態・イベントと可変値だけをUI / message境界へ渡す。
 
-永続的なfocus表示、Target Size、選択状態、target UIのhit areaはinline styleを増やし続けず、`editor.scss` に置く。`index.tsx` はこのeditor styleをimportし、`@wordpress/scripts` が生成する `build/editor-extensions/table-reorder/index.css` は `yamabiko-editor-tools.php` の `enqueue_block_assets` から `is_admin()` でeditorに限定してenqueueする。Table ReorderのJS / runtime configは既存どおり `enqueue_block_editor_assets` を維持する。JS entryのimportだけでCSS配信済みとみなさず、生成CSSのWordPress側配信までを実装境界に含める。
+永続的なfocus表示、Target Size、選択状態、target UIのhit areaはinline styleを増やし続けず、`editor.scss` に置く。`index.tsx` はこのeditor styleをimportし、`@wordpress/scripts` が生成する `build/index.css` は `yamabiko-table-reorder.php` の `enqueue_block_assets` から `is_admin()` でeditorに限定してenqueueする。Table ReorderのJS / runtime configは既存どおり `enqueue_block_editor_assets` を維持する。JS entryのimportだけでCSS配信済みとみなさず、生成CSSのWordPress側配信までを実装境界に含める。
 
 ### 5. focus復元はGutenberg commit境界をまたいで明示的に扱う
 
@@ -133,7 +133,7 @@ PC・タッチとも SortableJS の drag start は共通の行ハンドルに限
 
 ### 6. 利用者向け文言を一元管理し、案内・通知はowning documentで完結させる
 
-`messages.ts` をTable Reorder feature内に置き、基本設計8章で確定した画面表示メッセージ、支援技術向け動的通知、操作UIのアクセシブルな名前・説明を一元管理する。英語を翻訳元として `@wordpress/i18n` と `sprintf()` を使用し、controller、UI処理、React描画へ利用者向け文字列を直接記述しない。WordPress i18n関数では `yamabiko-editor-tools` text domainを使用する。
+`messages.ts` をTable Reorder feature内に置き、基本設計8章で確定した画面表示メッセージ、支援技術向け動的通知、操作UIのアクセシブルな名前・説明を一元管理する。英語を翻訳元として `@wordpress/i18n` と `sprintf()` を使用し、controller、UI処理、React描画へ利用者向け文字列を直接記述しない。WordPress i18n関数では `yamabiko-table-reorder` text domainを使用する。
 
 `messages.ts` は基本設計のメッセージIDと実装上の定義を対応付け、固定文言と可変値を含む文の組み立てだけを担当する。表示優先度、DOM構造、WordPress UI componentの選択、ARIA属性、通知更新方法は各表示責務が担い、文言仕様そのものを実装側で再定義しない。
 
@@ -143,7 +143,7 @@ iframe / non-iframeの差を上位へ漏らさないため、行control、target
 
 支援技術向け通知は新しいnpm依存を追加せず、`reorder-ui.ts` がowning documentへ一つのlive status nodeを作成し、controllerが基本設計8章で定義された状態変化・操作結果に対応するイベントと可変値だけを渡す。直前と同じ通知の抑制も基本設計のルールに従ってcontroller / UI境界で行う。
 
-JavaScript翻訳はJSON生成だけで完了とせず、既存の `npm run i18n` / `i18n:json` をsource → build mapping対応へ拡張し、`wp i18n make-json --use-map` 等で `src/editor-extensions/table-reorder/messages.ts` の翻訳元を実際にenqueueされる `build/editor-extensions/table-reorder/index.js` に対応付けたJSONを生成する。`yamabiko-editor-tools.php` ではTable Reorder scriptをenqueueした後、同じhandle `yamabiko-editor-tools-table-reorder-index` に `wp_set_script_translations()` で `yamabiko-editor-tools` text domainと `__DIR__ . '/languages'` 相当の実ファイルシステム上のディレクトリを関連付ける。
+JavaScript翻訳はJSON生成だけで完了とせず、既存の `npm run i18n` / `i18n:json` をsource → build mapping対応へ拡張し、`wp i18n make-json --use-map` 等で `src/messages.ts` の翻訳元を実際にenqueueされる `build/index.js` に対応付けたJSONを生成する。`yamabiko-table-reorder.php` ではTable Reorder scriptをenqueueした後、同じhandle `yamabiko-table-reorder-index` に `wp_set_script_translations()` で `yamabiko-table-reorder` text domainと `__DIR__ . '/languages'` 相当の実ファイルシステム上のディレクトリを関連付ける。
 
 ## Architecture
 
@@ -152,10 +152,10 @@ JavaScript翻訳はJSON生成だけで完了とせず、既存の `npm run i18n`
 | Module | Plan |
 |---|---|
 | `index.tsx` | `editor.scss` のimportだけを追加する。登録責務は変更しない。 |
-| `yamabiko-editor-tools.php` | Table ReorderのJS / runtime configは既存 `enqueue_block_editor_assets` を維持する。script enqueue後、同じhandle `yamabiko-editor-tools-table-reorder-index` に `wp_set_script_translations()` で `yamabiko-editor-tools` text domainと `__DIR__ . '/languages'` 相当の実ファイルシステム上のディレクトリを関連付ける。生成された `build/editor-extensions/table-reorder/index.css` が存在する場合は `enqueue_block_assets` + `is_admin()` でeditor content向けstyleとしてenqueueする。 |
+| `yamabiko-table-reorder.php` | Table ReorderのJS / runtime configは既存 `enqueue_block_editor_assets` を維持する。script enqueue後、同じhandle `yamabiko-table-reorder-index` に `wp_set_script_translations()` で `yamabiko-table-reorder` text domainと `__DIR__ . '/languages'` 相当の実ファイルシステム上のディレクトリを関連付ける。生成された `build/index.css` が存在する場合は `enqueue_block_assets` + `is_admin()` でeditor content向けstyleとしてenqueueする。 |
 | `with-table-reorder.tsx` | PC / タッチのToolbar入口を基本設計に合わせて描画し、controllerへのfocus要求をhook経由で呼ぶ。PCではモードを新設しない。PCキーボード / タッチの初回コーチマークをToolbar入口に紐づけて表示する。 |
 | `use-table-reorder.ts` | controller ref、Toolbar focus bridge、commit後のpending focus復元、入力方式検知、PCキーボード / タッチ初回コーチマークの分離したdismiss済み状態の永続化境界を追加する。既存hover / touch mode lifecycleとrowspan制約算出は維持する。 |
-| `messages.ts` | 基本設計8章のメッセージIDと実装定義を対応付け、`yamabiko-editor-tools` text domainのWordPress i18n / `sprintf()` による画面表示・動的通知・アクセシブルな名前 / 説明の文言生成を一元管理する。表示状態やDOMは所有しない。 |
+| `messages.ts` | 基本設計8章のメッセージIDと実装定義を対応付け、`yamabiko-table-reorder` text domainのWordPress i18n / `sprintf()` による画面表示・動的通知・アクセシブルな名前 / 説明の文言生成を一元管理する。表示状態やDOMは所有しない。 |
 | `table-context.ts` | iframe / non-iframeのowning document / window解決をそのまま再利用する。追加が必要でもcontext解決の範囲に限定する。 |
 | `rowspan.ts` | rowspan range、移動不能行、禁止挿入位置の正本としてそのまま再利用する。入力方式別ロジックを追加しない。 |
 | `controller/sortable-controller.ts` | SortableJSに加え、keyboard / single-pointer session、drag-click / drag-tap競合防止、focus入口、共通commit呼び出しを調停する。PC・タッチとも同じhandle selectorを使い、行全体をdrag開始領域にしない。利用者向け文字列は保持しない。 |
@@ -182,7 +182,7 @@ JavaScript翻訳はJSON生成だけで完了とせず、既存の `npm run i18n`
 | `A11Y-FR-09` 支援技術への情報提供 | `messages.ts`、`sortable-controller.ts`、`reorder-ui.ts` |
 | `A11Y-FR-10` 名前・役割・状態 | `messages.ts`、`reorder-ui.ts`、`sortable-controller.ts` |
 | `A11Y-FR-11` 基本要件の共有 | `rowspan.ts`、`row-order.ts`、`sortable-controller.ts` |
-| `A11Y-FR-12` 編集環境 | `table-context.ts`、`sortable-runtime.ts`、`sortable-controller.ts`、`reorder-ui.ts`、`yamabiko-editor-tools.php` |
+| `A11Y-FR-12` 編集環境 | `table-context.ts`、`sortable-runtime.ts`、`sortable-controller.ts`、`reorder-ui.ts`、`yamabiko-table-reorder.php` |
 
 ### Main control flow
 
@@ -295,7 +295,7 @@ Touchでは「行を並び替え」モードをOFFにした場合も、activeな
 - Outcome: 移動可能な行ごとに、PC / Touchのdrag handle、click / tap入口、keyboard入口を兼ねる一つのアクセシブルなcontrolが存在し、Toolbarから現在行または先頭の移動可能行へfocusできる。
 - Tasks:
   - `reorder-ui.ts` とfocused unit testを追加する。
-  - 基本設計8章の文言を一元管理する `messages.ts` を追加し、このPhaseで必要な行controlの名前・説明とTooltipも同moduleから取得する。WordPress i18n関数では `yamabiko-editor-tools` text domainを使用する。
+  - 基本設計8章の文言を一元管理する `messages.ts` を追加し、このPhaseで必要な行controlの名前・説明とTooltipも同moduleから取得する。WordPress i18n関数では `yamabiko-table-reorder` text domainを使用する。
   - native buttonを基礎に行controlを構成する。
   - PCはhover / focusで視認でき、touch reorder modeでは操作可能な行controlを表示する。
   - non-movable rowには同じcontrolを作らない。
@@ -303,7 +303,7 @@ Touchでは「行を並び替え」モードをOFFにした場合も、activeな
   - `with-table-reorder.tsx` / `use-table-reorder.ts` にToolbar focus bridgeを追加する。
   - controllerで最後に操作していたtbody行を追跡し、基本設計のfocus優先順位を実現する。
   - `editor.scss` でfocus表示と最低target sizeを実装する。
-  - `yamabiko-editor-tools.php` ではTable ReorderのJS / runtime configを既存 `enqueue_block_editor_assets` に残す。script enqueue後、同じhandle `yamabiko-editor-tools-table-reorder-index` に `wp_set_script_translations()` で `yamabiko-editor-tools` text domainと `__DIR__ . '/languages'` 相当の実ファイルシステム上のディレクトリを関連付ける。生成された `build/editor-extensions/table-reorder/index.css` は `enqueue_block_assets` + `is_admin()` でeditor content向けstyleとしてenqueueする。
+  - `yamabiko-table-reorder.php` ではTable ReorderのJS / runtime configを既存 `enqueue_block_editor_assets` に残す。script enqueue後、同じhandle `yamabiko-table-reorder-index` に `wp_set_script_translations()` で `yamabiko-table-reorder` text domainと `__DIR__ . '/languages'` 相当の実ファイルシステム上のディレクトリを関連付ける。生成された `build/index.css` は `enqueue_block_assets` + `is_admin()` でeditor content向けstyleとしてenqueueする。
 - Validation:
   - Toolbarを実行しただけでは並べ替えsessionを開始しない。
   - 現在行が移動不能ならToolbarへfocusを維持し、基本設計8章の通知を表示・通知できる。
@@ -357,7 +357,7 @@ Touchでは「行を並び替え」モードをOFFにした場合も、activeな
 
 - Outcome: `A11Y-FR-05` ～ `A11Y-FR-10` を満たす操作文脈、基本設計8章の画面表示・支援技術向け通知・操作UIの名前 / 説明、focus可視性、Focus Not Obscuredが揃う。
 - Tasks:
-  - 基本設計8章のメッセージIDと `messages.ts` の定義を対応付け、英語を翻訳元とする `yamabiko-editor-tools` text domainのWordPress i18n / `sprintf()` で固定文言・可変文言を提供する。
+  - 基本設計8章のメッセージIDと `messages.ts` の定義を対応付け、英語を翻訳元とする `yamabiko-table-reorder` text domainのWordPress i18n / `sprintf()` で固定文言・可変文言を提供する。
   - controller、`reorder-ui.ts`、React側のToolbar / coachmark描画から利用者向け文字列の直書きを除き、すべて `messages.ts` を利用する。
   - タッチモード案内を「行ハンドルdrag / 行ハンドルtap / セルtap」の操作へ揃え、長押し案内を残さない。
   - 基本設計8章で定義された表示形式・表示契機・消える契機・競合時の優先関係に従って、Tooltip、インライン案内、WordPress一時通知を実装する。
@@ -394,7 +394,7 @@ Touchでは「行を並び替え」モードをOFFにした場合も、activeな
   - iframe / non-iframeの両環境でPCキーボード入力方式を検知でき、coachmark表示だけではfocusを移動しないことを確認する。
   - iframe / non-iframeの両環境で `index.css` がeditorへ配信され、row control / target / 案内のstyleが適用されることを確認する。
   - 既存PC handle drag、Touch handle drag、rowspan制約、DOM restore before commit、Undo、セル編集、通常スクロールを回帰確認する。
-  - WordPress i18n用の翻訳データを既存のリポジトリ手順に従って更新する。`i18n:json` をsource → build mapping対応へ拡張し、`wp i18n make-json --use-map` 等で `src/editor-extensions/table-reorder/messages.ts` の翻訳元を `build/editor-extensions/table-reorder/index.js` に対応付けたJSONを生成する。
+  - WordPress i18n用の翻訳データを既存のリポジトリ手順に従って更新する。`i18n:json` をsource → build mapping対応へ拡張し、`wp i18n make-json --use-map` 等で `src/messages.ts` の翻訳元を `build/index.js` に対応付けたJSONを生成する。
   - `src/README.md` のfile責務とcontrol flowを更新する。
 - Validation:
   - Node品質gate、production build、repository diff checkを通す。
@@ -415,12 +415,12 @@ Touchでは「行を並び替え」モードをOFFにした場合も、activeな
 - Gutenberg再描画をまたぐfocus復元requestだけを `use-table-reorder.ts` がrefで保持する。
 - 行control / target /案内 / live statusは `reorder-ui.ts` に集約し、drag専用UIは `drag-ui.ts` に残す。
 - `touch-press.ts` は廃止し、Touch専用の長押しtimer、開始threshold、セル短tap判定を持たない。
-- persistentなaccessibility UIの見た目は `editor.scss` に置く。Table ReorderのJS / runtime configは既存 `enqueue_block_editor_assets` を維持し、`yamabiko-editor-tools.php` の追加責務は生成された `build/index.css` の `enqueue_block_assets` + `is_admin()` によるeditor content配信と、Table Reorder script handleへの `wp_set_script_translations()` による翻訳関連付けに限定する。
+- persistentなaccessibility UIの見た目は `editor.scss` に置く。Table ReorderのJS / runtime configは既存 `enqueue_block_editor_assets` を維持し、`yamabiko-table-reorder.php` の追加責務は生成された `build/index.css` の `enqueue_block_assets` + `is_admin()` によるeditor content配信と、Table Reorder script handleへの `wp_set_script_translations()` による翻訳関連付けに限定する。
 - JavaScript翻訳JSONは既存i18n手順のsource → build mappingだけを追加し、`messages.ts` の翻訳元を実際にenqueueされる `build/index.js` に対応付けて生成する。新しい汎用翻訳基盤は作らない。
 - single-pointer sessionのcancelは、PCでは `Escape`、touchでは案内に併設する明示的なキャンセル操作を主経路とする。touch reorder modeをOFFにする場合もactive sessionをcancelしてからcleanupする。
 - PCポインター操作には初回コーチマークを設けない。PCキーボード利用時にはToolbar入口へ初回コーチマークを表示し、アイコンを強調するが、表示のためのfocus移動は行わない。
 - PCキーボード版とタッチ版の初回コーチマークは本実装に含め、Toolbar入口に紐づける。dismiss状態は別々に永続化し、一方を閉じても他方の初回表示を抑制しない。
-- 基本設計8章の画面表示・動的通知・アクセシブルな名前 / 説明は `messages.ts` に集約し、`yamabiko-editor-tools` text domainのWordPress i18n / `sprintf()` を使用する。controllerやUIへ利用者向け文字列を直書きしない。
+- 基本設計8章の画面表示・動的通知・アクセシブルな名前 / 説明は `messages.ts` に集約し、`yamabiko-table-reorder` text domainのWordPress i18n / `sprintf()` を使用する。controllerやUIへ利用者向け文字列を直書きしない。
 - 支援技術向けstatusはowning document内へTable Reorder自身が一つだけ生成し、新規npm dependencyを追加しない。
 
 ### Validate during implementation
@@ -469,7 +469,7 @@ Touchでは「行を並び替え」モードをOFFにした場合も、activeな
   - whitespace errorがない。
 - focused Jest
   - `row-order.test.ts`: 共通移動可否、次の有効移動先、rowspan越え、no-op
-  - `messages.test.ts`: 基本設計8章のmessage ID対応、可変文言、PC keyboard / touch coachmark、`yamabiko-editor-tools` text domainのWordPress i18n / `sprintf()` 境界
+  - `messages.test.ts`: 基本設計8章のmessage ID対応、可変文言、PC keyboard / touch coachmark、`yamabiko-table-reorder` text domainのWordPress i18n / `sprintf()` 境界
   - `reorder-ui.test.ts`: control / target / accessible name / cancel UI / cleanup / live status / message優先表示
   - `sortable-controller.test.ts`: keyboard / pointer session、共通commit、PC / Touchのhandle設定、drag後click / tap抑制、focus request、PC Escape cancel
   - `table-context.test.ts` / `sortable-runtime.test.ts` / `drag-ui.test.ts` / `rowspan.test.ts` の回帰
@@ -521,14 +521,14 @@ Touchでは「行を並び替え」モードをOFFにした場合も、activeな
   - 長いTableで上下移動し、現在候補と移動方向側の次の有効位置を可能な範囲で確認できる。
   - Table Reorder自身の案内・targetがfocus controlを完全に隠さない。
 - Editor asset delivery
-  - iframe / non-iframeの両環境で `build/editor-extensions/table-reorder/index.css` がeditorへ読み込まれる。
+  - iframe / non-iframeの両環境で `build/index.css` がeditorへ読み込まれる。
   - row controlのfocus ring、Target Size、選択状態、pointer target、操作案内に `editor.scss` のstyleが実際に適用される。
 - Messages / i18n
   - 基本設計8章の画面表示・動的通知・アクセシブルな名前 / 説明が `messages.ts` を経由し、controller / UIへ利用者向け文字列が直書きされていない。
   - PC keyboard coachmarkとtouch coachmarkの文言が `messages.ts` と翻訳JSONを経由している。
   - タッチ案内に行長押しDnDの文言が残っていない。
-  - `messages.ts` のWordPress i18n関数が `yamabiko-editor-tools` text domainを使用している。
-  - source → build mappingにより `src/editor-extensions/table-reorder/messages.ts` の翻訳元を `build/editor-extensions/table-reorder/index.js` に対応付けたJSONが生成され、そのJSON翻訳がTable Reorderのscript handle `yamabiko-editor-tools-table-reorder-index` へ実際にロードされる。
+  - `messages.ts` のWordPress i18n関数が `yamabiko-table-reorder` text domainを使用している。
+  - source → build mappingにより `src/messages.ts` の翻訳元を `build/index.js` に対応付けたJSONが生成され、そのJSON翻訳がTable Reorderのscript handle `yamabiko-table-reorder-index` へ実際にロードされる。
 - Support technology
   - 少なくとも一つの主要screen reader + Chrome系browserで、row名、開始、移動先変更、確定、cancel、移動不能理由を確認する。
   - 同じ無効操作やkey repeatで不要な同一通知が連続しない。
@@ -543,15 +543,15 @@ Touchでは「行を並び替え」モードをOFFにした場合も、activeな
 - `A11Y-FR-01` ～ `A11Y-FR-12` の各要件が上記module境界のいずれかへ対応付いている。
 - keyboard、single pointer、既存SortableJS DnDが `row-order.ts` / `rowspan.ts` の共通移動可否を利用する計画になっている。
 - 既存の `use-table-reorder.ts`、`with-table-reorder.tsx`、`table-context.ts`、`rowspan.ts`、controller各moduleの再利用範囲が明確である。
-- 新規責務が `messages.ts`、`reorder-ui.ts`、`editor.scss` を中心に限定され、`yamabiko-editor-tools.php` の追加責務も生成CSSのeditor content配信とTable Reorder script handleへのscript translations関連付けに限定される。JS / runtime configは既存 `enqueue_block_editor_assets` を維持し、汎用基盤や入力方式別の重複ロジックを作らない。
+- 新規責務が `messages.ts`、`reorder-ui.ts`、`editor.scss` を中心に限定され、`yamabiko-table-reorder.php` の追加責務も生成CSSのeditor content配信とTable Reorder script handleへのscript translations関連付けに限定される。JS / runtime configは既存 `enqueue_block_editor_assets` を維持し、汎用基盤や入力方式別の重複ロジックを作らない。
 - Gutenberg commitをまたぐfocus復元と、drag時には不要なfocus変更を行わない境界が明確である。
 - PC / Touchとも行ハンドルをSortableJSのdrag開始境界とし、Touchの行長押しDnDと専用 `touch-press.ts` を廃止する計画になっている。
 - PCではhandle drag / click、Touchではcell tap / handle tap / handle dragの競合と、PC `Escape` / touch明示的cancelによるsingle-pointerの確定しないcancel経路を実装・検証する順序が明確である。
 - Touchでセルの通常編集と行ハンドル外からの通常スクロールを妨げない実装・検証計画がある。
 - PCポインター操作では初回コーチマークを表示せず、PCキーボード利用時はToolbar入口へ初回だけコーチマークとアイコン強調を表示し、表示のためにfocusを移動しない実装・検証計画がある。
 - PCキーボード版とタッチ版の初回コーチマークをそれぞれ初回だけ表示し、閉じた後の自動再表示を別々のdismiss状態で抑制する実装・検証計画がある。
-- 基本設計8章の利用者向け文言を `messages.ts` に一元管理し、`yamabiko-editor-tools` text domainのWordPress標準i18nを利用する実装・検証計画がある。
-- JavaScript翻訳JSONを既存i18n手順のsource → build mappingで `build/editor-extensions/table-reorder/index.js` に対応付け、Table Reorderのscript handleへ関連付けて日本語localeの実ブラウザーで翻訳が適用されることを検証する計画がある。
+- 基本設計8章の利用者向け文言を `messages.ts` に一元管理し、`yamabiko-table-reorder` text domainのWordPress標準i18nを利用する実装・検証計画がある。
+- JavaScript翻訳JSONを既存i18n手順のsource → build mappingで `build/index.js` に対応付け、Table Reorderのscript handleへ関連付けて日本語localeの実ブラウザーで翻訳が適用されることを検証する計画がある。
 - `wp_set_script_translations()` の翻訳ディレクトリへ実ファイルシステム上の `languages` パスを渡す計画がある。
 - touch reorder mode中に必要な操作案内を実装・確認する計画がある。
 - iframe / non-iframeの両方でTable Reorderの生成CSS配信とPC keyboard入力方式検知を検証する計画がある。

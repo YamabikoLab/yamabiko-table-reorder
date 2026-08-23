@@ -26,15 +26,15 @@
 
 ### 現行仕様の確認に使用した主な実装
 
-- `src/editor-extensions/table-reorder/block-support.ts`
-- `src/editor-extensions/table-reorder/with-table-reorder.tsx`
-- `src/editor-extensions/table-reorder/use-table-reorder.ts`
-- `src/editor-extensions/table-reorder/use-table-reorder-interaction.ts`
-- `src/editor-extensions/table-reorder/controller/sortable-controller.ts`
-- `src/editor-extensions/table-reorder/controller/reorder-ui/`
-- `src/editor-extensions/table-reorder/messages.ts`
-- `src/editor-extensions/table-reorder/rowspan.ts`
-- `src/editor-extensions/table-reorder/table-context.ts`
+- `src/block-support.ts`
+- `src/with-table-reorder.tsx`
+- `src/use-table-reorder.ts`
+- `src/use-table-reorder-interaction.ts`
+- `src/controller/sortable-controller.ts`
+- `src/controller/reorder-ui/`
+- `src/messages.ts`
+- `src/rowspan.ts`
+- `src/table-context.ts`
 
 実装内部の構造そのものは文書更新対象とはせず、利用者から見える事実の確認にだけ使用した。
 
