@@ -170,7 +170,7 @@ npm run test:e2e:ui
 
 UI Mode listens on `0.0.0.0:9323` inside the Dev Container so VS Code can forward the port to the host browser.
 
-PR Validation uses a separate, CI-only environment defined in `tests/e2e/compose.ci.yaml`. It starts the pinned WordPress, MariaDB, and WP-CLI images needed by the E2E job, activates the checked-out plugin, and runs the existing suite with the official Playwright Docker image whose version matches `@playwright/test`. This CI Compose file does not replace `wp-dev` as the local development environment.
+PR Validation uses a separate, CI-only environment defined in `tests/e2e/compose.ci.yaml`. When manually starting the workflow, enable `Run E2E tests` to run the E2E matrix; it is disabled by default. When enabled, the E2E job starts the pinned WordPress, MariaDB, and WP-CLI images needed by the E2E job, activates the checked-out plugin, and runs the existing suite with the official Playwright Docker image whose version matches `@playwright/test`. This CI Compose file does not replace `wp-dev` as the local development environment.
 
 The CI E2E matrix intentionally covers three representative WordPress editor environments rather than expanding into a PHP-version matrix:
 
@@ -243,7 +243,7 @@ Check changed lines for whitespace errors:
 git diff --check origin/main...HEAD
 ```
 
-The manually triggered `.github/workflows/pr-validation.yml` workflow runs the dependency security audits, `npm test`, the production build, PHP checks, and the Playwright E2E suite on GitHub Actions. Run the repository check above separately before handoff.
+The manually triggered `.github/workflows/pr-validation.yml` workflow always runs the dependency security audits, `npm test`, the production build, and PHP checks. Playwright E2E is optional and disabled by default; enable `Run E2E tests` when browser-level validation is needed. Run the repository check above separately before handoff.
 
 ## Which checks to run
 
