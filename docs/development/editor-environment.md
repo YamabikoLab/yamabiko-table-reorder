@@ -74,6 +74,8 @@ WordPress の編集画面の中に、もう一つ別の「作業部屋」があ�
 
 考え方は単純です。
 
+<img width="1448" height="1086" alt="solution-editor-environment" src="https://github.com/user-attachments/assets/9562c7a9-38d6-4549-8d02-ae17360c42c4" />
+
 ```text
 Before
 
