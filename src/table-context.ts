@@ -1,16 +1,17 @@
 /**
- * Table Reorderが利用する editor DOM contextを解決する。
+ * Table Reorderが利用する table DOM context を解決する。
  *
- * anchorのowning documentをrootとして優先し、対象blockがrootに存在しない場合だけ
- * `iframe[name="editor-canvas"]`へfallbackし、対象Table blockと同じdocument / window / tbodyを
- * 一つのcontextとして返す。
+ * editor browsing context の detection / discovery は Editor Environment に委譲し、
+ * この module は解決済み editor document から対象 Table block と tbody を組み立てる。
  */
+
+import { resolveEditorEnvironment } from './editor-environment';
 
 /**
  * 解決済みTable blockが利用するDOM context。
  *
- * `blockElement`、`tbody`はすべて`document`に属し、`window`はその
- * `document.defaultView`であることを保証する。
+ * `blockElement`、`tbody`はすべて`document`に属し、`window`はその editor browsing
+ * context に対応する Window であることを保証する。
  */
 export type TableContext = {
 	blockElement: HTMLElement;
@@ -20,51 +21,32 @@ export type TableContext = {
 };
 
 /**
- * clientIdに対応するTable block elementをroot documentから解決する。
+ * anchorを起点に解決した Editor Environment からTable ReorderのDOM contextを組み立てる。
  *
- * root documentに対象blockがあれば必ずそれを採用し、存在しない場合だけeditor canvas
- * iframeを探索する。Issue #177で固定したiframe / non-iframeの優先順位を維持する。
- *
- * @param rootDocument 探索を開始するanchorのowning document。
- * @param clientId     解決対象となるGutenberg blockのclientId。
- */
-const findBlockElement = ( rootDocument: Document, clientId: string ): HTMLElement | null => {
-	const selector = `[data-block="${ clientId }"]`;
-	const directBlock = rootDocument.querySelector< HTMLElement >( selector );
-	if ( directBlock ) {
-		return directBlock;
-	}
-
-	const iframe = rootDocument.querySelector< HTMLIFrameElement >( 'iframe[name="editor-canvas"]' );
-	return iframe?.contentDocument?.querySelector< HTMLElement >( selector ) ?? null;
-};
-
-/**
- * anchorのowning documentを起点に、Table Reorderが必要とするDOM contextを解決する。
- *
- * block、owning window、table、先頭tbodyのいずれかを解決できない場合は`null`を返す。
+ * block、table、先頭tbodyのいずれかを解決できない場合は`null`を返す。
  *
  * @param anchor   Table blockの探索起点となるDOM element。
  * @param clientId 解決対象となるGutenberg blockのclientId。
  */
 export const resolveTableContext = ( anchor: Element, clientId: string ): TableContext | null => {
-	const blockElement = findBlockElement( anchor.ownerDocument, clientId );
-	if ( ! blockElement ) {
+	const environment = resolveEditorEnvironment( anchor, clientId );
+	if ( ! environment ) {
 		return null;
 	}
 
-	const document = blockElement.ownerDocument;
-	const view = document.defaultView;
-	const table = blockElement.querySelector< HTMLTableElement >( 'table' );
+	const blockElement = environment.document.querySelector< HTMLElement >(
+		`[data-block="${ clientId }"]`
+	);
+	const table = blockElement?.querySelector< HTMLTableElement >( 'table' ) ?? null;
 	const tbody = table?.tBodies.item( 0 ) ?? null;
-	if ( ! view || ! table || ! tbody ) {
+	if ( ! blockElement || ! table || ! tbody ) {
 		return null;
 	}
 
 	return {
 		blockElement,
-		document,
-		window: view,
+		document: environment.document,
+		window: environment.window,
 		tbody,
 	};
 };
