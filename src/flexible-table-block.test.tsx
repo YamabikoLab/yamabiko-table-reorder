@@ -24,7 +24,7 @@ jest.mock( './use-table-reorder', () => ( {
 const useTableReorderMock = useTableReorder as jest.MockedFunction< typeof useTableReorder >;
 
 const createHookResult = (): ReturnType< typeof useTableReorder > => ( {
-	anchorRef: { current: null },
+	anchorRef: jest.fn(),
 	consumeTouchToolbarFocusRequest: jest.fn(),
 	dismissKeyboardCoachmark: jest.fn(),
 	dismissTouchCoachmark: jest.fn(),
