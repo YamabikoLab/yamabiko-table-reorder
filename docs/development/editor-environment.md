@@ -4,7 +4,7 @@
 
 WordPress では、エディターを iframe 内で動かす取り組みが段階的に進められてきました。WordPress 7.1 では、その流れの中で投稿エディターも常に iframe 内で動作するようになります。
 
-[Iframed Editor Changes in WordPress 7.1](https://make.wordpress.org/core/2026/08/03/iframed-editor-changes-in-wordpress-7-1/) では、この変更の背景と、ブロックやエディター拡張を iframe 内でも正しく動かすための考え方が分かりやすく整理されています。
+[Iframed Editor Changes in WordPress 7.1](https://make.wordpress.org/core/2026/08/03/iframed-editor-changes-in-wordpress-7-1/) では、この変更の背景と、ブロックやエディター拡張を iframe 内でも正しく動かすための考え方が整理されています。
 
 iframe 内の編集領域には、管理画面とは別の `document` と `window` があります。そのため、エディター内部の要素を扱うときは、グローバルな `document` / `window` ではなく、対象要素の `ownerDocument` や `defaultView` から適切な context を取得することが重要になります。
 
@@ -17,7 +17,7 @@ iframe 内の編集領域には、管理画面とは別の `document` と `windo
 
 Table Reorder はこれまでも iframe / non-iframe の両方で動作してきました。今回検証したのは、その **editor browsing context の違いを、製品コードの中でどのように扱うと分かりやすく保てるか** です。
 
-Table Reorder を実際の題材として試した結果、**今回の PoC では、その違いを小さな境界へ集約しながら、iframe / non-iframe の両方を正常に動かすことができました。**
+Table Reorder を実際の題材として試した結果、**今回の PoC では、editor browsing-context discovery を小さな境界へ集約しながら、iframe / non-iframe の両方を正常に動かすことができました。**
 
 ## 1. iframe / non-iframe 対応で見えてきた課題
 
@@ -70,7 +70,7 @@ WordPress の編集画面の中に、もう一つ別の「作業部屋」があ�
 
 を確認することもできます。
 
-今回試したのは、その確認を各機能で繰り返すのではなく、**「今使うべき作業部屋はどこか」を案内する役割を一か所にまとめる**方法です。
+今回試したのは、その確認を各機能で繰り返すのではなく、**対象 block が存在する browsing context を案内する役割を一か所にまとめる**方法です。
 
 ### 公式プラクティスを正しく適用するために
 
@@ -82,7 +82,7 @@ WordPress の公式記事では、この違いを安全に扱うための方法�
 
 また、一度取得した iframe の `document` や `window` を保持し続けると、iframe が再生成されたあとに古い browsing context を参照してしまう可能性もあります。
 
-つまり、公式プラクティスが危険なのではありません。**公式プラクティスを正しく適用するためには、「今どの editor browsing context を使うべきか」という判断も正しく行う必要があります。**
+つまり、公式プラクティスが危険なのではありません。**公式プラクティスを正しく適用するためには、対象 block がどの editor browsing context に存在するかという判断も正しく行う必要があります。**
 
 Table Reorder の PoC では、この判断を各機能に任せるのではなく、Editor Environment へ集約できないかを試しました。
 
@@ -104,34 +104,33 @@ WordPress / Gutenberg でも、こうしたケースへの対応が重ねられ�
 > [!CAUTION]
 > * **エディターの browsing context は操作の途中で変わることがある**
 
-  * non-iframe で動作している投稿エディターでも、Patterns タブを開いて Zoom Out が有効になることで、iframe として動作するケースがありました。
+  * non-iframe で動作している投稿エディターでも、Patterns タブを開いて Zoom Out が有効になることで、iframe として動作するケースが報告されていました。
   * これは、**一度判定した editor context が、その後も同じとは限らない**ことを示しています。
   * [Gutenberg Issue #66671: Zoom out: Pattern inserter always forces iframe editor](https://github.com/WordPress/gutenberg/issues/66671)
 
 > [!CAUTION]
 > * **DOM 要素が残っていても、その browsing context が有効とは限らない**
 
-  * WordPress 7.0 では、iframe の teardown / recreation の途中で、以前の iframe に属していた DOM 要素が一時的に残り、その `ownerDocument.defaultView` がすでに `null` になっているケースがありました。
+  * WordPress 7.0 環境で報告された Gutenberg Issue #79118 では、iframe teardown / recreation の途中で以前の iframe に属していた DOM 要素が一時的に残り、その `ownerDocument.defaultView` が `null` になっている状態が報告・分析されています。
   * DOM 要素そのものが存在していても、その `document` / `window` が現在も利用可能とは限らないことが分かります。
   * [Gutenberg Issue #79118: Block editor crashes on pattern insertion](https://github.com/WordPress/gutenberg/issues/79118)
 
 > [!IMPORTANT]
 > これらは、Editor Environment が過去の個別の問題をそのまま解決する、という意味ではありません。
-> 
+>
 > 重要なのは、これらの実例から、
-> 
+>
 > * editor context は途中で変化する可能性がある
 > * iframe の lifecycle によって古い context が無効になることがある
 > * DOM 要素が存在していても、その browsing context が有効とは限らない
-> 
+>
 > という性質が見えてくることです。
-> 
-> Editor Environment は、こうした性質を前提として、**その時点で利用すべき editor browsing context を都度解決するための小さな境界**として設計しています。
-
+>
+> Editor Environment は、こうした性質を前提として、**対象 block が存在する browsing context を resolve 時点ごとに解決するための小さな境界**として設計しています。
 
 ## 2. 解決策: Editor Environment
 
-今回の PoC では、iframe / non-iframe の違いを判断する役割を **Editor Environment** という小さな境界へ集約しました。
+今回の PoC では、iframe / non-iframe の editor browsing-context discovery を **Editor Environment** という小さな境界へ集約しました。
 
 考え方は単純です。
 
@@ -146,7 +145,6 @@ Before
   ├─ window を選ぶ
   └─ 本来の機能を書く
 
-
 After
 
 製品コード
@@ -154,13 +152,13 @@ After
       v
 Editor Environment
       |
-      ├─ iframe / non-iframe を判断する
-      └─ 正しい document / window を返す
+      ├─ 対象 block が存在する context を探す
+      └─ 対応する document / window を返す
 ```
 
 製品コードは、iframe の構造を直接調べません。
 
-必要になったときに Editor Environment から「現在のエディターで使うべき `document` と `window`」を受け取ります。
+必要になったときに Editor Environment から「**対象 block が存在する、resolve 時点の editor browsing context の `document` と `window`**」を受け取ります。
 
 > [!IMPORTANT]
 > 今回の実装で Editor Environment が提供するものは、この2つだけです。
@@ -177,47 +175,59 @@ type EditorEnvironment = {
 ### Editor Environment の仕様
 
 > [!IMPORTANT]
-> Editor Environment は、**現在のエディターで利用すべき browsing context を解決するための境界**です。
-> 
-> 仕様は次のとおりです。
+> Editor Environment は、**対象 block が存在する editor browsing context を resolve 時点ごとに解決するための境界**です。
+>
+> 現在の PoC では `clientId` を context resolution の識別情報として利用します。
 
-* **現在のエディターで使うべき `document` と `window` を返す**
+仕様は次のとおりです。
+
+* **対象 block が存在する `document` と `window` を返す**
 
   * 呼び出し側は iframe / non-iframe の違いを判断する必要がありません。
+  * `document` と `window` は resolve 時点で対象 block を含む browsing context を表します。
 
-* **non-iframe と iframe の両方に対応する**
+* **`anchor.ownerDocument` を最初に確認する**
 
-  * 対象ブロックが通常の document に存在すれば、その context を利用します。
-  * 存在しない場合は editor iframe 内を探索します。
+  * `[data-block="<clientId>"]` が `anchor.ownerDocument` に存在する場合、その document と `defaultView` を利用します。
+  * 「non-iframe を優先する」という抽象的なルールではなく、実装上は **探索起点である `anchor.ownerDocument` を優先する**ルールです。
 
-* **対象ブロックが存在する context だけを有効とする**
+* **対象 block が root にない場合は、すべての editor canvas を探索する**
 
+  * `iframe[name="editor-canvas"]` を `querySelectorAll()` で取得し、document order で順番に確認します。
+  * 対象 `clientId` の block が存在し、かつ `document.defaultView` が利用可能な最初の context を採用します。
   * iframe が存在するだけでは採用しません。
-  * 対象となるブロックが、その document 内に実際に存在することを確認します。
+
+* **複数 context に同じ `clientId` がある場合の追加 disambiguation は行わない**
+
+  * 現在の PoC では `anchor.ownerDocument` を優先し、iframe 間では document order の最初の有効な match を採用します。
+  * 同一 `clientId` が複数の editor context に存在する場合の意味論的な disambiguation は、今回のスコープでは設計しません。
 
 * **`document` と `window` は同じ browsing context の組み合わせで返す**
 
+  * iframe 側でも `contentWindow` を別経路で取得せず、解決した `contentDocument.defaultView` を利用します。
   * 異なる context の `document` と `window` が混ざることを防ぎます。
 
 * **正しい context を解決できない場合は `null` を返す**
 
+  * 対象 block が見つからない場合、または対応する `defaultView` が利用できない場合は `null` を返します。
   * 不完全な状態を推測で補わず、安全に処理を中止できるようにします。
 
 * **解決結果は保持しない**
 
-  * 呼び出されるたびに、その resolve 時点での current editor context を解決します。
-  * 返される `document` / `window` は、resolve 時点で current な browsing context を表します。
+  * resolver は stateless です。
+  * 呼び出されるたびに、その resolve 時点の editor DOM から context を探索します。
   * 返却済みの `document` / `window` が、その後の iframe teardown / recreation をまたいで current であり続けることは保証しません。
-  * editor context が変化し得る場合は、必要に応じて再度 resolve します。
+  * editor context が変化し得る場合は、consumer が必要に応じて再度 resolve します。
 
-* **担当するのは editor context の探索だけ**
+* **担当するのは editor browsing-context discovery だけ**
 
   * `focus()`、スクロール、DOM traversal などの標準 Web API はラップしません。
-  * Editor Environment が引き受けるのは、**「現在どの browsing context を使うべきかを判断する責務」だけ**です。
+  * DOM node 自身の local context を得るための `ownerDocument` / `defaultView` は、Editor Environment 外でも利用できます。
+  * Editor Environment が引き受けるのは、**対象 block がどの editor browsing context に存在するかを判断する責務**です。
 
 > [!IMPORTANT]
-> つまり Editor Environment は、  
-> **対象ブロックが存在する現在の editor browsing context を安全に解決し、その `document` と `window` を返す。解決できない場合は `null` を返し、解決結果は保持しない。**  
+> つまり Editor Environment は、
+> **対象 block が存在する editor browsing context を resolve 時点ごとに解決し、その `document` と `window` を返す。解決できない場合は `null` を返し、解決結果は保持しない。**
 > という小さな仕様を持つ境界です。
 
 <img width="1448" height="1086" alt="editor-environment-spec" src="https://github.com/user-attachments/assets/fbf83f46-d79d-4c1a-9cd7-682f4f310f7d" />
@@ -226,7 +236,7 @@ type EditorEnvironment = {
 
 **この方式で iframe / non-iframe の両方が正常に動作しました。**
 
-さらに、iframe 固有の処理を1か所へ集約しても、既存の controller、drag UI、キーボード操作、タッチ操作、フォーカス、スクロール処理を書き換える必要はありませんでした。
+さらに、editor browsing-context discovery の iframe 固有処理を1か所へ集約しても、既存の controller、drag UI、キーボード操作、タッチ操作、フォーカス、スクロール処理を書き換える必要はありませんでした。
 
 これは今回の PoC で特に重要な結果です。
 
@@ -237,11 +247,11 @@ type EditorEnvironment = {
 ```text
 機能
   ↓
-「今使うべき編集画面はどこ？」
+「この block がいる編集 context はどこ？」
   ↓
 Editor Environment
   ↓
-「こちらです」
+「この document / window です」
 ```
 
 機能側は、案内された場所で本来の仕事をすればよくなります。
@@ -254,9 +264,7 @@ Editor Environment の目的は、単に iframe 対応コードを別ファイ�
 
 今回の PoC で一番大きな成果は、次の一点です。
 
-> **iframe 対応の知識を、わずか1ファイル（`editor-environment.ts`）だけに完全に幽閉できる。**
-
-ここでいう「iframe 対応の知識」とは、iframe / non-iframe の違いを判断し、現在使うべき editor `document` / `window` を解決するための知識です。
+> **editor browsing-context discovery に必要な iframe 固有の知識を、`editor-environment.ts` に集約できる。**
 
 少なくとも今回の Table Reorder では、WordPress 7.1 でエディターが iframe 化されても、既存の製品コード全体を iframe 対応へ書き換える必要はありませんでした。
 
@@ -275,7 +283,7 @@ iframe 化
 ```text
 iframe 化
   ↓
-iframe 対応の知識を editor-environment.ts に幽閉する
+editor browsing-context discovery を editor-environment.ts に集約する
   ↓
 既存の製品コードは、本来の機能に集中する
 ```
@@ -295,7 +303,7 @@ iframe 対応の知識を editor-environment.ts に幽閉する
 
 ここへ「iframe かどうか」を混ぜる必要がなくなります。
 
-各機能を実装するたびに「今は iframe か」「どの `document` を使うか」を考えるのではなく、Editor Environment に問い合わせればよくなります。
+各機能を実装するたびに「今は iframe か」「どの `document` を使うか」を考えるのではなく、対象 block の context が必要になった時点で Editor Environment に問い合わせればよくなります。
 
 目指しているのは、次の変化です。
 
@@ -320,8 +328,8 @@ Editor Environment を境界にすることで、将来的には次のように�
 製品機能のテスト
   └─ 並べ替え、キーボード、タッチ、フォーカスなど
 
-Editor Environment のテスト
-  └─ iframe / non-iframe、lifecycle など
+Editor Environment の focused test
+  └─ root resolution、iframe fallback、複数 canvas、再生成後の再 resolve contract など
 ```
 
 ただし、今回の PoC だけを理由に iframe / non-iframe の E2E をすぐ削除するものではありません。テスト構成の整理は、PoC の成果を踏まえた次の検討事項です。
@@ -345,7 +353,7 @@ Editor Environment は、Web ブラウザーそのものを隠すための仕組
 
 重要なのは、`ownerDocument` や `defaultView` を禁止することではありません。
 
-**「現在のエディターがどの browsing context なのかを探す責務」だけを Editor Environment に集める**ことです。
+**editor browsing-context discovery の責務だけを Editor Environment に集める**ことです。
 
 ## 4. Table Reorder とは
 
@@ -400,48 +408,49 @@ table-context.ts
       v
 editor-environment.ts
       |
-      | 現在の document / window を解決
+      | 対象 block の document / window を解決
       v
 iframe / non-iframe editor
 ```
 
-`editor-environment.ts` は editor browsing context の discovery だけを担当します。
+`editor-environment.ts` は editor browsing-context discovery だけを担当します。
 
 `table-context.ts` は、解決済みの `document` の中から Table block、`table`、`tbody` を探すことだけに集中します。
 
-この分離によって、Table Reorder の他の実装へ iframe 固有処理を広げずに済みました。
+この分離によって、Table Reorder の他の実装へ iframe 固有の discovery 処理を広げずに済みました。
 
 ## 6. PoC の成果を数字で見る
 
 今回の結果は、単に「動いた」という感想だけではなく、いくつかの数字で確認できます。
 
-| 指標                                                             | 結果                        |
-| ---------------------------------------------------------------- | --------------------------- |
-| WordPress 7.1 iframe E2E                                         | PASS                        |
-| WordPress 6.8.3 non-iframe E2E                                   | PASS                        |
-| ローカル iframe 確認                                             | PASS                        |
-| ローカル non-iframe 確認                                         | PASS                        |
-| iframe 固有知識を持つ production module                          | 1 (`editor-environment.ts`) |
-| Editor Environment 外の `contentDocument` / `contentWindow` 参照 | 0                           |
-| 変更が必要だった既存 production module                           | 1 (`table-context.ts`)      |
-| Editor Environment が公開する capability                         | 2 (`document`, `window`)    |
-| 新しく追加した browser API wrapper                               | 0                           |
-| Editor Environment 対応のため変更が必要だった既存 consumer       | 0                           |
-| iframe 再生成の focused test                                     | PASS                        |
+| 指標 | 結果 |
+| --- | --- |
+| WordPress 7.1 iframe E2E | PASS |
+| WordPress 6.8.3 non-iframe E2E | PASS |
+| ローカル iframe 確認 | PASS |
+| ローカル non-iframe 確認 | PASS |
+| editor browsing-context discovery の iframe 固有処理を持つ production module | 1 (`editor-environment.ts`) |
+| Editor Environment 外の `contentDocument` / `contentWindow` 参照 | 0 |
+| 変更が必要だった既存 production module | 1 (`table-context.ts`) |
+| Editor Environment が公開する capability | 2 (`document`, `window`) |
+| 新しく追加した browser API wrapper | 0 |
+| `table-context.ts` より下流で Editor Environment 対応のため変更が必要だった既存 consumer | 0 |
+| 複数 `editor-canvas` の focused test | PASS |
+| iframe 再生成後の再 resolve focused test | PASS |
 
 この中で特に重要なのは、コードの行数ではありません。
 
 次の3点です。
 
-1. **iframe 固有の知識を1つの production module に集約できた**
-2. **既存 consumer を Editor Environment 対応に書き換える必要がなかった**
+1. **editor browsing-context discovery の iframe 固有処理を1つの production module に集約できた**
+2. **`table-context.ts` より下流の既存 consumer を Editor Environment 対応に書き換える必要がなかった**
 3. **普通の Web API を包む新しい wrapper を増やさずに済んだ**
 
 つまり、小さな境界を追加しただけで、既存の製品コードの大部分はそのまま動きました。
 
-## 7. iframe 固有コードが漏れていないか確認する方法
+## 7. editor browsing-context discovery の直接参照を確認する方法
 
-production code に iframe 固有処理が増えていないかは、次の検索で確認できます。
+production code に editor browsing-context discovery の直接参照が増えていないかは、次の検索で確認できます。
 
 ```bash
 rg 'contentDocument|contentWindow|iframe\[name="editor-canvas"\]' src \
@@ -463,31 +472,39 @@ rg -l 'contentDocument|contentWindow' src \
 
 こちらも期待結果は `src/editor-environment.ts` だけです。
 
-これは `ownerDocument` / `defaultView` の通常利用まで禁止するためのチェックではありません。
+この検索だけで iframe に関するあらゆる知識を網羅的に検出できるわけではありません。
 
-目的は、**editor browsing-context discovery が再び製品コード全体へ広がっていないかを見ること**です。
+また、これは `ownerDocument` / `defaultView` の通常利用まで禁止するためのチェックではありません。
 
-## 8. iframe の作り直しにも古い context を残さない
+目的は、**editor browsing-context discovery の直接参照が再び製品コード全体へ広がっていないかを見ること**です。
+
+## 8. iframe 再生成後の再 resolve で stale context を再利用しない
 
 iframe は、エディターの lifecycle の中で破棄・再生成される可能性があります。
 
-もし Editor Environment が古い `document` や `window` をずっと cache してしまうと、すでに使われていない iframe を参照し続ける危険があります。
+もし Editor Environment 自体が古い `document` や `window` を cache してしまうと、次回の resolution でもすでに使われていない iframe を参照し続ける危険があります。
 
 今回の resolver は stateless にしました。
 
-呼び出されるたびに、現在の editor context を解決します。
+呼び出されるたびに、その時点の editor DOM から context を解決します。
 
 focused test では次を確認しています。
 
 1. 最初の iframe を解決する
 2. その iframe を削除する
 3. 新しい iframe を作る
-4. もう一度解決する
+4. もう一度 resolver を呼ぶ
 5. 古い iframe ではなく、新しい iframe の `document` / `window` が返ることを確認する
 
 このテストは PASS しています。
 
-一方で、Gutenberg 自身に実ブラウザー上で iframe teardown / recreation を強制する専用 E2E は、今回の PoC にはまだ含めていません。
+ここで保証しているのは、**再 resolve したときに Editor Environment が古い context を cache から再利用しないこと**です。
+
+返却済みの `document` / `window` が iframe teardown / recreation 後も自動的に current であり続けることや、Editor Environment が iframe の変化を検出して既存 consumer を自動更新することまでは保証しません。
+
+editor context が変化し得る場合、consumer は必要に応じて再度 resolve します。
+
+また、Gutenberg 自身に実ブラウザー上で iframe teardown / recreation を強制する専用 E2E は、今回の PoC には含めていません。
 
 これは今後さらに lifecycle coverage を強化する場合の候補です。
 
@@ -495,9 +512,9 @@ focused test では次を確認しています。
 
 GitHub Actions:
 
-- https://github.com/YamabikoLab/yamabiko-table-reorder/actions/runs/32609568439
+- https://github.com/YamabikoLab/yamabiko-table-reorder/actions/runs/32621523770
 
-この CI では、次を含む検証が成功しました。
+この CI は最新 PoC head `a2a71b7fd1e4fd5170cb6e31b139b09fe95c9f09` に対して実行され、次を含む検証が成功しました。
 
 - Node.js quality checks
 - production build
@@ -512,18 +529,18 @@ GitHub Actions:
 今回の実験から、少なくとも Table Reorder では、次のことが確認できました。
 
 > [!IMPORTANT]
-> iframe / non-iframe の detection、discovery、lifecycle concern を小さな境界へ集約しても、残りの製品コードはほぼそのまま通常の Web コードとして動かせる。
+> iframe / non-iframe の browsing-context discovery と、lifecycle を考慮した stateless な resolution contract を小さな境界へ集約しても、残りの製品コードはほぼそのまま通常の Web コードとして動かせる。
 
 これは、Editor Environment を「Web を隠す abstraction」として作る必要がないことも示しています。
 
 今回成立した境界は、もっと小さなものです。
 
 > [!NOTE]
-> **どの editor context を使うべきかだけを案内する薄い boundary**
+> **対象 block が存在する editor context を resolve 時点ごとに案内する薄い boundary**
 
-Editor Environment が iframe を知っています。
+Editor Environment が iframe / non-iframe の browsing-context discovery を知っています。
 
-Table Reorder の並べ替えロジック、キーボード処理、タッチ処理、フォーカス処理、スクロール処理などは、その事実を知る必要がありません。
+Table Reorder の並べ替えロジック、キーボード処理、タッチ処理、フォーカス処理、スクロール処理などは、その discovery の詳細を知る必要がありません。
 
 今回の PoC の中心的な成果はここにあります。
 
@@ -534,6 +551,9 @@ Table Reorder の並べ替えロジック、キーボード処理、タッチ処
 - non-iframe E2E を削除できるか
 - Editor Environment を standalone package にすべきか
 - 他の WordPress プラグインでも同じ abstraction がそのまま有効か
+- block 単位ではない editor-level consumer に、どのような resolution API が必要か
+- 同一 `clientId` が複数 context に存在する場合に、追加の disambiguation rule が必要か
+- 実ブラウザー上の iframe teardown / recreation を専用 E2E でどこまで検証すべきか
 - WordPress / Gutenberg の public API として成立するか
 - 将来必要な capability が増えても、この境界を小さく保てるか
 
@@ -541,15 +561,15 @@ Table Reorder の並べ替えロジック、キーボード処理、タッチ処
 
 特に重要なのは、今後 capability が必要になるたびに Editor Environment を巨大化させないことです。
 
-Editor Environment の役割は、あくまで editor context の案内役です。
+Editor Environment の役割は、あくまで editor browsing context の案内役です。
 
 ## まとめ
 
 iframe editor を扱うには、適切な editor `document` / `window` を参照する必要があります。
 
-WordPress の公式記事では、そのための考え方と実装上のポイントが整理されています。今回の PoC はその知見を前提として、**iframe / non-iframe の違いを製品コードのどこで扱うとよいか**を検証したものです。
+WordPress の公式記事では、そのための考え方と実装上のポイントが整理されています。今回の PoC はその知見を前提として、**iframe / non-iframe の editor browsing-context discovery を製品コードのどこで扱うとよいか**を検証したものです。
 
-Table Reorder で試した結果、iframe 固有の discovery を Editor Environment という1つの薄い境界へ集約しながら、既存の製品コードの大部分を変更せず、iframe / non-iframe の両方で正常に動かすことができました。
+Table Reorder で試した結果、対象 block が存在する editor browsing context の discovery を Editor Environment という1つの薄い境界へ集約しながら、既存の製品コードの大部分を変更せず、iframe / non-iframe の両方で正常に動かすことができました。
 
 ```text
 製品コード
@@ -558,24 +578,27 @@ Table Reorder で試した結果、iframe 固有の discovery を Editor Environ
   v
 本来の機能
   |
-  | editor context が必要なときだけ問い合わせる
+  | 対象 block の editor context が必要なときだけ問い合わせる
   v
 Editor Environment
   |
-  | iframe / non-iframe の違いを吸収する
+  | resolve 時点の browsing context を探索する
   v
 WordPress Editor
 ```
 
 目指しているのは、iframe をなくすことではありません。
 
-**iframe が存在していても、製品コードの大部分は iframe を知らなくてよい状態にすること**です。
+**iframe が存在していても、製品コードの大部分は editor browsing-context discovery の詳細を知らなくてよい状態にすること**です。
 
 今回の PoC は、その方向が Table Reorder の実製品コードで成立することを示しました。
 
 ## References
 
 - [Iframed Editor Changes in WordPress 7.1](https://make.wordpress.org/core/2026/08/03/iframed-editor-changes-in-wordpress-7-1/)
+- [Gutenberg PR #59992: Block Editor: fix crash when unmounting an editor iframe](https://github.com/WordPress/gutenberg/pull/59992)
+- [Gutenberg Issue #66671: Zoom out: Pattern inserter always forces iframe editor](https://github.com/WordPress/gutenberg/issues/66671)
+- [Gutenberg Issue #79118: Block editor crashes on pattern insertion](https://github.com/WordPress/gutenberg/issues/79118)
 - Issue #430: PoC: isolate editor browsing context behind an Editor Environment
 - PR #441: PoC implementation
 - `docs/plans/table-reorder/editor-environment-poc-plan.md`: PoC implementation plan
