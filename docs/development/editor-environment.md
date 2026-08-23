@@ -70,6 +70,20 @@ WordPress の編集画面の中に、もう一つ別の「作業部屋」があ�
 
 今回試したのは、その確認を各機能で繰り返すのではなく、**「今使うべき作業部屋はどこか」を案内する役割を一か所にまとめる**方法です。
 
+### 公式プラクティスを正しく適用するために
+
+WordPress の公式記事では、この違いを安全に扱うための方法が示されています。この考え方自体は正しく、対象となる DOM 要素の `ownerDocument` や `defaultView` を使うことで、その要素が属する browsing context を正しく扱えます。
+
+ただし、実際の機能では **その前提を正しく扱わないと、別の browsing context を参照してしまう場合があります。**
+
+たとえば、処理の起点となる要素は管理画面側の document にある一方で、実際に操作したい block は iframe 内にあるかもしれません。その場合、起点となる要素の `ownerDocument` だけを使って対象 block を探しても見つかりません。
+
+また、一度取得した iframe の `document` や `window` を保持し続けると、iframe が再生成されたあとに古い browsing context を参照してしまう可能性もあります。
+
+つまり、公式プラクティスが危険なのではありません。**公式プラクティスを正しく適用するためには、「今どの editor browsing context を使うべきか」という判断も正しく行う必要があります。**
+
+Table Reorder の PoC では、この判断を各機能に任せるのではなく、Editor Environment へ集約できないかを試しました。
+
 ## 2. 解決策: Editor Environment
 
 今回の PoC では、iframe / non-iframe の違いを判断する役割を **Editor Environment** という小さな境界へ集約しました。
