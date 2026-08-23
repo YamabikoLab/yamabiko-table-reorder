@@ -1,5 +1,5 @@
 /**
- * Column Reorder の control prototype を Gutenberg BlockEdit へ接続する。
+ * Column Reorderのcontrol prototypeをGutenberg BlockEditへ接続する。
  */
 
 import type { BlockEditProps } from '@wordpress/blocks';
@@ -42,11 +42,11 @@ const getControlGeometry = ( columns: HTMLTableCellElement[] ): ControlGeometry 
 };
 
 /**
- * Column Reorder prototype を接続した BlockEdit HOC。
+ * Column Reorder prototypeを接続したBlockEdit HOC。
  *
- * Phase 2 では control の配置と focus ownership だけを確立し、並べ替え commit は行わない。
+ * controlの配置とfocus ownershipだけを担当し、並べ替えcommitは行わない。
  *
- * @param BlockEdit Gutenberg が提供する元の BlockEdit component。
+ * @param BlockEdit Gutenbergが提供する元のBlockEdit component。
  */
 export const withColumnReorder = ( BlockEdit: ComponentType< TableBlockEditProps > ) =>
 	function WithColumnReorder( props: TableBlockEditProps ) {
