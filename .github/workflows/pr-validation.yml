@@ -110,6 +110,10 @@ jobs:
             editor_mode: iframe
             wordpress_image: 'wordpress:7.1.0-php8.3-apache'
             flexible_table_block_version: '3.9.0'
+          - wordpress_version: '7.0.4'
+            editor_mode: iframe
+            wordpress_image: 'wordpress:7.0.4-php8.3-apache'
+            flexible_table_block_version: '3.9.0'
           - wordpress_version: '6.8.3'
             editor_mode: non-iframe
             wordpress_image: 'wordpress:6.8.3-php8.3-apache'
@@ -225,7 +229,7 @@ jobs:
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: playwright-e2e-failure-${{ matrix.editor_mode }}
+          name: playwright-e2e-failure-wp-${{ matrix.wordpress_version }}-${{ matrix.editor_mode }}
           path: |
             playwright-report/
             test-results/
