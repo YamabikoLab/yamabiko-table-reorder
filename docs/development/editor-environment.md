@@ -175,9 +175,10 @@ type EditorEnvironment = {
 
 ### Editor Environment の仕様
 
-Editor Environment は、**現在のエディターで利用すべき browsing context を解決するための境界**です。
-
-仕様は次のとおりです。
+> [!IMPORTANT]
+> Editor Environment は、**現在のエディターで利用すべき browsing context を解決するための境界**です。
+> 
+> 仕様は次のとおりです。
 
 * **現在のエディターで使うべき `document` と `window` を返す**
 
