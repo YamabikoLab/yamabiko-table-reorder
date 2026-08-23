@@ -1,4 +1,1 @@
-export {
-	ensureSortableRuntime,
-	type SortableInstance,
-} from '@/common/sortable-runtime-loader';
+export { ensureSortableRuntime, type SortableInstance } from '@/common/sortable-runtime-loader';
