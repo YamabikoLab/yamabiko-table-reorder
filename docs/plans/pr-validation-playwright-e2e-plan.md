@@ -3,8 +3,8 @@
 ## References
 
 - Parent issue: #414
-- Requirements: `docs/requirements/table-reorder/table-reorder-requirements.md`
-- Design: `docs/design/table-reorder/table-reorder-design.md`
+- Requirements: `docs/requirements/table-reorder-requirements.md`
+- Design: `docs/design/table-reorder-design.md`
 
 ## Goal
 
