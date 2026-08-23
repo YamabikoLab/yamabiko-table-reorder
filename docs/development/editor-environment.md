@@ -130,6 +130,51 @@ type EditorEnvironment = {
 
 当初は `root` や `scrollContainer` まで必要になる可能性も考えていましたが、実際に試したところ、そこまで抽象化する必要はありませんでした。
 
+### Editor Environment の仕様
+
+Editor Environment は、**現在のエディターで利用すべき browsing context を解決するための境界**です。
+
+仕様は次のとおりです。
+
+* **現在のエディターで使うべき `document` と `window` を返す**
+
+  * 呼び出し側は iframe / non-iframe の違いを判断する必要がありません。
+
+* **non-iframe と iframe の両方に対応する**
+
+  * 対象ブロックが通常の document に存在すれば、その context を利用します。
+  * 存在しない場合は editor iframe 内を探索します。
+
+* **対象ブロックが存在する context だけを有効とする**
+
+  * iframe が存在するだけでは採用しません。
+  * 対象となるブロックが、その document 内に実際に存在することを確認します。
+
+* **`document` と `window` は同じ browsing context の組み合わせで返す**
+
+  * 異なる context の `document` と `window` が混ざることを防ぎます。
+
+* **正しい context を解決できない場合は `null` を返す**
+
+  * 不完全な状態を推測で補わず、安全に処理を中止できるようにします。
+
+* **解決結果は保持しない**
+
+  * 呼び出されるたびに現在の editor context を解決します。
+  * iframe が再生成された場合でも、古い `document` や `window` を使い続けません。
+
+* **担当するのは editor context の探索だけ**
+
+  * `focus()`、スクロール、DOM traversal などの標準 Web API はラップしません。
+  * Editor Environment が引き受けるのは、**「現在どの browsing context を使うべきかを判断する責務」だけ**です。
+
+つまり Editor Environment は、
+
+> **対象ブロックが存在する現在の editor browsing context を安全に解決し、その `document` と `window` を返す。解決できない場合は `null` を返し、解決結果は保持しない。**
+
+という小さな仕様を持つ境界です。
+
+
 ### PoC の結果
 
 **この方式で iframe / non-iframe の両方が正常に動作しました。**
