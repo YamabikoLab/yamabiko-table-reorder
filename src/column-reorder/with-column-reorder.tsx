@@ -5,9 +5,9 @@
 import type { BlockEditProps } from '@wordpress/blocks';
 import { Button } from '@wordpress/components';
 import { useLayoutEffect, useState, type ComponentType } from '@wordpress/element';
-import { __, sprintf } from '@wordpress/i18n';
 
 import { supportsColumnReorder } from './block-support';
+import { getColumnControlName, getColumnControlsName } from './messages';
 import { resolveColumnTableContext } from './table-context';
 
 type TableAttributes = Record< string, unknown >;
@@ -106,18 +106,14 @@ export const withColumnReorder = ( BlockEdit: ComponentType< TableBlockEditProps
 				<BlockEdit { ...props } />
 				{ showControls && (
 					<div
-						aria-label={ __( 'Column reorder controls', 'yamabiko-table-reorder' ) }
+						aria-label={ getColumnControlsName() }
 						className="yamabiko-column-reorder-controls"
 						role="toolbar"
 					>
 						{ geometry.columns.map( ( column, index ) => (
 							<Button
 								key={ index }
-								aria-label={ sprintf(
-									/* translators: %d: column number. */
-									__( 'Column %d', 'yamabiko-table-reorder' ),
-									index + 1
-								) }
+								aria-label={ getColumnControlName( index + 1 ) }
 								className="yamabiko-column-reorder-control"
 								style={ {
 									left: `${ column.left }px`,
