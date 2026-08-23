@@ -17,10 +17,26 @@ describe( 'moveColumn', () => {
 		const moved = moveColumn( attributes, 0, 2 );
 
 		expect( moved ).not.toBeNull();
-		expect( moved?.head[ 0 ].cells ).toEqual( [ head[ 0 ].cells[ 1 ], head[ 0 ].cells[ 2 ], head[ 0 ].cells[ 0 ] ] );
-		expect( moved?.body[ 0 ].cells ).toEqual( [ body[ 0 ].cells[ 1 ], body[ 0 ].cells[ 2 ], body[ 0 ].cells[ 0 ] ] );
-		expect( moved?.body[ 1 ].cells ).toEqual( [ body[ 1 ].cells[ 1 ], body[ 1 ].cells[ 2 ], body[ 1 ].cells[ 0 ] ] );
-		expect( moved?.foot[ 0 ].cells ).toEqual( [ foot[ 0 ].cells[ 1 ], foot[ 0 ].cells[ 2 ], foot[ 0 ].cells[ 0 ] ] );
+		expect( moved?.head[ 0 ].cells ).toEqual( [
+			head[ 0 ].cells[ 1 ],
+			head[ 0 ].cells[ 2 ],
+			head[ 0 ].cells[ 0 ],
+		] );
+		expect( moved?.body[ 0 ].cells ).toEqual( [
+			body[ 0 ].cells[ 1 ],
+			body[ 0 ].cells[ 2 ],
+			body[ 0 ].cells[ 0 ],
+		] );
+		expect( moved?.body[ 1 ].cells ).toEqual( [
+			body[ 1 ].cells[ 1 ],
+			body[ 1 ].cells[ 2 ],
+			body[ 1 ].cells[ 0 ],
+		] );
+		expect( moved?.foot[ 0 ].cells ).toEqual( [
+			foot[ 0 ].cells[ 1 ],
+			foot[ 0 ].cells[ 2 ],
+			foot[ 0 ].cells[ 0 ],
+		] );
 		expect( moved?.caption ).toBe( attributes.caption );
 	} );
 
