@@ -1,4 +1,5 @@
 const fs = require( 'node:fs' );
+const path = require( 'node:path' );
 
 const defaultConfig = require( '@wordpress/scripts/config/webpack.config' );
 
@@ -33,6 +34,13 @@ module.exports = {
 	...defaultConfig,
 	entry: {
 		index: './src/index.tsx',
+	},
+	resolve: {
+		...defaultConfig.resolve,
+		alias: {
+			...( defaultConfig.resolve?.alias ?? {} ),
+			'@': path.resolve( __dirname, 'src' ),
+		},
 	},
 	plugins: [ ...( defaultConfig.plugins ?? [] ), new EmitSortableJsTableReorderRuntimePlugin() ],
 };
