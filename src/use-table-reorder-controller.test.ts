@@ -1,4 +1,4 @@
-import { createElement, createRoot, type RefObject } from '@wordpress/element';
+import { createElement, createRoot, useRef, type RefObject } from '@wordpress/element';
 
 import {
 	createSortableController,
@@ -64,6 +64,23 @@ const Harness = ( options: HookOptions ) => {
 	return null;
 };
 
+const RefReplacementHarness = ( {
+	anchorVersion,
+	options,
+}: {
+	anchorVersion: 'a' | 'b';
+	options: Omit< HookOptions, 'anchorRef' >;
+} ) => {
+	const anchorRef = useRef< HTMLSpanElement >( null );
+	useTableReorderController( { ...options, anchorRef } );
+
+	return createElement( 'span', {
+		key: anchorVersion,
+		'data-anchor-version': anchorVersion,
+		ref: anchorRef,
+	} );
+};
+
 const createAnchorRef = ( anchor: HTMLSpanElement | null ): RefObject< HTMLSpanElement > =>
 	( { current: anchor } ) as RefObject< HTMLSpanElement >;
 
@@ -77,6 +94,16 @@ const createOptions = ( overrides: Partial< HookOptions > = {} ): HookOptions =>
 	nonMovableRowIndices: [],
 	onBodyCommit: jest.fn(),
 	...overrides,
+} );
+
+const createRefReplacementOptions = (): Omit< HookOptions, 'anchorRef' > => ( {
+	body: [ 'a', 'b', 'c' ],
+	clientId: 'table-client-id',
+	enabled: true,
+	forbiddenInsertionIndices: [],
+	interactionMode: 'hover',
+	nonMovableRowIndices: [],
+	onBodyCommit: jest.fn(),
 } );
 
 const mountHook = ( initialOptions: HookOptions ) => {
@@ -185,6 +212,62 @@ describe( 'useTableReorderController', () => {
 		flushLifecycleMicrotasks();
 
 		expect( createSortableControllerMock ).not.toHaveBeenCalled();
+	} );
+
+	it( 'recreates the controller when the anchor DOM node is replaced', () => {
+		const contextA = createContext();
+		const contextB = createContext();
+		const controllerA = createMockController();
+		const controllerB = createMockController();
+		resolveTableContextMock.mockImplementation( ( anchor ) =>
+			anchor.getAttribute( 'data-anchor-version' ) === 'a' ? contextA : contextB
+		);
+		createSortableControllerMock
+			.mockReturnValueOnce( controllerA )
+			.mockReturnValueOnce( controllerB );
+
+		const container = document.createElement( 'div' );
+		document.body.append( container );
+		const root = createRoot( container );
+		const options = createRefReplacementOptions();
+
+		act( () => {
+			root.render(
+				createElement( RefReplacementHarness, {
+					anchorVersion: 'a',
+					options,
+				} )
+			);
+		} );
+		flushLifecycleMicrotasks();
+
+		expect( resolveTableContextMock ).toHaveBeenCalledTimes( 1 );
+		expect( resolveTableContextMock.mock.calls[ 0 ]?.[ 0 ].getAttribute( 'data-anchor-version' ) ).toBe(
+			'a'
+		);
+		expect( createSortableControllerMock ).toHaveBeenCalledTimes( 1 );
+
+		act( () => {
+			root.render(
+				createElement( RefReplacementHarness, {
+					anchorVersion: 'b',
+					options,
+				} )
+			);
+		} );
+		flushLifecycleMicrotasks();
+
+		expect( controllerA.destroy ).toHaveBeenCalledTimes( 1 );
+		expect( resolveTableContextMock ).toHaveBeenCalledTimes( 2 );
+		expect( resolveTableContextMock.mock.calls[ 1 ]?.[ 0 ].getAttribute( 'data-anchor-version' ) ).toBe(
+			'b'
+		);
+		expect( createSortableControllerMock ).toHaveBeenCalledTimes( 2 );
+
+		act( () => {
+			root.unmount();
+		} );
+		flushLifecycleMicrotasks();
 	} );
 
 	it( 'keeps pending focus until a recreated controller restores it successfully', () => {
