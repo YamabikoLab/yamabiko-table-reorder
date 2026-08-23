@@ -1,11 +1,11 @@
 import { __, sprintf } from '@wordpress/i18n';
 
-/** Column control toolbar の accessible name。 */
+/** Column control toolbarのaccessible name。 */
 export const getColumnControlsName = (): string =>
 	__( 'Column reorder controls', 'yamabiko-table-reorder' );
 
 /**
- * 個別 column control の accessible name。
+ * 個別column controlのaccessible name。
  *
  * @param columnNumber 1-based column number。
  */
