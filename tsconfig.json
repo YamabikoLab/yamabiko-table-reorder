@@ -8,7 +8,10 @@
 		"strict": true,
 		"noEmit": true,
 		"skipLibCheck": true,
-		"types": [ "jest", "node" ]
+		"types": [ "jest", "node" ],
+		"paths": {
+			"@/*": [ "./src/*" ]
+		}
 	},
 	"include": [ "src", "tests/e2e", "playwright.config.ts" ]
 }

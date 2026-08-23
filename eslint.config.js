@@ -22,6 +22,18 @@ module.exports = [
 		},
 	},
 	...wordpress.configs.recommended,
+	{
+		files: [ '**/*.ts', '**/*.tsx' ],
+		languageOptions: {
+			parserOptions: {
+				projectService: true,
+				tsconfigRootDir: __dirname,
+			},
+		},
+		rules: {
+			'@typescript-eslint/no-deprecated': 'error',
+		},
+	},
 	...wordpress.configs[ 'test-unit' ].map( ( config ) => ( {
 		...config,
 		files: unitTestFiles,

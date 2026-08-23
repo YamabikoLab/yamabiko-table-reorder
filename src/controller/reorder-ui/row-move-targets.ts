@@ -4,10 +4,10 @@ import {
 	getDestinationEndName,
 	getPcPointerActiveMessage,
 	getTouchPointerActiveMessage,
-} from '../../messages';
+} from '@/messages';
+import type { RowMoveTarget } from '@/controller/row-order';
 import { createReorderGuidance } from './reorder-guidance';
 import { getRowRepresentativeText } from './row-controls';
-import type { RowMoveTarget } from '../row-order';
 
 /** 単一ポインター操作の移動先buttonに付与するclass。 */
 const DESTINATION_CLASS = 'yamabiko-table-reorder-destination';

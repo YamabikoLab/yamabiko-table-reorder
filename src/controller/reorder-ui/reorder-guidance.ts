@@ -6,7 +6,7 @@ import {
 	getPcPointerActiveMessage,
 	getTouchModeMessage,
 	getTouchPointerActiveMessage,
-} from '../../messages';
+} from '@/messages';
 
 /** 操作中の案内に付与するclass。 */
 const GUIDANCE_CLASS = 'yamabiko-table-reorder-pointer-guidance';
