@@ -19,9 +19,6 @@ module.exports = {
 	},
 	moduleNameMapper: {
 		...( defaultConfig.moduleNameMapper ?? {} ),
-		'^@/messages$': '<rootDir>/src/row-reorder/messages',
-		'^@/table-context$': '<rootDir>/src/row-reorder/table-context',
-		'^@/controller/(.*)$': '<rootDir>/src/row-reorder/controller/$1',
 		'^@/(.*)$': '<rootDir>/src/$1',
 	},
 };

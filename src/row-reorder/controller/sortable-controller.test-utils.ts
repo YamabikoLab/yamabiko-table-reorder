@@ -1,5 +1,5 @@
-import type { TableContext } from '@/table-context';
-import { ensureSortableRuntime, type SortableInstance } from './sortable-runtime-loader';
+import type { TableContext } from '@/row-reorder/table-context';
+import { ensureSortableRuntime, type SortableInstance } from '@/common/sortable-runtime-loader';
 
 export type SortableRuntime = NonNullable< Awaited< ReturnType< typeof ensureSortableRuntime > > >;
 

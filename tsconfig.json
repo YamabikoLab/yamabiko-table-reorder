@@ -10,9 +10,6 @@
 		"skipLibCheck": true,
 		"types": [ "jest", "node" ],
 		"paths": {
-			"@/messages": [ "./src/row-reorder/messages" ],
-			"@/table-context": [ "./src/row-reorder/table-context" ],
-			"@/controller/*": [ "./src/row-reorder/controller/*" ],
 			"@/*": [ "./src/*" ]
 		}
 	},

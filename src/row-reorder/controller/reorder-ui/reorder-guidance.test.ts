@@ -3,7 +3,7 @@ import {
 	getPcPointerActiveMessage,
 	getTouchModeMessage,
 	getTouchPointerActiveMessage,
-} from '@/messages';
+} from '@/row-reorder/messages';
 import { createReorderGuidance } from './reorder-guidance';
 
 const createRect = ( top: number, bottom: number, left = 0, width = 400 ): DOMRect =>

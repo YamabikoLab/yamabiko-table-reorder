@@ -17,8 +17,8 @@ import {
 	getNoMovableRowsAnnouncement,
 	getRowspanBlockedAnnouncement,
 	getTouchModeMessage,
-} from '@/messages';
-import type { TableContext } from '@/table-context';
+} from '@/row-reorder/messages';
+import type { TableContext } from '@/row-reorder/table-context';
 import { createInsertionLine, fixFallbackRowCellWidths } from './drag-ui';
 import {
 	announceLiveStatus,
@@ -45,7 +45,7 @@ import {
 	type RowMoveDirection,
 } from './row-order';
 import { resolveAutoScrollTarget } from './scroll-target';
-import { ensureSortableRuntime, type SortableInstance } from './sortable-runtime-loader';
+import { ensureSortableRuntime, type SortableInstance } from '@/common/sortable-runtime-loader';
 
 /** SortableJSのauto-scrollを開始する端からの距離。 */
 const AUTO_SCROLL_SENSITIVITY_PX = 80;

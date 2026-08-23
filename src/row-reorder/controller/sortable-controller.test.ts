@@ -4,13 +4,13 @@ import {
 	createTableContext,
 	type SortableRuntime,
 } from './sortable-controller.test-utils';
-import { ensureSortableRuntime } from './sortable-runtime-loader';
+import { ensureSortableRuntime } from '@/common/sortable-runtime-loader';
 
 jest.mock( '@wordpress/components', () => ( {
 	Tooltip: ( { children }: { children: unknown } ) => children,
 } ) );
 
-jest.mock( './sortable-runtime-loader', () => ( {
+jest.mock( '@/common/sortable-runtime-loader', () => ( {
 	ensureSortableRuntime: jest.fn(),
 } ) );
 
