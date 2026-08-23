@@ -50,58 +50,58 @@ The current Jest suite is concentrated in Table Reorder. Organize the existing t
 
 These tests cover the core rules that can be verified without a real browser or WordPress editor session.
 
-- `src/block-support.test.ts`
+- `src/row-reorder/block-support.test.ts`
   - supported block detection
-- `src/table-context.test.ts`
+- `src/row-reorder/table-context.test.ts`
   - table and row context resolution
-- `src/rowspan.test.ts`
+- `src/row-reorder/rowspan.test.ts`
   - vertical merge (`rowspan`) constraints and boundary handling
-- `src/controller/row-order.test.ts`
+- `src/row-reorder/controller/row-order.test.ts`
   - row order calculation and movement rules
-- `src/messages.test.ts`
+- `src/row-reorder/messages.test.ts`
   - user-facing message selection and formatting
 
 #### Reorder UI
 
 These tests cover DOM-level UI state and guidance that can be exercised in jsdom.
 
-- `src/controller/drag-ui.test.ts`
+- `src/row-reorder/controller/drag-ui.test.ts`
   - drag UI state and visual helper behavior
-- `src/controller/reorder-ui/live-status.test.ts`
+- `src/row-reorder/controller/reorder-ui/live-status.test.ts`
   - live-region status updates
-- `src/controller/reorder-ui/reorder-guidance.test.ts`
+- `src/row-reorder/controller/reorder-ui/reorder-guidance.test.ts`
   - reorder guidance display and positioning behavior
-- `src/controller/reorder-ui/row-controls.test.ts`
+- `src/row-reorder/controller/reorder-ui/row-controls.test.ts`
   - row handle and control behavior
-- `src/controller/reorder-ui/row-move-targets.test.ts`
+- `src/row-reorder/controller/reorder-ui/row-move-targets.test.ts`
   - destination target generation and selection behavior
 
 #### Interaction and controller
 
 These tests cover the controller state machine and input-specific branches while mocking browser or SortableJS integration where appropriate.
 
-- `src/controller/sortable-controller.test.ts`
+- `src/row-reorder/controller/sortable-controller.test.ts`
   - shared controller lifecycle and state transitions
-- `src/controller/sortable-controller-keyboard.test.ts`
+- `src/row-reorder/controller/sortable-controller-keyboard.test.ts`
   - keyboard reorder behavior and edge cases
-- `src/controller/sortable-controller-pointer.test.ts`
+- `src/row-reorder/controller/sortable-controller-pointer.test.ts`
   - pointer interaction behavior
-- `src/controller/sortable-controller-touch.test.ts`
+- `src/row-reorder/controller/sortable-controller-touch.test.ts`
   - touch-specific controller behavior
-- `src/controller/sortable-runtime-loader.test.ts`
+- `src/common/sortable-runtime-loader.test.ts`
   - SortableJS runtime loading and failure handling
 
 #### WordPress and React integration boundary
 
 These tests verify the local integration contract around hooks, wrappers, and supported WordPress block behavior without treating Jest as a replacement for browser-level integration tests.
 
-- `src/use-table-reorder.test.ts`
+- `src/row-reorder/use-table-reorder.test.ts`
   - controller hook wiring
-- `src/use-table-reorder-interaction.test.ts`
+- `src/row-reorder/use-table-reorder-interaction.test.ts`
   - interaction hook behavior
-- `src/with-table-reorder.test.tsx`
+- `src/row-reorder/with-table-reorder.test.tsx`
   - component wrapper integration
-- `src/flexible-table-block.test.tsx`
+- `src/row-reorder/flexible-table-block.test.tsx`
   - Flexible Table Block integration contract
 
 ### Jest and Playwright E2E responsibilities
