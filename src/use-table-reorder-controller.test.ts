@@ -59,13 +59,11 @@ const createMockController = ( focusResult = true ): MockController => ( {
 	focusRowControlAt: jest.fn< boolean, [ number ] >( () => focusResult ),
 } );
 
-const Harness = ( props: {
-	anchorKey: string;
-	options: HookOptions;
-	renderAnchor: boolean;
-} ) => {
+const Harness = ( props: { anchorKey: string; options: HookOptions; renderAnchor: boolean } ) => {
 	const { anchorRef } = useTableReorderController( props.options );
-	return props.renderAnchor ? createElement( 'span', { key: props.anchorKey, ref: anchorRef } ) : null;
+	return props.renderAnchor
+		? createElement( 'span', { key: props.anchorKey, ref: anchorRef } )
+		: null;
 };
 
 const createOptions = ( overrides: Partial< HookOptions > = {} ): HookOptions => ( {

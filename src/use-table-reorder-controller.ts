@@ -149,14 +149,7 @@ export const useTableReorderController = (
 				}
 			};
 		},
-		[
-			body,
-			clientId,
-			enabled,
-			forbiddenInsertionIndices,
-			interactionMode,
-			nonMovableRowIndices,
-		]
+		[ body, clientId, enabled, forbiddenInsertionIndices, interactionMode, nonMovableRowIndices ]
 	);
 
 	return {
