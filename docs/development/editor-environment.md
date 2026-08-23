@@ -296,6 +296,7 @@ iframe 対応の知識を editor-environment.ts に幽閉する
 
 目指しているのは、次の変化です。
 
+> [!IMPORTANT]
 > **「iframe 対応を書くコード」から、「普通の機能を書くコード」へ寄せる**
 
 開発者は iframe / non-iframe の違いではなく、ドラッグ＆ドロップやキーボード操作など、その機能本来の問題に集中できます。
@@ -348,6 +349,8 @@ Editor Environment は、Web ブラウザーそのものを隠すための仕組
 今回の PoC では、Yamabiko Table Reorder を実証用の製品コードとして使用しました。
 
 Table Reorder は、WordPress の表の行を並べ替えるためのプラグインです。
+
+<img width="1240" height="724" alt="yamabiko-table-reorder" src="https://github.com/user-attachments/assets/55a3d312-188e-4780-810d-74d82a653c63" />
 
 マウスだけでなく、タッチ操作やキーボード操作でも利用できるように実装されています。
 
