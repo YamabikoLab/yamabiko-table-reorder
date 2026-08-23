@@ -39,6 +39,9 @@ module.exports = {
 		...defaultConfig.resolve,
 		alias: {
 			...( defaultConfig.resolve?.alias ?? {} ),
+			'@/messages$': path.resolve( __dirname, 'src/row-reorder/messages' ),
+			'@/table-context$': path.resolve( __dirname, 'src/row-reorder/table-context' ),
+			'@/controller': path.resolve( __dirname, 'src/row-reorder/controller' ),
 			'@': path.resolve( __dirname, 'src' ),
 		},
 	},
