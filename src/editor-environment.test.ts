@@ -37,14 +37,40 @@ describe( 'resolveEditorEnvironment', () => {
 		const iframe = document.createElement( 'iframe' );
 		iframe.name = 'editor-canvas';
 		document.body.append( iframe );
-		if ( ! iframe.contentDocument || ! iframe.contentWindow ) {
-			throw new Error( 'Expected iframe document and window in jsdom' );
+		if ( ! iframe.contentDocument ) {
+			throw new Error( 'Expected iframe document in jsdom' );
 		}
 		appendBlock( iframe.contentDocument, 'iframe-block' );
 
 		expect( resolveEditorEnvironment( anchor, 'iframe-block' ) ).toEqual( {
 			document: iframe.contentDocument,
-			window: iframe.contentWindow,
+			window: iframe.contentDocument.defaultView,
+		} );
+	} );
+
+	it( 'searches all editor canvas iframes for the matching block', () => {
+		const anchor = document.createElement( 'span' );
+		document.body.append( anchor );
+
+		const firstIframe = document.createElement( 'iframe' );
+		firstIframe.name = 'editor-canvas';
+		document.body.append( firstIframe );
+		if ( ! firstIframe.contentDocument ) {
+			throw new Error( 'Expected first iframe contentDocument in jsdom' );
+		}
+		appendBlock( firstIframe.contentDocument, 'other-block' );
+
+		const secondIframe = document.createElement( 'iframe' );
+		secondIframe.name = 'editor-canvas';
+		document.body.append( secondIframe );
+		if ( ! secondIframe.contentDocument ) {
+			throw new Error( 'Expected second iframe contentDocument in jsdom' );
+		}
+		appendBlock( secondIframe.contentDocument, 'target-block' );
+
+		expect( resolveEditorEnvironment( anchor, 'target-block' ) ).toEqual( {
+			document: secondIframe.contentDocument,
+			window: secondIframe.contentDocument.defaultView,
 		} );
 	} );
 
@@ -64,7 +90,7 @@ describe( 'resolveEditorEnvironment', () => {
 		const secondIframe = document.createElement( 'iframe' );
 		secondIframe.name = 'editor-canvas';
 		document.body.append( secondIframe );
-		if ( ! secondIframe.contentDocument || ! secondIframe.contentWindow ) {
+		if ( ! secondIframe.contentDocument ) {
 			throw new Error( 'Expected recreated iframe context in jsdom' );
 		}
 		appendBlock( secondIframe.contentDocument, 'recreated-block' );
@@ -72,7 +98,7 @@ describe( 'resolveEditorEnvironment', () => {
 		const secondEnvironment = resolveEditorEnvironment( anchor, 'recreated-block' );
 		expect( secondEnvironment ).toEqual( {
 			document: secondIframe.contentDocument,
-			window: secondIframe.contentWindow,
+			window: secondIframe.contentDocument.defaultView,
 		} );
 		expect( secondEnvironment?.document ).not.toBe( firstEnvironment?.document );
 	} );
