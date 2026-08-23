@@ -17,4 +17,8 @@ module.exports = {
 			statements: 80,
 		},
 	},
+	moduleNameMapper: {
+		...( defaultConfig.moduleNameMapper ?? {} ),
+		'^@/(.*)$': '<rootDir>/src/$1',
+	},
 };
