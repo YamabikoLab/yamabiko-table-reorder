@@ -84,6 +84,8 @@ WordPress の公式記事では、この違いを安全に扱うための方法�
 
 Table Reorder の PoC では、この判断を各機能に任せるのではなく、Editor Environment へ集約できないかを試しました。
 
+<img width="1484" height="1060" alt="problems" src="https://github.com/user-attachments/assets/b6e0289a-946d-4da1-8cc0-ddeb24c3d7ca" />
+
 ## 2. 解決策: Editor Environment
 
 今回の PoC では、iframe / non-iframe の違いを判断する役割を **Editor Environment** という小さな境界へ集約しました。
