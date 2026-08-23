@@ -4,11 +4,12 @@
 
 - 親 Issue: #422
 - 要件: #422 の議論および現在の列並べ替えに関する設計判断
+- 実装ルール: `src/AGENTS.md`。特に Table Reorder implementation rules
 - 設計: `docs/development/source-organization.md`。特に #449 / PR #450 で確立した `common` / `row-reorder` の責務境界
 
 ## 目的
 
-既存の行並べ替え実装へ列固有の振る舞いを結合せず、また実際の再利用が確認される前に共通 abstraction を導入せずに、Core Table / Flexible Table Block へアクセシブルな列並べ替えを追加するための段階的な実装経路を定義する。
+Core Table / Flexible Table Block へアクセシブルな列並べ替えを追加するための段階的な実装経路を定義する。
 
 このプランは、実装親 Issue と、境界が安定し個別にレビュー可能な少数の子 Issue を作成できる粒度まで具体化する。
 
@@ -16,12 +17,11 @@
 
 ### 対象
 
-- 列並べ替えを独立した `src/column-reorder/` feature boundary として追加する。
+- 列並べ替えを `src/column-reorder/` feature boundary として追加する。
 - `head` / `body` / `foot` を横断して1列を移動する canonical data transformation を定義する。
-- 行専用 context を先回りして変更せず、列 UI に必要な DOM / context 境界を定義する。
+- 列 UI に必要な DOM / context 境界を定義する。
 - Pointer / Keyboard / single pointer / Touch に対応する column control と interaction flow を定義する。
-- `src/common/` の既存 Editor Environment と SortableJS runtime loader を再利用する。
-- row / column 間の重複を feature 内に残す条件と、`common/` へ移す条件を定義する。
+- `src/common/` の既存 Editor Environment と SortableJS runtime loader を利用する。
 - 結合セル対応は後続の logical grid フェーズとして分離する。
 - unit / integration / E2E の検証方針を定義する。
 - このプランのレビュー後に、子 Issue の分割案を確定する。
@@ -29,9 +29,6 @@
 ### 対象外
 
 - このプラン作成タスク内で列並べ替えを実装すること。
-- 列実装が存在する前に、行並べ替えを汎用 row / column controller へリファクタリングすること。
-- 既存の行実装へ `axis: 'row' | 'column'` abstraction を導入すること。
-- 将来の再利用を見越して、行固有の block support、table context、guidance、live status、scroll、drag UI、controller lifecycle を `common/` へ移すこと。
 - SortableJS の置き換え。
 - 複数列の選択・同時移動。
 - 複数列にまたがる結合領域を1単位として移動すること。
@@ -41,8 +38,6 @@
 - 任意の table block に対応する汎用 adapter framework の構築。
 
 ## 方針
-
-まず列並べ替えを独立 feature として実装し、行・列の実装が両方存在してから共通コードを比較・抽出する。
 
 初期の依存関係は次とする。
 
@@ -56,16 +51,10 @@
                       common/
 ```
 
-`column-reorder/` から `row-reorder/` の実装詳細へ依存させない。
-
-最初から共有するのは、すでに feature-neutral かつ責務が安定している次のものだけとする。
+列実装で最初から利用する既存共通基盤は次のとおり。
 
 - `src/common/editor-environment.ts`
 - `src/common/sortable-runtime-loader.ts`
-
-その他については、不明瞭な abstraction より小さな重複を許容する。共通化は、row / column の両 consumer が同じ安定した責務を必要とすることを実装上確認してから検討する。
-
-列移動では Gutenberg attributes を canonical data source とする。最終的な列順について、実 table DOM を authoritative state としない。
 
 最初の実装 milestone では結合セルを対象外とする。これにより、最初の data transformation を単純に保ち、logical grid の複雑さを導入する前に UI / controller が依存できる安定した基盤を作る。
 
@@ -73,22 +62,18 @@
 
 ### Plugin entry
 
-`src/index.tsx` は plugin 全体の薄い entry のまま維持する。列並べ替え実装後は row / column の両 feature adapter を compose してよいが、feature logic 自体は持たせない。
+列並べ替え実装後は `src/index.tsx` から row / column の両 feature adapter を compose する。
 
 ### `src/common/`
 
-既存の共通 environment / runtime 責務を維持する。
+列実装で利用する既存責務は次のとおり。
 
-- `editor-environment.ts`: stale な lifecycle state を cache せず、現在の iframe / non-iframe editor browsing context を解決する。
-- `sortable-runtime-loader.ts`: owning editor window で SortableJS runtime を load / reuse する。
-
-row と column のコードが似ているという理由だけで、初期フェーズ中に `common/` を拡張しない。
+- `editor-environment.ts`: editor browsing context の解決
+- `sortable-runtime-loader.ts`: owning editor window での SortableJS runtime の load / reuse
 
 ### `src/row-reorder/`
 
-実際の column implementation により安定した共通責務が確認されない限り変更しない。
-
-少なくとも初期段階では、次を row 側の責務として維持する。
+少なくとも初期段階では、次の row 固有責務を変更対象にしない。
 
 - row block support
 - row table context
@@ -143,11 +128,9 @@ moveColumn( attributes, oldColumnIndex, newColumnIndex )
 
 ### Column DOM context
 
-column code が存在する前に `row-reorder/table-context.ts` を拡張しない。
+column feature 側で、実際に必要な DOM context だけを定義する。想定されるのは、block element、table element、editor document / window、および control 配置に必要な section / cell geometry である。
 
-column feature 側で、実際に必要な DOM context だけを最初に定義する。想定されるのは、block element、table element、editor document / window、および control 配置に必要な section / cell geometry である。
-
-後に row / column の context が同じ安定した base discovery を重複して持つことが確認された場合は、例えば次のような狭い common table context の抽出を検討する。
+row / column の両実装が揃った後、base table DOM discovery に実際の共通責務が確認できた場合は、例えば次のような狭い context の抽出を Phase 6 で検討する。
 
 ```text
 common/table-context.ts
@@ -166,13 +149,11 @@ column-reorder/table-context.ts
 common base + column-specific section/geometry resolution
 ```
 
-この抽出は任意であり、実際に存在する consumer によって正当化される必要がある。
-
 ### Block support
 
-既存の row-owned support type へ、先回りして `colspanProperty` を追加しない。
+既存の row-owned support type へ `colspanProperty` を追加することは前提にしない。
 
-block schema 差分が必要であれば、column implementation は独自の block-specific support boundary から始めてよい。後に row / column が同じ supported-block recognition や property mapping 責務を共有すると確認できた場合に、その安定した部分だけを抽出する。
+block schema 差分が必要であれば、column implementation は独自の block-specific support boundary から開始する。row / column の両実装が揃った後、supported-block recognition や property mapping に実際の共通責務が確認できた場合は Phase 6 で抽出を検討する。
 
 ### Column control layer
 
@@ -204,7 +185,7 @@ column 固有の mechanics は許容しつつ、可能な範囲で row reorder �
 - Keyboard: `Enter` / `Space` で開始・確定、`ArrowLeft` / `ArrowRight` で移動、`Escape` で cancel する。
 - Touch: column reorder mode に入り、実装した interaction design に応じて destination tap および / または long-press drag を使用する。
 
-Keyboard focus、announcement、guidance、invalid move feedback は optional polish ではなく feature completeness の一部として扱う。
+Keyboard focus、announcement、guidance、invalid move feedback は feature completeness の一部として扱う。
 
 ### 共通化レビューのタイミング
 
@@ -221,7 +202,7 @@ Keyboard focus、announcement、guidance、invalid move feedback は optional po
 - supported-block recognition
 - base table-context discovery
 
-2つの実装が同じ contract と behavior を必要とする場合にのみ `common/` へ移動する。名前や見た目が似ているだけでは共通化の根拠にしない。
+Phase 6 では、各候補について row / column の contract と behavior が実際に一致しているかを確認する。
 
 ### 結合セルと logical grid
 
@@ -317,15 +298,15 @@ Keyboard focus、announcement、guidance、invalid move feedback は optional po
 
 ### Phase 6: 共通責務レビュー
 
-- 成果: 実際に確認された安定した row / column の重複だけを `common/` へ抽出する。
+- 成果: row / column の実装を比較し、共通化できる責務を確認する。
 - 作業:
   - 実装済みの row / column context、block support、controller lifecycle、focus、status、guidance、scroll を比較する。
-  - contract が異なるものは feature-local のまま維持する。
-  - row / column conditional を持ち込まずに重複を減らせる場合だけ、狭い common module を抽出する。
+  - 共通化候補ごとに contract と behavior の一致を確認する。
+  - 共通化する場合は狭い責務単位で抽出する。
 - 検証:
   - 既存 row test が変わらない、またはより単純になることを確認する。
   - column test が引き続き feature contract を証明することを確認する。
-  - `common/` がどちらの feature にも依存しないことを確認する。
+  - `common/` が feature implementation に依存しないことを確認する。
 
 ### Phase 7: 結合セル logical grid と制約
 
@@ -355,17 +336,13 @@ Keyboard focus、announcement、guidance、invalid move feedback は optional po
 
 ### 実装前に確定する事項
 
-子 Issue の前提となる architecture decision は次のとおり。
+子 Issue の前提となる column-reorder 固有の architecture decision は次のとおり。
 
-- `column-reorder/` は独立した feature boundary とする。
-- `column-reorder/` から `row-reorder/` へ依存させない。
-- Gutenberg attributes を canonical data source / commit target とする。
 - 最初の実装では `rowSpan` / `colSpan` を対象外とする。
 - logical-grid parsing は結合セルフェーズまで導入しない。
 - 実 table cell を SortableJS の sortable sibling list にしない。
-- 既存責務のうち、最初から共有前提とするのは Editor Environment と SortableJS runtime loading のみとする。
-- 既存の row-owned block support / table context を column 対応のために先回りして拡張しない。
-- 実際の重複が確認される前に generic row / column controller や `axis` abstraction を導入しない。
+- 列実装で最初から利用する既存共通基盤は Editor Environment と SortableJS runtime loading とする。
+- 既存の row-owned block support / table context を column 対応のために変更することは前提にしない。
 
 ### 実装中に確認する事項
 
@@ -375,10 +352,10 @@ Keyboard focus、announcement、guidance、invalid move feedback は optional po
 - editor / table resize と horizontal scroll に対して、どの geometry refresh mechanism が必要か。
 - 最初の control layer は logical column ごとに1 control とするか、handle / destination を分けるか。
 - row control と column control が同時表示される場合、hover / activation の優先関係をどうするか。
-- guidance / live-status / focus のどこまでが row reorder と本当に同一責務か。
+- guidance / live-status / focus のどこまでが row reorder と同一責務か。
 - base block recognition は共有できるほど同一か、それとも row / column の support contract は別のままか。
-- row / column 両方が存在した後、base table DOM discovery は `common/` へ抽出できるほど安定しているか。
-- horizontal auto-scroll のどこまでを row scrolling mechanics からそのまま再利用できるか。
+- row / column 両方が存在した後、base table DOM discovery を共通化できるか。
+- horizontal auto-scroll のどこまでを row scrolling mechanics から再利用できるか。
 - cell editing を妨げず、最も分かりやすい touch interaction は何か。
 
 ## Issue 分割案
@@ -415,9 +392,9 @@ Keyboard focus、announcement、guidance、invalid move feedback は optional po
 
 この planning Issue は次を満たしたときに完了とする。
 
-- #449 / PR #450 で確立した source boundary がこのプランへ反映されている。
+- `src/AGENTS.md` の Table Reorder implementation rules を参照し、同じ実装ルールをこのプランへ重複して正本化していない。
+- #449 / PR #450 で確立した source boundary を前提に、column-reorder の実装経路が整理されている。
 - 結合セルなしの最小実装と、後続の結合セル対応が明確に分離されている。
-- 第2の実 consumer が存在しない row-owned code を shared として扱っていない。
 - column data、DOM、controller、UI、accessibility、validation の責務が、実装 Issue を作成できる粒度で定義されている。
 - 未確定の実装詳細が hidden assumption ではなく、実装中の確認事項として明示されている。
 - レビュー後、このプランから安定した親子 Issue 分割を作成できる。
@@ -425,6 +402,4 @@ Keyboard focus、announcement、guidance、invalid move feedback は optional po
 
 ## 補足
 
-実装フェーズは、data correctness から interaction complexity へ進む順番としている。各フェーズを必ず1 PR に対応させる必要はないが、各子 Issue は個別にレビュー可能な成果を持ち、feature 実装へ無関係な将来の abstraction work を混在させない。
-
-最も重要な guardrail は、実装上の必要性から共通責務を発見することである。row reorder を永遠に重複実装することが目的ではない。column reorder という実例が存在する前に、PR #450 で明確化した `common` boundary を speculative shared bucket へ戻さないことを優先する。
+実装フェーズは、data correctness から interaction complexity へ進む順番としている。各フェーズを必ず1 PR に対応させる必要はないが、各子 Issue は個別にレビュー可能な成果を持つ。
