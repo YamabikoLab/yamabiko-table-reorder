@@ -58,6 +58,18 @@ type PoolSlot = {
 	render: () => void;
 };
 
+type ViewportWindow = {
+	firstIndex: number;
+	firstRow: HTMLTableRowElement;
+	lastIndex: number;
+	lastRow: HTMLTableRowElement;
+};
+
+type ViewportBounds = {
+	top: number;
+	bottom: number;
+};
+
 /** viewport周辺のpooled row controlを操作する最小API。 */
 export type RowControls = {
 	ensureControl: ( row: HTMLTableRowElement ) => HTMLButtonElement | null;
@@ -105,8 +117,8 @@ export const getRowRepresentativeText = ( row: HTMLTableRowElement ): string => 
  * viewport周辺の移動可能行へpooled row controlをbindする。
  *
  * pool slotはReact root / control DOM / description IDだけを長寿命で保持し、row / cell参照はbind中だけ
- * 保持する。scroll / resizeは現在のTableContextに属するdocument / windowから検知し、同一frame内の
- * 再同期を1回へまとめる。
+ * 保持する。viewport windowはpinned / on-demand bindingと分離し、通常scrollではwindow境界だけを
+ * incrementalに更新する。初期化、大きなscroll jump、resizeでは二分探索でanchorを再解決する。
  *
  * @param context              解決済みTable context。
  * @param nonMovableRowIndices controlを作成しない行index。
@@ -123,13 +135,16 @@ export const createRowControls = (
 	const slots: PoolSlot[] = [];
 	const slotByRow = new Map< HTMLTableRowElement, PoolSlot >();
 	const slotByControl = new Map< HTMLButtonElement, PoolSlot >();
+	const viewportRows = new Set< HTMLTableRowElement >();
 	const table = tbody.closest< HTMLTableElement >( 'table' );
 	const overflowContainer = table?.parentElement ?? null;
 	const sizingCell = table?.rows.item( 0 )?.cells.item( 0 ) ?? null;
 	const originalTableMinWidth = table?.style.minWidth ?? '';
 	const originalSizingCellWidth = sizingCell?.style.width ?? '';
 	const originalOverflowX = overflowContainer?.style.overflowX ?? '';
+	let viewportWindow: ViewportWindow | null = null;
 	let pendingFrame: number | null = null;
+	let forceReanchor = true;
 	let cleanedUp = false;
 
 	if ( options.showAll && table && overflowContainer && sizingCell ) {
@@ -338,33 +353,212 @@ export const createRowControls = (
 		return bind( acquireSlot(), row );
 	};
 
-	const collectNearbyRows = () => {
-		const viewportTop = -VIEWPORT_OVERSCAN_PX;
-		const viewportBottom = view.innerHeight + VIEWPORT_OVERSCAN_PX;
-		return Array.from( tbody.rows ).filter( ( row ) => {
-			if ( ! isMovableRow( row ) || ! row.cells.item( 0 ) ) {
-				return false;
+	const getViewportBounds = (): ViewportBounds => ( {
+		top: -VIEWPORT_OVERSCAN_PX,
+		bottom: view.innerHeight + VIEWPORT_OVERSCAN_PX,
+	} );
+
+	const findAnchorIndex = (): number | null => {
+		const rowCount = tbody.rows.length;
+		if ( rowCount === 0 ) {
+			return null;
+		}
+
+		let low = 0;
+		let high = rowCount - 1;
+		let anchorIndex = rowCount - 1;
+		while ( low <= high ) {
+			const middle = Math.floor( ( low + high ) / 2 );
+			const row = tbody.rows.item( middle );
+			if ( ! row ) {
+				break;
 			}
-			const rect = row.getBoundingClientRect();
-			return rect.bottom >= viewportTop && rect.top <= viewportBottom;
-		} );
+			if ( row.getBoundingClientRect().bottom >= 0 ) {
+				anchorIndex = middle;
+				high = middle - 1;
+			} else {
+				low = middle + 1;
+			}
+		}
+		return anchorIndex;
+	};
+
+	const resolveViewportWindowWithBinarySearch = (): ViewportWindow | null => {
+		const anchorIndex = findAnchorIndex();
+		if ( anchorIndex === null ) {
+			return null;
+		}
+		const bounds = getViewportBounds();
+		let firstIndex = anchorIndex;
+		let lastIndex = anchorIndex;
+
+		while ( firstIndex > 0 ) {
+			const previousRow = tbody.rows.item( firstIndex - 1 );
+			if ( ! previousRow || previousRow.getBoundingClientRect().bottom < bounds.top ) {
+				break;
+			}
+			firstIndex -= 1;
+		}
+		while ( lastIndex < tbody.rows.length - 1 ) {
+			const nextRow = tbody.rows.item( lastIndex + 1 );
+			if ( ! nextRow || nextRow.getBoundingClientRect().top > bounds.bottom ) {
+				break;
+			}
+			lastIndex += 1;
+		}
+		while ( firstIndex <= lastIndex ) {
+			const firstRow = tbody.rows.item( firstIndex );
+			if ( ! firstRow || firstRow.getBoundingClientRect().bottom >= bounds.top ) {
+				break;
+			}
+			firstIndex += 1;
+		}
+		while ( firstIndex <= lastIndex ) {
+			const lastRow = tbody.rows.item( lastIndex );
+			if ( ! lastRow || lastRow.getBoundingClientRect().top <= bounds.bottom ) {
+				break;
+			}
+			lastIndex -= 1;
+		}
+		if ( firstIndex > lastIndex ) {
+			return null;
+		}
+		const firstRow = tbody.rows.item( firstIndex );
+		const lastRow = tbody.rows.item( lastIndex );
+		if ( ! firstRow || ! lastRow ) {
+			return null;
+		}
+		return { firstIndex, firstRow, lastIndex, lastRow };
+	};
+
+	const isViewportWindowValid = ( currentWindow: ViewportWindow ) =>
+		currentWindow.firstRow.parentElement === tbody &&
+		currentWindow.lastRow.parentElement === tbody &&
+		currentWindow.firstRow.sectionRowIndex === currentWindow.firstIndex &&
+		currentWindow.lastRow.sectionRowIndex === currentWindow.lastIndex;
+
+	const addViewportRow = ( row: HTMLTableRowElement ) => {
+		if ( ! isMovableRow( row ) || ! row.cells.item( 0 ) ) {
+			return;
+		}
+		viewportRows.add( row );
+		ensureControl( row );
+	};
+
+	const removeViewportRow = ( row: HTMLTableRowElement ) => {
+		viewportRows.delete( row );
+		const slot = slotByRow.get( row );
+		if ( slot && ! slot.isPinned ) {
+			unbind( slot );
+		}
+	};
+
+	const applyViewportWindow = ( nextWindow: ViewportWindow | null ) => {
+		const nextViewportRows = new Set< HTMLTableRowElement >();
+		if ( nextWindow ) {
+			for ( let index = nextWindow.firstIndex; index <= nextWindow.lastIndex; index += 1 ) {
+				const row = tbody.rows.item( index );
+				if ( row && isMovableRow( row ) && row.cells.item( 0 ) ) {
+					nextViewportRows.add( row );
+				}
+			}
+		}
+		for ( const row of viewportRows ) {
+			if ( ! nextViewportRows.has( row ) ) {
+				removeViewportRow( row );
+			}
+		}
+		viewportRows.clear();
+		for ( const row of nextViewportRows ) {
+			viewportRows.add( row );
+			ensureControl( row );
+		}
+		viewportWindow = nextWindow;
+	};
+
+	const updateViewportWindowIncrementally = (
+		currentWindow: ViewportWindow
+	): ViewportWindow | null => {
+		const bounds = getViewportBounds();
+		if (
+			currentWindow.lastRow.getBoundingClientRect().bottom < bounds.top ||
+			currentWindow.firstRow.getBoundingClientRect().top > bounds.bottom
+		) {
+			return null;
+		}
+
+		let { firstIndex, lastIndex } = currentWindow;
+		while ( firstIndex <= lastIndex ) {
+			const row = tbody.rows.item( firstIndex );
+			if ( ! row || row.getBoundingClientRect().bottom >= bounds.top ) {
+				break;
+			}
+			removeViewportRow( row );
+			firstIndex += 1;
+		}
+		while ( firstIndex <= lastIndex ) {
+			const row = tbody.rows.item( lastIndex );
+			if ( ! row || row.getBoundingClientRect().top <= bounds.bottom ) {
+				break;
+			}
+			removeViewportRow( row );
+			lastIndex -= 1;
+		}
+		if ( firstIndex > lastIndex ) {
+			return null;
+		}
+
+		while ( firstIndex > 0 ) {
+			const previousRow = tbody.rows.item( firstIndex - 1 );
+			if ( ! previousRow || previousRow.getBoundingClientRect().bottom < bounds.top ) {
+				break;
+			}
+			firstIndex -= 1;
+			addViewportRow( previousRow );
+		}
+		while ( lastIndex < tbody.rows.length - 1 ) {
+			const nextRow = tbody.rows.item( lastIndex + 1 );
+			if ( ! nextRow || nextRow.getBoundingClientRect().top > bounds.bottom ) {
+				break;
+			}
+			lastIndex += 1;
+			addViewportRow( nextRow );
+		}
+
+		const firstRow = tbody.rows.item( firstIndex );
+		const lastRow = tbody.rows.item( lastIndex );
+		if ( ! firstRow || ! lastRow ) {
+			return null;
+		}
+		return { firstIndex, firstRow, lastIndex, lastRow };
+	};
+
+	const releaseBindingsOutsideViewport = () => {
+		for ( const slot of slots ) {
+			if ( slot.row && ! slot.isPinned && ! viewportRows.has( slot.row ) ) {
+				unbind( slot );
+			}
+		}
 	};
 
 	const syncControls = () => {
 		if ( cleanedUp ) {
 			return;
 		}
-		const nearbyRows = collectNearbyRows();
-		const desiredRows = new Set( nearbyRows );
+		if ( forceReanchor || ! viewportWindow || ! isViewportWindowValid( viewportWindow ) ) {
+			applyViewportWindow( resolveViewportWindowWithBinarySearch() );
+			forceReanchor = false;
+			releaseBindingsOutsideViewport();
+			return;
+		}
 
-		for ( const slot of slots ) {
-			if ( slot.row && ! slot.isPinned && ! desiredRows.has( slot.row ) ) {
-				unbind( slot );
-			}
+		const nextWindow = updateViewportWindowIncrementally( viewportWindow );
+		if ( nextWindow ) {
+			viewportWindow = nextWindow;
+		} else {
+			applyViewportWindow( resolveViewportWindowWithBinarySearch() );
 		}
-		for ( const row of nearbyRows ) {
-			ensureControl( row );
-		}
+		releaseBindingsOutsideViewport();
 	};
 
 	const scheduleSync = () => {
@@ -421,7 +615,10 @@ export const createRowControls = (
 	};
 
 	const onScroll = () => scheduleSync();
-	const onResize = () => scheduleSync();
+	const onResize = () => {
+		forceReanchor = true;
+		scheduleSync();
+	};
 	document.addEventListener( 'scroll', onScroll, true );
 	view.addEventListener( 'resize', onResize );
 	syncControls();
@@ -437,6 +634,8 @@ export const createRowControls = (
 			view.cancelAnimationFrame( pendingFrame );
 			pendingFrame = null;
 		}
+		viewportWindow = null;
+		viewportRows.clear();
 		for ( const slot of slots ) {
 			unbind( slot );
 			slot.root.unmount();
