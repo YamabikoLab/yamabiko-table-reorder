@@ -42,6 +42,15 @@ type CellStyleSnapshot = {
 	position: string;
 };
 
+type RowBindingMeasurement = {
+	cellStyle: CellStyleSnapshot;
+	computedPaddingInlineStart: string;
+	computedPosition: string;
+	firstCell: HTMLTableCellElement;
+	row: HTMLTableRowElement;
+	rowControlName: string;
+};
+
 type PoolSlot = {
 	control: HTMLButtonElement | null;
 	mount: HTMLSpanElement;
@@ -314,33 +323,51 @@ export const createRowControls = (
 		}
 	};
 
-	const bind = ( slot: PoolSlot, row: HTMLTableRowElement ) => {
+	const measureRowBinding = ( row: HTMLTableRowElement ): RowBindingMeasurement | null => {
 		const firstCell = row.cells.item( 0 );
 		if ( ! firstCell ) {
 			return null;
 		}
-		if ( slot.row ) {
-			unbind( slot );
-		}
-
 		const rowIndex = row.sectionRowIndex;
 		const rowLabel = getRowRepresentativeText( row );
 		const computedStyle = view.getComputedStyle( firstCell );
-		slot.cellStyle = {
-			cell: firstCell,
-			paddingInlineStart: firstCell.style.paddingInlineStart,
-			position: firstCell.style.position,
+		return {
+			cellStyle: {
+				cell: firstCell,
+				paddingInlineStart: firstCell.style.paddingInlineStart,
+				position: firstCell.style.position,
+			},
+			computedPaddingInlineStart: computedStyle.paddingInlineStart,
+			computedPosition: computedStyle.position,
+			firstCell,
+			row,
+			rowControlName: getRowControlName( rowIndex + 1, rowLabel ),
 		};
-		if ( computedStyle.position === 'static' ) {
+	};
+
+	const bindMeasured = ( slot: PoolSlot, measurement: RowBindingMeasurement ) => {
+		if ( slot.row ) {
+			unbind( slot );
+		}
+		const {
+			cellStyle,
+			computedPaddingInlineStart,
+			computedPosition,
+			firstCell,
+			row,
+			rowControlName,
+		} = measurement;
+		slot.cellStyle = cellStyle;
+		if ( computedPosition === 'static' ) {
 			firstCell.style.position = 'relative';
 		}
-		firstCell.style.paddingInlineStart = `calc(${ computedStyle.paddingInlineStart } + ${ HANDLE_GUTTER_PX }px)`;
+		firstCell.style.paddingInlineStart = `calc(${ computedPaddingInlineStart } + ${ HANDLE_GUTTER_PX }px)`;
 
 		slot.row = row;
 		slot.isPressed = false;
 		slot.isVisible = options.showAll;
 		slot.useKeyboardDescription = false;
-		slot.rowControlName = getRowControlName( rowIndex + 1, rowLabel );
+		slot.rowControlName = rowControlName;
 		flushSync( slot.render );
 		const control = initializeControl( slot );
 		control.dataset.visible = options.showAll ? 'true' : 'false';
@@ -348,6 +375,11 @@ export const createRowControls = (
 		firstCell.prepend( slot.mount );
 		slotByRow.set( row, slot );
 		return control;
+	};
+
+	const bind = ( slot: PoolSlot, row: HTMLTableRowElement ) => {
+		const measurement = measureRowBinding( row );
+		return measurement ? bindMeasured( slot, measurement ) : null;
 	};
 
 	const acquireSlot = () => slots.find( ( slot ) => ! slot.row && ! slot.isPinned ) ?? createSlot();
@@ -473,6 +505,16 @@ export const createRowControls = (
 				}
 			}
 		}
+		const measurements: RowBindingMeasurement[] = [];
+		for ( const row of nextViewportRows ) {
+			if ( slotByRow.has( row ) ) {
+				continue;
+			}
+			const measurement = measureRowBinding( row );
+			if ( measurement ) {
+				measurements.push( measurement );
+			}
+		}
 		for ( const row of viewportRows ) {
 			if ( ! nextViewportRows.has( row ) ) {
 				removeViewportRow( row );
@@ -481,7 +523,9 @@ export const createRowControls = (
 		viewportRows.clear();
 		for ( const row of nextViewportRows ) {
 			viewportRows.add( row );
-			ensureControl( row );
+		}
+		for ( const measurement of measurements ) {
+			bindMeasured( acquireSlot(), measurement );
 		}
 		viewportWindow = nextWindow;
 	};
