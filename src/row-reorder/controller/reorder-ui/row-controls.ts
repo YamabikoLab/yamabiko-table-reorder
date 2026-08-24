@@ -548,6 +548,7 @@ export const createRowControls = (
 			if ( slot.row && ! slot.isPinned && ! viewportRows.has( slot.row ) ) {
 				unbind( slot );
 			}
+		}
 	};
 
 	const syncControls = () => {
