@@ -306,8 +306,10 @@ const ColumnReorderEdit = ( componentProps: ColumnReorderEditProps ) => {
 									className="yamabiko-column-reorder-control"
 									data-column-index={ index }
 									data-destination={ isDestination ? 'true' : undefined }
-									onClick={ ( event ) => handleControlClick( event, index ) }
-									onKeyDown={ ( event ) => handleControlKeyDown( event, index ) }
+									onClick={ ( event: ColumnMouseEvent ) => handleControlClick( event, index ) }
+									onKeyDown={ ( event: ColumnKeyboardEvent ) =>
+										handleControlKeyDown( event, index )
+									}
 									style={ {
 										left: `${ column.left }px`,
 										top: `${ geometry.top }px`,
