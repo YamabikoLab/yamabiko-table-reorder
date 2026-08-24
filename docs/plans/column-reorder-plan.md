@@ -2,16 +2,18 @@
 
 ## 参照
 
-- 親 Issue: #422
+- 設計起点 Issue: #422
+- 実装親 Issue: #458
+- 実装 Issue: #459〜#466
 - 要件: #422 の議論および現在の列並べ替えに関する設計判断
 - 実装ルール: `src/AGENTS.md`。特に Table Reorder implementation rules
-- 設計: `docs/development/source-organization.md`。特に #449 / PR #450 で確立した `common` / `row-reorder` の責務境界
+- 設計: `docs/development/source-organization.md`。特に現在の `common` / `row-reorder` / `column-reorder` の責務境界
 
 ## 目的
 
 Core Table / Flexible Table Block へアクセシブルな列並べ替えを追加するための段階的な実装経路を定義する。
 
-このプランは、実装親 Issue と、境界が安定し個別にレビュー可能な少数の子 Issue を作成できる粒度まで具体化する。
+このプランは、実装親 Issue #458 と子 Issue #459〜#466 が参照する design source of truth とし、各フェーズの責務・依存関係・検証方針を現在の実装へ追随させる。
 
 ## スコープ
 
@@ -21,14 +23,14 @@ Core Table / Flexible Table Block へアクセシブルな列並べ替えを追�
 - `head` / `body` / `foot` を横断して1列を移動する canonical data transformation を定義する。
 - 列 UI に必要な DOM / context 境界を定義する。
 - Pointer / Keyboard / single pointer / Touch に対応する column control と interaction flow を定義する。
-- `src/common/` の既存 Editor Environment と SortableJS runtime loader を利用する。
+- `src/common/` の既存 SortableJS runtime loader を利用する。
 - 結合セル対応は後続の logical grid フェーズとして分離する。
 - unit / integration / E2E の検証方針を定義する。
-- このプランのレビュー後に、子 Issue の分割案を確定する。
+- 実装 Issue #459〜#466 の進捗と責務境界を、このプラン上の各フェーズと対応付ける。
 
 ### 対象外
 
-- このプラン作成タスク内で列並べ替えを実装すること。
+- このプラン更新タスク内で列並べ替えを実装すること。
 - SortableJS の置き換え。
 - 複数列の選択・同時移動。
 - 複数列にまたがる結合領域を1単位として移動すること。
@@ -36,6 +38,7 @@ Core Table / Flexible Table Block へアクセシブルな列並べ替えを追�
 - 行と列の同時 drag。
 - Flexible Table Block 本体への変更。
 - 任意の table block に対応する汎用 adapter framework の構築。
+- editor browsing-context discovery の再導入。
 
 ## 方針
 
@@ -53,8 +56,9 @@ Core Table / Flexible Table Block へアクセシブルな列並べ替えを追�
 
 列実装で最初から利用する既存共通基盤は次のとおり。
 
-- `src/common/editor-environment.ts`
 - `src/common/sortable-runtime-loader.ts`
+
+editor DOM context は feature 自身が current editor canvas reference から DOM-local に解決し、browsing-context discovery を共通基盤として持たない。
 
 最初の実装 milestone では結合セルを対象外とする。これにより、最初の data transformation を単純に保ち、logical grid の複雑さを導入する前に UI / controller が依存できる安定した基盤を作る。
 
@@ -68,8 +72,9 @@ Core Table / Flexible Table Block へアクセシブルな列並べ替えを追�
 
 列実装で利用する既存責務は次のとおり。
 
-- `editor-environment.ts`: editor browsing context の解決
 - `sortable-runtime-loader.ts`: owning editor window での SortableJS runtime の load / reuse
+
+Table DOM context や editor browsing-context discovery は `common/` の既存責務としない。row / column の両実装から同一 contract が確認できるまでは、各 feature が自身の DOM context resolution を所有する。
 
 ### `src/row-reorder/`
 
@@ -130,24 +135,32 @@ moveColumn( attributes, oldColumnIndex, newColumnIndex )
 
 column feature 側で、実際に必要な DOM context だけを定義する。想定されるのは、block element、table element、editor document / window、および control 配置に必要な section / cell geometry である。
 
-row / column の両実装が揃った後、base table DOM discovery に実際の共通責務が確認できた場合は、例えば次のような狭い context の抽出を Phase 6 で検討する。
+DOM context は Table Reorder が current editor canvas 内に所有する reference element を起点に、DOM-local に解決する。
+
+- `referenceElement.ownerDocument` を現在の editor document とする。
+- editor window はその `ownerDocument.defaultView` から取得する。
+- `clientId` は同じ document 内の対象 Table block を特定するためにのみ利用する。
+- `iframe[name="editor-canvas"]` の探索や `contentDocument` / `contentWindow` fallback は行わない。
+- `defaultView` が利用できない場合は、有効な DOM context として扱わない。
+- editor `document` / `window` は lifecycle をまたいで cache しない。current reference element から必要な時点で再解決する。
+
+row / column の両実装が揃った後、この DOM-local table-context resolution に実際の同一 contract が確認できた場合のみ、Phase 6 で狭い責務の抽出を検討する。
 
 ```text
 common/table-context.ts
     ↓
-blockElement
-table
-document
-window
+DOM-local な共通 contract が確認できた最小責務のみ
 
 row-reorder/table-context.ts
     ↓
-common base + tbody
+row-specific context
 
 column-reorder/table-context.ts
     ↓
-common base + column-specific section/geometry resolution
+column-specific context / geometry resolution
 ```
+
+editor browsing-context discovery を共通基盤として再導入しない。
 
 ### Block support
 
@@ -166,7 +179,7 @@ commit 時に、確定した `oldColumnIndex` / `newColumnIndex` を1回の attr
 control 実装では少なくとも次を扱う必要がある。
 
 - table position と column width
-- editor iframe / non-iframe の owning context
+- current editor canvas reference が属する document / window
 - table の horizontal scroll
 - editor / table の変化後の control geometry refresh
 - row control との共存
@@ -200,9 +213,9 @@ Keyboard focus、announcement、guidance、invalid move feedback は feature com
 - controller setup / cleanup の共通部分
 - interaction state の共通部分
 - supported-block recognition
-- base table-context discovery
+- DOM-local table-context resolution のうち実装上同一と確認できた狭い責務
 
-Phase 6 では、各候補について row / column の contract と behavior が実際に一致しているかを確認する。
+Phase 6 では、各候補について row / column の contract と behavior が実際に一致しているかを確認する。editor browsing-context discovery は共通化候補に含めず、current editor canvas reference を起点とする DOM-local contract を維持する。
 
 ### 結合セルと logical grid
 
@@ -231,6 +244,8 @@ Phase 6 では、各候補について row / column の contract と behavior �
 
 ### Phase 1: Pure column-order 基盤
 
+**進捗: 完了（#459 / PR #467）**
+
 - 成果: column movement を DOM / UI から独立して定義し、結合セルのない Core Table / Flexible Table Block 形状の attributes を安全に変換できる。
 - 作業:
   - `src/column-reorder/` を作成する。
@@ -245,9 +260,13 @@ Phase 6 では、各候補について row / column の contract と behavior �
 
 ### Phase 2: Column integration boundary と control prototype
 
+**進捗: 実装中（#460 / PR #470）**
+
 - 成果: editor が対応 table を解決し、DOM mutation によって移動を commit せずに、結合セルのない列へ安定した column control を配置できる。
 - 作業:
   - column reorder に実際に必要な block-support / table-context 能力だけを追加する。
+  - table-context は current editor canvas reference の `ownerDocument` / `defaultView` から DOM-local に解決し、`clientId` は同じ document 内の Table block 特定にのみ利用する。
+  - iframe discovery / `contentDocument` / `contentWindow` fallback を行わず、editor context を lifecycle をまたいで cache しない。
   - 薄い plugin entry から feature を接続する。
   - column control を render / position する。
   - row control との共存ルールを定義する。
@@ -256,6 +275,10 @@ Phase 6 では、各候補について row / column の contract と behavior �
   - deterministic に確認できる範囲は focused jsdom test を追加する。
   - iframe / non-iframe editor で manual verification を行う。
   - row-reorder の behavior regression がないことを確認する。
+
+Phase 2 で現在実装中の geometry refresh、column control、結合セルを prototype 対象外とする方針、row / column feature 分離は変更しない。DOM context resolution のみ DOM-local contract へ追随させる。
+
+`table-context` 実装自体の DOM-local contract 追随は #460 / PR #470 で行い、このプラン更新では実装コードを変更しない。
 
 ### Phase 3: Keyboard / single-pointer 列並べ替え
 
@@ -301,6 +324,8 @@ Phase 6 では、各候補について row / column の contract と behavior �
 - 成果: row / column の実装を比較し、共通化できる責務を確認する。
 - 作業:
   - 実装済みの row / column context、block support、controller lifecycle、focus、status、guidance、scroll を比較する。
+  - DOM-local table-context resolution は、row / column で同一 contract が実装から確認できた場合のみ、狭い責務として共通化を検討する。
+  - editor browsing-context discovery を共通基盤として再導入しない。
   - 共通化候補ごとに contract と behavior の一致を確認する。
   - 共通化する場合は狭い責務単位で抽出する。
 - 検証:
@@ -341,7 +366,10 @@ Phase 6 では、各候補について row / column の contract と behavior �
 - 最初の実装では `rowSpan` / `colSpan` を対象外とする。
 - logical-grid parsing は結合セルフェーズまで導入しない。
 - 実 table cell を SortableJS の sortable sibling list にしない。
-- 列実装で最初から利用する既存共通基盤は Editor Environment と SortableJS runtime loading とする。
+- 列実装で最初から利用する既存共通基盤は SortableJS runtime loading とする。
+- editor DOM context は current editor canvas reference の `ownerDocument` / `defaultView` から feature 内で DOM-local に解決する。
+- `clientId` は同じ document 内の対象 Table block 特定にのみ利用し、iframe discovery は行わない。
+- editor `document` / `window` は lifecycle をまたいで cache しない。
 - 既存の row-owned block support / table context を column 対応のために変更することは前提にしない。
 
 ### 実装中に確認する事項
@@ -354,32 +382,32 @@ Phase 6 では、各候補について row / column の contract と behavior �
 - row control と column control が同時表示される場合、hover / activation の優先関係をどうするか。
 - guidance / live-status / focus のどこまでが row reorder と同一責務か。
 - base block recognition は共有できるほど同一か、それとも row / column の support contract は別のままか。
-- row / column 両方が存在した後、base table DOM discovery を共通化できるか。
+- row / column 両方が存在した後、DOM-local table-context resolution のどこまでが同一 contract として共通化できるか。
 - horizontal auto-scroll のどこまでを row scrolling mechanics から再利用できるか。
 - cell editing を妨げず、最も分かりやすい touch interaction は何か。
 
-## Issue 分割案
+## 実装 Issue
 
-実装親 Issue と子 Issue は、このプランのレビュー後に作成する。初期案は次のとおり。
+実装親 Issue は #458 とし、各フェーズは次の子 Issue で追跡する。
 
-- [ ] 親: 対応 Table block に列並べ替えを実装する。
-- [ ] 子: `column-reorder` boundary と結合セルなしの pure `column-order` transformation を追加する。
-- [ ] 子: column block / context integration と column-control UI を追加する。
-- [ ] 子: Keyboard / single-pointer 列並べ替えを実装する。
-- [ ] 子: SortableJS による Pointer drag と horizontal scrolling を実装する。
-- [ ] 子: Touch 列並べ替えを実装する。
-- [ ] 子: row / column の重複をレビューし、確認できた共通責務だけを抽出する。
-- [ ] 子: logical grid と結合セルの列制約を追加する。
-- [ ] 子: column-reorder E2E と保存・Undo scenario を完成させる。
+- [x] #459: Phase 1 Pure column-order 基盤（PR #467 で完了）
+- [ ] #460: Phase 2 Column integration boundary と control prototype（PR #470 で実装中）
+- [ ] #461: Phase 3 Keyboard / single-pointer 列並べ替え
+- [ ] #462: Phase 4 SortableJS による Pointer drag
+- [ ] #463: Phase 5 Touch interaction
+- [ ] #464: Phase 6 共通責務レビュー
+- [ ] #465: Phase 7 結合セル logical grid と制約
+- [ ] #466: Phase 8 E2E 完成
 
-実装上、1つの子 Issue が広すぎる、または2つの子 Issue が強く結合していることが分かった場合は、この暫定リストへ無理に合わせず、該当 Issue を作成する前に分割を調整する。
+実装上、1つの子 Issue が広すぎる、または2つの子 Issue が強く結合していることが分かった場合は、既存のフェーズ構成を不用意に変更せず、該当 Issue の責務と実装結果を根拠に必要な調整を検討する。
 
 ## 検証
 
-このプラン作成のみの変更では次を確認する。
+このプラン更新のみの変更では次を確認する。
 
 - `git diff --check origin/main...HEAD`
-- rendered Markdown を確認し、#422 がこの document と詳細設計を重複せず、簡潔な plan-creation Issue として成立することを確認する。
+- rendered Markdown を確認し、#458 / #459〜#466 の実装責務とこのプランが矛盾していないことを確認する。
+- `src/AGENTS.md` と `docs/development/source-organization.md` の DOM-local context / source boundary と矛盾していないことを確認する。
 
 今後の実装では `docs/development/testing.md` を command source of truth とする。各フェーズで想定する検証は次のとおり。
 
@@ -390,15 +418,18 @@ Phase 6 では、各候補について row / column の contract と behavior �
 
 ## 完了条件
 
-この planning Issue は次を満たしたときに完了とする。
+このプランは次を満たす。
 
 - `src/AGENTS.md` の Table Reorder implementation rules を参照し、同じ実装ルールをこのプランへ重複して正本化していない。
-- #449 / PR #450 で確立した source boundary を前提に、column-reorder の実装経路が整理されている。
+- `docs/development/source-organization.md` の現在の source boundary と DOM-local context contract を前提に、column-reorder の実装経路が整理されている。
+- 削除済み Editor Environment を利用する前提がなく、既存共通基盤は SortableJS runtime loader のみとして整理されている。
+- Column DOM context が current editor canvas reference の `ownerDocument` / `defaultView` を使う DOM-local contract として定義されている。
+- iframe discovery を再導入しない方針が Phase 6 を含めて一貫している。
+- Phase 1 完了、Phase 2 実装中という現在の進捗が反映されている。
 - 結合セルなしの最小実装と、後続の結合セル対応が明確に分離されている。
-- column data、DOM、controller、UI、accessibility、validation の責務が、実装 Issue を作成できる粒度で定義されている。
+- column data、DOM、controller、UI、accessibility、validation の責務が、各実装 Issue を進められる粒度で定義されている。
 - 未確定の実装詳細が hidden assumption ではなく、実装中の確認事項として明示されている。
-- レビュー後、このプランから安定した親子 Issue 分割を作成できる。
-- #422 が詳細設計を重複せず、このプランを design source of truth として参照できる。
+- 実装親 Issue #458 と子 Issue #459〜#466 が、このプランを design source of truth として参照できる。
 
 ## 補足
 
