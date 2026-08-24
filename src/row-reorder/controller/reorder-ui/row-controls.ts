@@ -161,11 +161,12 @@ export const createRowControls = (
 	};
 
 	const syncDescription = ( slot: PoolSlot ) => {
-		const descriptionId = slot.useKeyboardDescription
-			? slot.keyboardDescriptionId
-			: options.showAll
-			? undefined
-			: slot.pointerDescriptionId;
+		let descriptionId: string | undefined;
+		if ( slot.useKeyboardDescription ) {
+			descriptionId = slot.keyboardDescriptionId;
+		} else if ( ! options.showAll ) {
+			descriptionId = slot.pointerDescriptionId;
+		}
 		if ( slot.isPressed || ! descriptionId ) {
 			slot.control.removeAttribute( 'aria-describedby' );
 		} else {
@@ -198,11 +199,12 @@ export const createRowControls = (
 		} satisfies PoolSlot;
 
 		slot.render = () => {
-			const tooltipText = slot.useKeyboardDescription
-				? getKeyboardHandleTooltip()
-				: options.showAll
-				? undefined
-				: getPointerHandleTooltip();
+			let tooltipText: string | undefined;
+			if ( slot.useKeyboardDescription ) {
+				tooltipText = getKeyboardHandleTooltip();
+			} else if ( ! options.showAll ) {
+				tooltipText = getPointerHandleTooltip();
+			}
 			const anchor = createElement(
 				'button',
 				{
