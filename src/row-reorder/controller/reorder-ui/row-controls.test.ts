@@ -170,12 +170,14 @@ describe( 'row-controls', () => {
 		const incomingCells = new Set(
 			Array.from( { length: 17 }, ( _value, index ) => tbody.rows.item( index + 35 )!.cells.item( 0 )! )
 		);
-		let measuredIncomingRows = 0;
+		const readPhaseSnapshots: Array< { incomingMounted: boolean; outgoingPresent: boolean } > = [];
 		jest.spyOn( window, 'getComputedStyle' ).mockImplementation( ( element ) => {
 			if ( incomingCells.has( element as HTMLTableCellElement ) ) {
-				measuredIncomingRows += 1;
-				expect( outgoingRow.querySelector( `.${ HANDLE_ZONE_CLASS }` ) ).toBe( outgoingControl );
-				expect( element.querySelector( `.${ HANDLE_ZONE_CLASS }` ) ).toBeNull();
+				readPhaseSnapshots.push( {
+					incomingMounted: element.querySelector( `.${ HANDLE_ZONE_CLASS }` ) !== null,
+					outgoingPresent:
+						outgoingRow.querySelector( `.${ HANDLE_ZONE_CLASS }` ) === outgoingControl,
+				} );
 			}
 			return getComputedStyle( element );
 		} );
@@ -184,7 +186,9 @@ describe( 'row-controls', () => {
 		document.dispatchEvent( new Event( 'scroll' ) );
 		callbacks.shift()?.( 0 );
 
-		expect( measuredIncomingRows ).toBeGreaterThan( 0 );
+		expect( readPhaseSnapshots.length ).toBeGreaterThan( 0 );
+		expect( readPhaseSnapshots.every( ( snapshot ) => snapshot.outgoingPresent ) ).toBe( true );
+		expect( readPhaseSnapshots.every( ( snapshot ) => ! snapshot.incomingMounted ) ).toBe( true );
 		expect( outgoingRow.querySelector( `.${ HANDLE_ZONE_CLASS }` ) ).toBeNull();
 		expect( tbody.rows.item( 35 )?.querySelector( `.${ HANDLE_ZONE_CLASS }` ) ).not.toBeNull();
 		controls.cleanup();
