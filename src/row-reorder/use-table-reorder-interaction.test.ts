@@ -42,7 +42,7 @@ type MatchMediaHarness = {
 };
 
 type HookHarnessProps = {
-	anchorKey: string;
+	referenceKey: string;
 	enabled: boolean;
 	isSelected: boolean;
 };
@@ -111,7 +111,10 @@ const HookHarness = ( props: HookHarnessProps ) => {
 		enabled: props.enabled,
 		isSelected: props.isSelected,
 	} );
-	return createElement( 'span', { key: props.anchorKey, ref: latestResult.anchorRef } );
+	return createElement( 'span', {
+		key: props.referenceKey,
+		ref: latestResult.editorCanvasReferenceRef,
+	} );
 };
 
 const getResult = () => {
@@ -126,7 +129,7 @@ const mountHook = ( props: Partial< HookHarnessProps > = {} ) => {
 	document.body.append( container );
 	const root = createRoot( container );
 	let currentProps: HookHarnessProps = {
-		anchorKey: 'anchor-a',
+		referenceKey: 'reference-a',
 		enabled: true,
 		isSelected: true,
 		...props,
@@ -145,10 +148,11 @@ const mountHook = ( props: Partial< HookHarnessProps > = {} ) => {
 			currentProps = { ...currentProps, ...nextProps };
 			render();
 		},
-		replaceAnchor: () => {
+		replaceReference: () => {
 			currentProps = {
 				...currentProps,
-				anchorKey: currentProps.anchorKey === 'anchor-a' ? 'anchor-b' : 'anchor-a',
+				referenceKey:
+					currentProps.referenceKey === 'reference-a' ? 'reference-b' : 'reference-a',
 			};
 			render();
 		},
@@ -200,7 +204,7 @@ afterEach( () => {
 } );
 
 describe( 'useTableReorderInteraction', () => {
-	it( 'moves context-dependent listeners to the new editor document when the anchor is replaced', () => {
+	it( 'moves context-dependent listeners to the new editor document when the reference is replaced', () => {
 		installMatchMedia( true );
 		const firstEditorDocument = document.implementation.createHTMLDocument( 'first editor' );
 		const secondEditorDocument = document.implementation.createHTMLDocument( 'second editor' );
@@ -212,14 +216,14 @@ describe( 'useTableReorderInteraction', () => {
 			.mockReturnValueOnce( firstContext )
 			.mockReturnValueOnce( secondContext );
 		const harness = mountHook();
-		const firstAnchor = resolveTableContextMock.mock.calls[ 0 ]?.[ 0 ];
+		const firstReference = resolveTableContextMock.mock.calls[ 0 ]?.[ 0 ];
 
-		harness.replaceAnchor();
-		const secondAnchor = resolveTableContextMock.mock.calls[ 1 ]?.[ 0 ];
+		harness.replaceReference();
+		const secondReference = resolveTableContextMock.mock.calls[ 1 ]?.[ 0 ];
 
-		expect( firstAnchor ).toBeInstanceOf( HTMLSpanElement );
-		expect( secondAnchor ).toBeInstanceOf( HTMLSpanElement );
-		expect( secondAnchor ).not.toBe( firstAnchor );
+		expect( firstReference ).toBeInstanceOf( HTMLSpanElement );
+		expect( secondReference ).toBeInstanceOf( HTMLSpanElement );
+		expect( secondReference ).not.toBe( firstReference );
 		expect( firstRemoveEventListener ).toHaveBeenCalledWith(
 			'keydown',
 			expect.any( Function ),
