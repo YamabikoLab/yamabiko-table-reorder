@@ -181,7 +181,9 @@ export const createSortableController = (
 	let touchModeGuidance: ReorderGuidanceUi | null = useHoverMode
 		? null
 		: createReorderGuidance( document, tbody, getTouchModeMessage() );
-	let lastActiveRowIndex: number | null = getRowIndexFromElement( document.activeElement );
+	let lastActiveRowIndex: number | null = getRowIndexFromElement(
+		tbody.ownerDocument.activeElement
+	);
 	let blockDragSuppressed = false;
 	let originalDraggable: string | null = null;
 	let suppressPointerClickUntil = 0;
@@ -868,7 +870,7 @@ export const createSortableController = (
 				announce( getNoMovableRowsAnnouncement() );
 				return 'no-movable-rows';
 			}
-			const activeRowIndex = getRowIndexFromElement( document.activeElement );
+			const activeRowIndex = getRowIndexFromElement( tbody.ownerDocument.activeElement );
 			if ( activeRowIndex !== null ) {
 				lastActiveRowIndex = activeRowIndex;
 			}
