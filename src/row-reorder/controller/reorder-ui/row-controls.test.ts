@@ -109,6 +109,24 @@ describe( 'row-controls', () => {
 		offset = 0;
 	} );
 
+	it( 'completes batch style measurement before mounting viewport controls', () => {
+		const { context, tbody } = createTable( [ 'Alpha', 'Beta', 'Gamma' ] );
+		mockRowPositions( tbody, () => 0 );
+		const getComputedStyle = window.getComputedStyle.bind( window );
+		const mountedControlCounts: number[] = [];
+		jest.spyOn( window, 'getComputedStyle' ).mockImplementation( ( element ) => {
+			mountedControlCounts.push( tbody.querySelectorAll( `.${ HANDLE_ZONE_CLASS }` ).length );
+			return getComputedStyle( element );
+		} );
+
+		const controls = createRowControls( context, [], { showAll: false } );
+
+		expect( mountedControlCounts ).toHaveLength( 3 );
+		expect( mountedControlCounts ).toEqual( [ 0, 0, 0 ] );
+		expect( tbody.querySelectorAll( `.${ HANDLE_ZONE_CLASS }` ) ).toHaveLength( 3 );
+		controls.cleanup();
+	} );
+
 	it( 'updates a nearby scroll incrementally without remeasuring all rows', () => {
 		const labels = Array.from( { length: 4096 }, ( _value, index ) => `Row ${ index + 1 }` );
 		const { context, tbody } = createTable( labels );
