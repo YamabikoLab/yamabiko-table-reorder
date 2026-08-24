@@ -31,7 +31,14 @@ const getHorizontalScrollContainer = ( view: Window, target: Element ): HTMLElem
 	return null;
 };
 
-/** Keyboard destination が見えるために必要な最小量だけ横 scroll する。 */
+/**
+ * Keyboard destination が見えるために必要な最小量だけ横 scroll する。
+ *
+ * @param view           owning editor window。
+ * @param table          対象 table。
+ * @param columns        各列の代表 cell。
+ * @param insertionIndex 現在候補の insertion boundary。
+ */
 export const scrollColumnDestinationIntoView = (
 	view: Window,
 	table: HTMLTableElement,

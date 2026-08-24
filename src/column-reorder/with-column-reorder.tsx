@@ -20,7 +20,11 @@ type ColumnReorderEditProps = {
 	props: TableBlockEditProps;
 };
 
-/** Gutenberg integration と controller lifecycle だけを所有する薄い component。 */
+/**
+ * Gutenberg integration と controller lifecycle だけを所有する薄い component。
+ *
+ * @param componentProps 元の BlockEdit と Gutenberg props。
+ */
 const ColumnReorderEdit = ( componentProps: ColumnReorderEditProps ) => {
 	const { BlockEdit, props } = componentProps;
 	const { attributes, clientId, isSelected, setAttributes } = props;
@@ -71,7 +75,11 @@ const ColumnReorderEdit = ( componentProps: ColumnReorderEditProps ) => {
 	);
 };
 
-/** BlockEdit へ Column Reorder の integration boundary を追加する HOC。 */
+/**
+ * BlockEdit へ Column Reorder の integration boundary を追加する HOC。
+ *
+ * @param BlockEdit Gutenberg が提供する元の BlockEdit component。
+ */
 export const withColumnReorder = ( BlockEdit: ComponentType< TableBlockEditProps > ) =>
 	function WithColumnReorder( props: TableBlockEditProps ) {
 		if ( ! supportsColumnReorder( props.name ) ) {

@@ -29,6 +29,10 @@ export type ColumnControls = {
  *
  * control は代表 cell 内に置くため table の horizontal scroll と同じ座標系で動く。通常時は視覚的に
  * 隠し、controller から hover / focus / active column だけを表示する。
+ *
+ * @param document control を生成する editor document。
+ * @param table    対象 table。
+ * @param columns  各列の代表 cell。
  */
 export const createColumnControls = (
 	document: Document,
@@ -123,7 +127,11 @@ export const createColumnControls = (
 	};
 };
 
-/** Column control 操作が Gutenberg 側へ伝播しないよう停止する。 */
+/**
+ * Column control 操作が Gutenberg 側へ伝播しないよう停止する。
+ *
+ * @param event 判定する DOM event。
+ */
 export const stopColumnControlInteractionPropagation = ( event: Event ) => {
 	const target = event.target as Element | null;
 	if ( target?.closest?.( `.${ COLUMN_HANDLE_ZONE_CLASS }` ) ) {

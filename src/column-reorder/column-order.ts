@@ -59,7 +59,12 @@ const moveArrayItem = < T >( items: readonly T[], oldIndex: number, newIndex: nu
 	return reordered;
 };
 
-/** 同じ位置への列移動かを返す。 */
+/**
+ * 同じ位置への列移動かを返す。
+ *
+ * @param oldIndex 移動元の列 index。
+ * @param newIndex 移動後の列 index。
+ */
 export const isNoopColumnMove = ( oldIndex: number, newIndex: number ): boolean =>
 	oldIndex === newIndex;
 
@@ -68,6 +73,9 @@ export const isNoopColumnMove = ( oldIndex: number, newIndex: number ): boolean 
  *
  * 右方向へ移動する場合は source column がまだ DOM 上に存在するため、移動後 index の次の
  * boundary を表示する。左方向では移動後 index の直前 boundary を表示する。
+ *
+ * @param oldIndex 移動元の列 index。
+ * @param newIndex 移動後の列 index。
  */
 export const getColumnMoveInsertionIndex = ( oldIndex: number, newIndex: number ): number => {
 	if ( newIndex > oldIndex ) {
@@ -79,6 +87,9 @@ export const getColumnMoveInsertionIndex = ( oldIndex: number, newIndex: number 
 /**
  * Keyboard の現在候補から、指定方向に1列進めた移動後 index を返す。
  *
+ * @param currentIndex 現在の移動後 index 候補。
+ * @param direction    移動方向。
+ * @param columnCount  総列数。
  * @return 移動可能な次候補。table 端を越える場合は null。
  */
 export const getNextColumnMoveIndex = (
@@ -94,6 +105,9 @@ export const getNextColumnMoveIndex = (
  * source column から選択できる single-pointer destination を返す。
  *
  * no-op になる source 現在位置は target に含めない。
+ *
+ * @param oldIndex    移動元の列 index。
+ * @param columnCount 総列数。
  */
 export const getValidColumnMoveTargets = (
 	oldIndex: number,

@@ -38,7 +38,13 @@ const getHorizontalScrollContainer = ( view: Window, target: Element ): HTMLElem
 	return null;
 };
 
-/** Table の column boundary に垂直 insertion line を表示する。 */
+/**
+ * Table の column boundary に垂直 insertion line を表示する。
+ *
+ * @param document line を生成する editor document。
+ * @param table    対象 table。
+ * @param columns  各列の代表 cell。
+ */
 export const createColumnInsertionLine = (
 	document: Document,
 	table: HTMLTableElement,

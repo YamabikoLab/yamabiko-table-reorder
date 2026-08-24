@@ -1,6 +1,10 @@
 import { __, sprintf } from '@wordpress/i18n';
 
-/** 個別 column control の accessible name。 */
+/**
+ * 個別 column control の accessible name。
+ *
+ * @param columnNumber 1-based column number。
+ */
 export const getColumnControlName = ( columnNumber: number ): string =>
 	sprintf(
 		/* translators: %d: column number. */
@@ -20,7 +24,11 @@ export const getColumnKeyboardGuidance = (): string =>
 export const getColumnPointerGuidance = (): string =>
 	__( 'Click destination　Esc Cancel', 'yamabiko-table-reorder' );
 
-/** 列の前へ挿入する destination の accessible name。 */
+/**
+ * 列の前へ挿入する destination の accessible name。
+ *
+ * @param columnNumber 1-based destination column number。
+ */
 export const getColumnDestinationBeforeName = ( columnNumber: number ): string =>
 	sprintf(
 		/* translators: %d: column number. */
@@ -49,7 +57,11 @@ export const getColumnMoveStartedAnnouncement = (
 		columnCount
 	);
 
-/** single-pointer で移動対象を選択したことを支援技術へ伝える。 */
+/**
+ * single-pointer で移動対象を選択したことを支援技術へ伝える。
+ *
+ * @param columnNumber 1-based selected column number。
+ */
 export const getColumnDestinationRequestedAnnouncement = ( columnNumber: number ): string =>
 	sprintf(
 		/* translators: %d: selected column number. */
@@ -57,7 +69,12 @@ export const getColumnDestinationRequestedAnnouncement = ( columnNumber: number 
 		columnNumber
 	);
 
-/** keyboard の移動先候補変更を支援技術へ伝える。 */
+/**
+ * keyboard の移動先候補変更を支援技術へ伝える。
+ *
+ * @param columnNumber 1-based destination column number。
+ * @param columnCount  総列数。
+ */
 export const getColumnDestinationChangedAnnouncement = (
 	columnNumber: number,
 	columnCount: number
@@ -69,7 +86,12 @@ export const getColumnDestinationChangedAnnouncement = (
 		columnCount
 	);
 
-/** 列移動確定を支援技術へ伝える。 */
+/**
+ * 列移動確定を支援技術へ伝える。
+ *
+ * @param oldColumnNumber 1-based original column number。
+ * @param newColumnNumber 1-based destination column number。
+ */
 export const getColumnMoveCommittedAnnouncement = (
 	oldColumnNumber: number,
 	newColumnNumber: number
@@ -81,7 +103,11 @@ export const getColumnMoveCommittedAnnouncement = (
 		newColumnNumber
 	);
 
-/** 列移動キャンセルを支援技術へ伝える。 */
+/**
+ * 列移動キャンセルを支援技術へ伝える。
+ *
+ * @param columnNumber 1-based unchanged column number。
+ */
 export const getColumnMoveCanceledAnnouncement = ( columnNumber: number ): string =>
 	sprintf(
 		/* translators: %d: unchanged column number. */
@@ -89,7 +115,11 @@ export const getColumnMoveCanceledAnnouncement = ( columnNumber: number ): strin
 		columnNumber
 	);
 
-/** keyboard でこれ以上移動できないことを支援技術へ伝える。 */
+/**
+ * keyboard でこれ以上移動できないことを支援技術へ伝える。
+ *
+ * @param direction 移動できない方向。
+ */
 export const getColumnMoveBoundaryAnnouncement = ( direction: 'left' | 'right' ): string => {
 	const directionLabel =
 		direction === 'left'

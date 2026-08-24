@@ -3,7 +3,12 @@ const LIVE_STATUS_CLASS = 'yamabiko-table-reorder-column-live-status';
 
 const liveStatusByDocument = new WeakMap< Document, HTMLElement >();
 
-/** owning document 内の polite live region へ通知する。 */
+/**
+ * owning document 内の polite live region へ通知する。
+ *
+ * @param document 通知先の editor document。
+ * @param message  支援技術へ通知する文言。
+ */
 export const announceColumnLiveStatus = ( document: Document, message: string ) => {
 	let status = liveStatusByDocument.get( document );
 	if ( ! status || ! status.isConnected ) {

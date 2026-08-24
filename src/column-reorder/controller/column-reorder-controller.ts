@@ -62,7 +62,11 @@ type ReorderSession =
 	| ( { kind: 'keyboard' } & KeyboardSession )
 	| ( { kind: 'pointer' } & PointerSession );
 
-/** Column Reorder の keyboard / single-pointer interaction を管理する。 */
+/**
+ * Column Reorder の keyboard / single-pointer interaction を管理する。
+ *
+ * @param options controller 生成に必要な context、attributes、commit callback。
+ */
 export const createColumnReorderController = < TAttributes extends Record< string, unknown > >(
 	options: ColumnReorderControllerOptions< TAttributes >
 ): ColumnReorderController => {

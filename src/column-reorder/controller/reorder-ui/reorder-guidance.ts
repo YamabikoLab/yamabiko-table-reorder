@@ -6,7 +6,13 @@ export type ColumnReorderGuidanceUi = {
 	cleanup: () => void;
 };
 
-/** Table に関連付く操作中案内を owning document へ追加する。 */
+/**
+ * Table に関連付く操作中案内を owning document へ追加する。
+ *
+ * @param document 案内を生成する editor document。
+ * @param table    対象 table。
+ * @param message  表示する案内文。
+ */
 export const createColumnReorderGuidance = (
 	document: Document,
 	table: HTMLTableElement,

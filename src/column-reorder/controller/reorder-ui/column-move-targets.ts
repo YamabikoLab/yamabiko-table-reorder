@@ -44,7 +44,15 @@ const getHorizontalScrollContainer = ( view: Window, target: Element ): HTMLElem
 	return null;
 };
 
-/** 有効な column boundary へ click target を追加する。 */
+/**
+ * 有効な column boundary へ click target を追加する。
+ *
+ * @param document target を生成する editor document。
+ * @param table    対象 table。
+ * @param columns  各列の代表 cell。
+ * @param targets  表示する有効な destination。
+ * @param options  destination 選択 callback。
+ */
 export const createColumnMoveTargets = (
 	document: Document,
 	table: HTMLTableElement,
