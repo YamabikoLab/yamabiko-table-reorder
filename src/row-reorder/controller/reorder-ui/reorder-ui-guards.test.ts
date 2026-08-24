@@ -1,4 +1,5 @@
 import { getKeyboardActiveMessage, getTouchModeMessage } from '@/row-reorder/messages';
+import type { TableContext } from '@/row-reorder/table-context';
 import { createReorderGuidance, scrollKeyboardDestinationIntoView } from './reorder-guidance';
 import { createRowControls, getRowRepresentativeText } from './row-controls';
 import { createRowMoveTargets } from './row-move-targets';
@@ -25,12 +26,14 @@ const createRect = ( top: number, bottom: number, left = 0, width = 400 ): DOMRe
 	} ) as DOMRect;
 
 const createTable = ( labels: string[] ) => {
+	const blockElement = document.createElement( 'div' );
 	const wrapper = document.createElement( 'figure' );
 	const table = document.createElement( 'table' );
 	const tbody = document.createElement( 'tbody' );
 	table.append( tbody );
 	wrapper.append( table );
-	document.body.append( wrapper );
+	blockElement.append( wrapper );
+	document.body.append( blockElement );
 
 	for ( const label of labels ) {
 		const row = document.createElement( 'tr' );
@@ -40,7 +43,13 @@ const createTable = ( labels: string[] ) => {
 		tbody.append( row );
 	}
 
-	return { table, tbody, wrapper };
+	const context: TableContext = {
+		blockElement,
+		document,
+		tbody,
+		window,
+	};
+	return { context, table, tbody, wrapper };
 };
 
 const makeVerticallyScrollable = (
@@ -170,30 +179,45 @@ describe( 'reorder-ui guard branches', () => {
 	} );
 
 	it( 'skips rows without a first cell', () => {
-		const { tbody } = createTable( [] );
-		tbody.append( document.createElement( 'tr' ) );
+		const { context, tbody } = createTable( [] );
+		const row = document.createElement( 'tr' );
+		tbody.append( row );
 
-		const controls = createRowControls( document, tbody, [], { showAll: false } );
+		const controls = createRowControls( context, [], { showAll: false } );
 
-		expect( controls.entries ).toHaveLength( 0 );
+		expect( controls.ensureControl( row ) ).toBeNull();
 		controls.cleanup();
 	} );
 
 	it( 'keeps setPressed idempotent when the requested state is unchanged', () => {
-		const { tbody } = createTable( [ 'Alpha' ] );
-		const controls = createRowControls( document, tbody, [], { showAll: false } );
-		const entry = controls.entries[ 0 ];
+		const { context, tbody } = createTable( [ 'Alpha' ] );
+		const controls = createRowControls( context, [], { showAll: false } );
+		const row = tbody.rows.item( 0 );
+		if ( ! row ) {
+			throw new Error( 'Expected table row' );
+		}
+		const control = controls.ensureControl( row );
+		if ( ! control ) {
+			throw new Error( 'Expected row control' );
+		}
 
-		entry.setPressed( false );
-		expect( entry.control.getAttribute( 'aria-pressed' ) ).toBe( 'false' );
+		controls.setPressed( control, false );
+		expect( control.getAttribute( 'aria-pressed' ) ).toBe( 'false' );
 
 		controls.cleanup();
 	} );
 
 	it( 'removes the keyboard description again after blur in touch reorder mode', async () => {
-		const { tbody } = createTable( [ 'Alpha' ] );
-		const controls = createRowControls( document, tbody, [], { showAll: true } );
-		const control = controls.entries[ 0 ].control;
+		const { context, tbody } = createTable( [ 'Alpha' ] );
+		const controls = createRowControls( context, [], { showAll: true } );
+		const row = tbody.rows.item( 0 );
+		if ( ! row ) {
+			throw new Error( 'Expected table row' );
+		}
+		const control = controls.ensureControl( row );
+		if ( ! control ) {
+			throw new Error( 'Expected row control' );
+		}
 
 		Object.assign( globalThis, { IS_REACT_ACT_ENVIRONMENT: true } );
 		try {
