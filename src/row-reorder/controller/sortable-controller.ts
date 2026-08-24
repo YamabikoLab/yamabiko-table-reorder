@@ -134,6 +134,11 @@ type DragSnapshot = {
 	rowLabel: string;
 };
 
+type MousePoint = {
+	x: number;
+	y: number;
+};
+
 export const createSortableController = (
 	options: SortableControllerOptions
 ): SortableController => {
@@ -184,6 +189,8 @@ export const createSortableController = (
 	let lastActiveRowIndex: number | null = getRowIndexFromElement(
 		tbody.ownerDocument.activeElement
 	);
+	let lastMousePoint: MousePoint | null = null;
+	let pendingHoverFrame: number | null = null;
 	let blockDragSuppressed = false;
 	let originalDraggable: string | null = null;
 	let suppressPointerClickUntil = 0;
@@ -312,6 +319,35 @@ export const createSortableController = (
 		if ( rowIndex !== null ) {
 			lastActiveRowIndex = rowIndex;
 		}
+	};
+	const rememberMousePoint = ( event: PointerEvent ) => {
+		if ( event.pointerType === 'mouse' ) {
+			lastMousePoint = { x: event.clientX, y: event.clientY };
+		}
+	};
+	const syncHoverFromMousePoint = () => {
+		if ( ! useHoverMode || ! lastMousePoint || session.kind !== 'idle' ) {
+			return;
+		}
+		const pointedElement = document.elementFromPoint( lastMousePoint.x, lastMousePoint.y );
+		const hoveredRow = getRowFromElement( pointedElement );
+		const hoveredControl = hoveredRow ? rowControls.ensureControl( hoveredRow ) : null;
+		if ( hoveredControl ) {
+			activateControl( hoveredControl );
+		} else {
+			releaseActiveControl();
+		}
+	};
+	const scheduleHoverSync = () => {
+		if ( ! useHoverMode || ! lastMousePoint || pendingHoverFrame !== null ) {
+			return;
+		}
+		pendingHoverFrame = view.requestAnimationFrame( () => {
+			pendingHoverFrame = null;
+			if ( ! destroyed ) {
+				syncHoverFromMousePoint();
+			}
+		} );
 	};
 	const showKeyboardCandidate = (
 		keyboardSession: Extract< ReorderSession, { kind: 'keyboard' } >
@@ -454,6 +490,7 @@ export const createSortableController = (
 		return null;
 	};
 	const onPointerOver = ( event: PointerEvent ) => {
+		rememberMousePoint( event );
 		if ( ! useHoverMode || event.pointerType !== 'mouse' || session.kind !== 'idle' ) {
 			return;
 		}
@@ -471,6 +508,7 @@ export const createSortableController = (
 		}
 	};
 	const onPointerOut = ( event: PointerEvent ) => {
+		rememberMousePoint( event );
 		if ( ! useHoverMode || event.pointerType !== 'mouse' ) {
 			return;
 		}
@@ -487,7 +525,9 @@ export const createSortableController = (
 			deactivateControl( control );
 		}
 	};
+	const onPointerMove = ( event: PointerEvent ) => rememberMousePoint( event );
 	const onPointerDown = ( event: PointerEvent ) => {
+		rememberMousePoint( event );
 		rememberRowFromEvent( event );
 		const control = getControlFromElement( event.target as Element | null );
 		if ( control && event.pointerType === 'mouse' && session.kind === 'idle' ) {
@@ -679,6 +719,7 @@ export const createSortableController = (
 			finishSinglePointerSession();
 		}
 	};
+	const onDocumentScroll = () => scheduleHoverSync();
 
 	for ( const eventName of blockSelectionEvents ) {
 		tbody.addEventListener( eventName, stopRowControlInteractionPropagation );
@@ -690,6 +731,8 @@ export const createSortableController = (
 	tbody.addEventListener( 'click', onClick );
 	tbody.addEventListener( 'keydown', onKeyDown );
 	if ( useHoverMode ) {
+		document.addEventListener( 'pointermove', onPointerMove, true );
+		document.addEventListener( 'scroll', onDocumentScroll, true );
 		tbody.addEventListener( 'mousedown', onMouseDown );
 		tbody.addEventListener( 'pointerover', onPointerOver );
 		tbody.addEventListener( 'pointerout', onPointerOut );
@@ -799,13 +842,7 @@ export const createSortableController = (
 					return;
 				}
 				if ( useHoverMode ) {
-					const hoveredRow = Array.from( tbody.rows ).find( ( row ) => row.matches( ':hover' ) );
-					const hoveredControl = hoveredRow ? rowControls.ensureControl( hoveredRow ) : null;
-					if ( hoveredControl ) {
-						activateControl( hoveredControl );
-					} else {
-						releaseActiveControl();
-					}
+					syncHoverFromMousePoint();
 				} else {
 					restoreBlockDrag();
 				}
@@ -923,9 +960,15 @@ export const createSortableController = (
 			tbody.removeEventListener( 'click', onClick );
 			tbody.removeEventListener( 'keydown', onKeyDown );
 			if ( useHoverMode ) {
+				document.removeEventListener( 'pointermove', onPointerMove, true );
+				document.removeEventListener( 'scroll', onDocumentScroll, true );
 				tbody.removeEventListener( 'mousedown', onMouseDown );
 				tbody.removeEventListener( 'pointerover', onPointerOver );
 				tbody.removeEventListener( 'pointerout', onPointerOut );
+			}
+			if ( pendingHoverFrame !== null ) {
+				view.cancelAnimationFrame( pendingHoverFrame );
+				pendingHoverFrame = null;
 			}
 			cleanupDragSnapshot();
 			dragControl = null;
