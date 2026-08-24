@@ -27,14 +27,14 @@ type ColumnReorderEditProps = {
  */
 const ColumnReorderEdit = ( componentProps: ColumnReorderEditProps ) => {
 	const { BlockEdit, props } = componentProps;
-	const { attributes, clientId, isSelected, setAttributes } = props;
+	const { attributes, clientId, setAttributes } = props;
 	const [ editorCanvasReference, setEditorCanvasReference ] = useState< HTMLSpanElement | null >(
 		null
 	);
 	const pendingFocusIndexRef = useRef< number | null >( null );
 
 	useLayoutEffect( () => {
-		if ( ! isSelected || ! editorCanvasReference ) {
+		if ( ! editorCanvasReference ) {
 			pendingFocusIndexRef.current = null;
 			return;
 		}
@@ -58,7 +58,7 @@ const ColumnReorderEdit = ( componentProps: ColumnReorderEditProps ) => {
 		}
 
 		return controller.destroy;
-	}, [ attributes, clientId, editorCanvasReference, isSelected, setAttributes ] );
+	}, [ attributes, clientId, editorCanvasReference, setAttributes ] );
 
 	return (
 		<>
