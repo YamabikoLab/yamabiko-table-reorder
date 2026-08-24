@@ -21,15 +21,18 @@ export type TableContext = {
 };
 
 /**
- * anchorを起点に解決した Editor Environment からTable ReorderのDOM contextを組み立てる。
+ * editor canvas referenceを起点に解決した Editor Environment からTable ReorderのDOM contextを組み立てる。
  *
  * block、table、先頭tbodyのいずれかを解決できない場合は`null`を返す。
  *
- * @param anchor   Table blockの探索起点となるDOM element。
- * @param clientId 解決対象となるGutenberg blockのclientId。
+ * @param referenceElement editor context探索の起点となるDOM element。
+ * @param clientId         解決対象となるGutenberg blockのclientId。
  */
-export const resolveTableContext = ( anchor: Element, clientId: string ): TableContext | null => {
-	const environment = resolveEditorEnvironment( anchor, clientId );
+export const resolveTableContext = (
+	referenceElement: Element,
+	clientId: string
+): TableContext | null => {
+	const environment = resolveEditorEnvironment( referenceElement, clientId );
 	if ( ! environment ) {
 		return null;
 	}
