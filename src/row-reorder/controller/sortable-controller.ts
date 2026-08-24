@@ -29,7 +29,6 @@ import {
 	HANDLE_ZONE_CLASS,
 	scrollKeyboardDestinationIntoView,
 	type ReorderGuidanceUi,
-	type RowControlEntry,
 	type RowMoveTargetsUi,
 	stopRowControlInteractionPropagation,
 } from './reorder-ui';
@@ -80,24 +79,20 @@ export type SortableController = {
 	focusRowControlAt: ( rowIndex: number ) => boolean;
 };
 
-/** SortableJSのonEndで利用するindex情報。 */
 type SortableEventLike = {
 	newIndex?: number;
 	oldIndex?: number;
 };
 
-/** SortableJSのonChooseで利用するdrag対象要素。 */
 type SortableChooseEventLike = {
 	item: HTMLElement;
 };
 
-/** SortableJSのonMoveで利用する挿入位置情報。 */
 type SortableMoveEventLike = {
 	related: HTMLElement;
 	willInsertAfter: boolean;
 };
 
-/** controllerがSortableJSへ渡すoptionsのうち、現在利用している項目。 */
 type SortableOptions = {
 	animation: number;
 	bubbleScroll: boolean;
@@ -114,13 +109,12 @@ type SortableOptions = {
 	scrollSpeed: number;
 };
 
-/** controllerが保持する排他的な並べ替え操作状態。 */
 type ReorderSession =
 	| { kind: 'idle' }
 	| {
 			kind: 'keyboard';
+			control: HTMLButtonElement;
 			currentIndex: number;
-			entry: RowControlEntry;
 			lastBoundaryDirection: RowMoveDirection | null;
 			oldIndex: number;
 			rowLabel: string;
@@ -128,25 +122,18 @@ type ReorderSession =
 	  }
 	| {
 			kind: 'pointer';
-			entry: RowControlEntry;
+			control: HTMLButtonElement;
 			oldIndex: number;
 			rowLabel: string;
 			targetsUi: RowMoveTargetsUi;
 	  }
 	| { kind: 'dragging' };
 
-/** SortableJS drag中だけ保持するDOM復元・announcement用snapshot。 */
 type DragSnapshot = {
 	rows: HTMLTableRowElement[];
 	rowLabel: string;
 };
 
-/**
- * 解決済みTable contextと制約からSortableJS controllerを生成する。
- *
- * @param options controller生成に必要なcontext、制約、callback。
- * @return controller lifecycleとToolbar focus入口。
- */
 export const createSortableController = (
 	options: SortableControllerOptions
 ): SortableController => {
@@ -161,25 +148,24 @@ export const createSortableController = (
 	} = options;
 	const useHoverMode = interactionMode === 'hover';
 	const insertionLine = createInsertionLine( document );
-	const rowControls = createRowControls( document, tbody, nonMovableRowIndices, {
+	const rowControls = createRowControls( options.context, nonMovableRowIndices, {
 		showAll: ! useHoverMode,
 	} );
-	const entries = rowControls.entries;
-	const entryByControl = new Map( entries.map( ( entry ) => [ entry.control, entry ] ) );
-	const entryByRow = new Map< HTMLTableRowElement, RowControlEntry >(
-		entries.map( ( entry ) => [ entry.row, entry ] )
-	);
 	const nonMovableRows = new Set( nonMovableRowIndices );
 	const blockSelectionEvents = [ 'pointerdown', 'mousedown', 'click' ] as const;
-	const getRowIndexFromElement = ( element: Element | null ): number | null => {
+	const getRowFromElement = ( element: Element | null ): HTMLTableRowElement | null => {
 		const row = element?.closest< HTMLTableRowElement >( 'tr' ) ?? null;
-		if ( ! row || row.parentElement !== tbody ) {
-			return null;
-		}
-
-		const rowIndex = Array.from( tbody.rows ).indexOf( row );
-		return rowIndex >= 0 ? rowIndex : null;
+		return row?.parentElement === tbody ? row : null;
 	};
+	const getRowIndexFromElement = ( element: Element | null ): number | null => {
+		const row = getRowFromElement( element );
+		return row ? row.sectionRowIndex : null;
+	};
+	const getControlFromElement = ( element: Element | null ): HTMLButtonElement | null => {
+		const control = element?.closest< HTMLButtonElement >( `.${ HANDLE_ZONE_CLASS }` ) ?? null;
+		return control && getRowFromElement( control ) ? control : null;
+	};
+	const getRowFromControl = ( control: HTMLButtonElement ) => getRowFromElement( control );
 	const constraints = {
 		forbiddenInsertionIndices,
 		nonMovableRowIndices,
@@ -189,14 +175,13 @@ export const createSortableController = (
 	let destroyed = false;
 	let sortable: SortableInstance | null = null;
 	let dragSnapshot: DragSnapshot | null = null;
-	let activeEntry: RowControlEntry | null = null;
+	let activeControl: HTMLButtonElement | null = null;
+	let dragControl: HTMLButtonElement | null = null;
 	let session: ReorderSession = { kind: 'idle' };
 	let touchModeGuidance: ReorderGuidanceUi | null = useHoverMode
 		? null
 		: createReorderGuidance( document, tbody, getTouchModeMessage() );
-	let lastActiveRowIndex: number | null = getRowIndexFromElement(
-		tbody.ownerDocument.activeElement
-	);
+	let lastActiveRowIndex: number | null = getRowIndexFromElement( document.activeElement );
 	let blockDragSuppressed = false;
 	let originalDraggable: string | null = null;
 	let suppressPointerClickUntil = 0;
@@ -221,12 +206,10 @@ export const createSortableController = (
 		) {
 			return false;
 		}
-
 		const reorderedRows = reorderRows( rows, oldIndex, newIndex );
 		if ( ! reorderedRows ) {
 			return false;
 		}
-
 		announce( getMoveCommittedAnnouncement( rowLabel, oldIndex + 1, newIndex + 1 ) );
 		if ( focusRowIndex === undefined ) {
 			onCommit( reorderedRows );
@@ -240,11 +223,9 @@ export const createSortableController = (
 		restoreFallbackCellWidths = () => undefined;
 	};
 	const restoreDragRows = () => {
-		if ( ! dragSnapshot ) {
-			return;
+		if ( dragSnapshot ) {
+			restoreOriginalRowOrder( tbody, dragSnapshot.rows );
 		}
-
-		restoreOriginalRowOrder( tbody, dragSnapshot.rows );
 	};
 	const cleanupDragSnapshot = () => {
 		restoreDragRows();
@@ -254,7 +235,6 @@ export const createSortableController = (
 		if ( blockDragSuppressed ) {
 			return;
 		}
-
 		originalDraggable = blockElement.getAttribute( 'draggable' );
 		blockElement.draggable = false;
 		blockDragSuppressed = true;
@@ -263,7 +243,6 @@ export const createSortableController = (
 		if ( ! blockDragSuppressed ) {
 			return;
 		}
-
 		if ( originalDraggable === null ) {
 			blockElement.removeAttribute( 'draggable' );
 		} else {
@@ -272,35 +251,56 @@ export const createSortableController = (
 		originalDraggable = null;
 		blockDragSuppressed = false;
 	};
-	const activateEntry = ( entry: RowControlEntry ) => {
-		if ( activeEntry && activeEntry !== entry ) {
-			rowControls.setVisible( activeEntry, false );
-		}
-		activeEntry = entry;
-		suppressBlockDrag();
-		rowControls.setVisible( entry, true );
-	};
-	const deactivateEntry = ( entry: RowControlEntry ) => {
-		const sessionEntry =
-			session.kind === 'keyboard' || session.kind === 'pointer' ? session.entry : null;
-		if ( ( session.kind === 'dragging' || sessionEntry === entry ) && activeEntry === entry ) {
+	const sessionControl = () =>
+		session.kind === 'keyboard' || session.kind === 'pointer' ? session.control : null;
+	const maybeUnpinControl = ( control: HTMLButtonElement ) => {
+		if (
+			control === activeControl ||
+			control === dragControl ||
+			control === sessionControl() ||
+			control.matches( ':focus' )
+		) {
 			return;
 		}
-
-		if ( ! entry.control.matches( ':focus' ) ) {
-			rowControls.setVisible( entry, false );
+		rowControls.unpin( control );
+	};
+	const activateControl = ( control: HTMLButtonElement ) => {
+		if ( activeControl && activeControl !== control ) {
+			const previous = activeControl;
+			if ( ! previous.matches( ':focus' ) ) {
+				rowControls.setVisible( previous, false );
+			}
+			activeControl = null;
+			maybeUnpinControl( previous );
 		}
-		if ( activeEntry === entry ) {
-			activeEntry = null;
+		activeControl = control;
+		rowControls.pin( control );
+		suppressBlockDrag();
+		rowControls.setVisible( control, true );
+	};
+	const deactivateControl = ( control: HTMLButtonElement ) => {
+		if ( control === sessionControl() || ( session.kind === 'dragging' && control === dragControl ) ) {
+			return;
+		}
+		if ( ! control.matches( ':focus' ) ) {
+			rowControls.setVisible( control, false );
+		}
+		if ( activeControl === control ) {
+			activeControl = null;
 			restoreBlockDrag();
 		}
+		maybeUnpinControl( control );
 	};
-	const releaseEntry = () => {
-		if ( activeEntry && ! activeEntry.control.matches( ':focus' ) ) {
-			rowControls.setVisible( activeEntry, false );
+	const releaseActiveControl = () => {
+		const control = activeControl;
+		if ( control && ! control.matches( ':focus' ) ) {
+			rowControls.setVisible( control, false );
 		}
-		activeEntry = null;
+		activeControl = null;
 		restoreBlockDrag();
+		if ( control ) {
+			maybeUnpinControl( control );
+		}
 	};
 	const rememberRowFromEvent = ( event: Event ) => {
 		const rowIndex = getRowIndexFromElement( event.target as Element | null );
@@ -315,7 +315,6 @@ export const createSortableController = (
 			insertionLine.hide();
 			return;
 		}
-
 		const insertionIndex = getRowMoveInsertionIndex(
 			keyboardSession.oldIndex,
 			keyboardSession.currentIndex
@@ -327,7 +326,6 @@ export const createSortableController = (
 			}
 			return;
 		}
-
 		if ( insertionIndex >= tbody.rows.length ) {
 			const lastRow = tbody.rows.item( tbody.rows.length - 1 );
 			if ( lastRow ) {
@@ -335,7 +333,6 @@ export const createSortableController = (
 			}
 			return;
 		}
-
 		const nextRow = tbody.rows.item( insertionIndex );
 		if ( nextRow ) {
 			insertionLine.show( nextRow, false );
@@ -346,12 +343,11 @@ export const createSortableController = (
 			return;
 		}
 		const keyboardSession = session;
-
 		keyboardSession.guidance.cleanup();
 		insertionLine.hide();
-		keyboardSession.entry.setPressed( false );
+		rowControls.setPressed( keyboardSession.control, false );
 		session = { kind: 'idle' };
-		releaseEntry();
+		releaseActiveControl();
 		if (
 			commit &&
 			commitRowMove( {
@@ -363,26 +359,24 @@ export const createSortableController = (
 		) {
 			return;
 		}
-
 		if ( ! commit ) {
 			announce(
 				getMoveCanceledAnnouncement( keyboardSession.rowLabel, keyboardSession.oldIndex + 1 )
 			);
 		}
 		touchModeGuidance?.setHidden( false );
-		keyboardSession.entry.control.focus();
+		keyboardSession.control.focus();
+		maybeUnpinControl( keyboardSession.control );
 	};
 	const finishSinglePointerSession = ( newIndex?: number, announceCancellation = true ) => {
 		if ( session.kind !== 'pointer' ) {
 			return;
 		}
 		const pointerSession = session;
-
 		pointerSession.targetsUi.cleanup();
-		pointerSession.entry.setPressed( false );
+		rowControls.setPressed( pointerSession.control, false );
 		session = { kind: 'idle' };
-		releaseEntry();
-
+		releaseActiveControl();
 		if (
 			newIndex !== undefined &&
 			commitRowMove( {
@@ -394,80 +388,113 @@ export const createSortableController = (
 		) {
 			return;
 		}
-
 		if ( announceCancellation ) {
 			announce(
 				getMoveCanceledAnnouncement( pointerSession.rowLabel, pointerSession.oldIndex + 1 )
 			);
 		}
 		touchModeGuidance?.setHidden( false );
-		pointerSession.entry.control.focus();
+		pointerSession.control.focus();
+		maybeUnpinControl( pointerSession.control );
 	};
-	const startSinglePointerSession = ( entry: RowControlEntry ) => {
+	const startSinglePointerSession = ( control: HTMLButtonElement ) => {
 		if ( session.kind !== 'idle' || ! rows ) {
 			return;
 		}
-
-		const oldIndex = Array.from( tbody.rows ).indexOf( entry.row );
-		if ( oldIndex < 0 || nonMovableRows.has( oldIndex ) ) {
+		const row = getRowFromControl( control );
+		const oldIndex = row?.sectionRowIndex ?? -1;
+		if ( ! row || oldIndex < 0 || nonMovableRows.has( oldIndex ) ) {
 			return;
 		}
-
 		const targets = getValidRowMoveTargets( oldIndex, constraints );
 		if ( targets.length === 0 ) {
-			entry.control.focus();
+			control.focus();
 			return;
 		}
-
-		const rowLabel = getRowRepresentativeText( entry.row );
-		activateEntry( entry );
-		entry.setPressed( true );
-		entry.control.focus();
+		const rowLabel = getRowRepresentativeText( row );
+		activateControl( control );
+		rowControls.pin( control );
+		rowControls.setPressed( control, true );
+		control.focus();
 		touchModeGuidance?.setHidden( true );
 		const targetsUi = createRowMoveTargets( document, tbody, targets, {
 			isTouch: ! useHoverMode,
 			onCancel: () => finishSinglePointerSession(),
 			onSelect: ( newIndex ) => finishSinglePointerSession( newIndex ),
 		} );
-		session = { kind: 'pointer', entry, oldIndex, rowLabel, targetsUi };
+		session = { kind: 'pointer', control, oldIndex, rowLabel, targetsUi };
 		announce( getDestinationRequestedAnnouncement( rowLabel ) );
 	};
-	const onRowPointerEnter = ( event: PointerEvent ) => {
-		if ( event.pointerType !== 'mouse' || session.kind !== 'idle' ) {
+	const findMovableControl = (
+		startIndex: number,
+		direction: -1 | 1
+	): HTMLButtonElement | null => {
+		for ( let index = startIndex + direction; index >= 0 && index < tbody.rows.length; index += direction ) {
+			if ( nonMovableRows.has( index ) ) {
+				continue;
+			}
+			const row = tbody.rows.item( index );
+			if ( ! row ) {
+				continue;
+			}
+			const control = rowControls.ensureControl( row );
+			if ( control ) {
+				return control;
+			}
+		}
+		return null;
+	};
+	const onPointerOver = ( event: PointerEvent ) => {
+		if ( ! useHoverMode || event.pointerType !== 'mouse' || session.kind !== 'idle' ) {
 			return;
 		}
-
-		const entry = entryByRow.get( event.currentTarget as HTMLTableRowElement );
-		if ( entry ) {
-			activateEntry( entry );
-		}
-	};
-	const onRowPointerLeave = ( event: PointerEvent ) => {
-		if ( event.pointerType !== 'mouse' ) {
+		const row = getRowFromElement( event.target as Element | null );
+		if ( ! row ) {
 			return;
 		}
-
-		const entry = entryByRow.get( event.currentTarget as HTMLTableRowElement );
-		if ( entry ) {
-			deactivateEntry( entry );
-		}
-	};
-	const onControlPointerDown = ( event: PointerEvent ) => {
-		if ( event.pointerType !== 'mouse' || session.kind !== 'idle' ) {
+		const relatedRow = getRowFromElement( event.relatedTarget as Element | null );
+		if ( relatedRow === row ) {
 			return;
 		}
-
-		const entry = entryByControl.get( event.currentTarget as HTMLButtonElement );
-		if ( entry ) {
-			activateEntry( entry );
+		const control = rowControls.ensureControl( row );
+		if ( control ) {
+			activateControl( control );
 		}
 	};
-	const onControlMouseDown = ( event: MouseEvent ) => {
-		if ( event.button === 0 ) {
+	const onPointerOut = ( event: PointerEvent ) => {
+		if ( ! useHoverMode || event.pointerType !== 'mouse' ) {
+			return;
+		}
+		const row = getRowFromElement( event.target as Element | null );
+		if ( ! row ) {
+			return;
+		}
+		const relatedRow = getRowFromElement( event.relatedTarget as Element | null );
+		if ( relatedRow === row ) {
+			return;
+		}
+		const control = row.querySelector< HTMLButtonElement >( `.${ HANDLE_ZONE_CLASS }` );
+		if ( control ) {
+			deactivateControl( control );
+		}
+	};
+	const onPointerDown = ( event: PointerEvent ) => {
+		rememberRowFromEvent( event );
+		const control = getControlFromElement( event.target as Element | null );
+		if ( control && event.pointerType === 'mouse' && session.kind === 'idle' ) {
+			activateControl( control );
+		}
+	};
+	const onMouseDown = ( event: MouseEvent ) => {
+		if ( useHoverMode && event.button === 0 && getControlFromElement( event.target as Element | null ) ) {
 			event.preventDefault();
 		}
 	};
-	const onControlClick = ( event: MouseEvent ) => {
+	const onClick = ( event: MouseEvent ) => {
+		const control = getControlFromElement( event.target as Element | null );
+		if ( ! control ) {
+			return;
+		}
 		if ( event.detail === 0 || session.kind === 'keyboard' || session.kind === 'dragging' ) {
 			return;
 		}
@@ -476,114 +503,113 @@ export const createSortableController = (
 			event.stopPropagation();
 			return;
 		}
-
-		const entry = entryByControl.get( event.currentTarget as HTMLButtonElement );
-		if ( ! entry ) {
-			return;
-		}
 		event.preventDefault();
 		event.stopPropagation();
-		if ( session.kind === 'pointer' && session.entry === entry ) {
+		if ( session.kind === 'pointer' && session.control === control ) {
 			return;
 		}
-		startSinglePointerSession( entry );
+		startSinglePointerSession( control );
 	};
-	const onControlFocus = ( event: FocusEvent ) => {
-		const entry = entryByControl.get( event.currentTarget as HTMLButtonElement );
-		if ( entry ) {
-			lastActiveRowIndex = Array.from( tbody.rows ).indexOf( entry.row );
-			rowControls.setVisible( entry, true );
+	const onFocusIn = ( event: FocusEvent ) => {
+		rememberRowFromEvent( event );
+		const control = getControlFromElement( event.target as Element | null );
+		if ( ! control ) {
+			return;
 		}
+		lastActiveRowIndex = getRowIndexFromElement( control );
+		rowControls.pin( control );
+		rowControls.setVisible( control, true );
 	};
-	const onControlBlur = ( event: FocusEvent ) => {
-		const entry = entryByControl.get( event.currentTarget as HTMLButtonElement );
-		if ( entry && session.kind === 'keyboard' && session.entry === entry ) {
+	const onFocusOut = ( event: FocusEvent ) => {
+		const control = getControlFromElement( event.target as Element | null );
+		if ( ! control ) {
+			return;
+		}
+		if ( session.kind === 'keyboard' && session.control === control ) {
 			queueMicrotask( () => {
-				if ( ! destroyed && session.kind === 'keyboard' && session.entry === entry ) {
-					entry.control.focus();
+				if ( ! destroyed && session.kind === 'keyboard' && session.control === control ) {
+					control.focus();
 				}
 			} );
 			return;
 		}
-		if ( entry && useHoverMode && activeEntry !== entry ) {
-			rowControls.setVisible( entry, false );
+		if ( useHoverMode && activeControl !== control ) {
+			rowControls.setVisible( control, false );
 		}
+		queueMicrotask( () => {
+			if ( ! destroyed ) {
+				maybeUnpinControl( control );
+			}
+		} );
 	};
-	const onControlKeyDown = ( event: KeyboardEvent ) => {
-		const entry = entryByControl.get( event.currentTarget as HTMLButtonElement );
-		if ( ! entry || session.kind === 'dragging' || session.kind === 'pointer' ) {
+	const onKeyDown = ( event: KeyboardEvent ) => {
+		const control = getControlFromElement( event.target as Element | null );
+		if ( ! control || session.kind === 'dragging' || session.kind === 'pointer' ) {
 			return;
 		}
-
 		if ( event.repeat && ( event.key === 'Enter' || event.key === ' ' ) ) {
 			return;
 		}
-
 		if ( session.kind === 'idle' ) {
-			// 待機中のフォーカス移動を防ぐため、修飾キーなしの上下矢印だけを抑止する。
 			const isUnmodifiedArrowKey =
 				( event.key === 'ArrowUp' || event.key === 'ArrowDown' ) &&
 				! event.shiftKey &&
 				! event.ctrlKey &&
 				! event.altKey &&
 				! event.metaKey;
-
 			if ( isUnmodifiedArrowKey ) {
 				event.preventDefault();
 				event.stopPropagation();
 				return;
 			}
-
 			if ( event.key === 'Tab' ) {
-				const entryIndex = entries.indexOf( entry );
-				const nextEntry = entries[ entryIndex + ( event.shiftKey ? -1 : 1 ) ];
-				if ( nextEntry ) {
+				const rowIndex = getRowIndexFromElement( control );
+				const nextControl =
+					rowIndex === null ? null : findMovableControl( rowIndex, event.shiftKey ? -1 : 1 );
+				if ( nextControl ) {
 					event.preventDefault();
 					event.stopPropagation();
-					nextEntry.control.focus();
+					nextControl.focus();
 				}
 				return;
 			}
-
 			if ( event.key !== 'Enter' && event.key !== ' ' ) {
 				return;
 			}
-
-			const rowIndex = Array.from( tbody.rows ).indexOf( entry.row );
-			if ( rowIndex < 0 || nonMovableRows.has( rowIndex ) ) {
+			const row = getRowFromControl( control );
+			const rowIndex = row?.sectionRowIndex ?? -1;
+			if ( ! row || rowIndex < 0 || nonMovableRows.has( rowIndex ) ) {
 				return;
 			}
-
 			event.preventDefault();
 			event.stopPropagation();
-			const rowLabel = getRowRepresentativeText( entry.row );
-			activateEntry( entry );
+			const rowLabel = getRowRepresentativeText( row );
+			activateControl( control );
+			rowControls.pin( control );
 			touchModeGuidance?.setHidden( true );
-			entry.setPressed( true );
+			rowControls.setPressed( control, true );
 			const guidance = createReorderGuidance( document, tbody, getKeyboardActiveMessage() );
 			session = {
 				kind: 'keyboard',
+				control,
 				currentIndex: rowIndex,
-				entry,
 				lastBoundaryDirection: null,
 				oldIndex: rowIndex,
 				rowLabel,
 				guidance,
 			};
 			announce( getMoveStartedAnnouncement( rowLabel, rowIndex + 1, constraints.rowCount ) );
-			entry.control.focus();
+			control.focus();
 			return;
 		}
-
 		const keyboardSession = session;
-		if ( keyboardSession.entry !== entry ) {
+		if ( keyboardSession.control !== control ) {
 			return;
 		}
-
 		if ( event.key === 'Tab' ) {
 			event.preventDefault();
 			event.stopPropagation();
-			entry.control.focus();
+			control.focus();
 			return;
 		}
 		if ( event.key === 'Escape' ) {
@@ -601,7 +627,6 @@ export const createSortableController = (
 		if ( event.key !== 'ArrowUp' && event.key !== 'ArrowDown' ) {
 			return;
 		}
-
 		event.preventDefault();
 		event.stopPropagation();
 		const direction: RowMoveDirection = event.key === 'ArrowUp' ? 'up' : 'down';
@@ -618,7 +643,6 @@ export const createSortableController = (
 			}
 			return;
 		}
-
 		keyboardSession.currentIndex = nextIndex;
 		keyboardSession.lastBoundaryDirection = null;
 		showKeyboardCandidate( keyboardSession );
@@ -647,25 +671,21 @@ export const createSortableController = (
 		tbody.addEventListener( eventName, stopRowControlInteractionPropagation );
 	}
 	document.addEventListener( 'keydown', onDocumentKeyDown, true );
-	tbody.addEventListener( 'focusin', rememberRowFromEvent );
-	tbody.addEventListener( 'pointerdown', rememberRowFromEvent );
-	for ( const entry of entries ) {
-		entry.control.addEventListener( 'focus', onControlFocus );
-		entry.control.addEventListener( 'blur', onControlBlur );
-		entry.control.addEventListener( 'click', onControlClick );
-		entry.control.addEventListener( 'keydown', onControlKeyDown );
-		entry.control.addEventListener( 'pointerdown', onControlPointerDown );
-		if ( useHoverMode ) {
-			entry.control.addEventListener( 'mousedown', onControlMouseDown );
-			entry.row.addEventListener( 'pointerenter', onRowPointerEnter );
-			entry.row.addEventListener( 'pointerleave', onRowPointerLeave );
-		}
-	}
-
+	tbody.addEventListener( 'focusin', onFocusIn );
+	tbody.addEventListener( 'focusout', onFocusOut );
+	tbody.addEventListener( 'pointerdown', onPointerDown );
+	tbody.addEventListener( 'click', onClick );
+	tbody.addEventListener( 'keydown', onKeyDown );
 	if ( useHoverMode ) {
-		const hoveredEntry = entries.find( ( entry ) => entry.row.matches( ':hover' ) );
-		if ( hoveredEntry ) {
-			activateEntry( hoveredEntry );
+		tbody.addEventListener( 'mousedown', onMouseDown );
+		tbody.addEventListener( 'pointerover', onPointerOver );
+		tbody.addEventListener( 'pointerout', onPointerOut );
+		const hoveredRow = Array.from( tbody.rows ).find( ( row ) => row.matches( ':hover' ) );
+		if ( hoveredRow ) {
+			const control = rowControls.ensureControl( hoveredRow );
+			if ( control ) {
+				activateControl( control );
+			}
 		}
 	}
 
@@ -673,7 +693,6 @@ export const createSortableController = (
 		if ( destroyed || ! Sortable ) {
 			return;
 		}
-
 		const sortableOptions: SortableOptions = {
 			animation: 150,
 			bubbleScroll: true,
@@ -684,9 +703,14 @@ export const createSortableController = (
 				if ( session.kind !== 'keyboard' ) {
 					insertionLine.hide();
 				}
+				const row = event.item as HTMLTableRowElement;
+				dragControl = row.querySelector< HTMLButtonElement >( `.${ HANDLE_ZONE_CLASS }` );
+				if ( dragControl ) {
+					rowControls.pin( dragControl );
+				}
 				dragSnapshot = {
 					rows: Array.from( tbody.rows ),
-					rowLabel: getRowRepresentativeText( event.item as HTMLTableRowElement ),
+					rowLabel: getRowRepresentativeText( row ),
 				};
 				restoreFallbackWidths();
 				restoreFallbackCellWidths = fixFallbackRowCellWidths( event.item );
@@ -702,8 +726,8 @@ export const createSortableController = (
 				session = { kind: 'dragging' };
 				suppressPointerClickUntil = Number.POSITIVE_INFINITY;
 				suppressBlockDrag();
-				if ( activeEntry ) {
-					rowControls.setVisible( activeEntry, true );
+				if ( dragControl ) {
+					rowControls.setVisible( dragControl, true );
 				}
 			},
 			onMove: ( event ) => {
@@ -717,7 +741,6 @@ export const createSortableController = (
 					insertionLine.hide();
 					return;
 				}
-
 				const insertionIndex = getMoveInsertionIndex(
 					{
 						insertAfter: event.willInsertAfter,
@@ -729,23 +752,21 @@ export const createSortableController = (
 					insertionLine.hide();
 					return;
 				}
-
 				if ( forbiddenInsertionIndices.includes( insertionIndex ) ) {
 					insertionLine.hide();
 					return false;
 				}
-
 				const relatedRow = event.related.closest< HTMLTableRowElement >( 'tr' );
 				if ( ! relatedRow || relatedRow.parentElement !== tbody ) {
 					insertionLine.hide();
 					return;
 				}
-
 				insertionLine.show( relatedRow, event.willInsertAfter );
 			},
 			onEnd: ( event ) => {
 				const completedDrag = session.kind === 'dragging';
 				const completedSnapshot = dragSnapshot;
+				const completedControl = dragControl;
 				if ( completedDrag ) {
 					insertionLine.hide();
 					session = { kind: 'idle' };
@@ -753,31 +774,35 @@ export const createSortableController = (
 				}
 				restoreFallbackWidths();
 				cleanupDragSnapshot();
-
+				dragControl = null;
 				if ( ! completedDrag ) {
 					if ( session.kind === 'keyboard' ) {
 						showKeyboardCandidate( session );
-						session.entry.control.focus();
+						session.control.focus();
+					}
+					if ( completedControl ) {
+						maybeUnpinControl( completedControl );
 					}
 					return;
 				}
-
 				if ( useHoverMode ) {
-					const hoveredAfterDrag = entries.find( ( entry ) => entry.row.matches( ':hover' ) );
-					if ( hoveredAfterDrag ) {
-						activateEntry( hoveredAfterDrag );
+					const hoveredRow = Array.from( tbody.rows ).find( ( row ) => row.matches( ':hover' ) );
+					const hoveredControl = hoveredRow ? rowControls.ensureControl( hoveredRow ) : null;
+					if ( hoveredControl ) {
+						activateControl( hoveredControl );
 					} else {
-						releaseEntry();
+						releaseActiveControl();
 					}
 				} else {
 					restoreBlockDrag();
 				}
-
+				if ( completedControl ) {
+					maybeUnpinControl( completedControl );
+				}
 				const { oldIndex, newIndex } = event;
 				if ( oldIndex === undefined || newIndex === undefined || ! completedSnapshot ) {
 					return;
 				}
-
 				commitRowMove( {
 					oldIndex,
 					newIndex,
@@ -799,7 +824,6 @@ export const createSortableController = (
 			scrollSensitivity: AUTO_SCROLL_SENSITIVITY_PX,
 			scrollSpeed: AUTO_SCROLL_SPEED_PX,
 		};
-
 		const createdSortable = Sortable.create( tbody, sortableOptions );
 		if ( destroyed ) {
 			createdSortable.destroy();
@@ -809,30 +833,34 @@ export const createSortableController = (
 	} );
 
 	const focusRowControlAt = ( rowIndex: number ): boolean => {
-		const row = tbody.rows.item( rowIndex );
-		const entry = row ? entryByRow.get( row ) : undefined;
-		if ( ! entry ) {
+		if ( nonMovableRows.has( rowIndex ) ) {
 			return false;
 		}
-
+		const row = tbody.rows.item( rowIndex );
+		const control = row ? rowControls.ensureControl( row ) : null;
+		if ( ! control ) {
+			return false;
+		}
 		lastActiveRowIndex = rowIndex;
-		rowControls.setVisible( entry, true );
-		entry.control.focus();
+		rowControls.pin( control );
+		rowControls.setVisible( control, true );
+		control.focus();
 		return true;
 	};
 
 	return {
 		focusRowControl: () => {
-			if ( entries.length === 0 ) {
+			const firstMovableRowIndex = Array.from( tbody.rows ).findIndex(
+				( _row, rowIndex ) => ! nonMovableRows.has( rowIndex )
+			);
+			if ( firstMovableRowIndex < 0 ) {
 				announce( getNoMovableRowsAnnouncement() );
 				return 'no-movable-rows';
 			}
-
-			const activeRowIndex = getRowIndexFromElement( tbody.ownerDocument.activeElement );
+			const activeRowIndex = getRowIndexFromElement( document.activeElement );
 			if ( activeRowIndex !== null ) {
 				lastActiveRowIndex = activeRowIndex;
 			}
-
 			if ( lastActiveRowIndex !== null ) {
 				if ( nonMovableRows.has( lastActiveRowIndex ) ) {
 					const row = tbody.rows.item( lastActiveRowIndex );
@@ -845,8 +873,7 @@ export const createSortableController = (
 					return 'focused';
 				}
 			}
-
-			focusRowControlAt( Array.from( tbody.rows ).indexOf( entries[ 0 ].row ) );
+			focusRowControlAt( firstMovableRowIndex );
 			return 'focused';
 		},
 		focusRowControlAt,
@@ -854,15 +881,14 @@ export const createSortableController = (
 			if ( destroyed ) {
 				return;
 			}
-
 			destroyed = true;
 			if ( session.kind === 'keyboard' ) {
-				session.entry.setPressed( false );
+				rowControls.setPressed( session.control, false );
 				session.guidance.cleanup();
 			} else if ( session.kind === 'pointer' ) {
 				announce( getMoveCanceledAnnouncement( session.rowLabel, session.oldIndex + 1 ) );
 				session.targetsUi.cleanup();
-				session.entry.setPressed( false );
+				rowControls.setPressed( session.control, false );
 			}
 			session = { kind: 'idle' };
 			touchModeGuidance?.cleanup();
@@ -872,25 +898,22 @@ export const createSortableController = (
 			insertionLine.cleanup();
 			restoreFallbackWidths();
 			document.removeEventListener( 'keydown', onDocumentKeyDown, true );
-			for ( const entry of entries ) {
-				entry.control.removeEventListener( 'focus', onControlFocus );
-				entry.control.removeEventListener( 'blur', onControlBlur );
-				entry.control.removeEventListener( 'click', onControlClick );
-				entry.control.removeEventListener( 'keydown', onControlKeyDown );
-				entry.control.removeEventListener( 'pointerdown', onControlPointerDown );
-				if ( useHoverMode ) {
-					entry.control.removeEventListener( 'mousedown', onControlMouseDown );
-					entry.row.removeEventListener( 'pointerenter', onRowPointerEnter );
-					entry.row.removeEventListener( 'pointerleave', onRowPointerLeave );
-				}
-			}
 			for ( const eventName of blockSelectionEvents ) {
 				tbody.removeEventListener( eventName, stopRowControlInteractionPropagation );
 			}
-			tbody.removeEventListener( 'focusin', rememberRowFromEvent );
-			tbody.removeEventListener( 'pointerdown', rememberRowFromEvent );
+			tbody.removeEventListener( 'focusin', onFocusIn );
+			tbody.removeEventListener( 'focusout', onFocusOut );
+			tbody.removeEventListener( 'pointerdown', onPointerDown );
+			tbody.removeEventListener( 'click', onClick );
+			tbody.removeEventListener( 'keydown', onKeyDown );
+			if ( useHoverMode ) {
+				tbody.removeEventListener( 'mousedown', onMouseDown );
+				tbody.removeEventListener( 'pointerover', onPointerOver );
+				tbody.removeEventListener( 'pointerout', onPointerOut );
+			}
 			cleanupDragSnapshot();
-			releaseEntry();
+			dragControl = null;
+			releaseActiveControl();
 			rowControls.cleanup();
 		},
 	};
