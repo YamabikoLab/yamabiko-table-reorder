@@ -143,7 +143,7 @@ const installMatchMedia = ( initialMatches: boolean ): MatchMediaHarness => {
 const HookHarness = ( options: UseTableReorderOptions ) => {
 	const result = useTableReorder( options );
 	latestResult = result;
-	return createElement( 'span', { ref: result.anchorRef } );
+	return createElement( 'span', { ref: result.editorCanvasReferenceRef } );
 };
 
 const getResult = (): TableReorderHookResult => {

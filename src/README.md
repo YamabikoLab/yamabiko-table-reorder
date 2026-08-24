@@ -83,7 +83,7 @@ Editor browsing-context differences are isolated behind `common/editor-environme
 
 The Editor Environment resolves the current editor context with this rule:
 
-1. Start from the React anchor's owning `document`.
+1. Start from the editor canvas reference element's owning `document`.
 2. If `[data-block="<clientId>"]` exists there, use that document and its `defaultView`.
 3. Otherwise, inspect every `iframe[name="editor-canvas"]` in document order and select the first current `contentDocument` that contains the target block.
 4. Return that document together with its own `defaultView`, so `document` and `window` always belong to the same browsing context.

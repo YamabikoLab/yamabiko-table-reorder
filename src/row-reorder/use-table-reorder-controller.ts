@@ -39,7 +39,7 @@ type UseTableReorderControllerOptions = {
 
 /** controller lifecycle hookが親へ公開する最小command API。 */
 type TableReorderControllerCommands = {
-	anchorRef: ( anchor: HTMLSpanElement | null ) => void;
+	editorCanvasReferenceRef: ( referenceElement: HTMLSpanElement | null ) => void;
 	focusRowControl: () => FocusRowControlResult | undefined;
 };
 
@@ -47,7 +47,7 @@ type TableReorderControllerCommands = {
  * Table Reorderのcontroller生成・cleanupとcommit後のfocus復元を所有する。
  *
  * @param options controller生成に必要なTable情報、算出済み制約、body commit callback。
- * @return hidden anchor用refとToolbarから利用するcontroller command。
+ * @return editor canvas reference用refとToolbarから利用するcontroller command。
  */
 export const useTableReorderController = (
 	options: UseTableReorderControllerOptions
@@ -69,8 +69,8 @@ export const useTableReorderController = (
 		onBodyCommitRef.current = onBodyCommit;
 	}, [ onBodyCommit ] );
 
-	const anchorRef = useRefEffect(
-		( anchor: HTMLSpanElement ) => {
+	const editorCanvasReferenceRef = useRefEffect(
+		( referenceElement: HTMLSpanElement ) => {
 			controllerRef.current = null;
 			if ( ! enabled || ! interactionMode ) {
 				return;
@@ -84,7 +84,7 @@ export const useTableReorderController = (
 				return;
 			}
 
-			const context = resolveTableContext( anchor, clientId );
+			const context = resolveTableContext( referenceElement, clientId );
 			if ( ! context ) {
 				return;
 			}
@@ -153,7 +153,7 @@ export const useTableReorderController = (
 	);
 
 	return {
-		anchorRef,
+		editorCanvasReferenceRef,
 		focusRowControl: () => controllerRef.current?.focusRowControl(),
 	};
 };

@@ -21,21 +21,21 @@ const containsBlock = ( document: Document, clientId: string ): boolean =>
 	document.querySelector( `[data-block="${ clientId }"]` ) !== null;
 
 /**
- * anchor の owning document を起点に、現在の editor browsing context を解決する。
+ * reference element の owning document を起点に、現在の editor browsing context を解決する。
  *
  * non-iframe editor を優先し、対象 block が root document に存在しない場合だけ
  * `iframe[name="editor-canvas"]` をすべて探索する。結果は cache しないため、iframe が
  * teardown / recreation された場合は次回呼び出しで新しい context を解決する。
  *
- * @param anchor   editor context 探索の起点となる DOM element。
- * @param clientId 解決対象 Gutenberg block の clientId。
+ * @param referenceElement editor context 探索の起点となる DOM element。
+ * @param clientId         解決対象 Gutenberg block の clientId。
  * @return 現在の editor document / window。解決できない場合は null。
  */
 export const resolveEditorEnvironment = (
-	anchor: Element,
+	referenceElement: Element,
 	clientId: string
 ): EditorEnvironment | null => {
-	const rootDocument = anchor.ownerDocument;
+	const rootDocument = referenceElement.ownerDocument;
 	if ( containsBlock( rootDocument, clientId ) ) {
 		const view = rootDocument.defaultView;
 		return view ? { document: rootDocument, window: view } : null;

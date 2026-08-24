@@ -59,10 +59,14 @@ const createMockController = ( focusResult = true ): MockController => ( {
 	focusRowControlAt: jest.fn< boolean, [ number ] >( () => focusResult ),
 } );
 
-const Harness = ( props: { anchorKey: string; options: HookOptions; renderAnchor: boolean } ) => {
-	const { anchorRef } = useTableReorderController( props.options );
-	return props.renderAnchor
-		? createElement( 'span', { key: props.anchorKey, ref: anchorRef } )
+const Harness = ( props: {
+	referenceKey: string;
+	options: HookOptions;
+	renderReference: boolean;
+} ) => {
+	const { editorCanvasReferenceRef } = useTableReorderController( props.options );
+	return props.renderReference
+		? createElement( 'span', { key: props.referenceKey, ref: editorCanvasReferenceRef } )
 		: null;
 };
 
@@ -77,16 +81,16 @@ const createOptions = ( overrides: Partial< HookOptions > = {} ): HookOptions =>
 	...overrides,
 } );
 
-const mountHook = ( initialOptions: HookOptions, initialRenderAnchor = true ) => {
+const mountHook = ( initialOptions: HookOptions, initialRenderReference = true ) => {
 	const container = document.createElement( 'div' );
 	document.body.append( container );
 	const root = createRoot( container );
 	let options = initialOptions;
-	let anchorKey = 'anchor-a';
-	let renderAnchor = initialRenderAnchor;
+	let referenceKey = 'reference-a';
+	let renderReference = initialRenderReference;
 	const render = () => {
 		act( () => {
-			root.render( createElement( Harness, { anchorKey, options, renderAnchor } ) );
+			root.render( createElement( Harness, { referenceKey, options, renderReference } ) );
 		} );
 	};
 	render();
@@ -96,12 +100,12 @@ const mountHook = ( initialOptions: HookOptions, initialRenderAnchor = true ) =>
 			options = { ...options, ...overrides };
 			render();
 		},
-		replaceAnchor: () => {
-			anchorKey = anchorKey === 'anchor-a' ? 'anchor-b' : 'anchor-a';
+		replaceReference: () => {
+			referenceKey = referenceKey === 'reference-a' ? 'reference-b' : 'reference-a';
 			render();
 		},
-		removeAnchor: () => {
-			renderAnchor = false;
+		removeReference: () => {
+			renderReference = false;
 			render();
 		},
 		unmount: () => {
@@ -150,7 +154,7 @@ afterEach( () => {
 } );
 
 describe( 'useTableReorderController', () => {
-	it( 'does not resolve table context when the anchor is unavailable', () => {
+	it( 'does not resolve table context when the editor canvas reference is unavailable', () => {
 		const harness = mountHook( createOptions(), false );
 		flushLifecycleMicrotasks();
 
@@ -190,14 +194,14 @@ describe( 'useTableReorderController', () => {
 
 	it( 'does not create a controller when cleanup happens before its creation microtask', () => {
 		const harness = mountHook( createOptions() );
-		harness.removeAnchor();
+		harness.removeReference();
 		flushLifecycleMicrotasks();
 
 		expect( createSortableControllerMock ).not.toHaveBeenCalled();
 		harness.unmount();
 	} );
 
-	it( 'cleans up and recreates the controller when the anchor DOM node is replaced', () => {
+	it( 'cleans up and recreates the controller when the editor canvas reference DOM node is replaced', () => {
 		const firstContext = createContext();
 		const secondContext = createContext();
 		const firstController = createMockController();
@@ -210,16 +214,16 @@ describe( 'useTableReorderController', () => {
 			.mockReturnValueOnce( secondController );
 		const harness = mountHook( createOptions() );
 		flushLifecycleMicrotasks();
-		const firstAnchor = resolveTableContextMock.mock.calls[ 0 ]?.[ 0 ];
+		const firstReference = resolveTableContextMock.mock.calls[ 0 ]?.[ 0 ];
 
-		harness.replaceAnchor();
+		harness.replaceReference();
 		flushLifecycleMicrotasks();
-		const secondAnchor = resolveTableContextMock.mock.calls[ 1 ]?.[ 0 ];
+		const secondReference = resolveTableContextMock.mock.calls[ 1 ]?.[ 0 ];
 
 		expect( firstController.destroy ).toHaveBeenCalledTimes( 1 );
-		expect( firstAnchor ).toBeInstanceOf( HTMLSpanElement );
-		expect( secondAnchor ).toBeInstanceOf( HTMLSpanElement );
-		expect( secondAnchor ).not.toBe( firstAnchor );
+		expect( firstReference ).toBeInstanceOf( HTMLSpanElement );
+		expect( secondReference ).toBeInstanceOf( HTMLSpanElement );
+		expect( secondReference ).not.toBe( firstReference );
 		expect( createSortableControllerMock ).toHaveBeenNthCalledWith(
 			2,
 			expect.objectContaining( { context: secondContext } )
