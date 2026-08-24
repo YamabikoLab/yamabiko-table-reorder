@@ -1,4 +1,4 @@
-import { getColumnCells } from './table-context';
+import { getColumnCells, resolveColumnTableContext } from './table-context';
 
 const createTable = ( markup: string ): HTMLTableElement => {
 	document.body.innerHTML = markup;
@@ -7,6 +7,21 @@ const createTable = ( markup: string ): HTMLTableElement => {
 		throw new Error( 'table fixture was not created' );
 	}
 	return table;
+};
+
+const appendTableBlock = ( targetDocument: Document, clientId: string ) => {
+	const block = targetDocument.createElement( 'div' );
+	block.dataset.block = clientId;
+	const table = targetDocument.createElement( 'table' );
+	const tbody = targetDocument.createElement( 'tbody' );
+	const row = targetDocument.createElement( 'tr' );
+	const cell = targetDocument.createElement( 'td' );
+	row.append( cell );
+	tbody.append( row );
+	table.append( tbody );
+	block.append( table );
+	targetDocument.body.append( block );
+	return { block, cell, table };
 };
 
 describe( 'getColumnCells', () => {
@@ -47,5 +62,68 @@ describe( 'getColumnCells', () => {
 	] )( 'rejects merged-cell tables: %s', ( rows ) => {
 		const table = createTable( `<table><tbody>${ rows }</tbody></table>` );
 		expect( getColumnCells( table ) ).toBeNull();
+	} );
+} );
+
+describe( 'resolveColumnTableContext', () => {
+	beforeEach( () => {
+		document.body.replaceChildren();
+	} );
+
+	it( 'resolves the Column context from the reference element owning document', () => {
+		const referenceElement = document.createElement( 'span' );
+		document.body.append( referenceElement );
+		const { block, cell, table } = appendTableBlock( document, 'root-block' );
+
+		expect( resolveColumnTableContext( referenceElement, 'root-block' ) ).toEqual( {
+			blockElement: block,
+			columns: [ cell ],
+			document,
+			table,
+			window,
+		} );
+	} );
+
+	it( 'uses only the reference element owning document', () => {
+		const iframe = document.createElement( 'iframe' );
+		document.body.append( iframe );
+		if ( ! iframe.contentDocument || ! iframe.contentWindow ) {
+			throw new Error( 'Expected iframe document and window in jsdom' );
+		}
+		const referenceElement = iframe.contentDocument.createElement( 'span' );
+		iframe.contentDocument.body.append( referenceElement );
+		const iframeTable = appendTableBlock( iframe.contentDocument, 'shared-block' );
+		appendTableBlock( document, 'shared-block' );
+
+		expect( resolveColumnTableContext( referenceElement, 'shared-block' ) ).toEqual( {
+			blockElement: iframeTable.block,
+			columns: [ iframeTable.cell ],
+			document: iframe.contentDocument,
+			table: iframeTable.table,
+			window: iframe.contentWindow,
+		} );
+	} );
+
+	it( 'does not search another document for the target block', () => {
+		const referenceElement = document.createElement( 'span' );
+		document.body.append( referenceElement );
+		const iframe = document.createElement( 'iframe' );
+		document.body.append( iframe );
+		if ( ! iframe.contentDocument ) {
+			throw new Error( 'Expected iframe contentDocument in jsdom' );
+		}
+		appendTableBlock( iframe.contentDocument, 'iframe-only-block' );
+
+		expect( resolveColumnTableContext( referenceElement, 'iframe-only-block' ) ).toBeNull();
+	} );
+
+	it( 'returns null when the owning document has no defaultView', () => {
+		const detachedDocument = document.implementation.createHTMLDocument();
+		const referenceElement = detachedDocument.createElement( 'span' );
+		detachedDocument.body.append( referenceElement );
+		appendTableBlock( detachedDocument, 'detached-block' );
+
+		expect( detachedDocument.defaultView ).toBeNull();
+		expect( resolveColumnTableContext( referenceElement, 'detached-block' ) ).toBeNull();
 	} );
 } );
