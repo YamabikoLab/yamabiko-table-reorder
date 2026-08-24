@@ -59,7 +59,11 @@ const createMockController = ( focusResult = true ): MockController => ( {
 	focusRowControlAt: jest.fn< boolean, [ number ] >( () => focusResult ),
 } );
 
-const Harness = ( props: { referenceKey: string; options: HookOptions; renderReference: boolean } ) => {
+const Harness = ( props: {
+	referenceKey: string;
+	options: HookOptions;
+	renderReference: boolean;
+} ) => {
 	const { editorCanvasReferenceRef } = useTableReorderController( props.options );
 	return props.renderReference
 		? createElement( 'span', { key: props.referenceKey, ref: editorCanvasReferenceRef } )

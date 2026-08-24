@@ -151,8 +151,7 @@ const mountHook = ( props: Partial< HookHarnessProps > = {} ) => {
 		replaceReference: () => {
 			currentProps = {
 				...currentProps,
-				referenceKey:
-					currentProps.referenceKey === 'reference-a' ? 'reference-b' : 'reference-a',
+				referenceKey: currentProps.referenceKey === 'reference-a' ? 'reference-b' : 'reference-a',
 			};
 			render();
 		},

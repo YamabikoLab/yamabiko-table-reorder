@@ -81,20 +81,18 @@ export const useTableReorder = ( options: UseTableReorderOptions ): TableReorder
 		isSelected,
 	} );
 
-	const {
-		editorCanvasReferenceRef: controllerEditorCanvasReferenceRef,
-		focusRowControl,
-	} = useTableReorderController( {
-		body,
-		clientId,
-		enabled,
-		forbiddenInsertionIndices,
-		interactionMode,
-		nonMovableRowIndices,
-		onBodyCommit: ( reorderedBody ) => {
-			setAttributes( { body: reorderedBody } );
-		},
-	} );
+	const { editorCanvasReferenceRef: controllerEditorCanvasReferenceRef, focusRowControl } =
+		useTableReorderController( {
+			body,
+			clientId,
+			enabled,
+			forbiddenInsertionIndices,
+			interactionMode,
+			nonMovableRowIndices,
+			onBodyCommit: ( reorderedBody ) => {
+				setAttributes( { body: reorderedBody } );
+			},
+		} );
 	const editorCanvasReferenceRef = useMergeRefs( [
 		editorCanvasReferenceElementRef,
 		interactionEditorCanvasReferenceRef,
