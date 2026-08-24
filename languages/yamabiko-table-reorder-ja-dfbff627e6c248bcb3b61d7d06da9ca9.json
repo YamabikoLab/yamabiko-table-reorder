@@ -77,7 +77,19 @@
 			],
 			"There are no rows that can be reordered in this table.": [
 				"\u3053\u306e\u8868\u306b\u306f\u4e26\u3079\u66ff\u3048\u3067\u304d\u308b\u884c\u304c\u3042\u308a\u307e\u305b\u3093\u3002"
-			]
+			],
+			"Moved column from position %1$d to %2$d.": [ "" ],
+			"Reorder column %d": [ "" ],
+			"Canceled moving column %d.": [ "" ],
+			"left": [ "" ],
+			"right": [ "" ],
+			"This column cannot move any farther %s.": [ "" ],
+			"Press Enter or Space to start moving this column.": [ "" ],
+			"\u2190 \u2192 Move\u3000Enter / Space Confirm\u3000Esc Cancel": [ "" ],
+			"Move before column %d": [ "" ],
+			"Moving column %1$d of %2$d.": [ "" ],
+			"Column %d selected. Choose a destination.": [ "" ],
+			"Move column to position %1$d of %2$d.": [ "" ]
 		}
 	}
 }
