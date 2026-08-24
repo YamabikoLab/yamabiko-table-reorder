@@ -277,11 +277,11 @@ const ColumnReorderEdit = ( componentProps: ColumnReorderEditProps ) => {
 	};
 
 	const showControls = isSelected && geometry;
-	const guidance = session
-		? session.mode === 'keyboard'
-			? getColumnKeyboardGuidance()
-			: getColumnPointerGuidance()
-		: null;
+	let guidance: string | null = null;
+	if ( session ) {
+		guidance =
+			session.mode === 'keyboard' ? getColumnKeyboardGuidance() : getColumnPointerGuidance();
+	}
 
 	return (
 		<>
