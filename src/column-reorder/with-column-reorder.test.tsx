@@ -1,12 +1,8 @@
-import { createElement, createRoot } from '@wordpress/element';
+import { createElement, createRoot, useState } from '@wordpress/element';
 
 import { withColumnReorder } from './with-column-reorder';
 
 const { act } = jest.requireActual< { act: ( callback: () => void ) => void } >( 'react' );
-
-jest.mock( '@wordpress/components', () => ( {
-	Button: 'button',
-} ) );
 
 type TableAttributes = {
 	body: Array< {
@@ -14,7 +10,7 @@ type TableAttributes = {
 	} >;
 };
 
-const attributes: TableAttributes = {
+const initialAttributes: TableAttributes = {
 	body: [
 		{
 			cells: [ { content: 'A' }, { content: 'B' }, { content: 'C' } ],
@@ -22,32 +18,36 @@ const attributes: TableAttributes = {
 	],
 };
 
-const BlockEdit = jest.fn( ( { clientId }: { clientId: string } ) =>
-	createElement(
-		'div',
-		{ 'data-block': clientId },
+const BlockEdit = jest.fn(
+	( { attributes, clientId }: { attributes: TableAttributes; clientId: string } ) =>
 		createElement(
-			'table',
-			null,
+			'div',
+			{ 'data-block': clientId },
 			createElement(
-				'tbody',
+				'table',
 				null,
 				createElement(
-					'tr',
+					'tbody',
 					null,
-					createElement( 'td', null, 'A' ),
-					createElement( 'td', null, 'B' ),
-					createElement( 'td', null, 'C' )
+					createElement(
+						'tr',
+						null,
+						...attributes.body[ 0 ].cells.map( ( cell ) =>
+							createElement( 'td', { key: cell.content }, cell.content )
+						)
+					)
 				)
 			)
 		)
-	)
 );
 
 const WithColumnReorder = withColumnReorder( BlockEdit );
 type WithColumnReorderProps = Parameters< typeof WithColumnReorder >[ 0 ];
 
-const createProps = ( setAttributes = jest.fn() ): WithColumnReorderProps =>
+const createProps = (
+	attributes: TableAttributes,
+	setAttributes: ( nextAttributes: TableAttributes ) => void
+): WithColumnReorderProps =>
 	( {
 		attributes,
 		clientId: 'column-table',
@@ -56,15 +56,27 @@ const createProps = ( setAttributes = jest.fn() ): WithColumnReorderProps =>
 		setAttributes,
 	} ) as unknown as WithColumnReorderProps;
 
-const render = ( props: WithColumnReorderProps ) => {
+const render = () => {
 	const container = document.createElement( 'div' );
 	document.body.append( container );
 	const root = createRoot( container );
+	const setAttributes = jest.fn();
+	const Harness = () => {
+		const [ attributes, setCurrentAttributes ] = useState( initialAttributes );
+		return createElement(
+			WithColumnReorder,
+			createProps( attributes, ( nextAttributes ) => {
+				setAttributes( nextAttributes );
+				setCurrentAttributes( nextAttributes );
+			} )
+		);
+	};
 	act( () => {
-		root.render( createElement( WithColumnReorder, props ) );
+		root.render( createElement( Harness ) );
 	} );
 	return {
 		container,
+		setAttributes,
 		unmount: () => {
 			act( () => {
 				root.unmount();
@@ -86,7 +98,7 @@ const pressKey = ( control: HTMLButtonElement, key: string ) => {
 	return event;
 };
 
-const clickControl = ( control: HTMLButtonElement ) => {
+const click = ( control: HTMLButtonElement ) => {
 	act( () => {
 		control.dispatchEvent(
 			new MouseEvent( 'click', {
@@ -100,7 +112,9 @@ const clickControl = ( control: HTMLButtonElement ) => {
 
 const getControls = ( container: HTMLElement ): HTMLButtonElement[] =>
 	Array.from(
-		container.querySelectorAll< HTMLButtonElement >( '.yamabiko-column-reorder-control' )
+		container.querySelectorAll< HTMLButtonElement >(
+			'.yamabiko-table-reorder-column-handle-zone'
+		)
 	);
 
 beforeAll( () => {
@@ -113,34 +127,37 @@ beforeEach( () => {
 } );
 
 describe( 'withColumnReorder', () => {
-	it( 'moves and commits a column with the keyboard', () => {
-		const setAttributes = jest.fn();
-		const mounted = render( createProps( setAttributes ) );
-		const controls = getControls( mounted.container );
+	it( 'moves a keyboard destination by insertion boundary and restores focus after commit', () => {
+		const mounted = render();
+		let controls = getControls( mounted.container );
 		controls[ 0 ].focus();
 
 		expect( pressKey( controls[ 0 ], 'Enter' ).defaultPrevented ).toBe( true );
 		expect( controls[ 0 ].getAttribute( 'aria-pressed' ) ).toBe( 'true' );
 		expect( pressKey( controls[ 0 ], 'ArrowRight' ).defaultPrevented ).toBe( true );
-		expect( controls[ 1 ].dataset.destination ).toBe( 'true' );
+		expect(
+			document.body.querySelector< HTMLElement >(
+				'.yamabiko-table-reorder-column-insertion-line'
+			)?.dataset.insertionIndex
+		).toBe( '2' );
 		expect( pressKey( controls[ 0 ], ' ' ).defaultPrevented ).toBe( true );
 
-		expect( setAttributes ).toHaveBeenCalledTimes( 1 );
-		expect( setAttributes ).toHaveBeenCalledWith( {
+		expect( mounted.setAttributes ).toHaveBeenCalledTimes( 1 );
+		expect( mounted.setAttributes ).toHaveBeenCalledWith( {
 			body: [
 				{
 					cells: [ { content: 'B' }, { content: 'A' }, { content: 'C' } ],
 				},
 			],
 		} );
+		controls = getControls( mounted.container );
 		expect( controls[ 1 ].ownerDocument.activeElement ).toBe( controls[ 1 ] );
 
 		mounted.unmount();
 	} );
 
 	it( 'cancels keyboard movement and restores focus to the source control', () => {
-		const setAttributes = jest.fn();
-		const mounted = render( createProps( setAttributes ) );
+		const mounted = render();
 		const controls = getControls( mounted.container );
 		controls[ 1 ].focus();
 
@@ -148,48 +165,52 @@ describe( 'withColumnReorder', () => {
 		pressKey( controls[ 1 ], 'ArrowRight' );
 		expect( pressKey( controls[ 1 ], 'Escape' ).defaultPrevented ).toBe( true );
 
-		expect( setAttributes ).not.toHaveBeenCalled();
+		expect( mounted.setAttributes ).not.toHaveBeenCalled();
 		expect( controls[ 1 ].ownerDocument.activeElement ).toBe( controls[ 1 ] );
 		expect( controls[ 1 ].getAttribute( 'aria-pressed' ) ).toBe( 'false' );
 
 		mounted.unmount();
 	} );
 
-	it( 'selects a source and destination with a single pointer', () => {
-		const setAttributes = jest.fn();
-		const mounted = render( createProps( setAttributes ) );
-		const controls = getControls( mounted.container );
+	it( 'selects a source and insertion destination with a single pointer', () => {
+		const mounted = render();
+		let controls = getControls( mounted.container );
 
-		clickControl( controls[ 2 ] );
+		click( controls[ 2 ] );
 		expect( controls[ 2 ].getAttribute( 'aria-pressed' ) ).toBe( 'true' );
 		expect(
-			mounted.container.querySelector( '.yamabiko-column-reorder-guidance' )?.textContent
-		).toContain( 'Click a destination column' );
+			document.body.querySelector( '.yamabiko-table-reorder-column-guidance' )?.textContent
+		).toContain( 'Click destination' );
+		const destination = document.body.querySelector< HTMLButtonElement >(
+			'.yamabiko-table-reorder-column-destination[data-new-index="0"]'
+		);
+		expect( destination?.dataset.insertionIndex ).toBe( '0' );
+		expect( destination ).not.toBeNull();
+		click( destination as HTMLButtonElement );
 
-		clickControl( controls[ 0 ] );
-
-		expect( setAttributes ).toHaveBeenCalledTimes( 1 );
-		expect( setAttributes ).toHaveBeenCalledWith( {
+		expect( mounted.setAttributes ).toHaveBeenCalledTimes( 1 );
+		expect( mounted.setAttributes ).toHaveBeenCalledWith( {
 			body: [
 				{
 					cells: [ { content: 'C' }, { content: 'A' }, { content: 'B' } ],
 				},
 			],
 		} );
+		controls = getControls( mounted.container );
 		expect( controls[ 0 ].ownerDocument.activeElement ).toBe( controls[ 0 ] );
 
 		mounted.unmount();
 	} );
 
-	it( 'does not commit when the current column is chosen as the destination', () => {
-		const setAttributes = jest.fn();
-		const mounted = render( createProps( setAttributes ) );
+	it( 'does not commit when keyboard confirmation stays at the source position', () => {
+		const mounted = render();
 		const controls = getControls( mounted.container );
 
-		clickControl( controls[ 1 ] );
-		clickControl( controls[ 1 ] );
+		controls[ 1 ].focus();
+		pressKey( controls[ 1 ], 'Enter' );
+		pressKey( controls[ 1 ], 'Enter' );
 
-		expect( setAttributes ).not.toHaveBeenCalled();
+		expect( mounted.setAttributes ).not.toHaveBeenCalled();
 		expect( controls[ 1 ].ownerDocument.activeElement ).toBe( controls[ 1 ] );
 
 		mounted.unmount();

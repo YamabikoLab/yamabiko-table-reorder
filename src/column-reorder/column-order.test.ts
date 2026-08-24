@@ -1,8 +1,39 @@
-import { moveColumn } from './column-order';
+import {
+	getColumnMoveInsertionIndex,
+	getNextColumnMoveIndex,
+	getValidColumnMoveTargets,
+	isNoopColumnMove,
+	moveColumn,
+} from './column-order';
 
 const createCell = ( id: string ) => ( { id } );
 
 const createRow = ( ...cells: ReturnType< typeof createCell >[] ) => ( { cells } );
+
+describe( 'column destination rules', () => {
+	it( 'maps left and right moves to the corresponding original-table boundary', () => {
+		expect( getColumnMoveInsertionIndex( 2, 0 ) ).toBe( 0 );
+		expect( getColumnMoveInsertionIndex( 1, 2 ) ).toBe( 3 );
+		expect( getColumnMoveInsertionIndex( 1, 1 ) ).toBe( 1 );
+	} );
+
+	it( 'moves the keyboard candidate one final position at a time', () => {
+		expect( getNextColumnMoveIndex( 1, 'left', 3 ) ).toBe( 0 );
+		expect( getNextColumnMoveIndex( 1, 'right', 3 ) ).toBe( 2 );
+		expect( getNextColumnMoveIndex( 0, 'left', 3 ) ).toBeNull();
+		expect( getNextColumnMoveIndex( 2, 'right', 3 ) ).toBeNull();
+	} );
+
+	it( 'returns only non-noop insertion targets', () => {
+		expect( getValidColumnMoveTargets( 1, 3 ) ).toEqual( [
+			{ insertionIndex: 0, newIndex: 0 },
+			{ insertionIndex: 3, newIndex: 2 },
+		] );
+		expect( getValidColumnMoveTargets( 0, 1 ) ).toEqual( [] );
+		expect( isNoopColumnMove( 1, 1 ) ).toBe( true );
+		expect( isNoopColumnMove( 1, 2 ) ).toBe( false );
+	} );
+} );
 
 describe( 'moveColumn', () => {
 	it( 'moves the same column across head, body, and foot', () => {

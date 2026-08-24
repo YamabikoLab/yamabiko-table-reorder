@@ -1,32 +1,36 @@
 import { __, sprintf } from '@wordpress/i18n';
 
-/** Column control toolbarのaccessible name。 */
-export const getColumnControlsName = (): string =>
-	__( 'Column reorder controls', 'yamabiko-table-reorder' );
-
-/**
- * 個別column controlのaccessible name。
- *
- * @param columnNumber 1-based column number。
- */
+/** 個別 column control の accessible name。 */
 export const getColumnControlName = ( columnNumber: number ): string =>
 	sprintf(
 		/* translators: %d: column number. */
-		__( 'Column %d', 'yamabiko-table-reorder' ),
+		__( 'Reorder column %d', 'yamabiko-table-reorder' ),
 		columnNumber
 	);
 
-/** keyboard操作開始前の説明。 */
+/** keyboard 操作開始前の説明。 */
 export const getColumnControlDescription = (): string =>
 	__( 'Press Enter or Space to start moving this column.', 'yamabiko-table-reorder' );
 
-/** keyboard並べ替え中の案内。 */
+/** keyboard 並べ替え中の案内。 */
 export const getColumnKeyboardGuidance = (): string =>
 	__( '← → Move　Enter / Space Confirm　Esc Cancel', 'yamabiko-table-reorder' );
 
-/** single-pointer並べ替え中の案内。 */
+/** single-pointer 並べ替え中の案内。 */
 export const getColumnPointerGuidance = (): string =>
-	__( 'Click a destination column　Esc Cancel', 'yamabiko-table-reorder' );
+	__( 'Click destination　Esc Cancel', 'yamabiko-table-reorder' );
+
+/** 列の前へ挿入する destination の accessible name。 */
+export const getColumnDestinationBeforeName = ( columnNumber: number ): string =>
+	sprintf(
+		/* translators: %d: column number. */
+		__( 'Move before column %d', 'yamabiko-table-reorder' ),
+		columnNumber
+	);
+
+/** table 末尾の destination の accessible name。 */
+export const getColumnDestinationEndName = (): string =>
+	__( 'Move to the end of the table.', 'yamabiko-table-reorder' );
 
 /**
  * 列移動開始を支援技術へ伝える。
@@ -45,11 +49,7 @@ export const getColumnMoveStartedAnnouncement = (
 		columnCount
 	);
 
-/**
- * single-pointerで移動対象を選択したことを支援技術へ伝える。
- *
- * @param columnNumber 1-based column number。
- */
+/** single-pointer で移動対象を選択したことを支援技術へ伝える。 */
 export const getColumnDestinationRequestedAnnouncement = ( columnNumber: number ): string =>
 	sprintf(
 		/* translators: %d: selected column number. */
@@ -57,29 +57,19 @@ export const getColumnDestinationRequestedAnnouncement = ( columnNumber: number 
 		columnNumber
 	);
 
-/**
- * keyboardの移動先候補変更を支援技術へ伝える。
- *
- * @param columnNumber 1-based destination column number。
- * @param columnCount  総列数。
- */
+/** keyboard の移動先候補変更を支援技術へ伝える。 */
 export const getColumnDestinationChangedAnnouncement = (
 	columnNumber: number,
 	columnCount: number
 ): string =>
 	sprintf(
 		/* translators: 1: destination column number, 2: total column count. */
-		__( 'Move to column %1$d of %2$d.', 'yamabiko-table-reorder' ),
+		__( 'Move column to position %1$d of %2$d.', 'yamabiko-table-reorder' ),
 		columnNumber,
 		columnCount
 	);
 
-/**
- * 列移動確定を支援技術へ伝える。
- *
- * @param oldColumnNumber 1-based original column number。
- * @param newColumnNumber 1-based destination column number。
- */
+/** 列移動確定を支援技術へ伝える。 */
 export const getColumnMoveCommittedAnnouncement = (
 	oldColumnNumber: number,
 	newColumnNumber: number
@@ -91,11 +81,7 @@ export const getColumnMoveCommittedAnnouncement = (
 		newColumnNumber
 	);
 
-/**
- * 列移動キャンセルを支援技術へ伝える。
- *
- * @param columnNumber 1-based unchanged column number。
- */
+/** 列移動キャンセルを支援技術へ伝える。 */
 export const getColumnMoveCanceledAnnouncement = ( columnNumber: number ): string =>
 	sprintf(
 		/* translators: %d: unchanged column number. */
@@ -103,11 +89,7 @@ export const getColumnMoveCanceledAnnouncement = ( columnNumber: number ): strin
 		columnNumber
 	);
 
-/**
- * keyboardでこれ以上移動できないことを支援技術へ伝える。
- *
- * @param direction 移動できない方向。
- */
+/** keyboard でこれ以上移動できないことを支援技術へ伝える。 */
 export const getColumnMoveBoundaryAnnouncement = ( direction: 'left' | 'right' ): string => {
 	const directionLabel =
 		direction === 'left'
