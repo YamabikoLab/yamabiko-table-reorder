@@ -419,6 +419,13 @@ export const createColumnReorderController = < TAttributes extends Record< strin
 		}
 	}
 
+	const hoveredEntry = entries.find( ( entry ) =>
+		entry.cells.some( ( cell ) => cell.matches( ':hover' ) )
+	);
+	if ( hoveredEntry ) {
+		activateEntry( hoveredEntry );
+	}
+
 	return {
 		focusColumnControlAt: ( columnIndex ) => {
 			const entry = entries[ columnIndex ];
