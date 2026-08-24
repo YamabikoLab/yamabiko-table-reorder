@@ -163,55 +163,55 @@ msgstr ""
 #. 1: original column number, 2: destination column number.
 #: src/column-reorder/messages.ts:101
 msgid "Moved column from position %1$d to %2$d."
-msgstr ""
+msgstr "列を%1$d列目から%2$d列目へ移動しました。"
 
 #. %d: column number.
 #: src/column-reorder/messages.ts:11
 msgid "Reorder column %d"
-msgstr ""
+msgstr "%d列目を並べ替え"
 
 #. %d: unchanged column number.
 #: src/column-reorder/messages.ts:114
 msgid "Canceled moving column %d."
-msgstr ""
+msgstr "%d列目の移動をキャンセルしました。"
 
 #: src/column-reorder/messages.ts:126
 msgid "left"
-msgstr ""
+msgstr "左"
 
 #: src/column-reorder/messages.ts:127
 msgid "right"
-msgstr ""
+msgstr "右"
 
 #. %s: translated movement direction.
 #: src/column-reorder/messages.ts:130
 msgid "This column cannot move any farther %s."
-msgstr ""
+msgstr "この列は、これ以上%sへ移動できません。"
 
 #: src/column-reorder/messages.ts:17
 msgid "Press Enter or Space to start moving this column."
-msgstr ""
+msgstr "EnterまたはSpaceキーで、この列の移動を開始します。"
 
 #: src/column-reorder/messages.ts:21
 msgid "← → Move　Enter / Space Confirm　Esc Cancel"
-msgstr ""
+msgstr "← → 移動　Enter / Space 決定　Esc キャンセル"
 
 #. %d: column number.
 #: src/column-reorder/messages.ts:35
 msgid "Move before column %d"
-msgstr ""
+msgstr "%d列目の前へ移動"
 
 #. 1: current column number, 2: total column count.
 #: src/column-reorder/messages.ts:55
 msgid "Moving column %1$d of %2$d."
-msgstr ""
+msgstr "全%2$d列中%1$d列目の移動を開始しました。"
 
 #. %d: selected column number.
 #: src/column-reorder/messages.ts:68
 msgid "Column %d selected. Choose a destination."
-msgstr ""
+msgstr "%d列目を選択しました。移動先を選んでください。"
 
 #. 1: destination column number, 2: total column count.
 #: src/column-reorder/messages.ts:84
 msgid "Move column to position %1$d of %2$d."
-msgstr ""
+msgstr "列を全%2$d列中%1$d列目へ移動します。"
