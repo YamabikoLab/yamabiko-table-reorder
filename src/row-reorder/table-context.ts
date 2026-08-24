@@ -1,11 +1,9 @@
 /**
  * Table Reorderが利用する table DOM context を解決する。
  *
- * editor browsing context の detection / discovery は Editor Environment に委譲し、
- * この module は解決済み editor document から対象 Table block と tbody を組み立てる。
+ * editor canvas referenceが属するdocumentを現在のeditor contextとして扱い、
+ * 同じdocument内から対象Table blockとtbodyを組み立てる。
  */
-
-import { resolveEditorEnvironment } from '@/common/editor-environment';
 
 /**
  * 解決済みTable blockが利用するDOM context。
@@ -21,25 +19,25 @@ export type TableContext = {
 };
 
 /**
- * editor canvas referenceを起点に解決した Editor Environment からTable ReorderのDOM contextを組み立てる。
+ * editor canvas referenceのowning documentからTable ReorderのDOM contextを組み立てる。
  *
- * block、table、先頭tbodyのいずれかを解決できない場合は`null`を返す。
+ * owning documentの`defaultView`、block、table、先頭tbodyのいずれかを解決できない場合は
+ * `null`を返す。
  *
- * @param referenceElement editor context探索の起点となるDOM element。
- * @param clientId         解決対象となるGutenberg blockのclientId。
+ * @param referenceElement editor canvas内に所有するDOM reference element。
+ * @param clientId         同じdocument内で解決するGutenberg blockのclientId。
  */
 export const resolveTableContext = (
 	referenceElement: Element,
 	clientId: string
 ): TableContext | null => {
-	const environment = resolveEditorEnvironment( referenceElement, clientId );
-	if ( ! environment ) {
+	const document = referenceElement.ownerDocument;
+	const window = document.defaultView;
+	if ( ! window ) {
 		return null;
 	}
 
-	const blockElement = environment.document.querySelector< HTMLElement >(
-		`[data-block="${ clientId }"]`
-	);
+	const blockElement = document.querySelector< HTMLElement >( `[data-block="${ clientId }"]` );
 	const table = blockElement?.querySelector< HTMLTableElement >( 'table' ) ?? null;
 	const tbody = table?.tBodies.item( 0 ) ?? null;
 	if ( ! blockElement || ! table || ! tbody ) {
@@ -48,8 +46,8 @@ export const resolveTableContext = (
 
 	return {
 		blockElement,
-		document: environment.document,
-		window: environment.window,
+		document,
+		window,
 		tbody,
 	};
 };

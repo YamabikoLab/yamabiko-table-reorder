@@ -1,6 +1,6 @@
 # Source organization
 
-Yamabiko Table Reorder is an independent plugin repository. `src/` is the owning source boundary, with explicit feature and environment boundaries inside it.
+Yamabiko Table Reorder is an independent plugin repository. `src/` is the owning source boundary, with explicit feature and runtime boundaries inside it.
 
 Keep the structure concrete and small. Add a directory only when current implementation requires it.
 
@@ -38,6 +38,8 @@ It must not become the main location for substantial UI, state management, trans
 
 That includes the supported-block boundary, Table DOM context, messages, editor styles, React integration, row constraints, and the imperative controller/UI implementation.
 
+`table-context.ts` resolves the editor `document` and `window` directly from the current editor canvas reference element's `ownerDocument` and `defaultView`. It identifies the target Gutenberg block by `clientId` only within that same document. It does not perform iframe discovery.
+
 The row-specific controller lives under:
 
 ```text
@@ -66,17 +68,13 @@ Column-specific DOM context, block support, controllers, UI, messages, or styles
 
 `common/` owns only infrastructure whose responsibility is independent of row or column reordering and can remain the same for multiple implemented features.
 
-The current common responsibilities are:
+The current common responsibility is:
 
 ```text
 src/common/
-├── editor-environment.ts
-├── editor-environment.test.ts
 ├── sortable-runtime-loader.ts
 └── sortable-runtime-loader.test.ts
 ```
-
-`editor-environment.ts` owns iframe / non-iframe editor browsing-context discovery and resolves the current editor `document` / `window` without caching them across editor lifecycle changes.
 
 `sortable-runtime-loader.ts` owns loading or reusing the SortableJS runtime in the owning editor window.
 
@@ -98,8 +96,6 @@ src/
 ├── AGENTS.md
 ├── README.md
 ├── common/
-│   ├── editor-environment.ts
-│   ├── editor-environment.test.ts
 │   ├── sortable-runtime-loader.ts
 │   └── sortable-runtime-loader.test.ts
 ├── row-reorder/
@@ -150,6 +146,12 @@ The intended dependency direction is:
 `row-reorder/` and `column-reorder/` must not depend on each other's internal implementation. `common/` must not import from either feature boundary.
 
 Within `row-reorder/`, keep the existing focused controller and `reorder-ui` responsibilities. Do not introduce a generic row/column controller or `axis: 'row' | 'column'` abstraction in anticipation of future column support.
+
+## Editor DOM context
+
+Resolve DOM context from an element that is owned by the current editor canvas. Use its `ownerDocument` and that document's `defaultView` rather than detecting iframe / non-iframe modes or traversing editor iframes.
+
+Do not cache editor `document` / `window` references across editor lifecycle changes. Existing React ref effects track replacement of the editor canvas reference element so consumers resolve from the current DOM context.
 
 ## Shared code
 

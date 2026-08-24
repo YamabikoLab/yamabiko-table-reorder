@@ -16,28 +16,7 @@ describe( 'resolveTableContext', () => {
 		document.body.replaceChildren();
 	} );
 
-	it( 'prefers the root document when the same block exists in the iframe', () => {
-		const referenceElement = document.createElement( 'span' );
-		document.body.append( referenceElement );
-		const root = appendTableBlock( document, 'shared-block' );
-
-		const iframe = document.createElement( 'iframe' );
-		iframe.name = 'editor-canvas';
-		document.body.append( iframe );
-		if ( ! iframe.contentDocument ) {
-			throw new Error( 'Expected iframe contentDocument in jsdom' );
-		}
-		appendTableBlock( iframe.contentDocument, 'shared-block' );
-
-		expect( resolveTableContext( referenceElement, 'shared-block' ) ).toEqual( {
-			blockElement: root.block,
-			document,
-			window,
-			tbody: root.tbody,
-		} );
-	} );
-
-	it( 'resolves a direct document Table context', () => {
+	it( 'resolves the Table context from the reference element owning document', () => {
 		const referenceElement = document.createElement( 'span' );
 		document.body.append( referenceElement );
 		const { block, tbody } = appendTableBlock( document, 'root-block' );
@@ -50,23 +29,36 @@ describe( 'resolveTableContext', () => {
 		} );
 	} );
 
-	it( 'falls back to the editor canvas iframe when the root has no block', () => {
-		const referenceElement = document.createElement( 'span' );
-		document.body.append( referenceElement );
+	it( 'uses only the reference element owning document', () => {
 		const iframe = document.createElement( 'iframe' );
-		iframe.name = 'editor-canvas';
 		document.body.append( iframe );
 		if ( ! iframe.contentDocument || ! iframe.contentWindow ) {
 			throw new Error( 'Expected iframe document and window in jsdom' );
 		}
-		const { block, tbody } = appendTableBlock( iframe.contentDocument, 'iframe-block' );
+		const referenceElement = iframe.contentDocument.createElement( 'span' );
+		iframe.contentDocument.body.append( referenceElement );
+		const iframeTable = appendTableBlock( iframe.contentDocument, 'shared-block' );
+		appendTableBlock( document, 'shared-block' );
 
-		expect( resolveTableContext( referenceElement, 'iframe-block' ) ).toEqual( {
-			blockElement: block,
+		expect( resolveTableContext( referenceElement, 'shared-block' ) ).toEqual( {
+			blockElement: iframeTable.block,
 			document: iframe.contentDocument,
 			window: iframe.contentWindow,
-			tbody,
+			tbody: iframeTable.tbody,
 		} );
+	} );
+
+	it( 'does not search another document for the target block', () => {
+		const referenceElement = document.createElement( 'span' );
+		document.body.append( referenceElement );
+		const iframe = document.createElement( 'iframe' );
+		document.body.append( iframe );
+		if ( ! iframe.contentDocument ) {
+			throw new Error( 'Expected iframe contentDocument in jsdom' );
+		}
+		appendTableBlock( iframe.contentDocument, 'iframe-only-block' );
+
+		expect( resolveTableContext( referenceElement, 'iframe-only-block' ) ).toBeNull();
 	} );
 
 	it( 'returns null when a complete Table context cannot be resolved', () => {
