@@ -618,6 +618,7 @@ export const createRowControls = (
 				if ( row && isMovableRow( row ) && row.cells.item( 0 ) ) {
 					rowsToAdd.push( row );
 				}
+			}
 		}
 
 		const measurements = new Map< HTMLTableRowElement, RowBindingMeasurement >();
