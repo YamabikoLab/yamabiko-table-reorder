@@ -150,6 +150,46 @@ describe( 'row-controls', () => {
 		controls.cleanup();
 	} );
 
+	it( 'completes incremental style measurement before removing or mounting controls', () => {
+		const labels = Array.from( { length: 100 }, ( _value, index ) => `Row ${ index + 1 }` );
+		const { context, tbody } = createTable( labels );
+		let offset = 0;
+		const callbacks: FrameRequestCallback[] = [];
+		mockRowPositions( tbody, () => offset );
+		jest.spyOn( window, 'requestAnimationFrame' ).mockImplementation( ( callback ) => {
+			callbacks.push( callback );
+			return callbacks.length;
+		} );
+		jest.spyOn( window, 'cancelAnimationFrame' ).mockImplementation( () => undefined );
+		const controls = createRowControls( context, [], { showAll: false } );
+		const outgoingRow = tbody.rows.item( 0 )!;
+		const outgoingControl = outgoingRow.querySelector( `.${ HANDLE_ZONE_CLASS }` );
+		expect( outgoingControl ).not.toBeNull();
+
+		const getComputedStyle = window.getComputedStyle.bind( window );
+		const incomingCells = new Set(
+			Array.from( { length: 17 }, ( _value, index ) => tbody.rows.item( index + 35 )!.cells.item( 0 )! )
+		);
+		let measuredIncomingRows = 0;
+		jest.spyOn( window, 'getComputedStyle' ).mockImplementation( ( element ) => {
+			if ( incomingCells.has( element as HTMLTableCellElement ) ) {
+				measuredIncomingRows += 1;
+				expect( outgoingRow.querySelector( `.${ HANDLE_ZONE_CLASS }` ) ).toBe( outgoingControl );
+				expect( element.querySelector( `.${ HANDLE_ZONE_CLASS }` ) ).toBeNull();
+			}
+			return getComputedStyle( element );
+		} );
+
+		offset = 680;
+		document.dispatchEvent( new Event( 'scroll' ) );
+		callbacks.shift()?.( 0 );
+
+		expect( measuredIncomingRows ).toBeGreaterThan( 0 );
+		expect( outgoingRow.querySelector( `.${ HANDLE_ZONE_CLASS }` ) ).toBeNull();
+		expect( tbody.rows.item( 35 )?.querySelector( `.${ HANDLE_ZONE_CLASS }` ) ).not.toBeNull();
+		controls.cleanup();
+	} );
+
 	it( 'fully resynchronizes row-specific state when a pooled control is rebound', () => {
 		const { context, tbody } = createTable( [ 'Alpha', 'Beta' ] );
 		let offset = 0;
