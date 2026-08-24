@@ -4,14 +4,7 @@
 
 import type { BlockEditProps } from '@wordpress/blocks';
 import { Button } from '@wordpress/components';
-import {
-	useLayoutEffect,
-	useRef,
-	useState,
-	type ComponentType,
-	type KeyboardEvent as ReactKeyboardEvent,
-	type MouseEvent as ReactMouseEvent,
-} from '@wordpress/element';
+import { useLayoutEffect, useRef, useState, type ComponentType } from '@wordpress/element';
 
 import { supportsColumnReorder } from './block-support';
 import { moveColumn } from './column-order';
@@ -57,6 +50,19 @@ type ReorderSession = {
 	destinationIndex: number;
 	mode: InteractionMode;
 	sourceIndex: number;
+};
+
+type ColumnKeyboardEvent = {
+	altKey: boolean;
+	ctrlKey: boolean;
+	key: string;
+	metaKey: boolean;
+	preventDefault: () => void;
+	shiftKey: boolean;
+};
+
+type ColumnMouseEvent = {
+	detail: number;
 };
 
 const getControlGeometry = ( columns: HTMLTableCellElement[] ): ControlGeometry | null => {
@@ -223,10 +229,7 @@ const ColumnReorderEdit = ( componentProps: ColumnReorderEditProps ) => {
 		);
 	};
 
-	const handleControlKeyDown = (
-		event: ReactKeyboardEvent< HTMLButtonElement >,
-		columnIndex: number
-	) => {
+	const handleControlKeyDown = ( event: ColumnKeyboardEvent, columnIndex: number ) => {
 		if ( event.altKey || event.ctrlKey || event.metaKey || event.shiftKey ) {
 			return;
 		}
@@ -258,10 +261,7 @@ const ColumnReorderEdit = ( componentProps: ColumnReorderEditProps ) => {
 		}
 	};
 
-	const handleControlClick = (
-		event: ReactMouseEvent< HTMLButtonElement >,
-		columnIndex: number
-	) => {
+	const handleControlClick = ( event: ColumnMouseEvent, columnIndex: number ) => {
 		if ( event.detail === 0 ) {
 			return;
 		}
