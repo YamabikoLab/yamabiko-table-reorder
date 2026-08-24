@@ -51,16 +51,13 @@ const getControlGeometry = ( columns: HTMLTableCellElement[] ): ControlGeometry 
 export const withColumnReorder = ( BlockEdit: ComponentType< TableBlockEditProps > ) =>
 	function WithColumnReorder( props: TableBlockEditProps ) {
 		const { attributes, clientId, isSelected, name } = props;
-		const [ editorCanvasReference, setEditorCanvasReference ] =
-			useState< HTMLSpanElement | null >( null );
+		const [ editorCanvasReference, setEditorCanvasReference ] = useState< HTMLSpanElement | null >(
+			null
+		);
 		const [ geometry, setGeometry ] = useState< ControlGeometry | null >( null );
 
 		useLayoutEffect( () => {
-			if (
-				! isSelected ||
-				! editorCanvasReference ||
-				! supportsColumnReorder( name )
-			) {
+			if ( ! isSelected || ! editorCanvasReference || ! supportsColumnReorder( name ) ) {
 				setGeometry( null );
 				return;
 			}
