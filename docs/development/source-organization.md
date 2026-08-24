@@ -52,17 +52,37 @@ There is no repository-level `src/controller/` source boundary.
 
 `column-reorder/` owns code that knows about columns, column movement, column controls, or the column-reorder interaction model.
 
-The current boundary begins with the pure attribute transformation:
+The current implementation keeps the same responsibility shape as Row Reorder without depending on row internals:
 
 ```text
 src/column-reorder/
+├── block-support.ts
 ├── column-order.ts
-└── column-order.test.ts
+├── column-order.test.ts
+├── table-context.ts
+├── messages.ts
+├── editor.scss
+├── with-column-reorder.tsx
+├── with-column-reorder.test.tsx
+└── controller/
+    ├── column-reorder-controller.ts
+    └── reorder-ui/
+        ├── column-controls.ts
+        ├── column-insertion-line.ts
+        ├── column-move-targets.ts
+        ├── live-status.ts
+        ├── reorder-guidance.ts
+        ├── scroll-destination.ts
+        └── index.ts
 ```
 
-`column-order.ts` moves one physical column consistently across existing `head` / `body` / `foot` sections while preserving cell objects and unrelated attributes. It rejects malformed or inconsistent row shapes instead of guessing a column mapping.
+`column-order.ts` owns DOM-independent column movement rules, including physical column movement, insertion-boundary mapping, no-op detection, and valid destination calculation.
 
-Column-specific DOM context, block support, controllers, UI, messages, or styles should be added here only when their implementation phase requires them. Do not make `column-reorder/` depend on `row-reorder/` internals.
+`column-reorder-controller.ts` owns the keyboard / single-pointer interaction session, commit / cancel flow, focus restoration, and coordination of the column-owned UI modules.
+
+`controller/reorder-ui/` owns column handles, vertical insertion-line UI, single-pointer destination targets, live status, guidance, and horizontal destination scrolling. These responsibilities remain column-owned even where they intentionally mirror Row Reorder behavior.
+
+Column-specific DOM context, block support, controllers, UI, messages, and styles stay under this feature boundary. Do not make `column-reorder/` depend on `row-reorder/` internals.
 
 ### `src/common/`
 
@@ -119,8 +139,17 @@ src/
 │       ├── scroll-target.ts
 │       └── reorder-ui/
 ├── column-reorder/
+│   ├── block-support.ts
 │   ├── column-order.ts
-│   └── column-order.test.ts
+│   ├── column-order.test.ts
+│   ├── table-context.ts
+│   ├── messages.ts
+│   ├── editor.scss
+│   ├── with-column-reorder.tsx
+│   ├── with-column-reorder.test.tsx
+│   └── controller/
+│       ├── column-reorder-controller.ts
+│       └── reorder-ui/
 └── types/
     └── styles.d.ts
 ```
@@ -145,7 +174,7 @@ The intended dependency direction is:
 
 `row-reorder/` and `column-reorder/` must not depend on each other's internal implementation. `common/` must not import from either feature boundary.
 
-Within `row-reorder/`, keep the existing focused controller and `reorder-ui` responsibilities. Do not introduce a generic row/column controller or `axis: 'row' | 'column'` abstraction in anticipation of future column support.
+Within each feature, keep focused controller and `reorder-ui` responsibilities. Row and Column may intentionally share the same user-facing interaction model, but do not introduce a generic row/column controller or `axis: 'row' | 'column'` abstraction before a stable shared responsibility is demonstrated by both implementations.
 
 ## Editor DOM context
 
