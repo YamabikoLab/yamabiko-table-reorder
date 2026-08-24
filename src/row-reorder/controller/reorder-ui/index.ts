@@ -13,6 +13,5 @@ export {
 	getRowRepresentativeText,
 	HANDLE_ZONE_CLASS,
 	stopRowControlInteractionPropagation,
-	type RowControls,
 } from './row-controls';
 export { createRowMoveTargets, type RowMoveTargetsUi } from './row-move-targets';
