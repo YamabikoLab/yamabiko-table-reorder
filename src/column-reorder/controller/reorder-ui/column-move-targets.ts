@@ -1,8 +1,5 @@
 import type { ColumnMoveTarget } from '../../column-order';
-import {
-	getColumnDestinationBeforeName,
-	getColumnDestinationEndName,
-} from '../../messages';
+import { getColumnDestinationBeforeName, getColumnDestinationEndName } from '../../messages';
 
 const DESTINATION_CLASS = 'yamabiko-table-reorder-column-destination';
 const POINTER_TAP_THRESHOLD_PX = 5;
@@ -146,10 +143,7 @@ export const createColumnMoveTargets = (
 			const button = buttons[ index ];
 			const boundaryX = getBoundaryX( columns, target.insertionIndex );
 			const isVisible =
-				boundaryX !== null &&
-				boundaryX >= visibleLeft &&
-				boundaryX <= visibleRight &&
-				bottom > top;
+				boundaryX !== null && boundaryX >= visibleLeft && boundaryX <= visibleRight && bottom > top;
 			button.style.display = isVisible ? '' : 'none';
 			if ( ! isVisible || boundaryX === null ) {
 				continue;

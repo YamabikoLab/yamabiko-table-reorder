@@ -112,9 +112,7 @@ const click = ( control: HTMLButtonElement ) => {
 
 const getControls = ( container: HTMLElement ): HTMLButtonElement[] =>
 	Array.from(
-		container.querySelectorAll< HTMLButtonElement >(
-			'.yamabiko-table-reorder-column-handle-zone'
-		)
+		container.querySelectorAll< HTMLButtonElement >( '.yamabiko-table-reorder-column-handle-zone' )
 	);
 
 beforeAll( () => {
@@ -136,9 +134,8 @@ describe( 'withColumnReorder', () => {
 		expect( controls[ 0 ].getAttribute( 'aria-pressed' ) ).toBe( 'true' );
 		expect( pressKey( controls[ 0 ], 'ArrowRight' ).defaultPrevented ).toBe( true );
 		expect(
-			document.body.querySelector< HTMLElement >(
-				'.yamabiko-table-reorder-column-insertion-line'
-			)?.dataset.insertionIndex
+			document.body.querySelector< HTMLElement >( '.yamabiko-table-reorder-column-insertion-line' )
+				?.dataset.insertionIndex
 		).toBe( '2' );
 		expect( pressKey( controls[ 0 ], ' ' ).defaultPrevented ).toBe( true );
 

@@ -63,9 +63,7 @@ type ReorderSession =
 	| ( { kind: 'pointer' } & PointerSession );
 
 /** Column Reorder の keyboard / single-pointer interaction を管理する。 */
-export const createColumnReorderController = <
-	TAttributes extends Record< string, unknown >,
->(
+export const createColumnReorderController = < TAttributes extends Record< string, unknown > >(
 	options: ColumnReorderControllerOptions< TAttributes >
 ): ColumnReorderController => {
 	const {
@@ -189,10 +187,7 @@ export const createColumnReorderController = <
 		pointerSession.entry.setPressed( false );
 		session = { kind: 'idle' };
 		releaseEntry();
-		if (
-			newIndex !== undefined &&
-			commitColumnMove( pointerSession.oldIndex, newIndex )
-		) {
+		if ( newIndex !== undefined && commitColumnMove( pointerSession.oldIndex, newIndex ) ) {
 			return;
 		}
 		if ( newIndex === undefined ) {
@@ -212,11 +207,7 @@ export const createColumnReorderController = <
 		activateEntry( entry );
 		entry.setPressed( true );
 		entry.control.focus();
-		const guidance = createColumnReorderGuidance(
-			document,
-			table,
-			getColumnPointerGuidance()
-		);
+		const guidance = createColumnReorderGuidance( document, table, getColumnPointerGuidance() );
 		const targetsUi = createColumnMoveTargets( document, table, columns, targets, {
 			onSelect: ( newIndex ) => finishPointerSession( newIndex ),
 		} );
@@ -232,11 +223,7 @@ export const createColumnReorderController = <
 	const startKeyboardSession = ( entry: ColumnControlEntry ) => {
 		activateEntry( entry );
 		entry.setPressed( true );
-		const guidance = createColumnReorderGuidance(
-			document,
-			table,
-			getColumnKeyboardGuidance()
-		);
+		const guidance = createColumnReorderGuidance( document, table, getColumnKeyboardGuidance() );
 		session = {
 			kind: 'keyboard',
 			currentIndex: entry.columnIndex,

@@ -7,8 +7,5 @@ export {
 export { createColumnInsertionLine } from './column-insertion-line';
 export { createColumnMoveTargets, type ColumnMoveTargetsUi } from './column-move-targets';
 export { announceColumnLiveStatus } from './live-status';
-export {
-	createColumnReorderGuidance,
-	type ColumnReorderGuidanceUi,
-} from './reorder-guidance';
+export { createColumnReorderGuidance, type ColumnReorderGuidanceUi } from './reorder-guidance';
 export { scrollColumnDestinationIntoView } from './scroll-destination';

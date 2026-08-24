@@ -49,10 +49,7 @@ const ColumnReorderEdit = ( componentProps: ColumnReorderEditProps ) => {
 			},
 		} );
 		const pendingFocusIndex = pendingFocusIndexRef.current;
-		if (
-			pendingFocusIndex !== null &&
-			controller.focusColumnControlAt( pendingFocusIndex )
-		) {
+		if ( pendingFocusIndex !== null && controller.focusColumnControlAt( pendingFocusIndex ) ) {
 			pendingFocusIndexRef.current = null;
 		}
 
