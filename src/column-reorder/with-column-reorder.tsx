@@ -56,7 +56,9 @@ const getControlGeometry = ( columns: HTMLTableCellElement[] ): ControlGeometry 
 const ColumnReorderEdit = ( componentProps: ColumnReorderEditProps ) => {
 	const { BlockEdit, props } = componentProps;
 	const { attributes, clientId, isSelected } = props;
-	const [ editorCanvasReference, setEditorCanvasReference ] = useState< HTMLSpanElement | null >( null );
+	const [ editorCanvasReference, setEditorCanvasReference ] = useState< HTMLSpanElement | null >(
+		null
+	);
 	const [ geometry, setGeometry ] = useState< ControlGeometry | null >( null );
 
 	useLayoutEffect( () => {
@@ -87,7 +89,8 @@ const ColumnReorderEdit = ( componentProps: ColumnReorderEditProps ) => {
 		context.window.addEventListener( 'resize', refreshGeometry );
 		context.window.addEventListener( 'scroll', refreshGeometry, true );
 
-		const ResizeObserverConstructor = ( context.window as Window & typeof globalThis ).ResizeObserver;
+		const ResizeObserverConstructor = ( context.window as Window & typeof globalThis )
+			.ResizeObserver;
 		if ( ResizeObserverConstructor ) {
 			resizeObserver = new ResizeObserverConstructor( refreshGeometry );
 			resizeObserver.observe( context.table );
