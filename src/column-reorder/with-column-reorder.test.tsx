@@ -133,7 +133,7 @@ describe( 'withColumnReorder', () => {
 				},
 			],
 		} );
-		expect( document.activeElement ).toBe( controls[ 1 ] );
+		expect( controls[ 1 ].ownerDocument.activeElement ).toBe( controls[ 1 ] );
 
 		mounted.unmount();
 	} );
@@ -149,7 +149,7 @@ describe( 'withColumnReorder', () => {
 		expect( pressKey( controls[ 1 ], 'Escape' ).defaultPrevented ).toBe( true );
 
 		expect( setAttributes ).not.toHaveBeenCalled();
-		expect( document.activeElement ).toBe( controls[ 1 ] );
+		expect( controls[ 1 ].ownerDocument.activeElement ).toBe( controls[ 1 ] );
 		expect( controls[ 1 ].getAttribute( 'aria-pressed' ) ).toBe( 'false' );
 
 		mounted.unmount();
@@ -176,7 +176,7 @@ describe( 'withColumnReorder', () => {
 				},
 			],
 		} );
-		expect( document.activeElement ).toBe( controls[ 0 ] );
+		expect( controls[ 0 ].ownerDocument.activeElement ).toBe( controls[ 0 ] );
 
 		mounted.unmount();
 	} );
@@ -190,7 +190,7 @@ describe( 'withColumnReorder', () => {
 		clickControl( controls[ 1 ] );
 
 		expect( setAttributes ).not.toHaveBeenCalled();
-		expect( document.activeElement ).toBe( controls[ 1 ] );
+		expect( controls[ 1 ].ownerDocument.activeElement ).toBe( controls[ 1 ] );
 
 		mounted.unmount();
 	} );
