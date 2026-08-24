@@ -479,14 +479,6 @@ export const createRowControls = (
 		currentWindow.firstRow.sectionRowIndex === currentWindow.firstIndex &&
 		currentWindow.lastRow.sectionRowIndex === currentWindow.lastIndex;
 
-	const addViewportRow = ( row: HTMLTableRowElement ) => {
-		if ( ! isMovableRow( row ) || ! row.cells.item( 0 ) ) {
-			return;
-		}
-		viewportRows.add( row );
-		ensureControl( row );
-	};
-
 	const removeViewportRow = ( row: HTMLTableRowElement ) => {
 		viewportRows.delete( row );
 		const slot = slotByRow.get( row );
@@ -541,13 +533,14 @@ export const createRowControls = (
 			return null;
 		}
 
+		const previousFirstIndex = currentWindow.firstIndex;
+		const previousLastIndex = currentWindow.lastIndex;
 		let { firstIndex, lastIndex } = currentWindow;
 		while ( firstIndex <= lastIndex ) {
 			const row = tbody.rows.item( firstIndex );
 			if ( ! row || row.getBoundingClientRect().bottom >= bounds.top ) {
 				break;
 			}
-			removeViewportRow( row );
 			firstIndex += 1;
 		}
 		while ( firstIndex <= lastIndex ) {
@@ -555,7 +548,6 @@ export const createRowControls = (
 			if ( ! row || row.getBoundingClientRect().top <= bounds.bottom ) {
 				break;
 			}
-			removeViewportRow( row );
 			lastIndex -= 1;
 		}
 		if ( firstIndex > lastIndex ) {
@@ -568,7 +560,6 @@ export const createRowControls = (
 				break;
 			}
 			firstIndex -= 1;
-			addViewportRow( previousRow );
 		}
 		while ( lastIndex < tbody.rows.length - 1 ) {
 			const nextRow = tbody.rows.item( lastIndex + 1 );
@@ -576,7 +567,6 @@ export const createRowControls = (
 				break;
 			}
 			lastIndex += 1;
-			addViewportRow( nextRow );
 		}
 
 		const firstRow = tbody.rows.item( firstIndex );
@@ -584,6 +574,68 @@ export const createRowControls = (
 		if ( ! firstRow || ! lastRow ) {
 			return null;
 		}
+
+		const rowsToRemove: HTMLTableRowElement[] = [];
+		if ( firstIndex > previousFirstIndex ) {
+			for ( let index = previousFirstIndex; index < firstIndex; index += 1 ) {
+				const row = tbody.rows.item( index );
+				if ( row ) {
+					rowsToRemove.push( row );
+				}
+			}
+		}
+		if ( lastIndex < previousLastIndex ) {
+			for ( let index = lastIndex + 1; index <= previousLastIndex; index += 1 ) {
+				const row = tbody.rows.item( index );
+				if ( row ) {
+					rowsToRemove.push( row );
+				}
+			}
+		}
+
+		const rowsToAdd: HTMLTableRowElement[] = [];
+		if ( firstIndex < previousFirstIndex ) {
+			for ( let index = firstIndex; index < previousFirstIndex; index += 1 ) {
+				const row = tbody.rows.item( index );
+				if ( row && isMovableRow( row ) && row.cells.item( 0 ) ) {
+					rowsToAdd.push( row );
+				}
+			}
+		}
+		if ( lastIndex > previousLastIndex ) {
+			for ( let index = previousLastIndex + 1; index <= lastIndex; index += 1 ) {
+				const row = tbody.rows.item( index );
+				if ( row && isMovableRow( row ) && row.cells.item( 0 ) ) {
+					rowsToAdd.push( row );
+				}
+			}
+		}
+
+		const measurements = new Map< HTMLTableRowElement, RowBindingMeasurement >();
+		for ( const row of rowsToAdd ) {
+			if ( slotByRow.has( row ) ) {
+				continue;
+			}
+			const measurement = measureRowBinding( row );
+			if ( measurement ) {
+				measurements.set( row, measurement );
+			}
+		}
+
+		for ( const row of rowsToRemove ) {
+			removeViewportRow( row );
+		}
+		for ( const row of rowsToAdd ) {
+			viewportRows.add( row );
+			if ( slotByRow.has( row ) ) {
+				continue;
+			}
+			const measurement = measurements.get( row );
+			if ( measurement ) {
+				bindMeasured( acquireSlot(), measurement );
+			}
+		}
+
 		return { firstIndex, firstRow, lastIndex, lastRow };
 	};
 
