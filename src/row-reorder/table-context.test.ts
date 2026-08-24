@@ -17,8 +17,8 @@ describe( 'resolveTableContext', () => {
 	} );
 
 	it( 'prefers the root document when the same block exists in the iframe', () => {
-		const anchor = document.createElement( 'span' );
-		document.body.append( anchor );
+		const referenceElement = document.createElement( 'span' );
+		document.body.append( referenceElement );
 		const root = appendTableBlock( document, 'shared-block' );
 
 		const iframe = document.createElement( 'iframe' );
@@ -29,7 +29,7 @@ describe( 'resolveTableContext', () => {
 		}
 		appendTableBlock( iframe.contentDocument, 'shared-block' );
 
-		expect( resolveTableContext( anchor, 'shared-block' ) ).toEqual( {
+		expect( resolveTableContext( referenceElement, 'shared-block' ) ).toEqual( {
 			blockElement: root.block,
 			document,
 			window,
@@ -38,11 +38,11 @@ describe( 'resolveTableContext', () => {
 	} );
 
 	it( 'resolves a direct document Table context', () => {
-		const anchor = document.createElement( 'span' );
-		document.body.append( anchor );
+		const referenceElement = document.createElement( 'span' );
+		document.body.append( referenceElement );
 		const { block, tbody } = appendTableBlock( document, 'root-block' );
 
-		expect( resolveTableContext( anchor, 'root-block' ) ).toEqual( {
+		expect( resolveTableContext( referenceElement, 'root-block' ) ).toEqual( {
 			blockElement: block,
 			document,
 			window,
@@ -51,8 +51,8 @@ describe( 'resolveTableContext', () => {
 	} );
 
 	it( 'falls back to the editor canvas iframe when the root has no block', () => {
-		const anchor = document.createElement( 'span' );
-		document.body.append( anchor );
+		const referenceElement = document.createElement( 'span' );
+		document.body.append( referenceElement );
 		const iframe = document.createElement( 'iframe' );
 		iframe.name = 'editor-canvas';
 		document.body.append( iframe );
@@ -61,7 +61,7 @@ describe( 'resolveTableContext', () => {
 		}
 		const { block, tbody } = appendTableBlock( iframe.contentDocument, 'iframe-block' );
 
-		expect( resolveTableContext( anchor, 'iframe-block' ) ).toEqual( {
+		expect( resolveTableContext( referenceElement, 'iframe-block' ) ).toEqual( {
 			blockElement: block,
 			document: iframe.contentDocument,
 			window: iframe.contentWindow,
@@ -70,13 +70,13 @@ describe( 'resolveTableContext', () => {
 	} );
 
 	it( 'returns null when a complete Table context cannot be resolved', () => {
-		const anchor = document.createElement( 'span' );
-		document.body.append( anchor );
+		const referenceElement = document.createElement( 'span' );
+		document.body.append( referenceElement );
 		const block = document.createElement( 'div' );
 		block.dataset.block = 'incomplete-block';
 		document.body.append( block );
 
-		expect( resolveTableContext( anchor, 'missing-block' ) ).toBeNull();
-		expect( resolveTableContext( anchor, 'incomplete-block' ) ).toBeNull();
+		expect( resolveTableContext( referenceElement, 'missing-block' ) ).toBeNull();
+		expect( resolveTableContext( referenceElement, 'incomplete-block' ) ).toBeNull();
 	} );
 } );
