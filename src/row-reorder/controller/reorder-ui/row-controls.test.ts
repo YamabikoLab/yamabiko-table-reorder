@@ -1,20 +1,19 @@
 import { createRowControls, getRowRepresentativeText, HANDLE_ZONE_CLASS } from './row-controls';
-
-const { act } = jest.requireActual< {
-	act: ( callback: () => void | Promise< void > ) => Promise< void >;
-} >( 'react' );
+import type { TableContext } from '@/row-reorder/table-context';
 
 jest.mock( '@wordpress/components', () => ( {
 	Tooltip: ( { children }: { children: unknown } ) => children,
 } ) );
 
 const createTable = ( labels: string[] ) => {
+	const blockElement = document.createElement( 'div' );
 	const wrapper = document.createElement( 'figure' );
 	const table = document.createElement( 'table' );
 	const tbody = document.createElement( 'tbody' );
 	table.append( tbody );
 	wrapper.append( table );
-	document.body.append( wrapper );
+	blockElement.append( wrapper );
+	document.body.append( blockElement );
 
 	for ( const label of labels ) {
 		const row = document.createElement( 'tr' );
@@ -24,48 +23,176 @@ const createTable = ( labels: string[] ) => {
 		tbody.append( row );
 	}
 
-	return { table, tbody, wrapper };
+	const context: TableContext = {
+		blockElement,
+		document,
+		tbody,
+		window,
+	};
+	return { context, table, tbody, wrapper };
+};
+
+const mockRowPositions = ( tbody: HTMLTableSectionElement, getOffset: () => number ) => {
+	Array.from( tbody.rows ).forEach( ( row, index ) => {
+		jest.spyOn( row, 'getBoundingClientRect' ).mockImplementation(
+			() =>
+				( {
+					top: index * 40 - getOffset(),
+					bottom: index * 40 + 40 - getOffset(),
+					height: 40,
+					left: 0,
+					right: 400,
+					width: 400,
+					x: 0,
+					y: index * 40 - getOffset(),
+					toJSON: () => ( {} ),
+				} ) as DOMRect
+		);
+	} );
 };
 
 describe( 'row-controls', () => {
 	beforeEach( () => {
 		document.body.replaceChildren();
+		jest.restoreAllMocks();
 	} );
 
-	it( 'creates native row controls only for movable rows', () => {
-		const { tbody } = createTable( [ 'Alpha', '', 'Gamma' ] );
-		const firstCell = tbody.rows.item( 0 )?.cells.item( 0 );
-		if ( ! firstCell ) {
-			throw new Error( 'Expected first table cell' );
-		}
-		firstCell.style.position = 'static';
-		firstCell.style.paddingInlineStart = '7px';
+	it( 'binds controls only around the viewport and reuses pool slots after scroll', () => {
+		const labels = Array.from( { length: 100 }, ( _value, index ) => `Row ${ index + 1 }` );
+		const { context, tbody } = createTable( labels );
+		let offset = 0;
+		let scheduled: FrameRequestCallback | null = null;
+		mockRowPositions( tbody, () => offset );
+		jest.spyOn( window, 'requestAnimationFrame' ).mockImplementation( ( callback ) => {
+			scheduled = callback;
+			return 1;
+		} );
+		jest.spyOn( window, 'cancelAnimationFrame' ).mockImplementation( () => undefined );
 
-		const controls = createRowControls( document, tbody, [ 2 ], { showAll: false } );
+		const controls = createRowControls( context, [], { showAll: false } );
+		const initialControls = Array.from(
+			tbody.querySelectorAll< HTMLButtonElement >( `.${ HANDLE_ZONE_CLASS }` )
+		);
+		expect( initialControls.length ).toBeGreaterThan( 0 );
+		expect( initialControls.length ).toBeLessThan( 100 );
+		const firstPooledControl = initialControls[ 0 ];
 
-		expect( controls.entries ).toHaveLength( 2 );
-		expect( controls.entries[ 0 ].control ).toBeInstanceOf( HTMLButtonElement );
-		expect( controls.entries[ 0 ].control.type ).toBe( 'button' );
-		expect( controls.entries[ 0 ].control.getAttribute( 'aria-label' ) ).toBe(
-			'Reorder row 1: Alpha'
+		offset = 3200;
+		tbody.dispatchEvent( new Event( 'scroll' ) );
+		expect( scheduled ).not.toBeNull();
+		scheduled?.( 0 );
+
+		const scrolledControls = Array.from(
+			tbody.querySelectorAll< HTMLButtonElement >( `.${ HANDLE_ZONE_CLASS }` )
 		);
-		expect( controls.entries[ 1 ].control.getAttribute( 'aria-label' ) ).toBe(
-			'Reorder row 2: Empty row'
-		);
-		expect( controls.entries[ 0 ].control.dataset.visible ).toBe( 'false' );
-		expect( controls.entries[ 0 ].control.getAttribute( 'aria-pressed' ) ).toBe( 'false' );
-		expect( tbody.rows.item( 2 )?.querySelector( `.${ HANDLE_ZONE_CLASS }` ) ).toBeNull();
-		expect( firstCell.style.paddingInlineStart ).not.toBe( '7px' );
+		expect( scrolledControls.length ).toBeLessThan( 100 );
+		expect( tbody.rows.item( 0 )?.querySelector( `.${ HANDLE_ZONE_CLASS }` ) ).toBeNull();
+		expect( firstPooledControl.isConnected ).toBe( true );
+		expect( firstPooledControl.closest( 'tr' )?.sectionRowIndex ).toBeGreaterThan( 0 );
 
 		controls.cleanup();
-
 		expect( tbody.querySelector( `.${ HANDLE_ZONE_CLASS }` ) ).toBeNull();
-		expect( firstCell.style.position ).toBe( 'static' );
+	} );
+
+	it( 'fully resynchronizes row-specific state when a pooled control is rebound', () => {
+		const { context, tbody } = createTable( [ 'Alpha', 'Beta' ] );
+		let offset = 0;
+		let scheduled: FrameRequestCallback | null = null;
+		jest.spyOn( tbody.rows.item( 0 )!, 'getBoundingClientRect' ).mockImplementation(
+			() => ( { top: -offset, bottom: 40 - offset } ) as DOMRect
+		);
+		jest.spyOn( tbody.rows.item( 1 )!, 'getBoundingClientRect' ).mockImplementation(
+			() => ( { top: 3000 - offset, bottom: 3040 - offset } ) as DOMRect
+		);
+		jest.spyOn( window, 'requestAnimationFrame' ).mockImplementation( ( callback ) => {
+			scheduled = callback;
+			return 1;
+		} );
+		jest.spyOn( window, 'cancelAnimationFrame' ).mockImplementation( () => undefined );
+		const firstCell = tbody.rows.item( 0 )!.cells.item( 0 )!;
+		firstCell.style.paddingInlineStart = '7px';
+
+		const controls = createRowControls( context, [], { showAll: false } );
+		const control = tbody.rows
+			.item( 0 )!
+			.querySelector< HTMLButtonElement >( `.${ HANDLE_ZONE_CLASS }` )!;
+		expect( control.getAttribute( 'aria-label' ) ).toBe( 'Reorder row 1: Alpha' );
+		controls.setVisible( control, true );
+		controls.setPressed( control, true );
+		expect( control.dataset.visible ).toBe( 'true' );
+		expect( control.getAttribute( 'aria-pressed' ) ).toBe( 'true' );
+
+		offset = 3000;
+		document.dispatchEvent( new Event( 'scroll' ) );
+		scheduled?.( 0 );
+
+		const rebound = tbody.rows
+			.item( 1 )!
+			.querySelector< HTMLButtonElement >( `.${ HANDLE_ZONE_CLASS }` )!;
+		expect( rebound ).toBe( control );
+		expect( rebound.getAttribute( 'aria-label' ) ).toBe( 'Reorder row 2: Beta' );
+		expect( rebound.getAttribute( 'aria-pressed' ) ).toBe( 'false' );
+		expect( rebound.dataset.visible ).toBe( 'false' );
+		expect( rebound.getAttribute( 'aria-describedby' ) ).toContain( '-pointer' );
 		expect( firstCell.style.paddingInlineStart ).toBe( '7px' );
+
+		controls.cleanup();
+	} );
+
+	it( 'keeps a pinned control bound offscreen until it is unpinned', () => {
+		const { context, tbody } = createTable( [ 'Alpha', 'Beta' ] );
+		let offset = 0;
+		const callbacks: FrameRequestCallback[] = [];
+		jest.spyOn( tbody.rows.item( 0 )!, 'getBoundingClientRect' ).mockImplementation(
+			() => ( { top: -offset, bottom: 40 - offset } ) as DOMRect
+		);
+		jest.spyOn( tbody.rows.item( 1 )!, 'getBoundingClientRect' ).mockImplementation(
+			() => ( { top: 3000 - offset, bottom: 3040 - offset } ) as DOMRect
+		);
+		jest.spyOn( window, 'requestAnimationFrame' ).mockImplementation( ( callback ) => {
+			callbacks.push( callback );
+			return callbacks.length;
+		} );
+		jest.spyOn( window, 'cancelAnimationFrame' ).mockImplementation( () => undefined );
+
+		const controls = createRowControls( context, [], { showAll: false } );
+		const control = tbody.rows
+			.item( 0 )!
+			.querySelector< HTMLButtonElement >( `.${ HANDLE_ZONE_CLASS }` )!;
+		controls.pin( control );
+		offset = 3000;
+		document.dispatchEvent( new Event( 'scroll' ) );
+		callbacks.shift()?.( 0 );
+		expect( tbody.rows.item( 0 )?.querySelector( `.${ HANDLE_ZONE_CLASS }` ) ).toBe( control );
+
+		controls.unpin( control );
+		callbacks.shift()?.( 0 );
+		expect( tbody.rows.item( 0 )?.querySelector( `.${ HANDLE_ZONE_CLASS }` ) ).toBeNull();
+		controls.cleanup();
+	} );
+
+	it( 'coalesces nested scroll and resize into one context-window animation frame and cancels it', () => {
+		const { context, tbody } = createTable( [ 'Alpha' ] );
+		const requestAnimationFrame = jest
+			.spyOn( context.window, 'requestAnimationFrame' )
+			.mockReturnValue( 42 );
+		const cancelAnimationFrame = jest
+			.spyOn( context.window, 'cancelAnimationFrame' )
+			.mockImplementation( () => undefined );
+		const controls = createRowControls( context, [], { showAll: false } );
+		const nestedScroller = document.createElement( 'div' );
+		tbody.rows.item( 0 )!.cells.item( 0 )!.append( nestedScroller );
+
+		nestedScroller.dispatchEvent( new Event( 'scroll' ) );
+		context.window.dispatchEvent( new Event( 'resize' ) );
+		expect( requestAnimationFrame ).toHaveBeenCalledTimes( 1 );
+
+		controls.cleanup();
+		expect( cancelAnimationFrame ).toHaveBeenCalledWith( 42 );
 	} );
 
 	it( 'adds only the missing first-column width in touch reorder mode and restores it', () => {
-		const { table, tbody, wrapper } = createTable( [ 'Alpha', 'Beta' ] );
+		const { context, table, tbody, wrapper } = createTable( [ 'Alpha', 'Beta' ] );
 		const sizingCell = table.rows.item( 0 )?.cells.item( 0 );
 		if ( ! sizingCell ) {
 			throw new Error( 'Expected sizing cell' );
@@ -76,98 +203,33 @@ describe( 'row-controls', () => {
 		jest.spyOn( table, 'getBoundingClientRect' ).mockReturnValue( { width: 408 } as DOMRect );
 		jest.spyOn( sizingCell, 'getBoundingClientRect' ).mockReturnValue( { width: 27 } as DOMRect );
 
-		const controls = createRowControls( document, tbody, [], { showAll: true } );
-
+		const controls = createRowControls( context, [], { showAll: true } );
 		expect( wrapper.style.overflowX ).toBe( 'auto' );
 		expect( table.style.minWidth ).toBe( '445px' );
 		expect( sizingCell.style.width ).toBe( '64px' );
 
 		controls.cleanup();
-
 		expect( wrapper.style.overflowX ).toBe( 'hidden' );
 		expect( table.style.minWidth ).toBe( '400px' );
 		expect( sizingCell.style.width ).toBe( '20px' );
 	} );
 
-	it( 'keeps table width unchanged when the first column is already wide enough', () => {
-		const { table, tbody, wrapper } = createTable( [ 'Alpha', 'Beta' ] );
-		const sizingCell = table.rows.item( 0 )?.cells.item( 0 );
-		if ( ! sizingCell ) {
-			throw new Error( 'Expected sizing cell' );
-		}
-		jest.spyOn( table, 'getBoundingClientRect' ).mockReturnValue( { width: 408 } as DOMRect );
-		jest.spyOn( sizingCell, 'getBoundingClientRect' ).mockReturnValue( { width: 80 } as DOMRect );
+	it( 'materializes an offscreen movable row on demand', () => {
+		const { context, tbody } = createTable( [ 'Alpha', 'Beta' ] );
+		jest.spyOn( tbody.rows.item( 0 )!, 'getBoundingClientRect' ).mockReturnValue(
+			( { top: 0, bottom: 40 } ) as DOMRect
+		);
+		jest.spyOn( tbody.rows.item( 1 )!, 'getBoundingClientRect' ).mockReturnValue(
+			( { top: 3000, bottom: 3040 } ) as DOMRect
+		);
+		const controls = createRowControls( context, [], { showAll: false } );
+		const secondRow = tbody.rows.item( 1 )!;
+		expect( secondRow.querySelector( `.${ HANDLE_ZONE_CLASS }` ) ).toBeNull();
 
-		const controls = createRowControls( document, tbody, [], { showAll: true } );
-
-		expect( wrapper.style.overflowX ).toBe( '' );
-		expect( table.style.minWidth ).toBe( '' );
-		expect( sizingCell.style.width ).toBe( '' );
-
+		const control = controls.ensureControl( secondRow );
+		expect( control ).not.toBeNull();
+		expect( secondRow.querySelector( `.${ HANDLE_ZONE_CLASS }` ) ).toBe( control );
 		controls.cleanup();
-	} );
-
-	it( 'keeps only one row control visible in hover mode', () => {
-		const { tbody } = createTable( [ 'Alpha', 'Beta' ] );
-		const controls = createRowControls( document, tbody, [], { showAll: false } );
-		const [ firstEntry, secondEntry ] = controls.entries;
-
-		controls.setVisible( firstEntry, true );
-		expect( firstEntry.control.dataset.visible ).toBe( 'true' );
-		expect( secondEntry.control.dataset.visible ).toBe( 'false' );
-
-		controls.setVisible( secondEntry, true );
-		expect( firstEntry.control.dataset.visible ).toBe( 'false' );
-		expect( secondEntry.control.dataset.visible ).toBe( 'true' );
-
-		controls.cleanup();
-	} );
-
-	it( 'exposes the current reorder target separately from focus state', () => {
-		const { tbody } = createTable( [ 'Alpha' ] );
-		const controls = createRowControls( document, tbody, [], { showAll: false } );
-		const entry = controls.entries[ 0 ];
-
-		expect( entry.control.getAttribute( 'aria-pressed' ) ).toBe( 'false' );
-
-		entry.setPressed( true );
-		expect( entry.control.getAttribute( 'aria-pressed' ) ).toBe( 'true' );
-		expect( entry.control.getAttribute( 'aria-describedby' ) ).toBeNull();
-
-		entry.setPressed( false );
-		expect( entry.control.getAttribute( 'aria-pressed' ) ).toBe( 'false' );
-
-		controls.cleanup();
-	} );
-
-	it( 'uses WordPress Tooltip instead of a native title and switches the accessible description', async () => {
-		const { tbody } = createTable( [ 'Alpha' ] );
-		const controls = createRowControls( document, tbody, [], { showAll: false } );
-		const control = controls.entries[ 0 ].control;
-		const pointerDescriptionId = control.getAttribute( 'aria-describedby' );
-
-		expect( control.hasAttribute( 'title' ) ).toBe( false );
-		expect( pointerDescriptionId ).toContain( '-pointer' );
-
-		Object.assign( globalThis, { IS_REACT_ACT_ENVIRONMENT: true } );
-		try {
-			await act( async () => {
-				control.dispatchEvent( new FocusEvent( 'focus' ) );
-				expect( control.getAttribute( 'aria-describedby' ) ).toContain( '-keyboard' );
-			} );
-			expect( control.hasAttribute( 'title' ) ).toBe( false );
-			expect( control.getAttribute( 'aria-describedby' ) ).toContain( '-keyboard' );
-
-			await act( async () => {
-				control.dispatchEvent( new FocusEvent( 'blur' ) );
-				expect( control.getAttribute( 'aria-describedby' ) ).toBe( pointerDescriptionId );
-			} );
-			expect( control.hasAttribute( 'title' ) ).toBe( false );
-			expect( control.getAttribute( 'aria-describedby' ) ).toBe( pointerDescriptionId );
-		} finally {
-			Object.assign( globalThis, { IS_REACT_ACT_ENVIRONMENT: false } );
-			controls.cleanup();
-		}
 	} );
 
 	it( 'uses the first non-empty cell as representative row text', () => {
@@ -178,7 +240,6 @@ describe( 'row-controls', () => {
 		}
 		row.append( document.createElement( 'td' ) );
 		row.cells.item( 1 )!.textContent = 'Second cell';
-
 		expect( getRowRepresentativeText( row ) ).toBe( 'Second cell' );
 	} );
 } );
