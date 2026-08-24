@@ -33,10 +33,10 @@ type UseTableReorderOptions = {
 
 /** HOCが描画とtoolbar操作に利用する最小state。 */
 type TableReorderHookResult = {
-	anchorRef: ( anchor: HTMLSpanElement | null ) => void;
 	consumeTouchToolbarFocusRequest: () => void;
 	dismissKeyboardCoachmark: () => void;
 	dismissTouchCoachmark: () => void;
+	editorCanvasReferenceRef: ( referenceElement: HTMLSpanElement | null ) => void;
 	isHoverCapable: boolean;
 	isKeyboardCoachmarkVisible: boolean;
 	isTouchCoachmarkVisible: boolean;
@@ -54,7 +54,7 @@ type TableReorderHookResult = {
  */
 export const useTableReorder = ( options: UseTableReorderOptions ): TableReorderHookResult => {
 	const { body, clientId, enabled, isSelected, rowspanProperty, setAttributes } = options;
-	const anchorElementRef = useRef< HTMLSpanElement >( null );
+	const editorCanvasReferenceElementRef = useRef< HTMLSpanElement >( null );
 	const { createNotice } = useDispatch( noticesStore );
 	const { forbiddenInsertionIndices, nonMovableRowIndices } = useMemo( () => {
 		const rowspanRanges = rowspanProperty ? getRowspanRanges( body, rowspanProperty ) : [];
@@ -64,7 +64,7 @@ export const useTableReorder = ( options: UseTableReorderOptions ): TableReorder
 		};
 	}, [ body, rowspanProperty ] );
 	const {
-		anchorRef: interactionAnchorRef,
+		editorCanvasReferenceRef: interactionEditorCanvasReferenceRef,
 		consumeTouchToolbarFocusRequest,
 		dismissKeyboardCoachmark,
 		dismissTouchCoachmark,
@@ -81,18 +81,23 @@ export const useTableReorder = ( options: UseTableReorderOptions ): TableReorder
 		isSelected,
 	} );
 
-	const { anchorRef: controllerAnchorRef, focusRowControl } = useTableReorderController( {
-		body,
-		clientId,
-		enabled,
-		forbiddenInsertionIndices,
-		interactionMode,
-		nonMovableRowIndices,
-		onBodyCommit: ( reorderedBody ) => {
-			setAttributes( { body: reorderedBody } );
-		},
-	} );
-	const anchorRef = useMergeRefs( [ anchorElementRef, interactionAnchorRef, controllerAnchorRef ] );
+	const { editorCanvasReferenceRef: controllerEditorCanvasReferenceRef, focusRowControl } =
+		useTableReorderController( {
+			body,
+			clientId,
+			enabled,
+			forbiddenInsertionIndices,
+			interactionMode,
+			nonMovableRowIndices,
+			onBodyCommit: ( reorderedBody ) => {
+				setAttributes( { body: reorderedBody } );
+			},
+		} );
+	const editorCanvasReferenceRef = useMergeRefs( [
+		editorCanvasReferenceElementRef,
+		interactionEditorCanvasReferenceRef,
+		controllerEditorCanvasReferenceRef,
+	] );
 
 	const createNoMovableRowsNotice = () => {
 		void createNotice( 'warning', getNoMovableRowsMessage(), {
@@ -102,18 +107,18 @@ export const useTableReorder = ( options: UseTableReorderOptions ): TableReorder
 
 	const notifyTouchNoMovableRows = () => {
 		createNoMovableRowsNotice();
-		const anchor = anchorElementRef.current;
-		const context = anchor ? resolveTableContext( anchor, clientId ) : null;
+		const referenceElement = editorCanvasReferenceElementRef.current;
+		const context = referenceElement ? resolveTableContext( referenceElement, clientId ) : null;
 		if ( context ) {
 			announceLiveStatus( context.document, getNoMovableRowsAnnouncement() );
 		}
 	};
 
 	return {
-		anchorRef,
 		consumeTouchToolbarFocusRequest,
 		dismissKeyboardCoachmark,
 		dismissTouchCoachmark,
+		editorCanvasReferenceRef,
 		isHoverCapable,
 		isKeyboardCoachmarkVisible,
 		isTouchCoachmarkVisible,

@@ -55,10 +55,10 @@ type UseTableReorderInteractionOptions = {
 
 /** interaction hookが親へ公開するstate / command。 */
 type TableReorderInteraction = {
-	anchorRef: ( anchor: HTMLSpanElement | null ) => void;
 	consumeTouchToolbarFocusRequest: () => void;
 	dismissKeyboardCoachmark: () => void;
 	dismissTouchCoachmark: () => void;
+	editorCanvasReferenceRef: ( referenceElement: HTMLSpanElement | null ) => void;
 	interactionMode: ReorderInteractionMode | null;
 	isHoverCapable: boolean;
 	isKeyboardCoachmarkVisible: boolean;
@@ -72,7 +72,7 @@ type TableReorderInteraction = {
  * Table Reorderのhover / input / touch mode / coachmark stateを所有する。
  *
  * @param options interaction判定に必要なclientId、plugin有効状態、block選択状態。
- * @return hidden anchor用ref、controller mode、HOCが利用するinteraction state / command。
+ * @return editor canvas reference用ref、controller mode、HOCが利用するinteraction state / command。
  */
 export const useTableReorderInteraction = (
 	options: UseTableReorderInteractionOptions
@@ -244,13 +244,13 @@ export const useTableReorderInteraction = (
 		return bindDocumentListeners( window.document, () => currentContextRef.current );
 	}, [ bindDocumentListeners, enabled ] );
 
-	const anchorRef = useRefEffect(
-		( anchor: HTMLSpanElement ) => {
+	const editorCanvasReferenceRef = useRefEffect(
+		( referenceElement: HTMLSpanElement ) => {
 			if ( ! enabled ) {
 				return;
 			}
 
-			const context = resolveTableContext( anchor, clientId );
+			const context = resolveTableContext( referenceElement, clientId );
 			currentContextRef.current = context;
 			if ( ! context ) {
 				return () => {
@@ -322,12 +322,12 @@ export const useTableReorderInteraction = (
 	}
 
 	return {
-		anchorRef,
 		consumeTouchToolbarFocusRequest: () => {
 			setIsTouchToolbarFocusRequested( false );
 		},
 		dismissKeyboardCoachmark,
 		dismissTouchCoachmark,
+		editorCanvasReferenceRef,
 		interactionMode,
 		isHoverCapable,
 		isKeyboardCoachmarkVisible,

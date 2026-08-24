@@ -70,7 +70,7 @@ const HookHarness = ( props: { isSelected: boolean } ) => {
 		enabled: true,
 		isSelected: props.isSelected,
 	} );
-	return createElement( 'span', { ref: latestResult.anchorRef } );
+	return createElement( 'span', { ref: latestResult.editorCanvasReferenceRef } );
 };
 
 const getResult = () => {

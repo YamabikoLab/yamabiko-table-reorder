@@ -24,10 +24,10 @@ jest.mock( './use-table-reorder', () => ( {
 const useTableReorderMock = useTableReorder as jest.MockedFunction< typeof useTableReorder >;
 
 const createHookResult = (): ReturnType< typeof useTableReorder > => ( {
-	anchorRef: jest.fn(),
 	consumeTouchToolbarFocusRequest: jest.fn(),
 	dismissKeyboardCoachmark: jest.fn(),
 	dismissTouchCoachmark: jest.fn(),
+	editorCanvasReferenceRef: jest.fn(),
 	isHoverCapable: true,
 	isKeyboardCoachmarkVisible: false,
 	isTouchCoachmarkVisible: false,
