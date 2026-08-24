@@ -10,8 +10,6 @@ The plugin source is organized by responsibility rather than by technical layer 
 src/
 ├── index.tsx
 ├── common/
-│   ├── editor-environment.ts
-│   ├── editor-environment.test.ts
 │   ├── sortable-runtime-loader.ts
 │   └── sortable-runtime-loader.test.ts
 ├── row-reorder/
@@ -34,7 +32,7 @@ src/
 ```
 
 - `index.tsx` is the thin plugin-wide entry point.
-- `common/` contains environment infrastructure whose responsibility does not depend on row reordering.
+- `common/` contains responsibility-neutral runtime infrastructure shared by implemented features.
 - `row-reorder/` contains implementation that knows about rows, `tbody`, `rowspan`, row controls, or the row-reorder interaction model.
 - `types/` contains source-level declarations.
 
@@ -56,8 +54,7 @@ common/
 - `row-reorder/use-table-reorder.ts` connects Gutenberg notices / `setAttributes()` to the dedicated interaction and controller hooks.
 - `row-reorder/use-table-reorder-interaction.ts` owns hover capability, input modality, touch reorder mode, and coachmark preferences.
 - `row-reorder/use-table-reorder-controller.ts` owns SortableJS controller creation, cleanup, recreation, and focus restoration.
-- `common/editor-environment.ts` isolates iframe / non-iframe editor browsing-context discovery and resolves the current editor `document` / `window` without caching them across editor lifecycle changes.
-- `row-reorder/table-context.ts` consumes the Editor Environment boundary and resolves the target Table block, table, and `tbody` from the current editor document.
+- `row-reorder/table-context.ts` resolves the current Table DOM context from the editor canvas reference element's `ownerDocument` / `defaultView`, then finds the target block and `tbody` in that same document.
 - `row-reorder/controller/sortable-controller.ts` owns imperative keyboard / pointer / drag session orchestration.
 - `common/sortable-runtime-loader.ts` loads or reuses the SortableJS runtime in the owning editor window.
 - `row-reorder/controller/row-order.ts` owns deterministic row movement rules and DOM-order restoration.
@@ -77,21 +74,20 @@ Rows involved in vertical merges (`rowspan`) cannot be moved, and insertion posi
 
 Keyboard, pointer, and touch behavior remain owned by the row-reorder feature boundary. These responsibilities are not generalized for future column support until a real column implementation demonstrates stable shared behavior.
 
-## Editor Environment
+## Editor DOM context
 
-Editor browsing-context differences are isolated behind `common/editor-environment.ts`.
+Table Reorder owns an editor-only DOM reference element inside the current editor canvas. Consumers resolve browsing-context APIs locally from that reference instead of detecting iframe / non-iframe editor modes.
 
-The Editor Environment resolves the current editor context with this rule:
+`row-reorder/table-context.ts` uses:
 
-1. Start from the editor canvas reference element's owning `document`.
-2. If `[data-block="<clientId>"]` exists there, use that document and its `defaultView`.
-3. Otherwise, inspect every `iframe[name="editor-canvas"]` in document order and select the first current `contentDocument` that contains the target block.
-4. Return that document together with its own `defaultView`, so `document` and `window` always belong to the same browsing context.
-5. If no matching current context can be resolved, return `null`.
+```ts
+const document = referenceElement.ownerDocument;
+const window = document.defaultView;
+```
 
-The resolver is stateless and does not retain `document` / `window` references across calls, so iframe teardown / recreation is resolved against the current editor context. A returned context is only guaranteed to be current at resolve time; consumers should resolve again when the editor context may have changed.
+The target Gutenberg block is then identified by `clientId` only inside that same `document`. The implementation does not inspect `iframe[name="editor-canvas"]`, does not traverse `contentDocument`, and does not cache editor `document` / `window` references across lifecycle changes.
 
-`row-reorder/table-context.ts` receives that resolved environment and performs only row-reorder Table DOM resolution. Controller, drag UI, focus, scroll, and other consumers continue to use standard Web APIs and DOM-local context directly when appropriate.
+The reference element lifecycle is owned by the existing React ref effects. When WordPress replaces the editor canvas context, the ref is attached to the current DOM and context resolution starts from that current element.
 
 ## DOM ownership handoff
 
