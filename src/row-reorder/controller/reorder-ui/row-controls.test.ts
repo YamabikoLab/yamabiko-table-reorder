@@ -192,7 +192,7 @@ describe( 'row-controls', () => {
 	} );
 
 	it( 'adds only the missing first-column width in touch reorder mode and restores it', () => {
-		const { context, table, tbody, wrapper } = createTable( [ 'Alpha', 'Beta' ] );
+		const { context, table, wrapper } = createTable( [ 'Alpha', 'Beta' ] );
 		const sizingCell = table.rows.item( 0 )?.cells.item( 0 );
 		if ( ! sizingCell ) {
 			throw new Error( 'Expected sizing cell' );
