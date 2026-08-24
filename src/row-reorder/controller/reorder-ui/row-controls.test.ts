@@ -168,7 +168,10 @@ describe( 'row-controls', () => {
 
 		const getComputedStyle = window.getComputedStyle.bind( window );
 		const incomingCells = new Set(
-			Array.from( { length: 17 }, ( _value, index ) => tbody.rows.item( index + 35 )!.cells.item( 0 )! )
+			Array.from(
+				{ length: 17 },
+				( _value, index ) => tbody.rows.item( index + 35 )!.cells.item( 0 )!
+			)
 		);
 		const readPhaseSnapshots: Array< { incomingMounted: boolean; outgoingPresent: boolean } > = [];
 		jest.spyOn( window, 'getComputedStyle' ).mockImplementation( ( element ) => {
