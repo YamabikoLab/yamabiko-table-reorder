@@ -48,17 +48,18 @@ type WithColumnReorderProps = Parameters< typeof WithColumnReorder >[ 0 ];
 
 const createProps = (
 	attributes: TableAttributes,
-	setAttributes: ( nextAttributes: TableAttributes ) => void
+	setAttributes: ( nextAttributes: TableAttributes ) => void,
+	isSelected = true
 ): WithColumnReorderProps =>
 	( {
 		attributes,
 		clientId: 'column-table',
-		isSelected: true,
+		isSelected,
 		name: 'core/table',
 		setAttributes,
 	} ) as unknown as WithColumnReorderProps;
 
-const render = () => {
+const render = ( isSelected = true ) => {
 	const container = document.createElement( 'div' );
 	document.body.append( container );
 	const root = createRoot( container );
@@ -67,10 +68,14 @@ const render = () => {
 		const [ attributes, setCurrentAttributes ] = useState( initialAttributes );
 		return createElement(
 			WithColumnReorder,
-			createProps( attributes, ( nextAttributes ) => {
-				setAttributes( nextAttributes );
-				setCurrentAttributes( nextAttributes );
-			} )
+			createProps(
+				attributes,
+				( nextAttributes ) => {
+					setAttributes( nextAttributes );
+					setCurrentAttributes( nextAttributes );
+				},
+				isSelected
+			)
 		);
 	};
 	act( () => {
@@ -132,6 +137,14 @@ afterEach( () => {
 } );
 
 describe( 'withColumnReorder', () => {
+	it( 'keeps column controls mounted when the table block is not selected', () => {
+		const mounted = render( false );
+
+		expect( getControls( mounted.container ) ).toHaveLength( 3 );
+
+		mounted.unmount();
+	} );
+
 	it( 'moves a keyboard destination by insertion boundary and restores focus after commit', () => {
 		const mounted = render();
 		let controls = getControls( mounted.container );
