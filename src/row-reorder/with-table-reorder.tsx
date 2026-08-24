@@ -183,7 +183,7 @@ const TableReorderEdit = ( componentProps: TableReorderEditProps ) => {
 					) }
 				</BlockControls>
 			) }
-			{ /**
+			{ /*
 			 * Existing Table blocks are extended through editor.BlockEdit, so Table
 			 * Reorder cannot attach a ref directly to their canvas DOM.
 			 *
