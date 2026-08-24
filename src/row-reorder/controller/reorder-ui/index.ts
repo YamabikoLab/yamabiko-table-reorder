@@ -13,6 +13,6 @@ export {
 	getRowRepresentativeText,
 	HANDLE_ZONE_CLASS,
 	stopRowControlInteractionPropagation,
-	type RowControlEntry,
+	type RowControls,
 } from './row-controls';
 export { createRowMoveTargets, type RowMoveTargetsUi } from './row-move-targets';
