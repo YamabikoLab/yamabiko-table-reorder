@@ -124,6 +124,11 @@ beforeAll( () => {
 beforeEach( () => {
 	BlockEdit.mockClear();
 	document.body.replaceChildren();
+	jest.spyOn( window, 'scrollBy' ).mockImplementation( () => undefined );
+} );
+
+afterEach( () => {
+	jest.restoreAllMocks();
 } );
 
 describe( 'withColumnReorder', () => {
