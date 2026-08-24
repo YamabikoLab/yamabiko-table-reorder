@@ -43,7 +43,7 @@ type CellStyleSnapshot = {
 };
 
 type PoolSlot = {
-	control: HTMLButtonElement;
+	control: HTMLButtonElement | null;
 	mount: HTMLSpanElement;
 	root: ReturnType< typeof createRoot >;
 	pointerDescriptionId: string;
@@ -176,6 +176,10 @@ export const createRowControls = (
 	};
 
 	const syncDescription = ( slot: PoolSlot ) => {
+		const control = slot.control;
+		if ( ! control ) {
+			return;
+		}
 		let descriptionId: string | undefined;
 		if ( slot.useKeyboardDescription ) {
 			descriptionId = slot.keyboardDescriptionId;
@@ -183,9 +187,9 @@ export const createRowControls = (
 			descriptionId = slot.pointerDescriptionId;
 		}
 		if ( slot.isPressed || ! descriptionId ) {
-			slot.control.removeAttribute( 'aria-describedby' );
+			control.removeAttribute( 'aria-describedby' );
 		} else {
-			slot.control.setAttribute( 'aria-describedby', descriptionId );
+			control.setAttribute( 'aria-describedby', descriptionId );
 		}
 	};
 
@@ -198,7 +202,7 @@ export const createRowControls = (
 		mount.style.display = 'contents';
 		const root = createRoot( mount );
 		const slot: PoolSlot = {
-			control: null as unknown as HTMLButtonElement,
+			control: null,
 			mount,
 			root,
 			pointerDescriptionId,
@@ -266,14 +270,20 @@ export const createRowControls = (
 			);
 		};
 
-		flushSync( slot.render );
-		const control = mount.querySelector< HTMLButtonElement >( `.${ HANDLE_ZONE_CLASS }` );
+		slots.push( slot );
+		return slot;
+	};
+
+	const initializeControl = ( slot: PoolSlot ): HTMLButtonElement => {
+		if ( slot.control ) {
+			return slot.control;
+		}
+		const control = slot.mount.querySelector< HTMLButtonElement >( `.${ HANDLE_ZONE_CLASS }` );
 		if ( ! control ) {
-			root.unmount();
+			slot.root.unmount();
 			throw new Error( 'Failed to create row control' );
 		}
 		slot.control = control;
-		control.dataset.visible = options.showAll ? 'true' : 'false';
 		control.addEventListener( 'focus', () => {
 			slot.useKeyboardDescription = true;
 			syncDescription( slot );
@@ -285,8 +295,7 @@ export const createRowControls = (
 			slot.render();
 		} );
 		slotByControl.set( control, slot );
-		slots.push( slot );
-		return slot;
+		return control;
 	};
 
 	const unbind = ( slot: PoolSlot ) => {
@@ -300,9 +309,9 @@ export const createRowControls = (
 		slot.isVisible = options.showAll;
 		slot.useKeyboardDescription = false;
 		slot.rowControlName = '';
-		slot.control.dataset.visible = options.showAll ? 'true' : 'false';
-		flushSync( slot.render );
-		syncDescription( slot );
+		if ( slot.control ) {
+			slot.control.dataset.visible = options.showAll ? 'true' : 'false';
+		}
 	};
 
 	const bind = ( slot: PoolSlot, row: HTMLTableRowElement ) => {
@@ -332,12 +341,13 @@ export const createRowControls = (
 		slot.isVisible = options.showAll;
 		slot.useKeyboardDescription = false;
 		slot.rowControlName = getRowControlName( rowIndex + 1, rowLabel );
-		slot.control.dataset.visible = options.showAll ? 'true' : 'false';
 		flushSync( slot.render );
+		const control = initializeControl( slot );
+		control.dataset.visible = options.showAll ? 'true' : 'false';
 		syncDescription( slot );
 		firstCell.prepend( slot.mount );
 		slotByRow.set( row, slot );
-		return slot.control;
+		return control;
 	};
 
 	const acquireSlot = () => slots.find( ( slot ) => ! slot.row && ! slot.isPinned ) ?? createSlot();
@@ -538,7 +548,6 @@ export const createRowControls = (
 			if ( slot.row && ! slot.isPinned && ! viewportRows.has( slot.row ) ) {
 				unbind( slot );
 			}
-		}
 	};
 
 	const syncControls = () => {
@@ -578,7 +587,7 @@ export const createRowControls = (
 		}
 		if ( isVisible && ! options.showAll ) {
 			for ( const otherSlot of slots ) {
-				if ( otherSlot !== slot && otherSlot.row ) {
+				if ( otherSlot !== slot && otherSlot.row && otherSlot.control ) {
 					otherSlot.isVisible = false;
 					otherSlot.control.dataset.visible = 'false';
 				}
