@@ -41,7 +41,9 @@ const BlockEdit = jest.fn(
 		)
 );
 
-const WithColumnReorder = withColumnReorder( BlockEdit );
+const WithColumnReorder = withColumnReorder(
+	BlockEdit as unknown as Parameters< typeof withColumnReorder >[ 0 ]
+);
 type WithColumnReorderProps = Parameters< typeof WithColumnReorder >[ 0 ];
 
 const createProps = (
