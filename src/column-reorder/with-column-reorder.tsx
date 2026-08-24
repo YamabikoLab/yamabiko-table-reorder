@@ -51,11 +51,16 @@ const getControlGeometry = ( columns: HTMLTableCellElement[] ): ControlGeometry 
 export const withColumnReorder = ( BlockEdit: ComponentType< TableBlockEditProps > ) =>
 	function WithColumnReorder( props: TableBlockEditProps ) {
 		const { attributes, clientId, isSelected, name } = props;
-		const [ anchor, setAnchor ] = useState< HTMLSpanElement | null >( null );
+		const [ editorCanvasReference, setEditorCanvasReference ] =
+			useState< HTMLSpanElement | null >( null );
 		const [ geometry, setGeometry ] = useState< ControlGeometry | null >( null );
 
 		useLayoutEffect( () => {
-			if ( ! isSelected || ! anchor || ! supportsColumnReorder( name ) ) {
+			if (
+				! isSelected ||
+				! editorCanvasReference ||
+				! supportsColumnReorder( name )
+			) {
 				setGeometry( null );
 				return;
 			}
@@ -63,7 +68,7 @@ export const withColumnReorder = ( BlockEdit: ComponentType< TableBlockEditProps
 			let resizeObserver: ResizeObserver | null = null;
 
 			const refreshGeometry = () => {
-				const currentContext = resolveColumnTableContext( anchor, clientId );
+				const currentContext = resolveColumnTableContext( editorCanvasReference, clientId );
 				if ( ! currentContext ) {
 					setGeometry( null );
 					return;
@@ -72,7 +77,7 @@ export const withColumnReorder = ( BlockEdit: ComponentType< TableBlockEditProps
 				setGeometry( getControlGeometry( currentContext.columns ) );
 			};
 
-			const context = resolveColumnTableContext( anchor, clientId );
+			const context = resolveColumnTableContext( editorCanvasReference, clientId );
 			if ( ! context ) {
 				setGeometry( null );
 				return;
@@ -94,7 +99,7 @@ export const withColumnReorder = ( BlockEdit: ComponentType< TableBlockEditProps
 				context.window.removeEventListener( 'scroll', refreshGeometry, true );
 				resizeObserver?.disconnect();
 			};
-		}, [ anchor, attributes, clientId, isSelected, name ] );
+		}, [ editorCanvasReference, attributes, clientId, isSelected, name ] );
 
 		const showControls = isSelected && supportsColumnReorder( name ) && geometry;
 
@@ -123,7 +128,14 @@ export const withColumnReorder = ( BlockEdit: ComponentType< TableBlockEditProps
 						) ) }
 					</div>
 				) }
-				<span aria-hidden="true" hidden ref={ setAnchor } />
+				{ /*
+				 * Existing Table blocks are extended through editor.BlockEdit, so Column
+				 * Reorder cannot attach a ref directly to their canvas DOM.
+				 *
+				 * This editor-only element provides the DOM-local reference used to resolve
+				 * the current editor document and window without browsing-context discovery.
+				 */ }
+				<span aria-hidden="true" hidden ref={ setEditorCanvasReference } />
 			</>
 		);
 	};
