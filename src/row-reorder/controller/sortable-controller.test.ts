@@ -44,7 +44,7 @@ const getCreatedOptions = ( runtime: SortableRuntime ): TestSortableOptions => {
 };
 
 const dispatchMousePointerEvent = ( target: Element, type: string ) => {
-	const event = new Event( type );
+	const event = new Event( type, { bubbles: true } );
 	Object.defineProperty( event, 'pointerType', { value: 'mouse' } );
 	target.dispatchEvent( event );
 };
@@ -124,16 +124,16 @@ describe( 'createSortableController', () => {
 		);
 		expect( firstControl?.dataset.visible ).toBe( 'false' );
 
-		dispatchMousePointerEvent( firstRow!, 'pointerenter' );
+		dispatchMousePointerEvent( firstRow!, 'pointerover' );
 		expect( firstControl?.dataset.visible ).toBe( 'true' );
 		expect( context.blockElement.getAttribute( 'draggable' ) ).toBe( 'false' );
-		dispatchMousePointerEvent( firstRow!, 'pointerleave' );
+		dispatchMousePointerEvent( firstRow!, 'pointerout' );
 		expect( firstControl?.dataset.visible ).toBe( 'false' );
 		expect( context.blockElement.getAttribute( 'draggable' ) ).toBe( 'true' );
 
 		expect( getCreatedOptions( runtime ).handle ).toBe( '.yamabiko-table-reorder-handle-zone' );
 
-		dispatchMousePointerEvent( firstRow!, 'pointerenter' );
+		dispatchMousePointerEvent( firstRow!, 'pointerover' );
 		expect( context.blockElement.getAttribute( 'draggable' ) ).toBe( 'false' );
 		controller.destroy();
 		expect( context.blockElement.getAttribute( 'draggable' ) ).toBe( 'true' );
