@@ -61,11 +61,11 @@ describe( 'row-controls', () => {
 		const labels = Array.from( { length: 100 }, ( _value, index ) => `Row ${ index + 1 }` );
 		const { context, tbody } = createTable( labels );
 		let offset = 0;
-		let scheduled: FrameRequestCallback | null = null;
+		const callbacks: FrameRequestCallback[] = [];
 		mockRowPositions( tbody, () => offset );
 		jest.spyOn( window, 'requestAnimationFrame' ).mockImplementation( ( callback ) => {
-			scheduled = callback;
-			return 1;
+			callbacks.push( callback );
+			return callbacks.length;
 		} );
 		jest.spyOn( window, 'cancelAnimationFrame' ).mockImplementation( () => undefined );
 
@@ -79,8 +79,8 @@ describe( 'row-controls', () => {
 
 		offset = 3200;
 		tbody.dispatchEvent( new Event( 'scroll' ) );
-		expect( scheduled ).not.toBeNull();
-		scheduled?.( 0 );
+		expect( callbacks ).toHaveLength( 1 );
+		callbacks.shift()?.( 0 );
 
 		const scrolledControls = Array.from(
 			tbody.querySelectorAll< HTMLButtonElement >( `.${ HANDLE_ZONE_CLASS }` )
@@ -97,7 +97,7 @@ describe( 'row-controls', () => {
 	it( 'fully resynchronizes row-specific state when a pooled control is rebound', () => {
 		const { context, tbody } = createTable( [ 'Alpha', 'Beta' ] );
 		let offset = 0;
-		let scheduled: FrameRequestCallback | null = null;
+		const callbacks: FrameRequestCallback[] = [];
 		jest
 			.spyOn( tbody.rows.item( 0 )!, 'getBoundingClientRect' )
 			.mockImplementation( () => ( { top: -offset, bottom: 40 - offset } ) as DOMRect );
@@ -105,8 +105,8 @@ describe( 'row-controls', () => {
 			.spyOn( tbody.rows.item( 1 )!, 'getBoundingClientRect' )
 			.mockImplementation( () => ( { top: 3000 - offset, bottom: 3040 - offset } ) as DOMRect );
 		jest.spyOn( window, 'requestAnimationFrame' ).mockImplementation( ( callback ) => {
-			scheduled = callback;
-			return 1;
+			callbacks.push( callback );
+			return callbacks.length;
 		} );
 		jest.spyOn( window, 'cancelAnimationFrame' ).mockImplementation( () => undefined );
 		const firstCell = tbody.rows.item( 0 )!.cells.item( 0 )!;
@@ -124,7 +124,7 @@ describe( 'row-controls', () => {
 
 		offset = 3000;
 		document.dispatchEvent( new Event( 'scroll' ) );
-		scheduled?.( 0 );
+		callbacks.shift()?.( 0 );
 
 		const rebound = tbody.rows
 			.item( 1 )!
