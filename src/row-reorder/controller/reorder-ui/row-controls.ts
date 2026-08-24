@@ -182,7 +182,7 @@ export const createRowControls = (
 		const mount = document.createElement( 'span' );
 		mount.style.display = 'contents';
 		const root = createRoot( mount );
-		const slot = {
+		const slot: PoolSlot = {
 			control: null as unknown as HTMLButtonElement,
 			mount,
 			root,
@@ -196,7 +196,7 @@ export const createRowControls = (
 			useKeyboardDescription: false,
 			rowControlName: '',
 			render: () => undefined,
-		} satisfies PoolSlot;
+		};
 
 		slot.render = () => {
 			let tooltipText: string | undefined;
