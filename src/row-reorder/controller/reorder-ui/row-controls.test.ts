@@ -33,7 +33,7 @@ const createTable = ( labels: string[] ) => {
 };
 
 const mockRowPositions = ( tbody: HTMLTableSectionElement, getOffset: () => number ) => {
-	Array.from( tbody.rows ).forEach( ( row, index ) => {
+	return Array.from( tbody.rows ).map( ( row, index ) =>
 		jest.spyOn( row, 'getBoundingClientRect' ).mockImplementation(
 			() =>
 				( {
@@ -47,8 +47,8 @@ const mockRowPositions = ( tbody: HTMLTableSectionElement, getOffset: () => numb
 					y: index * 40 - getOffset(),
 					toJSON: () => ( {} ),
 				} ) as DOMRect
-		);
-	} );
+		)
+	);
 };
 
 describe( 'row-controls', () => {
@@ -92,6 +92,44 @@ describe( 'row-controls', () => {
 
 		controls.cleanup();
 		expect( tbody.querySelector( `.${ HANDLE_ZONE_CLASS }` ) ).toBeNull();
+	} );
+
+	it( 'does not measure every row when resolving a large initial viewport', () => {
+		const labels = Array.from( { length: 4096 }, ( _value, index ) => `Row ${ index + 1 }` );
+		const { context, tbody } = createTable( labels );
+		let offset = 80000;
+		const rowRectSpies = mockRowPositions( tbody, () => offset );
+
+		const controls = createRowControls( context, [], { showAll: false } );
+		const measuredRows = rowRectSpies.filter( ( spy ) => spy.mock.calls.length > 0 ).length;
+		expect( measuredRows ).toBeLessThan( 100 );
+		expect( tbody.querySelectorAll( `.${ HANDLE_ZONE_CLASS }` ).length ).toBeLessThan( 100 );
+
+		controls.cleanup();
+		offset = 0;
+	} );
+
+	it( 'updates a nearby scroll incrementally without remeasuring all rows', () => {
+		const labels = Array.from( { length: 4096 }, ( _value, index ) => `Row ${ index + 1 }` );
+		const { context, tbody } = createTable( labels );
+		let offset = 80000;
+		const callbacks: FrameRequestCallback[] = [];
+		const rowRectSpies = mockRowPositions( tbody, () => offset );
+		jest.spyOn( window, 'requestAnimationFrame' ).mockImplementation( ( callback ) => {
+			callbacks.push( callback );
+			return callbacks.length;
+		} );
+		jest.spyOn( window, 'cancelAnimationFrame' ).mockImplementation( () => undefined );
+		const controls = createRowControls( context, [], { showAll: false } );
+		rowRectSpies.forEach( ( spy ) => spy.mockClear() );
+
+		offset += 40;
+		document.dispatchEvent( new Event( 'scroll' ) );
+		callbacks.shift()?.( 0 );
+
+		const measuredRows = rowRectSpies.filter( ( spy ) => spy.mock.calls.length > 0 ).length;
+		expect( measuredRows ).toBeLessThan( 20 );
+		controls.cleanup();
 	} );
 
 	it( 'fully resynchronizes row-specific state when a pooled control is rebound', () => {
