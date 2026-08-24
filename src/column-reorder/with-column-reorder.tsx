@@ -200,9 +200,7 @@ const ColumnReorderEdit = ( componentProps: ColumnReorderEditProps ) => {
 		}
 
 		restoreFocus( destinationIndex );
-		setAnnouncement(
-			getColumnMoveCommittedAnnouncement( sourceIndex + 1, destinationIndex + 1 )
-		);
+		setAnnouncement( getColumnMoveCommittedAnnouncement( sourceIndex + 1, destinationIndex + 1 ) );
 		setSession( null );
 		setAttributes( nextAttributes );
 	};

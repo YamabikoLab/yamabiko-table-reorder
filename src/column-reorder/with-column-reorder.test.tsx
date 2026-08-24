@@ -22,27 +22,26 @@ const attributes: TableAttributes = {
 	],
 };
 
-const BlockEdit = jest.fn(
-	( { clientId }: { clientId: string } ) =>
+const BlockEdit = jest.fn( ( { clientId }: { clientId: string } ) =>
+	createElement(
+		'div',
+		{ 'data-block': clientId },
 		createElement(
-			'div',
-			{ 'data-block': clientId },
+			'table',
+			null,
 			createElement(
-				'table',
+				'tbody',
 				null,
 				createElement(
-					'tbody',
+					'tr',
 					null,
-					createElement(
-						'tr',
-						null,
-						createElement( 'td', null, 'A' ),
-						createElement( 'td', null, 'B' ),
-						createElement( 'td', null, 'C' )
-					)
+					createElement( 'td', null, 'A' ),
+					createElement( 'td', null, 'B' ),
+					createElement( 'td', null, 'C' )
 				)
 			)
 		)
+	)
 );
 
 const WithColumnReorder = withColumnReorder( BlockEdit );
@@ -100,7 +99,9 @@ const clickControl = ( control: HTMLButtonElement ) => {
 };
 
 const getControls = ( container: HTMLElement ): HTMLButtonElement[] =>
-	Array.from( container.querySelectorAll< HTMLButtonElement >( '.yamabiko-column-reorder-control' ) );
+	Array.from(
+		container.querySelectorAll< HTMLButtonElement >( '.yamabiko-column-reorder-control' )
+	);
 
 beforeAll( () => {
 	Object.assign( globalThis, { IS_REACT_ACT_ENVIRONMENT: true } );
@@ -161,9 +162,9 @@ describe( 'withColumnReorder', () => {
 
 		clickControl( controls[ 2 ] );
 		expect( controls[ 2 ].getAttribute( 'aria-pressed' ) ).toBe( 'true' );
-		expect( mounted.container.querySelector( '.yamabiko-column-reorder-guidance' )?.textContent ).toContain(
-			'Click a destination column'
-		);
+		expect(
+			mounted.container.querySelector( '.yamabiko-column-reorder-guidance' )?.textContent
+		).toContain( 'Click a destination column' );
 
 		clickControl( controls[ 0 ] );
 
