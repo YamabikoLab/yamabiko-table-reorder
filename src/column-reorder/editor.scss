@@ -13,7 +13,35 @@
 	pointer-events: auto;
 }
 
+.yamabiko-column-reorder-control[data-destination="true"] {
+	outline: 2px solid currentColor;
+	outline-offset: -2px;
+}
+
 .yamabiko-column-reorder-control > span {
 	line-height: 1;
 	transform: rotate(90deg);
+}
+
+.yamabiko-column-reorder-guidance {
+	position: fixed;
+	z-index: 11;
+	inset-inline-start: 50%;
+	bottom: 24px;
+	padding: 8px 12px;
+	transform: translateX(-50%);
+	background: #fff;
+	box-shadow: 0 1px 4px rgb(0 0 0 / 20%);
+}
+
+.yamabiko-column-reorder-live-status {
+	position: absolute;
+	width: 1px;
+	height: 1px;
+	padding: 0;
+	margin: -1px;
+	overflow: hidden;
+	clip: rect(0, 0, 0, 0);
+	white-space: nowrap;
+	border: 0;
 }
