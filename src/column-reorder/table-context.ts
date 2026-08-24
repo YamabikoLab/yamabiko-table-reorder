@@ -1,8 +1,9 @@
 /**
  * Column Reorderが利用するtable DOM contextを解決する。
+ *
+ * editor canvas referenceが属するdocumentを現在のeditor contextとして扱い、
+ * 同じdocument内から対象Table blockとtableを組み立てる。
  */
-
-import { resolveEditorEnvironment } from '@/common/editor-environment';
 
 /** Column control prototypeが必要とするDOM context。 */
 export type ColumnTableContext = {
@@ -46,24 +47,26 @@ export const getColumnCells = ( table: HTMLTableElement ): HTMLTableCellElement[
 };
 
 /**
- * anchorのcurrent editor contextからColumn Reorderのtable contextを組み立てる。
+ * editor canvas referenceのowning documentからColumn Reorderのtable contextを組み立てる。
  *
- * @param anchor   editor context探索の起点となるDOM element。
- * @param clientId 解決対象Gutenberg blockのclientId。
+ * owning documentの`defaultView`、block、table、column geometryのいずれかを解決できない場合は
+ * `null`を返す。
+ *
+ * @param referenceElement editor canvas内に所有するDOM reference element。
+ * @param clientId         同じdocument内で解決するGutenberg blockのclientId。
  * @return Column Reorder用context。対象外shape / 未解決ではnull。
  */
 export const resolveColumnTableContext = (
-	anchor: Element,
+	referenceElement: Element,
 	clientId: string
 ): ColumnTableContext | null => {
-	const environment = resolveEditorEnvironment( anchor, clientId );
-	if ( ! environment ) {
+	const document = referenceElement.ownerDocument;
+	const window = document.defaultView;
+	if ( ! window ) {
 		return null;
 	}
 
-	const blockElement = environment.document.querySelector< HTMLElement >(
-		`[data-block="${ clientId }"]`
-	);
+	const blockElement = document.querySelector< HTMLElement >( `[data-block="${ clientId }"]` );
 	const table = blockElement?.querySelector< HTMLTableElement >( 'table' ) ?? null;
 	if ( ! blockElement || ! table ) {
 		return null;
@@ -77,8 +80,8 @@ export const resolveColumnTableContext = (
 	return {
 		blockElement,
 		columns,
-		document: environment.document,
+		document,
 		table,
-		window: environment.window,
+		window,
 	};
 };
