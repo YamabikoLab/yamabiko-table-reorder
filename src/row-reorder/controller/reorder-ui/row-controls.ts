@@ -33,6 +33,9 @@ const MAX_ROW_LABEL_LENGTH = 80;
 /** viewport外でもcontrolを先読みして保持する上下余白。 */
 const VIEWPORT_OVERSCAN_PX = 600;
 
+/** 通常scrollでviewport windowを補充し直すoverscan余白。 */
+const VIEWPORT_REFILL_THRESHOLD_PX = VIEWPORT_OVERSCAN_PX / 2;
+
 /** 行controlの説明要素へ一意なIDを割り当てるための連番。 */
 let descriptionSequence = 0;
 
@@ -395,9 +398,9 @@ export const createRowControls = (
 		return bind( acquireSlot(), row );
 	};
 
-	const getViewportBounds = (): ViewportBounds => ( {
-		top: -VIEWPORT_OVERSCAN_PX,
-		bottom: view.innerHeight + VIEWPORT_OVERSCAN_PX,
+	const getViewportBounds = ( overscanPx = VIEWPORT_OVERSCAN_PX ): ViewportBounds => ( {
+		top: -overscanPx,
+		bottom: view.innerHeight + overscanPx,
 	} );
 
 	const findAnchorIndex = (): number | null => {
@@ -526,11 +529,18 @@ export const createRowControls = (
 		currentWindow: ViewportWindow
 	): ViewportWindow | null => {
 		const bounds = getViewportBounds();
-		if (
-			currentWindow.lastRow.getBoundingClientRect().bottom < bounds.top ||
-			currentWindow.firstRow.getBoundingClientRect().top > bounds.bottom
-		) {
+		const firstRect = currentWindow.firstRow.getBoundingClientRect();
+		const lastRect = currentWindow.lastRow.getBoundingClientRect();
+		if ( lastRect.bottom < bounds.top || firstRect.top > bounds.bottom ) {
 			return null;
+		}
+
+		const refillBounds = getViewportBounds( VIEWPORT_REFILL_THRESHOLD_PX );
+		const hasTopCoverage = currentWindow.firstIndex === 0 || firstRect.top <= refillBounds.top;
+		const hasBottomCoverage =
+			currentWindow.lastIndex === tbody.rows.length - 1 || lastRect.bottom >= refillBounds.bottom;
+		if ( hasTopCoverage && hasBottomCoverage ) {
+			return currentWindow;
 		}
 
 		const previousFirstIndex = currentWindow.firstIndex;
@@ -608,7 +618,6 @@ export const createRowControls = (
 				if ( row && isMovableRow( row ) && row.cells.item( 0 ) ) {
 					rowsToAdd.push( row );
 				}
-			}
 		}
 
 		const measurements = new Map< HTMLTableRowElement, RowBindingMeasurement >();
