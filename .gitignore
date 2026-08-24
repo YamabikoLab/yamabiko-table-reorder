@@ -19,4 +19,6 @@ test-results/
 artifacts/
 
 languages/.yamabiko-table-reorder-js.pot
+languages/.yamabiko-table-reorder-row-js.pot
+languages/.yamabiko-table-reorder-column-js.pot
 languages/.i18n-messages.js
