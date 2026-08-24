@@ -279,7 +279,10 @@ export const createSortableController = (
 		rowControls.setVisible( control, true );
 	};
 	const deactivateControl = ( control: HTMLButtonElement ) => {
-		if ( control === sessionControl() || ( session.kind === 'dragging' && control === dragControl ) ) {
+		if (
+			control === sessionControl() ||
+			( session.kind === 'dragging' && control === dragControl )
+		) {
 			return;
 		}
 		if ( ! control.matches( ':focus' ) ) {
@@ -429,7 +432,11 @@ export const createSortableController = (
 		startIndex: number,
 		direction: -1 | 1
 	): HTMLButtonElement | null => {
-		for ( let index = startIndex + direction; index >= 0 && index < tbody.rows.length; index += direction ) {
+		for (
+			let index = startIndex + direction;
+			index >= 0 && index < tbody.rows.length;
+			index += direction
+		) {
 			if ( nonMovableRows.has( index ) ) {
 				continue;
 			}
@@ -486,7 +493,11 @@ export const createSortableController = (
 		}
 	};
 	const onMouseDown = ( event: MouseEvent ) => {
-		if ( useHoverMode && event.button === 0 && getControlFromElement( event.target as Element | null ) ) {
+		if (
+			useHoverMode &&
+			event.button === 0 &&
+			getControlFromElement( event.target as Element | null )
+		) {
 			event.preventDefault();
 		}
 	};

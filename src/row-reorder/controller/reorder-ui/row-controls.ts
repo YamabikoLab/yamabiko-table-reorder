@@ -164,8 +164,8 @@ export const createRowControls = (
 		const descriptionId = slot.useKeyboardDescription
 			? slot.keyboardDescriptionId
 			: options.showAll
-				? undefined
-				: slot.pointerDescriptionId;
+			? undefined
+			: slot.pointerDescriptionId;
 		if ( slot.isPressed || ! descriptionId ) {
 			slot.control.removeAttribute( 'aria-describedby' );
 		} else {
@@ -201,8 +201,8 @@ export const createRowControls = (
 			const tooltipText = slot.useKeyboardDescription
 				? getKeyboardHandleTooltip()
 				: options.showAll
-					? undefined
-					: getPointerHandleTooltip();
+				? undefined
+				: getPointerHandleTooltip();
 			const anchor = createElement(
 				'button',
 				{

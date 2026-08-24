@@ -98,12 +98,12 @@ describe( 'row-controls', () => {
 		const { context, tbody } = createTable( [ 'Alpha', 'Beta' ] );
 		let offset = 0;
 		let scheduled: FrameRequestCallback | null = null;
-		jest.spyOn( tbody.rows.item( 0 )!, 'getBoundingClientRect' ).mockImplementation(
-			() => ( { top: -offset, bottom: 40 - offset } ) as DOMRect
-		);
-		jest.spyOn( tbody.rows.item( 1 )!, 'getBoundingClientRect' ).mockImplementation(
-			() => ( { top: 3000 - offset, bottom: 3040 - offset } ) as DOMRect
-		);
+		jest
+			.spyOn( tbody.rows.item( 0 )!, 'getBoundingClientRect' )
+			.mockImplementation( () => ( { top: -offset, bottom: 40 - offset } ) as DOMRect );
+		jest
+			.spyOn( tbody.rows.item( 1 )!, 'getBoundingClientRect' )
+			.mockImplementation( () => ( { top: 3000 - offset, bottom: 3040 - offset } ) as DOMRect );
 		jest.spyOn( window, 'requestAnimationFrame' ).mockImplementation( ( callback ) => {
 			scheduled = callback;
 			return 1;
@@ -143,12 +143,12 @@ describe( 'row-controls', () => {
 		const { context, tbody } = createTable( [ 'Alpha', 'Beta' ] );
 		let offset = 0;
 		const callbacks: FrameRequestCallback[] = [];
-		jest.spyOn( tbody.rows.item( 0 )!, 'getBoundingClientRect' ).mockImplementation(
-			() => ( { top: -offset, bottom: 40 - offset } ) as DOMRect
-		);
-		jest.spyOn( tbody.rows.item( 1 )!, 'getBoundingClientRect' ).mockImplementation(
-			() => ( { top: 3000 - offset, bottom: 3040 - offset } ) as DOMRect
-		);
+		jest
+			.spyOn( tbody.rows.item( 0 )!, 'getBoundingClientRect' )
+			.mockImplementation( () => ( { top: -offset, bottom: 40 - offset } ) as DOMRect );
+		jest
+			.spyOn( tbody.rows.item( 1 )!, 'getBoundingClientRect' )
+			.mockImplementation( () => ( { top: 3000 - offset, bottom: 3040 - offset } ) as DOMRect );
 		jest.spyOn( window, 'requestAnimationFrame' ).mockImplementation( ( callback ) => {
 			callbacks.push( callback );
 			return callbacks.length;
@@ -216,12 +216,12 @@ describe( 'row-controls', () => {
 
 	it( 'materializes an offscreen movable row on demand', () => {
 		const { context, tbody } = createTable( [ 'Alpha', 'Beta' ] );
-		jest.spyOn( tbody.rows.item( 0 )!, 'getBoundingClientRect' ).mockReturnValue(
-			( { top: 0, bottom: 40 } ) as DOMRect
-		);
-		jest.spyOn( tbody.rows.item( 1 )!, 'getBoundingClientRect' ).mockReturnValue(
-			( { top: 3000, bottom: 3040 } ) as DOMRect
-		);
+		jest
+			.spyOn( tbody.rows.item( 0 )!, 'getBoundingClientRect' )
+			.mockReturnValue( { top: 0, bottom: 40 } as DOMRect );
+		jest
+			.spyOn( tbody.rows.item( 1 )!, 'getBoundingClientRect' )
+			.mockReturnValue( { top: 3000, bottom: 3040 } as DOMRect );
 		const controls = createRowControls( context, [], { showAll: false } );
 		const secondRow = tbody.rows.item( 1 )!;
 		expect( secondRow.querySelector( `.${ HANDLE_ZONE_CLASS }` ) ).toBeNull();
