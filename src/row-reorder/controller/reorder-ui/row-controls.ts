@@ -1,5 +1,5 @@
 import { Tooltip } from '@wordpress/components';
-import { createElement, createRoot, flushSync, type Root } from '@wordpress/element';
+import { createElement, createRoot, flushSync } from '@wordpress/element';
 import { dragHandle, Icon } from '@wordpress/icons';
 
 import {
@@ -45,7 +45,7 @@ type CellStyleSnapshot = {
 type PoolSlot = {
 	control: HTMLButtonElement;
 	mount: HTMLSpanElement;
-	root: Root;
+	root: ReturnType< typeof createRoot >;
 	pointerDescriptionId: string;
 	keyboardDescriptionId: string;
 	row: HTMLTableRowElement | null;
