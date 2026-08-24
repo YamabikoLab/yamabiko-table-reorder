@@ -80,10 +80,10 @@ const TableReorderEdit = ( componentProps: TableReorderEditProps ) => {
 	} = props;
 	const [ toolbarButton, setToolbarButton ] = useState< HTMLButtonElement | null >( null );
 	const {
-		anchorRef,
 		consumeTouchToolbarFocusRequest,
 		dismissKeyboardCoachmark,
 		dismissTouchCoachmark,
+		editorCanvasReferenceRef,
 		isHoverCapable,
 		isKeyboardCoachmarkVisible,
 		isTouchCoachmarkVisible,
@@ -183,7 +183,14 @@ const TableReorderEdit = ( componentProps: TableReorderEditProps ) => {
 					) }
 				</BlockControls>
 			) }
-			<span aria-hidden="true" hidden ref={ anchorRef } />
+			{ /**
+			 * Existing Table blocks are extended through editor.BlockEdit, so Table
+			 * Reorder cannot attach a ref directly to their canvas DOM.
+			 *
+			 * This editor-only element provides a DOM reference used as the starting
+			 * point for resolving the editor DOM context.
+			 */ }
+			<span aria-hidden="true" hidden ref={ editorCanvasReferenceRef } />
 		</>
 	);
 };
