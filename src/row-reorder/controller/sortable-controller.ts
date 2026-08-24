@@ -863,10 +863,13 @@ export const createSortableController = (
 
 	return {
 		focusRowControl: () => {
-			const firstMovableRowIndex = Array.from( tbody.rows ).findIndex(
-				( _row, rowIndex ) => ! nonMovableRows.has( rowIndex )
-			);
-			if ( firstMovableRowIndex < 0 ) {
+			const firstFocusableRowIndex = Array.from( tbody.rows ).findIndex( ( row, rowIndex ) => {
+				if ( nonMovableRows.has( rowIndex ) ) {
+					return false;
+				}
+				return rowControls.ensureControl( row ) !== null;
+			} );
+			if ( firstFocusableRowIndex < 0 ) {
 				announce( getNoMovableRowsAnnouncement() );
 				return 'no-movable-rows';
 			}
@@ -886,7 +889,7 @@ export const createSortableController = (
 					return 'focused';
 				}
 			}
-			focusRowControlAt( firstMovableRowIndex );
+			focusRowControlAt( firstFocusableRowIndex );
 			return 'focused';
 		},
 		focusRowControlAt,
