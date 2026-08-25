@@ -10,9 +10,32 @@ Do not use Prototype source structure, interaction details, tests, or archived d
 
 Keep active source and documentation aligned with the formal v1 decisions that are currently valid. Add structure only when current implementation or an accepted design requires it.
 
+## Formal v1 development flow
+
+Develop formal v1 in this order:
+
+```text
+requirements
+    ↓
+design
+    ↓
+architecture
+    ↓
+implementation
+```
+
+- **Requirements** define what users, the product, and quality must achieve.
+- **Design** defines how those requirements appear as user-visible interactions, states, messages, and behavior.
+- **Architecture** defines the internal responsibilities, boundaries, and contracts needed to realize the design.
+- **Implementation** follows the accepted requirements, design, and architecture.
+
+Do not choose formal v1 architecture or implementation by extending Prototype structure first. Derive them from the accepted requirements and design.
+
 ## Product boundary
 
 Yamabiko Table Reorder is a WordPress plugin for site creators. It provides accessible table reordering for supported table blocks in the WordPress block editor.
+
+Formal v1 includes both **Row Reorder** and **Column Reorder** as product scope. It targets both the WordPress **Core Table** block and **Flexible Table Block** from the start. Implementation work may be split into smaller phases, but formal v1 requirements and design must consider both reorder directions and both supported table blocks.
 
 The repository root is the WordPress plugin root. Published minimum versions must stay aligned with the metadata in `yamabiko-table-reorder.php`.
 
