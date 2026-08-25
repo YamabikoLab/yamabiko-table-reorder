@@ -1,7 +1,7 @@
 <?php
 /**
  * Plugin Name: Yamabiko Table Reorder
- * Description: Accessible table row reordering for supported blocks in the WordPress block editor.
+ * Description: Table reordering for supported blocks in the WordPress block editor.
  * Version: 0.4.0
  * Requires at least: 6.8
  * Requires PHP: 8.1
@@ -32,79 +32,34 @@ final class Plugin {
 	public static function init(): void {
 		add_action(
 			'enqueue_block_editor_assets',
-			array( self::class, 'enqueue_table_reorder_editor_assets' )
-		);
-		add_action(
-			'enqueue_block_assets',
-			array( self::class, 'enqueue_table_reorder_editor_styles' )
+			array( self::class, 'enqueue_editor_assets' )
 		);
 	}
 
 	/**
-	 * Enqueues Table Reorder assets for the editor.
+	 * Enqueues the formal v1 editor entry when a build is available.
 	 */
-	public static function enqueue_table_reorder_editor_assets(): void {
-		$handle = self::enqueue_table_reorder_script();
-
-		if ( null === $handle ) {
-			return;
-		}
-
-		wp_set_script_translations(
-			$handle,
-			'yamabiko-table-reorder',
-			__DIR__ . '/languages'
-		);
-		self::add_table_reorder_runtime_config( $handle );
-	}
-
-	/**
-	 * Enqueues the generated Table Reorder stylesheet for editor content.
-	 */
-	public static function enqueue_table_reorder_editor_styles(): void {
-		if ( ! is_admin() ) {
-			return;
-		}
-
-		$file_path = __DIR__ . '/build/index.css';
-		if ( ! is_readable( $file_path ) ) {
-			return;
-		}
-
-		wp_enqueue_style(
-			'yamabiko-table-reorder-style',
-			plugins_url( 'build/index.css', __FILE__ ),
-			array( 'wp-components' ),
-			(string) filemtime( $file_path )
-		);
-	}
-
-	/**
-	 * Enqueues the generated Table Reorder script.
-	 *
-	 * @return string|null Script handle when the asset is available.
-	 */
-	private static function enqueue_table_reorder_script(): ?string {
+	public static function enqueue_editor_assets(): void {
 		$asset_path = __DIR__ . '/build/index.asset.php';
 		$file_path  = __DIR__ . '/build/index.js';
 
 		if ( ! is_readable( $asset_path ) || ! is_readable( $file_path ) ) {
-			return null;
+			return;
 		}
 
 		$asset = require $asset_path;
 
 		if ( ! is_array( $asset ) ) {
-			return null;
+			return;
 		}
 
-		$handle       = 'yamabiko-table-reorder-index';
 		$dependencies = isset( $asset['dependencies'] ) && is_array( $asset['dependencies'] )
 			? $asset['dependencies']
 			: array();
 		$version      = isset( $asset['version'] ) && is_string( $asset['version'] )
 			? $asset['version']
 			: false;
+		$handle       = 'yamabiko-table-reorder-index';
 
 		$runtime_handle = self::register_webpack_runtime_script();
 		if ( null !== $runtime_handle ) {
@@ -119,7 +74,11 @@ final class Plugin {
 			true
 		);
 
-		return $handle;
+		wp_set_script_translations(
+			$handle,
+			'yamabiko-table-reorder',
+			__DIR__ . '/languages'
+		);
 	}
 
 	/**
@@ -145,38 +104,6 @@ final class Plugin {
 		);
 
 		return $handle;
-	}
-
-	/**
-	 * Exposes the local npm-provided SortableJS runtime URL to the editor script.
-	 *
-	 * @param string $handle Enqueued Table Reorder script handle.
-	 */
-	private static function add_table_reorder_runtime_config( string $handle ): void {
-		$file_path = __DIR__ . '/build/sortable.min.js';
-
-		if ( ! is_readable( $file_path ) ) {
-			return;
-		}
-
-		$config = wp_json_encode(
-			array(
-				'runtimeUrl' => plugins_url(
-					'build/sortable.min.js',
-					__FILE__
-				),
-			)
-		);
-
-		if ( ! is_string( $config ) ) {
-			return;
-		}
-
-		wp_add_inline_script(
-			$handle,
-			"window.yamabikoTableReorder = {$config};",
-			'before'
-		);
 	}
 }
 

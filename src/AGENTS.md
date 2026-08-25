@@ -1,63 +1,43 @@
-# Yamabiko Table Reorder plugin instructions
+# Yamabiko Table Reorder v1 source instructions
 
-These instructions apply to plugin source files under `src/`.
+These instructions apply to source files under `src/`.
 
-## Plugin root
+## Current phase
 
-- The repository root is the plugin root.
-- Run npm, Composer, PHP, and build commands from the repository root.
-- `src/` is the Table Reorder source boundary; generated production assets live under `build/` and are not committed.
+- `src/` is the active source boundary for the formal YTR v1 implementation.
+- The previous implementation is the YTR Prototype and must not be copied back into the active source tree.
+- When historical code is needed for reference, use the `prototype-final` tag.
+- Treat #481 as the design source of truth for v1 interaction, accessibility, performance, and core contracts.
 
-## Source boundaries
+## Source organization
 
-- Keep `src/index.tsx` as the thin plugin-wide entry point.
-- Put row / `tbody` / `rowspan` specific implementation under `src/row-reorder/`.
-- Put row-specific imperative controller and UI behavior under `src/row-reorder/controller/`.
-- Put column-specific data transformation and interaction implementation under `src/column-reorder/`.
-- Put only clearly responsibility-neutral editor/runtime infrastructure under `src/common/`. Code in `common/` must not depend on `row-reorder/` or `column-reorder/`.
-- Keep source-level declarations under `src/types/`.
+- Keep `src/index.tsx` as a thin plugin-wide entry point.
+- Do not recreate Prototype directories such as `row-reorder/`, `column-reorder/`, `common/`, or their controller hierarchy merely to preserve the old structure.
+- Add directories only after a concrete v1 responsibility is established.
+- Prefer responsibility-based boundaries over speculative abstractions.
+- Do not create generic `shared/`, `utils/`, or `helpers/` directories for possible future reuse.
 
 ## Implementation rules
 
 - Prefer public WordPress APIs, hooks, components, and data stores.
-- Follow `../docs/development/source-organization.md` when adding or moving source files.
-- Do not move code into `common/` merely because it might be reusable later. Keep code with its current owning feature until multiple real consumers prove a stable shared responsibility.
-- Do not create generic `shared/`, `utils/`, or `helpers/` directories for possible future reuse.
-- Keep entry files small. They should register or compose a feature, not contain unrelated implementation details.
-- Treat saved block markup, attributes, identifiers, hooks, and persisted data as compatibility contracts.
-
-## Table Reorder implementation rules
-
-- Treat row and column reordering as independent feature boundaries. Do not make either feature depend on the other's internal implementation.
-- Do not preemptively combine row and column behavior into a generic abstraction such as `axis: 'row' | 'column'`. Extract shared behavior only after real implementations demonstrate a stable common responsibility.
-- Treat Gutenberg block attributes and block data as the source of truth for committed reorder results. DOM changes made temporarily during DnD must not be treated as persisted state.
-- Keep Core Table, Flexible Table Block, and other block-specific differences inside clear boundaries within each feature instead of scattering block-specific conditionals throughout the implementation.
-- Resolve the editor `document` and `window` from the current editor context. Do not assume global browsing contexts or cache editor contexts across iframe / non-iframe lifecycle changes.
-- Pointer, touch, keyboard, and destination-selection UI may differ by input method, but reorder eligibility and commit rules must remain domain rules rather than being duplicated or independently redefined for each input path.
-
-## Security and data handling
-
-- Treat request, stored, decoded, and external values as untrusted.
-- Validate expected values, sanitize for storage, authorize privileged actions, and escape at the final output boundary.
-- Use nonces where WordPress requires CSRF protection. A nonce does not replace a capability check.
-- Give every REST route a meaningful `permission_callback`.
-- Prefer WordPress data APIs and use `$wpdb->prepare()` for variable SQL when direct queries are unavoidable.
-- Do not use `eval`, unsafe deserialization, telemetry, remote code, or external services without an explicit requirement and review.
+- Keep Gutenberg block attributes and block data as the source of truth for committed reorder results.
+- Input-specific behavior may differ for keyboard, pointer, and touch, but shared reorder rules must remain in explicit domain contracts.
+- Preserve the v1 performance principles defined in #481: do not make UI, listeners, geometry work, or hot-path scans scale with total row count when avoidable; do not reorder the real Table DOM during drag; commit logical data only when the operation is finalized.
+- Resolve editor browsing context from the active editor context rather than assuming global `window` / `document` lifetimes.
 
 ## Internationalization and accessibility
 
 - Translate user-visible strings with the `yamabiko-table-reorder` text domain.
-- Use semantic HTML and WordPress UI primitives where practical.
-- Support keyboard operation and visible focus for interactive controls.
+- Keep translatable messages centralized enough for the existing i18n pipeline to extract them reliably.
+- Support keyboard operation, visible focus, announcements, focus restoration, and Undo according to the contracts defined from #481.
 - Do not communicate meaning through color alone.
 
 ## Dependencies and generated files
 
-- Add dependencies only when they solve a current need and do not duplicate WordPress-provided runtimes.
-- Keep runtime and development dependencies separate.
-- Update and commit the relevant lockfile when dependency definitions change.
+- Add dependencies only for concrete v1 needs.
+- Do not restore Prototype dependencies simply because they were previously used.
 - Do not edit generated files in `build/`, `vendor/`, or `node_modules/`.
 
 ## Validation
 
-Use the applicable commands documented in `../docs/development/testing.md`. Do not substitute formatting commands for non-mutating checks when validating a change.
+Use the applicable commands documented in `../docs/development/testing.md`. The user performs manual validation for the source-reset PR.
