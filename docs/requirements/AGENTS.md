@@ -16,6 +16,24 @@ These instructions apply to requirements documents under `docs/requirements/`.
 - Do not include source files, functions, variables, events, internal state, APIs, CSS, DOM structure, or test implementation details.
 - Do not write statements that require reading source code to understand their meaning.
 
+## Requirement IDs
+
+Use requirement IDs to make individual requirements easy to reference from design, architecture, implementation, tests, Issues, and PRs.
+
+Use the following prefixes unless another category is explicitly defined in this file.
+
+| Prefix | Meaning | Use for |
+| --- | --- | --- |
+| `FR` | Functional Requirement | Capabilities or behavior that users or the product must be able to achieve. |
+| `QR` | Quality Requirement | Qualities or constraints the product must satisfy, such as performance, reliability, compatibility, usability, or security. |
+
+Examples:
+
+- `FR-01`: A supported table row can be reordered.
+- `QR-01`: Reordering remains practically usable for large tables.
+
+Do not introduce a new requirement prefix only to make a document look more structured. Add another prefix only when a distinct requirement category is actually needed, and define its meaning and intended use here before using it in requirements documents.
+
 ## Readability
 
 - Use plain language understandable to non-technical readers, including management-level readers with no programming knowledge.
