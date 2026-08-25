@@ -1,60 +1,54 @@
 # Yamabiko Table Reorder
 
-WordPressのブロックエディターで、対応するTableブロックの本文行を並べ替えるためのプラグインです。
+WordPress ブロックエディターの Table 並べ替えを扱うプラグインです。
 
-> [!WARNING]
-> 現在開発中です。仕様や動作は今後変更される可能性があります。
+> [!IMPORTANT]
+> `main` は現在、#481 を起点に **formal YTR v1** を再設計している段階です。0.4.0 までの実装は **YTR Prototype** として `prototype-final` tag に保存されています。
 
-## Table Reorder
+## 現在の状態
 
-対応するTableブロックの本文行をドラッグ＆ドロップ、キーボード、移動先選択で並べ替えられます。
+formal v1 は Prototype の実装構造を引き継がず、操作仕様・アクセシビリティ・性能要件から再設計しています。
 
-<img width="1240" height="724" alt="demo" src="https://github.com/user-attachments/assets/09adfced-6d43-46a1-97d4-adb1ac2eba18" />
+そのため、`main` の active source / E2E / docs は意図的に最小構成です。Prototype の具体的な操作モデルや内部実装は formal v1 の現行仕様として扱いません。
 
-### ブラウザで試す
+## Prototype v0.4.0 デモ
 
-WordPress Playground で、インストール不要で行の並べ替えを体験できます。
+既に共有済みの WordPress Playground デモは、**YTR Prototype v0.4.0 の保存済みデモ**として引き続き利用できます。
 
-[▶ 行の並べ替えを試す](https://playground.wordpress.net/?blueprint-url=https://raw.githubusercontent.com/YamabikoLab/yamabiko-table-reorder/main/demo/blueprint.json)
+[▶ Prototype v0.4.0 のデモを開く](https://playground.wordpress.net/?blueprint-url=https://raw.githubusercontent.com/YamabikoLab/yamabiko-table-reorder/main/demo/blueprint.json)
 
-- PCでは行の左端に表示されるハンドルからドラッグして並べ替え
-- タッチ端末では並べ替えモード中の行ハンドルをドラッグして並べ替え、タップで移動先を選択
-- SortableJSによる自然な並べ替え
-- iframe / non-iframe エディターの両方に対応
-- `rowspan` を含む縦結合行の不正な移動を制限
-- 並べ替え結果をGutenbergのブロック属性へ反映
+このデモは v0.4.0 release を明示的にインストールします。formal v1 の現在の `main` 実装を示すものではありません。
 
-## Supported blocks
+## Versioning
 
-- WordPress Core Table
-- Flexible Table Block
+0.4.0 までの配布履歴はそのまま維持します。formal v1 の開発後も配布バージョンは既存履歴から継続し、次の release は **0.5.0** とします。
+
+`formal v1` は新しい設計・実装世代を表す呼称であり、配布バージョンを `1.0.0` へ変更する意味ではありません。
 
 ## 動作環境
 
-- WordPress 6.8以上
-- PHP 8.1以上
+- WordPress 6.8 以上
+- PHP 8.1 以上
 
 ## インストール
 
-1. [GitHub Releases](https://github.com/YamabikoLab/yamabiko-table-reorder/releases)から、配布用の `yamabiko-table-reorder.zip` をダウンロードします。
-2. WordPress管理画面の「プラグイン」→「新規プラグインを追加」→「プラグインのアップロード」からZIPをアップロードします。
-3. **Yamabiko Table Reorder** を有効化します。
+公開済み release を利用する場合は、[GitHub Releases](https://github.com/YamabikoLab/yamabiko-table-reorder/releases) から配布用 ZIP を取得してください。
 
 ## 不具合・要望の報告
 
-不具合報告と機能要望は、[GitHub Issues](https://github.com/YamabikoLab/yamabiko-table-reorder/issues)で受け付けています。
+不具合報告と機能要望は [GitHub Issues](https://github.com/YamabikoLab/yamabiko-table-reorder/issues) で受け付けています。
 
-セキュリティ上の問題は公開Issueへ投稿せず、[セキュリティポリシー](SECURITY.md)に従って非公開で報告してください。
+セキュリティ上の問題は公開 Issue へ投稿せず、[セキュリティポリシー](SECURITY.md)に従って非公開で報告してください。
 
-現時点では、外部からのPull Requestは受け付けていません。
+現時点では、外部からの Pull Request は受け付けていません。
 
 ## ライセンス
 
-[GNU General Public License v2.0 or later](LICENSE)で公開します。
+[GNU General Public License v2.0 or later](LICENSE) で公開します。
 
 ## 開発者向け
 
-実装は [`src/`](src/) にあります。
+formal v1 の active source は [`src/`](src/) にあります。Prototype の実装を参照するときは `prototype-final` tag を使用してください。
 
 ### 依存関係をインストール
 
@@ -69,9 +63,7 @@ composer install
 npm start
 ```
 
-ローカルのWordPress開発環境では `SCRIPT_DEBUG` が有効になり、`wp-scripts start --hot` が Table Reorder のソースを監視して再ビルドします。
-
-ローカルWordPress開発環境の設定、起動手順、プラグイン配置は、別リポジトリの [YamabikoLab/wp-dev](https://github.com/YamabikoLab/wp-dev) で管理しています。
+ローカル WordPress 開発環境の設定、起動手順、プラグイン配置は、別リポジトリの [YamabikoLab/wp-dev](https://github.com/YamabikoLab/wp-dev) で管理しています。
 
 ### 本番ビルドを作成
 
@@ -79,47 +71,28 @@ npm start
 npm run build
 ```
 
-ビルド結果は `build/` に出力され、Table Reorder の JavaScript / CSS と SortableJS ランタイムが生成されます。
+ビルド結果は `build/` に出力されます。
 
 ### コードを検証
-
-Node.jsの標準品質チェックを実行します。
 
 ```bash
 npm test
 ```
 
-フォーマット、JavaScript / TypeScript、CSS / SCSS、型、単体テストを確認します。本番ビルドとPlaywright E2Eテストは含まれません。
-
-PHPのチェックは別に実行します。
+PHP のチェックは別に実行します。
 
 ```bash
 composer lint:php
 composer analyse:php
 ```
 
-これらのコマンドはファイルを書き換えません。自動修正は必要に応じて個別に実行します。
-
-```bash
-npm run format
-npm run format:css
-composer format:php
-```
-
-自動修正後は、コミット前に変更内容を確認してください。
-
-[YamabikoLab/wp-dev](https://github.com/YamabikoLab/wp-dev) が提供するWordPress環境にPlugin Checkをインストールしている場合は、補助チェックとして次も実行できます。
-
-```bash
-wp plugin check yamabiko-table-reorder
-```
-
-Plugin Checkは、上記のコーディング標準チェックの代替ではありません。
+詳細な検証方法は [`docs/development/testing.md`](docs/development/testing.md) を参照してください。
 
 ### 開発ドキュメント
 
 - [開発方針](docs/development/foundation.md)
-- [ソース構成](docs/development/source-organization.md)
 - [検証方法](docs/development/testing.md)
 - [GitHub CLI](docs/development/github-cli.md)
+- [i18n](docs/development/i18n.md)
+- [セキュリティ](docs/development/security.md)
 - [リリース方法](docs/development/releasing.md)

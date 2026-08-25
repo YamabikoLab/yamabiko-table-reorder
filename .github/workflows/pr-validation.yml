@@ -106,7 +106,7 @@ jobs:
 
   e2e:
     if: ${{ inputs.run_e2e }}
-    name: E2E (${{ matrix.wordpress_version }} / ${{ matrix.editor_mode }})
+    name: E2E (WordPress ${{ matrix.wordpress_version }})
     runs-on: ubuntu-latest
     timeout-minutes: 30
     strategy:
@@ -114,20 +114,13 @@ jobs:
       matrix:
         include:
           - wordpress_version: '7.1.0'
-            editor_mode: iframe
             wordpress_image: 'wordpress:7.1.0-php8.3-apache'
-            flexible_table_block_version: '3.9.0'
           - wordpress_version: '7.0.4'
-            editor_mode: iframe
             wordpress_image: 'wordpress:7.0.4-php8.3-apache'
-            flexible_table_block_version: '3.9.0'
           - wordpress_version: '6.8.3'
-            editor_mode: non-iframe
             wordpress_image: 'wordpress:6.8.3-php8.3-apache'
-            flexible_table_block_version: '3.5.0'
     env:
       E2E_COMPOSE_FILE: tests/e2e/compose.ci.yaml
-      E2E_EDITOR_MODE: ${{ matrix.editor_mode }}
       E2E_WORDPRESS_IMAGE: ${{ matrix.wordpress_image }}
       WP_BASE_URL: http://127.0.0.1:8080
       WP_USERNAME: admin
@@ -183,7 +176,7 @@ jobs:
             --output /dev/null \
             "${WP_BASE_URL}/wp-admin/install.php"
 
-      - name: Install WordPress and activate plugins
+      - name: Install WordPress and activate plugin
         run: |
           docker compose -f "${E2E_COMPOSE_FILE}" run --rm cli \
             wp core install \
@@ -195,22 +188,7 @@ jobs:
             --skip-email
 
           docker compose -f "${E2E_COMPOSE_FILE}" run --rm cli \
-            wp plugin install flexible-table-block \
-            --version="${{ matrix.flexible_table_block_version }}" \
-            --activate
-
-          docker compose -f "${E2E_COMPOSE_FILE}" run --rm cli \
             wp plugin activate yamabiko-table-reorder
-
-      - name: Install non-iframe E2E fixture
-        if: matrix.editor_mode == 'non-iframe'
-        run: |
-          docker compose -f "${E2E_COMPOSE_FILE}" run --rm cli \
-            sh -c '
-              mkdir -p /var/www/html/wp-content/mu-plugins &&
-              cp /var/www/html/wp-content/plugins/yamabiko-table-reorder/tests/e2e/fixtures/non-iframe-block.php \
-                /var/www/html/wp-content/mu-plugins/yamabiko-table-reorder-e2e-non-iframe.php
-            '
 
       - name: Run Playwright E2E
         run: |
@@ -219,7 +197,6 @@ jobs:
             --ipc=host \
             --volume "${GITHUB_WORKSPACE}:/workspaces/yamabiko-table-reorder" \
             --workdir /workspaces/yamabiko-table-reorder \
-            --env E2E_EDITOR_MODE \
             --env WP_BASE_URL \
             --env WP_USERNAME \
             --env WP_PASSWORD \
@@ -236,7 +213,7 @@ jobs:
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: playwright-e2e-failure-wp-${{ matrix.wordpress_version }}-${{ matrix.editor_mode }}
+          name: playwright-e2e-failure-wp-${{ matrix.wordpress_version }}
           path: |
             playwright-report/
             test-results/

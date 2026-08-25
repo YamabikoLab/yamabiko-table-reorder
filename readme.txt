@@ -7,22 +7,17 @@ Stable tag: 0.4.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
-Accessible table row reordering for supported blocks in the WordPress block editor.
+Table reordering for supported blocks in the WordPress block editor.
 
 == Description ==
 
-Yamabiko Table Reorder lets you reorder body rows in supported table blocks while preserving the block's content structure.
+The stable 0.4.0 release is the final YTR Prototype release.
 
-Features include:
+Development on `main` is now redesigning formal YTR v1 from the interaction, accessibility, and performance requirements rather than extending the Prototype implementation structure. The active source on `main` is intentionally minimal while that work proceeds.
 
-* Drag-and-drop row reordering with a dedicated handle.
-* Keyboard and destination-selection interactions for row reordering.
-* Touch interaction for row reordering.
-* Support for iframe and non-iframe editors.
-* Protection against invalid moves across vertically merged cells (`rowspan`).
-* Synchronization of the reordered table back to Gutenberg block attributes.
+The existing release history is preserved. The release after 0.4.0 will continue the sequence as 0.5.0; "formal v1" names the new design and implementation generation and does not change the package version to 1.0.0.
 
-This plugin is under active development. Behavior and specifications may change in future releases.
+The previously shared WordPress Playground demo remains available as a YTR Prototype v0.4.0 demo from the GitHub repository. It installs the 0.4.0 release explicitly and does not represent the current `main` implementation.
 
 Source code and development documentation are available on GitHub:
 https://github.com/YamabikoLab/yamabiko-table-reorder
@@ -36,7 +31,7 @@ The generated archive is `yamabiko-table-reorder.zip`.
 
 == Installation ==
 
-1. Download `yamabiko-table-reorder.zip` from the GitHub Releases page.
+1. Download a released `yamabiko-table-reorder.zip` from the GitHub Releases page.
 2. In WordPress, go to Plugins > Add New Plugin > Upload Plugin.
 3. Upload the ZIP file and install it.
 4. Activate Yamabiko Table Reorder.

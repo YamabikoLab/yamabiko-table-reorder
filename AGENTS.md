@@ -2,102 +2,81 @@
 
 These instructions apply to the entire repository.
 
+## Current development phase
+
+- The implementation through 0.4.0 is **YTR Prototype** and is preserved by the `prototype-final` tag.
+- `main` is the active development line for **formal YTR v1**, redesigned from #481.
+- Do not restore Prototype code, tests, design documents, implementation plans, dependencies, or directory structure merely to preserve the old shape.
+- Use `prototype-final` when historical implementation or documentation is needed as reference material.
+- Treat formal v1 as a design and implementation generation. Release version history continues from 0.4.0, with the next release using 0.5.0.
+- `demo/` is intentionally retained as the shared Prototype v0.4.0 demo. Do not treat it as evidence of the current `main` implementation.
+
 ## Repository boundaries
 
 - The repository root is the WordPress plugin root.
-- `src/` contains product source code. Read `src/AGENTS.md` before changing files under `src/`.
+- `src/` contains active formal v1 product source. Read `src/AGENTS.md` before changing files under `src/`.
+- `tests/e2e/` contains active formal v1 Playwright coverage. Read `tests/e2e/AGENTS.md` before changing E2E files.
+- `docs/design/AGENTS.md` and `docs/requirements/AGENTS.md` define the responsibility and abstraction level of future design and requirements documents.
+- `docs/development/` contains development principles and operating documentation that remain valid for formal v1.
 - Local WordPress development infrastructure is maintained in the separate `YamabikoLab/wp-dev` repository.
-- `docs/development/` explains development principles and the reasons behind them.
 
 ## Development documentation
 
 - Read `docs/development/foundation.md` for repository-wide development principles.
-- Read `docs/development/source-organization.md` before adding or moving source files.
 - Read `docs/development/testing.md` before selecting validation commands.
 - Read `docs/development/github-cli.md` when using GitHub CLI.
+- Read `docs/development/i18n.md` before changing translation generation.
 - Read `docs/development/releasing.md` before updating versions or creating a release tag.
-- Use `docs/plans/TEMPLATE.md` for features or changes that require multiple implementation steps or important design decisions.
-- Place feature- or issue-specific implementation plans directly under `docs/plans/`. Move historical plans worth keeping into `docs/plans/archive/`.
+- Use `docs/plans/TEMPLATE.md` only when a formal v1 change requires a multi-step implementation plan or an important implementation decision.
+- Keep only active formal v1 implementation plans under `docs/plans/`. Do not recreate `docs/plans/archive/`; historical Prototype plans are available from `prototype-final`.
+- Create requirements and design documents from accepted formal v1 decisions rather than copying Prototype documents forward.
 - Simple fixes and documentation-only changes do not require a plan.
 
 ## Working rules
 
 - Make the smallest change that fully satisfies the current issue.
-- Keep documentation aligned with the code, commands, and directories that exist on the current branch.
+- Keep documentation aligned with the code, commands, dependencies, and directories that exist on the current branch.
 - Do not add placeholder directories or describe unimplemented systems as available.
+- Add source structure and dependencies only when a concrete formal v1 responsibility requires them.
 - Do not commit generated dependencies or build output such as `node_modules/`, `vendor/`, or `build/`.
 - Do not commit secrets, credentials, personal paths, machine names, or other local-only environment details.
 - Preserve released identifiers and saved content unless the issue explicitly includes a compatibility decision.
 
 ## GitHub Actions
 
-- Keep existing CI, security, and release workflows limited to their intended purpose. Do not reuse them for unrelated ad-hoc or one-off work, and do not change their `permissions`, triggers, or jobs solely to run temporary processing. Changes to a workflow are allowed when changing that workflow is itself part of the task.
-- Perform temporary processing locally when practical. If GitHub Actions is required, use a dedicated workflow with a narrowly scoped purpose, trigger, and minimum necessary permissions.
+- Keep existing CI, security, and release workflows limited to their intended purpose. Do not reuse them for unrelated ad-hoc work.
+- Do not change workflow permissions, triggers, or jobs solely to run temporary processing.
 - Remove temporary workflows before merge unless there is a clear reason to keep them permanently.
-- When `.github/workflows/` changes, review the final diff before merge and confirm that no unrelated workflow changes or temporary workflows remain.
+- When `.github/workflows/` changes, review the final diff and confirm that no obsolete Prototype fixtures or assumptions remain.
 
 ## Documentation responsibilities
 
 - Put direct working instructions in `AGENTS.md` files.
-- Put architecture, organization, and rationale in `docs/development/`.
-- Update the relevant documentation when a command, directory boundary, or development rule changes.
-- Avoid repeating detailed command lists across multiple documents. Use `docs/development/testing.md` as the source of truth for validation commands.
+- Put durable repository-wide development principles and rationale in `docs/development/`.
+- Put user/product requirements in `docs/requirements/` and follow its `AGENTS.md`.
+- Put user-visible design behavior in `docs/design/` and follow its `AGENTS.md`.
+- Update the relevant documentation when a command, directory boundary, dependency, or development rule changes.
+- Avoid repeating detailed command lists across documents. Use `docs/development/testing.md` as the source of truth for validation commands.
 
 ## Validation
 
 - Run only the checks applicable to the changed files, as described in `docs/development/testing.md`.
 - Documentation-only changes do not require application builds or linters unless code or configuration also changes.
 - Never report a command as successful unless it actually ran successfully.
+- If validation is intentionally left to the user, state that it was not run.
 
 ## External tool boundaries
 
-- Distinguish failures caused by repository code or configuration from limitations, defects, or compatibility differences in external tools such as Docker, act, and Dev Containers. The local environment configuration for these tools is maintained in the separate `YamabikoLab/wp-dev` repository.
-- When the available evidence reasonably places the root cause outside the repository, report the evidence and impact, then stop instead of spending extended time investigating the external tool or implementing workarounds.
-- Treat GitHub-hosted GitHub Actions runs as the authoritative CI result. Use act only as an optional local feedback tool.
-- Do not change product code or GitHub Actions workflows solely to accommodate an act-specific or other external-tool-specific failure.
-- Before extending external-tool research, implementing a workaround, or changing the development environment, present the relevant options and ask the user which direction to take.
-
-## Communication
-
-- Do not send routine progress updates while working.
-- Continue silently until user approval is required, a blocking issue is found, the requested approach must change, or the task is complete.
-- Do not narrate routine file reads, searches, edits, or successful commands.
-- Keep all messages concise.
-
-## Approval requests
-
-For simple, low-risk approval requests, report only:
-
-- command or action;
-- why approval is required;
-- expected effect;
-- recommendation.
-
-For destructive, unexpected, or decision-sensitive actions, report:
-
-- observed issue;
-- likely cause;
-- available options;
-- key advantages and disadvantages of each option;
-- recommended option and reason.
-
-Do not run an alternative or broaden the scope without approval when the choice could materially affect the repository, environment, dependencies, or user data.
-
-## End-of-turn reports
-
-- When files were changed, commands were run, or an implementation plan was produced, end the final response with a Japanese Markdown summary.
-- Do not add the structured summary to simple questions, explanations, or requests that do not perform repository work.
-- Include `Work performed`, `Changed files`, `Commands run`, `Decision rationale`, `Open items`, and `Next steps`.
-- When changes are pushed, include `<repository-url>/compare/<starting-sha>..<pushed-sha>` in the final response.
-- Report up to three inefficient activities, such as large reads, repeated searches, or unnecessary command output.
-- Under `Commands run`, list every shell command actually run and its result (`success`, `failure`, or `interrupted`), including failed or interrupted commands. Preserve the command form so `logcut` use is visible while following the existing personal-environment and secret-handling rules.
-- Write `None` only when a required field has nothing to report.
+- Distinguish failures caused by repository code or configuration from limitations, defects, or compatibility differences in external tools such as Docker, act, Dev Containers, package registries, or connectors.
+- When the available evidence reasonably places the root cause outside the repository, report the evidence and impact instead of changing product code merely to accommodate the external limitation.
+- Treat GitHub-hosted GitHub Actions runs as the authoritative CI result. Use act only as optional local feedback.
+- Follow the `YamabikoLab/wp-dev` documentation for commands that operate the local WordPress development environment.
 
 ## Efficient workflow
 
 - Inspect only the files, documentation, and history required for the requested task.
-- Do not inspect dependency, generated, cache, build, distribution, or test-output directories unless the task requires them.
-- Before reading large diffs, logs, search results, or file listings, inspect a summary or matching-file list and expand only the relevant section.
+- Do not inspect generated, cache, build, distribution, or test-output directories unless the task requires them.
+- Before reading large diffs, logs, or file listings, inspect a summary or matching-file list and expand only the relevant section.
 - Prefer the narrowest relevant validation while iterating. Run complete quality gates only when required by the applicable development documentation or before final handoff.
 - Do not re-read unchanged files or repeat successful commands unless new evidence makes it necessary.
 - Do not broaden the requested scope unless doing so is necessary to complete the requested outcome.
@@ -105,16 +84,8 @@ Do not run an alternative or broaden the scope without approval when the choice 
 ## Command output
 
 - Use `logcut` only inside the Dev Container.
-- Use `logcut` only for finite, non-interactive commands when full successful output is unnecessary or the supported concise success summary is sufficient.
-- Use `logcut` for supported Docker build commands (`docker build` and `docker compose build`) and Git transfer commands (`git push`, `git pull`, and `git fetch`). These commands preserve a small amount of useful success information.
-- Prefer the default `auto` profile. Specify `--profile` only when automatic detection is insufficient, such as when a supported operation is hidden behind a custom wrapper or `sh -c`.
-- Never use `logcut` for commands containing tokens, passwords, Authorization headers, signed URLs, private keys, or other secrets. Secret masking is best effort and cannot guarantee detection of unknown, arbitrary, or multiline sensitive values.
-- Do not treat `--no-retain-log` or `LOGCUT_RETAIN_FAILED_LOG=0` as protection for secret-bearing commands. Command output can still be written temporarily before the failure log is discarded.
-- By default, when `logcut` fails, inspect its summary first, then read only the relevant section of the preserved full log when additional context is required.
-- Use `--no-retain-log` only when the failure summary is expected to be sufficient and retaining the full failure log is unnecessary.
-- Do not rerun a failed command solely to obtain output that is already available in its preserved log.
-- For diagnostic, inspection, or query commands, constrain output at the source with paths, filters, formats, ranges, counts, time windows, or failed-only options.
-- Do not wrap Docker commands whose output is itself the requested information, including `docker ps`, `docker images`, `docker inspect`, `docker logs`, `docker compose ps`, `docker compose logs`, `docker run`, and `docker exec`.
-- Do not wrap Git information commands such as `git status`, `git log`, `git diff`, and `git show`.
-- Do not use `logcut` for interactive, watch-mode, follow-mode, streaming, or long-running development commands.
-- Follow the `YamabikoLab/wp-dev` documentation for commands that operate the local WordPress development environment.
+- Use it only for finite, non-interactive commands where concise successful output is sufficient.
+- Use `logcut` for supported Docker build commands and Git transfer commands such as `git push`, `git pull`, and `git fetch` when appropriate.
+- Never use `logcut` for commands containing tokens, passwords, Authorization headers, signed URLs, private keys, or other secrets.
+- Do not use `logcut` for Git information commands such as `git status`, `git log`, `git diff`, and `git show`, or for interactive, watch, follow, or long-running commands.
+- When `logcut` preserves a failure log, inspect the summary first and then only the relevant section of the full log.
