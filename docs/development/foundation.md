@@ -1,10 +1,18 @@
 # Development foundation
 
-This document defines the cross-cutting rules for Yamabiko Table Reorder. Working instructions live in `AGENTS.md` files; validation commands live in `testing.md`; source placement lives in `source-organization.md`.
+This document defines the cross-cutting development rules for Yamabiko Table Reorder. Working instructions live in `AGENTS.md` files, and validation commands live in `testing.md`.
+
+## Current development phase
+
+YTR Prototype is preserved by the `prototype-final` tag. Formal v1 is being redesigned from #481.
+
+Do not use Prototype source structure, interaction details, tests, or archived documents as the default specification for formal v1. Historical material may be consulted from `prototype-final` as reference evidence when useful.
+
+Keep active source and documentation aligned with the formal v1 decisions that are currently valid. Add structure only when current implementation or an accepted design requires it.
 
 ## Product boundary
 
-Yamabiko Table Reorder is a WordPress plugin for site creators. It adds accessible table reordering to supported table blocks in the WordPress block editor, with pointer, touch, and keyboard operation.
+Yamabiko Table Reorder is a WordPress plugin for site creators. It provides accessible table reordering for supported table blocks in the WordPress block editor.
 
 The repository root is the WordPress plugin root. Published minimum versions must stay aligned with the metadata in `yamabiko-table-reorder.php`.
 
@@ -55,7 +63,7 @@ Released identifiers, saved markup, persisted keys, and public hooks are compati
 - Translate user-visible strings with the `yamabiko-table-reorder` text domain.
 - Put dynamic values in placeholders and escape output for its final context.
 - Prefer semantic HTML and WordPress UI primitives.
-- Support keyboard operation and visible focus.
+- Accessibility is a formal v1 product contract, not an implementation afterthought.
 - Do not rely on color alone to communicate meaning.
 
 ## Dependencies and assets
@@ -66,8 +74,11 @@ Released identifiers, saved markup, persisted keys, and public hooks are compati
 - Keep WordPress-provided JavaScript runtimes external to production bundles.
 - Do not commit generated dependencies, caches, or build output.
 
-## Source and validation
+## Source and documentation
 
-- Follow `source-organization.md` for feature ownership, entries, tests, and shared code.
-- Follow `testing.md` for the commands that currently exist.
+- Follow the nearest `AGENTS.md` for active source, E2E, design, and requirements responsibilities.
+- Do not recreate Prototype implementation or documentation archives inside the active tree. Use `prototype-final` when historical material is needed.
+- Create or update source boundaries when formal v1 implementation pressure makes the responsibility real.
+- Create requirements and design documents from accepted formal v1 decisions rather than copying Prototype documents forward.
+- Follow `testing.md` for the validation commands that currently exist.
 - Update these documents when the actual structure or command surface changes.

@@ -2,6 +2,15 @@
 
 Run application commands from the repository root. Use the narrowest relevant checks while working, then run the applicable non-mutating checks before handoff.
 
+## Current formal v1 baseline
+
+The active test suite is intentionally minimal while formal v1 is redesigned from #481.
+
+- Unit tests should cover only behavior that exists in the active formal v1 source tree.
+- Playwright E2E currently keeps only the minimum infrastructure smoke coverage.
+- Prototype unit and E2E suites remain available from the `prototype-final` tag as historical reference material.
+- Do not restore Prototype tests merely to reproduce the previous suite. Add tests when the corresponding formal v1 contract and implementation exist.
+
 ## Node.js
 
 Install dependencies:
@@ -26,103 +35,21 @@ npm run typecheck
 npm run test:unit:coverage
 ```
 
-Use the individual commands when iterating on a focused problem. Before handoff for JavaScript, TypeScript, JSON, block metadata, CSS, or SCSS changes, use `npm test` so the same quality gate is shared by local development and PR Validation.
+Use the individual commands when iterating on a focused change. Before handoff for JavaScript, TypeScript, JSON, CSS, or SCSS changes, use `npm test` so local development and PR Validation share the same quality gate.
 
-Run Jest without coverage when you want a faster focused unit test run:
+Run Jest without coverage for a faster focused unit test run:
 
 ```bash
 npm run test:unit
 ```
 
-Run Jest with coverage reporting directly when you want to inspect the unit test coverage result:
+Run Jest with coverage reporting directly when needed:
 
 ```bash
 npm run test:unit:coverage
 ```
 
-The coverage report includes Statements, Branches, Functions, and Lines. The global threshold is 80% for each metric, and Jest fails when any metric falls below the threshold. `npm test` includes this coverage run, so PR Validation enforces the same threshold without running Jest twice.
-
-### Jest responsibility map
-
-The current Jest suite is concentrated in Table Reorder. Organize the existing test coverage by responsibility rather than by file count.
-
-#### Table and row logic
-
-These tests cover the core rules that can be verified without a real browser or WordPress editor session.
-
-- `src/row-reorder/block-support.test.ts`
-  - supported block detection
-- `src/row-reorder/table-context.test.ts`
-  - table and row context resolution
-- `src/row-reorder/rowspan.test.ts`
-  - vertical merge (`rowspan`) constraints and boundary handling
-- `src/row-reorder/controller/row-order.test.ts`
-  - row order calculation and movement rules
-- `src/row-reorder/messages.test.ts`
-  - user-facing message selection and formatting
-
-#### Reorder UI
-
-These tests cover DOM-level UI state and guidance that can be exercised in jsdom.
-
-- `src/row-reorder/controller/drag-ui.test.ts`
-  - drag UI state and visual helper behavior
-- `src/row-reorder/controller/reorder-ui/live-status.test.ts`
-  - live-region status updates
-- `src/row-reorder/controller/reorder-ui/reorder-guidance.test.ts`
-  - reorder guidance display and positioning behavior
-- `src/row-reorder/controller/reorder-ui/row-controls.test.ts`
-  - row handle and control behavior
-- `src/row-reorder/controller/reorder-ui/row-move-targets.test.ts`
-  - destination target generation and selection behavior
-
-#### Interaction and controller
-
-These tests cover the controller state machine and input-specific branches while mocking browser or SortableJS integration where appropriate.
-
-- `src/row-reorder/controller/sortable-controller.test.ts`
-  - shared controller lifecycle and state transitions
-- `src/row-reorder/controller/sortable-controller-keyboard.test.ts`
-  - keyboard reorder behavior and edge cases
-- `src/row-reorder/controller/sortable-controller-pointer.test.ts`
-  - pointer interaction behavior
-- `src/row-reorder/controller/sortable-controller-touch.test.ts`
-  - touch-specific controller behavior
-- `src/common/sortable-runtime-loader.test.ts`
-  - SortableJS runtime loading and failure handling
-
-#### WordPress and React integration boundary
-
-These tests verify the local integration contract around hooks, wrappers, and supported WordPress block behavior without treating Jest as a replacement for browser-level integration tests.
-
-- `src/row-reorder/use-table-reorder.test.ts`
-  - controller hook wiring
-- `src/row-reorder/use-table-reorder-interaction.test.ts`
-  - interaction hook behavior
-- `src/row-reorder/with-table-reorder.test.tsx`
-  - component wrapper integration
-- `src/row-reorder/flexible-table-block.test.tsx`
-  - Flexible Table Block integration contract
-
-### Jest and Playwright E2E responsibilities
-
-Use Jest for logic and branches that can be isolated reliably and quickly:
-
-- pure logic and boundary conditions
-- small conditional branches
-- UI state that can be verified in jsdom
-- Keyboard / Pointer / Touch controller logic
-- WordPress API and SortableJS integration code where mocks provide a stable contract
-
-Use Playwright E2E for behavior that depends on the real WordPress editor and browser environment:
-
-- actual WordPress / Gutenberg behavior
-- real mouse, touch, and keyboard interaction in the browser
-- iframe and non-iframe editor environments
-- integration with the real SortableJS runtime
-- end-to-end flows from user input through completed row movement
-
-This is a responsibility boundary, not a statement that every Playwright area is already covered. Keep Jest focused on fast, deterministic logic checks and add browser-level scenarios to Playwright as those suites are expanded.
+The formal v1 skeleton keeps a minimal unit test so the Jest pipeline remains active. Expand unit coverage alongside real v1 modules and contracts rather than recreating Prototype-specific controller, handle, SortableJS, row, or column tests by default.
 
 Create the production build separately:
 
@@ -138,7 +65,7 @@ Use `npm start` for the watch-based local development build. It is long-running 
 
 ## Playwright E2E
 
-For local development, Playwright E2E tests run against the WordPress environment provided by the separate `YamabikoLab/wp-dev` repository. The initial browser target is Chromium only, and tests use one worker because they share the same WordPress environment.
+For local development, Playwright E2E tests run against the WordPress environment provided by the separate `YamabikoLab/wp-dev` repository. The browser target is Chromium, and tests use one worker because they share the same WordPress environment.
 
 `wp-dev` provides the canonical WordPress URL and administrator credentials to the Dev Container as these environment variables:
 
@@ -146,17 +73,15 @@ For local development, Playwright E2E tests run against the WordPress environmen
 - `WP_USERNAME`
 - `WP_PASSWORD`
 
-Do not add real credentials to this repository. The authentication setup stores the signed-in browser state under `.playwright/.auth/`, which is excluded from Git.
+Do not add real credentials to this repository. Authentication state is stored under `.playwright/.auth/`, which is excluded from Git.
 
-`wp-dev` also installs the Playwright-managed Chromium browser and Linux dependencies into the Dev Container. Keep the `@playwright/test` version in this repository aligned with `PLAYWRIGHT_VERSION` in `wp-dev`; do not run a separate browser installation during normal local setup.
-
-With the `wp-dev` Dev Container open and Yamabiko Table Reorder active in WordPress, run the E2E suite from the repository root:
+With the `wp-dev` Dev Container open and Yamabiko Table Reorder active in WordPress, run the active E2E suite from the repository root:
 
 ```bash
 npm run test:e2e
 ```
 
-Run only the authentication setup when refreshing the saved administrator session:
+Run only authentication setup when refreshing the saved administrator session:
 
 ```bash
 npm run test:e2e:auth
@@ -168,23 +93,15 @@ Start Playwright UI Mode with a fresh authentication state:
 npm run test:e2e:ui
 ```
 
-UI Mode listens on `0.0.0.0:9323` inside the Dev Container so VS Code can forward the port to the host browser.
+The active formal v1 E2E suite currently verifies the minimum WordPress integration baseline, such as the plugin being installed and active. Add editor, keyboard, pointer, touch, accessibility, data, merged-cell, or compatibility scenarios only when those behaviors become part of the accepted formal v1 contract and implementation.
 
-PR Validation uses a separate, CI-only environment defined in `tests/e2e/compose.ci.yaml`. When manually starting the workflow, enable `Run E2E tests` to run the E2E matrix; it is disabled by default. When enabled, the E2E job starts the pinned WordPress, MariaDB, and WP-CLI images needed by the E2E job, activates the checked-out plugin, and runs the existing suite with the official Playwright Docker image whose version matches `@playwright/test`. This CI Compose file does not replace `wp-dev` as the local development environment.
+Historical Prototype E2E scenarios remain available from the `prototype-final` tag. Treat them as research evidence, not as the formal v1 specification.
 
-The CI E2E matrix intentionally covers three representative WordPress editor environments rather than expanding into a PHP-version matrix:
+PR Validation uses the CI environment in `tests/e2e/compose.ci.yaml`. When manually starting the workflow, enable `Run E2E tests` to run the E2E matrix; it is disabled by default. The CI E2E infrastructure remains in place even while the active suite is intentionally small.
 
-- WordPress 6.8.3 / non-iframe: minimum supported line and non-iframe regression coverage.
-- WordPress 7.0.4 / iframe: intermediate generation between the minimum and latest supported lines.
-- WordPress 7.1.0 / iframe: latest supported line and current iframe regression coverage.
+Playwright writes authentication state to `.playwright/`, HTML reports to `playwright-report/`, and test artifacts to `test-results/`. Failed tests retain trace, screenshot, and video artifacts for investigation. These paths are excluded from Git.
 
-All three environments run the same existing Playwright suite. The 6.8.3 job keeps the dedicated non-iframe fixture, while the 7.0.4 and 7.1.0 jobs verify iframe mode through the existing editor-mode setup check. Failure artifacts include the WordPress version and editor mode in their names so parallel matrix jobs remain distinguishable.
-
-The CI E2E job does not run `playwright install --with-deps chromium`. Chromium and its Linux dependencies come from the pinned Playwright image. Failed runs upload `playwright-report/`, `test-results/`, and `docker-compose.log` when available.
-
-Playwright writes authentication state to `.playwright/`, HTML reports to `playwright-report/`, and test artifacts to `test-results/`. Failed tests retain trace, screenshot, and video artifacts for investigation. All of these paths are excluded from Git.
-
-WordPress-specific browser operations should use `@wordpress/e2e-test-utils-playwright` where the package provides an appropriate helper. Prefer those helpers when creating WordPress or Gutenberg state, and use direct click, keyboard, pointer, or touch input when that input path itself is part of the behavior under test. When iframe / non-iframe compatibility matters, verify the upstream helper implementation instead of assuming that an official helper abstracts both environments.
+WordPress-specific browser operations should use `@wordpress/e2e-test-utils-playwright` where appropriate. Use direct browser input when the input path itself is part of the behavior under test.
 
 ## PHP
 
@@ -229,13 +146,9 @@ npm run audit:security
 composer run audit:security
 ```
 
-Both commands fail for high or critical advisories. The Composer command ignores abandoned-package notices because abandonment is a maintenance concern rather than a vulnerability by itself.
-
-The manually triggered PR Validation workflow runs `npm run audit:security` after `npm ci` and `composer run audit:security` after `composer install`. Run the relevant audit locally when dependency manifests or lock files change, or when investigating a dependency advisory.
+Both commands fail for high or critical advisories. Run the relevant audit locally when dependency manifests or lock files change, or when investigating a dependency advisory.
 
 ## Repository checks
-
-Run these commands from the repository root.
 
 Check changed lines for whitespace errors:
 
@@ -243,12 +156,12 @@ Check changed lines for whitespace errors:
 git diff --check origin/main...HEAD
 ```
 
-The manually triggered `.github/workflows/pr-validation.yml` workflow always runs the dependency security audits, `npm test`, the production build, and PHP checks. Playwright E2E is optional and disabled by default; enable `Run E2E tests` when browser-level validation is needed. Run the repository check above separately before handoff.
+The manually triggered `.github/workflows/pr-validation.yml` workflow runs dependency security audits, `npm test`, the production build, and PHP checks. Playwright E2E is optional and disabled by default.
 
 ## Which checks to run
 
 - Documentation-only changes: `git diff --check origin/main...HEAD`.
-- JavaScript, TypeScript, JSON, block metadata, CSS, or SCSS changes: `npm test`, `npm run build`, and the repository check.
+- JavaScript, TypeScript, JSON, CSS, or SCSS changes: `npm test`, `npm run build`, and the repository check.
 - Playwright configuration or E2E test changes: run the Node.js checks above and `npm run test:e2e` when a compatible `wp-dev` WordPress environment is available.
 - GitHub Actions or CI E2E environment changes: run the repository check and validate through the GitHub-hosted PR Validation workflow.
 - PHP or Composer changes: Composer validation, PHP syntax, PHP coding standards, and PHPStan.
