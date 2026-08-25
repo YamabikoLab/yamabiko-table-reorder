@@ -37,6 +37,7 @@ Keyboard 操作、ドラッグを必要としない操作、focus、announcement
 | FR-10 | 移動先の把握 | DnD 中、利用者が現在の移動先を確認できる。 |
 | FR-11 | DnD の確定 | 有効な移動先への DnD が完了した場合だけ、Table の順序を更新する。 |
 | FR-12 | 通常スクロール | タッチ端末での並び替え機能によって、通常の Table または編集画面のスクロールを不必要に妨げない。 |
+| FR-13 | 対応ブロック | WordPress Core Table と Flexible Table Block の両方で、本書の要件を満たす。 |
 | QR-01 | Performance | 大規模な Table でも、行・列の DnD を実用的に利用できる。 |
 
 ## 4. アクセシビリティ要件との分離
