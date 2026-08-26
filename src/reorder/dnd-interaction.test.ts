@@ -1,5 +1,5 @@
 /**
- * 行・列と入力方式に共通するReorder Sessionの開始、更新、確定、キャンセルLifecycleを確認する。
+ * 行・列と入力方式に共通する、1回の並び替え操作の開始・更新・確定・キャンセルを確認する。
  */
 
 import {
@@ -11,34 +11,34 @@ import {
 
 describe( 'common Reorder Session', () => {
 	/**
-	 * 概要: 通常編集では並び替え操作を開始せず、編集操作とDnDを混在させないことを確認する。
+	 * 概要: 通常編集では並び替え操作を開始しないことを確認する。
 	 *
 	 * 事前条件:
-	 * - Reorder Modeは`edit`である。
+	 * - 操作状態は`edit`である。
 	 * - 移動対象候補が指定されている。
 	 *
 	 * 操作:
-	 * - startReorderSession()でSession開始を要求する。
+	 * - startReorderSession()で並び替え開始を要求する。
 	 *
 	 * 期待結果:
-	 * - Reorder Sessionは生成されず`null`が返される。
+	 * - 並び替え操作は生成されず`null`が返される。
 	 */
 	it( 'when edit mode is active, should not start a reorder session', () => {
 		expect( startReorderSession( 'edit', { index: 2 } ) ).toBeNull();
 	} );
 
 	/**
-	 * 概要: 行と列が同じSession Contractを共有し、種別だけで操作対象を区別できることを確認する。
+	 * 概要: 行と列が同じ操作状態の形式を共有し、種別だけで対象を区別できることを確認する。
 	 *
 	 * 事前条件:
-	 * - 行または列のReorder Modeが有効である。
-	 * - 各操作のReorder Targetが指定されている。
+	 * - 行または列の並び替えが有効である。
+	 * - 各操作の移動対象が指定されている。
 	 *
 	 * 操作:
-	 * - rowとcolumnのそれぞれでstartReorderSession()を実行する。
+	 * - 行と列のそれぞれでstartReorderSession()を実行する。
 	 *
 	 * 期待結果:
-	 * - 共通のSession形状が返され、kindだけが対応する種別になる。
+	 * - 同じ形式の操作状態が返され、kindだけが対応する種別になる。
 	 */
 	it( 'when row or column mode is active, should start the same session contract', () => {
 		expect( startReorderSession( 'row', { index: 1 } ) ).toEqual( {
@@ -54,14 +54,14 @@ describe( 'common Reorder Session', () => {
 	} );
 
 	/**
-	 * 概要: Drop Target Resolutionの結果が変化しても、進行中Sessionの対象identityを維持することを確認する。
+	 * 概要: 移動先が変化しても、進行中の操作が同じ移動対象を維持することを確認する。
 	 *
 	 * 事前条件:
-	 * - 行のReorder Sessionが進行中である。
-	 * - Session開始時点では有効な移動先がない。
+	 * - 行の並び替え操作が進行中である。
+	 * - 開始時点では有効な移動先がない。
 	 *
 	 * 操作:
-	 * - updateReorderDestination()で現在の有効な移動先を設定する。
+	 * - updateReorderDestination()で現在有効な移動先を設定する。
 	 *
 	 * 期待結果:
 	 * - kindとtargetは変わらず、destinationだけが更新される。
@@ -82,17 +82,17 @@ describe( 'common Reorder Session', () => {
 	} );
 
 	/**
-	 * 概要: 有効な移動先があるSessionだけをData Updateへ渡せる確定結果へ変換することを確認する。
+	 * 概要: 有効な移動先がある操作だけを、データ更新へ渡せる確定結果にできることを確認する。
 	 *
 	 * 事前条件:
-	 * - 列のReorder Sessionが進行中である。
-	 * - Drop Target Resolutionで有効な移動先が得られている。
+	 * - 列の並び替え操作が進行中である。
+	 * - 有効な移動先が得られている。
 	 *
 	 * 操作:
-	 * - completeReorderSession()でSessionを完了する。
+	 * - completeReorderSession()で操作を完了する。
 	 *
 	 * 期待結果:
-	 * - kind、target、destinationを持つCommitted Reorderが返される。
+	 * - kind、target、destinationを持つ確定結果が返される。
 	 */
 	it( 'when a valid destination exists, should create a committed reorder', () => {
 		const session = startReorderSession( 'column', { index: 1 } );
@@ -114,17 +114,17 @@ describe( 'common Reorder Session', () => {
 	} );
 
 	/**
-	 * 概要: 有効な移動先が失われたSessionを確定せず、Data Updateの入力にしないことを確認する。
+	 * 概要: 有効な移動先がない操作を確定結果にしないことを確認する。
 	 *
 	 * 事前条件:
-	 * - Reorder Sessionが進行中である。
+	 * - 並び替え操作が進行中である。
 	 * - 現在のdestinationは`null`である。
 	 *
 	 * 操作:
-	 * - completeReorderSession()でSessionを完了しようとする。
+	 * - completeReorderSession()で操作を完了しようとする。
 	 *
 	 * 期待結果:
-	 * - Committed Reorderは生成されず`null`が返される。
+	 * - 確定結果は生成されず`null`が返される。
 	 */
 	it( 'when no valid destination exists, should not create a committed reorder', () => {
 		const session = startReorderSession( 'row', { index: 2 } );
@@ -138,16 +138,16 @@ describe( 'common Reorder Session', () => {
 	} );
 
 	/**
-	 * 概要: キャンセルした操作を確定結果へ変換せず、Data Updateを発生させないことを確認する。
+	 * 概要: キャンセルした操作から確定結果を生成しないことを確認する。
 	 *
 	 * 事前条件:
-	 * - Reorder Sessionをキャンセルする操作である。
+	 * - 並び替え操作をキャンセルする。
 	 *
 	 * 操作:
 	 * - cancelReorderSession()を実行する。
 	 *
 	 * 期待結果:
-	 * - Committed Reorderは生成されず`null`が返される。
+	 * - 確定結果は生成されず`null`が返される。
 	 */
 	it( 'when a reorder session is cancelled, should not create a committed reorder', () => {
 		expect( cancelReorderSession() ).toBeNull();
