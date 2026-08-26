@@ -1,8 +1,8 @@
 /**
- * 対応Table blockを、並び替え判断に共通利用できるTable Structureへ正規化する。
+ * 対応テーブルを、行・列の並び替えで共通利用できる構造へ変換する。
  *
- * block固有の保存形式はTable Block Adapterに委譲し、この責務ではrowspan / colspanを反映したLogical Index空間の
- * 成立条件と配置関係だけを扱う。Drop Target ResolutionとData Updateへblock非依存の基準構造を提供する。
+ * ブロック固有の保存形式は変換処理へ委ね、この責務ではrowspanやcolspanを反映した行・列の対応関係と
+ * その成立条件だけを扱う。移動先判定とデータ更新は、この共通構造を基準にする。
  */
 
 import {
@@ -18,10 +18,7 @@ import {
 export type { TableBlockAttributes, TableCell, TableRow, TableSectionName } from './table-block-adapter';
 
 /**
- * 1つのcellがLogical Index空間で占有する位置と範囲。
- *
- * 物理cell indexとは別にcolumnStart・columnSpan・rowSpanを保持し、結合セルを含むTableでも
- * 行・列のDrop Target Resolutionが同じ座標系を利用できるようにする。
+ * 1つのセルが、テーブル上で占有する列位置と結合範囲。
  */
 export type TableCellPlacement = {
 	cell: TableCell;
@@ -32,9 +29,7 @@ export type TableCellPlacement = {
 };
 
 /**
- * 1行をLogical Index空間へ展開した結果。
- *
- * 元のrowと、そのrow内の各cellが占有するlogical column位置を対応付ける。
+ * 1行について、元の行データと各セルの列位置を対応付けた結果。
  */
 export type TableRowLayout = {
 	placements: TableCellPlacement[];
@@ -43,9 +38,7 @@ export type TableRowLayout = {
 };
 
 /**
- * 1つのTable sectionをLogical Index空間へ正規化した結果。
- *
- * section内の全rowが共有するcolumn数と各rowの配置を保持する。
+ * 1つのテーブルセクションについて、列数と各行の配置を確定した結果。
  */
 export type TableSectionLayout = {
 	columnCount: number;
@@ -53,9 +46,9 @@ export type TableSectionLayout = {
 };
 
 /**
- * 対応Table block全体で共有する正規化済み構造。
+ * 行・列の並び替えで共通利用するテーブル全体の構造。
  *
- * 存在するsectionが同じlogical column数を持つことを前提とし、行・列の判定と更新の基準座標を提供する。
+ * 存在するすべてのセクションで同じ列位置が同じ列を指す場合だけ成立する。
  */
 export type TableStructure = {
 	columnCount: number;
@@ -63,14 +56,14 @@ export type TableStructure = {
 };
 
 /**
- * 先行rowのrowspanを避け、現在のcellを配置できる最初のlogical columnを求める。
+ * 上の行から続くrowspanを避け、現在のセルを配置できる最初の列位置を求める。
  *
- * cellはcolumnSpan分の連続領域を必要とするため、一部でも先行rowに占有されている位置には配置しない。
+ * セルが複数列を占有する場合は、その全範囲が空いている位置だけを候補とする。
  *
- * @param occupiedColumns 先行rowのrowspanによって現在使用できないlogical column。
- * @param fromIndex       現在のrowで探索を開始するlogical column。
- * @param columnSpan      配置するcellが連続して必要とするcolumn数。
- * @return cell全体を配置できる先頭logical column index。
+ * @param occupiedColumns 上の行から続くrowspanによって現在使用できない列。
+ * @param fromIndex 現在の行で探索を開始する列位置。
+ * @param columnSpan 配置するセルが連続して必要とする列数。
+ * @return セル全体を配置できる先頭列の位置。
  */
 const findFreeColumnStart = (
 	occupiedColumns: readonly boolean[],
@@ -82,7 +75,6 @@ const findFreeColumnStart = (
 	while ( true ) {
 		let available = true;
 		for ( let offset = 0; offset < columnSpan; offset++ ) {
-			// 1つでも占有済みの位置を含む候補は、同じcellの配置領域として利用できない。
 			if ( occupiedColumns[ candidate + offset ] ) {
 				available = false;
 				candidate += offset + 1;
@@ -90,7 +82,6 @@ const findFreeColumnStart = (
 			}
 		}
 
-		// columnSpan全体を確保できた最初の位置を、そのcellのLogical Index上の開始位置とする。
 		if ( available ) {
 			return candidate;
 		}
@@ -98,14 +89,13 @@ const findFreeColumnStart = (
 };
 
 /**
- * 1つのTable sectionを、rowspan / colspanを反映したLogical Index空間へ正規化する。
+ * 1つのテーブルセクションについて、rowspanやcolspanを反映した列位置を確定する。
  *
- * すべてのrowが同じlogical column数で整合し、各spanの占有範囲をsection内で完結して解釈できる場合だけ
- * layoutを返す。spanの保存形式差はAdapterから共通の数値として受け取り、この責務では扱わない。
+ * すべての行が同じ列数で整合し、各結合セルの占有範囲をセクション内で完結して解釈できる場合だけ結果を返す。
  *
- * @param rows    正規化するsectionのrow列。
- * @param adapter 対象blockの保存形式をReorderの共通Contractへ接続するAdapter。
- * @return 正規化済みsection layout。Table構造として成立しない場合は`null`。
+ * @param rows 構造を確定するセクションの行。
+ * @param adapter 対象ブロックの保存形式を共通形式へ変換する処理。
+ * @return 列位置を確定したセクション。テーブル構造として成立しない場合は`null`。
  */
 export const createTableSectionLayout = (
 	rows: readonly TableRow[],
@@ -137,7 +127,7 @@ export const createTableSectionLayout = (
 			const columnSpan = adapter.getColumnSpan( cell );
 			const rowSpan = adapter.getRowSpan( cell );
 
-			// 1つでも占有範囲を確定できないcellがあるsectionでは、共通のLogical Index空間を保証できない。
+			// 結合範囲を確定できないセルが1つでもあれば、安全な行・列位置を保証できない。
 			if ( columnSpan === null || rowSpan === null ) {
 				return null;
 			}
@@ -166,7 +156,7 @@ export const createTableSectionLayout = (
 		if ( expectedColumnCount === null ) {
 			expectedColumnCount = currentColumnCount;
 		} else if ( currentColumnCount !== expectedColumnCount ) {
-			// 同じsection内でrowごとの列数が一致しないTableは、列のLogical Indexを一意に共有できない。
+			// 同じセクション内で行ごとの列数が一致しない場合、列の対応関係を一意に決められない。
 			return null;
 		}
 
@@ -178,7 +168,7 @@ export const createTableSectionLayout = (
 		remainingRowSpans = nextRowSpans;
 	}
 
-	// section末尾を越えて続くrowspanは、現在のTableデータだけでは占有範囲を完結して解釈できない。
+	// セクション末尾を越えて続くrowspanは、現在のテーブルデータだけでは結合範囲を確定できない。
 	const hasUnfinishedRowSpan = remainingRowSpans.some( ( remaining ) => {
 		const continuesBeyondSection = remaining > 0;
 		return continuesBeyondSection;
@@ -194,14 +184,14 @@ export const createTableSectionLayout = (
 };
 
 /**
- * 対応Table blockのattributes全体を、行・列の並び替えが共有するTable Structureへ変換する。
+ * 対応するテーブルブロック全体を、行・列の並び替えで共通利用する構造へ変換する。
  *
- * block固有の保存形式はTable Block Adapterから共通のsection・row・cellとして受け取る。存在するsectionはすべて
- * 同じlogical column数を持つことを要求し、どのsectionを見ても同じcolumn indexが同じ列を指す状態だけを返す。
+ * 存在するすべてのセクションで列数が一致し、どのセクションでも同じ列位置が同じ列を指す場合だけ結果を返す。
+ * 未対応のブロックや、構造を一意に解釈できないテーブルは並び替え対象にしない。
  *
- * @param blockName  正規化対象となるGutenberg block名。
- * @param attributes 並び替え前のTable block attributes。入力状態として変更しない。
- * @return 正規化済みTable Structure。対応外または構造を一意に解釈できない場合は`null`。
+ * @param blockName 対象のGutenbergブロック名。
+ * @param attributes 並び替え前のテーブル属性。入力値は変更しない。
+ * @return 行・列の並び替えで共通利用できるテーブル構造。確定できない場合は`null`。
  */
 export const createTableStructure = (
 	blockName: string,
@@ -227,7 +217,7 @@ export const createTableStructure = (
 
 		const layout = createTableSectionLayout( rows, adapter );
 
-		// 存在するsectionは、有効な列構造を持つ場合だけTable全体の並び替えContractへ参加できる。
+		// 存在するセクションは、有効な列構造を持つ場合だけテーブル全体の構造へ含める。
 		if ( layout === null || layout.columnCount === 0 ) {
 			return null;
 		}
@@ -235,14 +225,13 @@ export const createTableStructure = (
 		if ( columnCount === null ) {
 			columnCount = layout.columnCount;
 		} else if ( layout.columnCount !== columnCount ) {
-			// 全sectionで同じLogical Indexが同じ列を指せないTableは、列並び替えの共通基準にできない。
+			// セクションごとに列数が異なる場合、テーブル全体で列の対応関係を共有できない。
 			return null;
 		}
 
 		sections[ sectionName ] = layout;
 	}
 
-	// 少なくとも1つの有効sectionがあり、Table全体で共通の列構造を確定できた場合だけStructureを公開する。
 	const tableStructure =
 		columnCount === null
 			? null
