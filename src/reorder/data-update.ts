@@ -1,14 +1,15 @@
 /**
  * 確定済みの並び替えをTable block attributesへ反映するData Updateの共通Contractを提供する。
  *
- * 対応Tableであることを確認したうえで行・列のfeature実装を選択し、変換が成立した場合だけ
- * WordPress側へ更新を渡す。行・列固有のデータ操作はこの境界では所有しない。
+ * 対応TableであることをTable Block Adapter境界で確認したうえで行・列のfeature実装を選択し、変換が成立した場合だけ
+ * WordPress側へ更新を渡す。行・列固有のデータ操作やblock固有の保存形式はこの境界では所有しない。
  */
 
 import { applyColumnReorder } from '@/column-reorder/data-update';
 import { applyRowReorder } from '@/row-reorder/data-update';
 import type { CommittedReorder } from './dnd-interaction';
-import { getTableBlockSupport, type TableBlockAttributes } from './table-structure';
+import { getTableBlockAdapter } from './table-block-adapter';
+import type { TableBlockAttributes } from './table-structure';
 
 /**
  * Data Updateが確定したTable attributesをWordPress側へ反映するcallbackのContract。
@@ -32,8 +33,8 @@ export type DataUpdateRequest = {
 /**
  * Committed Reorderを、元のTableデータを保持した新しいattributesへ変換する。
  *
- * 共通Contractでは並び替え種別に対応するfeatureだけを選択し、row / column固有の更新規則は
- * 各featureへ委譲する。対応Tableとして解釈できない場合は更新結果を生成しない。
+ * 共通Contractでは対応TableのAdapterが存在することだけを確認し、並び替え種別に対応するfeatureへ処理を委譲する。
+ * block固有の読み書きは各featureから同じAdapter境界を利用するため、この責務にblock別分岐を持たない。
  *
  * @param blockName        Data Updateの対象となるGutenberg block名。
  * @param attributes       並び替え前のTable block attributes。入力状態として変更しない。
@@ -45,15 +46,15 @@ export const applyCommittedReorder = (
 	attributes: TableBlockAttributes,
 	committedReorder: CommittedReorder
 ): Record< string, unknown > | null => {
-	// Data Updateは、正式v1で対応するTable blockに対してだけ更新結果を生成する。
-	if ( getTableBlockSupport( blockName ) === null ) {
+	// Data Updateは、明示的なAdapterを持つ対応Table blockに対してだけ更新結果を生成する。
+	if ( getTableBlockAdapter( blockName ) === null ) {
 		return null;
 	}
 
 	const { destination, kind, target } = committedReorder;
 	const nextAttributes =
 		kind === 'row'
-			? applyRowReorder( attributes, target.index, destination.index )
+			? applyRowReorder( blockName, attributes, target.index, destination.index )
 			: applyColumnReorder( blockName, attributes, target.index, destination.index );
 	return nextAttributes;
 };
