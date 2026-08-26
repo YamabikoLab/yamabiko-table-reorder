@@ -1,5 +1,5 @@
 /**
- * Reorder Modeの初期状態、排他的な種別切り替え、終了LifecycleがContractどおりであることを確認する。
+ * テーブル操作が通常編集から始まり、行・列の並び替えを排他的に切り替えられることを確認する。
  */
 
 import {
@@ -11,10 +11,10 @@ import {
 
 describe( 'Reorder Mode', () => {
 	/**
-	 * 概要: Table操作が通常編集から始まり、並び替えを暗黙に有効化しないことを確認する。
+	 * 概要: テーブル操作の初期状態では並び替えを有効にしないことを確認する。
 	 *
 	 * 事前条件:
-	 * - Reorder Modeはまだ生成されていない。
+	 * - 操作状態はまだ生成されていない。
 	 *
 	 * 操作:
 	 * - createReorderMode()で初期状態を生成する。
@@ -27,16 +27,16 @@ describe( 'Reorder Mode', () => {
 	} );
 
 	/**
-	 * 概要: 行並び替えを選択したとき、DnDが行だけを対象にできる状態になることを確認する。
+	 * 概要: 行並び替えを選択したとき、行だけを並び替え対象にできることを確認する。
 	 *
 	 * 事前条件:
 	 * - 現在は通常編集状態である。
 	 *
 	 * 操作:
-	 * - rowのReorder Modeへ切り替える。
+	 * - 行並び替えへ切り替える。
 	 *
 	 * 期待結果:
-	 * - ModeとDnDへ公開するReorder Kindがともに`row`になる。
+	 * - 操作状態と並び替え種別がともに`row`になる。
 	 */
 	it( 'when row reorder is selected, should expose row kind', () => {
 		const mode = enterReorderMode( 'row' );
@@ -46,16 +46,16 @@ describe( 'Reorder Mode', () => {
 	} );
 
 	/**
-	 * 概要: 並び替え種別を切り替えたとき、以前の種別を同時に有効なまま残さないことを確認する。
+	 * 概要: 列並び替えを選択したとき、行並び替えを同時に有効なまま残さないことを確認する。
 	 *
 	 * 事前条件:
-	 * - 行並び替えを選択できる状態である。
+	 * - 行または列の並び替えへ切り替えられる状態である。
 	 *
 	 * 操作:
-	 * - columnのReorder Modeへ切り替える。
+	 * - 列並び替えへ切り替える。
 	 *
 	 * 期待結果:
-	 * - ModeとDnDへ公開するReorder Kindがともに`column`となり、列だけが有効になる。
+	 * - 操作状態と並び替え種別がともに`column`となり、列だけが有効になる。
 	 */
 	it( 'when column reorder is selected, should expose column kind', () => {
 		const mode = enterReorderMode( 'column' );
@@ -65,16 +65,16 @@ describe( 'Reorder Mode', () => {
 	} );
 
 	/**
-	 * 概要: 並び替え終了後は通常編集へ戻り、新しいDnDを開始できる種別が残らないことを確認する。
+	 * 概要: 並び替え終了後は通常編集へ戻り、新しい並び替えを開始できる種別が残らないことを確認する。
 	 *
 	 * 事前条件:
-	 * - 行または列の並び替えモードが有効である。
+	 * - 行または列の並び替えが有効である。
 	 *
 	 * 操作:
-	 * - exitReorderMode()で並び替えモードを終了する。
+	 * - exitReorderMode()で並び替えを終了する。
 	 *
 	 * 期待結果:
-	 * - Modeは`edit`となり、DnDへ公開するReorder Kindは`null`になる。
+	 * - 操作状態は`edit`となり、並び替え種別は`null`になる。
 	 */
 	it( 'when reorder mode exits, should return to edit mode', () => {
 		const mode = exitReorderMode();
