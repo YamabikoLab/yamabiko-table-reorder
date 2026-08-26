@@ -47,6 +47,8 @@ When reviewing React code, focus on React-specific correctness, lifecycle behavi
 
 ## Source documentation
 
+- Write comments and documentation so that readers who understand the specification but cannot read the implementation can still understand the specification, responsibility, purpose, and rationale.
+- For condition expressions that combine multiple conditions, document what the overall condition means rather than explaining each individual condition or translating the expression into prose.
 - Start each source file with a Japanese file-level documentation comment that clearly explains the file's responsibility and purpose. Describe what role the file plays and what it owns or provides rather than listing implementation details.
 - Add Japanese JSDoc or documentation comments to exported top-level variables, constants, functions, types, React components, HOCs, custom hooks, and controller or other major public boundaries.
 - Also document non-exported top-level elements when they own an important responsibility or lifecycle that is not obvious from the code alone.
