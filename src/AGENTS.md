@@ -47,17 +47,13 @@ When reviewing React code, focus on React-specific correctness, lifecycle behavi
 
 ## Source documentation
 
-- Write comments and documentation so that readers who understand the specification but cannot read the implementation can still understand the specification, responsibility, purpose, and rationale.
+- Write comments and documentation at a basic-design level of abstraction so that readers who understand the specification but cannot read the implementation can understand the specification, responsibility, purpose, behavior, and rationale. Documentation should remain understandable when read without the implementation beside it.
+- Describe behavior, rules, constraints, and decisions in terms of specification or domain concepts. Explain what is allowed, prohibited, required, or produced and why, rather than how the implementation performs the processing. Do not merely translate identifiers, expressions, data structures, algorithms, or implementation steps into natural language.
+- Start each source file with a Japanese file-level documentation comment that explains the file's responsibility, purpose, and ownership. Describe the role the file provides rather than listing its implementation details.
+- Add Japanese JSDoc or documentation comments to exported top-level variables, constants, functions, types, React components, HOCs, custom hooks, controllers, and other major public boundaries. Also document non-exported top-level elements when they own an important responsibility or lifecycle that is not obvious from the code alone.
+- For documented functions, methods, callbacks, and similar callables, add an `@param` entry for every parameter. Explain the specification-level meaning or role of a parameter when it is not obvious from its name and type.
 - For condition expressions that combine multiple conditions, document the overall rule or decision represented by the condition at a basic-design level rather than explaining each individual condition or translating the expression into prose.
-- Start each source file with a Japanese file-level documentation comment that clearly explains the file's responsibility and purpose. Describe what role the file plays and what it owns or provides rather than listing implementation details.
-- Add Japanese JSDoc or documentation comments to exported top-level variables, constants, functions, types, React components, HOCs, custom hooks, and controller or other major public boundaries.
-- Also document non-exported top-level elements when they own an important responsibility or lifecycle that is not obvious from the code alone.
-- For documented functions, methods, callbacks, and similar callables, add an `@param` entry for every parameter. Explain the meaning or role of the parameter when it is not obvious from its name and type.
-- Explain the responsibility and purpose rather than merely translating the identifier into Japanese.
-- Prioritize information that is difficult to infer from the implementation itself, such as why the element exists, what it owns, important assumptions, return-value meaning, lifecycle, and cleanup responsibilities.
-- Keep documentation comments aligned when the documented responsibility or contract changes.
-- Do not mechanically add comments to self-explanatory local variables, temporary values, or implementation steps.
-- Follow the Japanese spacing rule in the Implementation rules section for these comments.
+- Prioritize information that is difficult to infer from the implementation itself, such as important assumptions, constraints, return-value meaning, lifecycle, and cleanup responsibilities. Keep documentation aligned when the documented responsibility or contract changes, and do not mechanically add comments to self-explanatory local variables, temporary values, or implementation steps.
 
 ## Internationalization and accessibility
 
