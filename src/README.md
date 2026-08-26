@@ -1,8 +1,8 @@
 # YTR v1 source
 
-`src/`は、正式v1のArchitectureで定義した責務を実装へ割り当てるactive source boundaryです。ファイル数を減らすことよりも、どの責務がどこに属し、どのContractを通じて協調するのかを追いやすくすることを優先します。
+`src/`には、正式v1の責務ごとに製品コードを配置します。ファイル数を減らすことよりも、どの責務がどこにあり、どの共通仕様を介して協調するかを追いやすくすることを優先します。
 
-Prototypeの構成を維持するための互換境界は置きません。過去の実装を参照する必要がある場合は`prototype-final`tagを利用し、正式v1の責務境界は現在のArchitectureから判断します。
+過去の試作版と同じ構成を維持するための互換層は置きません。過去の実装を参照する必要がある場合は`prototype-final`タグを利用し、正式v1の責務境界は現在のアーキテクチャ文書を基準にします。
 
 ```text
 src/
@@ -27,9 +27,9 @@ src/
     └── data-update.ts
 ```
 
-- `reorder/`は、行・列で共有するReorder Mode、Reorder Session、Drop Target Resolution、Data Update、Table Block Adapter、Table StructureのContractと共通ルールを所有します。対応Table固有の保存形式はTable Block Adapterへ閉じ込め、行・列の共通責務へblock別分岐を持ち込みません。行・列固有の判断はここへ混在させず、共通入口から各featureへ委譲します。
-- `row-reorder/`は、rowspanを壊さない移動先判定やbodyの行順更新など、行並び替えだけが持つ責務を所有します。
-- `column-reorder/`は、colspanを壊さない移動先判定や全sectionを同じlogical column移動として更新する責務を所有します。
-- `index.tsx`や`messages.ts`のようにplugin全体へ属する責務は、Reorderのfeature境界へ無理に含めず`src/`直下に置きます。
+- `reorder/`は、行・列で共有する操作状態、並び替え操作、移動先判定、データ更新、テーブル保存形式の変換、テーブル構造を所有します。対応テーブル固有の保存形式は変換境界へ閉じ込め、共通処理へブロック別の条件分岐を持ち込みません。行・列に固有の規則は、それぞれの機能へ委ねます。
+- `row-reorder/`は、rowspanを壊さない移動先判定やテーブル本体の行順更新など、行並び替えだけが持つ責務を所有します。
+- `column-reorder/`は、colspanを壊さない移動先判定や、テーブル全体で同じ列移動を適用する責務を所有します。
+- `index.tsx`や`messages.ts`のようにプラグイン全体へ属する責務は、並び替え機能の内部へ無理に含めず`src/`直下に置きます。
 
-テストは検証対象の責務と同じdirectoryへ配置します。新しいdirectoryや共通化は、正式v1で独立した責務または共有Contractが成立した場合にだけ追加します。
+テストは検証対象の責務と同じディレクトリへ配置します。新しいディレクトリや共通化は、正式v1で独立した責務または共有する理由が明確になった場合にだけ追加します。
