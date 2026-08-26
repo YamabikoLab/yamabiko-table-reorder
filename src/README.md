@@ -18,6 +18,7 @@ src/
 │   ├── drop-target-resolution.ts
 │   ├── drop-target-rules.ts
 │   ├── data-update.ts
+│   ├── data-update-rules.ts
 │   └── table-structure.ts
 ├── row-reorder/
 │   ├── drop-target-resolution.ts

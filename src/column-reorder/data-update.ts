@@ -1,3 +1,4 @@
+import { moveArrayItem } from '../reorder/data-update-rules';
 import {
 	createTableStructure,
 	type TableBlockAttributes,
@@ -5,44 +6,6 @@ import {
 } from '../reorder/table-structure';
 
 const TABLE_SECTION_NAMES: readonly TableSectionName[] = [ 'head', 'body', 'foot' ];
-
-const getDestinationItemIndex = (
-	targetIndex: number,
-	destinationIndex: number
-): number | null => {
-	if (
-		! Number.isInteger( targetIndex ) ||
-		! Number.isInteger( destinationIndex ) ||
-		destinationIndex === targetIndex ||
-		destinationIndex === targetIndex + 1
-	) {
-		return null;
-	}
-	return destinationIndex > targetIndex ? destinationIndex - 1 : destinationIndex;
-};
-
-const moveArrayItem = < T >(
-	items: readonly T[],
-	targetIndex: number,
-	destinationIndex: number
-): T[] | null => {
-	const nextIndex = getDestinationItemIndex( targetIndex, destinationIndex );
-	if (
-		nextIndex === null ||
-		targetIndex < 0 ||
-		targetIndex >= items.length ||
-		destinationIndex < 0 ||
-		destinationIndex > items.length ||
-		nextIndex < 0 ||
-		nextIndex >= items.length
-	) {
-		return null;
-	}
-	const reordered = [ ...items ];
-	const [ movedItem ] = reordered.splice( targetIndex, 1 );
-	reordered.splice( nextIndex, 0, movedItem );
-	return reordered;
-};
 
 const createColumnIndexMap = (
 	columnCount: number,
