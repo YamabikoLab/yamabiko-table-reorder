@@ -1,50 +1,41 @@
 /**
- * 対応Table block固有の保存形式と、Reorderが共有するTable Contractの間を接続するAdapterを提供する。
+ * 対応するテーブルブロック固有の保存形式を、並び替え機能が共通に扱える形式へ変換する。
  *
- * section・row・cellの読み書きとspan表現の解釈をこの境界に集約し、Table Structure、Drop Target Resolution、
- * Data Updateがblock名や保存propertyを意識せず同じContractを利用できるようにする。
+ * セクション、行、セルの読み書きと結合セルの表現差をこの境界で吸収し、
+ * 並び替えの共通処理がブロックごとの保存形式を意識せずに済むようにする。
  */
 
 /**
- * Reorderが共通に扱うTable section名。
- *
- * 対応block固有の保存先が異なる場合でも、Adapterはhead / body / footの共通語彙へ変換して公開する。
+ * 並び替え機能が共通に扱うテーブルのセクション名。
  */
 export const TABLE_SECTION_NAMES = [ 'head', 'body', 'foot' ] as const;
 
 /**
- * Reorderが共通に扱うTable section名のContract。
+ * 並び替え機能が共通に扱うテーブルのセクション名。
  */
 export type TableSectionName = ( typeof TABLE_SECTION_NAMES )[ number ];
 
 /**
- * Reorderが保持するcell payloadのContract。
- *
- * content・style・block固有属性は並び替え判断の対象にせず、Data Updateで失わず保持する。
+ * 並び替え中も内容や装飾を失わず保持するセルデータ。
  */
 export type TableCell = Record< string, unknown >;
 
 /**
- * Reorderが共通に扱う1行のContract。
- *
- * row固有属性を保持したまま、Table Structureに必要なcell列を共通形式で公開する。
+ * 並び替え中も行固有の情報を保持したまま扱う1行分のデータ。
  */
 export type TableRow = Record< string, unknown > & {
 	cells: readonly TableCell[];
 };
 
 /**
- * 対応Table blockの現在attributes。
- *
- * Adapterは必要なTable情報だけを読み書きし、その他のblock固有属性は変更せず保持する。
+ * 対応するテーブルブロックの現在の属性。
  */
 export type TableBlockAttributes = Readonly< Record< string, unknown > >;
 
 /**
- * 対応Table blockの保存形式をReorderの共通Contractへ接続する境界。
+ * ブロック固有の保存形式と、並び替え機能の共通形式を相互変換する境界。
  *
- * 新しいTable blockへ対応するときは、block固有のsection配置、row / cell表現、span表現をこのContractで吸収する。
- * Reorderの共通責務へblock名ごとの条件分岐を追加しない。
+ * 新しいテーブルブロックへ対応するときは、セクション配置、行・セルの表現、結合セルの表現差をここで吸収する。
  */
 export type TableBlockAdapter = {
 	getColumnSpan: ( cell: TableCell ) => number | null;
@@ -61,14 +52,14 @@ export type TableBlockAdapter = {
 };
 
 /**
- * 現在対応するCore TableとFlexible Table Blockが共有するsection保存形式を安全に解釈する。
+ * Core TableとFlexible Table Blockが共有するセクション保存形式を安全に読み取る。
  *
- * section未定義は「そのsectionを持たないTable」として空配列を返す。存在するsectionをrow列として完全に
- * 保持できない場合は、推測した変換を行わず`null`を返す。
+ * セクションが存在しない場合は、そのセクションを持たない有効なテーブルとして空配列を返す。
+ * 存在するセクションを行とセルの集合として完全に解釈できない場合は、推測せず`null`を返す。
  *
- * @param attributes  読み取り元となるTable block attributes。
- * @param sectionName Reorderの共通Contractで指定するsection。
- * @return 共通Contractへ変換したrow列。section未定義では空配列、解釈不能な場合は`null`。
+ * @param attributes 読み取り元のテーブル属性。
+ * @param sectionName 読み取るセクション。
+ * @return 読み取った行。セクションが存在しない場合は空配列、解釈できない場合は`null`。
  */
 const readStandardSectionRows = (
 	attributes: TableBlockAttributes,
@@ -76,12 +67,11 @@ const readStandardSectionRows = (
 ): readonly TableRow[] | null => {
 	const section = attributes[ sectionName ];
 
-	// sectionを持たないTableは、そのsectionに並び替え対象が存在しない有効な状態として扱う。
 	if ( section === undefined ) {
 		return [];
 	}
 
-	// 存在するsectionは、rowとcellを欠損なく保持できる場合だけReorderの共通Contractへ公開する。
+	// 存在するセクションは、行とセルを欠損なく保持できる場合だけ並び替え対象として扱う。
 	if ( ! Array.isArray( section ) || ! section.every( isTableRow ) ) {
 		return null;
 	}
@@ -90,14 +80,14 @@ const readStandardSectionRows = (
 };
 
 /**
- * 現在対応するCore TableとFlexible Table Blockのsectionへ、共通Contractのrow列を書き戻す。
+ * Core TableとFlexible Table Blockのセクションへ、確定した行データを書き戻す。
  *
- * Table以外のattributesを保持し、指定sectionの内容だけを確定済みのrow列へ置き換える。
+ * テーブル以外の属性は保持し、指定されたセクションだけを置き換える。
  *
- * @param attributes  更新前のTable block attributes。
- * @param sectionName Reorderの共通Contractで指定するsection。
- * @param rows        Data Updateで確定したrow列。
- * @return 指定sectionだけを更新したattributes。
+ * @param attributes 更新前のテーブル属性。
+ * @param sectionName 更新するセクション。
+ * @param rows 書き戻す行データ。
+ * @return 指定セクションだけを更新した属性。
  */
 const writeStandardSectionRows = (
 	attributes: TableBlockAttributes,
@@ -111,22 +101,21 @@ const writeStandardSectionRows = (
 };
 
 /**
- * 値が、Table payloadとしてpropertyを安全に保持できるobjectか判定する。
+ * 値が、テーブルの一部として安全に保持できるオブジェクトかを判定する。
  *
- * @param value Table構造の一部として解釈しようとしている値。
- * @return Table payloadとして保持できるobjectであれば`true`。
+ * @param value 判定対象の値。
+ * @return `null`ではないオブジェクトであれば`true`。
  */
 const isRecord = ( value: unknown ): value is Record< string, unknown > => {
-	// Table payloadとして保持できるのは、nullではないobjectだけである。
 	const canBeTablePayload = value !== null && typeof value === 'object';
 	return canBeTablePayload;
 };
 
 /**
- * 値をReorderで保持できるcell payloadとして扱えるか判定する。
+ * 値を、内容を失わず保持できるセルとして扱えるかを判定する。
  *
- * @param value cell候補として読み取った値。
- * @return TableCellとして保持できる場合は`true`。
+ * @param value セルとして読み取った値。
+ * @return セルとして保持できる場合は`true`。
  */
 const isTableCell = ( value: unknown ): value is TableCell => {
 	const canBePreservedAsCell = isRecord( value );
@@ -134,42 +123,38 @@ const isTableCell = ( value: unknown ): value is TableCell => {
 };
 
 /**
- * 値をReorderの共通row Contractへ変換せずそのまま保持できるか判定する。
+ * 値を、内容を失わず保持できる行として扱えるかを判定する。
  *
- * @param value row候補として読み取った値。
- * @return TableRowとして安全に扱える場合は`true`。
+ * @param value 行として読み取った値。
+ * @return 行として安全に扱える場合は`true`。
  */
 const isTableRow = ( value: unknown ): value is TableRow => {
-	// rowとして公開するには、row自身と全cellを並び替え後も欠損なく保持できる必要がある。
 	const canBePreservedAsRow =
 		isRecord( value ) && Array.isArray( value.cells ) && value.cells.every( isTableCell );
 	return canBePreservedAsRow;
 };
 
 /**
- * 対応blockの保存propertyから、1つのcellが占有するspan数を共通の数値へ変換する。
+ * ブロック固有の保存値から、1つのセルが占有する行数または列数を取得する。
  *
- * span未指定は通常cellとして1を返し、占有範囲を一意に確定できない値は推測せず`null`とする。
+ * 値が省略されている場合は通常のセルとして1を返す。占有範囲を一意に確定できない値は推測しない。
  *
- * @param cell     spanを解釈するTable cell。
- * @param property 対応blockがspanを保存するproperty名。
- * @return 1以上のspan数。保存値を正しく解釈できない場合は`null`。
+ * @param cell 結合範囲を読み取るセル。
+ * @param property 対象ブロックが結合範囲を保存する属性名。
+ * @return 1以上の占有数。保存値を正しく解釈できない場合は`null`。
  */
 const getSpan = ( cell: TableCell, property: string ): number | null => {
 	const rawValue = cell[ property ];
 
-	// span未指定は1つのLogical Indexだけを占有する通常cellとして扱う。
 	if ( rawValue === undefined || rawValue === null || rawValue === '' ) {
 		return 1;
 	}
 
-	// spanとして保証できる保存表現だけを共通Contractへ変換する。
 	if ( typeof rawValue !== 'number' && typeof rawValue !== 'string' ) {
 		return null;
 	}
 
 	const span = Number( rawValue );
-	// Table Structureへ渡せるspanは、1つ以上の連続したLogical Indexを表す整数だけである。
 	const isValidSpan = Number.isInteger( span ) && span >= 1;
 	if ( ! isValidSpan ) {
 		return null;
@@ -179,11 +164,11 @@ const getSpan = ( cell: TableCell, property: string ): number | null => {
 };
 
 /**
- * 現在対応する標準的なsection / row / cell保存形式に、block固有のspan propertyだけを接続するAdapterを作る。
+ * 共通のセクション・行・セル保存形式に、ブロック固有の結合セル属性名を対応付ける。
  *
- * @param columnSpanProperty 対象blockがcolumn spanを保存するproperty名。
- * @param rowSpanProperty    対象blockがrow spanを保存するproperty名。
- * @return Reorderの共通Contractへ接続するTable Block Adapter。
+ * @param columnSpanProperty 列方向の結合数を保存する属性名。
+ * @param rowSpanProperty 行方向の結合数を保存する属性名。
+ * @return 対応ブロックの保存形式を共通形式へ接続する変換処理。
  */
 const createStandardTableBlockAdapter = (
 	columnSpanProperty: string,
@@ -198,9 +183,7 @@ const createStandardTableBlockAdapter = (
 };
 
 /**
- * 正式v1で対応するTable blockと、その保存形式をReorderへ接続するAdapterの対応表。
- *
- * 対応Tableを追加するときは、そのblock固有の読み書きとspan解釈をAdapterとして登録する。
+ * 正式v1で対応するテーブルブロックと、その保存形式の対応表。
  */
 const TABLE_BLOCK_ADAPTERS: Readonly< Record< string, TableBlockAdapter > > = {
 	'core/table': createStandardTableBlockAdapter( 'colspan', 'rowspan' ),
@@ -208,12 +191,12 @@ const TABLE_BLOCK_ADAPTERS: Readonly< Record< string, TableBlockAdapter > > = {
 };
 
 /**
- * Gutenberg block名から、対応するTable Block Adapterを解決する。
+ * Gutenbergブロック名から、対応するテーブル保存形式の変換処理を取得する。
  *
- * 対応外blockを推測して処理せず、明示的に登録された保存形式だけをReorderの共通責務へ接続する。
+ * 未対応ブロックの保存形式は推測せず、明示的に登録されたブロックだけを並び替え対象とする。
  *
- * @param blockName Reorderへ接続するGutenberg block名。
- * @return 対応blockのAdapter。対応外blockであれば`null`。
+ * @param blockName 対象のGutenbergブロック名。
+ * @return 対応する変換処理。未対応ブロックでは`null`。
  */
 export const getTableBlockAdapter = ( blockName: string ): TableBlockAdapter | null => {
 	const adapter = TABLE_BLOCK_ADAPTERS[ blockName ] ?? null;
