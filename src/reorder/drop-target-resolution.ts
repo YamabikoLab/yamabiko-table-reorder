@@ -4,6 +4,12 @@ import type { ReorderDestination, ReorderTarget } from './dnd-interaction';
 import type { ReorderKind } from './reorder-mode';
 import { createTableStructure } from './table-structure';
 
+const isIntegerInRange = ( value: number, min: number, max: number ): boolean =>
+	Number.isInteger( value ) && value >= min && value <= max;
+
+const isNoopDestination = ( targetIndex: number, destinationIndex: number ): boolean =>
+	destinationIndex === targetIndex || destinationIndex === targetIndex + 1;
+
 /**
  * Drop Target Resolutionへ渡す判定要求。
  */
@@ -30,6 +36,17 @@ export const resolveDropTarget = (
 	const { attributes, blockName, destinationIndex, kind, target } = request;
 	const structure = createTableStructure( blockName, attributes );
 	if ( structure === null ) {
+		return null;
+	}
+
+	const itemCount =
+		kind === 'row' ? structure.sections.body?.rows.length : structure.columnCount;
+	if (
+		itemCount === undefined ||
+		! isIntegerInRange( target.index, 0, itemCount - 1 ) ||
+		! isIntegerInRange( destinationIndex, 0, itemCount ) ||
+		isNoopDestination( target.index, destinationIndex )
+	) {
 		return null;
 	}
 

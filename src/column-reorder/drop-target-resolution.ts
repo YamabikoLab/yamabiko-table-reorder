@@ -1,14 +1,6 @@
 import type { ReorderDestination, ReorderTarget } from '../reorder/dnd-interaction';
+import { isBoundaryInsideRange } from '../reorder/drop-target-rules';
 import type { TableStructure } from '../reorder/table-structure';
-
-const isIntegerInRange = ( value: number, min: number, max: number ): boolean =>
-	Number.isInteger( value ) && value >= min && value <= max;
-
-const isNoopDestination = ( targetIndex: number, destinationIndex: number ): boolean =>
-	destinationIndex === targetIndex || destinationIndex === targetIndex + 1;
-
-const isBoundaryInsideRange = ( boundary: number, start: number, end: number ): boolean =>
-	boundary > start && boundary <= end;
 
 const isColumnInsideColSpan = ( structure: TableStructure, targetIndex: number ): boolean =>
 	Object.values( structure.sections ).some(
@@ -42,11 +34,12 @@ const doesBoundarySplitColSpan = ( structure: TableStructure, boundary: number )
 /**
  * 列並び替え固有のDrop Target Resolutionを行う。
  *
- * colspanを構成する列やcolspanを分断する境界、範囲外、同位置へのno-opでは`null`を返す。
+ * colspanを構成する列やcolspanを分断する境界では`null`を返す。
+ * 共通の範囲外・no-op判定は`reorder/drop-target-resolution.ts`で行う。
  *
- * @param structure        - テーブル構造。
- * @param target           - 並び替え対象の列。
- * @param destinationIndex - 列の移動先を示す境界インデックス。
+ * @param structure        テーブル構造。
+ * @param target           並び替え対象の列。
+ * @param destinationIndex 列の移動先を示す境界インデックス。
  */
 export const resolveColumnDropTarget = (
 	structure: TableStructure,
@@ -54,9 +47,6 @@ export const resolveColumnDropTarget = (
 	destinationIndex: number
 ): ReorderDestination | null => {
 	if (
-		! isIntegerInRange( target.index, 0, structure.columnCount - 1 ) ||
-		! isIntegerInRange( destinationIndex, 0, structure.columnCount ) ||
-		isNoopDestination( target.index, destinationIndex ) ||
 		isColumnInsideColSpan( structure, target.index ) ||
 		doesBoundarySplitColSpan( structure, destinationIndex )
 	) {

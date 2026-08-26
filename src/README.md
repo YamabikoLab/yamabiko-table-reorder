@@ -16,6 +16,7 @@ src/
 │   ├── reorder-mode.ts
 │   ├── dnd-interaction.ts
 │   ├── drop-target-resolution.ts
+│   ├── drop-target-rules.ts
 │   ├── data-update.ts
 │   └── table-structure.ts
 ├── row-reorder/
