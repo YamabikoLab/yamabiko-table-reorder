@@ -6,7 +6,7 @@ These instructions apply to implementation plans under `docs/plans/`.
 
 - Define how an accepted Architecture will be implemented through concrete implementation direction, ordering, phases, and reviewable units.
 - Bridge Architecture and implementation without redefining Requirements, Design, or Architecture decisions.
-- Keep plans focused on how the work will be carried out, validated, and organized into reviewable implementation phases.
+- Keep plans focused on how the work will be carried out, validated, and divided into Issues.
 
 ## Documentation hierarchy
 
@@ -15,8 +15,8 @@ Use the documentation layers with the following responsibilities:
 - **Requirements**: Define what must be achieved and why it matters.
 - **Design**: Define how the product behaves from the user's perspective.
 - **Architecture**: Define the internal responsibilities, boundaries, state ownership, contracts, responsibility dependencies, lifecycle, and invariants needed to realize the design.
-- **Plan**: Define the implementation direction, implementation phases, ordering, implementation dependencies, and validation approach used to realize the accepted Architecture.
-- **Issue**: Define one concrete, reviewable implementation unit with the scope, context, completion conditions, and validation needed to complete it.
+- **Plan**: Define the implementation direction, implementation phases, ordering, implementation dependencies, validation approach, and Issue breakdown used to realize the accepted Architecture.
+- **Issue**: Define one concrete, reviewable unit of work with the scope, context, completion conditions, and validation needed to complete it.
 
 Treat Requirements, Design, and Architecture as inputs to the Plan. Do not duplicate or redefine their decisions in the Plan.
 
@@ -27,9 +27,9 @@ Plan documents may describe:
 - implementation direction and important implementation choices;
 - implementation phases and the outcome of each phase;
 - implementation ordering;
-- implementation dependencies between phases or Issues;
+- implementation dependencies between phases, implementation units, or Issues;
 - validation strategy and questions that can be resolved during implementation;
-- reviewable implementation units when a phase must be split.
+- how the work should be divided into reviewable Issues.
 
 Plan documents must not redefine Architecture-owned concerns, including:
 
@@ -67,18 +67,23 @@ Record implementation choices that must be settled before a phase or implementat
 Record questions that can be answered safely through a spike, prototype, measurement, or implementation result.
 
 - State what evidence is needed to answer the question.
-- Update the Plan after validation when the result changes implementation direction, ordering, or phase boundaries.
+- Update the Plan after validation when the result changes implementation direction, ordering, or Issue breakdown.
 - If the result requires an Architecture change, update the Architecture document before continuing with a Plan that depends on the new decision.
 
 ## Implementation phases
 
 - Organize work into phases only when the work benefits from staged implementation.
 - Each phase should have a clear outcome and be reviewable or provide evidence needed for the next phase.
-- Each implementation phase should normally correspond to one GitHub Issue.
-- Split a phase into multiple Issues only when necessary to keep each change reviewable. Record the smaller implementation units within that phase instead of adding a separate Issue breakdown section.
 - Describe implementation dependencies explicitly when the order matters.
-- Use Issue-to-Issue dependencies only for implementation ordering or delivery dependencies.
 - Do not turn phases into descriptions of architectural responsibility relationships.
+
+## Issue breakdown
+
+- Use Issues as concrete implementation units, not copies of the full Plan.
+- Keep each Issue small enough to be reviewed as a coherent change.
+- Include only the scope, context, completion conditions, and validation required for that Issue.
+- Reference the Plan for broader implementation direction and sequencing instead of duplicating it.
+- Use Issue-to-Issue dependencies only for implementation ordering or delivery dependencies.
 
 ## Validation
 
@@ -90,4 +95,4 @@ Record questions that can be answered safely through a spike, prototype, measure
 
 - Use `docs/plans/TEMPLATE.md` as the starting structure for a Plan.
 - Remove sections that do not apply rather than filling them with placeholders.
-- Add detail only when it helps explain implementation direction, sequencing, validation, or phase boundaries.
+- Add detail only when it helps explain implementation direction, sequencing, validation, or Issue boundaries.
