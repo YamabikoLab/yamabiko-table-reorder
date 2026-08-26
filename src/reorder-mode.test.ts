@@ -2,7 +2,7 @@ import {
 	createReorderMode,
 	enterReorderMode,
 	exitReorderMode,
-	getReorderDirection,
+	getReorderKind,
 } from './reorder-mode';
 
 describe( 'Reorder Mode', () => {
@@ -29,16 +29,16 @@ describe( 'Reorder Mode', () => {
 	 * - 現在状態は通常編集である。
 	 *
 	 * 操作:
-	 * - row方向のReorder Modeへ切り替える。
+	 * - row種別のReorder Modeへ切り替える。
 	 *
 	 * 期待結果:
-	 * - 現在状態とDnD方向がどちらも`row`になる。
+	 * - 現在状態とDnD種別がどちらも`row`になる。
 	 */
-	it( 'when row reorder is selected, should expose row direction', () => {
+	it( 'when row reorder is selected, should expose row kind', () => {
 		const mode = enterReorderMode( 'row' );
 
 		expect( mode ).toBe( 'row' );
-		expect( getReorderDirection( mode ) ).toBe( 'row' );
+		expect( getReorderKind( mode ) ).toBe( 'row' );
 	} );
 
 	/**
@@ -48,20 +48,20 @@ describe( 'Reorder Mode', () => {
 	 * - 行並び替えモードが有効である。
 	 *
 	 * 操作:
-	 * - column方向のReorder Modeへ切り替える。
+	 * - column種別のReorder Modeへ切り替える。
 	 *
 	 * 期待結果:
-	 * - 現在状態とDnD方向がどちらも`column`になる。
+	 * - 現在状態とDnD種別がどちらも`column`になる。
 	 */
-	it( 'when column reorder is selected, should expose column direction', () => {
+	it( 'when column reorder is selected, should expose column kind', () => {
 		const mode = enterReorderMode( 'column' );
 
 		expect( mode ).toBe( 'column' );
-		expect( getReorderDirection( mode ) ).toBe( 'column' );
+		expect( getReorderKind( mode ) ).toBe( 'column' );
 	} );
 
 	/**
-	 * 並び替えモード終了後にDnD方向がなくなることを確認する。
+	 * 並び替えモード終了後にDnD種別がなくなることを確認する。
 	 *
 	 * 事前条件:
 	 * - 行または列の並び替えモードが有効である。
@@ -70,12 +70,12 @@ describe( 'Reorder Mode', () => {
 	 * - exitReorderMode()を実行する。
 	 *
 	 * 期待結果:
-	 * - 通常編集状態へ戻り、DnD方向は`null`になる。
+	 * - 通常編集状態へ戻り、DnD種別は`null`になる。
 	 */
 	it( 'when reorder mode exits, should return to edit mode', () => {
 		const mode = exitReorderMode();
 
 		expect( mode ).toBe( 'edit' );
-		expect( getReorderDirection( mode ) ).toBeNull();
+		expect( getReorderKind( mode ) ).toBeNull();
 	} );
 } );
