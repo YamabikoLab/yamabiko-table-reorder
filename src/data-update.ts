@@ -1,6 +1,7 @@
 import type { CommittedReorder } from './dnd-interaction';
 import {
 	createTableStructure,
+	getTableBlockSupport,
 	getTableSectionRows,
 	type TableBlockAttributes,
 	type TableSectionName,
@@ -172,6 +173,10 @@ export const applyCommittedReorder = (
 	attributes: TableBlockAttributes,
 	committedReorder: CommittedReorder
 ): Record< string, unknown > | null => {
+	if ( getTableBlockSupport( blockName ) === null ) {
+		return null;
+	}
+
 	const { destination, kind, target } = committedReorder;
 
 	return kind === 'row'
