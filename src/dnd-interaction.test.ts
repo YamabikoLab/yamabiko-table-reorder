@@ -70,9 +70,7 @@ describe( 'common Reorder Session', () => {
 			return;
 		}
 
-		expect(
-			updateReorderDestination( session, { index: 4 } )
-		).toEqual( {
+		expect( updateReorderDestination( session, { index: 4 } ) ).toEqual( {
 			direction: 'row',
 			target: { index: 1 },
 			destination: { index: 4 },

@@ -23,10 +23,10 @@ export const createReorderMode = (): ReorderMode => 'edit';
  *
  * 現在状態にかかわらず選択された方向だけを有効にすることで、行・列の
  * 並び替えが同時に有効にならないInvariantを維持する。
+ *
+ * @param _direction 切り替える並び替え方向。
  */
-export const enterReorderMode = (
-	_direction: ReorderDirection
-): ReorderMode => _direction;
+export const enterReorderMode = ( _direction: ReorderDirection ): ReorderMode => _direction;
 
 /**
  * Reorder Modeを終了し、通常のTable編集へ戻す。
@@ -37,7 +37,7 @@ export const exitReorderMode = (): ReorderMode => 'edit';
  * 現在のReorder ModeからDnDに利用できる方向を返す。
  *
  * 通常編集状態ではDnDを開始できないため`null`を返す。
+ * @param mode
  */
-export const getReorderDirection = (
-	mode: ReorderMode
-): ReorderDirection | null => ( mode === 'edit' ? null : mode );
+export const getReorderDirection = ( mode: ReorderMode ): ReorderDirection | null =>
+	mode === 'edit' ? null : mode;

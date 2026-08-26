@@ -1,8 +1,4 @@
-import {
-	getReorderDirection,
-	type ReorderDirection,
-	type ReorderMode,
-} from './reorder-mode';
+import { getReorderDirection, type ReorderDirection, type ReorderMode } from './reorder-mode';
 
 /**
  * 1回のDnDで移動する行または列を表す。
@@ -48,6 +44,9 @@ export type CommittedReorder = {
  * 現在のReorder Modeと移動対象から共通Reorder Sessionを開始する。
  *
  * 通常編集状態ではDnDを開始できないため`null`を返す。
+ *
+ * @param mode   現在のReorder Mode。
+ * @param target 移動対象。
  */
 export const startReorderSession = (
 	mode: ReorderMode,
@@ -70,6 +69,8 @@ export const startReorderSession = (
  * 進行中のReorder Sessionへ現在の有効な移動先を反映する。
  *
  * 有効な移動先がなくなった場合は`null`を渡し、確定不能な状態へ戻す。
+ * @param session
+ * @param destination
  */
 export const updateReorderDestination = (
 	session: ReorderSession,
@@ -83,10 +84,9 @@ export const updateReorderDestination = (
  * Reorder Sessionを完了し、確定可能な場合だけData Updateへ渡せる結果を返す。
  *
  * 有効な移動先がない場合は確定済みの並び替えを生成しない。
+ * @param session
  */
-export const completeReorderSession = (
-	session: ReorderSession
-): CommittedReorder | null => {
+export const completeReorderSession = ( session: ReorderSession ): CommittedReorder | null => {
 	if ( session.destination === null ) {
 		return null;
 	}
