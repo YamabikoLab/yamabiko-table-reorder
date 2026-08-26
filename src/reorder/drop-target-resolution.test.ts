@@ -1,5 +1,5 @@
 /**
- * Drop Target Resolutionが、通常セルと結合セルを含む行・列の候補からTable構造を保てる移動先だけを返すことを確認する。
+ * 通常セルと結合セルを含むテーブルで、構造を保てる行・列の移動先だけが有効になることを確認する。
  */
 
 import { resolveDropTarget } from './drop-target-resolution';
@@ -14,7 +14,7 @@ const coreTableAttributes = {
 
 describe( 'Drop Target Resolution', () => {
 	/**
-	 * 概要: 結合セルのない行DnDでは、順序を変更できる行間をReorder Destinationとして利用できることを確認する。
+	 * 概要: 結合セルのない行並び替えでは、実際に順序を変更できる行間を移動先として利用できることを確認する。
 	 *
 	 * 事前条件:
 	 * - Core Tableのbodyに3行あり、rowspanは存在しない。
@@ -24,7 +24,7 @@ describe( 'Drop Target Resolution', () => {
 	 * - body末尾の境界を候補としてresolveDropTarget()を実行する。
 	 *
 	 * 期待結果:
-	 * - Table構造を保つ末尾境界がReorder Destinationとして返される。
+	 * - テーブル構造を保てる末尾境界が移動先として返される。
 	 */
 	it( 'when a row boundary preserves the table structure, should return the row destination', () => {
 		expect(
@@ -39,11 +39,11 @@ describe( 'Drop Target Resolution', () => {
 	} );
 
 	/**
-	 * 概要: 並び順が変化しない境界をReorder Destinationとして公開しないことを確認する。
+	 * 概要: 並び順が変化しない境界を移動先として確定しないことを確認する。
 	 *
 	 * 事前条件:
 	 * - Core Tableのbodyに3行ある。
-	 * - 2行目をReorder Targetとしている。
+	 * - 2行目を移動対象としている。
 	 *
 	 * 操作:
 	 * - 対象行の直前と直後の境界をそれぞれ候補として判定する。
@@ -73,11 +73,11 @@ describe( 'Drop Target Resolution', () => {
 	} );
 
 	/**
-	 * 概要: Core Tableのrowspanを上下へ分断する境界を行の移動先として許可しないことを確認する。
+	 * 概要: Core Tableのrowspanを上下に分断する境界を、行の移動先として許可しないことを確認する。
 	 *
 	 * 事前条件:
-	 * - 1行目のcellが2行を占有するrowspanを持つ。
-	 * - rowspan外の3行目をReorder Targetとしている。
+	 * - 1行目のセルが2行を占有するrowspanを持つ。
+	 * - rowspan外の3行目を移動対象としている。
 	 *
 	 * 操作:
 	 * - rowspan内部の行間を候補として判定する。
@@ -106,11 +106,11 @@ describe( 'Drop Target Resolution', () => {
 	} );
 
 	/**
-	 * 概要: Flexible Table BlockのrowSpanに含まれる行を単独のReorder Targetにしないことを確認する。
+	 * 概要: Flexible Table BlockのrowSpanに含まれる行を単独では移動できないことを確認する。
 	 *
 	 * 事前条件:
-	 * - 1行目のcellが2行を占有するrowSpanを持つ。
-	 * - rowSpanに含まれる2行目をReorder Targetとしている。
+	 * - 1行目のセルが2行を占有するrowSpanを持つ。
+	 * - rowSpanに含まれる2行目を移動対象としている。
 	 *
 	 * 操作:
 	 * - rowSpan外の末尾境界を候補として判定する。
@@ -139,17 +139,17 @@ describe( 'Drop Target Resolution', () => {
 	} );
 
 	/**
-	 * 概要: 結合セルのない列DnDでは、Table構造を保つ列間をReorder Destinationとして利用できることを確認する。
+	 * 概要: 結合セルのない列並び替えでは、テーブル構造を保てる列間を移動先として利用できることを確認する。
 	 *
 	 * 事前条件:
-	 * - Core Tableに2つのlogical columnがあり、colspanは存在しない。
+	 * - Core Tableに2列あり、colspanは存在しない。
 	 * - 2列目を先頭へ移動しようとしている。
 	 *
 	 * 操作:
 	 * - 先頭境界を候補としてresolveDropTarget()を実行する。
 	 *
 	 * 期待結果:
-	 * - 先頭境界がReorder Destinationとして返される。
+	 * - 先頭境界が移動先として返される。
 	 */
 	it( 'when a column boundary preserves the table structure, should return the column destination', () => {
 		expect(
@@ -164,11 +164,11 @@ describe( 'Drop Target Resolution', () => {
 	} );
 
 	/**
-	 * 概要: Flexible Table BlockのcolSpanを左右へ分断する境界を列の移動先として許可しないことを確認する。
+	 * 概要: Flexible Table BlockのcolSpanを左右に分断する境界を、列の移動先として許可しないことを確認する。
 	 *
 	 * 事前条件:
-	 * - 先頭cellが2列を占有するcolSpanを持つ。
-	 * - colSpan外の3列目をReorder Targetとしている。
+	 * - 先頭セルが2列を占有するcolSpanを持つ。
+	 * - colSpan外の3列目を移動対象としている。
 	 *
 	 * 操作:
 	 * - colSpan内部の列間を候補として判定する。
@@ -196,11 +196,11 @@ describe( 'Drop Target Resolution', () => {
 	} );
 
 	/**
-	 * 概要: colspanに含まれるlogical columnを結合セルから切り離して単独移動させないことを確認する。
+	 * 概要: colspanに含まれる列を、結合セルから切り離して単独移動させないことを確認する。
 	 *
 	 * 事前条件:
-	 * - Core Tableの先頭cellが2列を占有するcolspanを持つ。
-	 * - colspanに含まれるlogical columnをReorder Targetとしている。
+	 * - Core Tableの先頭セルが2列を占有するcolspanを持つ。
+	 * - colspanに含まれる列を移動対象としている。
 	 *
 	 * 操作:
 	 * - colspan外の末尾境界を候補として判定する。
