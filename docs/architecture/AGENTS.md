@@ -58,29 +58,31 @@ Do not duplicate every detail already described under individual responsibilitie
 
 Give each architectural responsibility a stable name that can be referenced consistently within architecture documents.
 
-For each responsibility, use the following sections when applicable:
+Group the detailed responsibility definitions under one document-level section such as `## Responsibility details`. Individual responsibilities must be child headings of that section, normally using `### <Responsibility name>`. Do not make each responsibility a peer of document-level sections such as purpose, overall architecture, or related information.
 
-### Responsibility
+Within each responsibility, use the following child sections when applicable:
+
+#### Responsibility
 
 Describe what the responsibility owns conceptually and what it is accountable for.
 
-### State ownership
+#### State ownership
 
 Describe the state or data the responsibility owns, including important state it explicitly does not own.
 
-### Contract
+#### Contract
 
 Describe what the responsibility receives, what it provides to other responsibilities, and the boundaries of those interactions.
 
-### Dependencies
+#### Dependencies
 
 Describe which responsibilities it depends on, which responsibilities depend on it, and any direct coupling that must not exist.
 
-### Lifecycle
+#### Lifecycle
 
 Describe when the responsibility becomes active, when its state is initialized or reset, and when it ends or is discarded.
 
-### Invariants
+#### Invariants
 
 Describe the internal rules that must remain true while the responsibility is valid.
 
@@ -94,24 +96,31 @@ Describe the internal rules that must remain true while the responsibility is va
 
 Good:
 
+## Responsibility details
+
 ### DnD Interaction
 
-**Responsibility**  
+#### Responsibility
+
 Manage the progress of a drag-and-drop interaction from start through completion. Track the item being moved, the current destination candidate, and whether the interaction can be committed. When a valid interaction completes, produce a committed reorder request.
 
-**State ownership**  
+#### State ownership
+
 Own whether DnD is active, the row or column being moved, the current destination candidate, and whether the current interaction can be committed. Do not own Table data itself.
 
-**Contract**  
+#### Contract
+
 Receive inputs corresponding to DnD start, movement, completion, and cancellation. While active, expose the current moving item and destination candidate to responsibilities that need them. When a valid DnD completes, pass a committed reorder request containing the moving item and resolved destination to Data Update. Do not provide a contract for directly mutating Table data.
 
-**Dependencies**  
+#### Dependencies
+
 Depend on Drop Target Resolution to determine valid destination candidates. Reorder Preview may observe the interaction state owned here. Connect to Data Update only through the committed reorder request. Do not depend directly on Table data mutation.
 
-**Lifecycle**  
+#### Lifecycle
+
 Become active when DnD starts. Keep interaction state only while active. On commit or cancellation, end the active state and discard the moving item, destination candidate, and commit eligibility. Never carry state from a previous DnD interaction into the next one.
 
-**Invariants**
+#### Invariants
 
 - Do not change Table data while DnD is in progress.
 - Do not retain a moving item or destination candidate while inactive.
