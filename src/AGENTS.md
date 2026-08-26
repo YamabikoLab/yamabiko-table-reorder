@@ -16,6 +16,7 @@ These instructions apply to source files under `src/`.
 
 - Keep abstractions meaningful and stable by introducing them only for concrete responsibilities or shared reasons for change. Do not abstract or commonize code merely because implementations currently look similar.
 - Keep implementation details from crossing responsibility boundaries by placing integration-specific adaptation at the boundaries defined by the Architecture.
+- Never return a conditional expression directly. Assign its result to a meaningfully named variable first, using a basic-design-level name that makes the meaning of the returned value understandable without reading the implementation.
 
 ## React readability
 
@@ -52,7 +53,7 @@ When reviewing React code, focus on React-specific correctness, lifecycle behavi
 - Start each source file with a Japanese file-level documentation comment that explains the file's responsibility, purpose, and ownership. Describe the role the file provides rather than listing its implementation details.
 - Add Japanese JSDoc or documentation comments to exported top-level variables, constants, functions, types, React components, HOCs, custom hooks, controllers, and other major public boundaries. Also document non-exported top-level elements when they own an important responsibility or lifecycle that is not obvious from the code alone.
 - For documented functions, methods, callbacks, and similar callables, add an `@param` entry for every parameter. Explain the specification-level meaning or role of a parameter when it is not obvious from its name and type.
-- For condition expressions that combine multiple conditions, document the overall rule or decision represented by the condition at a basic-design level rather than explaining each individual condition or translating the expression into prose.
+- For condition expressions, document the rule or decision represented by the condition at a basic-design level rather than explaining individual checks or translating the expression into prose.
 - Prioritize information that is difficult to infer from the implementation itself, such as important assumptions, constraints, return-value meaning, lifecycle, and cleanup responsibilities. Keep documentation aligned when the documented responsibility or contract changes, and do not mechanically add comments to self-explanatory local variables, temporary values, or implementation steps.
 
 ## Internationalization and accessibility
