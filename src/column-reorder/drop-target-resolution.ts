@@ -21,17 +21,20 @@ import type { TableStructure } from '../reorder/table-structure';
  */
 const isColumnInsideColSpan = ( structure: TableStructure, targetIndex: number ): boolean => {
 	// 列DnDでは、どのsectionであってもcolspanで一体化された範囲の一部だけをReorder Targetにできない。
-	const belongsToMergedColumnRange = Object.values( structure.sections ).some(
-		( section ) =>
-			section?.rows.some( ( row ) =>
-				row.placements.some(
-					( placement ) =>
+	const belongsToMergedColumnRange = Object.values( structure.sections ).some( ( section ) => {
+		const sectionContainsTargetInMergedRange =
+			section?.rows.some( ( row ) => {
+				const rowContainsTargetInMergedRange = row.placements.some( ( placement ) => {
+					const targetBelongsToPlacement =
 						placement.columnSpan > 1 &&
 						targetIndex >= placement.columnStart &&
-						targetIndex < placement.columnStart + placement.columnSpan
-				)
-			) ?? false
-	);
+						targetIndex < placement.columnStart + placement.columnSpan;
+					return targetBelongsToPlacement;
+				} );
+				return rowContainsTargetInMergedRange;
+			} ) ?? false;
+		return sectionContainsTargetInMergedRange;
+	} );
 	return belongsToMergedColumnRange;
 };
 
@@ -46,20 +49,23 @@ const isColumnInsideColSpan = ( structure: TableStructure, targetIndex: number )
  */
 const doesBoundarySplitColSpan = ( structure: TableStructure, boundary: number ): boolean => {
 	// Reorder Destinationは、どのsectionであってもcolspanで一体化された範囲の内部には設定できない。
-	const splitsMergedColumnRange = Object.values( structure.sections ).some(
-		( section ) =>
-			section?.rows.some( ( row ) =>
-				row.placements.some(
-					( placement ) =>
+	const splitsMergedColumnRange = Object.values( structure.sections ).some( ( section ) => {
+		const sectionContainsSplitBoundary =
+			section?.rows.some( ( row ) => {
+				const rowContainsSplitBoundary = row.placements.some( ( placement ) => {
+					const boundarySplitsPlacement =
 						placement.columnSpan > 1 &&
 						isBoundaryInsideRange(
 							boundary,
 							placement.columnStart,
 							placement.columnStart + placement.columnSpan - 1
-						)
-				)
-			) ?? false
-	);
+						);
+					return boundarySplitsPlacement;
+				} );
+				return rowContainsSplitBoundary;
+			} ) ?? false;
+		return sectionContainsSplitBoundary;
+	} );
 	return splitsMergedColumnRange;
 };
 

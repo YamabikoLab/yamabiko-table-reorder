@@ -277,7 +277,10 @@ export const createTableSectionLayout = (
 
 	for ( let rowIndex = 0; rowIndex < rows.length; rowIndex++ ) {
 		const row = rows[ rowIndex ];
-		const occupiedColumns = remainingRowSpans.map( ( remaining ) => remaining > 0 );
+		const occupiedColumns = remainingRowSpans.map( ( remaining ) => {
+			const occupiedByRowSpan = remaining > 0;
+			return occupiedByRowSpan;
+		} );
 		const placements: TableCellPlacement[] = [];
 		const nextRowSpans = remainingRowSpans.map( ( remaining ) => Math.max( remaining - 1, 0 ) );
 		let searchFrom = 0;
@@ -329,7 +332,11 @@ export const createTableSectionLayout = (
 	}
 
 	// section末尾を越えて続くrowspanは、現在のTableデータだけでは占有範囲を完結して解釈できない。
-	if ( remainingRowSpans.some( ( remaining ) => remaining > 0 ) ) {
+	const hasUnfinishedRowSpan = remainingRowSpans.some( ( remaining ) => {
+		const continuesBeyondSection = remaining > 0;
+		return continuesBeyondSection;
+	} );
+	if ( hasUnfinishedRowSpan ) {
 		return null;
 	}
 

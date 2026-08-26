@@ -25,14 +25,16 @@ const isRowInsideRowSpan = ( structure: TableStructure, targetIndex: number ): b
 	}
 
 	// 行DnDでは、rowspanで一体化された範囲の一部だけをReorder Targetにできない。
-	const belongsToMergedRowRange = body.rows.some( ( row ) =>
-		row.placements.some(
-			( placement ) =>
+	const belongsToMergedRowRange = body.rows.some( ( row ) => {
+		const rowContainsTargetInMergedRange = row.placements.some( ( placement ) => {
+			const targetBelongsToPlacement =
 				placement.rowSpan > 1 &&
 				targetIndex >= row.rowIndex &&
-				targetIndex < row.rowIndex + placement.rowSpan
-		)
-	);
+				targetIndex < row.rowIndex + placement.rowSpan;
+			return targetBelongsToPlacement;
+		} );
+		return rowContainsTargetInMergedRange;
+	} );
 	return belongsToMergedRowRange;
 };
 
@@ -50,13 +52,15 @@ const doesBoundarySplitRowSpan = ( structure: TableStructure, boundary: number )
 	}
 
 	// Reorder Destinationは、rowspanで一体化された範囲の内部には設定できない。
-	const splitsMergedRowRange = body.rows.some( ( row ) =>
-		row.placements.some(
-			( placement ) =>
+	const splitsMergedRowRange = body.rows.some( ( row ) => {
+		const rowContainsSplitBoundary = row.placements.some( ( placement ) => {
+			const boundarySplitsPlacement =
 				placement.rowSpan > 1 &&
-				isBoundaryInsideRange( boundary, row.rowIndex, row.rowIndex + placement.rowSpan - 1 )
-		)
-	);
+				isBoundaryInsideRange( boundary, row.rowIndex, row.rowIndex + placement.rowSpan - 1 );
+			return boundarySplitsPlacement;
+		} );
+		return rowContainsSplitBoundary;
+	} );
 	return splitsMergedRowRange;
 };
 
