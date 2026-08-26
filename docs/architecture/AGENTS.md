@@ -17,6 +17,25 @@ These instructions apply to architecture documents under `docs/architecture/`.
 - Do not describe source files, concrete class or function names, variables, event handler names, implementation steps, DOM details, CSS details, or test implementation.
 - Do not make architecture depend on the current source tree shape.
 
+## Responsibility inventory
+
+Start each architecture document with a responsibility inventory before describing individual responsibilities in detail.
+
+- List the major responsibilities covered by the document.
+- Give each responsibility a stable name and a short summary of what it is responsible for.
+- Use the same responsibility names consistently in the inventory and in the detailed sections that follow.
+- Keep the inventory at the architectural responsibility level; do not list source files, classes, functions, or other implementation units.
+- Make the inventory complete enough that a reader can understand the overall responsibility split before reading the details.
+
+Example:
+
+| Responsibility | Summary |
+| --- | --- |
+| DnD Interaction | Manages the progress of a drag-and-drop interaction from start through completion. |
+| Drop Target Resolution | Determines the currently valid destination candidate for the moving row or column. |
+| Reorder Preview | Presents the moving item and current destination without changing Table data. |
+| Data Update | Applies a committed reorder request to Table data. |
+
 ## Responsibility structure
 
 Give each architectural responsibility a stable name that can be referenced consistently within architecture documents.
