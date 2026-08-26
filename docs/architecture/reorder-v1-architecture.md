@@ -29,7 +29,7 @@ Keyboard 操作、ドラッグを必要としない操作、focus、announcement
 
 Reorder Mode は、通常の Table 編集、行並び替え、列並び替えのいずれが現在有効かを管理する。Input Interaction は、現在の並び替え状態のもとで PC とタッチ端末の入力固有の差を扱い、DnD の開始試行・進行・完了・キャンセルという共通の意味へ変換して DnD Interaction に渡す。
 
-DnD Interaction は、入力方式に依存せず、Reorder Mode が示す並び替え方向に対して DnD の開始と進行を統括する。DnD の開始試行を受けると Reorder Target Resolution に移動対象判定を要求し、移動可能な場合だけ Reorder Session を開始する。移動不可の場合は DnD を開始せず、判定理由を Reorder Presentation へ渡す。
+DnD Interaction は、入力方式に依存せず、Input Interaction から受け取った開始対象と Reorder Mode が示す並び替え方向を組み合わせて DnD の開始と進行を統括する。DnD の開始試行を受けると、開始対象と並び替え方向を Reorder Target Resolution に渡して移動対象判定を要求し、移動可能な場合だけ Reorder Session を開始する。移動不可の場合は DnD を開始せず、判定理由を Reorder Presentation へ渡す。
 
 Reorder Target Resolution は、DnD 開始試行時に Table 構造と並び替え方向から、開始対象となる行または列を移動対象として選択できるかを判定する。行では `rowspan` によって複数行が一体化している対象を移動不可とし、`colspan` だけを理由に行を移動不可にはしない。列では `colspan` によって複数列が一体化している対象を移動不可とし、`rowspan` だけを理由に列を移動不可にはしない。
 
@@ -48,8 +48,8 @@ First-use Guidance は通常の Table 編集や DnD の進行とは独立して�
 1. Reorder Mode が通常、行並び替え、列並び替えの現在状態を保持する。
 2. Reorder Presentation が現在の並び替えモードに応じて、行または列の対象表示を行う。この表示のために Reorder Target Resolution で全行・全列の移動可否を事前判定しない。
 3. 通常編集状態では、First-use Guidance が操作環境ごとの初回案内を扱い、初回案内表示済みの場合は Reorder Rediscovery が再案内のための操作傾向を必要に応じて扱う。
-4. 並び替えモード中の PC またはタッチ端末の入力を Input Interaction が受け取り、DnD の開始試行・進行・完了・キャンセルという共通の意味へ変換する。
-5. DnD Interaction が開始試行を受けると、開始対象と並び替え方向を Reorder Target Resolution に渡して移動対象判定を要求する。
+4. 並び替えモード中の PC またはタッチ端末の入力を Input Interaction が受け取り、開始対象を含む DnD の開始試行、進行、完了、キャンセルという共通の意味へ変換して DnD Interaction に渡す。
+5. DnD Interaction が開始試行を受けると、Input Interaction から受け取った開始対象と Reorder Mode が示す並び替え方向を Reorder Target Resolution に渡して移動対象判定を要求する。
 6. 移動可能な場合だけ DnD Interaction が Reorder Session を開始し、移動対象と進行中の操作状態を保持する。移動不可の場合は DnD を開始せず、理由を Reorder Presentation へ渡す。
 7. DnD 開始後の進行入力は Input Interaction から DnD Interaction へ渡され、Drop Target Resolution が Table 構造と現在位置から有効な移動先、または有効な移動先なしを返す。
 8. DnD Interaction が現在の移動先を操作状態として保持し、Reorder Presentation が移動対象、挿入線、表示位置が変わる周囲の行・列の表示に反映する。
@@ -74,6 +74,7 @@ First-use Guidance は通常の Table 編集や DnD の進行とは独立して�
 ### 2.4 アーキテクチャ全体の Invariant
 
 - PC とタッチ端末の入力固有の差を DnD Interaction 以降の共通処理へ持ち込まない。
+- DnD Interaction が Reorder Target Resolution に渡す並び替え方向は Reorder Mode の現在状態から得る。Input Interaction を並び替え方向の情報源にしない。
 - DnD Interaction は DnD 開始前の移動対象判定を Reorder Target Resolution に委ね、開始後の移動先判定を Drop Target Resolution に委ねる。
 - 移動対象として成立しない行または列から DnD を開始しない。
 - 行の移動対象判定では `rowspan` による移動不可を扱い、`colspan` だけを理由に不要な制限を掛けない。
@@ -269,9 +270,9 @@ PC とタッチ端末の入力固有の差を、共通の DnD Interaction から
 
 #### Contract
 
-Reorder Mode から現在の並び替え方向を受け取り、WordPress 編集環境から PC またはタッチ端末の入力を受け取る。
+Reorder Mode から現在の並び替え状態を受け取り、WordPress 編集環境から PC またはタッチ端末の入力を受け取る。
 
-現在の並び替えモードで DnD の開始を試みる入力が成立した場合は、開始対象と並び替え方向を開始試行として DnD Interaction へ渡す。開始対象が移動可能かどうかは Input Interaction では判定しない。
+現在の並び替えモードで DnD の開始を試みる入力が成立した場合は、開始対象を開始試行として DnD Interaction へ渡す。開始対象が移動可能かどうかは Input Interaction では判定せず、並び替え方向も DnD Interaction へ提供しない。
 
 DnD が開始された後は、進行、完了、キャンセルとして解釈した入力を DnD Interaction へ渡す。DnD Interaction へ渡す Contract には、PC とタッチ端末ごとの入力成立方法そのものを含めない。
 
@@ -288,6 +289,7 @@ DnD が完了またはキャンセルされた場合、開始試行が移動不�
 #### Invariant
 
 - PC とタッチ端末の入力固有の差を DnD Interaction の状態や Contract に持ち込まない。
+- DnD Interaction へ並び替え方向を提供しない。
 - 移動対象として選択できるかを判定しない。
 - 移動先の有効性を判定しない。
 - Table データを変更しない。
@@ -306,7 +308,7 @@ DnD が進行中かどうか、行または列のどちらを扱っているか�
 
 #### Contract
 
-Input Interaction から DnD の開始試行・進行・完了・キャンセルを受け取る。開始試行を受けると、Reorder Mode が示す並び替え方向と開始対象を Reorder Target Resolution に渡して移動対象判定を要求する。
+Input Interaction から DnD の開始試行・進行・完了・キャンセルを受け取る。開始試行に含まれる開始対象と Reorder Mode が示す並び替え方向を Reorder Target Resolution に渡して移動対象判定を要求する。
 
 Reorder Target Resolution が移動可能と判定した場合だけ、その対象を移動対象として共通の Reorder Session を開始する。移動不可と判定した場合は Reorder Session を開始せず、その理由を Reorder Presentation に提供する。
 
@@ -318,7 +320,7 @@ Reorder Target Resolution が移動可能と判定した場合だけ、その対
 
 #### 依存関係
 
-Input Interaction から入力方式に依存しない DnD の開始試行と進行を受け取る。Reorder Mode に依存して並び替え方向を決める。Reorder Target Resolution に依存して開始対象が移動対象として成立するかを決め、Drop Target Resolution に依存して DnD 開始後の有効な移動先を決める。
+Input Interaction から入力方式に依存しない DnD の開始試行と進行を受け取る。開始対象は Input Interaction から受け取り、並び替え方向は Reorder Mode に依存して決める。Reorder Target Resolution に依存して開始対象が移動対象として成立するかを決め、Drop Target Resolution に依存して DnD 開始後の有効な移動先を決める。
 
 Reorder Presentation は移動不可理由と DnD Interaction の進行状態に依存し、Auto Scroll は active な DnD の進行状態に依存する。Data Update とは確定した並び替えだけを通じて接続する。
 
