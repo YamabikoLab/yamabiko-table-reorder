@@ -30,6 +30,7 @@
 
 ## Approach
 
+- 実装は`src/AGENTS.md`に従う。
 - `src/`の正式v1実装をArchitectureの責務境界に沿って構築する。
 - Prototypeの実装は`prototype-final`を調査・比較のための参考資料としてのみ利用し、旧構造をそのまま復元しない。
 - まずDnDの共通進行と確定データ更新を成立させ、その上に入力方式、Presentation、自動スクロール、案内機能を接続する。
