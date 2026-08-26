@@ -1,7 +1,7 @@
-import { applyColumnReorder } from './column-reorder/data-update';
-import { applyRowReorder } from './row-reorder/data-update';
-import type { CommittedReorder } from './reorder/dnd-interaction';
-import { getTableBlockSupport, type TableBlockAttributes } from './reorder/table-structure';
+import { applyColumnReorder } from '@/column-reorder/data-update';
+import { applyRowReorder } from '@/row-reorder/data-update';
+import type { CommittedReorder } from './dnd-interaction';
+import { getTableBlockSupport, type TableBlockAttributes } from './table-structure';
 
 /**
  * Data UpdateがWordPress側へ確定更新を渡すcallback。

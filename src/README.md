@@ -1,6 +1,6 @@
 # YTR v1 source
 
-`src/` is intentionally minimal while the formal v1 architecture is defined in #481.
+`src/` follows the responsibility boundaries defined by the formal v1 architecture.
 
 Prototype implementation code is not kept in the active source tree. Refer to the `prototype-final` tag when historical implementation details are needed.
 
@@ -11,7 +11,24 @@ src/
 ├── AGENTS.md
 ├── README.md
 ├── index.tsx
-└── messages.ts
+├── messages.ts
+├── reorder/
+│   ├── reorder-mode.ts
+│   ├── dnd-interaction.ts
+│   ├── drop-target-resolution.ts
+│   ├── data-update.ts
+│   └── table-structure.ts
+├── row-reorder/
+│   ├── drop-target-resolution.ts
+│   └── data-update.ts
+└── column-reorder/
+    ├── drop-target-resolution.ts
+    └── data-update.ts
 ```
 
-Add new directories only when the responsibility is established by the v1 contracts and implementation work derived from #481.
+- `reorder/` contains shared Reorder contracts and responsibilities.
+- `row-reorder/` contains row-specific behavior.
+- `column-reorder/` contains column-specific behavior.
+- Plugin-wide responsibilities such as `index.tsx` and `messages.ts` remain directly under `src/`.
+
+Keep tests beside the responsibility they verify. Add directories only when a concrete v1 responsibility requires a distinct boundary.
