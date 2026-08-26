@@ -65,8 +65,7 @@ export const resolveDropTarget = (
 		return null;
 	}
 
-	const itemCount =
-		kind === 'row' ? structure.sections.body?.rows.length : structure.columnCount;
+	const itemCount = kind === 'row' ? structure.sections.body?.rows.length : structure.columnCount;
 
 	// Table上の有効な並び替え候補として成立しない要求は、feature固有判定へ渡さない。
 	if (

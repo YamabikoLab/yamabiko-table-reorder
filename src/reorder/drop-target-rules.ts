@@ -14,8 +14,5 @@
  * @param end      一体として保持する範囲の末尾Logical Index。
  * @return 境界が範囲を分断する場合は`true`。
  */
-export const isBoundaryInsideRange = (
-	boundary: number,
-	start: number,
-	end: number
-): boolean => boundary > start && boundary <= end;
+export const isBoundaryInsideRange = ( boundary: number, start: number, end: number ): boolean =>
+	boundary > start && boundary <= end;
