@@ -1,3 +1,7 @@
+/**
+ * Data Updateが、確定済みの行・列並び替えをTable内容を失わず1回のWordPress更新として反映することを確認する。
+ */
+
 import { applyCommittedReorder, commitReorderData } from './data-update';
 import { resolveDropTarget } from './drop-target-resolution';
 import {
@@ -6,6 +10,19 @@ import {
 	updateReorderDestination,
 } from './dnd-interaction';
 
+/**
+ * テストで指定した候補を実際のContract経路で判定し、Data Updateへ渡せるCommitted Reorderを生成する。
+ *
+ * Drop Target ResolutionとReorder Sessionを省略せず通すことで、Data Updateのテスト入力が正式な確定結果と
+ * 同じ前提を満たすようにする。
+ *
+ * @param blockName        テスト対象TableのGutenberg block名。
+ * @param attributes       判定と更新の基準になるTable block attributes。
+ * @param kind             テストする行または列の並び替え種別。
+ * @param targetIndex      元のTable順序で移動対象を指すLogical Index。
+ * @param destinationIndex 元のTable順序に対する候補境界index。
+ * @return 有効な候補から生成したCommitted Reorder。確定できない場合は`null`。
+ */
 const commitFromResolvedDestination = (
 	blockName: string,
 	attributes: Readonly< Record< string, unknown > >,
@@ -33,17 +50,17 @@ const commitFromResolvedDestination = (
 
 describe( 'Data Update', () => {
 	/**
-	 * 概要: Core Tableの確定済み行並び替えでbodyの行位置だけを変更することを確認する。
+	 * 概要: Core Tableの行移動で位置だけが変わり、row・cell・その他attributesが保持されることを確認する。
 	 *
 	 * 事前条件:
-	 * - Core Tableに3行あり、各cellは内容と属性を持つ。
+	 * - Core Tableのbodyに3行あり、cellとrowは内容や追加属性を持つ。
 	 * - 1行目から末尾への有効なCommitted Reorderがある。
 	 *
 	 * 操作:
-	 * - applyCommittedReorder()で確定済み並び替えをattributesへ反映する。
+	 * - applyCommittedReorder()で確定済み行並び替えをattributesへ反映する。
 	 *
 	 * 期待結果:
-	 * - 行順だけが変更され、移動前のrowとcell objectがそのまま保持される。
+	 * - bodyの行順だけが変わり、元のrow・cell objectとbody以外のattributesは保持される。
 	 */
 	it( 'when a Core Table row reorder is committed, should move only the row position', () => {
 		const firstCell = { content: 'A1', tag: 'th' };
@@ -75,17 +92,17 @@ describe( 'Data Update', () => {
 	} );
 
 	/**
-	 * 概要: Flexible Table Blockでも確定済み行並び替えを同じContractで反映できることを確認する。
+	 * 概要: 行Data UpdateがFlexible Table Blockでも同じContractで動作し、block固有情報を失わないことを確認する。
 	 *
 	 * 事前条件:
-	 * - Flexible Table Blockに3行ある。
+	 * - Flexible Table Blockのbodyに3行あり、Table以外の追加属性も存在する。
 	 * - 3行目から先頭への有効なCommitted Reorderがある。
 	 *
 	 * 操作:
-	 * - applyCommittedReorder()で確定済み並び替えをattributesへ反映する。
+	 * - applyCommittedReorder()で確定済み行並び替えをattributesへ反映する。
 	 *
 	 * 期待結果:
-	 * - Flexible Table Block固有の追加属性を保持したままbodyの行順だけが変更される。
+	 * - bodyの行順だけが変わり、Flexible Table Block固有の追加属性は保持される。
 	 */
 	it( 'when a Flexible Table Block row reorder is committed, should preserve block-specific data', () => {
 		const firstRow = { cells: [ { content: 'A1' }, { content: 'A2' } ] };
@@ -117,17 +134,17 @@ describe( 'Data Update', () => {
 	} );
 
 	/**
-	 * 概要: Core Tableの列並び替えをhead、body、footへ同じlogical column移動として反映することを確認する。
+	 * 概要: 列Data Updateがhead / body / footを別々の列として扱わず、同じlogical column移動を適用することを確認する。
 	 *
 	 * 事前条件:
-	 * - Core Tableの各sectionに3列ある。
+	 * - Core Tableのhead、body、footが同じ3つのlogical columnを持つ。
 	 * - 3列目から先頭への有効なCommitted Reorderがある。
 	 *
 	 * 操作:
-	 * - applyCommittedReorder()で列並び替えをattributesへ反映する。
+	 * - applyCommittedReorder()で確定済み列並び替えをattributesへ反映する。
 	 *
 	 * 期待結果:
-	 * - 各sectionで3列目のcellが先頭へ移動し、cell object自体は保持される。
+	 * - 全sectionで同じ列が先頭へ移動し、元のcell objectは保持される。
 	 */
 	it( 'when a Core Table column reorder is committed, should move the logical column in every section', () => {
 		const headCells = [ { content: 'H1' }, { content: 'H2' }, { content: 'H3' } ];
@@ -172,17 +189,17 @@ describe( 'Data Update', () => {
 	} );
 
 	/**
-	 * 概要: 結合セルを分断しない列移動でFlexible Table BlockのcolSpanを保持することを確認する。
+	 * 概要: 結合範囲を壊さない列移動では、Flexible Table BlockのcolSpan cellを一体のまま保持することを確認する。
 	 *
 	 * 事前条件:
-	 * - 先頭2列を占有するcolSpan cellと3列目のcellを持つFlexible Table Blockである。
+	 * - 先頭2列を占有するcolSpan cellと、その後ろの3列目cellが存在する。
 	 * - 3列目から先頭への有効なCommitted Reorderがある。
 	 *
 	 * 操作:
-	 * - applyCommittedReorder()で列並び替えをattributesへ反映する。
+	 * - applyCommittedReorder()で確定済み列並び替えをattributesへ反映する。
 	 *
 	 * 期待結果:
-	 * - 3列目のcellがcolSpan cellの前へ移動し、colSpan値とcell内容は保持される。
+	 * - 3列目cellが結合cellの前へ移動し、colSpan・style・contentを持つ元cell objectは保持される。
 	 */
 	it( 'when a Flexible Table Block column moves around a colSpan, should preserve the merged cell', () => {
 		const mergedCell = { content: 'Merged', colSpan: 2, style: { color: 'red' } };
@@ -222,17 +239,17 @@ describe( 'Data Update', () => {
 	} );
 
 	/**
-	 * 概要: 1回のCommitted ReorderをWordPress側へ1回の更新として渡すことを確認する。
+	 * 概要: 1回のCommitted ReorderがWordPress側でも1回の確定更新になることを確認する。
 	 *
 	 * 事前条件:
 	 * - Core Tableに有効な確定済み行並び替えがある。
-	 * - setAttributesの呼び出し回数を記録できる。
+	 * - setAttributesの呼び出しを記録できる。
 	 *
 	 * 操作:
 	 * - commitReorderData()を1回実行する。
 	 *
 	 * 期待結果:
-	 * - setAttributesが1回だけ呼ばれ、更新結果が渡される。
+	 * - setAttributesが1回だけ呼ばれ、確定した並び替え結果が渡される。
 	 */
 	it( 'when a committed reorder is applied, should update WordPress data exactly once', () => {
 		const attributes = {
@@ -261,17 +278,17 @@ describe( 'Data Update', () => {
 	} );
 
 	/**
-	 * 概要: Data Updateで変換できない入力ではWordPress側のデータを変更しないことを確認する。
+	 * 概要: Data Updateを安全に確定できない場合はWordPress側へ部分的な更新を渡さないことを確認する。
 	 *
 	 * 事前条件:
-	 * - 非対応block名のattributesとCommitted Reorderが渡される。
-	 * - setAttributesの呼び出し回数を記録できる。
+	 * - 正式v1の対象外block名とCommitted Reorderが渡される。
+	 * - setAttributesの呼び出しを記録できる。
 	 *
 	 * 操作:
-	 * - commitReorderData()を実行する。
+	 * - commitReorderData()で確定更新を要求する。
 	 *
 	 * 期待結果:
-	 * - 更新は成立せず、setAttributesは呼ばれない。
+	 * - 更新は失敗として返り、setAttributesは一度も呼ばれない。
 	 */
 	it( 'when committed data cannot be transformed, should not update WordPress data', () => {
 		const setAttributes = jest.fn();

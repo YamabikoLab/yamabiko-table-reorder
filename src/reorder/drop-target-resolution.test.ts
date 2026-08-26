@@ -1,3 +1,7 @@
+/**
+ * Drop Target Resolutionが、通常セルと結合セルを含む行・列の候補からTable構造を保てる移動先だけを返すことを確認する。
+ */
+
 import { resolveDropTarget } from './drop-target-resolution';
 
 const coreTableAttributes = {
@@ -10,17 +14,17 @@ const coreTableAttributes = {
 
 describe( 'Drop Target Resolution', () => {
 	/**
-	 * 概要: 行DnDで有効な行間を移動先として解決できることを確認する。
+	 * 概要: 結合セルのない行DnDでは、順序を変更できる行間をReorder Destinationとして利用できることを確認する。
 	 *
 	 * 事前条件:
-	 * - Core Tableに3行あり、結合セルは存在しない。
+	 * - Core Tableのbodyに3行あり、rowspanは存在しない。
 	 * - 1行目を末尾へ移動しようとしている。
 	 *
 	 * 操作:
-	 * - 末尾の行間indexを指定してresolveDropTarget()を実行する。
+	 * - body末尾の境界を候補としてresolveDropTarget()を実行する。
 	 *
 	 * 期待結果:
-	 * - 末尾の行間がReorder Destinationとして返される。
+	 * - Table構造を保つ末尾境界がReorder Destinationとして返される。
 	 */
 	it( 'when a row boundary preserves the table structure, should return the row destination', () => {
 		expect(
@@ -35,17 +39,17 @@ describe( 'Drop Target Resolution', () => {
 	} );
 
 	/**
-	 * 概要: 同じ位置へ戻る行間を有効な移動先として扱わないことを確認する。
+	 * 概要: 並び順が変化しない境界をReorder Destinationとして公開しないことを確認する。
 	 *
 	 * 事前条件:
-	 * - Core Tableに3行ある。
-	 * - 2行目を並び替え対象としている。
+	 * - Core Tableのbodyに3行ある。
+	 * - 2行目をReorder Targetとしている。
 	 *
 	 * 操作:
-	 * - 並び替え対象の直前または直後の行間を指定する。
+	 * - 対象行の直前と直後の境界をそれぞれ候補として判定する。
 	 *
 	 * 期待結果:
-	 * - どちらも並び順が変わらないため`null`が返される。
+	 * - どちらも実際の順序変更にならないため`null`が返される。
 	 */
 	it( 'when a row destination would keep the same order, should return no destination', () => {
 		expect(
@@ -69,17 +73,17 @@ describe( 'Drop Target Resolution', () => {
 	} );
 
 	/**
-	 * 概要: Core Tableのrowspanを分断する行間を拒否することを確認する。
+	 * 概要: Core Tableのrowspanを上下へ分断する境界を行の移動先として許可しないことを確認する。
 	 *
 	 * 事前条件:
-	 * - 1行目のセルが2行分のrowspanを持つCore Tableである。
-	 * - rowspan外の3行目を並び替え対象としている。
+	 * - 1行目のcellが2行を占有するrowspanを持つ。
+	 * - rowspan外の3行目をReorder Targetとしている。
 	 *
 	 * 操作:
-	 * - rowspan内部の行間を移動先候補として判定する。
+	 * - rowspan内部の行間を候補として判定する。
 	 *
 	 * 期待結果:
-	 * - Table構造を保てないため`null`が返される。
+	 * - 結合範囲の一体性を保てないため`null`が返される。
 	 */
 	it( 'when a Core Table row boundary splits a rowspan, should return no destination', () => {
 		const attributes = {
@@ -102,17 +106,17 @@ describe( 'Drop Target Resolution', () => {
 	} );
 
 	/**
-	 * 概要: Flexible Table BlockのrowSpanに含まれる行を並び替え対象にしないことを確認する。
+	 * 概要: Flexible Table BlockのrowSpanに含まれる行を単独のReorder Targetにしないことを確認する。
 	 *
 	 * 事前条件:
-	 * - 1行目のセルが2行分のrowSpanを持つFlexible Table Blockである。
-	 * - rowSpanに含まれる2行目を並び替え対象としている。
+	 * - 1行目のcellが2行を占有するrowSpanを持つ。
+	 * - rowSpanに含まれる2行目をReorder Targetとしている。
 	 *
 	 * 操作:
-	 * - rowSpan外の末尾を移動先候補として判定する。
+	 * - rowSpan外の末尾境界を候補として判定する。
 	 *
 	 * 期待結果:
-	 * - 結合範囲そのものを分離できないため`null`が返される。
+	 * - 結合範囲の一部だけを移動できないため`null`が返される。
 	 */
 	it( 'when a Flexible Table Block row belongs to a rowSpan, should return no destination', () => {
 		const attributes = {
@@ -135,17 +139,17 @@ describe( 'Drop Target Resolution', () => {
 	} );
 
 	/**
-	 * 概要: 列DnDで有効な列間を移動先として解決できることを確認する。
+	 * 概要: 結合セルのない列DnDでは、Table構造を保つ列間をReorder Destinationとして利用できることを確認する。
 	 *
 	 * 事前条件:
-	 * - Core Tableに2列あり、結合セルは存在しない。
+	 * - Core Tableに2つのlogical columnがあり、colspanは存在しない。
 	 * - 2列目を先頭へ移動しようとしている。
 	 *
 	 * 操作:
-	 * - 先頭の列間indexを指定してresolveDropTarget()を実行する。
+	 * - 先頭境界を候補としてresolveDropTarget()を実行する。
 	 *
 	 * 期待結果:
-	 * - 先頭の列間がReorder Destinationとして返される。
+	 * - 先頭境界がReorder Destinationとして返される。
 	 */
 	it( 'when a column boundary preserves the table structure, should return the column destination', () => {
 		expect(
@@ -160,17 +164,17 @@ describe( 'Drop Target Resolution', () => {
 	} );
 
 	/**
-	 * 概要: Flexible Table BlockのcolSpanを分断する列間を拒否することを確認する。
+	 * 概要: Flexible Table BlockのcolSpanを左右へ分断する境界を列の移動先として許可しないことを確認する。
 	 *
 	 * 事前条件:
-	 * - 先頭セルが2列分のcolSpanを持つFlexible Table Blockである。
-	 * - colSpan外の3列目を並び替え対象としている。
+	 * - 先頭cellが2列を占有するcolSpanを持つ。
+	 * - colSpan外の3列目をReorder Targetとしている。
 	 *
 	 * 操作:
-	 * - colSpan内部の列間を移動先候補として判定する。
+	 * - colSpan内部の列間を候補として判定する。
 	 *
 	 * 期待結果:
-	 * - Table構造を保てないため`null`が返される。
+	 * - 結合範囲の一体性を保てないため`null`が返される。
 	 */
 	it( 'when a Flexible Table Block column boundary splits a colSpan, should return no destination', () => {
 		const attributes = {
@@ -192,14 +196,14 @@ describe( 'Drop Target Resolution', () => {
 	} );
 
 	/**
-	 * 概要: colspanに含まれるlogical columnを単独の並び替え対象にしないことを確認する。
+	 * 概要: colspanに含まれるlogical columnを結合セルから切り離して単独移動させないことを確認する。
 	 *
 	 * 事前条件:
-	 * - 先頭セルが2列分のcolspanを持つCore Tableである。
-	 * - colspanに含まれるlogical columnを並び替え対象としている。
+	 * - Core Tableの先頭cellが2列を占有するcolspanを持つ。
+	 * - colspanに含まれるlogical columnをReorder Targetとしている。
 	 *
 	 * 操作:
-	 * - colspan外の末尾を移動先候補として判定する。
+	 * - colspan外の末尾境界を候補として判定する。
 	 *
 	 * 期待結果:
 	 * - 結合セルの一部だけを移動できないため`null`が返される。

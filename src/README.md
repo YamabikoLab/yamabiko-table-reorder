@@ -1,10 +1,8 @@
 # YTR v1 source
 
-`src/` follows the responsibility boundaries defined by the formal v1 architecture.
+`src/`は、正式v1のArchitectureで定義した責務を実装へ割り当てるactive source boundaryです。ファイル数を減らすことよりも、どの責務がどこに属し、どのContractを通じて協調するのかを追いやすくすることを優先します。
 
-Prototype implementation code is not kept in the active source tree. Refer to the `prototype-final` tag when historical implementation details are needed.
-
-Current source boundary:
+Prototypeの構成を維持するための互換境界は置きません。過去の実装を参照する必要がある場合は`prototype-final`tagを利用し、正式v1の責務境界は現在のArchitectureから判断します。
 
 ```text
 src/
@@ -28,9 +26,9 @@ src/
     └── data-update.ts
 ```
 
-- `reorder/` contains shared Reorder contracts and responsibilities.
-- `row-reorder/` contains row-specific behavior.
-- `column-reorder/` contains column-specific behavior.
-- Plugin-wide responsibilities such as `index.tsx` and `messages.ts` remain directly under `src/`.
+- `reorder/`は、行・列で共有するReorder Mode、Reorder Session、Drop Target Resolution、Data Update、Table StructureのContractと共通ルールを所有します。行・列固有の判断はここへ混在させず、共通入口から各featureへ委譲します。
+- `row-reorder/`は、rowspanを壊さない移動先判定やbodyの行順更新など、行並び替えだけが持つ責務を所有します。
+- `column-reorder/`は、colspanを壊さない移動先判定や全sectionを同じlogical column移動として更新する責務を所有します。
+- `index.tsx`や`messages.ts`のようにplugin全体へ属する責務は、Reorderのfeature境界へ無理に含めず`src/`直下に置きます。
 
-Keep tests beside the responsibility they verify. Add directories only when a concrete v1 responsibility requires a distinct boundary.
+テストは検証対象の責務と同じdirectoryへ配置します。新しいdirectoryや共通化は、正式v1で独立した責務または共有Contractが成立した場合にだけ追加します。
