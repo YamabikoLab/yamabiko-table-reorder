@@ -36,6 +36,24 @@ Example:
 | Reorder Preview | Presents the moving item and current destination without changing Table data. |
 | Data Update | Applies a committed reorder request to Table data. |
 
+## Document-level architecture
+
+In addition to describing each responsibility individually, describe the architecture that exists across responsibilities when it is relevant to understanding the system as a whole.
+
+Cover the following perspectives as needed:
+
+- **Responsibility relationships and collaboration**: Describe how responsibilities work together and which interactions form the main collaboration paths.
+- **Data and state flow**: Describe how important information, state, and requests move across responsibilities from initiation through completion.
+- **System-wide state ownership**: Make ownership boundaries visible across the architecture so that important state has a clear owner and is not implicitly shared.
+- **Architecture-wide invariants**: Define rules that must remain true across multiple responsibilities, not only within one responsibility.
+- **External integration boundaries**: Describe where the architecture meets external systems, platforms, blocks, or environments and what belongs on each side of the boundary.
+- **Cross-responsibility lifecycle and context boundaries**: Describe lifecycle transitions or context changes that affect multiple responsibilities, including when shared interaction state becomes valid or must be discarded.
+- **Architecture-wide constraints**: Record constraints that shape multiple responsibilities, such as scale, supported operating contexts, or separation requirements.
+
+Keep these descriptions at the architecture level. Do not turn them into source structure, call sequences between concrete functions, DOM procedures, or implementation plans.
+
+Do not duplicate every detail already described under individual responsibilities. Use document-level sections for relationships, flows, boundaries, and rules that are easier to understand from the system-wide view.
+
 ## Responsibility structure
 
 Give each architectural responsibility a stable name that can be referenced consistently within architecture documents.
