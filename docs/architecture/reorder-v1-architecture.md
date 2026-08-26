@@ -9,7 +9,7 @@
 | Reorder Rediscovery | 通常編集状態で並び替えを試みていると考えられる操作の繰り返しを判定し、必要な場合だけ並び替えの入口を再案内する。 |
 | Input Interaction | PC とタッチ端末の入力固有の差を共通の DnD 進行から分離し、開始試行・進行・完了・キャンセルとして DnD Interaction へ渡す境界を担う。 |
 | DnD Interaction | 入力方式と行・列に共通する DnD の開始可否判定と進行を統括し、確定可能な操作だけを Data Update へ渡す。 |
-| Reorder Target Resolution | Table 構造と並び替え方向から、行または列を移動対象として選択できるかを判定し、移動不可の場合はその理由を提供する。 |
+| Reorder Target Resolution | DnD 開始試行時に、Table 構造と並び替え方向から行または列を移動対象として選択できるかを判定し、移動不可の場合はその理由を提供する。 |
 | Drop Target Resolution | DnD 開始後の移動対象と Table 構造から、現在の位置が有効な移動先かを判定する。 |
 | Reorder Presentation | 並び替えモード中の対象表示、移動不可理由、および DnD 中から確定・キャンセルまでの視覚フィードバックを Table データの更新から分離して扱う。 |
 | Auto Scroll | DnD 中に、行では縦方向、列では横方向だけを移動のための自動スクロール対象とする。 |
@@ -31,9 +31,9 @@ Reorder Mode は、通常の Table 編集、行並び替え、列並び替えの
 
 DnD Interaction は、入力方式に依存せず、Reorder Mode が示す並び替え方向に対して DnD の開始と進行を統括する。DnD の開始試行を受けると Reorder Target Resolution に移動対象判定を要求し、移動可能な場合だけ Reorder Session を開始する。移動不可の場合は DnD を開始せず、判定理由を Reorder Presentation へ渡す。
 
-Reorder Target Resolution は、Table 構造と並び替え方向から、開始対象となる行または列を移動対象として選択できるかを判定する。行では `rowspan` によって複数行が一体化している対象を移動不可とし、`colspan` だけを理由に行を移動不可にはしない。列では `colspan` によって複数列が一体化している対象を移動不可とし、`rowspan` だけを理由に列を移動不可にはしない。
+Reorder Target Resolution は、DnD 開始試行時に Table 構造と並び替え方向から、開始対象となる行または列を移動対象として選択できるかを判定する。行では `rowspan` によって複数行が一体化している対象を移動不可とし、`colspan` だけを理由に行を移動不可にはしない。列では `colspan` によって複数列が一体化している対象を移動不可とし、`rowspan` だけを理由に列を移動不可にはしない。
 
-Reorder Presentation は Reorder Mode と Reorder Target Resolution の判定に基づき、並び替えモード中に現在 DnD 可能な行または列を表示する。移動不可な対象から DnD 開始が試みられた場合は、DnD Interaction から受け取った理由を利用者へ示す。PC とタッチ端末でこの責務分離は変えない。
+Reorder Presentation は Reorder Mode に基づき、並び替えモード中の行または列の対象表示を行う。個々の対象が移動可能かどうかは判定せず、対象表示のために Reorder Target Resolution を利用しない。移動不可な対象から DnD 開始が試みられた場合は、DnD Interaction から受け取った理由を利用者へ示す。PC とタッチ端末でこの責務分離は変えない。
 
 DnD が開始した後だけ、Drop Target Resolution が現在の移動先を判定する。Reorder Presentation は、移動対象、有効な移動先を示す挿入線、移動先の変化によって表示位置が変わる周囲の行・列を、Table 上の実データとは分離して表示する。Auto Scroll は、進行中の DnD の方向に応じて必要な一方向だけを自動スクロール対象とする。
 
@@ -46,19 +46,18 @@ First-use Guidance は通常の Table 編集や DnD の進行とは独立して�
 ### 2.2 データと状態の流れ
 
 1. Reorder Mode が通常、行並び替え、列並び替えの現在状態を保持する。
-2. Reorder Target Resolution が Table 構造と現在の並び替え方向から、行または列ごとの移動対象成立可否を判定できる状態を提供する。
-3. Reorder Presentation が現在の並び替えモードと移動対象判定に応じて、DnD 可能な行または列の対象表示を行う。
-4. 通常編集状態では、First-use Guidance が操作環境ごとの初回案内を扱い、初回案内表示済みの場合は Reorder Rediscovery が再案内のための操作傾向を必要に応じて扱う。
-5. 並び替えモード中の PC またはタッチ端末の入力を Input Interaction が受け取り、DnD の開始試行・進行・完了・キャンセルという共通の意味へ変換する。
-6. DnD Interaction が開始試行を受けると、開始対象と並び替え方向を Reorder Target Resolution に渡して移動対象判定を要求する。
-7. 移動可能な場合だけ DnD Interaction が Reorder Session を開始し、移動対象と進行中の操作状態を保持する。移動不可の場合は DnD を開始せず、理由を Reorder Presentation へ渡す。
-8. DnD 開始後の進行入力は Input Interaction から DnD Interaction へ渡され、Drop Target Resolution が Table 構造と現在位置から有効な移動先、または有効な移動先なしを返す。
-9. DnD Interaction が現在の移動先を操作状態として保持し、Reorder Presentation が移動対象、挿入線、表示位置が変わる周囲の行・列の表示に反映する。
-10. Auto Scroll は進行中の並び替え方向だけを対象として自動スクロールを行う。
-11. 有効な移動先で DnD が完了した場合だけ、DnD Interaction が確定した並び替えを Data Update に渡し、Reorder Presentation に確定結果を伝える。
-12. Data Update が行または列の位置だけを変更し、1 回の並び替えを 1 回の Undo で戻せる更新として反映する。Reorder Presentation は確定後の配置へ自然につながる表示を完了する。
-13. キャンセル時は Reorder Presentation が元の位置へ戻る表示を扱い、Data Update は動作しない。
-14. 完了またはキャンセル後は Input Interaction と DnD に属する一時状態、および DnD 用の Presentation 状態を破棄する。Reorder Mode が継続している場合は、モード中の対象表示だけを維持する。
+2. Reorder Presentation が現在の並び替えモードに応じて、行または列の対象表示を行う。この表示のために Reorder Target Resolution で全行・全列の移動可否を事前判定しない。
+3. 通常編集状態では、First-use Guidance が操作環境ごとの初回案内を扱い、初回案内表示済みの場合は Reorder Rediscovery が再案内のための操作傾向を必要に応じて扱う。
+4. 並び替えモード中の PC またはタッチ端末の入力を Input Interaction が受け取り、DnD の開始試行・進行・完了・キャンセルという共通の意味へ変換する。
+5. DnD Interaction が開始試行を受けると、開始対象と並び替え方向を Reorder Target Resolution に渡して移動対象判定を要求する。
+6. 移動可能な場合だけ DnD Interaction が Reorder Session を開始し、移動対象と進行中の操作状態を保持する。移動不可の場合は DnD を開始せず、理由を Reorder Presentation へ渡す。
+7. DnD 開始後の進行入力は Input Interaction から DnD Interaction へ渡され、Drop Target Resolution が Table 構造と現在位置から有効な移動先、または有効な移動先なしを返す。
+8. DnD Interaction が現在の移動先を操作状態として保持し、Reorder Presentation が移動対象、挿入線、表示位置が変わる周囲の行・列の表示に反映する。
+9. Auto Scroll は進行中の並び替え方向だけを対象として自動スクロールを行う。
+10. 有効な移動先で DnD が完了した場合だけ、DnD Interaction が確定した並び替えを Data Update に渡し、Reorder Presentation に確定結果を伝える。
+11. Data Update が行または列の位置だけを変更し、1 回の並び替えを 1 回の Undo で戻せる更新として反映する。Reorder Presentation は確定後の配置へ自然につながる表示を完了する。
+12. キャンセル時は Reorder Presentation が元の位置へ戻る表示を扱い、Data Update は動作しない。
+13. 完了またはキャンセル後は Input Interaction と DnD に属する一時状態、および DnD 用の Presentation 状態を破棄する。Reorder Mode が継続している場合は、モード中の対象表示だけを維持する。
 
 ### 2.3 システム全体の状態所有
 
@@ -66,7 +65,7 @@ First-use Guidance は通常の Table 編集や DnD の進行とは独立して�
 - PC とタッチ端末ごとの初回案内の表示済み状態は First-use Guidance が所有する。
 - 再案内を判定するための直近の操作傾向と、同じ状況で過度に再案内しないための一時状態は Reorder Rediscovery が所有する。
 - PC とタッチ端末の入力固有の解釈に必要な一時状態は Input Interaction が所有し、移動対象、移動先、確定可能性などの Reorder Session 状態は所有しない。
-- 移動対象として選択できるかと、移動不可の場合の理由は Reorder Target Resolution が判定し、永続的な DnD 状態や Table 状態としては所有しない。
+- DnD 開始試行時に開始対象を移動対象として選択できるかと、移動不可の場合の理由は Reorder Target Resolution が判定し、永続的な DnD 状態や Table 状態としては所有しない。
 - 進行中の DnD、移動対象、現在の移動先、確定可能性、完了結果は DnD Interaction が所有する。移動不可な開始試行ではこれらの Reorder Session 状態を作らない。
 - 移動先の有効性そのものは Drop Target Resolution が DnD 開始後に判定し、永続的な Table 状態としては所有しない。
 - 並び替えモード中の対象表示、移動不可理由の一時表示、DnD 中の移動対象、挿入線、周囲の行・列の表示変化、確定・キャンセル時の一時的な表示状態は Reorder Presentation が所有する。
@@ -79,13 +78,14 @@ First-use Guidance は通常の Table 編集や DnD の進行とは独立して�
 - 移動対象として成立しない行または列から DnD を開始しない。
 - 行の移動対象判定では `rowspan` による移動不可を扱い、`colspan` だけを理由に不要な制限を掛けない。
 - 列の移動対象判定では `colspan` による移動不可を扱い、`rowspan` だけを理由に不要な制限を掛けない。
+- Reorder Target Resolution は DnD 開始試行時だけ移動対象判定を行い、並び替えモード中の対象表示のために全行・全列を事前判定しない。
+- Reorder Presentation は Reorder Target Resolution を直接利用しない。
 - Drop Target Resolution は DnD 開始前の移動対象判定を担わない。
 - DnD Interaction の Lifecycle、destination 更新、commit、cancel の Contract は行と列で共通とする。
 - DnD 中は Table 上の実際の行・列順序を変更しない。
 - 有効な移動先で DnD が完了した場合だけ Table データを変更する。
 - 無効な移動先では確定可能な挿入線を表示せず、並び替えを確定しない。
 - 行並び替えと列並び替えを同時に有効にしない。
-- 並び替えモード中の対象表示は、Reorder Target Resolution が移動可能と判定する現在方向の行または列に限定する。
 - Reorder Presentation の表示更新は Table データの更新責務を持たない。
 - 移動先変更に伴う表示上の移動は、実際に表示位置が変わる行・列に限定し、無関係な行・列を一斉に移動させない。
 - 行の DnD 中に自動スクロールする方向は縦方向だけとし、列の DnD 中は横方向だけとする。
@@ -116,11 +116,11 @@ Input Interaction の入力固有の一時状態は、その入力を DnD の開
 
 DnD Interaction は開始試行ごとに Reorder Target Resolution の判定を受け、移動可能な場合だけ active になる。移動不可の場合は active にならず、その理由を Reorder Presentation へ渡して開始試行を終了する。
 
-Reorder Presentation は並び替えモードへ入ると DnD 可能な対象の表示を開始する。移動不可な開始試行では理由を一時的に表示する。DnD 開始後は移動対象、移動先、周囲の表示変化を扱い、完了またはキャンセル時の表示遷移が終わった後に DnD 用の一時状態を破棄する。並び替えモードが継続している場合は対象表示へ戻る。
+Reorder Presentation は並び替えモードへ入ると現在方向の対象表示を開始する。この時点では Reorder Target Resolution に移動対象判定を要求しない。移動不可な開始試行では DnD Interaction から受け取った理由を一時的に表示する。DnD 開始後は移動対象、移動先、周囲の表示変化を扱い、完了またはキャンセル時の表示遷移が終わった後に DnD 用の一時状態を破棄する。並び替えモードが継続している場合は対象表示へ戻る。
 
 DnD に属する状態は 1 回の成立した操作中だけ有効とする。完了またはキャンセル時に、移動対象、移動先、確定可能性、DnD 用 Presentation、自動スクロールに関する一時状態を次の DnD へ持ち越さない。
 
-並び替えモードを切り替えた場合は、以後の移動対象判定、DnD、対象表示を切り替え後の方向として扱う。並び替えモードを終了した場合は通常の Table 編集へ戻り、モード中の対象表示も終了する。
+並び替えモードを切り替えた場合は、以後の DnD 開始試行、DnD、対象表示を切り替え後の方向として扱う。並び替えモードを終了した場合は通常の Table 編集へ戻り、モード中の対象表示も終了する。
 
 First-use Guidance の表示済み状態は DnD の Lifecycle とは分離し、利用者について PC とタッチ端末でそれぞれ一度だけ表示するという基本設計の境界を維持する。
 
@@ -140,7 +140,7 @@ Reorder v1 が想定する現実的な最大規模は、1,000 行、20 列、20,
 
 正式 v1 の Interaction と Presentation は、Table 全体の行数・列数に比例する常駐状態や常駐 UI を並び替え成立の前提にしない。大規模 Table でも、全対象について個別の Interaction 状態を保持し続ける構造を要求しない。
 
-移動対象判定は Reorder Target Resolution に集約し、対象表示や開始試行のたびに複数責務が Table 構造を独自に再評価することを共通 Contract の前提にしない。
+移動対象判定は DnD 開始試行時だけ Reorder Target Resolution に要求する。並び替えモード中の対象表示のために全行・全列を事前判定したり、Presentation の表示更新から Reorder Target Resolution を再評価したりすることを共通 Contract の前提にしない。
 
 DnD の進行中は、現在の移動対象、現在位置、移動先判定、実際に表示位置が変わる範囲など、その操作に必要な情報を中心に処理する。移動先が変わるたびに Table 全体を走査または再評価することを共通 Contract の前提にしない。
 
@@ -166,13 +166,13 @@ DnD 中は Table 上の実際の順序を変更せず、destination と必要な
 
 #### Contract
 
-「行を並び替え」「列を並び替え」の選択と並び替えモード終了を受け取り、現在の並び替え状態を Input Interaction、DnD Interaction、Reorder Target Resolution、Reorder Presentation へ提供する。
+「行を並び替え」「列を並び替え」の選択と並び替えモード終了を受け取り、現在の並び替え状態を Input Interaction、DnD Interaction、Reorder Presentation へ提供する。
 
 通常状態では DnD を有効にせず、行並び替えでは行、列並び替えでは列を DnD の開始候補として扱える状態を提供する。個々の行または列が実際に移動対象として成立するかは判定しない。
 
 #### 依存関係
 
-Input Interaction、DnD Interaction、Reorder Target Resolution、Reorder Presentation は現在の並び替え状態を Reorder Mode に依存する。First-use Guidance と Reorder Rediscovery は入口が選択されたことを自身の案内終了条件として扱うが、案内状態を Reorder Mode に持たせない。
+Input Interaction、DnD Interaction、Reorder Presentation は現在の並び替え状態を Reorder Mode に依存する。First-use Guidance と Reorder Rediscovery は入口が選択されたことを自身の案内終了条件として扱うが、案内状態を Reorder Mode に持たせない。
 
 #### Lifecycle
 
@@ -347,7 +347,7 @@ Reorder Presentation は移動不可理由と DnD Interaction の進行状態に
 
 #### 責務
 
-DnD 開始前に、現在の並び替え方向で開始対象となる行または列を移動対象として選択できるかを Table 構造から判定する。移動できない対象では、その理由を Reorder Presentation が利用できる判定結果として提供する。
+DnD 開始試行時に、現在の並び替え方向で開始対象となる行または列を移動対象として選択できるかを Table 構造から判定する。移動できない対象では、その理由を DnD Interaction が利用できる判定結果として提供する。
 
 行では `rowspan` によって複数行にまたがる結合範囲の一部となる行を移動対象にしない。`colspan` は行全体の移動を妨げないため、`colspan` だけを理由に行を移動不可にしない。
 
@@ -361,28 +361,29 @@ DnD 開始前に、現在の並び替え方向で開始対象となる行また�
 
 DnD Interaction から開始対象、行または列の並び替え方向、対象 Table の構造に対応する判定要求を受け取る。
 
-移動対象として成立する場合は移動可能であることを返す。成立しない場合は移動不可であることと、Reorder Presentation が利用者へ示せる理由を返す。
+移動対象として成立する場合は移動可能であることを返す。成立しない場合は移動不可であることと、DnD Interaction が Reorder Presentation へ渡せる理由を返す。
 
-並び替えモード中の対象表示に必要な場合も、同じ判定規則に基づく移動対象成立可否を Reorder Presentation が利用できる形で提供する。
+並び替えモード中の対象表示のための判定要求は受け取らない。
 
 #### 依存関係
 
-Reorder Mode が示す並び替え方向と対象 Table の構造情報に依存する。DnD Interaction は開始可否の判定結果に依存し、Reorder Presentation は対象表示と移動不可理由の表現に判定結果を利用する。
+DnD Interaction から受け取る開始対象と並び替え方向、および対象 Table の構造情報に依存する。DnD Interaction は開始可否の判定結果に依存する。Reorder Presentation とは直接依存しない。
 
 Drop Target Resolution、Auto Scroll、Data Update には依存せず、Table 変更を要求しない。
 
 #### Lifecycle
 
-並び替えモード中に対象表示または DnD 開始試行のために必要となった時点で判定する。判定結果を独立した Reorder Session 状態として保持せず、並び替え方向または Table 構造が変わった後も以前の結果が有効であることを前提にしない。
+DnD Interaction から DnD 開始試行に対応する判定要求を受けたときだけ判定する。並び替えモードへ入った時点では全行・全列の移動可否を事前判定しない。判定結果を独立した Reorder Session 状態として保持せず、次の開始試行へ以前の判定結果を持ち越さない。
 
 #### Invariant
 
-- DnD 開始前の移動対象成立可否だけを判定し、DnD 開始後の移動先判定を担わない。
+- DnD 開始試行時の移動対象成立可否だけを判定し、DnD 開始後の移動先判定を担わない。
+- 並び替えモード中の対象表示のために利用しない。
 - 行では `rowspan` によって一体化された範囲の一部を移動対象として返さない。
 - 行では `colspan` だけを理由に移動不可と判定しない。
 - 列では `colspan` によって一体化された範囲の一部を移動対象として返さない。
 - 列では `rowspan` だけを理由に移動不可と判定しない。
-- 移動不可の場合は Presentation が利用できる理由を判定結果に含める。
+- 移動不可の場合は DnD Interaction が利用できる理由を判定結果に含める。
 - 移動対象判定によって Table データを変更しない。
 
 ### 3.7 Drop Target Resolution
@@ -421,7 +422,7 @@ DnD Interaction が active の間に必要に応じて判定を行う。DnD が�
 
 #### 責務
 
-並び替えモード中に現在 DnD 可能な対象を示し、移動不可な対象から DnD 開始が試みられた場合はその理由を示す。DnD 中は移動対象、現在の有効な移動先、移動先変更に伴って表示位置が変わる周囲の行・列を、Table 上の実際の順番を変更せずに表示する。
+並び替えモード中に現在の並び替え方向の対象を示し、移動不可な対象から DnD 開始が試みられた場合はその理由を示す。DnD 中は移動対象、現在の有効な移動先、移動先変更に伴って表示位置が変わる周囲の行・列を、Table 上の実際の順番を変更せずに表示する。
 
 確定時は移動対象を最終位置へ自然につなぎ、キャンセル時は元の位置へ戻す表示を扱う。
 
@@ -433,7 +434,7 @@ Table データ、移動対象成立可否の判定規則、移動先の有効�
 
 #### Contract
 
-Reorder Mode から現在の並び替え方向を受け取り、Reorder Target Resolution の判定結果に基づいて、行並び替えモードでは DnD 可能な行、列並び替えモードでは DnD 可能な列を線で囲んで示す。この方針は PC とタッチ端末で共通とする。
+Reorder Mode から現在の並び替え方向を受け取り、行並び替えモードでは行、列並び替えモードでは列を線で囲んで示す。個々の対象が移動可能かどうかは判定せず、対象表示のために Reorder Target Resolution を利用しない。この方針は PC とタッチ端末で共通とする。
 
 DnD Interaction から移動不可な開始試行の理由を受け取った場合は、その理由を利用者が確認できる一時的なフィードバックとして表示する。この表示によって DnD を開始した状態にはしない。
 
@@ -447,13 +448,13 @@ DnD Interaction から確定結果を受け取った場合は移動対象を最�
 
 #### 依存関係
 
-Reorder Mode の現在状態と Reorder Target Resolution の移動対象判定に依存してモード中の対象表示を行う。移動不可理由は DnD Interaction 経由で受け取り、DnD 開始後の移動先の有効性は Drop Target Resolution の結果を DnD Interaction 経由で受け取る。
+Reorder Mode の現在状態に依存してモード中の対象表示を行う。Reorder Target Resolution には直接依存しない。移動不可理由は DnD Interaction 経由で受け取り、DnD 開始後の移動先の有効性は Drop Target Resolution の結果を DnD Interaction 経由で受け取る。
 
 Auto Scroll とは互いの責務を侵食せず、移動対象の表示範囲制約によって必要な自動スクロールを妨げない。Data Update には Table 変更を要求しない。
 
 #### Lifecycle
 
-並び替えモードへ入ると対象表示を開始する。移動不可な対象から開始が試みられた場合は理由の一時表示を開始し、利用者が内容を確認できる時間だけ表示した後に終了する。
+並び替えモードへ入ると現在方向の対象表示を開始する。この時点では Reorder Target Resolution に移動対象判定を要求しない。移動不可な対象から開始が試みられた場合は DnD Interaction から受け取った理由の一時表示を開始し、利用者が内容を確認できる時間だけ表示した後に終了する。
 
 DnD 開始時に DnD 用の表示状態を有効にし、進行中は移動対象、挿入線、必要な周囲の表示変化を更新する。確定時またはキャンセル時は対応する表示遷移を完了させた後、DnD 用の一時状態を破棄する。
 
@@ -462,7 +463,7 @@ Reorder Mode が継続している場合はモード中の対象表示を維持�
 #### Invariant
 
 - Presentation の更新によって Table 上の実際の行・列順序を変更しない。
-- 行並び替えモードでは Reorder Target Resolution が移動可能と判定する行、列並び替えモードでは移動可能と判定する列だけを対象表示する。
+- 対象表示のために Reorder Target Resolution を利用しない。
 - 移動不可理由を表示するために DnD を開始しない。
 - 移動不可理由の表示は一時的なフィードバックとし、次の DnD の進行状態として保持しない。
 - PC とタッチ端末で対象表示の方針を変えない。
@@ -548,6 +549,3 @@ DnD Interaction からの確定済みの並び替えにだけ依存する。Word
 - #481 YTR 正式 v1 の並び替え仕様を再設計する
 - #490 Reorder v1 アーキテクチャ設計書を作成する
 - #493 DnD の視覚フィードバックを要件定義・基本設計に反映する
-- #518 結合セルで移動できない対象へのフィードバックを定義する
-- #519 結合セルの移動不可条件とフィードバックを要件・基本設計へ反映する
-- #520 Reorder Target Resolution をアーキテクチャ設計書に追加する
