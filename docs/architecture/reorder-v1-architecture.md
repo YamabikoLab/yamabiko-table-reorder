@@ -93,7 +93,9 @@ Reorder v1 が想定する現実的な最大規模は、1,000 行、20 列、20,
 
 この規模でも、Reorder Mode、DnD Interaction、Drop Target Resolution、Reorder Preview、Auto Scroll、Data Update の責務分離を保ち、行・列の DnD を実用的に利用できることをアーキテクチャ上の制約とする。
 
-## 3. Reorder Mode
+## 3. 責務詳細
+
+### 3.1 Reorder Mode
 
 #### 責務
 
@@ -123,7 +125,7 @@ DnD Interaction は現在の並び替え状態を Reorder Mode に依存する�
 - 通常状態では行・列の DnD を有効にしない。
 - 行並び替えモードでは列 DnD、列並び替えモードでは行 DnD を有効にしない。
 
-## 4. First-use Guidance
+### 3.2 First-use Guidance
 
 #### 責務
 
@@ -153,7 +155,7 @@ Table のフォーカスまたはセル編集開始という編集環境側の�
 - 初回案内は通常のセル編集を妨げない。
 - 案内終了後も並び替え入口そのものの利用可否を変更しない。
 
-## 5. DnD Interaction
+### 3.3 DnD Interaction
 
 #### 責務
 
@@ -187,7 +189,7 @@ Reorder Mode に依存して並び替え方向を決める。Drop Target Resolut
 - 完了またはキャンセル後に前回の移動対象や移動先を保持しない。
 - Data Update へ渡す時点で並び替えは確定済みである。
 
-## 6. Drop Target Resolution
+### 3.4 Drop Target Resolution
 
 #### 責務
 
@@ -217,7 +219,7 @@ DnD Interaction が active の間に必要に応じて判定を行う。DnD の�
 - 行 DnD では行間、列 DnD では列間を移動先として扱う。
 - 移動先判定によって Table データを変更しない。
 
-## 7. Reorder Preview
+### 3.5 Reorder Preview
 
 #### 責務
 
@@ -249,7 +251,7 @@ DnD 開始時に有効になり、DnD 中だけ表示状態を維持する。完
 - ドラッグ中の行は空セルを含んでも行全体の横幅や各セル幅を保つ。
 - ドラッグ中の列は空セルを含んでも列全体の幅や各セル高さを保つ。
 
-## 8. Auto Scroll
+### 3.6 Auto Scroll
 
 #### 責務
 
@@ -279,7 +281,7 @@ DnD 中に必要な場合だけ有効になる。DnD の完了またはキャン
 - 列 DnD 中は縦方向を自動スクロールしない。
 - DnD 中だけ移動方向に応じた自動スクロール制約を適用する。
 
-## 9. Data Update
+### 3.7 Data Update
 
 #### 責務
 
