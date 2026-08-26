@@ -15,6 +15,7 @@ These instructions apply to source files under `src/`.
 ## Code structure and reuse
 
 - Keep abstractions meaningful and stable by introducing them only for concrete responsibilities or shared reasons for change. Do not abstract or commonize code merely because implementations currently look similar.
+- When implementing parallel row and column behavior, check for logic that represents the same rule or responsibility in both features. If it has the same meaning and the same reason to change, define it once in the appropriate shared Reorder responsibility rather than duplicating it in each feature.
 - Keep implementation details from crossing responsibility boundaries by placing integration-specific adaptation at the boundaries defined by the Architecture.
 - Never return a conditional expression directly. Assign its result to a meaningfully named variable first, using a basic-design-level name that makes the meaning of the returned value understandable without reading the implementation.
 
