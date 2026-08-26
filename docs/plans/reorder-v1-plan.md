@@ -38,8 +38,6 @@
 
 ## Implementation phases
 
-各Phaseを原則として1つのGitHub Issueとして扱う。1 Issueとしてレビュー可能な範囲を超える場合だけ、そのPhase内で実装単位を分割する。
-
 ### Phase 1: Reorder基盤
 
 - Outcome: 行・列に共通するReorder Sessionと確定更新の基盤が成立する。
@@ -129,6 +127,21 @@
 - Presentationのアニメーションを実用的な性能で維持できる更新範囲と実装方式。
 - Reorder Rediscoveryで通常編集を誤判定せず再案内を成立させる判定値。
 - PCとタッチ端末でArchitectureのContractを維持しながら、入力固有の開始判定を安定して扱えるか。
+
+## Issue breakdown
+
+- [ ] Reorder Modeと共通Reorder Sessionを実装する
+- [ ] Drop Target ResolutionとData Updateを実装する
+- [ ] PC向けInput Interactionを実装する
+- [ ] タッチ向けInput Interactionを実装する
+- [ ] Reorder Presentationを実装する
+- [ ] Auto Scrollを実装する
+- [ ] First-use Guidanceを実装する
+- [ ] Reorder Rediscoveryを実装する
+- [ ] 大規模TableのPerformanceを検証・調整する
+- [ ] Core TableとFlexible Table Blockの正式v1 E2Eを完成させる
+
+子Issueは本Planのレビュー後に作成し、実装順序または検証上の依存がある場合だけIssue間依存を設定する。
 
 ## Validation
 
