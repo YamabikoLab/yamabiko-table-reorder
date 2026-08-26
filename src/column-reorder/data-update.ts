@@ -21,12 +21,20 @@ const getDestinationItemIndex = (
 	return destinationIndex > targetIndex ? destinationIndex - 1 : destinationIndex;
 };
 
-const moveArrayItem = < T >( items: readonly T[], targetIndex: number, destinationIndex: number ): T[] | null => {
+const moveArrayItem = < T >(
+	items: readonly T[],
+	targetIndex: number,
+	destinationIndex: number
+): T[] | null => {
 	const nextIndex = getDestinationItemIndex( targetIndex, destinationIndex );
 	if (
-		nextIndex === null || targetIndex < 0 || targetIndex >= items.length ||
-		destinationIndex < 0 || destinationIndex > items.length ||
-		nextIndex < 0 || nextIndex >= items.length
+		nextIndex === null ||
+		targetIndex < 0 ||
+		targetIndex >= items.length ||
+		destinationIndex < 0 ||
+		destinationIndex > items.length ||
+		nextIndex < 0 ||
+		nextIndex >= items.length
 	) {
 		return null;
 	}
@@ -36,8 +44,16 @@ const moveArrayItem = < T >( items: readonly T[], targetIndex: number, destinati
 	return reordered;
 };
 
-const createColumnIndexMap = ( columnCount: number, targetIndex: number, destinationIndex: number ): number[] | null => {
-	const reordered = moveArrayItem( Array.from( { length: columnCount }, ( _, index ) => index ), targetIndex, destinationIndex );
+const createColumnIndexMap = (
+	columnCount: number,
+	targetIndex: number,
+	destinationIndex: number
+): number[] | null => {
+	const reordered = moveArrayItem(
+		Array.from( { length: columnCount }, ( _, index ) => index ),
+		targetIndex,
+		destinationIndex
+	);
 	if ( reordered === null ) {
 		return null;
 	}
@@ -73,11 +89,24 @@ export const applyColumnReorder = (
 		}
 		nextAttributes[ sectionName ] = layout.rows.map( ( rowLayout ) => {
 			const reorderedPlacements = [ ...rowLayout.placements ].sort( ( left, right ) => {
-				const leftStart = Math.min( ...Array.from( { length: left.columnSpan }, ( _, offset ) => indexMap[ left.columnStart + offset ] ) );
-				const rightStart = Math.min( ...Array.from( { length: right.columnSpan }, ( _, offset ) => indexMap[ right.columnStart + offset ] ) );
+				const leftStart = Math.min(
+					...Array.from(
+						{ length: left.columnSpan },
+						( _, offset ) => indexMap[ left.columnStart + offset ]
+					)
+				);
+				const rightStart = Math.min(
+					...Array.from(
+						{ length: right.columnSpan },
+						( _, offset ) => indexMap[ right.columnStart + offset ]
+					)
+				);
 				return leftStart - rightStart;
 			} );
-			return { ...rowLayout.row, cells: reorderedPlacements.map( ( placement ) => placement.cell ) };
+			return {
+				...rowLayout.row,
+				cells: reorderedPlacements.map( ( placement ) => placement.cell ),
+			};
 		} );
 	}
 	return createTableStructure( blockName, nextAttributes ) === null ? null : nextAttributes;
