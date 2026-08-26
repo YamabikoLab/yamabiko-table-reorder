@@ -15,9 +15,10 @@
 | 7 | Column Reorder | 列並び替え | `column` | 列を並び替えるReorder ModeまたはReorder Kind。 | 文脈に応じてmodeかkindかを明確にする。 |
 | 8 | Reorder Session | 並び替えセッション | `ReorderSession`, `session`, `startReorderSession()`, `updateReorderDestination()`, `completeReorderSession()`, `cancelReorderSession()` | 進行中の1回の並び替え操作を表す状態。並び替え種別、並び替え対象、現在の有効な移動先を保持する。 | 「共通Reorder Session」や単独の「Session」も同じ概念を指す。概念名は`Reorder Session`に統一する。 |
 | 9 | Reorder Target | 並び替え対象 | `ReorderTarget`, `target` | 1回の並び替えで移動する行または列。 | ソース内では「移動対象」と「並び替え対象」が使われている。`Drop Target`との混同を避けるため、日本語は「並び替え対象」を推奨する。 |
-| 10 | Reorder Destination | 移動先 | `ReorderDestination`, `destination`, `updateReorderDestination()` | Drop Target Resolutionによって有効と判定された現在の移動先。 | `Reorder Target`と区別するため、移動先を`target`とは呼ばず`destination`を使用する。 |
+| 10 | Reorder Destination | 移動先 | `ReorderDestination`, `destination`, `updateReorderDestination()` | Drop Target Resolutionによって有効と判定された現在の移動先。 | `index`は元のTable順序に対する行間または列間の境界を表す。`Reorder Target`と区別するため、移動先を`target`とは呼ばず`destination`を使用する。 |
 | 11 | Committed Reorder | 確定済み並び替え | `CommittedReorder`, `committed reorder` | Reorder Sessionの完了時に生成され、Data Updateへ渡せる確定済みの並び替え。 | ソース内の「確定結果」もこの概念を指す。概念名は「確定済み並び替え」を推奨する。 |
-| 12 | Logical Index | 論理インデックス | `index` | Table内で並び替え対象または移動先の位置を表す論理的なindex。 | DOMやブロック固有表現そのものではない。 |
+| 12 | Logical Index | 論理インデックス | `index` | Table内で並び替え対象または移動先の位置を表す論理的なindex。 | DOMやblock固有表現そのものではない。 |
 | 13 | DnD | ドラッグ＆ドロップ | `DnD` | ドラッグ操作によって行または列を並び替える入力方式。 | コードや技術文書では`DnD`を使用する。 |
-| 14 | Drop Target Resolution | ドロップ先判定 | `Drop Target Resolution` | ドロップ候補から有効なReorder Destinationを判定する責務。 | 現在はコメント内の責務名として登場する。ここでの`Target`は`Reorder Target`とは別概念。 |
-| 15 | Data Update | データ更新 | `Data Update` | Committed Reorderを受け取り、並び替え結果をデータへ反映する責務。 | 現在はコメント内の責務名として登場し、`src/`には実装されていない。 |
+| 14 | Drop Target Resolution | ドロップ先判定 | `resolveDropTarget()`, `DropTargetResolutionRequest` | ドロップ候補から有効なReorder Destinationを判定する責務。 | ここでの`Target`は`Reorder Target`とは別概念。判定によってTableデータを変更しない。 |
+| 15 | Data Update | データ更新 | `applyCommittedReorder()`, `commitReorderData()`, `DataUpdateRequest` | Committed Reorderを受け取り、並び替え結果をTableデータへ反映する責務。 | 成立した更新だけをWordPress側へ1回渡し、DnD進行中のデータは変更しない。 |
+| 16 | Table Structure | Table構造 | `TableStructure`, `createTableStructure()` | rowSpan / colspanを含むTableの行・列関係をLogical Indexで扱うための構造情報。 | Core TableとFlexible Table Blockの属性名の差を境界で吸収する。 |
