@@ -1,8 +1,8 @@
 /**
- * 確定済みの列並び替えを、Table全sectionへ同じlogical column移動として反映するData Updateを提供する。
+ * 確定した列の並び替えを、テーブル全体の列順へ反映する。
  *
- * block固有のsection保存形式はTable Block Adapterに委譲し、head / body / footの列対応を崩さず同じ列移動を適用する。
- * cell内容・属性・結合情報を保持し、更新後もTable Structureとして成立する場合だけ結果を確定する。
+ * 見出し、本体、フッターで同じ列が対応し続けるよう、すべてのセクションへ同じ列移動を適用する。
+ * セルの内容や属性、結合情報は保持し、更新後もテーブル構造として解釈できる場合だけ結果を確定する。
  */
 
 import { moveArrayItem } from '@/reorder/data-update-rules';
@@ -10,14 +10,14 @@ import { getTableBlockAdapter, TABLE_SECTION_NAMES } from '@/reorder/table-block
 import { createTableStructure, type TableBlockAttributes } from '@/reorder/table-structure';
 
 /**
- * 元のlogical column indexを、列移動後のlogical column indexへ対応付ける。
+ * 元の列位置を、並び替え後の列位置へ対応付ける。
  *
- * 1つの対応表を全sectionで共有することで、Table全体を同じ列移動として更新する。
+ * 同じ対応関係を全セクションで共有することで、テーブル全体を1つの列移動として更新する。
  *
- * @param columnCount      並び替え前のTable全体で共有するlogical column数。
- * @param targetIndex      元の順序で並び替え対象columnを表すLogical Index。
- * @param destinationIndex 元の順序に対して確定したReorder Destinationの境界index。
- * @return 元indexから移動後indexへの対応表。移動要求が成立しない場合は`null`。
+ * @param columnCount 並び替え前のテーブルで共有する列数。
+ * @param targetIndex 元の順序で移動対象となる列の位置。
+ * @param destinationIndex 元の順序に対して確定した移動先の境界位置。
+ * @return 元の列位置から移動後の列位置への対応表。移動要求が成立しない場合は`null`。
  */
 const createColumnIndexMap = (
 	columnCount: number,
@@ -41,16 +41,16 @@ const createColumnIndexMap = (
 };
 
 /**
- * 1列の確定済み移動をTable全sectionへ反映した新しいattributesを生成する。
+ * 1列の確定した移動を、テーブルの全セクションへ反映した新しい属性を生成する。
  *
- * 各cellが占有するlogical columnの移動後位置に従ってcell順だけを組み替える。block固有のsection読み書きは
- * Adapterへ委譲し、更新後の全sectionを再び同一のTable Structureとして解釈できない場合は更新を破棄する。
+ * 各セルが占有する列の移動後位置に従ってセル順だけを組み替える。ブロック固有の読み書きに失敗した場合や、
+ * 更新後の各セクションで列の対応関係を保てない場合は、途中まで更新した結果を返さない。
  *
- * @param blockName        列並び替え対象となるGutenberg block名。
- * @param attributes       並び替え前のTable block attributes。入力状態として変更しない。
- * @param targetIndex      元のTable順序で並び替え対象columnを表すLogical Index。
- * @param destinationIndex 元のTable順序に対して確定したReorder Destinationの境界index。
- * @return 列位置だけを変更した新しいattributes。Table構造を保持できない場合は`null`。
+ * @param blockName 列並び替え対象のGutenbergブロック名。
+ * @param attributes 並び替え前のテーブル属性。入力値は変更しない。
+ * @param targetIndex 元の列順で移動対象となる列の位置。
+ * @param destinationIndex 元の列順に対して確定した移動先の境界位置。
+ * @return 列位置だけを変更した新しい属性。テーブル構造を保持できない場合は`null`。
  */
 export const applyColumnReorder = (
 	blockName: string,
@@ -65,7 +65,7 @@ export const applyColumnReorder = (
 
 	const structure = createTableStructure( blockName, attributes );
 
-	// 列Data Updateは、全sectionで共有できるLogical Index空間を確定できるTableにだけ適用する。
+	// 全セクションで同じ列位置を共有できるテーブルだけを更新対象とする。
 	if ( structure === null ) {
 		return null;
 	}
@@ -111,14 +111,14 @@ export const applyColumnReorder = (
 			reorderedRows
 		);
 
-		// 列Data Updateは、すべての対象sectionをblock固有形式へ完全に書き戻せる場合だけ成立する。
+		// すべての対象セクションを完全に書き戻せる場合だけ更新を継続する。
 		if ( updatedAttributes === null ) {
 			return null;
 		}
 		nextAttributes = updatedAttributes;
 	}
 
-	// 列移動後も全sectionで同じLogical Indexが同じ列を指せる場合だけ、更新結果を確定する。
+	// 更新後も全セクションで同じ列位置を共有できる場合だけ結果を確定する。
 	const preservesTableStructure = createTableStructure( blockName, nextAttributes ) !== null;
 	const resultAttributes = preservesTableStructure ? nextAttributes : null;
 	return resultAttributes;
