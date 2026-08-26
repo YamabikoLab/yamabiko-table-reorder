@@ -5,14 +5,11 @@ These instructions apply to source files under `src/`.
 ## Current phase
 
 - `src/` is the active source boundary for the formal YTR v1 implementation.
-- The previous implementation is the YTR Prototype and must not be copied back into the active source tree.
 - When historical code is needed for reference, use the `prototype-final` tag.
 
 ## Source organization
 
 - Keep `src/index.tsx` as a thin plugin-wide entry point.
-- Do not recreate Prototype directories such as `row-reorder/`, `column-reorder/`, `common/`, or their controller hierarchy merely to preserve the old structure.
-- Add directories only after a concrete v1 responsibility is established.
 - Prefer responsibility-based boundaries over speculative abstractions.
 - Do not create generic `shared/`, `utils/`, or `helpers/` directories for possible future reuse.
 
