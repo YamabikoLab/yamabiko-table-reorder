@@ -20,6 +20,12 @@ These instructions apply to source files under `src/`.
 - Prefer side-effect-free logic for domain decisions and data transformations when practical.
 - Keep mutable state owned by one responsibility. Do not maintain independent copies of the same authoritative state across responsibilities.
 
+## React readability
+
+- Structure components so that the rendered UI structure and meaningful UI responsibilities are apparent from the JSX. Extract components when they represent a coherent UI responsibility, not merely to shorten a parent component.
+- Do not split one meaningful UI or interaction state into independent React state values when readers would need to infer the actual conceptual state from their combinations. Prefer state representations that make valid conceptual states explicit.
+- Use effects and custom hooks when they make lifecycle, synchronization, or a coherent responsibility easier to understand. Do not use them merely to shorten components, hide control flow, or create indirect chains of internal state transitions.
+
 ## Implementation rules
 
 - Prefer public WordPress APIs, hooks, components, and data stores.
