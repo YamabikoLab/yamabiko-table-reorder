@@ -1,8 +1,8 @@
 /**
- * 確定済みの並び替えをTable block attributesへ反映するData Updateの共通Contractを提供する。
+ * 確定済みの並び替えを、WordPressのテーブル属性へ安全に反映する共通の更新境界を提供する。
  *
- * 対応TableであることをTable Block Adapter境界で確認したうえで行・列のfeature実装を選択し、変換が成立した場合だけ
- * WordPress側へ更新を渡す。行・列固有のデータ操作やblock固有の保存形式はこの境界では所有しない。
+ * 対応テーブルであることを確認したうえで行または列の更新処理へ委ね、変換が成立した場合だけ
+ * WordPress側へ更新を渡す。行・列固有の更新規則やブロック固有の保存形式はここでは扱わない。
  */
 
 import { applyColumnReorder } from '@/column-reorder/data-update';
@@ -12,16 +12,14 @@ import { getTableBlockAdapter } from './table-block-adapter';
 import type { TableBlockAttributes } from './table-structure';
 
 /**
- * Data Updateが確定したTable attributesをWordPress側へ反映するcallbackのContract。
+ * 確定したテーブル属性をWordPress側へ反映する処理。
  *
- * @param attributes 並び替え結果として確定したTable attributes。
+ * @param attributes 並び替え結果として確定したテーブル属性。
  */
 export type SetTableAttributes = ( attributes: Record< string, unknown > ) => void;
 
 /**
- * 1回の確定済み並び替えをWordPress側へ反映するためにData Updateが必要とする情報。
- *
- * Tableの現在状態、block種別、確定結果、更新先callbackを1つの要求として扱い、更新境界を明確にする。
+ * 1回の確定済み並び替えをWordPress側へ反映するために必要な情報。
  */
 export type DataUpdateRequest = {
 	attributes: TableBlockAttributes;
@@ -31,22 +29,21 @@ export type DataUpdateRequest = {
 };
 
 /**
- * Committed Reorderを、元のTableデータを保持した新しいattributesへ変換する。
+ * 確定済みの並び替えを、元のテーブルデータを保持した新しい属性へ変換する。
  *
- * 共通Contractでは対応TableのAdapterが存在することだけを確認し、並び替え種別に対応するfeatureへ処理を委譲する。
- * block固有の読み書きは各featureから同じAdapter境界を利用するため、この責務にblock別分岐を持たない。
+ * 対応テーブルであることだけをこの境界で確認し、実際の行・列更新は対応する処理へ委ねる。
  *
- * @param blockName        Data Updateの対象となるGutenberg block名。
- * @param attributes       並び替え前のTable block attributes。入力状態として変更しない。
- * @param committedReorder Drop Target Resolutionを経て確定した1回の並び替え。
- * @return 並び替え後のattributes。Data Updateを成立させられない場合は`null`。
+ * @param blockName 更新対象のGutenbergブロック名。
+ * @param attributes 並び替え前のテーブル属性。入力値は変更しない。
+ * @param committedReorder 妥当性確認を経て確定した1回の並び替え。
+ * @return 並び替え後の属性。安全に更新できない場合は`null`。
  */
 export const applyCommittedReorder = (
 	blockName: string,
 	attributes: TableBlockAttributes,
 	committedReorder: CommittedReorder
 ): Record< string, unknown > | null => {
-	// Data Updateは、明示的なAdapterを持つ対応Table blockに対してだけ更新結果を生成する。
+	// 明示的に対応しているテーブルだけを更新対象とする。
 	if ( getTableBlockAdapter( blockName ) === null ) {
 		return null;
 	}
@@ -60,18 +57,18 @@ export const applyCommittedReorder = (
 };
 
 /**
- * 1回のCommitted Reorderを、WordPress側のTableデータへ1回の確定更新として渡す。
+ * 1回の確定済み並び替えを、WordPress側へ1回の更新として反映する。
  *
- * Data Updateが成立しない場合は更新callbackを呼ばないため、不完全なTable状態を外部へ公開しない。
+ * 更新後のテーブル状態を完全に確定できない場合は更新処理を呼ばず、不完全な状態を外部へ公開しない。
  *
- * @param request 現在のTable状態と確定済み並び替え、およびWordPress側の更新先をまとめた要求。
- * @return WordPress側へ更新を渡した場合は`true`、更新を成立させられなかった場合は`false`。
+ * @param request 現在のテーブル状態、確定済み並び替え、WordPress側の更新処理をまとめた要求。
+ * @return WordPress側へ更新を反映した場合は`true`、更新できなかった場合は`false`。
  */
 export const commitReorderData = ( request: DataUpdateRequest ): boolean => {
 	const { attributes, blockName, committedReorder, setAttributes } = request;
 	const nextAttributes = applyCommittedReorder( blockName, attributes, committedReorder );
 
-	// WordPress側へ公開するのは、並び替え後のTable状態を完全に確定できた場合だけである。
+	// 完全な更新結果を生成できた場合だけWordPress側へ反映する。
 	if ( nextAttributes === null ) {
 		return false;
 	}
