@@ -1,5 +1,5 @@
-import { resolveColumnDropTarget } from '../column-reorder/drop-target-resolution';
-import { resolveRowDropTarget } from '../row-reorder/drop-target-resolution';
+import { resolveColumnDropTarget } from '@/column-reorder/drop-target-resolution';
+import { resolveRowDropTarget } from '@/row-reorder/drop-target-resolution';
 import type { ReorderDestination, ReorderTarget } from './dnd-interaction';
 import type { ReorderKind } from './reorder-mode';
 import { createTableStructure } from './table-structure';

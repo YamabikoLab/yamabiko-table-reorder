@@ -66,6 +66,11 @@ const createColumnIndexMap = (
 
 /**
  * 列並び替え固有のData Updateを行う。
+ *
+ * @param blockName        ブロック名。
+ * @param attributes       テーブルブロックの属性。
+ * @param targetIndex      移動対象の列インデックス。
+ * @param destinationIndex 移動先の列インデックス。
  */
 export const applyColumnReorder = (
 	blockName: string,

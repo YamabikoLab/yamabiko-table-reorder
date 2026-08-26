@@ -43,6 +43,10 @@ const doesBoundarySplitColSpan = ( structure: TableStructure, boundary: number )
  * 列並び替え固有のDrop Target Resolutionを行う。
  *
  * colspanを構成する列やcolspanを分断する境界、範囲外、同位置へのno-opでは`null`を返す。
+ *
+ * @param structure        - テーブル構造。
+ * @param target           - 並び替え対象の列。
+ * @param destinationIndex - 列の移動先を示す境界インデックス。
  */
 export const resolveColumnDropTarget = (
 	structure: TableStructure,

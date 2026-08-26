@@ -23,6 +23,9 @@ export type DataUpdateRequest = {
  *
  * Data Updateの共通Contract入口として`kind`に対応するfeature実装を選択する。
  * row / column固有の更新ロジックは各featureへ委譲し、この境界では混在させない。
+ * @param blockName
+ * @param attributes
+ * @param committedReorder
  */
 export const applyCommittedReorder = (
 	blockName: string,
@@ -43,6 +46,7 @@ export const applyCommittedReorder = (
  * 確定済み並び替えを1回だけWordPress側のTableデータへ反映する。
  *
  * 変換が成立した場合だけ`setAttributes`を1回呼び出す。
+ * @param request
  */
 export const commitReorderData = ( request: DataUpdateRequest ): boolean => {
 	const { attributes, blockName, committedReorder, setAttributes } = request;

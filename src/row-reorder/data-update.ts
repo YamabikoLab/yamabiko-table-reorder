@@ -42,6 +42,10 @@ const moveArrayItem = < T >(
 
 /**
  * 行並び替え固有のData Updateを行う。
+ *
+ * @param attributes       テーブルブロックの属性。
+ * @param targetIndex      移動対象行のインデックス。
+ * @param destinationIndex 移動先のインデックス。
  */
 export const applyRowReorder = (
 	attributes: TableBlockAttributes,
