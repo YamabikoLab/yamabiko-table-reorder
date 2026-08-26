@@ -21,4 +21,5 @@
 | 13 | DnD | ドラッグ＆ドロップ | `DnD` | ドラッグ操作によって行または列を並び替える入力方式。 | コードや技術文書では`DnD`を使用する。 |
 | 14 | Drop Target Resolution | ドロップ先判定 | `resolveDropTarget()`, `DropTargetResolutionRequest` | ドロップ候補から有効なReorder Destinationを判定する責務。 | ここでの`Target`は`Reorder Target`とは別概念。判定によってTableデータを変更しない。 |
 | 15 | Data Update | データ更新 | `applyCommittedReorder()`, `commitReorderData()`, `DataUpdateRequest` | Committed Reorderを受け取り、並び替え結果をTableデータへ反映する責務。 | 成立した更新だけをWordPress側へ1回渡し、DnD進行中のデータは変更しない。 |
-| 16 | Table Structure | Table構造 | `TableStructure`, `createTableStructure()` | rowSpan / colspanを含むTableの行・列関係をLogical Indexで扱うための構造情報。 | Core TableとFlexible Table Blockの属性名の差を境界で吸収する。 |
+| 16 | Table Structure | Table構造 | `TableStructure`, `createTableStructure()` | rowspan / colspanを含むTableの行・列関係をLogical Indexで扱うための構造情報。 | 対応block固有の保存形式はTable Block Adapterを通じて受け取る。 |
+| 17 | Table Block Adapter | Tableブロックアダプター | `TableBlockAdapter`, `getTableBlockAdapter()` | 対応Table block固有の保存形式をReorderの共通Contractへ接続する境界。 | section・row・cellの読み書きとspan表現の解釈を所有し、共通Reorder責務へblock別分岐を持ち込まない。 |
