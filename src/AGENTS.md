@@ -24,6 +24,7 @@ These instructions apply to source files under `src/`.
 - Input-specific behavior may differ for keyboard, pointer, and touch, but shared reorder rules must remain in explicit domain contracts.
 - Preserve the v1 performance principles defined in #481: do not make UI, listeners, geometry work, or hot-path scans scale with total row count when avoidable; do not reorder the real Table DOM during drag; commit logical data only when the operation is finalized.
 - Resolve editor browsing context from the active editor context rather than assuming global `window` / `document` lifetimes.
+- In Japanese comments and explanatory text in product source and tests, do not insert spaces between Japanese text and adjacent English terms or identifiers unless the space is semantically necessary.
 
 ## Internationalization and accessibility
 
@@ -56,22 +57,23 @@ Jest tests should be structured so that their purpose and expected behavior can 
   - 操作: テスト対象に対して何を行うのか
   - 期待結果: 操作の結果として何が成立すべきか
 - Keep the explanation focused on the behavior being verified and avoid repeating implementation details that are already obvious from the test code.
+- Follow the Japanese spacing rule in the Implementation rules section for these comments.
 
 Example:
 
 ```ts
 /**
- * editor iframe 内の対象ブロックから環境を解決できることを確認する。
+ * editor iframe内の対象ブロックから環境を解決できることを確認する。
  *
  * 事前条件:
- * - 外側の document には対象ブロックが存在しない。
- * - editor iframe 内には対象ブロックが存在する。
+ * - 外側のdocumentには対象ブロックが存在しない。
+ * - editor iframe内には対象ブロックが存在する。
  *
  * 操作:
- * - resolveEditorEnvironment() を実行する。
+ * - resolveEditorEnvironment()を実行する。
  *
  * 期待結果:
- * - 対象ブロックを含む iframe の document と window が返される。
+ * - 対象ブロックを含むiframeのdocumentとwindowが返される。
  */
 it(
 	'when the target block exists only in an editor iframe, should return the iframe document and window',
