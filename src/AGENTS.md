@@ -26,6 +26,16 @@ These instructions apply to source files under `src/`.
 - Resolve editor browsing context from the active editor context rather than assuming global `window` / `document` lifetimes.
 - In Japanese comments and explanatory text in product source and tests, do not insert spaces between Japanese text and adjacent English terms or identifiers unless the space is semantically necessary.
 
+## Source documentation
+
+- Add Japanese JSDoc or documentation comments to exported top-level variables, constants, functions, types, React components, HOCs, custom hooks, and controller or other major public boundaries.
+- Also document non-exported top-level elements when they own an important responsibility or lifecycle that is not obvious from the code alone.
+- Explain the responsibility and purpose rather than merely translating the identifier into Japanese.
+- Prioritize information that is difficult to infer from the implementation itself, such as why the element exists, what it owns, important assumptions, return-value meaning, lifecycle, and cleanup responsibilities.
+- Keep documentation comments aligned when the documented responsibility or contract changes.
+- Do not mechanically add comments to self-explanatory local variables, temporary values, or implementation steps.
+- Follow the Japanese spacing rule in the Implementation rules section for these comments.
+
 ## Internationalization and accessibility
 
 - Translate user-visible strings with the `yamabiko-table-reorder` text domain.
