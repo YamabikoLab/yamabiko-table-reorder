@@ -31,19 +31,19 @@ describe( 'common Reorder Session', () => {
 	 * - 移動対象が指定されている。
 	 *
 	 * 操作:
-	 * - 各方向でstartReorderSession()を実行する。
+	 * - 各種別でstartReorderSession()を実行する。
 	 *
 	 * 期待結果:
-	 * - 方向だけが異なる共通Sessionが返される。
+	 * - kindだけが異なる共通Sessionが返される。
 	 */
 	it( 'when row or column mode is active, should start the same session contract', () => {
 		expect( startReorderSession( 'row', { index: 1 } ) ).toEqual( {
-			direction: 'row',
+			kind: 'row',
 			target: { index: 1 },
 			destination: null,
 		} );
 		expect( startReorderSession( 'column', { index: 3 } ) ).toEqual( {
-			direction: 'column',
+			kind: 'column',
 			target: { index: 3 },
 			destination: null,
 		} );
@@ -60,7 +60,7 @@ describe( 'common Reorder Session', () => {
 	 * - updateReorderDestination()で移動先を設定する。
 	 *
 	 * 期待結果:
-	 * - 方向と移動対象を維持したまま移動先だけが更新される。
+	 * - kindと移動対象を維持したまま移動先だけが更新される。
 	 */
 	it( 'when destination changes, should preserve the active session identity', () => {
 		const session = startReorderSession( 'row', { index: 1 } );
@@ -71,7 +71,7 @@ describe( 'common Reorder Session', () => {
 		}
 
 		expect( updateReorderDestination( session, { index: 4 } ) ).toEqual( {
-			direction: 'row',
+			kind: 'row',
 			target: { index: 1 },
 			destination: { index: 4 },
 		} );
@@ -103,7 +103,7 @@ describe( 'common Reorder Session', () => {
 		} );
 
 		expect( completeReorderSession( withDestination ) ).toEqual( {
-			direction: 'column',
+			kind: 'column',
 			target: { index: 1 },
 			destination: { index: 5 },
 		} );
