@@ -23,6 +23,21 @@ These instructions apply to source files under `src/`.
 - Make the current UI or interaction state understandable without requiring readers to mentally combine several independent state values. Prefer state representations that make valid conceptual states explicit instead of splitting one meaningful state across unrelated React state values.
 - Keep control flow and lifecycle behavior easy to trace. Use effects and custom hooks when they make synchronization, lifecycle, or a coherent responsibility clearer. Do not use them merely to shorten components, hide control flow, or create indirect chains of internal state transitions.
 
+## React code review guidelines
+
+When reviewing React code, focus on React-specific correctness, lifecycle behavior, maintainability, and meaningful performance issues rather than style preferences.
+
+- Verify Hooks follow React's rules and that dependency lists are complete and semantically correct. Watch for stale closures, unstable dependencies, and dependencies intentionally omitted without a sound reason.
+- Verify each Effect is necessary for synchronization with something outside React or for lifecycle behavior. Avoid Effects that merely derive React state from other React state, and ensure subscriptions or other side effects are cleaned up when required.
+- Verify state has a clear owner and represents source-of-truth data rather than values that can be derived during render. Avoid duplicated state that can become inconsistent.
+- Verify rendering remains pure. Do not mutate props, state, store data, or other shared values during render.
+- Verify refs are used for mutable values or DOM references that should not drive rendering. Do not retain DOM references across editor context changes, unmounts, or remounts when they can become stale.
+- Verify mount, unmount, and remount behavior does not depend on one-time assumptions that can become invalid when React recreates a component or the editor context changes.
+- Verify event listeners, observers, timers, subscriptions, and similar resources are released correctly and are not duplicated across rerenders or remounts.
+- Verify list item identity is stable and `key` values represent the item's identity rather than its current position, especially when rows or columns can be reordered.
+- Check for unnecessary rerenders only when they can have a meaningful cost. Prefer fixing unstable ownership, dependencies, or object/function creation at the relevant boundary before adding memoization solely as a precaution.
+- Verify components and custom Hooks have coherent responsibility boundaries. Extract them when they own a meaningful UI, lifecycle, or synchronization responsibility, not merely to reduce line count.
+
 ## Implementation rules
 
 - Prefer public WordPress APIs, hooks, components, and data stores.
