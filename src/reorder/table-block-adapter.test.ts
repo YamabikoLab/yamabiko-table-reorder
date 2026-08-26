@@ -1,23 +1,23 @@
 /**
- * Table Block Adapterが、対応Table固有の保存形式をReorderの共通Contractへ読み書きできることを確認する。
+ * 対応するテーブルブロック固有の保存形式を、並び替え機能の共通形式へ安全に読み書きできることを確認する。
  */
 
 import { getTableBlockAdapter } from './table-block-adapter';
 
 describe( 'Table Block Adapter', () => {
 	/**
-	 * 概要: Core Tableのsection・row・cellとspan表現を共通Contractへ接続できることを確認する。
+	 * 概要: Core Tableの行・セルと結合セル情報を共通形式として読み書きできることを確認する。
 	 *
 	 * 事前条件:
-	 * - Core Tableのbodyにrowspan / colspanを持つcellを含むrowが存在する。
-	 * - Table以外の追加attributeも存在する。
+	 * - Core Tableのbodyにrowspanとcolspanを持つセルを含む行が存在する。
+	 * - テーブル以外の追加属性も存在する。
 	 *
 	 * 操作:
-	 * - Core TableのAdapterでbodyを読み取り、spanを解釈し、別のrow列を書き戻す。
+	 * - Core Tableの変換処理でbodyを読み取り、結合数を解釈し、別の行を書き戻す。
 	 *
 	 * 期待結果:
-	 * - bodyは共通row Contractとして取得でき、spanは数値として解釈される。
-	 * - 書き戻しではbodyだけが置き換わり、その他のattributeは保持される。
+	 * - bodyの行を取得でき、rowspanとcolspanは数値として解釈される。
+	 * - 書き戻しではbodyだけが置き換わり、その他の属性は保持される。
 	 */
 	it( 'when Core Table data is adapted, should read and write the common table contract', () => {
 		const adapter = getTableBlockAdapter( 'core/table' );
@@ -46,16 +46,16 @@ describe( 'Table Block Adapter', () => {
 	} );
 
 	/**
-	 * 概要: Flexible Table Block固有のspan propertyを共通のspanとして解釈できることを確認する。
+	 * 概要: Flexible Table Block固有のcolSpanとrowSpanを共通の結合数として解釈できることを確認する。
 	 *
 	 * 事前条件:
-	 * - Flexible Table BlockのcellがcolSpan / rowSpanを使用している。
+	 * - Flexible Table BlockのセルがcolSpanとrowSpanを使用している。
 	 *
 	 * 操作:
-	 * - Flexible Table BlockのAdapterでcolumn spanとrow spanを取得する。
+	 * - Flexible Table Blockの変換処理で列方向と行方向の結合数を取得する。
 	 *
 	 * 期待結果:
-	 * - block固有のproperty名を呼び出し側が指定せず、それぞれのspan数が返される。
+	 * - 呼び出し側が保存属性名を意識せず、それぞれの結合数を取得できる。
 	 */
 	it( 'when Flexible Table Block spans are adapted, should expose common span values', () => {
 		const adapter = getTableBlockAdapter( 'flexible-table-block/table' );
@@ -70,13 +70,13 @@ describe( 'Table Block Adapter', () => {
 	} );
 
 	/**
-	 * 概要: 明示的に対応していないTable blockを共通Reorderへ接続しないことを確認する。
+	 * 概要: 明示的に対応していないテーブルブロックを並び替え対象にしないことを確認する。
 	 *
 	 * 事前条件:
-	 * - Adapter登録のないblock名が指定される。
+	 * - 対応登録のないブロック名が指定される。
 	 *
 	 * 操作:
-	 * - block名からTable Block Adapterを解決する。
+	 * - ブロック名から保存形式の変換処理を取得する。
 	 *
 	 * 期待結果:
 	 * - 未知の保存形式を推測せず`null`が返される。
