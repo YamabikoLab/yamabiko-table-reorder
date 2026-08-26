@@ -22,7 +22,7 @@ export type ReorderDestination = {
 /**
  * 進行中の1回の並び替え操作を表す共通Reorder Session。
  *
- * 入力方式やTable実装に依存せず、行・列の種別、移動対象、現在の有効な移動先だけを
+ * 入力方式やTable実装に依存せず、並び替え種別、移動対象、現在の有効な移動先だけを
  * 操作中に保持する。完了またはキャンセル後はこの状態を次のDnDへ持ち越さない。
  */
 export type ReorderSession = {
