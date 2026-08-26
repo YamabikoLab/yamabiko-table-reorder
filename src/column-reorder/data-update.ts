@@ -25,7 +25,7 @@ const TABLE_SECTION_NAMES: readonly TableSectionName[] = [ 'head', 'body', 'foot
  * 1つの対応表を全sectionで共有することで、Table全体を同じ列移動として更新する。
  *
  * @param columnCount      並び替え前のTable全体で共有するlogical column数。
- * @param targetIndex      元の順序で移動対象columnを指すLogical Index。
+ * @param targetIndex      元の順序で移動対象columnを表すLogical Index。
  * @param destinationIndex 元の順序に対して確定したReorder Destinationの境界index。
  * @return 元indexから移動後indexへの対応表。移動要求が成立しない場合は`null`。
  */
@@ -34,17 +34,18 @@ const createColumnIndexMap = (
 	targetIndex: number,
 	destinationIndex: number
 ): number[] | null => {
-	const reordered = moveArrayItem(
+	const reorderedIndexes = moveArrayItem(
 		Array.from( { length: columnCount }, ( _, index ) => index ),
 		targetIndex,
 		destinationIndex
 	);
-	if ( reordered === null ) {
+	if ( reorderedIndexes === null ) {
 		return null;
 	}
+
 	const indexMap = Array.from( { length: columnCount }, () => -1 );
-	for ( let newIndex = 0; newIndex < reordered.length; newIndex++ ) {
-		indexMap[ reordered[ newIndex ] ] = newIndex;
+	for ( let newIndex = 0; newIndex < reorderedIndexes.length; newIndex++ ) {
+		indexMap[ reorderedIndexes[ newIndex ] ] = newIndex;
 	}
 	return indexMap;
 };
@@ -57,7 +58,7 @@ const createColumnIndexMap = (
  *
  * @param blockName        列並び替え対象となるGutenberg block名。
  * @param attributes       並び替え前のTable block attributes。入力状態として変更しない。
- * @param targetIndex      元のTable順序で移動対象columnを指すLogical Index。
+ * @param targetIndex      元のTable順序で移動対象columnを表すLogical Index。
  * @param destinationIndex 元のTable順序に対して確定したReorder Destinationの境界index。
  * @return 列位置だけを変更した新しいattributes。Table構造を保持できない場合は`null`。
  */
@@ -68,19 +69,24 @@ export const applyColumnReorder = (
 	destinationIndex: number
 ): Record< string, unknown > | null => {
 	const structure = createTableStructure( blockName, attributes );
+
+	// 列Data Updateは、全sectionで共有できるLogical Index空間を確定できるTableにだけ適用する。
 	if ( structure === null ) {
 		return null;
 	}
+
 	const indexMap = createColumnIndexMap( structure.columnCount, targetIndex, destinationIndex );
 	if ( indexMap === null ) {
 		return null;
 	}
+
 	const nextAttributes: Record< string, unknown > = { ...attributes };
 	for ( const sectionName of TABLE_SECTION_NAMES ) {
 		const layout = structure.sections[ sectionName ];
 		if ( layout === undefined ) {
 			continue;
 		}
+
 		nextAttributes[ sectionName ] = layout.rows.map( ( rowLayout ) => {
 			const reorderedPlacements = [ ...rowLayout.placements ].sort( ( left, right ) => {
 				const leftStart = Math.min(
@@ -97,6 +103,7 @@ export const applyColumnReorder = (
 				);
 				return leftStart - rightStart;
 			} );
+
 			return {
 				...rowLayout.row,
 				cells: reorderedPlacements.map( ( placement ) => placement.cell ),
@@ -104,6 +111,8 @@ export const applyColumnReorder = (
 		} );
 	}
 
-	// 列移動後も全sectionを同じLogical Index空間として解釈できる場合だけ、Data Updateを確定する。
-	return createTableStructure( blockName, nextAttributes ) === null ? null : nextAttributes;
+	// 列移動後も全sectionで同じLogical Indexが同じ列を指せる場合だけ、更新結果を確定する。
+	const preservesTableStructure = createTableStructure( blockName, nextAttributes ) !== null;
+	const resultAttributes = preservesTableStructure ? nextAttributes : null;
+	return resultAttributes;
 };

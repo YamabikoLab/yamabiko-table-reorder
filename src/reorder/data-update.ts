@@ -45,14 +45,17 @@ export const applyCommittedReorder = (
 	attributes: TableBlockAttributes,
 	committedReorder: CommittedReorder
 ): Record< string, unknown > | null => {
+	// Data Updateは、正式v1で対応するTable blockに対してだけ更新結果を生成する。
 	if ( getTableBlockSupport( blockName ) === null ) {
 		return null;
 	}
 
 	const { destination, kind, target } = committedReorder;
-	return kind === 'row'
-		? applyRowReorder( attributes, target.index, destination.index )
-		: applyColumnReorder( blockName, attributes, target.index, destination.index );
+	const nextAttributes =
+		kind === 'row'
+			? applyRowReorder( attributes, target.index, destination.index )
+			: applyColumnReorder( blockName, attributes, target.index, destination.index );
+	return nextAttributes;
 };
 
 /**
@@ -66,6 +69,8 @@ export const applyCommittedReorder = (
 export const commitReorderData = ( request: DataUpdateRequest ): boolean => {
 	const { attributes, blockName, committedReorder, setAttributes } = request;
 	const nextAttributes = applyCommittedReorder( blockName, attributes, committedReorder );
+
+	// WordPress側へ公開するのは、並び替え後のTable状態を完全に確定できた場合だけである。
 	if ( nextAttributes === null ) {
 		return false;
 	}

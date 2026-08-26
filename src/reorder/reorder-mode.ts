@@ -2,13 +2,13 @@
  * 通常編集と行・列の並び替えを排他的に切り替えるReorder ModeのContractを提供する。
  *
  * 同時に複数の並び替え種別を有効にせず、DnD Interactionが現在許可されている種別を
- * 1つの状態から判断できるようにする。
+ * 1つの状態だけで判断できるようにする。
  */
 
 /**
  * Tableの操作状態を、通常編集・行並び替え・列並び替えのいずれか1つとして表す。
  *
- * `edit`ではDnDを開始せず、`row`と`column`では対応する種別だけを有効にする。
+ * `edit`では並び替え操作を開始せず、`row`と`column`では対応する種別だけを有効にする。
  */
 export type ReorderMode = 'edit' | 'row' | 'column';
 
@@ -24,34 +24,37 @@ export type ReorderKind = Exclude< ReorderMode, 'edit' >;
  *
  * Tableを開いた時点では並び替え操作を暗黙に有効化しないというLifecycleを表す。
  *
- * @return 初期状態の`edit`。
+ * @return 通常編集を表す初期Reorder Mode。
  */
 export const createReorderMode = (): ReorderMode => 'edit';
 
 /**
  * 選択された行または列の並び替えだけを有効にする。
  *
- * 現在状態から直接置き換えることで、行・列の並び替えが同時に有効にならないInvariantを維持する。
+ * 現在状態を選択された種別へ置き換えることで、行・列の並び替えが同時に有効にならないInvariantを維持する。
  *
- * @param _kind ユーザーが有効にする並び替え種別。
+ * @param kind ユーザーが有効にする並び替え種別。
  * @return 選択された種別を表すReorder Mode。
  */
-export const enterReorderMode = ( _kind: ReorderKind ): ReorderMode => _kind;
+export const enterReorderMode = ( kind: ReorderKind ): ReorderMode => kind;
 
 /**
  * 並び替え状態を終了し、通常のTable編集へ戻す。
  *
- * @return 通常編集を表す`edit`。
+ * @return 通常編集を表すReorder Mode。
  */
 export const exitReorderMode = (): ReorderMode => 'edit';
 
 /**
- * 現在のModeから、DnD Sessionを開始してよい並び替え種別だけを取り出す。
+ * 現在のReorder Modeから、DnD Sessionを開始してよい並び替え種別を取得する。
  *
- * 通常編集では並び替えを許可しないため、DnD Interactionへ種別を渡さず`null`を返す。
+ * 通常編集は並び替え操作を許可しないため、DnD InteractionへReorder Kindを渡さない。
  *
  * @param mode DnD開始可否を判断する現在のReorder Mode。
  * @return 有効な行・列のReorder Kind。通常編集では`null`。
  */
-export const getReorderKind = ( mode: ReorderMode ): ReorderKind | null =>
-	mode === 'edit' ? null : mode;
+export const getReorderKind = ( mode: ReorderMode ): ReorderKind | null => {
+	// DnD Sessionを開始できるのは、行または列の並び替えが明示的に有効化されている場合だけである。
+	const reorderKind = mode === 'edit' ? null : mode;
+	return reorderKind;
+};

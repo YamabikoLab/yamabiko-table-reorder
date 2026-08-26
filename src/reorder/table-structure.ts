@@ -6,7 +6,9 @@
  */
 
 /**
- * 並び替え時に同じlogical column構造として扱うTable section。
+ * Table全体で同じlogical columnとして扱うsectionの一覧。
+ *
+ * 列並び替えでは、存在するsectionすべてが同じ列構造を共有することを前提とする。
  */
 const TABLE_SECTION_NAMES = [ 'head', 'body', 'foot' ] as const;
 
@@ -20,7 +22,7 @@ export type TableSectionName = ( typeof TABLE_SECTION_NAMES )[ number ];
 /**
  * Table Structure内で保持するcellデータ。
  *
- * content・style・block固有属性を解釈対象外のpayloadとして保持し、Data Updateで失わない。
+ * content・style・block固有属性は並び替え判断の対象にせず、そのまま保持すべきpayloadとして扱う。
  */
 export type TableCell = Record< string, unknown >;
 
@@ -36,7 +38,7 @@ export type TableRow = Record< string, unknown > & {
 /**
  * 対応Table blockの現在attributes。
  *
- * Table Structureは必要なsectionだけを読み取り、その他のblock固有属性をData Updateで保持できるよう
+ * Table Structureは必要なsectionだけを解釈し、その他のblock固有属性をData Updateで保持できるよう
  * 全体をreadonlyな入力状態として扱う。
  */
 export type TableBlockAttributes = Readonly< Record< string, unknown > >;
@@ -44,7 +46,7 @@ export type TableBlockAttributes = Readonly< Record< string, unknown > >;
 /**
  * 対応blockごとの保存形式差をTable Structureへ接続する情報。
  *
- * Core TableとFlexible Table Blockで異なるrowspan / colspan属性名だけをこの境界で吸収する。
+ * Core TableとFlexible Table Blockで異なるrowspan / colspan属性名をこの境界で吸収する。
  */
 export type TableBlockSupport = {
 	colspanProperty: string;
@@ -113,21 +115,27 @@ const BLOCK_SUPPORTS: Readonly< Record< string, TableBlockSupport > > = {
 };
 
 /**
- * attributesから安全にpropertyを読み取れるobject値か判定する。
+ * 値が、Table構造の一部としてpropertyを安全に参照できるobjectか判定する。
  *
  * @param value Table構造の一部として解釈しようとしている値。
- * @return propertyを持つobjectとして扱える場合は`true`。
+ * @return Table構造のpayloadとして扱えるobjectであれば`true`。
  */
-const isRecord = ( value: unknown ): value is Record< string, unknown > =>
-	value !== null && typeof value === 'object';
+const isRecord = ( value: unknown ): value is Record< string, unknown > => {
+	// Table構造のpayloadとして扱えるのは、nullではないobjectだけである。
+	const canBeTablePayload = value !== null && typeof value === 'object';
+	return canBeTablePayload;
+};
 
 /**
  * 値をTable cellのpayloadとして保持できるか判定する。
  *
  * @param value cell候補として読み取った値。
- * @return TableCellとして保持できるobjectであれば`true`。
+ * @return TableCellとして保持できる場合は`true`。
  */
-const isTableCell = ( value: unknown ): value is TableCell => isRecord( value );
+const isTableCell = ( value: unknown ): value is TableCell => {
+	const canBePreservedAsCell = isRecord( value );
+	return canBePreservedAsCell;
+};
 
 /**
  * 値が、Data Updateで保持できるcell列を持つTable rowとして成立するか判定する。
@@ -135,13 +143,17 @@ const isTableCell = ( value: unknown ): value is TableCell => isRecord( value );
  * @param value row候補として読み取った値。
  * @return TableRowとして安全に解釈できる場合は`true`。
  */
-const isTableRow = ( value: unknown ): value is TableRow =>
-	isRecord( value ) && Array.isArray( value.cells ) && value.cells.every( isTableCell );
+const isTableRow = ( value: unknown ): value is TableRow => {
+	// 並び替え対象のrowとして扱うには、row自身と全cellを欠損なく保持できる必要がある。
+	const canBePreservedAsRow =
+		isRecord( value ) && Array.isArray( value.cells ) && value.cells.every( isTableCell );
+	return canBePreservedAsRow;
+};
 
 /**
- * block固有propertyから、cellが占有するlogical span数を解決する。
+ * block固有propertyから、cellがLogical Index空間で占有するspan数を解決する。
  *
- * span未指定は通常cellとして1を返し、Table構造を一意に解釈できない値は`null`とする。
+ * span未指定は通常cellとして1を返す。Table構造を一意に解釈できない値は推測せず`null`とする。
  *
  * @param cell     spanを解決するTable cell。
  * @param property 対象blockがspanを保存するproperty名。
@@ -150,24 +162,26 @@ const isTableRow = ( value: unknown ): value is TableRow =>
 const getSpan = ( cell: TableCell, property: string ): number | null => {
 	const rawValue = cell[ property ];
 
-	// spanが保存されていないcellは、Table仕様上1行・1列だけを占有する通常cellとして扱う。
+	// span未指定は、1つのLogical Indexだけを占有する通常cellとして扱う。
 	if ( rawValue === undefined || rawValue === null || rawValue === '' ) {
 		return 1;
 	}
 
-	// 対応blockがspanとして保存しうる数値表現以外では、占有範囲を確定できない。
+	// 対応blockがspanとして保存できる表現以外は、占有範囲を確定できないため受け入れない。
 	if ( typeof rawValue !== 'number' && typeof rawValue !== 'string' ) {
 		return null;
 	}
 
-	const value = Number( rawValue );
-
-	// spanは1以上の整数だけが有効なTable占有範囲を表す。
-	return Number.isInteger( value ) && value >= 1 ? value : null;
+	const span = Number( rawValue );
+	// spanは、1つ以上の連続したLogical Indexを表す整数だけが有効である。
+	const validSpan = Number.isInteger( span ) && span >= 1 ? span : null;
+	return validSpan;
 };
 
 /**
- * rowspanで既に占有されている列を避け、現在のcellを置ける最初のlogical columnを返す。
+ * 先行rowのrowspanを避け、現在のcellを配置できる最初のlogical columnを求める。
+ *
+ * cellはcolumnSpan分の連続領域を必要とするため、一部でも先行rowに占有されている位置には配置しない。
  *
  * @param occupiedColumns 先行rowのrowspanによって現在使用できないlogical column。
  * @param fromIndex       現在のrowで探索を開始するlogical column。
@@ -184,6 +198,7 @@ const findFreeColumnStart = (
 	while ( true ) {
 		let available = true;
 		for ( let offset = 0; offset < columnSpan; offset++ ) {
+			// 1つでも占有済みの位置を含む候補は、同じcellの配置領域として利用できない。
 			if ( occupiedColumns[ candidate + offset ] ) {
 				available = false;
 				candidate += offset + 1;
@@ -191,6 +206,7 @@ const findFreeColumnStart = (
 			}
 		}
 
+		// columnSpan全体を確保できた最初の位置を、そのcellのLogical Index上の開始位置とする。
 		if ( available ) {
 			return candidate;
 		}
@@ -200,19 +216,21 @@ const findFreeColumnStart = (
 /**
  * block名から、Table Structureが保存形式を解釈するためのsupport情報を返す。
  *
- * 非対応blockを明示的に`null`とすることで、下流の責務が未知のTable形式を推測して扱わないようにする。
+ * 正式v1の対象外blockは推測して扱わず、下流の責務へ未知のTable形式を渡さない。
  *
  * @param blockName Table Structureへ接続するGutenberg block名。
  * @return 対応blockの保存形式情報。正式v1の対象外であれば`null`。
  */
-export const getTableBlockSupport = ( blockName: string ): TableBlockSupport | null =>
-	BLOCK_SUPPORTS[ blockName ] ?? null;
+export const getTableBlockSupport = ( blockName: string ): TableBlockSupport | null => {
+	const blockSupport = BLOCK_SUPPORTS[ blockName ] ?? null;
+	return blockSupport;
+};
 
 /**
- * Table attributesから指定sectionのrow列を読み取る。
+ * Table attributesから指定sectionのrow列を取得する。
  *
- * sectionが存在しないことは有効なTable状態として空配列で表し、存在するsectionを安全に解釈できない場合だけ
- * `null`を返す。これにより「sectionなし」と「不正なsection」を区別する。
+ * sectionが存在しないことは有効なTable状態として空配列で表す。sectionが存在してもrow列として一貫して
+ * 解釈できない場合だけ`null`を返し、「sectionなし」と「構造不成立」を区別する。
  *
  * @param attributes  読み取り元となるTable block attributes。
  * @param sectionName head / body / footのうち読み取るsection。
@@ -227,8 +245,9 @@ export const getTableSectionRows = (
 		return [];
 	}
 
-	// section全体を同じTable row Contractで解釈できる場合だけ、並び替えの基準データとして利用する。
-	return Array.isArray( section ) && section.every( isTableRow ) ? section : null;
+	// 存在するsectionは、すべてのrowを同じTable Row Contractで保持できる場合だけ並び替えの基準にできる。
+	const sectionRows = Array.isArray( section ) && section.every( isTableRow ) ? section : null;
+	return sectionRows;
 };
 
 /**
@@ -268,7 +287,7 @@ export const createTableSectionLayout = (
 			const columnSpan = getSpan( cell, support.colspanProperty );
 			const rowSpan = getSpan( cell, support.rowspanProperty );
 
-			// 1つでもspanを解釈できないsectionでは、Drop Target Resolutionの基準座標を確定できない。
+			// 1つでも占有範囲を確定できないcellがあるsectionでは、共通のLogical Index空間を保証できない。
 			if ( columnSpan === null || rowSpan === null ) {
 				return null;
 			}
@@ -293,10 +312,11 @@ export const createTableSectionLayout = (
 		}
 
 		const lastOccupiedColumn = occupiedColumns.lastIndexOf( true );
-		const columnCount = lastOccupiedColumn + 1;
+		const currentColumnCount = lastOccupiedColumn + 1;
 		if ( expectedColumnCount === null ) {
-			expectedColumnCount = columnCount;
-		} else if ( columnCount !== expectedColumnCount ) {
+			expectedColumnCount = currentColumnCount;
+		} else if ( currentColumnCount !== expectedColumnCount ) {
+			// 同じsection内でrowごとの列数が一致しないTableは、列のLogical Indexを一意に共有できない。
 			return null;
 		}
 
@@ -308,6 +328,7 @@ export const createTableSectionLayout = (
 		remainingRowSpans = nextRowSpans;
 	}
 
+	// section末尾を越えて続くrowspanは、現在のTableデータだけでは占有範囲を完結して解釈できない。
 	if ( remainingRowSpans.some( ( remaining ) => remaining > 0 ) ) {
 		return null;
 	}
@@ -352,7 +373,7 @@ export const createTableStructure = (
 
 		const layout = createTableSectionLayout( rows, support );
 
-		// sectionを有効なlogical column構造として確定できないTableは、並び替えの基準として利用しない。
+		// 存在するsectionは、有効な列構造を持つ場合だけTable全体の並び替えContractへ参加できる。
 		if ( layout === null || layout.columnCount === 0 ) {
 			return null;
 		}
@@ -360,16 +381,20 @@ export const createTableStructure = (
 		if ( columnCount === null ) {
 			columnCount = layout.columnCount;
 		} else if ( layout.columnCount !== columnCount ) {
+			// 全sectionで同じLogical Indexが同じ列を指せないTableは、列並び替えの共通基準にできない。
 			return null;
 		}
 
 		sections[ sectionName ] = layout;
 	}
 
-	return columnCount === null
-		? null
-		: {
-				columnCount,
-				sections,
-		  };
+	// 少なくとも1つの有効sectionがあり、Table全体で共通の列構造を確定できた場合だけStructureを公開する。
+	const tableStructure =
+		columnCount === null
+			? null
+			: {
+					columnCount,
+					sections,
+			  };
+	return tableStructure;
 };

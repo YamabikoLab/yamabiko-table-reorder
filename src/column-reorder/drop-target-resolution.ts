@@ -10,7 +10,7 @@ import { isBoundaryInsideRange } from '../reorder/drop-target-rules';
 import type { TableStructure } from '../reorder/table-structure';
 
 /**
- * 対象logical columnがcolspanで一体化された範囲の一部か判定する。
+ * 対象logical columnが、colspanによって一体として扱うべき範囲に含まれるか判定する。
  *
  * colspanを構成する列は単独のReorder Targetとして切り離せないため、どのsectionに結合セルがあっても
  * 列移動の対象外とする。
@@ -19,9 +19,9 @@ import type { TableStructure } from '../reorder/table-structure';
  * @param targetIndex 移動対象として検討しているlogical column index。
  * @return 対象列がいずれかのcolspan範囲に含まれる場合は`true`。
  */
-const isColumnInsideColSpan = ( structure: TableStructure, targetIndex: number ): boolean =>
-	// 結合範囲の一部だけを移動しないよう、全sectionのcolspan占有範囲を確認する。
-	Object.values( structure.sections ).some(
+const isColumnInsideColSpan = ( structure: TableStructure, targetIndex: number ): boolean => {
+	// 列DnDでは、どのsectionであってもcolspanで一体化された範囲の一部だけをReorder Targetにできない。
+	const belongsToMergedColumnRange = Object.values( structure.sections ).some(
 		( section ) =>
 			section?.rows.some( ( row ) =>
 				row.placements.some(
@@ -32,9 +32,11 @@ const isColumnInsideColSpan = ( structure: TableStructure, targetIndex: number )
 				)
 			) ?? false
 	);
+	return belongsToMergedColumnRange;
+};
 
 /**
- * 候補境界がcolspanの内部にあり、結合範囲を左右へ分断するか判定する。
+ * 候補境界が、colspanによって一体として扱うべき範囲を左右へ分断するか判定する。
  *
  * head / body / footのどこか1つでもcolspanを分断する境界は、Table全体の列移動先として利用しない。
  *
@@ -42,9 +44,9 @@ const isColumnInsideColSpan = ( structure: TableStructure, targetIndex: number )
  * @param boundary  移動先として検討しているlogical column間の境界index。
  * @return いずれかのcolspanを分断する境界であれば`true`。
  */
-const doesBoundarySplitColSpan = ( structure: TableStructure, boundary: number ): boolean =>
-	// Reorder Destinationによって結合範囲を分断しないよう、全sectionのcolspan占有範囲を確認する。
-	Object.values( structure.sections ).some(
+const doesBoundarySplitColSpan = ( structure: TableStructure, boundary: number ): boolean => {
+	// Reorder Destinationは、どのsectionであってもcolspanで一体化された範囲の内部には設定できない。
+	const splitsMergedColumnRange = Object.values( structure.sections ).some(
 		( section ) =>
 			section?.rows.some( ( row ) =>
 				row.placements.some(
@@ -58,6 +60,8 @@ const doesBoundarySplitColSpan = ( structure: TableStructure, boundary: number )
 				)
 			) ?? false
 	);
+	return splitsMergedColumnRange;
+};
 
 /**
  * 列固有の結合セル規則を満たす候補だけをReorder Destinationとして返す。
@@ -75,7 +79,7 @@ export const resolveColumnDropTarget = (
 	target: ReorderTarget,
 	destinationIndex: number
 ): ReorderDestination | null => {
-	// 対象列または移動先のどちらかがcolspanの一体性を壊す場合、列DnDは確定候補にできない。
+	// 列DnDを確定できるのは、対象列と移動先のどちらもcolspanの一体性を壊さない場合だけである。
 	if (
 		isColumnInsideColSpan( structure, target.index ) ||
 		doesBoundarySplitColSpan( structure, destinationIndex )
