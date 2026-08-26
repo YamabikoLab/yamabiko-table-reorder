@@ -26,9 +26,7 @@ These instructions apply to source files under `src/`.
 ## Implementation rules
 
 - Prefer public WordPress APIs, hooks, components, and data stores.
-- Keep Gutenberg block attributes and block data as the source of truth for committed reorder results.
-- Input-, block-, and reorder-direction-specific behavior may differ, but shared reorder rules must remain in explicit domain contracts.
-- Resolve editor browsing context from the active editor context rather than assuming global `window` / `document` lifetimes.
+- Keep DOM access correct in both iframe and non-iframe editors, including when the active editor context changes. Do not assume the global `document` or `window` is always the correct and persistent context; resolve them from the current editor context.
 - In Japanese comments and explanatory text in product source and tests, do not insert spaces between Japanese text and adjacent English terms or identifiers unless the space is semantically necessary.
 
 ## Source documentation
