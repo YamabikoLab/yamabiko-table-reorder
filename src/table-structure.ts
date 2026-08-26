@@ -140,7 +140,7 @@ export const getTableBlockSupport = ( blockName: string ): TableBlockSupport | n
  *
  * sectionが未定義の場合は空配列を返し、定義済みsectionのshapeが不正な場合は`null`を返す。
  *
- * @param attributes Table block attributes。
+ * @param attributes  Table block attributes。
  * @param sectionName 取得するsection名。
  */
 export const getTableSectionRows = (
@@ -161,7 +161,7 @@ export const getTableSectionRows = (
  * 各rowのlogical column数が一致しない場合やspan値が不正な場合は、有効なTable構造として
  * 扱えないため`null`を返す。
  *
- * @param rows section内の行配列。
+ * @param rows    section内の行配列。
  * @param support block固有のspan property情報。
  */
 export const createTableSectionLayout = (
@@ -244,7 +244,7 @@ export const createTableSectionLayout = (
  *
  * 存在するsection間でlogical column数が一致しない場合は`null`を返す。
  *
- * @param blockName Gutenberg block名。
+ * @param blockName  Gutenberg block名。
  * @param attributes Table block attributes。
  */
 export const createTableStructure = (

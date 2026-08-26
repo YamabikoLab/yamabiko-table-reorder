@@ -156,13 +156,13 @@ const reorderColumns = (
 /**
  * 確定済み並び替えを新しいTable block attributesへ変換する。
  *
- * Reorder Destinationの`index`は元のTable順序に対する行間または列間の境界indexとして
- * 解釈する。元attributesとcell objectは変更せず、行または列の位置だけを変更する。
- * 不正な入力や同位置へのno-opでは`null`を返す。
+ * Reorder Destination の `index` は元の Table 順序に対する行間または列間の境界 index として
+ * 解釈する。元 attributes と cell object は変更せず、行または列の位置だけを変更する。
+ * 不正な入力や同位置への no-op では `null` を返す。
  *
- * @param blockName Core TableまたはFlexible Table Blockのblock名。
- * @param attributes 現在のTable block attributes。
- * @param committedReorder Data Updateへ渡された確定済み並び替え。
+ * @param blockName        Core Table または Flexible Table Block の block 名。
+ * @param attributes       現在の Table block attributes。
+ * @param committedReorder Data Update へ渡された確定済み並び替え。
  */
 export const applyCommittedReorder = (
 	blockName: string,

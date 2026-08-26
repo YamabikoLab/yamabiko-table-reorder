@@ -71,7 +71,7 @@ export const startReorderSession = (
  *
  * 有効な移動先がなくなった場合は`null`を渡し、確定不能な状態へ戻す。
  *
- * @param session 進行中のReorder Session。
+ * @param session     進行中のReorder Session。
  * @param destination 現在の有効な移動先。存在しない場合は`null`。
  */
 export const updateReorderDestination = (
