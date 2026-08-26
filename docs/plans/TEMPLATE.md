@@ -5,6 +5,7 @@
 - Parent issue:
 - Requirements:
 - Design:
+- Architecture:
 
 ## Goal
 
@@ -22,11 +23,11 @@ Describe the outcome this work should achieve.
 
 ## Approach
 
-Describe the implementation direction and important decisions that already have been made.
+Describe the implementation direction and important implementation decisions that already have been made.
 
-## Architecture
+## Architecture impact
 
-List the main modules, their responsibilities, and the important data or control flow between them.
+Describe where this plan affects the accepted Architecture when relevant. If an Architecture decision or change is required, update the Architecture document before resolving it in the Plan.
 
 ## Implementation phases
 
@@ -42,7 +43,8 @@ Add or remove phases to match the work. Each phase should produce a reviewable r
 
 ### Decide before implementation
 
-- Decisions that block implementation or materially affect the architecture.
+- Implementation decisions that must be settled before the relevant work begins.
+- If a question requires an Architecture decision or change, return it to the Architecture document instead of deciding it here.
 
 ### Validate during implementation
 
@@ -52,7 +54,7 @@ Add or remove phases to match the work. Each phase should produce a reviewable r
 
 - [ ] Child issue or implementation unit:
 
-Create child issues after the plan has been reviewed and the boundaries are stable.
+Create child issues after the plan has been reviewed and the boundaries are stable. Keep each Issue to one reviewable implementation unit and reference this Plan instead of duplicating it.
 
 ## Validation
 
@@ -67,4 +69,4 @@ List the commands and manual checks needed to verify the completed work.
 
 ## Notes
 
-Add constraints, risks, dependencies, or unresolved questions only when they are relevant.
+Add constraints, risks, implementation dependencies, or unresolved questions only when they are relevant.
