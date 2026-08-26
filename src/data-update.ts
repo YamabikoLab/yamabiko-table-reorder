@@ -114,11 +114,7 @@ const reorderColumns = (
 		return null;
 	}
 
-	const indexMap = createColumnIndexMap(
-		structure.columnCount,
-		targetIndex,
-		destinationIndex
-	);
+	const indexMap = createColumnIndexMap( structure.columnCount, targetIndex, destinationIndex );
 	if ( indexMap === null ) {
 		return null;
 	}
@@ -195,11 +191,7 @@ export const applyCommittedReorder = (
  */
 export const commitReorderData = ( request: DataUpdateRequest ): boolean => {
 	const { attributes, blockName, committedReorder, setAttributes } = request;
-	const nextAttributes = applyCommittedReorder(
-		blockName,
-		attributes,
-		committedReorder
-	);
+	const nextAttributes = applyCommittedReorder( blockName, attributes, committedReorder );
 	if ( nextAttributes === null ) {
 		return false;
 	}

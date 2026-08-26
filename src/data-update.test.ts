@@ -54,24 +54,14 @@ describe( 'Data Update', () => {
 			body: [ firstRow, secondRow, thirdRow ],
 			caption: 'caption',
 		};
-		const committedReorder = commitFromResolvedDestination(
-			'core/table',
-			attributes,
-			'row',
-			0,
-			3
-		);
+		const committedReorder = commitFromResolvedDestination( 'core/table', attributes, 'row', 0, 3 );
 
 		expect( committedReorder ).not.toBeNull();
 		if ( committedReorder === null ) {
 			return;
 		}
 
-		const nextAttributes = applyCommittedReorder(
-			'core/table',
-			attributes,
-			committedReorder
-		);
+		const nextAttributes = applyCommittedReorder( 'core/table', attributes, committedReorder );
 
 		expect( nextAttributes ).not.toBeNull();
 		if ( nextAttributes === null ) {
@@ -80,9 +70,7 @@ describe( 'Data Update', () => {
 		expect( nextAttributes.caption ).toBe( 'caption' );
 		expect( nextAttributes.body ).toEqual( [ secondRow, thirdRow, firstRow ] );
 		expect( ( nextAttributes.body as typeof attributes.body )[ 2 ] ).toBe( firstRow );
-		expect( ( nextAttributes.body as typeof attributes.body )[ 2 ].cells[ 0 ] ).toBe(
-			firstCell
-		);
+		expect( ( nextAttributes.body as typeof attributes.body )[ 2 ].cells[ 0 ] ).toBe( firstCell );
 		expect( attributes.body ).toEqual( [ firstRow, secondRow, thirdRow ] );
 	} );
 
@@ -121,11 +109,7 @@ describe( 'Data Update', () => {
 		}
 
 		expect(
-			applyCommittedReorder(
-				'flexible-table-block/table',
-				attributes,
-				committedReorder
-			)
+			applyCommittedReorder( 'flexible-table-block/table', attributes, committedReorder )
 		).toEqual( {
 			...attributes,
 			body: [ thirdRow, firstRow, secondRow ],
@@ -167,11 +151,7 @@ describe( 'Data Update', () => {
 			return;
 		}
 
-		const nextAttributes = applyCommittedReorder(
-			'core/table',
-			attributes,
-			committedReorder
-		);
+		const nextAttributes = applyCommittedReorder( 'core/table', attributes, committedReorder );
 
 		expect( nextAttributes ).not.toBeNull();
 		if ( nextAttributes === null ) {
@@ -186,9 +166,9 @@ describe( 'Data Update', () => {
 		expect( nextAttributes.foot ).toEqual( [
 			{ cells: [ footCells[ 2 ], footCells[ 0 ], footCells[ 1 ] ] },
 		] );
-		expect(
-			( nextAttributes.body as Array< { cells: unknown[] } > )[ 0 ].cells[ 0 ]
-		).toBe( bodyCells[ 2 ] );
+		expect( ( nextAttributes.body as Array< { cells: unknown[] } > )[ 0 ].cells[ 0 ] ).toBe(
+			bodyCells[ 2 ]
+		);
 	} );
 
 	/**
@@ -256,18 +236,9 @@ describe( 'Data Update', () => {
 	 */
 	it( 'when a committed reorder is applied, should update WordPress data exactly once', () => {
 		const attributes = {
-			body: [
-				{ cells: [ { content: 'A' } ] },
-				{ cells: [ { content: 'B' } ] },
-			],
+			body: [ { cells: [ { content: 'A' } ] }, { cells: [ { content: 'B' } ] } ],
 		};
-		const committedReorder = commitFromResolvedDestination(
-			'core/table',
-			attributes,
-			'row',
-			0,
-			2
-		);
+		const committedReorder = commitFromResolvedDestination( 'core/table', attributes, 'row', 0, 2 );
 		const setAttributes = jest.fn();
 
 		expect( committedReorder ).not.toBeNull();

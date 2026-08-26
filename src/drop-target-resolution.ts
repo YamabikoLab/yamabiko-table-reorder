@@ -45,40 +45,38 @@ const isRowBoundaryValid = ( structure: TableStructure, boundary: number ): bool
 		row.placements.some(
 			( placement ) =>
 				placement.rowSpan > 1 &&
-				isBoundaryInsideRange(
-					boundary,
-					row.rowIndex,
-					row.rowIndex + placement.rowSpan - 1
-				)
+				isBoundaryInsideRange( boundary, row.rowIndex, row.rowIndex + placement.rowSpan - 1 )
 		)
 	);
 };
 
 const isColumnTargetMovable = ( structure: TableStructure, targetIndex: number ): boolean =>
-	Object.values( structure.sections ).every( ( section ) =>
-		section?.rows.every( ( row ) =>
-			row.placements.every(
-				( placement ) =>
-					placement.columnSpan === 1 ||
-					targetIndex < placement.columnStart ||
-					targetIndex >= placement.columnStart + placement.columnSpan
-			)
-		) ?? true
+	Object.values( structure.sections ).every(
+		( section ) =>
+			section?.rows.every( ( row ) =>
+				row.placements.every(
+					( placement ) =>
+						placement.columnSpan === 1 ||
+						targetIndex < placement.columnStart ||
+						targetIndex >= placement.columnStart + placement.columnSpan
+				)
+			) ?? true
 	);
 
 const isColumnBoundaryValid = ( structure: TableStructure, boundary: number ): boolean =>
-	Object.values( structure.sections ).every( ( section ) =>
-		section?.rows.every( ( row ) =>
-			row.placements.every(
-				( placement ) =>
-					placement.columnSpan === 1 ||
-					! isBoundaryInsideRange(
-						boundary,
-						placement.columnStart,
-						placement.columnStart + placement.columnSpan - 1
-					)
-			)
-		) ?? true
+	Object.values( structure.sections ).every(
+		( section ) =>
+			section?.rows.every( ( row ) =>
+				row.placements.every(
+					( placement ) =>
+						placement.columnSpan === 1 ||
+						! isBoundaryInsideRange(
+							boundary,
+							placement.columnStart,
+							placement.columnStart + placement.columnSpan - 1
+						)
+				)
+			) ?? true
 	);
 
 const isNoopDestination = ( targetIndex: number, destinationIndex: number ): boolean =>

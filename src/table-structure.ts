@@ -183,9 +183,7 @@ export const createTableSectionLayout = (
 		const row = rows[ rowIndex ];
 		const occupiedColumns = remainingRowSpans.map( ( remaining ) => remaining > 0 );
 		const placements: TableCellPlacement[] = [];
-		const nextRowSpans = remainingRowSpans.map( ( remaining ) =>
-			Math.max( remaining - 1, 0 )
-		);
+		const nextRowSpans = remainingRowSpans.map( ( remaining ) => Math.max( remaining - 1, 0 ) );
 		let searchFrom = 0;
 
 		for ( let cellIndex = 0; cellIndex < row.cells.length; cellIndex++ ) {
@@ -196,19 +194,12 @@ export const createTableSectionLayout = (
 				return null;
 			}
 
-			const columnStart = findFreeColumnStart(
-				occupiedColumns,
-				searchFrom,
-				columnSpan
-			);
+			const columnStart = findFreeColumnStart( occupiedColumns, searchFrom, columnSpan );
 			for ( let offset = 0; offset < columnSpan; offset++ ) {
 				const columnIndex = columnStart + offset;
 				occupiedColumns[ columnIndex ] = true;
 				if ( rowSpan > 1 ) {
-					nextRowSpans[ columnIndex ] = Math.max(
-						nextRowSpans[ columnIndex ] ?? 0,
-						rowSpan - 1
-					);
+					nextRowSpans[ columnIndex ] = Math.max( nextRowSpans[ columnIndex ] ?? 0, rowSpan - 1 );
 				}
 			}
 
@@ -297,5 +288,5 @@ export const createTableStructure = (
 		: {
 				columnCount,
 				sections,
-			};
+		  };
 };
