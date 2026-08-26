@@ -15,7 +15,12 @@ import {
 	type TableSectionName,
 } from './table-block-adapter';
 
-export type { TableBlockAttributes, TableCell, TableRow, TableSectionName } from './table-block-adapter';
+export type {
+	TableBlockAttributes,
+	TableCell,
+	TableRow,
+	TableSectionName,
+} from './table-block-adapter';
 
 /**
  * 1つのセルが、テーブル上で占有する列位置と結合範囲。
@@ -61,8 +66,8 @@ export type TableStructure = {
  * セルが複数列を占有する場合は、その全範囲が空いている位置だけを候補とする。
  *
  * @param occupiedColumns 上の行から続くrowspanによって現在使用できない列。
- * @param fromIndex 現在の行で探索を開始する列位置。
- * @param columnSpan 配置するセルが連続して必要とする列数。
+ * @param fromIndex       現在の行で探索を開始する列位置。
+ * @param columnSpan      配置するセルが連続して必要とする列数。
  * @return セル全体を配置できる先頭列の位置。
  */
 const findFreeColumnStart = (
@@ -93,7 +98,7 @@ const findFreeColumnStart = (
  *
  * すべての行が同じ列数で整合し、各結合セルの占有範囲をセクション内で完結して解釈できる場合だけ結果を返す。
  *
- * @param rows 構造を確定するセクションの行。
+ * @param rows    構造を確定するセクションの行。
  * @param adapter 対象ブロックの保存形式を共通形式へ変換する処理。
  * @return 列位置を確定したセクション。テーブル構造として成立しない場合は`null`。
  */
@@ -189,7 +194,7 @@ export const createTableSectionLayout = (
  * 存在するすべてのセクションで列数が一致し、どのセクションでも同じ列位置が同じ列を指す場合だけ結果を返す。
  * 未対応のブロックや、構造を一意に解釈できないテーブルは並び替え対象にしない。
  *
- * @param blockName 対象のGutenbergブロック名。
+ * @param blockName  対象のGutenbergブロック名。
  * @param attributes 並び替え前のテーブル属性。入力値は変更しない。
  * @return 行・列の並び替えで共通利用できるテーブル構造。確定できない場合は`null`。
  */

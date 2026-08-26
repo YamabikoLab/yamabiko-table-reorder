@@ -10,7 +10,7 @@
  *
  * 元の順序が変わらない移動や、有効な整数位置として扱えない要求には挿入先が存在しない。
  *
- * @param targetIndex 元の順序で移動対象を表す位置。
+ * @param targetIndex      元の順序で移動対象を表す位置。
  * @param destinationIndex 元の順序に対して確定した移動先の境界位置。
  * @return 対象を除いた後に挿入すべき位置。移動が成立しない場合は`null`。
  */
@@ -38,8 +38,8 @@ const getDestinationItemIndex = (
  *
  * 元の要素列は変更しない。対象または移動先を一意に確定できない場合は、部分的な並び替え結果を返さない。
  *
- * @param items 並び替え対象を含む更新前の要素列。
- * @param targetIndex 元の順序で移動対象を表す位置。
+ * @param items            並び替え対象を含む更新前の要素列。
+ * @param targetIndex      元の順序で移動対象を表す位置。
  * @param destinationIndex 元の順序に対して確定した移動先の境界位置。
  * @return 並び替え後の新しい要素列。要求が成立しない場合は`null`。
  */

@@ -13,7 +13,7 @@ import type { TableStructure } from '@/reorder/table-structure';
  *
  * rowspanで結合された範囲は1つの構造として保持するため、その範囲に含まれる行は単独では移動できない。
  *
- * @param structure 判定対象となるテーブル構造。
+ * @param structure   判定対象となるテーブル構造。
  * @param targetIndex 移動対象として検討している行の位置。
  * @return 移動対象がrowspanの結合範囲に含まれる場合は`true`。
  */
@@ -40,7 +40,7 @@ const isRowInsideRowSpan = ( structure: TableStructure, targetIndex: number ): b
  * 移動先の境界が、rowspanで結合された範囲を上下に分断するかを判定する。
  *
  * @param structure 判定対象となるテーブル構造。
- * @param boundary 移動先として検討している行間の境界位置。
+ * @param boundary  移動先として検討している行間の境界位置。
  * @return rowspanの結合範囲を分断する場合は`true`。
  */
 const doesBoundarySplitRowSpan = ( structure: TableStructure, boundary: number ): boolean => {
@@ -67,8 +67,8 @@ const doesBoundarySplitRowSpan = ( structure: TableStructure, boundary: number )
  * 移動対象の行または移動先がrowspanの一体性を壊す場合は、行の並び替えを確定しない。
  * 範囲外や順序が変わらない候補など、行・列に共通する妥当性は呼び出し元で確認済みとする。
  *
- * @param structure 行並び替えの基準となるテーブル構造。
- * @param target 今回移動する行。
+ * @param structure        行並び替えの基準となるテーブル構造。
+ * @param target           今回移動する行。
  * @param destinationIndex 元の行順に対する移動先の境界位置。
  * @return 行固有の規則を満たす移動先。rowspanを保持できない場合は`null`。
  */

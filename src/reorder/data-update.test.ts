@@ -15,10 +15,10 @@ import {
  *
  * 移動先判定と並び替え操作の確定を省略せず通すことで、実際の更新処理と同じ前提を満たす入力を作る。
  *
- * @param blockName テスト対象のGutenbergブロック名。
- * @param attributes 判定と更新の基準となるテーブル属性。
- * @param kind テストする行または列の並び替え種別。
- * @param targetIndex 元の順序で移動対象を表す位置。
+ * @param blockName        テスト対象のGutenbergブロック名。
+ * @param attributes       判定と更新の基準となるテーブル属性。
+ * @param kind             テストする行または列の並び替え種別。
+ * @param targetIndex      元の順序で移動対象を表す位置。
  * @param destinationIndex 元の順序に対する候補境界の位置。
  * @return 有効な候補から生成した確定済みの並び替え。確定できない場合は`null`。
  */

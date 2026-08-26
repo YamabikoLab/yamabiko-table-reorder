@@ -15,8 +15,8 @@ import { createTableStructure } from './table-structure';
  * 値が、指定範囲内の有効な整数位置として利用できるかを判定する。
  *
  * @param value 判定対象の値。
- * @param min 許可する最小値。
- * @param max 許可する最大値。
+ * @param min   許可する最小値。
+ * @param max   許可する最大値。
  * @return 有効な整数位置であれば`true`。
  */
 const isIntegerInRange = ( value: number, min: number, max: number ): boolean => {
@@ -29,7 +29,7 @@ const isIntegerInRange = ( value: number, min: number, max: number ): boolean =>
  *
  * 対象の直前または直後は移動後の順序が変わらないため、並び替え先として確定しない。
  *
- * @param targetIndex 元の順序で移動対象を表す位置。
+ * @param targetIndex      元の順序で移動対象を表す位置。
  * @param destinationIndex 元の順序に対する候補境界の位置。
  * @return 並び順が変化しない候補であれば`true`。
  */

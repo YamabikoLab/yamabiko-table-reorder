@@ -46,7 +46,7 @@ export type CommittedReorder = {
  *
  * 通常編集では並び替えを開始しない。
  *
- * @param mode 操作開始時点の状態。
+ * @param mode   操作開始時点の状態。
  * @param target 今回の操作で最後まで同一対象として扱う行または列。
  * @return 開始した並び替え操作。通常編集では`null`。
  */
@@ -72,7 +72,7 @@ export const startReorderSession = (
  *
  * 移動対象と並び替え種別は開始時のまま保持し、移動先だけを更新する。
  *
- * @param session 更新対象となる進行中の並び替え操作。
+ * @param session     更新対象となる進行中の並び替え操作。
  * @param destination 現在有効な移動先。候補がない場合は`null`。
  * @return 移動先だけを更新した並び替え操作。
  */

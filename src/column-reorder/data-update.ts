@@ -14,10 +14,10 @@ import { createTableStructure, type TableBlockAttributes } from '@/reorder/table
  *
  * 同じ対応関係を全セクションで共有することで、テーブル全体を1つの列移動として更新する。
  *
- * @param columnCount 並び替え前のテーブルで共有する列数。
- * @param targetIndex 元の順序で移動対象となる列の位置。
+ * @param columnCount      並び替え前のテーブルで共有する列数。
+ * @param targetIndex      元の順序で移動対象となる列の位置。
  * @param destinationIndex 元の順序に対して確定した移動先の境界位置。
- * @return 元の列位置から移動後の列位置への対応表。移動要求が成立しない場合は`null`。
+ * @return               元の列位置から移動後の列位置への対応表。移動要求が成立しない場合は`null`。
  */
 const createColumnIndexMap = (
 	columnCount: number,
@@ -46,9 +46,9 @@ const createColumnIndexMap = (
  * 各セルが占有する列の移動後位置に従ってセル順だけを組み替える。ブロック固有の読み書きに失敗した場合や、
  * 更新後の各セクションで列の対応関係を保てない場合は、途中まで更新した結果を返さない。
  *
- * @param blockName 列並び替え対象のGutenbergブロック名。
- * @param attributes 並び替え前のテーブル属性。入力値は変更しない。
- * @param targetIndex 元の列順で移動対象となる列の位置。
+ * @param blockName        列並び替え対象のGutenbergブロック名。
+ * @param attributes       並び替え前のテーブル属性。入力値は変更しない。
+ * @param targetIndex      元の列順で移動対象となる列の位置。
  * @param destinationIndex 元の列順に対して確定した移動先の境界位置。
  * @return 列位置だけを変更した新しい属性。テーブル構造を保持できない場合は`null`。
  */

@@ -33,8 +33,8 @@ export type DataUpdateRequest = {
  *
  * 対応テーブルであることだけをこの境界で確認し、実際の行・列更新は対応する処理へ委ねる。
  *
- * @param blockName 更新対象のGutenbergブロック名。
- * @param attributes 並び替え前のテーブル属性。入力値は変更しない。
+ * @param blockName        更新対象のGutenbergブロック名。
+ * @param attributes       並び替え前のテーブル属性。入力値は変更しない。
  * @param committedReorder 妥当性確認を経て確定した1回の並び替え。
  * @return 並び替え後の属性。安全に更新できない場合は`null`。
  */

@@ -57,7 +57,7 @@ export type TableBlockAdapter = {
  * セクションが存在しない場合は、そのセクションを持たない有効なテーブルとして空配列を返す。
  * 存在するセクションを行とセルの集合として完全に解釈できない場合は、推測せず`null`を返す。
  *
- * @param attributes 読み取り元のテーブル属性。
+ * @param attributes  読み取り元のテーブル属性。
  * @param sectionName 読み取るセクション。
  * @return 読み取った行。セクションが存在しない場合は空配列、解釈できない場合は`null`。
  */
@@ -84,9 +84,9 @@ const readStandardSectionRows = (
  *
  * テーブル以外の属性は保持し、指定されたセクションだけを置き換える。
  *
- * @param attributes 更新前のテーブル属性。
+ * @param attributes  更新前のテーブル属性。
  * @param sectionName 更新するセクション。
- * @param rows 書き戻す行データ。
+ * @param rows        書き戻す行データ。
  * @return 指定セクションだけを更新した属性。
  */
 const writeStandardSectionRows = (
@@ -139,7 +139,7 @@ const isTableRow = ( value: unknown ): value is TableRow => {
  *
  * 値が省略されている場合は通常のセルとして1を返す。占有範囲を一意に確定できない値は推測しない。
  *
- * @param cell 結合範囲を読み取るセル。
+ * @param cell     結合範囲を読み取るセル。
  * @param property 対象ブロックが結合範囲を保存する属性名。
  * @return 1以上の占有数。保存値を正しく解釈できない場合は`null`。
  */
@@ -167,7 +167,7 @@ const getSpan = ( cell: TableCell, property: string ): number | null => {
  * 共通のセクション・行・セル保存形式に、ブロック固有の結合セル属性名を対応付ける。
  *
  * @param columnSpanProperty 列方向の結合数を保存する属性名。
- * @param rowSpanProperty 行方向の結合数を保存する属性名。
+ * @param rowSpanProperty    行方向の結合数を保存する属性名。
  * @return 対応ブロックの保存形式を共通形式へ接続する変換処理。
  */
 const createStandardTableBlockAdapter = (

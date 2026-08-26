@@ -14,9 +14,9 @@ import type { TableBlockAttributes } from '@/reorder/table-structure';
  *
  * 対応ブロックの行データを安全に読み書きできない場合は、途中まで更新した結果を返さない。
  *
- * @param blockName 行並び替え対象のGutenbergブロック名。
- * @param attributes 並び替え前のテーブル属性。入力値は変更しない。
- * @param targetIndex 元の行順で移動対象を表す位置。
+ * @param blockName        行並び替え対象のGutenbergブロック名。
+ * @param attributes       並び替え前のテーブル属性。入力値は変更しない。
+ * @param targetIndex      元の行順で移動対象を表す位置。
  * @param destinationIndex 元の行順に対する移動先の境界位置。
  * @return 行順だけを変更した新しい属性。更新を成立させられない場合は`null`。
  */

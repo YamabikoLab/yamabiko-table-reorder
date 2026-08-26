@@ -14,7 +14,7 @@ import type { TableStructure } from '@/reorder/table-structure';
  *
  * colspanで結合された範囲は1つの構造として保持するため、その範囲に含まれる列は単独では移動できない。
  *
- * @param structure 判定対象となるテーブル構造。
+ * @param structure   判定対象となるテーブル構造。
  * @param targetIndex 移動対象として検討している列の位置。
  * @return 移動対象がいずれかのcolspanの結合範囲に含まれる場合は`true`。
  */
@@ -40,7 +40,7 @@ const isColumnInsideColSpan = ( structure: TableStructure, targetIndex: number )
  * 移動先の境界が、colspanで結合された範囲を左右に分断するかを判定する。
  *
  * @param structure 判定対象となるテーブル構造。
- * @param boundary 移動先として検討している列間の境界位置。
+ * @param boundary  移動先として検討している列間の境界位置。
  * @return いずれかのcolspanの結合範囲を分断する場合は`true`。
  */
 const doesBoundarySplitColSpan = ( structure: TableStructure, boundary: number ): boolean => {
@@ -70,8 +70,8 @@ const doesBoundarySplitColSpan = ( structure: TableStructure, boundary: number )
  * 移動対象の列または移動先がcolspanの一体性を壊す場合は、列の並び替えを確定しない。
  * 範囲外や順序が変わらない候補など、行・列に共通する妥当性は呼び出し元で確認済みとする。
  *
- * @param structure 列並び替えの基準となるテーブル構造。
- * @param target 今回移動する列。
+ * @param structure        列並び替えの基準となるテーブル構造。
+ * @param target           今回移動する列。
  * @param destinationIndex 元の列順に対する移動先の境界位置。
  * @return 列固有の規則を満たす移動先。colspanを保持できない場合は`null`。
  */
