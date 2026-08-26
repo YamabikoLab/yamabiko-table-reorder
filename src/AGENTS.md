@@ -17,11 +17,18 @@ These instructions apply to source files under `src/`.
 - Prefer responsibility-based boundaries over speculative abstractions.
 - Do not create generic `shared/`, `utils/`, or `helpers/` directories for possible future reuse.
 
+## Code structure and reuse
+
+- Commonize code based on shared responsibility and reason for change, not merely because implementations look similar.
+- Keep input-, DOM-, WordPress-, and editor-specific adaptation at their appropriate boundaries rather than leaking those concerns into shared reorder logic.
+- Prefer side-effect-free logic for domain decisions and data transformations when practical.
+- Keep mutable state owned by one responsibility. Do not maintain independent copies of the same authoritative state across responsibilities.
+
 ## Implementation rules
 
 - Prefer public WordPress APIs, hooks, components, and data stores.
 - Keep Gutenberg block attributes and block data as the source of truth for committed reorder results.
-- Input-specific behavior may differ for keyboard, pointer, and touch, but shared reorder rules must remain in explicit domain contracts.
+- Input-, block-, and reorder-direction-specific behavior may differ, but shared reorder rules must remain in explicit domain contracts.
 - Preserve the v1 performance principles defined in #481: do not make UI, listeners, geometry work, or hot-path scans scale with total row count when avoidable; do not reorder the real Table DOM during drag; commit logical data only when the operation is finalized.
 - Resolve editor browsing context from the active editor context rather than assuming global `window` / `document` lifetimes.
 - In Japanese comments and explanatory text in product source and tests, do not insert spaces between Japanese text and adjacent English terms or identifiers unless the space is semantically necessary.
