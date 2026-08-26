@@ -16,7 +16,7 @@ These instructions apply to the entire repository.
 - The repository root is the WordPress plugin root.
 - `src/` contains active formal v1 product source. Read `src/AGENTS.md` before changing files under `src/`.
 - `tests/e2e/` contains active formal v1 Playwright coverage. Read `tests/e2e/AGENTS.md` before changing E2E files.
-- `docs/design/AGENTS.md` and `docs/requirements/AGENTS.md` define the responsibility and abstraction level of future design and requirements documents.
+- `docs/requirements/AGENTS.md`, `docs/design/AGENTS.md`, and `docs/architecture/AGENTS.md` define the responsibility and abstraction level of future requirements, design, and architecture documents.
 - `docs/development/` contains development principles and operating documentation that remain valid for formal v1.
 - Local WordPress development infrastructure is maintained in the separate `YamabikoLab/wp-dev` repository.
 
@@ -29,7 +29,7 @@ These instructions apply to the entire repository.
 - Read `docs/development/releasing.md` before updating versions or creating a release tag.
 - Use `docs/plans/TEMPLATE.md` only when a formal v1 change requires a multi-step implementation plan or an important implementation decision.
 - Keep only active formal v1 implementation plans under `docs/plans/`. Do not recreate `docs/plans/archive/`; historical Prototype plans are available from `prototype-final`.
-- Create requirements and design documents from accepted formal v1 decisions rather than copying Prototype documents forward.
+- Create requirements, design, and architecture documents from accepted formal v1 decisions rather than copying Prototype documents forward.
 - Simple fixes and documentation-only changes do not require a plan.
 
 ## Working rules
@@ -55,6 +55,7 @@ These instructions apply to the entire repository.
 - Put durable repository-wide development principles and rationale in `docs/development/`.
 - Put user/product requirements in `docs/requirements/` and follow its `AGENTS.md`.
 - Put user-visible design behavior in `docs/design/` and follow its `AGENTS.md`.
+- Put internal responsibilities, boundaries, state ownership, contracts, dependencies, lifecycle, and invariants in `docs/architecture/` and follow its `AGENTS.md`.
 - Update the relevant documentation when a command, directory boundary, dependency, or development rule changes.
 - Avoid repeating detailed command lists across documents. Use `docs/development/testing.md` as the source of truth for validation commands.
 
