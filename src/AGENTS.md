@@ -9,16 +9,13 @@ These instructions apply to source files under `src/`.
 
 ## Source organization
 
-- Keep `src/index.tsx` as a thin plugin-wide entry point.
-- Prefer responsibility-based boundaries over speculative abstractions.
-- Do not create generic `shared/`, `utils/`, or `helpers/` directories for possible future reuse.
+- Keep the source structure easy to navigate by making file and directory boundaries reflect concrete responsibilities. Keep `src/index.tsx` as a thin plugin-wide entry point.
+- Keep code easy to locate by avoiding generic `shared/`, `utils/`, or `helpers/` directories unless they represent a concrete responsibility.
 
 ## Code structure and reuse
 
-- Commonize code based on shared responsibility and reason for change, not merely because implementations look similar.
-- Keep input-, DOM-, WordPress-, and editor-specific adaptation at their appropriate boundaries rather than leaking those concerns into shared reorder logic.
-- Prefer side-effect-free logic for domain decisions and data transformations when practical.
-- Keep mutable state owned by one responsibility. Do not maintain independent copies of the same authoritative state across responsibilities.
+- Keep abstractions meaningful and stable by introducing them only for concrete responsibilities or shared reasons for change. Do not abstract or commonize code merely because implementations currently look similar.
+- Keep implementation details from crossing responsibility boundaries by placing integration-specific adaptation at the boundaries defined by the Architecture.
 
 ## React readability
 
