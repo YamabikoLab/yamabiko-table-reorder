@@ -239,13 +239,13 @@ describe( 'Data Update', () => {
 			body: [ { cells: [ { content: 'A' } ] }, { cells: [ { content: 'B' } ] } ],
 		};
 		const committedReorder = commitFromResolvedDestination( 'core/table', attributes, 'row', 0, 2 );
-		const setAttributes = jest.fn();
 
 		expect( committedReorder ).not.toBeNull();
 		if ( committedReorder === null ) {
 			return;
 		}
 
+		const setAttributes = jest.fn();
 		expect(
 			commitReorderData( {
 				attributes,
