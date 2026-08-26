@@ -42,6 +42,7 @@ When reviewing React code, focus on React-specific correctness, lifecycle behavi
 
 - Prefer public WordPress APIs, hooks, components, and data stores.
 - Keep DOM access correct in both iframe and non-iframe editors, including when the active editor context changes. Do not assume the global `document` or `window` is always the correct and persistent context; resolve them from the current editor context.
+- Use terminology defined in `../docs/glossary.md` for source code identifiers, JSDoc, and comments. When introducing a new concept that cannot be expressed with existing glossary terminology, update the glossary as part of the same change.
 - In Japanese comments and explanatory text in product source and tests, do not insert spaces between Japanese text and adjacent English terms or identifiers unless the space is semantically necessary.
 
 ## Source documentation
