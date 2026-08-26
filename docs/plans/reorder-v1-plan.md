@@ -25,6 +25,7 @@
 ### Not included
 
 - Keyboard操作、ドラッグを必要としない操作、focus、announcementなど、別要件として扱うアクセシビリティ実装
+- Playwright E2Eの整備
 - Requirements、Design、Architectureの再定義
 
 ## Approach
@@ -35,7 +36,7 @@
 - 行と列はDnD Lifecycleとcommit/cancelの流れを共通化し、方向やTable構造の差を各境界へ閉じ込める。
 - Core TableとFlexible Table Blockの差は共通DnD進行へ持ち込まず、対象Tableの構造取得と確定更新に必要な境界で扱う。
 - DnD中は実データを更新せず、確定時に1回だけ更新する。大規模Tableでは操作中の処理対象を必要範囲へ限定する。
-- 各PhaseでJestまたはPlaywrightの適切な側に検証を追加し、後続Phaseが依存できる状態を確認してから進める。
+- 各PhaseでそのPhaseに適した検証を行い、後続Phaseが依存できる状態を確認してから進める。
 
 ## Implementation phases
 
@@ -60,7 +61,7 @@
   - 行・列それぞれの開始対象と並び替え方向を共通Contractへ接続する。
   - 通常編集状態ではDnDを開始しない境界を実装する。
 - Validation:
-  - PCとタッチ端末の実入力から行・列DnDが成立することをPlaywrightで確認する。
+  - PCとタッチ端末の入力解釈とDnD開始境界をJestで確認する。
   - 通常編集とDnD開始が競合しないことを確認する。
 
 ### Phase 3: DnD Presentation
@@ -108,9 +109,7 @@
   - 400行以上、12列以上、または2,000セル以上の大規模Tableで主要DnD経路を計測する。
   - 最大1,000行・20列・20,000セルを想定した負荷で、操作中の全体走査、常駐状態、不要な表示更新を確認する。
   - 必要に応じて実装方式を調整する。ただしArchitecture変更が必要な場合は先にArchitectureを更新する。
-  - Core TableとFlexible Table Blockの主要E2Eを揃える。
 - Validation:
-  - 行・列、PC・タッチ、Core Table・Flexible Table Blockの主要フローをPlaywrightで確認する。
   - 大規模TableでDnDの実用性を計測し、ボトルネックがArchitectureのPerformance制約に反していないことを確認する。
 
 ## Decisions and validation questions
@@ -139,18 +138,16 @@
 - [ ] First-use Guidanceを実装する
 - [ ] Reorder Rediscoveryを実装する
 - [ ] 大規模TableのPerformanceを検証・調整する
-- [ ] Core TableとFlexible Table Blockの正式v1 E2Eを完成させる
 
 子Issueは本Planのレビュー後に作成し、実装順序または検証上の依存がある場合だけIssue間依存を設定する。
 
 ## Validation
 
-検証コマンドと環境は`docs/development/testing.md`に従う。
+検証コマンドと環境は`docs/development/testing.md`に従う。Playwright E2Eの整備は本Planの対象外とし、専用Issueで扱う。
 
 - DocumentationのみのPlan変更: `git diff --check origin/main...HEAD`
 - TypeScript、CSSなどの実装変更: `npm test`、`npm run build`、repository check
-- WordPress実環境の操作確認: 対応するPlaywright E2E
-- Expected result: 各PhaseのOutcomeとArchitectureのInvariantを維持した状態で、そのPhaseに必要な自動検証が成功する。
+- Expected result: 各PhaseのOutcomeとArchitectureのInvariantを維持した状態で、そのPhaseに必要な検証が成功する。
 
 ## Completion criteria
 
