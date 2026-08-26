@@ -31,6 +31,8 @@ Describe where this plan affects the accepted Architecture when relevant. If an 
 
 ## Implementation phases
 
+Each phase should normally correspond to one GitHub Issue. Split a phase only when necessary to keep each change reviewable, and record those implementation units within the phase.
+
 ### Phase 1: Phase name
 
 - Outcome:
@@ -49,12 +51,6 @@ Add or remove phases to match the work. Each phase should produce a reviewable r
 ### Validate during implementation
 
 - Questions that can be answered safely through a spike, prototype, or measured implementation result.
-
-## Issue breakdown
-
-- [ ] Child issue or implementation unit:
-
-Create child issues after the plan has been reviewed and the boundaries are stable. Keep each Issue to one reviewable implementation unit and reference this Plan instead of duplicating it.
 
 ## Validation
 
