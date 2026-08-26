@@ -32,7 +32,7 @@ describe( 'Reorder Mode', () => {
 	 * - row種別のReorder Modeへ切り替える。
 	 *
 	 * 期待結果:
-	 * - 現在状態とDnD種別がどちらも`row`になる。
+	 * - 現在状態と並び替え種別がどちらも`row`になる。
 	 */
 	it( 'when row reorder is selected, should expose row kind', () => {
 		const mode = enterReorderMode( 'row' );
@@ -51,7 +51,7 @@ describe( 'Reorder Mode', () => {
 	 * - column種別のReorder Modeへ切り替える。
 	 *
 	 * 期待結果:
-	 * - 現在状態とDnD種別がどちらも`column`になる。
+	 * - 現在状態と並び替え種別がどちらも`column`になる。
 	 */
 	it( 'when column reorder is selected, should expose column kind', () => {
 		const mode = enterReorderMode( 'column' );
@@ -61,7 +61,7 @@ describe( 'Reorder Mode', () => {
 	} );
 
 	/**
-	 * 並び替えモード終了後にDnD種別がなくなることを確認する。
+	 * 並び替えモード終了後に並び替え種別がなくなることを確認する。
 	 *
 	 * 事前条件:
 	 * - 行または列の並び替えモードが有効である。
@@ -70,7 +70,7 @@ describe( 'Reorder Mode', () => {
 	 * - exitReorderMode()を実行する。
 	 *
 	 * 期待結果:
-	 * - 通常編集状態へ戻り、DnD種別は`null`になる。
+	 * - 通常編集状態へ戻り、並び替え種別は`null`になる。
 	 */
 	it( 'when reorder mode exits, should return to edit mode', () => {
 		const mode = exitReorderMode();
