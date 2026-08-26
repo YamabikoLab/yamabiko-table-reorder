@@ -1,4 +1,4 @@
-import { getReorderDirection, type ReorderDirection, type ReorderMode } from './reorder-mode';
+import { getReorderKind, type ReorderKind, type ReorderMode } from './reorder-mode';
 
 /**
  * 1回のDnDで移動する行または列を表す。
@@ -22,11 +22,11 @@ export type ReorderDestination = {
 /**
  * 進行中の1回の並び替え操作を表す共通Reorder Session。
  *
- * 入力方式やTable実装に依存せず、方向、移動対象、現在の有効な移動先だけを
+ * 入力方式やTable実装に依存せず、行・列の種別、移動対象、現在の有効な移動先だけを
  * 操作中に保持する。完了またはキャンセル後はこの状態を次のDnDへ持ち越さない。
  */
 export type ReorderSession = {
-	direction: ReorderDirection;
+	kind: ReorderKind;
 	target: ReorderTarget;
 	destination: ReorderDestination | null;
 };
@@ -35,7 +35,7 @@ export type ReorderSession = {
  * Data Updateへ渡せる確定済みの並び替えを表す。
  */
 export type CommittedReorder = {
-	direction: ReorderDirection;
+	kind: ReorderKind;
 	target: ReorderTarget;
 	destination: ReorderDestination;
 };
@@ -52,14 +52,14 @@ export const startReorderSession = (
 	mode: ReorderMode,
 	target: ReorderTarget
 ): ReorderSession | null => {
-	const direction = getReorderDirection( mode );
+	const kind = getReorderKind( mode );
 
-	if ( direction === null ) {
+	if ( kind === null ) {
 		return null;
 	}
 
 	return {
-		direction,
+		kind,
 		target,
 		destination: null,
 	};
@@ -92,7 +92,7 @@ export const completeReorderSession = ( session: ReorderSession ): CommittedReor
 	}
 
 	return {
-		direction: session.direction,
+		kind: session.kind,
 		target: session.target,
 		destination: session.destination,
 	};
