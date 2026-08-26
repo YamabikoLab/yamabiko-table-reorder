@@ -32,6 +32,55 @@ These instructions apply to source files under `src/`.
 - Support keyboard operation, visible focus, announcements, focus restoration, and Undo according to the contracts defined from #481.
 - Do not communicate meaning through color alone.
 
+## Jest tests
+
+Jest tests should be structured so that their purpose and expected behavior can be understood without reading the implementation in detail.
+
+### Test organization
+
+- Group test cases with `describe` by meaningful behavior, scenario, or responsibility.
+- Prefer behavior-oriented groups over implementation details such as helper functions or internal processing steps.
+
+### Test case names
+
+- Write each `it` or `test` description as a condition and expected result using `when <condition or action>, should <expected result>`.
+- The `when` part should describe the condition or action being tested.
+- The `should` part should describe the externally observable expected result.
+
+### Test case documentation
+
+- Add a Japanese comment immediately before each test case so that the purpose of the test can be understood without reading the implementation.
+- Include the following information:
+  - 概要: 何を確認するテストなのか
+  - 事前条件: テスト実行前に成立している状態
+  - 操作: テスト対象に対して何を行うのか
+  - 期待結果: 操作の結果として何が成立すべきか
+- Keep the explanation focused on the behavior being verified and avoid repeating implementation details that are already obvious from the test code.
+
+Example:
+
+```ts
+/**
+ * editor iframe 内の対象ブロックから環境を解決できることを確認する。
+ *
+ * 事前条件:
+ * - 外側の document には対象ブロックが存在しない。
+ * - editor iframe 内には対象ブロックが存在する。
+ *
+ * 操作:
+ * - resolveEditorEnvironment() を実行する。
+ *
+ * 期待結果:
+ * - 対象ブロックを含む iframe の document と window が返される。
+ */
+it(
+	'when the target block exists only in an editor iframe, should return the iframe document and window',
+	() => {
+		// ...
+	}
+);
+```
+
 ## Dependencies and generated files
 
 - Add dependencies only for concrete v1 needs.
