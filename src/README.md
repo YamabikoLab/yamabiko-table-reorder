@@ -17,6 +17,7 @@ src/
 │   ├── drop-target-rules.ts
 │   ├── data-update.ts
 │   ├── data-update-rules.ts
+│   ├── table-block-adapter.ts
 │   └── table-structure.ts
 ├── row-reorder/
 │   ├── drop-target-resolution.ts
@@ -26,7 +27,7 @@ src/
     └── data-update.ts
 ```
 
-- `reorder/`は、行・列で共有するReorder Mode、Reorder Session、Drop Target Resolution、Data Update、Table StructureのContractと共通ルールを所有します。行・列固有の判断はここへ混在させず、共通入口から各featureへ委譲します。
+- `reorder/`は、行・列で共有するReorder Mode、Reorder Session、Drop Target Resolution、Data Update、Table Block Adapter、Table StructureのContractと共通ルールを所有します。対応Table固有の保存形式はTable Block Adapterへ閉じ込め、行・列の共通責務へblock別分岐を持ち込みません。行・列固有の判断はここへ混在させず、共通入口から各featureへ委譲します。
 - `row-reorder/`は、rowspanを壊さない移動先判定やbodyの行順更新など、行並び替えだけが持つ責務を所有します。
 - `column-reorder/`は、colspanを壊さない移動先判定や全sectionを同じlogical column移動として更新する責務を所有します。
 - `index.tsx`や`messages.ts`のようにplugin全体へ属する責務は、Reorderのfeature境界へ無理に含めず`src/`直下に置きます。
