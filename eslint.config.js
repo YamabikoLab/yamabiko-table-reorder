@@ -23,6 +23,23 @@ module.exports = [
 	},
 	...wordpress.configs.recommended,
 	{
+		files: [ 'src/**/*.{js,jsx,ts,tsx}' ],
+		rules: {
+			'no-restricted-imports': [
+				'error',
+				{
+					patterns: [
+						{
+							regex: '^\\.\\./',
+							message:
+								'Use the @/ alias instead of a parent-relative import.',
+						},
+					],
+				},
+			],
+		},
+	},
+	{
 		files: [ '**/*.ts', '**/*.tsx' ],
 		languageOptions: {
 			parserOptions: {
