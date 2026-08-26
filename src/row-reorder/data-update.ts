@@ -5,8 +5,8 @@
  * Table内容やblock固有情報を失わないことを保証する。
  */
 
-import { moveArrayItem } from '../reorder/data-update-rules';
-import type { TableBlockAttributes } from '../reorder/table-structure';
+import { moveArrayItem } from '@/reorder/data-update-rules';
+import type { TableBlockAttributes } from '@/reorder/table-structure';
 
 /**
  * body内の1行を確定したReorder Destinationへ移動した新しいattributesを生成する。

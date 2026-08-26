@@ -5,12 +5,12 @@
  * 更新後もTable Structureとして成立する場合だけ結果を確定する。
  */
 
-import { moveArrayItem } from '../reorder/data-update-rules';
+import { moveArrayItem } from '@/reorder/data-update-rules';
 import {
 	createTableStructure,
 	type TableBlockAttributes,
 	type TableSectionName,
-} from '../reorder/table-structure';
+} from '@/reorder/table-structure';
 
 /**
  * 列移動を同じ規則で適用するTable section。

@@ -5,9 +5,9 @@
  * colspan内部へ境界を挿入したりしないことを全sectionで保証する。
  */
 
-import type { ReorderDestination, ReorderTarget } from '../reorder/dnd-interaction';
-import { isBoundaryInsideRange } from '../reorder/drop-target-rules';
-import type { TableStructure } from '../reorder/table-structure';
+import type { ReorderDestination, ReorderTarget } from '@/reorder/dnd-interaction';
+import { isBoundaryInsideRange } from '@/reorder/drop-target-rules';
+import type { TableStructure } from '@/reorder/table-structure';
 
 /**
  * 対象logical columnが、colspanによって一体として扱うべき範囲に含まれるか判定する。

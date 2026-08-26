@@ -31,8 +31,7 @@ module.exports = [
 					patterns: [
 						{
 							regex: '^\\.\\./',
-							message:
-								'Use the @/ alias instead of a parent-relative import.',
+							message: 'Use the @/ alias instead of a parent-relative import.',
 						},
 					],
 				},
