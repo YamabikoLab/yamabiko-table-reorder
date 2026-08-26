@@ -7,7 +7,6 @@ These instructions apply to source files under `src/`.
 - `src/` is the active source boundary for the formal YTR v1 implementation.
 - The previous implementation is the YTR Prototype and must not be copied back into the active source tree.
 - When historical code is needed for reference, use the `prototype-final` tag.
-- Treat #481 as the design source of truth for v1 interaction, accessibility, performance, and core contracts.
 
 ## Source organization
 
@@ -29,7 +28,6 @@ These instructions apply to source files under `src/`.
 - Prefer public WordPress APIs, hooks, components, and data stores.
 - Keep Gutenberg block attributes and block data as the source of truth for committed reorder results.
 - Input-, block-, and reorder-direction-specific behavior may differ, but shared reorder rules must remain in explicit domain contracts.
-- Preserve the v1 performance principles defined in #481: do not make UI, listeners, geometry work, or hot-path scans scale with total row count when avoidable; do not reorder the real Table DOM during drag; commit logical data only when the operation is finalized.
 - Resolve editor browsing context from the active editor context rather than assuming global `window` / `document` lifetimes.
 - In Japanese comments and explanatory text in product source and tests, do not insert spaces between Japanese text and adjacent English terms or identifiers unless the space is semantically necessary.
 
@@ -47,7 +45,6 @@ These instructions apply to source files under `src/`.
 
 - Translate user-visible strings with the `yamabiko-table-reorder` text domain.
 - Keep translatable messages centralized enough for the existing i18n pipeline to extract them reliably.
-- Support keyboard operation, visible focus, announcements, focus restoration, and Undo according to the contracts defined from #481.
 - Do not communicate meaning through color alone.
 
 ## Jest tests
