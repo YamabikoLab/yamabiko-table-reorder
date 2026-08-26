@@ -1,4 +1,4 @@
-# Yamabiko Table Reorder v1 source instructions
+# Yamabiko Table Reorder v1 source code guidelines
 
 These instructions apply to source files under `src/`.
 
