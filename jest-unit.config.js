@@ -21,4 +21,8 @@ module.exports = {
 		...( defaultConfig.moduleNameMapper ?? {} ),
 		'^@/(.*)$': '<rootDir>/src/$1',
 	},
+	testPathIgnorePatterns: [
+		...( defaultConfig.testPathIgnorePatterns ?? [] ),
+		'<rootDir>/scripts/architecture/',
+	],
 };
