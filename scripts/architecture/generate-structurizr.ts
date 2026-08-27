@@ -1,4 +1,4 @@
-import { readFile, rename, rm, writeFile } from 'node:fs/promises';
+import { readFile, rm, writeFile } from 'node:fs/promises';
 import { extname } from 'node:path';
 
 import { validateArchitectureMarkdownStructure } from './architecture-markdown-validation';
@@ -36,10 +36,9 @@ const generate = async (): Promise< void > => {
 	await writeFile( validationOutputPath, dsl, 'utf8' );
 	try {
 		validateStructurizrWorkspace( validationOutputPath );
-		await rename( validationOutputPath, outputPath );
-	} catch ( error ) {
+		await writeFile( outputPath, dsl, 'utf8' );
+	} finally {
 		await rm( validationOutputPath, { force: true } );
-		throw error;
 	}
 };
 
