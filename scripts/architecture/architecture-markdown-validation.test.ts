@@ -86,3 +86,20 @@ test( 'Runtime View table の欠落を scenario ID 付きで拒否する', () =>
 		/Runtime View RV_INPUT table is missing/u
 	);
 } );
+
+test( 'Runtime View Step の正の整数以外を拒否する', () => {
+	for ( const step of [ '1abc', '1.5', '0', '-1' ] ) {
+		const markdown = validMarkdown.replace(
+			'| 1 | EXT_EDITOR | RESP_INPUT | 入力を渡す。 |',
+			`| ${ step } | EXT_EDITOR | RESP_INPUT | 入力を渡す。 |`
+		);
+
+		assert.throws(
+			() => validateArchitectureMarkdownStructure( markdown ),
+			new RegExp(
+				`Runtime View RV_INPUT Step "${ step.replace( '.', '\\.' ) }" must be a positive integer`,
+				'u'
+			)
+		);
+	}
+} );
