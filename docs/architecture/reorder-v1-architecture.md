@@ -15,6 +15,8 @@ Keyboard 操作、ドラッグを必要としない操作、focus、announcement
 - 行並び替えと列並び替えを同時に有効にしない。
 - PC とタッチ端末で、入力成立方法の違いを DnD Interaction 以降へ持ち込まない。
 - WordPress Core Table と Flexible Table Block で、利用者から見た操作と結果の方針を変えない。
+- DOM / Web API を利用する責務は、現在の editor が iframe か non-iframe かを直接判定せず、Editor DOM Context が提供する現在の editor context を利用する。
+- Editor DOM Context が提供する context は editor lifecycle をまたいで有効であることを前提にしない。
 - DnD 中は Table 上の実際の行・列順序を変更しない。
 - Table データを変更するのは、有効な移動先で DnD が完了した場合だけとする。
 - 1 回の成立した並び替えは 1 回の Undo で並び替え前へ戻せる更新とする。
@@ -35,7 +37,9 @@ Keyboard 操作、ドラッグを必要としない操作、focus、announcement
 
 YTR は WordPress の編集環境、対象 Table、Undo の仕組み、および Table や編集画面のスクロール領域と接続する。
 
-Input Interaction を WordPress 編集環境の入力と共通 Reorder 処理の境界とし、PC とタッチ端末の入力固有の差をその境界の内側で扱う。DnD Interaction 以降は入力方式に依存しない共通概念だけを扱う。
+現在の editor で DOM / Web API を利用する責務は、現在の editor context に属する基準から Editor DOM Context が解決した context を利用する。利用側は iframe / non-iframe の違いを直接扱わず、Editor DOM Context は具体的な DOM 要素、Web API property、探索方法、識別子を Architecture の Contract として固定しない。
+
+Input Interaction を WordPress 編集環境の入力と共通 Reorder 処理の境界とし、PC とタッチ端末の入力固有の差をその境界の内側で扱う。DnD Interaction 以降は入力方式に依存しない共通概念だけを扱う。WordPress Editor から受ける入力と、DOM / Web API を利用するための editor context の解決は別の責務境界として扱う。
 
 Core Table と Flexible Table Block の内部表現の違いにかかわらず、本書で定義する責務間では、行・列の開始対象、移動対象判定、Table 構造、有効な移動先、確定した並び替えという同じ概念で扱う。
 
@@ -47,7 +51,9 @@ First-use Guidance と Reorder Rediscovery は、WordPress の通常編集とし
 
 ## 4. Solution Strategy
 
-Reorder v1 は、並び替えモード、案内、入力解釈、DnD の共通進行、開始対象判定、移動先判定、表示、自動スクロール、Table データ更新を別々の責務として扱う。
+Reorder v1 は、editor DOM context の解決、並び替えモード、案内、入力解釈、DnD の共通進行、開始対象判定、移動先判定、表示、自動スクロール、Table データ更新を別々の責務として扱う。
+
+Editor DOM Context は、現在の editor context に属する基準から、その時点で DOM / Web API を利用するための context を解決し、必要とする責務へ提供する。利用側に iframe / non-iframe の違いを持ち込まず、context の永続性や並び替え状態を所有しない。
 
 Reorder Mode は通常編集、行並び替え、列並び替えの現在状態を管理する。Input Interaction は、その状態のもとで PC とタッチ端末の入力差を吸収し、DnD の開始試行・進行・完了・キャンセルという共通の意味へ変換する。
 
@@ -68,6 +74,7 @@ First-use Guidance は初回案内、Reorder Rediscovery は初回案内後の�
 | RESP_REORDER_MODE | Reorder Mode | 通常の Table 編集、行並び替え、列並び替えのどの状態にあるかを管理し、並び替え操作の有効範囲を決める。 |
 | RESP_FIRST_USE_GUIDANCE | First-use Guidance | PC とタッチ端末ごとの初回案内の表示状態を管理し、並び替えの入口を利用者に案内する。 |
 | RESP_REORDER_REDISCOVERY | Reorder Rediscovery | 通常編集状態で並び替えを試みていると考えられる操作の繰り返しを判定し、必要な場合だけ並び替えの入口を再案内する。 |
+| RESP_EDITOR_DOM_CONTEXT | Editor DOM Context | 現在の editor context に属する基準から、その時点で利用すべき DOM / Web API context を解決し、必要とする責務へ提供する。 |
 | RESP_INPUT_INTERACTION | Input Interaction | PC とタッチ端末の入力固有の差を共通の DnD 進行から分離し、開始試行・進行・完了・キャンセルとして DnD Interaction へ渡す境界を担う。 |
 | RESP_DND_INTERACTION | DnD Interaction | 入力方式と行・列に共通する DnD の開始可否判定と進行を統括し、確定可能な操作だけを Data Update へ渡す。 |
 | RESP_REORDER_TARGET_RESOLUTION | Reorder Target Resolution | DnD 開始試行時に、Table 構造と並び替え方向から行または列を移動対象として選択できるかを判定し、移動不可の場合はその理由を提供する。 |
@@ -82,7 +89,13 @@ First-use Guidance は初回案内、Reorder Rediscovery は初回案内後の�
 | --- | --- | --- |
 | EXT_WORDPRESS_EDITOR | RESP_FIRST_USE_GUIDANCE | 初回案内の表示契機となる編集環境の状態を提供する。 |
 | EXT_WORDPRESS_EDITOR | RESP_REORDER_REDISCOVERY | 通常編集として成立した操作と並び替え試行候補を区別するための情報を提供する。 |
-| EXT_WORDPRESS_EDITOR | RESP_INPUT_INTERACTION | PC またはタッチ端末の入力を提供する。 |
+| EXT_WORDPRESS_EDITOR | RESP_EDITOR_DOM_CONTEXT | 現在の editor context に属する基準を通じて、解決対象となる編集環境を提供する。 |
+| EXT_WORDPRESS_EDITOR | RESP_INPUT_INTERACTION | PC またはタッチ端末の入力を提供する。DOM / Web API context の解決は提供しない。 |
+| RESP_EDITOR_DOM_CONTEXT | RESP_FIRST_USE_GUIDANCE | 初回案内で DOM / Web API を利用する時点の editor context を提供する。 |
+| RESP_EDITOR_DOM_CONTEXT | RESP_REORDER_REDISCOVERY | 再案内判定で DOM / Web API を利用する時点の editor context を提供する。 |
+| RESP_EDITOR_DOM_CONTEXT | RESP_INPUT_INTERACTION | 入力解釈で DOM / Web API を利用する時点の editor context を提供する。 |
+| RESP_EDITOR_DOM_CONTEXT | RESP_REORDER_PRESENTATION | 表示処理で DOM / Web API を利用する時点の editor context を提供する。 |
+| RESP_EDITOR_DOM_CONTEXT | RESP_AUTO_SCROLL | 自動スクロールで DOM / Web API を利用する時点の editor context を提供する。 |
 | RESP_REORDER_MODE | RESP_FIRST_USE_GUIDANCE | 並び替え入口の選択による案内終了を伝える。 |
 | RESP_REORDER_MODE | RESP_REORDER_REDISCOVERY | 並び替えモード中は再案内判定を行わないための現在状態を提供する。 |
 | RESP_REORDER_MODE | RESP_INPUT_INTERACTION | 現在の並び替え状態を提供する。 |
@@ -155,7 +168,7 @@ PC では Table へのポインター進入、Table のフォーカス、また�
 
 ##### Dependencies
 
-Table へのポインター進入、Table のフォーカス、セル編集開始という編集環境側の状態に依存する。入口の選択は Reorder Mode への切り替えと同時に First-use Guidance の終了条件になる。Reorder Rediscovery の再案内判定とは一時状態を共有しない。
+Table へのポインター進入、Table のフォーカス、セル編集開始という編集環境側の状態に依存する。DOM / Web API を利用する場合は Editor DOM Context が提供する現在の editor context に依存する。入口の選択は Reorder Mode への切り替えと同時に First-use Guidance の終了条件になる。Reorder Rediscovery の再案内判定とは一時状態を共有しない。
 
 ##### Lifecycle
 
@@ -191,7 +204,7 @@ PC では表示中に Table からポインターが外れても、それだけ�
 
 ##### Dependencies
 
-通常編集として成立した操作かどうかを区別できる編集環境側の情報に依存する。First-use Guidance の初回案内が表示済みであることを前提とする。Reorder Mode が並び替えモードにある間は再案内判定を行わない。
+通常編集として成立した操作かどうかを区別できる編集環境側の情報に依存する。DOM / Web API を利用する場合は Editor DOM Context が提供する現在の editor context に依存する。First-use Guidance の初回案内が表示済みであることを前提とする。Reorder Mode が並び替えモードにある間は再案内判定を行わない。
 
 ##### Lifecycle
 
@@ -206,6 +219,45 @@ PC では表示中に Table からポインターが外れても、それだけ�
 - 並び替えモード中は再案内判定を行わない。
 - 再案内によって通常の Table 編集を妨げない。
 - 同じ状況で再案内を過度に繰り返さない。
+
+#### Editor DOM Context {#RESP_EDITOR_DOM_CONTEXT}
+
+##### Responsibility
+
+現在の editor context に属する基準から、その時点で DOM / Web API を利用するために必要な editor DOM context を解決し、必要とする責務へ提供する。利用側が現在の editor の browsing context の違いを直接扱わなくてよい境界を担う。
+
+##### State ownership
+
+並び替え状態、Reorder Mode、DnD Session、Table データ、移動対象、移動先、Presentation 状態を所有しない。解決した editor DOM context を editor lifecycle をまたぐ永続状態として所有しない。
+
+##### Contract
+
+DOM / Web API を必要とする責務が現在の editor context を利用する時点で、現在の editor context に属する基準をもとに、その時点で利用すべき editor DOM context を解決して提供する。
+
+利用側は、現在の editor が iframe か non-iframe かを判定せず、Editor DOM Context が提供する context を利用する。
+
+context の解決に使用する具体的な DOM 要素、Web API property、探索方法、識別子はこの Contract では固定しない。現在の editor context を解決できない場合に、以前の editor lifecycle で得た context を代替として提供しない。
+
+##### Dependencies
+
+現在の WordPress Editor と、現在の editor context に属する基準に依存する。DOM / Web API を利用する First-use Guidance、Reorder Rediscovery、Input Interaction、Reorder Presentation、Auto Scroll は Editor DOM Context が提供する context に依存する。
+
+Reorder Mode、DnD Interaction、Reorder Target Resolution、Drop Target Resolution、Data Update の状態や判定には依存しない。
+
+##### Lifecycle
+
+DOM / Web API を利用する責務が現在の editor context を必要とする時点で、その時点の editor lifecycle に対して context を解決する。提供した context が editor lifecycle の変化後も有効であることは保証せず、新しい lifecycle では現在の editor context に対して改めて解決する。
+
+以前に解決した context を、後続の editor lifecycle に自動的に持ち越さない。
+
+##### Invariants
+
+- 提供する context は、解決に用いた基準と同じ現在の editor context に属する。
+- DOM / Web API を利用する責務へ iframe / non-iframe の判定を要求しない。
+- editor lifecycle をまたいだ context の永続性を保証しない。
+- 以前の editor lifecycle で得た context を現在の context として再利用しない。
+- 並び替え状態、Table データ、移動対象、移動先を所有しない。
+- 具体的な DOM 要素、Web API property、探索方法、識別子を Architecture の必須 Contract として固定しない。
 
 #### Input Interaction {#RESP_INPUT_INTERACTION}
 
@@ -227,7 +279,7 @@ DnD が開始された後は、進行、完了、キャンセルとして解釈�
 
 ##### Dependencies
 
-Reorder Mode と WordPress 編集環境の入力に依存する。DnD の開始試行と共通進行は DnD Interaction に渡し、Reorder Target Resolution、Drop Target Resolution、Reorder Presentation、Auto Scroll、Data Update には直接依存しない。
+Reorder Mode と WordPress 編集環境の入力に依存する。DOM / Web API を利用する場合は Editor DOM Context が提供する現在の editor context に依存する。DnD の開始試行と共通進行は DnD Interaction に渡し、Reorder Target Resolution、Drop Target Resolution、Reorder Presentation、Auto Scroll、Data Update には直接依存しない。
 
 ##### Lifecycle
 
@@ -238,6 +290,7 @@ DnD が完了またはキャンセルされた場合、開始試行が移動不�
 ##### Invariants
 
 - PC とタッチ端末の入力固有の差を DnD Interaction の状態や Contract に持ち込まない。
+- DOM / Web API を利用するために iframe / non-iframe の違いを直接判定しない。
 - DnD Interaction へ並び替え方向を提供しない。
 - 移動対象として選択できるかを判定しない。
 - 移動先の有効性を判定しない。
@@ -399,7 +452,7 @@ DnD Interaction から確定結果を受け取った場合は移動対象を最�
 
 ##### Dependencies
 
-Reorder Mode の現在状態に依存してモード中の対象表示を行う。Reorder Target Resolution には直接依存しない。移動不可理由は DnD Interaction 経由で受け取り、DnD 開始後の移動先の有効性は Drop Target Resolution の結果を DnD Interaction 経由で受け取る。
+Reorder Mode の現在状態に依存してモード中の対象表示を行う。DOM / Web API を利用する場合は Editor DOM Context が提供する現在の editor context に依存する。Reorder Target Resolution には直接依存しない。移動不可理由は DnD Interaction 経由で受け取り、DnD 開始後の移動先の有効性は Drop Target Resolution の結果を DnD Interaction 経由で受け取る。
 
 Auto Scroll とは互いの責務を侵食せず、移動対象の表示範囲制約によって必要な自動スクロールを妨げない。Data Update には Table 変更を要求しない。
 
@@ -414,6 +467,7 @@ Reorder Mode が継続している場合はモード中の対象表示を維持�
 ##### Invariants
 
 - Presentation の更新によって Table 上の実際の行・列順序を変更しない。
+- DOM / Web API を利用するために iframe / non-iframe の違いを直接判定しない。
 - 対象表示のために Reorder Target Resolution を利用しない。
 - 移動不可理由を表示するために DnD を開始しない。
 - 移動不可理由の表示は一時的なフィードバックとし、次の DnD の進行状態として保持しない。
@@ -446,7 +500,7 @@ DnD を開始していない通常状態、および移動不可な開始試行�
 
 ##### Dependencies
 
-DnD Interaction の active 状態と並び替え方向に依存する。スクロール可能な Table または編集画面の領域と接続する。Reorder Presentation の表示範囲制約によって必要な自動スクロールが妨げられないことを前提とする。Reorder Target Resolution、Drop Target Resolution、Data Update の責務を持たない。
+DnD Interaction の active 状態と並び替え方向に依存する。DOM / Web API を利用する場合は Editor DOM Context が提供する現在の editor context に依存する。スクロール可能な Table または編集画面の領域と接続する。Reorder Presentation の表示範囲制約によって必要な自動スクロールが妨げられないことを前提とする。Reorder Target Resolution、Drop Target Resolution、Data Update の責務を持たない。
 
 ##### Lifecycle
 
@@ -454,6 +508,7 @@ DnD 中に必要な場合だけ有効になる。移動不可な開始試行で�
 
 ##### Invariants
 
+- DOM / Web API を利用するために iframe / non-iframe の違いを直接判定しない。
 - 行 DnD 中は横方向を自動スクロールしない。
 - 列 DnD 中は縦方向を自動スクロールしない。
 - active な DnD 中だけ移動方向に応じた自動スクロール制約を適用する。
@@ -576,6 +631,7 @@ Data Update への Interaction は発生しない。
 - 現在の通常、行並び替え、列並び替えの状態は Reorder Mode が所有する。
 - PC とタッチ端末ごとの初回案内の表示済み状態は First-use Guidance が所有する。
 - 再案内を判定するための直近の操作傾向と、同じ状況で過度に再案内しないための一時状態は Reorder Rediscovery が所有する。
+- 現在の editor DOM context は Editor DOM Context が必要な時点で解決して提供し、editor lifecycle をまたぐ永続的な YTR 状態として所有しない。
 - PC とタッチ端末の入力固有の解釈に必要な一時状態は Input Interaction が所有し、移動対象、移動先、確定可能性などの Reorder Session 状態は所有しない。
 - DnD 開始試行時に開始対象を移動対象として選択できるかと、移動不可の場合の理由は Reorder Target Resolution が判定し、永続的な DnD 状態や Table 状態としては所有しない。
 - 進行中の DnD、移動対象、現在の移動先、確定可能性、完了結果は DnD Interaction が所有する。移動不可な開始試行ではこれらの Reorder Session 状態を作らない。
@@ -585,6 +641,9 @@ Data Update への Interaction は発生しない。
 
 ### Architecture-wide invariants
 
+- DOM / Web API を利用する責務は Editor DOM Context が提供する現在の editor context を利用し、iframe / non-iframe の違いを直接判定しない。
+- Editor DOM Context は現在の editor context に属する基準から context を解決し、editor lifecycle をまたいだ有効性を前提にしない。
+- Editor DOM Context の context 解決と、Reorder Mode、DnD Session、Table データ、移動対象、移動先の状態所有を分離する。
 - PC とタッチ端末の入力固有の差を DnD Interaction 以降の共通処理へ持ち込まない。
 - DnD Interaction が Reorder Target Resolution に渡す並び替え方向は Reorder Mode の現在状態から得る。Input Interaction を並び替え方向の情報源にしない。
 - DnD Interaction は DnD 開始前の移動対象判定を Reorder Target Resolution に委ね、開始後の移動先判定を Drop Target Resolution に委ねる。
@@ -603,6 +662,8 @@ Data Update への Interaction は発生しない。
 - 行の DnD 中に自動スクロールする方向は縦方向だけとし、列の DnD 中は横方向だけとする。
 
 ### Lifecycle and context boundaries
+
+Editor DOM Context が提供する context は、その時点の editor lifecycle に属するものとして扱う。DOM / Web API を利用する責務は、以前の editor lifecycle で得た context の永続性を前提にせず、現在の editor context が必要な時点では Editor DOM Context を境界として扱う。Editor DOM Context 自体も以前の context を現在の context として持ち越さない。
 
 Reorder Mode が通常状態にある間は Input Interaction から DnD Interaction への開始試行を成立させない。行または列の並び替えモードへ入った後に、その方向の DnD 開始を試行できる。
 
@@ -632,7 +693,7 @@ Reorder Rediscovery の判定用状態は通常編集状態でのみ有効とし
 
 Reorder v1 が想定する現実的な最大規模は、1,000 行、20 列、20,000 セルとする。
 
-この規模でも、Reorder Mode、First-use Guidance、Reorder Rediscovery、Input Interaction、DnD Interaction、Reorder Target Resolution、Drop Target Resolution、Reorder Presentation、Auto Scroll、Data Update の責務分離を保ち、行・列の DnD を実用的に利用できることをアーキテクチャ上の制約とする。
+この規模でも、Editor DOM Context、Reorder Mode、First-use Guidance、Reorder Rediscovery、Input Interaction、DnD Interaction、Reorder Target Resolution、Drop Target Resolution、Reorder Presentation、Auto Scroll、Data Update の責務分離を保ち、行・列の DnD を実用的に利用できることをアーキテクチャ上の制約とする。
 
 正式 v1 の Interaction と Presentation は、Table 全体の行数・列数に比例する常駐状態や常駐 UI を並び替え成立の前提にしない。大規模 Table でも、全対象について個別の Interaction 状態を保持し続ける構造を要求しない。
 
@@ -652,6 +713,7 @@ DnD 中は Table 上の実際の順序を変更せず、destination と必要な
 
 | Term | Meaning |
 | --- | --- |
+| editor DOM context | 現在の editor で DOM / Web API を利用するために、その時点の editor lifecycle に属するものとして Editor DOM Context が解決して提供する context。 |
 | Reorder Session | Reorder Target Resolution が移動可能と判定した後から、完了またはキャンセルまで DnD Interaction が所有する 1 回の並び替え操作状態。 |
 | start target | Input Interaction が DnD 開始試行として DnD Interaction に渡す、利用者がドラッグ開始を試みた行または列。 |
 | reorder target | Reorder Target Resolution が移動可能と判定し、DnD Interaction が active な Reorder Session の移動対象として扱う行または列。 |
