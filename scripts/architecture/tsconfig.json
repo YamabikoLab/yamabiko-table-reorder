@@ -1,0 +1,14 @@
+{
+	"compilerOptions": {
+		"target": "ES2022",
+		"module": "CommonJS",
+		"moduleResolution": "Node",
+		"rootDir": ".",
+		"outDir": "../../.architecture-build",
+		"strict": true,
+		"esModuleInterop": true,
+		"skipLibCheck": true,
+		"types": [ "node" ]
+	},
+	"include": [ "*.ts", "*.d.ts" ]
+}
