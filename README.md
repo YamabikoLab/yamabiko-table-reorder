@@ -3,7 +3,7 @@
 WordPress ブロックエディターの Table 並べ替えを扱うプラグインです。
 
 > [!IMPORTANT]
-> `main` は現在、#481 を起点に **formal YTR v1** を再設計している段階です。0.4.0 までの実装は **YTR Prototype** として `prototype-final` tag に保存されています。
+> `main` は現在、正式な Requirements / Design / Architecture / Plan に基づいて **formal YTR v1** を実装している段階です。0.4.0 までの実装は **YTR Prototype** として `prototype-final` tag に保存されています。
 
 ## 現在の状態
 
