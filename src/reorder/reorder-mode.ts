@@ -1,10 +1,10 @@
 /**
- * Table編集、行並び替え、列並び替えのうち、その時点で有効なReorder Modeを表す。
+ * Table編集、行並び替え、列並び替えのうち、その時点で有効なReorder Modeの状態を表す。
  *
  * `edit`、`row`、`column`のいずれか1つだけを現在状態として持つことで、
  * 行並び替えと列並び替えが同時に有効にならない状態を表現する。
  */
-export type ReorderMode = 'edit' | 'row' | 'column';
+export type ReorderModeState = 'edit' | 'row' | 'column';
 
 /**
  * Reorder Modeが並び替え対象として扱う行または列の種別を表す。
@@ -12,41 +12,44 @@ export type ReorderMode = 'edit' | 'row' | 'column';
  * 通常編集モードを表す`edit`は含めず、個々の行または列が実際に
  * 並び替え対象として成立するかどうかも表さない。
  */
-export type ReorderKind = Exclude< ReorderMode, 'edit' >;
+export type ReorderKind = Exclude< ReorderModeState, 'edit' >;
 
 /**
- * Reorder Modeの初期状態を通常編集モードとして作成する。
+ * 通常編集、行並び替え、列並び替えの現在状態を所有・管理するReorder Modeを表す。
  *
- * 通常編集モードでは行・列のDnDを有効にせず、並び替えの入口が
- * 選択されるまでは通常のTable編集を維持する。
+ * 状態遷移の結果を呼び出し側へ値として返さず、このContract自身が1つの現在状態を
+ * 保持する。Input Interaction、DnD Interaction、Reorder Presentationは必要な時点で
+ * このContractから現在状態または並び替え種別を取得する。
  */
-export const createReorderMode = (): ReorderMode => 'edit';
+export type ReorderMode = {
+	/** 現在有効なReorder Modeの状態を取得する。 */
+	getState: () => ReorderModeState;
+	/** 選択された行または列のReorder Modeへ切り替える。 */
+	enter: ( kind: ReorderKind ) => void;
+	/** Reorder Modeを終了して通常編集モードへ戻す。 */
+	exit: () => void;
+	/** 現在のReorder ModeからDnDで扱う並び替え種別を取得する。 */
+	getReorderKind: () => ReorderKind | null;
+};
 
 /**
- * 選択された行または列のReorder Modeへ切り替える。
+ * 通常編集モードから開始するReorder Modeを作成する。
  *
- * 現在状態にかかわらず選択された種別だけを次の状態とすることで、
- * 行並び替えと列並び替えを同時に有効にしない。
+ * 作成したReorder Mode自身が現在状態を所有し、行または列の入口選択による開始、
+ * 別方向への切り替え、終了による通常編集への復帰を同じ状態に対して管理する。
  * 個々の行または列が並び替え対象として成立するかどうかは判定しない。
- *
- * @param kind 選択された並び替え種別。
  */
-export const enterReorderMode = ( kind: ReorderKind ): ReorderMode => kind;
+export const createReorderMode = (): ReorderMode => {
+	let state: ReorderModeState = 'edit';
 
-/**
- * Reorder Modeを終了して通常編集モードへ戻す。
- *
- * 終了後は行・列のどちらもDnDの開始候補として扱わない状態になる。
- */
-export const exitReorderMode = (): ReorderMode => 'edit';
-
-/**
- * 現在のReorder ModeからDnDで扱う並び替え種別を取得する。
- *
- * 行並び替えモードでは`row`、列並び替えモードでは`column`を返す。
- * 通常編集モードでは行・列のDnDを有効にしないため`null`を返す。
- *
- * @param mode 現在のReorder Mode。
- */
-export const getReorderKind = ( mode: ReorderMode ): ReorderKind | null =>
-	mode === 'edit' ? null : mode;
+	return {
+		getState: () => state,
+		enter: ( kind ) => {
+			state = kind;
+		},
+		exit: () => {
+			state = 'edit';
+		},
+		getReorderKind: () => ( state === 'edit' ? null : state ),
+	};
+};
