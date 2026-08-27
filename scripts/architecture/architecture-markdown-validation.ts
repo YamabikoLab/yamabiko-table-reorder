@@ -169,7 +169,9 @@ export const validateArchitectureMarkdownStructure = ( source: string ): void =>
 
 	[ '3. Context and Scope', '5. Building Block View', '6. Runtime View' ].forEach( ( heading ) => {
 		if ( ! requiredHeadings.has( heading ) ) {
-			throw new Error( `Architecture validation failed: required heading "${ heading }" is missing.` );
+			throw new Error(
+				`Architecture validation failed: required heading "${ heading }" is missing.`
+			);
 		}
 	} );
 	if ( ! externalContextTable ) {
@@ -185,7 +187,9 @@ export const validateArchitectureMarkdownStructure = ( source: string ): void =>
 		throw new Error( 'Architecture validation failed: Responsibility Details heading is missing.' );
 	}
 	if ( runtimeScenarioHeadings.size === 0 ) {
-		throw new Error( 'Architecture validation failed: Runtime View requires at least one scenario.' );
+		throw new Error(
+			'Architecture validation failed: Runtime View requires at least one scenario.'
+		);
 	}
 	runtimeScenarioHeadings.forEach( ( id ) => {
 		if ( ! runtimeScenarioTables.has( id ) ) {

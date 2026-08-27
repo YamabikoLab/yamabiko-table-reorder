@@ -42,7 +42,9 @@ const validateUniqueIds = ( model: ArchitectureModel ): void => {
 
 const validateRequiredRows = ( model: ArchitectureModel ): void => {
 	if ( model.externalContexts.length === 0 ) {
-		throw new Error( 'Architecture validation failed: External Context requires at least one row.' );
+		throw new Error(
+			'Architecture validation failed: External Context requires at least one row.'
+		);
 	}
 	if ( model.responsibilities.length === 0 ) {
 		throw new Error(
@@ -58,7 +60,9 @@ const validateRequiredRows = ( model: ArchitectureModel ): void => {
 		);
 	}
 	if ( model.runtimeViews.length === 0 ) {
-		throw new Error( 'Architecture validation failed: Runtime View requires at least one scenario.' );
+		throw new Error(
+			'Architecture validation failed: Runtime View requires at least one scenario.'
+		);
 	}
 };
 
