@@ -1,8 +1,11 @@
-import { readFile, writeFile } from 'node:fs/promises';
+import { readFile, rm, writeFile } from 'node:fs/promises';
 import { extname } from 'node:path';
 
+import { validateArchitectureMarkdownStructure } from './architecture-markdown-validation';
 import { parseArchitectureMarkdown } from './architecture-model';
+import { validateArchitectureModel } from './architecture-validation';
 import { generateStructurizrDsl } from './structurizr-generator';
+import { validateStructurizrWorkspace } from './validate-structurizr';
 
 const resolveOutputPath = ( inputPath: string, outputPath?: string ): string => {
 	if ( outputPath !== undefined ) {
@@ -23,10 +26,20 @@ const generate = async (): Promise< void > => {
 	}
 
 	const outputPath = resolveOutputPath( inputPath, requestedOutputPath );
+	const validationOutputPath = `${ outputPath }.validation.dsl`;
 	const source = await readFile( inputPath, 'utf8' );
+	validateArchitectureMarkdownStructure( source );
 	const model = parseArchitectureMarkdown( source );
+	validateArchitectureModel( model );
 	const dsl = generateStructurizrDsl( model );
-	await writeFile( outputPath, dsl, 'utf8' );
+
+	await writeFile( validationOutputPath, dsl, 'utf8' );
+	try {
+		validateStructurizrWorkspace( validationOutputPath );
+		await writeFile( outputPath, dsl, 'utf8' );
+	} finally {
+		await rm( validationOutputPath, { force: true } );
+	}
 };
 
 void generate();

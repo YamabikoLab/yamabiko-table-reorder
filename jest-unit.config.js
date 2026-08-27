@@ -24,5 +24,6 @@ module.exports = {
 	testPathIgnorePatterns: [
 		...( defaultConfig.testPathIgnorePatterns ?? [] ),
 		'<rootDir>/scripts/architecture/',
+		'<rootDir>/.architecture-build/',
 	],
 };
