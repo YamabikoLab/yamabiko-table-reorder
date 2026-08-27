@@ -66,16 +66,18 @@ The following structures are machine-readable:
 - External Context table under `## 3. Context and Scope`.
 - Responsibility Inventory table under `## 5. Building Block View`.
 - Relationships table under `## 5. Building Block View`.
+- Responsibility detail headings under `### Responsibility Details`; only the responsibility name and embedded responsibility ID in each heading are machine-readable.
+- Runtime Scenario headings under `## 6. Runtime View`; the scenario name and embedded runtime scenario ID are machine-readable.
 - Runtime Scenario tables under `## 6. Runtime View`.
 
 The following information is human-readable only unless another rule explicitly defines a machine-readable structure:
 
 - Explanatory prose in any arc42 section.
-- Responsibility detail sections.
+- Responsibility detail section contents below the machine-readable responsibility heading identity.
 - `Responsibility`, `State ownership`, `Contract`, `Dependencies`, `Lifecycle`, and `Invariants` descriptions.
 - Rationale, constraints, crosscutting concepts, quality explanations, risks, and glossary descriptions.
 
-Do not duplicate machine-readable architecture facts in another machine-readable form. The fixed table is the source of truth for the fact it represents; explanatory prose may explain its meaning but must not redefine it.
+Do not duplicate machine-readable architecture facts in another machine-readable form. The fixed heading or table is the source of truth for the fact it represents; explanatory prose may explain its meaning but must not redefine it.
 
 ## Stable IDs
 
@@ -177,7 +179,7 @@ Example:
 
 `#### DnD Interaction {#RESP_DND_INTERACTION}`
 
-The heading name and ID must match one row in the Responsibility Inventory.
+The responsibility name and embedded ID in this heading are machine-readable and must match one row in the Responsibility Inventory. The contents below the heading remain human-readable design information unless another rule explicitly defines a machine-readable structure.
 
 Within each responsibility, use the following child sections when applicable.
 
@@ -219,9 +221,11 @@ Example:
 
 `### DnD start attempt {#RV_DND_START}`
 
+The runtime scenario name and embedded ID in this heading are machine-readable and identify the scenario represented by the table below it.
+
 Immediately below the heading, include a short human-readable purpose or scenario description, followed by a table with this exact structure:
 
-| Step | Source | Destination | Description |
+| Step | Source | Target | Interaction |
 | ---: | --- | --- | --- |
 | 1 | RESP_INPUT_INTERACTION | RESP_DND_INTERACTION | Passes a DnD start attempt and its start target. |
 | 2 | RESP_DND_INTERACTION | RESP_REORDER_TARGET_RESOLUTION | Requests resolution of the movable reorder target. |
@@ -231,8 +235,8 @@ Rules:
 
 - `Step` must be a positive integer.
 - Step numbers must start at `1`, be unique within the runtime scenario, and increase without gaps.
-- `Source` and `Destination` must contain stable IDs defined in the External Context or Responsibility Inventory tables.
-- `Description` states what architecture-level information, request, result, or control meaning crosses the boundary in that step.
+- `Source` and `Target` must contain stable IDs defined in the External Context or Responsibility Inventory tables.
+- `Interaction` states what architecture-level information, request, result, or control meaning crosses the boundary in that step.
 - Runtime order comes only from the `Step` column. Do not infer order from prose or table position when the Step value says otherwise.
 - A runtime step must use an architecture relationship that is explicitly present in the Relationships table in the same direction.
 - Runtime scenarios do not define new responsibilities or external context elements.
@@ -342,7 +346,7 @@ Create active DnD state only after successful target resolution and discard it o
 
 Describe the collaboration that either starts DnD with a movable target or rejects the attempt before active DnD state exists.
 
-| Step | Source | Destination | Description |
+| Step | Source | Target | Interaction |
 | ---: | --- | --- | --- |
 | 1 | RESP_DND_INTERACTION | RESP_REORDER_TARGET_RESOLUTION | Requests movable-target resolution for the attempted start target. |
 | 2 | RESP_REORDER_TARGET_RESOLUTION | RESP_DND_INTERACTION | Returns the resolution result and any reason that prevents DnD start. |
