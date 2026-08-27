@@ -37,10 +37,13 @@ workspace "YTR Reorder v1 Architecture" {
 		RESP_DND_INTERACTION = element "DnD Interaction" "Responsibility" "入力方式と行・列に共通する DnD の開始可否判定と進行を統括し、確定可能な操作だけを Data Update へ渡す。" {
 			tags "Responsibility"
 		}
-		RESP_REORDER_TARGET_RESOLUTION = element "Reorder Target Resolution" "Responsibility" "DnD 開始試行時に、Table 構造と並び替え方向から行または列を移動対象として選択できるかを判定し、移動不可の場合はその理由を提供する。" {
+		RESP_REORDER_CONSTRAINT_RESOLUTION = element "Reorder Constraint Resolution" "Responsibility" "現在の Table 構造から移動対象・移動先判定に必要な構造上の制約だけを抽出し、同じ Table 構造が有効な間は共有できる制約情報として提供する。" {
 			tags "Responsibility"
 		}
-		RESP_DROP_TARGET_RESOLUTION = element "Drop Target Resolution" "Responsibility" "DnD 開始後の移動対象と Table 構造から、現在の位置が有効な移動先かを判定する。" {
+		RESP_REORDER_TARGET_RESOLUTION = element "Reorder Target Resolution" "Responsibility" "DnD 開始試行時に、Reorder Constraint Resolution が提供する制約情報から行または列を移動対象として選択できるかを判定し、移動不可の場合はその理由を提供する。" {
+			tags "Responsibility"
+		}
+		RESP_DROP_TARGET_RESOLUTION = element "Drop Target Resolution" "Responsibility" "DnD 開始後の移動対象と Reorder Constraint Resolution が提供する制約情報から、現在の位置が有効な移動先かを判定する。" {
 			tags "Responsibility"
 		}
 		RESP_REORDER_PRESENTATION = element "Reorder Presentation" "Responsibility" "並び替えモード中の対象表示、移動不可理由、および DnD 中から確定・キャンセルまでの視覚フィードバックを Table データの更新から分離して扱う。" {
@@ -65,44 +68,50 @@ workspace "YTR Reorder v1 Architecture" {
 		REL_004 = EXT_WORDPRESS_EDITOR -> RESP_INPUT_INTERACTION "PC またはタッチ端末の入力を提供する。DOM / Web API context の解決は提供しない。" {
 			tags "Architecture Relationship"
 		}
-		REL_005 = RESP_EDITOR_DOM_CONTEXT -> RESP_FIRST_USE_GUIDANCE "初回案内で DOM / Web API を利用する時点の editor context を提供する。" {
+		REL_005 = EXT_CORE_TABLE -> RESP_REORDER_CONSTRAINT_RESOLUTION "現在の Core Table 構造と、その構造が変化したことを制約情報の有効性境界として提供する。" {
 			tags "Architecture Relationship"
 		}
-		REL_006 = RESP_EDITOR_DOM_CONTEXT -> RESP_REORDER_REDISCOVERY "再案内判定で DOM / Web API を利用する時点の editor context を提供する。" {
+		REL_006 = EXT_FLEXIBLE_TABLE_BLOCK -> RESP_REORDER_CONSTRAINT_RESOLUTION "現在の Flexible Table Block 構造と、その構造が変化したことを制約情報の有効性境界として提供する。" {
 			tags "Architecture Relationship"
 		}
-		REL_007 = RESP_EDITOR_DOM_CONTEXT -> RESP_INPUT_INTERACTION "入力解釈で DOM / Web API を利用する時点の editor context を提供する。" {
+		REL_007 = RESP_EDITOR_DOM_CONTEXT -> RESP_FIRST_USE_GUIDANCE "初回案内で DOM / Web API を利用する時点の editor context を提供する。" {
 			tags "Architecture Relationship"
 		}
-		REL_008 = RESP_EDITOR_DOM_CONTEXT -> RESP_REORDER_PRESENTATION "表示処理で DOM / Web API を利用する時点の editor context を提供する。" {
+		REL_008 = RESP_EDITOR_DOM_CONTEXT -> RESP_REORDER_REDISCOVERY "再案内判定で DOM / Web API を利用する時点の editor context を提供する。" {
 			tags "Architecture Relationship"
 		}
-		REL_009 = RESP_EDITOR_DOM_CONTEXT -> RESP_AUTO_SCROLL "自動スクロールで DOM / Web API を利用する時点の editor context を提供する。" {
+		REL_009 = RESP_EDITOR_DOM_CONTEXT -> RESP_INPUT_INTERACTION "入力解釈で DOM / Web API を利用する時点の editor context を提供する。" {
 			tags "Architecture Relationship"
 		}
-		REL_010 = RESP_REORDER_MODE -> RESP_FIRST_USE_GUIDANCE "並び替え入口の選択による案内終了を伝える。" {
+		REL_010 = RESP_EDITOR_DOM_CONTEXT -> RESP_REORDER_PRESENTATION "表示処理で DOM / Web API を利用する時点の editor context を提供する。" {
 			tags "Architecture Relationship"
 		}
-		REL_011 = RESP_REORDER_MODE -> RESP_REORDER_REDISCOVERY "並び替えモード中は再案内判定を行わないための現在状態を提供する。" {
+		REL_011 = RESP_EDITOR_DOM_CONTEXT -> RESP_AUTO_SCROLL "自動スクロールで DOM / Web API を利用する時点の editor context を提供する。" {
 			tags "Architecture Relationship"
 		}
-		REL_012 = RESP_REORDER_MODE -> RESP_INPUT_INTERACTION "現在の並び替え状態を提供する。" {
+		REL_012 = RESP_REORDER_MODE -> RESP_FIRST_USE_GUIDANCE "並び替え入口の選択による案内終了を伝える。" {
 			tags "Architecture Relationship"
 		}
-		REL_013 = RESP_REORDER_MODE -> RESP_DND_INTERACTION "DnD 開始試行で使用する並び替え方向を提供する。" {
+		REL_013 = RESP_REORDER_MODE -> RESP_REORDER_REDISCOVERY "並び替えモード中は再案内判定を行わないための現在状態を提供する。" {
+			tags "Architecture Relationship"
+		}
+		REL_014 = RESP_REORDER_MODE -> RESP_INPUT_INTERACTION "現在の並び替え状態を提供する。" {
+			tags "Architecture Relationship"
+		}
+		REL_015 = RESP_REORDER_MODE -> RESP_DND_INTERACTION "DnD 開始試行で使用する並び替え方向を提供する。" {
 			tags "Architecture Relationship,Runtime_RV_DND_START_MOVABLE,Runtime_RV_DND_START_IMMOVABLE"
 			properties {
 				"runtime.RV_DND_START_MOVABLE.step.2" "現在の並び替え方向を提供する。"
 				"runtime.RV_DND_START_IMMOVABLE.step.2" "現在の並び替え方向を提供する。"
 			}
 		}
-		REL_014 = RESP_REORDER_MODE -> RESP_REORDER_PRESENTATION "並び替えモード中に表示する対象方向を提供する。" {
+		REL_016 = RESP_REORDER_MODE -> RESP_REORDER_PRESENTATION "並び替えモード中に表示する対象方向を提供する。" {
 			tags "Architecture Relationship"
 		}
-		REL_015 = RESP_FIRST_USE_GUIDANCE -> RESP_REORDER_REDISCOVERY "初回案内が完了済みであることを再案内判定の前提として提供する。" {
+		REL_017 = RESP_FIRST_USE_GUIDANCE -> RESP_REORDER_REDISCOVERY "初回案内が完了済みであることを再案内判定の前提として提供する。" {
 			tags "Architecture Relationship"
 		}
-		REL_016 = RESP_INPUT_INTERACTION -> RESP_DND_INTERACTION "DnD の開始試行、進行、完了、キャンセルを共通の意味で渡す。" {
+		REL_018 = RESP_INPUT_INTERACTION -> RESP_DND_INTERACTION "DnD の開始試行、進行、完了、キャンセルを共通の意味で渡す。" {
 			tags "Architecture Relationship,Runtime_RV_DND_START_MOVABLE,Runtime_RV_DND_START_IMMOVABLE,Runtime_RV_DND_PROGRESS,Runtime_RV_DND_COMMIT_CORE_TABLE,Runtime_RV_DND_COMMIT_FLEXIBLE_TABLE_BLOCK,Runtime_RV_DND_CANCEL"
 			properties {
 				"runtime.RV_DND_START_MOVABLE.step.1" "開始対象を含む DnD 開始試行を渡す。"
@@ -113,76 +122,102 @@ workspace "YTR Reorder v1 Architecture" {
 				"runtime.RV_DND_CANCEL.step.1" "DnD キャンセルを渡す。"
 			}
 		}
-		REL_017 = RESP_DND_INTERACTION -> RESP_REORDER_TARGET_RESOLUTION "DnD 開始試行時に開始対象と並び替え方向に対する移動対象判定を要求する。" {
+		REL_019 = RESP_DND_INTERACTION -> RESP_REORDER_TARGET_RESOLUTION "DnD 開始試行時に開始対象と並び替え方向に対する移動対象判定を要求する。" {
 			tags "Architecture Relationship,Runtime_RV_DND_START_MOVABLE,Runtime_RV_DND_START_IMMOVABLE"
 			properties {
 				"runtime.RV_DND_START_MOVABLE.step.3" "開始対象と並び替え方向に対する移動対象判定を要求する。"
 				"runtime.RV_DND_START_IMMOVABLE.step.3" "開始対象と並び替え方向に対する移動対象判定を要求する。"
 			}
 		}
-		REL_018 = RESP_REORDER_TARGET_RESOLUTION -> RESP_DND_INTERACTION "移動可能かどうかと、移動不可の場合の理由を返す。" {
+		REL_020 = RESP_REORDER_TARGET_RESOLUTION -> RESP_REORDER_CONSTRAINT_RESOLUTION "現在の Table 構造に対応する移動対象判定用の制約情報を要求する。" {
 			tags "Architecture Relationship,Runtime_RV_DND_START_MOVABLE,Runtime_RV_DND_START_IMMOVABLE"
 			properties {
-				"runtime.RV_DND_START_MOVABLE.step.4" "移動可能であることを返す。"
-				"runtime.RV_DND_START_IMMOVABLE.step.4" "移動不可であることと理由を返す。"
+				"runtime.RV_DND_START_MOVABLE.step.4" "現在の Table 構造に対応する移動対象判定用の制約情報を要求する。"
+				"runtime.RV_DND_START_IMMOVABLE.step.4" "現在の Table 構造に対応する移動対象判定用の制約情報を要求する。"
 			}
 		}
-		REL_019 = RESP_DND_INTERACTION -> RESP_DROP_TARGET_RESOLUTION "active な DnD 中に現在位置に対応する移動先判定を要求する。" {
+		REL_021 = RESP_REORDER_CONSTRAINT_RESOLUTION -> RESP_REORDER_TARGET_RESOLUTION "同じ Table 構造が有効な間に再利用できる移動対象判定用の制約情報を提供する。" {
+			tags "Architecture Relationship,Runtime_RV_DND_START_MOVABLE,Runtime_RV_DND_START_IMMOVABLE"
+			properties {
+				"runtime.RV_DND_START_MOVABLE.step.5" "同じ Table 構造が有効な間に再利用できる制約情報を提供する。"
+				"runtime.RV_DND_START_IMMOVABLE.step.5" "同じ Table 構造が有効な間に再利用できる制約情報を提供する。"
+			}
+		}
+		REL_022 = RESP_REORDER_TARGET_RESOLUTION -> RESP_DND_INTERACTION "移動可能かどうかと、移動不可の場合の理由を返す。" {
+			tags "Architecture Relationship,Runtime_RV_DND_START_MOVABLE,Runtime_RV_DND_START_IMMOVABLE"
+			properties {
+				"runtime.RV_DND_START_MOVABLE.step.6" "移動可能であることを返す。"
+				"runtime.RV_DND_START_IMMOVABLE.step.6" "移動不可であることと理由を返す。"
+			}
+		}
+		REL_023 = RESP_DND_INTERACTION -> RESP_DROP_TARGET_RESOLUTION "active な DnD 中に現在位置に対応する移動先判定を要求する。" {
 			tags "Architecture Relationship,Runtime_RV_DND_PROGRESS"
 			properties {
 				"runtime.RV_DND_PROGRESS.step.2" "現在の移動対象、並び替え方向、現在位置に対する移動先判定を要求する。"
 			}
 		}
-		REL_020 = RESP_DROP_TARGET_RESOLUTION -> RESP_DND_INTERACTION "有効な移動先、または有効な移動先なしを返す。" {
+		REL_024 = RESP_DROP_TARGET_RESOLUTION -> RESP_REORDER_CONSTRAINT_RESOLUTION "現在の Table 構造に対応する移動先判定用の制約情報を要求する。" {
 			tags "Architecture Relationship,Runtime_RV_DND_PROGRESS"
 			properties {
-				"runtime.RV_DND_PROGRESS.step.3" "有効な移動先、または有効な移動先なしを返す。"
+				"runtime.RV_DND_PROGRESS.step.3" "現在の Table 構造に対応する移動先判定用の制約情報を要求する。"
 			}
 		}
-		REL_021 = RESP_DND_INTERACTION -> RESP_REORDER_PRESENTATION "移動不可理由、DnD の進行状態、確定結果、キャンセル結果を提供する。" {
+		REL_025 = RESP_REORDER_CONSTRAINT_RESOLUTION -> RESP_DROP_TARGET_RESOLUTION "同じ Table 構造が有効な間に再利用できる移動先判定用の制約情報を提供する。" {
+			tags "Architecture Relationship,Runtime_RV_DND_PROGRESS"
+			properties {
+				"runtime.RV_DND_PROGRESS.step.4" "同じ Table 構造が有効な間に再利用できる制約情報を提供する。"
+			}
+		}
+		REL_026 = RESP_DROP_TARGET_RESOLUTION -> RESP_DND_INTERACTION "有効な移動先、または有効な移動先なしを返す。" {
+			tags "Architecture Relationship,Runtime_RV_DND_PROGRESS"
+			properties {
+				"runtime.RV_DND_PROGRESS.step.5" "有効な移動先、または有効な移動先なしを返す。"
+			}
+		}
+		REL_027 = RESP_DND_INTERACTION -> RESP_REORDER_PRESENTATION "移動不可理由、DnD の進行状態、確定結果、キャンセル結果を提供する。" {
 			tags "Architecture Relationship,Runtime_RV_DND_START_MOVABLE,Runtime_RV_DND_START_IMMOVABLE,Runtime_RV_DND_PROGRESS,Runtime_RV_DND_COMMIT_CORE_TABLE,Runtime_RV_DND_COMMIT_FLEXIBLE_TABLE_BLOCK,Runtime_RV_DND_CANCEL"
 			properties {
-				"runtime.RV_DND_START_MOVABLE.step.5" "DnD が開始した移動対象と進行状態を提供する。"
-				"runtime.RV_DND_START_IMMOVABLE.step.5" "DnD を開始せず、移動不可理由を一時表示するために渡す。"
-				"runtime.RV_DND_PROGRESS.step.4" "移動対象と現在の有効な移動先を提供し、挿入線と必要な周囲の表示変化を更新させる。"
+				"runtime.RV_DND_START_MOVABLE.step.7" "DnD が開始した移動対象と進行状態を提供する。"
+				"runtime.RV_DND_START_IMMOVABLE.step.7" "DnD を開始せず、移動不可理由を一時表示するために渡す。"
+				"runtime.RV_DND_PROGRESS.step.6" "移動対象と現在の有効な移動先を提供し、挿入線と必要な周囲の表示変化を更新させる。"
 				"runtime.RV_DND_COMMIT_CORE_TABLE.step.5" "確定結果を提供し、移動対象を最終位置へつなぐ表示を完了させる。"
 				"runtime.RV_DND_COMMIT_FLEXIBLE_TABLE_BLOCK.step.5" "確定結果を提供し、移動対象を最終位置へつなぐ表示を完了させる。"
 				"runtime.RV_DND_CANCEL.step.2" "キャンセル結果を提供し、移動対象を元の位置へ戻す表示を完了させる。"
 			}
 		}
-		REL_022 = RESP_DND_INTERACTION -> RESP_AUTO_SCROLL "active な DnD と並び替え方向を提供する。" {
+		REL_028 = RESP_DND_INTERACTION -> RESP_AUTO_SCROLL "active な DnD と並び替え方向を提供する。" {
 			tags "Architecture Relationship,Runtime_RV_DND_START_MOVABLE,Runtime_RV_DND_PROGRESS"
 			properties {
-				"runtime.RV_DND_START_MOVABLE.step.6" "active な DnD と並び替え方向を提供する。"
-				"runtime.RV_DND_PROGRESS.step.5" "active な DnD と並び替え方向を提供する。"
+				"runtime.RV_DND_START_MOVABLE.step.8" "active な DnD と並び替え方向を提供する。"
+				"runtime.RV_DND_PROGRESS.step.7" "active な DnD と並び替え方向を提供する。"
 			}
 		}
-		REL_023 = RESP_DND_INTERACTION -> RESP_DATA_UPDATE "有効な移動先で完了した確定済みの並び替えだけを渡す。" {
+		REL_029 = RESP_DND_INTERACTION -> RESP_DATA_UPDATE "有効な移動先で完了した確定済みの並び替えだけを渡す。" {
 			tags "Architecture Relationship,Runtime_RV_DND_COMMIT_CORE_TABLE,Runtime_RV_DND_COMMIT_FLEXIBLE_TABLE_BLOCK"
 			properties {
 				"runtime.RV_DND_COMMIT_CORE_TABLE.step.2" "移動対象と移動先を含む確定済みの並び替えを渡す。"
 				"runtime.RV_DND_COMMIT_FLEXIBLE_TABLE_BLOCK.step.2" "移動対象と移動先を含む確定済みの並び替えを渡す。"
 			}
 		}
-		REL_024 = RESP_AUTO_SCROLL -> EXT_SCROLL_AREA "行では縦方向、列では横方向の必要な自動スクロールを行う。" {
+		REL_030 = RESP_AUTO_SCROLL -> EXT_SCROLL_AREA "行では縦方向、列では横方向の必要な自動スクロールを行う。" {
 			tags "Architecture Relationship,Runtime_RV_DND_PROGRESS"
 			properties {
-				"runtime.RV_DND_PROGRESS.step.6" "行では縦方向、列では横方向に必要な自動スクロールを行う。"
+				"runtime.RV_DND_PROGRESS.step.8" "行では縦方向、列では横方向に必要な自動スクロールを行う。"
 			}
 		}
-		REL_025 = RESP_DATA_UPDATE -> EXT_CORE_TABLE "Core Table の行または列の位置を確定結果に従って更新する。" {
+		REL_031 = RESP_DATA_UPDATE -> EXT_CORE_TABLE "Core Table の行または列の位置を確定結果に従って更新する。" {
 			tags "Architecture Relationship,Runtime_RV_DND_COMMIT_CORE_TABLE"
 			properties {
 				"runtime.RV_DND_COMMIT_CORE_TABLE.step.3" "Core Table の行または列の位置を更新する。"
 			}
 		}
-		REL_026 = RESP_DATA_UPDATE -> EXT_FLEXIBLE_TABLE_BLOCK "Flexible Table Block の行または列の位置を確定結果に従って更新する。" {
+		REL_032 = RESP_DATA_UPDATE -> EXT_FLEXIBLE_TABLE_BLOCK "Flexible Table Block の行または列の位置を確定結果に従って更新する。" {
 			tags "Architecture Relationship,Runtime_RV_DND_COMMIT_FLEXIBLE_TABLE_BLOCK"
 			properties {
 				"runtime.RV_DND_COMMIT_FLEXIBLE_TABLE_BLOCK.step.3" "Flexible Table Block の行または列の位置を更新する。"
 			}
 		}
-		REL_027 = RESP_DATA_UPDATE -> EXT_WORDPRESS_UNDO "1 回の成立した並び替えを 1 回で戻せる更新単位として反映する。" {
+		REL_033 = RESP_DATA_UPDATE -> EXT_WORDPRESS_UNDO "1 回の成立した並び替えを 1 回で戻せる更新単位として反映する。" {
 			tags "Architecture Relationship,Runtime_RV_DND_COMMIT_CORE_TABLE,Runtime_RV_DND_COMMIT_FLEXIBLE_TABLE_BLOCK"
 			properties {
 				"runtime.RV_DND_COMMIT_CORE_TABLE.step.4" "1 回の並び替えを 1 回の Undo で戻せる更新単位として成立させる。"
@@ -200,30 +235,30 @@ workspace "YTR Reorder v1 Architecture" {
 
 		custom "RV_DND_START_MOVABLE" {
 			title "DnD start with movable target"
-			include RESP_INPUT_INTERACTION RESP_DND_INTERACTION RESP_REORDER_MODE RESP_REORDER_TARGET_RESOLUTION RESP_REORDER_PRESENTATION RESP_AUTO_SCROLL
+			include RESP_INPUT_INTERACTION RESP_DND_INTERACTION RESP_REORDER_MODE RESP_REORDER_TARGET_RESOLUTION RESP_REORDER_CONSTRAINT_RESOLUTION RESP_REORDER_PRESENTATION RESP_AUTO_SCROLL
 			exclude "relationship.tag!=Runtime_RV_DND_START_MOVABLE"
 			properties {
-				"runtime.steps" "1=REL_016;2=REL_013;3=REL_017;4=REL_018;5=REL_021;6=REL_022"
+				"runtime.steps" "1=REL_018;2=REL_015;3=REL_019;4=REL_020;5=REL_021;6=REL_022;7=REL_027;8=REL_028"
 			}
 			autoLayout lr
 		}
 
 		custom "RV_DND_START_IMMOVABLE" {
 			title "DnD start with immovable target"
-			include RESP_INPUT_INTERACTION RESP_DND_INTERACTION RESP_REORDER_MODE RESP_REORDER_TARGET_RESOLUTION RESP_REORDER_PRESENTATION
+			include RESP_INPUT_INTERACTION RESP_DND_INTERACTION RESP_REORDER_MODE RESP_REORDER_TARGET_RESOLUTION RESP_REORDER_CONSTRAINT_RESOLUTION RESP_REORDER_PRESENTATION
 			exclude "relationship.tag!=Runtime_RV_DND_START_IMMOVABLE"
 			properties {
-				"runtime.steps" "1=REL_016;2=REL_013;3=REL_017;4=REL_018;5=REL_021"
+				"runtime.steps" "1=REL_018;2=REL_015;3=REL_019;4=REL_020;5=REL_021;6=REL_022;7=REL_027"
 			}
 			autoLayout lr
 		}
 
 		custom "RV_DND_PROGRESS" {
 			title "DnD progress"
-			include RESP_INPUT_INTERACTION RESP_DND_INTERACTION RESP_DROP_TARGET_RESOLUTION RESP_REORDER_PRESENTATION RESP_AUTO_SCROLL EXT_SCROLL_AREA
+			include RESP_INPUT_INTERACTION RESP_DND_INTERACTION RESP_DROP_TARGET_RESOLUTION RESP_REORDER_CONSTRAINT_RESOLUTION RESP_REORDER_PRESENTATION RESP_AUTO_SCROLL EXT_SCROLL_AREA
 			exclude "relationship.tag!=Runtime_RV_DND_PROGRESS"
 			properties {
-				"runtime.steps" "1=REL_016;2=REL_019;3=REL_020;4=REL_021;5=REL_022;6=REL_024"
+				"runtime.steps" "1=REL_018;2=REL_023;3=REL_024;4=REL_025;5=REL_026;6=REL_027;7=REL_028;8=REL_030"
 			}
 			autoLayout lr
 		}
@@ -233,7 +268,7 @@ workspace "YTR Reorder v1 Architecture" {
 			include RESP_INPUT_INTERACTION RESP_DND_INTERACTION RESP_DATA_UPDATE EXT_CORE_TABLE EXT_WORDPRESS_UNDO RESP_REORDER_PRESENTATION
 			exclude "relationship.tag!=Runtime_RV_DND_COMMIT_CORE_TABLE"
 			properties {
-				"runtime.steps" "1=REL_016;2=REL_023;3=REL_025;4=REL_027;5=REL_021"
+				"runtime.steps" "1=REL_018;2=REL_029;3=REL_031;4=REL_033;5=REL_027"
 			}
 			autoLayout lr
 		}
@@ -243,7 +278,7 @@ workspace "YTR Reorder v1 Architecture" {
 			include RESP_INPUT_INTERACTION RESP_DND_INTERACTION RESP_DATA_UPDATE EXT_FLEXIBLE_TABLE_BLOCK EXT_WORDPRESS_UNDO RESP_REORDER_PRESENTATION
 			exclude "relationship.tag!=Runtime_RV_DND_COMMIT_FLEXIBLE_TABLE_BLOCK"
 			properties {
-				"runtime.steps" "1=REL_016;2=REL_023;3=REL_026;4=REL_027;5=REL_021"
+				"runtime.steps" "1=REL_018;2=REL_029;3=REL_032;4=REL_033;5=REL_027"
 			}
 			autoLayout lr
 		}
@@ -253,7 +288,7 @@ workspace "YTR Reorder v1 Architecture" {
 			include RESP_INPUT_INTERACTION RESP_DND_INTERACTION RESP_REORDER_PRESENTATION
 			exclude "relationship.tag!=Runtime_RV_DND_CANCEL"
 			properties {
-				"runtime.steps" "1=REL_016;2=REL_021"
+				"runtime.steps" "1=REL_018;2=REL_027"
 			}
 			autoLayout lr
 		}
