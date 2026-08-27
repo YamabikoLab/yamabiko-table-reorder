@@ -48,8 +48,3 @@ export const validateStructurizrWorkspace = ( workspacePath: string ): void => {
 		);
 	}
 };
-
-const workspacePath = process.argv[ 2 ];
-if ( workspacePath !== undefined ) {
-	validateStructurizrWorkspace( workspacePath );
-}
