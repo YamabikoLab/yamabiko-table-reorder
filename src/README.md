@@ -8,6 +8,9 @@ Current source boundary:
 
 ```text
 src/
+├── reorder/
+│   ├── editor-dom-context.test.ts
+│   └── editor-dom-context.ts
 ├── AGENTS.md
 ├── README.md
 ├── index.tsx
