@@ -15,10 +15,9 @@ export type EditorDomContext = {
  * 基準要素のownerDocumentを現在のdocumentとし、そのdefaultViewを現在のwindowとする。
  * 基準要素とは別のdocumentやwindowを代わりに使用せず、iframeも探索しない。解決結果は保持しない。
  * defaultViewを取得できない場合は、現在のエディター表示環境を解決できないためnullを返す。
+ * @param referenceElement
  */
-export function resolveEditorDomContext(
-	referenceElement: Element
-): EditorDomContext | null {
+export function resolveEditorDomContext( referenceElement: Element ): EditorDomContext | null {
 	const editorDocument = referenceElement.ownerDocument;
 	const editorWindow = editorDocument.defaultView;
 
