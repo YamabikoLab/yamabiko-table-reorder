@@ -2,7 +2,7 @@ import { resolveEditorDomContext } from './editor-dom-context';
 
 describe( 'Editor DOM Context', () => {
 	/**
-	 * 基準要素と同じeditor contextのdocumentとwindowを解決できることを確認する。
+	 * 基準要素と同じエディター表示環境のdocumentとwindowを解決できることを確認する。
 	 *
 	 * 事前条件:
 	 * - 現在のdocumentに基準要素が存在する。
@@ -24,7 +24,7 @@ describe( 'Editor DOM Context', () => {
 	} );
 
 	/**
-	 * documentに対応するwindowを取得できない場合はcontextを解決しないことを確認する。
+	 * documentに対応するwindowを取得できない場合は、別の表示環境を代用しないことを確認する。
 	 *
 	 * 事前条件:
 	 * - 基準要素がdefaultViewを持たないdocumentに属している。
@@ -33,7 +33,7 @@ describe( 'Editor DOM Context', () => {
 	 * - その基準要素を指定してEditor DOM Contextを解決する。
 	 *
 	 * 期待結果:
-	 * - global document / windowへfallbackせずnullが返される。
+	 * - 他のdocumentやwindowを代わりに使用せずnullが返される。
 	 */
 	it( 'when the reference document has no default view, should return null', () => {
 		const detachedDocument = document.implementation.createHTMLDocument();
