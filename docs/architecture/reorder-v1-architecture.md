@@ -15,11 +15,15 @@ Keyboard 操作、ドラッグを必要としない操作、focus、announcement
 - 行並び替えと列並び替えを同時に有効にしない。
 - PC とタッチ端末で、入力成立方法の違いを DnD Interaction 以降へ持ち込まない。
 - WordPress Core Table と Flexible Table Block で、利用者から見た操作と結果の方針を変えない。
+- Table plugin 固有の構造表現を Reorder core へ持ち込まず、Table Integration が共通 Table structure へ適応する。
+- Table Integration は Table 構造の状態、監視状態、DnD 状態、並び替え制約を所有しない。
+- DnD 開始試行では、Reorder Target Resolution がその時点の共通 Table structure から移動対象可否を判定し、その DnD の移動先判定に必要な制約情報を導出する。
+- 導出した制約情報は成立した Reorder Session が 1 回の DnD 中だけ保持し、DnD をまたいで再利用しない。
+- Drop Target Resolution は DnD Interaction から渡された判定入力だけを利用し、Table 全体の構造を参照または再解析しない。
+- 行並び替えでは縦結合、列並び替えでは横結合に由来する制約を扱う。結合範囲を越える移動自体は禁止せず、対象方向の結合を分断する移動だけを禁止する。
+- Table 全体を並び替え用の中間構造として常駐させず、セル数に比例する並び替え用中間オブジェクトを DnD をまたいで保持しない。
 - DOM / Web API を利用する責務は、現在の editor が iframe か non-iframe かを直接判定せず、Editor DOM Context が提供する現在の editor context を利用する。
 - Editor DOM Context が提供する context は editor lifecycle をまたいで有効であることを前提にしない。
-- Table 構造に由来する並び替え制約の抽出は Reorder Constraint Resolution に集約し、Reorder Target Resolution と Drop Target Resolution は Table 全体の構造を直接解析しない。
-- 同じ Table 構造が有効な間は抽出済みの制約情報を再利用し、DnD 開始試行や DnD 中の移動先判定ごとに Table 全体から再抽出しない。
-- Table 全体を並び替え用の中間構造へ変換して保持せず、セル数に比例する並び替え用中間オブジェクトを常駐させない。
 - DnD 中は Table 上の実際の行・列順序を変更しない。
 - Table データを変更するのは、有効な移動先で DnD が完了した場合だけとする。
 - 1 回の成立した並び替えは 1 回の Undo で並び替え前へ戻せる更新とする。
@@ -44,29 +48,31 @@ YTR は WordPress の編集環境、対象 Table、Undo の仕組み、および
 
 Input Interaction を WordPress 編集環境の入力と共通 Reorder 処理の境界とし、PC とタッチ端末の入力固有の差をその境界の内側で扱う。DnD Interaction 以降は入力方式に依存しない共通概念だけを扱う。WordPress Editor から受ける入力と、DOM / Web API を利用するための editor context の解決は別の責務境界として扱う。
 
-Core Table と Flexible Table Block の内部表現の違いにかかわらず、本書で定義する責務間では、行・列の開始対象、並び替え制約、移動対象判定、有効な移動先、確定した並び替えという同じ概念で扱う。
+Core Table と Flexible Table Block の内部表現の違いは Table Integration が吸収する。Reorder core は対象 Table の plugin 固有構造を直接扱わず、要求時点の共通 Table structure を通じて移動対象判定と制約情報導出を行う。
 
-Table 構造の解析は Reorder Constraint Resolution に集約し、移動対象判定と移動先判定に必要な構造上の制約だけを抽出して提供する。Table 構造に由来する DnD 開始前の移動対象可否は Reorder Target Resolution、DnD 開始後の移動先可否は Drop Target Resolution が、その制約情報を利用して判定する。Input Interaction、DnD Interaction、Reorder Presentation、Data Update が構造解析を独自に行わない境界とする。
+Table 構造に由来する DnD 開始前の移動対象可否と、その DnD 中に使用する構造上の制約情報は Reorder Target Resolution が DnD 開始試行時に解決する。DnD 開始後の移動先可否は Drop Target Resolution が、DnD Interaction から渡された制約情報と現在の操作状態を利用して判定する。
 
-DnD Interaction は Reorder Constraint Resolution に直接依存せず、DnD の開始可否と進行は Reorder Target Resolution と Drop Target Resolution を通じて扱う。
+DnD Interaction は成立した Reorder Session に制約情報を保持し、Drop Target Resolution へ判定に必要な値だけを渡す。Drop Target Resolution は Reorder Session 自体や Table 全体の構造には依存しない。
 
-Table の実データ更新は DnD の進行および Reorder Presentation から分離し、確定した並び替えだけを外部の Table データへ反映する。
+Table の実データ更新は DnD の進行、Table Integration、および Reorder Presentation から分離し、確定した並び替えだけを Data Update が外部の Table データへ反映する。
 
 First-use Guidance と Reorder Rediscovery は、WordPress の通常編集として成立する操作を尊重し、並び替え案内のために通常編集の成立を奪わない。
 
 ## 4. Solution Strategy
 
-Reorder v1 は、editor DOM context の解決、並び替えモード、案内、入力解釈、DnD の共通進行、並び替え制約の抽出、開始対象判定、移動先判定、表示、自動スクロール、Table データ更新を別々の責務として扱う。
+Reorder v1 は、editor DOM context の解決、Table 構造の適応、並び替えモード、案内、入力解釈、DnD の共通進行、開始対象と制約情報の解決、移動先判定、表示、自動スクロール、Table データ更新を別々の責務として扱う。
 
 Editor DOM Context は、現在の editor context に属する基準から、その時点で DOM / Web API を利用するための context を解決し、必要とする責務へ提供する。利用側に iframe / non-iframe の違いを持ち込まず、context の永続性や並び替え状態を所有しない。
 
+Table Integration は、Core Table と Flexible Table Block の plugin 固有の Table 構造表現を、Reorder core が共通に利用できる Table structure へ要求時に適応する。共通 Table structure や Table ごとの状態を保持せず、Table の追加・削除・構造変更も監視しない。
+
 Reorder Mode は通常編集、行並び替え、列並び替えの現在状態を管理する。Input Interaction は、その状態のもとで PC とタッチ端末の入力差を吸収し、DnD の開始試行・進行・完了・キャンセルという共通の意味へ変換する。
 
-DnD Interaction は、入力方式に依存せず、Input Interaction から受け取った開始対象と Reorder Mode が示す並び替え方向を組み合わせて DnD の開始と進行を統括する。開始試行時だけ Reorder Target Resolution に移動対象判定を要求し、移動可能な場合だけ Reorder Session を開始する。移動不可の場合は DnD を開始せず、その理由を Reorder Presentation へ渡す。
+DnD Interaction は、入力方式に依存せず、Input Interaction から受け取った開始対象と Reorder Mode が示す並び替え方向を組み合わせて DnD の開始と進行を統括する。開始試行時に Reorder Target Resolution へ解決を要求し、移動可能な場合だけ、移動対象とその DnD で利用する制約情報を含む Reorder Session を開始する。移動不可の場合は DnD を開始せず、その理由を Reorder Presentation へ渡す。
 
-Reorder Constraint Resolution は、現在の Table 構造から、Reorder Target Resolution と Drop Target Resolution が必要とする移動不可対象・移動不可境界などの構造上の制約だけを抽出する。行では `rowspan`、列では `rowspan` / `colspan` に由来する必要な制約を扱い、Table 全体を並び替え用の中間構造へ変換・保持しない。同じ Table 構造が有効な間は抽出済みの制約情報を共有し、個々の判定結果とは Lifecycle を分離する。
+Reorder Target Resolution は DnD 開始試行時に Table Integration からその時点の共通 Table structure を取得し、開始対象が移動対象として成立するかを判定する。同時に、その DnD 中の移動先判定で必要となる制約情報を導出する。制約情報の Lifecycle は所有せず、移動可能な場合に移動対象の解決結果と制約情報を DnD Interaction へ提供する。
 
-Reorder Target Resolution は DnD 開始試行時に Reorder Constraint Resolution の制約情報から移動対象可否を判定し、Drop Target Resolution は DnD 開始後に同じ制約情報と現在の移動対象から有効な移動先を判定する。両責務は Table 全体を直接走査する責務を持たない。
+DnD Interaction は Reorder Session に保持した現在の移動対象、並び替え方向、制約情報、現在位置を Drop Target Resolution へ判定入力として渡す。Drop Target Resolution はその入力だけから有効な移動先を判定し、Table Integration、Table 全体の構造、Reorder Session 自体には依存しない。
 
 Reorder Presentation は Table データとは分離して移動対象、挿入線、周囲の行・列の表示変化を扱い、Auto Scroll は並び替え方向に応じた一方向の自動スクロールを扱う。
 
@@ -84,11 +90,11 @@ First-use Guidance は初回案内、Reorder Rediscovery は初回案内後の�
 | RESP_FIRST_USE_GUIDANCE | First-use Guidance | PC とタッチ端末ごとの初回案内の表示状態を管理し、並び替えの入口を利用者に案内する。 |
 | RESP_REORDER_REDISCOVERY | Reorder Rediscovery | 通常編集状態で並び替えを試みていると考えられる操作の繰り返しを判定し、必要な場合だけ並び替えの入口を再案内する。 |
 | RESP_EDITOR_DOM_CONTEXT | Editor DOM Context | 現在の editor context に属する基準から、その時点で利用すべき DOM / Web API context を解決し、必要とする責務へ提供する。 |
+| RESP_TABLE_INTEGRATION | Table Integration | Table plugin 固有の Table 構造表現を、Reorder core が利用する共通 Table structure へ適応する。 |
 | RESP_INPUT_INTERACTION | Input Interaction | PC とタッチ端末の入力固有の差を共通の DnD 進行から分離し、開始試行・進行・完了・キャンセルとして DnD Interaction へ渡す境界を担う。 |
-| RESP_DND_INTERACTION | DnD Interaction | 入力方式と行・列に共通する DnD の開始可否判定と進行を統括し、確定可能な操作だけを Data Update へ渡す。 |
-| RESP_REORDER_CONSTRAINT_RESOLUTION | Reorder Constraint Resolution | 現在の Table 構造から移動対象・移動先判定に必要な構造上の制約だけを抽出し、同じ Table 構造が有効な間は共有できる制約情報として提供する。 |
-| RESP_REORDER_TARGET_RESOLUTION | Reorder Target Resolution | DnD 開始試行時に、Reorder Constraint Resolution が提供する制約情報から行または列を移動対象として選択できるかを判定し、移動不可の場合はその理由を提供する。 |
-| RESP_DROP_TARGET_RESOLUTION | Drop Target Resolution | DnD 開始後の移動対象と Reorder Constraint Resolution が提供する制約情報から、現在の位置が有効な移動先かを判定する。 |
+| RESP_DND_INTERACTION | DnD Interaction | 入力方式と行・列に共通する DnD の開始可否判定と進行を統括し、成立した Reorder Session の状態を管理して、確定可能な操作だけを Data Update へ渡す。 |
+| RESP_REORDER_TARGET_RESOLUTION | Reorder Target Resolution | DnD 開始試行時に現在の共通 Table structure から移動対象可否を判定し、その DnD で利用する構造上の制約情報を導出する。 |
+| RESP_DROP_TARGET_RESOLUTION | Drop Target Resolution | DnD Interaction から渡された移動対象、並び替え方向、制約情報、現在位置から、現在の位置が有効な移動先かを判定する。 |
 | RESP_REORDER_PRESENTATION | Reorder Presentation | 並び替えモード中の対象表示、移動不可理由、および DnD 中から確定・キャンセルまでの視覚フィードバックを Table データの更新から分離して扱う。 |
 | RESP_AUTO_SCROLL | Auto Scroll | DnD 中に、行では縦方向、列では横方向だけを移動のための自動スクロール対象とする。 |
 | RESP_DATA_UPDATE | Data Update | 確定した並び替えだけを Table に反映し、保持すべきセル情報と Undo 単位を維持する。 |
@@ -101,8 +107,8 @@ First-use Guidance は初回案内、Reorder Rediscovery は初回案内後の�
 | EXT_WORDPRESS_EDITOR | RESP_REORDER_REDISCOVERY | 通常編集として成立した操作と並び替え試行候補を区別するための情報を提供する。 |
 | EXT_WORDPRESS_EDITOR | RESP_EDITOR_DOM_CONTEXT | 現在の editor context に属する基準を通じて、解決対象となる編集環境を提供する。 |
 | EXT_WORDPRESS_EDITOR | RESP_INPUT_INTERACTION | PC またはタッチ端末の入力を提供する。DOM / Web API context の解決は提供しない。 |
-| EXT_CORE_TABLE | RESP_REORDER_CONSTRAINT_RESOLUTION | 現在の Core Table 構造と、その構造が変化したことを制約情報の有効性境界として提供する。 |
-| EXT_FLEXIBLE_TABLE_BLOCK | RESP_REORDER_CONSTRAINT_RESOLUTION | 現在の Flexible Table Block 構造と、その構造が変化したことを制約情報の有効性境界として提供する。 |
+| EXT_CORE_TABLE | RESP_TABLE_INTEGRATION | Core Table 固有の現在の Table 構造表現を提供する。 |
+| EXT_FLEXIBLE_TABLE_BLOCK | RESP_TABLE_INTEGRATION | Flexible Table Block 固有の現在の Table 構造表現を提供する。 |
 | RESP_EDITOR_DOM_CONTEXT | RESP_FIRST_USE_GUIDANCE | 初回案内で DOM / Web API を利用する時点の editor context を提供する。 |
 | RESP_EDITOR_DOM_CONTEXT | RESP_REORDER_REDISCOVERY | 再案内判定で DOM / Web API を利用する時点の editor context を提供する。 |
 | RESP_EDITOR_DOM_CONTEXT | RESP_INPUT_INTERACTION | 入力解釈で DOM / Web API を利用する時点の editor context を提供する。 |
@@ -115,13 +121,11 @@ First-use Guidance は初回案内、Reorder Rediscovery は初回案内後の�
 | RESP_REORDER_MODE | RESP_REORDER_PRESENTATION | 並び替えモード中に表示する対象方向を提供する。 |
 | RESP_FIRST_USE_GUIDANCE | RESP_REORDER_REDISCOVERY | 初回案内が完了済みであることを再案内判定の前提として提供する。 |
 | RESP_INPUT_INTERACTION | RESP_DND_INTERACTION | DnD の開始試行、進行、完了、キャンセルを共通の意味で渡す。 |
-| RESP_DND_INTERACTION | RESP_REORDER_TARGET_RESOLUTION | DnD 開始試行時に開始対象と並び替え方向に対する移動対象判定を要求する。 |
-| RESP_REORDER_TARGET_RESOLUTION | RESP_REORDER_CONSTRAINT_RESOLUTION | 現在の Table 構造に対応する移動対象判定用の制約情報を要求する。 |
-| RESP_REORDER_CONSTRAINT_RESOLUTION | RESP_REORDER_TARGET_RESOLUTION | 同じ Table 構造が有効な間に再利用できる移動対象判定用の制約情報を提供する。 |
-| RESP_REORDER_TARGET_RESOLUTION | RESP_DND_INTERACTION | 移動可能かどうかと、移動不可の場合の理由を返す。 |
-| RESP_DND_INTERACTION | RESP_DROP_TARGET_RESOLUTION | active な DnD 中に現在位置に対応する移動先判定を要求する。 |
-| RESP_DROP_TARGET_RESOLUTION | RESP_REORDER_CONSTRAINT_RESOLUTION | 現在の Table 構造に対応する移動先判定用の制約情報を要求する。 |
-| RESP_REORDER_CONSTRAINT_RESOLUTION | RESP_DROP_TARGET_RESOLUTION | 同じ Table 構造が有効な間に再利用できる移動先判定用の制約情報を提供する。 |
+| RESP_DND_INTERACTION | RESP_REORDER_TARGET_RESOLUTION | DnD 開始試行時に開始対象と並び替え方向に対する移動対象解決を要求する。 |
+| RESP_REORDER_TARGET_RESOLUTION | RESP_TABLE_INTEGRATION | DnD 開始試行時に対象 Table の現在の共通 Table structure を要求する。 |
+| RESP_TABLE_INTEGRATION | RESP_REORDER_TARGET_RESOLUTION | 対応可能な Table について要求時点の共通 Table structure を提供する。 |
+| RESP_REORDER_TARGET_RESOLUTION | RESP_DND_INTERACTION | 移動対象の解決結果と、移動可能な場合はその DnD で利用する制約情報を返す。 |
+| RESP_DND_INTERACTION | RESP_DROP_TARGET_RESOLUTION | active な DnD 中に移動対象、並び替え方向、制約情報、現在位置を渡して移動先判定を要求する。 |
 | RESP_DROP_TARGET_RESOLUTION | RESP_DND_INTERACTION | 有効な移動先、または有効な移動先なしを返す。 |
 | RESP_DND_INTERACTION | RESP_REORDER_PRESENTATION | 移動不可理由、DnD の進行状態、確定結果、キャンセル結果を提供する。 |
 | RESP_DND_INTERACTION | RESP_AUTO_SCROLL | active な DnD と並び替え方向を提供する。 |
@@ -244,7 +248,7 @@ PC では表示中に Table からポインターが外れても、それだけ�
 
 ##### State ownership
 
-並び替え状態、Reorder Mode、DnD Session、Table データ、移動対象、移動先、Presentation 状態を所有しない。解決した editor DOM context を editor lifecycle をまたぐ永続状態として所有しない。
+並び替え状態、Reorder Mode、Reorder Session、Table データ、移動対象、移動先、Presentation 状態を所有しない。解決した editor DOM context を editor lifecycle をまたぐ永続状態として所有しない。
 
 ##### Contract
 
@@ -258,7 +262,7 @@ context の解決に使用する具体的な DOM 要素、Web API property、探
 
 現在の WordPress Editor と、現在の editor context に属する基準に依存する。DOM / Web API を利用する First-use Guidance、Reorder Rediscovery、Input Interaction、Reorder Presentation、Auto Scroll は Editor DOM Context が提供する context に依存する。
 
-Reorder Mode、DnD Interaction、Reorder Constraint Resolution、Reorder Target Resolution、Drop Target Resolution、Data Update の状態や判定には依存しない。
+Table Integration、Reorder Mode、DnD Interaction、Reorder Target Resolution、Drop Target Resolution、Data Update の状態や判定には依存しない。
 
 ##### Lifecycle
 
@@ -274,6 +278,40 @@ DOM / Web API を利用する責務が現在の editor context を必要とす�
 - 以前の editor lifecycle で得た context を現在の context として再利用しない。
 - 並び替え状態、Table データ、移動対象、移動先を所有しない。
 - 具体的な DOM 要素、Web API property、探索方法、識別子を Architecture の必須 Contract として固定しない。
+
+#### Table Integration {#RESP_TABLE_INTEGRATION}
+
+##### Responsibility
+
+Table plugin 固有の Table 構造表現を、Reorder core が利用する共通 Table structure へ適応する。
+
+##### State ownership
+
+状態を所有しない。共通 Table structure、Table ごとの状態、監視状態、DnD 状態、制約情報を保持しない。
+
+##### Contract
+
+Reorder Target Resolution から対象 Table の現在構造を要求された時点で、対象 Table の plugin 固有構造を共通 Table structure へ適応して提供する。
+
+対応できない Table では共通 Table structure を提供しない。制約情報の導出は行わない。
+
+##### Dependencies
+
+WordPress Core Table または Flexible Table Block の plugin 固有の現在構造に依存する。Reorder Target Resolution から利用される。
+
+DnD Interaction、Drop Target Resolution、Data Update の状態や処理には依存しない。
+
+##### Lifecycle
+
+要求時に現在構造を適応して提供し、提供結果を後続の要求へ持ち越さない。Table の追加・削除・構造変更を監視しない。
+
+##### Invariants
+
+- Table plugin 固有の構造表現を Reorder core 側へ漏らさない。
+- Core Table / Flexible Table Block 固有の `rowspan` / `colspan` 相当情報の名称や格納形式の違いを共通 Table structure へ吸収する。
+- 制約情報を導出しない。
+- 共通 Table structure や Table ごとの状態を常駐させない。
+- 対応不能な Table に対して不完全な共通 Table structure を返さない。
 
 #### Input Interaction {#RESP_INPUT_INTERACTION}
 
@@ -295,7 +333,7 @@ DnD が開始された後は、進行、完了、キャンセルとして解釈�
 
 ##### Dependencies
 
-Reorder Mode と WordPress 編集環境の入力に依存する。DOM / Web API を利用する場合は Editor DOM Context が提供する現在の editor context に依存する。DnD の開始試行と共通進行は DnD Interaction に渡し、Reorder Constraint Resolution、Reorder Target Resolution、Drop Target Resolution、Reorder Presentation、Auto Scroll、Data Update には直接依存しない。
+Reorder Mode と WordPress 編集環境の入力に依存する。DOM / Web API を利用する場合は Editor DOM Context が提供する現在の editor context に依存する。DnD の開始試行と共通進行は DnD Interaction に渡し、Table Integration、Reorder Target Resolution、Drop Target Resolution、Reorder Presentation、Auto Scroll、Data Update には直接依存しない。
 
 ##### Lifecycle
 
@@ -318,19 +356,21 @@ DnD が完了またはキャンセルされた場合、開始試行が移動不�
 
 ##### Responsibility
 
-Input Interaction から受け取る DnD の開始試行と、開始後の DnD を入力方式および行・列に共通する 1 つの並び替え操作として統括する。開始試行では Reorder Target Resolution の判定に基づいて DnD の開始または非開始を決め、開始後は移動対象、現在の移動先、確定可能性、完了結果を保持し、有効な移動先で完了した場合だけ確定した並び替えを Data Update へ渡す。
+Input Interaction から受け取る DnD の開始試行と、開始後の DnD を入力方式および行・列に共通する 1 つの並び替え操作として統括する。開始試行では Reorder Target Resolution の判定に基づいて DnD の開始または非開始を決め、開始後は Reorder Session に移動対象、並び替え方向、制約情報、現在の移動先、確定可能性、完了結果を保持し、有効な移動先で完了した場合だけ確定した並び替えを Data Update へ渡す。
 
 ##### State ownership
 
-DnD が進行中かどうか、行または列のどちらを扱っているか、開始後の移動対象、現在の有効な移動先、確定可能性、完了結果を所有する。移動対象として選択できるかという判定規則、入力方式固有の一時状態、並び替え制約、Table データ自体、視覚表示状態は所有しない。
+成立した 1 回の DnD に対応する Reorder Session を所有する。Reorder Session には、行または列のどちらを扱っているか、移動対象、その DnD で利用する制約情報、現在の有効な移動先、確定可能性、完了結果を保持する。
+
+移動対象として選択できるかという判定規則、制約情報の導出規則、入力方式固有の一時状態、Table データ自体、視覚表示状態は所有しない。DnD をまたぐ制約情報の cache は所有しない。
 
 ##### Contract
 
-Input Interaction から DnD の開始試行・進行・完了・キャンセルを受け取る。開始試行に含まれる開始対象と Reorder Mode が示す並び替え方向を Reorder Target Resolution に渡して移動対象判定を要求する。
+Input Interaction から DnD の開始試行・進行・完了・キャンセルを受け取る。開始試行に含まれる開始対象と Reorder Mode が示す並び替え方向を Reorder Target Resolution に渡して移動対象解決を要求する。
 
-Reorder Target Resolution が移動可能と判定した場合だけ、その対象を移動対象として共通の Reorder Session を開始する。移動不可と判定した場合は Reorder Session を開始せず、その理由を Reorder Presentation に提供する。
+Reorder Target Resolution が移動可能と判定した場合だけ、返された移動対象と制約情報を含む Reorder Session を開始する。移動不可と判定した場合は Reorder Session を開始せず、その理由を Reorder Presentation に提供する。
 
-進行中は現在位置に応じた移動先判定を Drop Target Resolution に求め、その結果を操作状態として保持する。Reorder Presentation と Auto Scroll が必要とする進行状態を提供する。
+進行中は Reorder Session から現在の移動対象、並び替え方向、制約情報を取り出し、現在位置とともに Drop Target Resolution へ渡して移動先判定を求める。その結果を Reorder Session の操作状態として保持する。Reorder Presentation と Auto Scroll が必要とする進行状態を提供する。
 
 完了時に有効な移動先がある場合だけ、移動対象と移動先を含む確定した並び替えを Data Update に渡し、Reorder Presentation に確定結果を提供する。
 
@@ -338,160 +378,113 @@ Reorder Target Resolution が移動可能と判定した場合だけ、その対
 
 ##### Dependencies
 
-Input Interaction から入力方式に依存しない DnD の開始試行と進行を受け取る。開始対象は Input Interaction から受け取り、並び替え方向は Reorder Mode に依存して決める。Reorder Target Resolution に依存して開始対象が移動対象として成立するかを決め、Drop Target Resolution に依存して DnD 開始後の有効な移動先を決める。
+Input Interaction から入力方式に依存しない DnD の開始試行と進行を受け取る。開始対象は Input Interaction から受け取り、並び替え方向は Reorder Mode に依存して決める。Reorder Target Resolution に依存して開始対象が移動対象として成立するかと、その DnD で利用する制約情報を受け取る。Drop Target Resolution に依存して DnD 開始後の有効な移動先を決める。
 
-Reorder Constraint Resolution には直接依存しない。Table 構造の解析と制約情報の取得は Reorder Target Resolution と Drop Target Resolution の境界内で扱う。
-
-Reorder Presentation は移動不可理由と DnD Interaction の進行状態に依存し、Auto Scroll は active な DnD の進行状態に依存する。Data Update とは確定した並び替えだけを通じて接続する。
+Table Integration には直接依存しない。Reorder Presentation は移動不可理由と DnD Interaction の進行状態に依存し、Auto Scroll は active な DnD の進行状態に依存する。Data Update とは確定した並び替えだけを通じて接続する。
 
 ##### Lifecycle
 
-並び替えモード中に Input Interaction から DnD の開始試行を受ける。Reorder Target Resolution が移動可能と判定した場合だけ active になり、完了またはキャンセルまで active を維持し、その間だけ移動対象と移動先を保持する。
+並び替えモード中に Input Interaction から DnD の開始試行を受ける。Reorder Target Resolution が移動可能と判定した場合だけ Reorder Session を開始し、完了またはキャンセルまで active を維持する。その間だけ移動対象、並び替え方向、制約情報、移動先などを保持する。
 
-移動不可と判定された場合は active にならず、理由を Reorder Presentation へ渡して開始試行を終了する。完了またはキャンセル時は結果を確定し、Data Update と Reorder Presentation に必要な結果を渡した後、次の DnD へ前回の操作状態を持ち越さない。
+移動不可と判定された場合は active にならず、理由を Reorder Presentation へ渡して開始試行を終了する。完了またはキャンセル時は必要な結果を渡した後、Reorder Session とその制約情報を破棄する。次の DnD 開始試行では、その時点の共通 Table structure から新しい制約情報が導出される。
 
 ##### Invariants
 
 - 通常の Table 編集状態から DnD の開始試行を成立させない。
 - Reorder Target Resolution が移動可能と判定していない対象から DnD を開始しない。
 - 移動不可な開始試行では Reorder Session を作らない。
-- 移動対象判定の規則を自身で重複して所有しない。
-- Reorder Constraint Resolution に直接依存しない。
+- Reorder Target Resolution が提供した制約情報を成立した Reorder Session の外へ持ち越さない。
+- DnD をまたぐ constraint cache、structure revision、cache invalidation を所有しない。
+- Drop Target Resolution へ Reorder Session 自体を渡さず、判定に必要な値だけを渡す。
 - DnD 開始前に Drop Target Resolution を移動対象判定へ利用しない。
 - 入力方式固有の状態を所有しない。
 - 行と列で Lifecycle、destination 更新、commit、cancel の Contract を分岐させない。
 - DnD 中に Table データを変更しない。
 - 有効な移動先なしに確定した並び替えを生成しない。
 - キャンセル時は Data Update へ更新要求を渡さない。
-- 完了またはキャンセル後に前回の移動対象や移動先を次の DnD へ保持しない。
+- 完了またはキャンセル後に前回の Reorder Session 状態を次の DnD へ保持しない。
 - Data Update へ渡す時点で並び替えは確定済みである。
-
-#### Reorder Constraint Resolution {#RESP_REORDER_CONSTRAINT_RESOLUTION}
-
-##### Responsibility
-
-現在の Table 構造を解析し、Reorder Target Resolution と Drop Target Resolution が移動対象・移動先を判定するために必要な構造上の制約だけを抽出して提供する。
-
-行では `rowspan`、列では `rowspan` / `colspan` に由来する移動不可対象・移動不可境界など、判定に必要な制約を扱う。Table 全体を並び替え用の中間構造へ変換・保持する責務は持たない。
-
-##### State ownership
-
-現在の Table 構造に対応して抽出した制約情報と、その制約情報がどの Table 構造に対して有効かという Lifecycle 境界を所有する。
-
-Table データそのもの、セルごとの並び替え用中間オブジェクト、DnD Session、個々の開始試行の判定結果、個々の移動先判定結果は所有しない。
-
-##### Contract
-
-Core Table または Flexible Table Block の現在の Table 構造から、移動対象判定と移動先判定に必要な構造上の制約だけを抽出する。
-
-Reorder Target Resolution には DnD 開始試行で必要な移動対象判定用の制約情報を提供し、Drop Target Resolution には DnD 開始後の移動先判定用の制約情報を提供する。同じ Table 構造が有効な間は、抽出済みの制約情報を両責務からの複数回の要求に対して再利用できる。
-
-制約情報は Table 全体の並び替え用コピーではなく、構造上の制約を判定するために必要な情報だけとする。セル数に比例する並び替え用中間オブジェクトを Contract の前提にしない。
-
-##### Dependencies
-
-WordPress Core Table または Flexible Table Block の現在の Table 構造に依存する。Reorder Target Resolution と Drop Target Resolution は制約情報を Reorder Constraint Resolution に依存する。
-
-DnD Interaction、Input Interaction、Reorder Presentation、Auto Scroll、Data Update の進行状態には依存せず、それらから直接判定要求を受け取らない。
-
-##### Lifecycle
-
-同じ Table 構造が有効な期間について、判定に必要な制約情報を 1 回抽出する。抽出済みの制約情報は、同じ Table 構造が有効な間、複数回の DnD 開始試行と DnD 中の移動先判定で再利用できる。
-
-DnD ごと、開始試行ごと、現在位置の変化ごとに Table 全体から制約情報を再抽出しない。
-
-並び替えの確定、行・列の追加または削除、セル結合状態の変更、Undo / Redo その他の経路によって Table 構造が変化した場合、以前の Table 構造に対応する制約情報は無効とする。新しい Table 構造に対して判定が必要になった場合は、新しい制約情報を抽出する。
-
-個々の Reorder Target Resolution と Drop Target Resolution の判定結果の Lifecycle は制約情報から分離し、それらの判定結果を制約情報の代わりに再利用しない。
-
-##### Invariants
-
-- Table 全体を並び替え用の中間構造へ変換・保持しない。
-- セル数に比例する並び替え用中間オブジェクトを生成・保持することを Contract の前提にしない。
-- 同じ Table 構造が有効な間は、DnD 開始試行や移動先判定ごとに Table 全体から制約情報を再抽出しない。
-- Table 構造が変化した後に、以前の構造から抽出した制約情報を再利用しない。
-- Reorder Target Resolution と Drop Target Resolution の個々の判定結果を所有しない。
-- DnD Interaction へ直接制約情報を提供しない。
-- Table データを変更しない。
 
 #### Reorder Target Resolution {#RESP_REORDER_TARGET_RESOLUTION}
 
 ##### Responsibility
 
-DnD 開始試行時に、現在の並び替え方向で開始対象となる行または列を移動対象として選択できるかを Reorder Constraint Resolution が提供する制約情報から判定する。移動できない対象では、その理由を DnD Interaction が利用できる判定結果として提供する。
+DnD 開始試行時に、Table Integration が提供する現在の共通 Table structure から、開始対象となる行または列を移動対象として選択できるかを判定する。同時に、その DnD 中の移動先判定で必要となる構造上の制約情報を導出する。
 
-行では `rowspan` によって複数行にまたがる結合範囲の一部となる行を移動対象にしない。`colspan` は行全体の移動を妨げないため、`colspan` だけを理由に行を移動不可にしない。
-
-列では `colspan` によって複数列にまたがる結合範囲の一部となる列を移動対象にしない。`rowspan` は列全体の移動対象可否だけを理由に制限しない。
+行では縦結合、列では横結合に由来する移動対象可否と、対象方向の結合を分断しない移動先判定に必要な制約を扱う。結合範囲を越える移動自体は制限しない。
 
 ##### State ownership
 
-永続的な DnD 状態、Table データ、制約情報の Lifecycle を所有しない。現在の判定に必要な開始対象、並び替え方向、Reorder Constraint Resolution が提供する制約情報を入力として扱い、移動可能かどうかと、移動不可の場合の理由を判定結果として提供する。
+永続的な DnD 状態、Table データ、共通 Table structure、制約情報の Lifecycle を所有しない。現在の開始試行について、開始対象、並び替え方向、現在の共通 Table structure を入力として扱う。
 
 ##### Contract
 
-DnD Interaction から開始対象と行または列の並び替え方向に対応する判定要求を受け取り、Reorder Constraint Resolution から現在の Table 構造に対応する制約情報を受け取る。
+DnD Interaction から開始対象と行または列の並び替え方向に対応する解決要求を受け取り、Table Integration へ対象 Table の現在の共通 Table structure を要求する。
 
-移動対象として成立する場合は移動可能であることを返す。成立しない場合は移動不可であることと、DnD Interaction が Reorder Presentation へ渡せる理由を返す。
+共通 Table structure を取得でき、開始対象が移動対象として成立する場合は、移動対象の解決結果と、その DnD 中の移動先判定で利用する制約情報を返す。開始対象が成立しない場合、または現在の共通 Table structure を取得できない場合は、DnD Interaction が Reorder Presentation へ渡せる非開始の理由を含む結果を返す。
 
-Table 全体の構造を直接走査して制約を再構築せず、並び替えモード中の対象表示のための判定要求は受け取らない。
+制約情報を導出するが、その Lifecycle は所有しない。個々の開始試行を越えて制約情報や判定結果を保持しない。
 
 ##### Dependencies
 
-DnD Interaction から受け取る開始対象と並び替え方向、および Reorder Constraint Resolution が提供する現在の Table 構造に対応する制約情報に依存する。DnD Interaction は開始可否の判定結果に依存する。Reorder Presentation とは直接依存しない。
+DnD Interaction から受け取る開始対象と並び替え方向、および Table Integration が提供する要求時点の共通 Table structure に依存する。DnD Interaction は開始可否、移動対象、制約情報の解決結果に依存する。
 
-対象 Table の構造解析、Drop Target Resolution、Auto Scroll、Data Update には依存せず、Table 変更を要求しない。
+Drop Target Resolution、Reorder Presentation、Auto Scroll、Data Update には依存せず、Table 変更を要求しない。
 
 ##### Lifecycle
 
-DnD Interaction から DnD 開始試行に対応する判定要求を受けたときだけ判定する。並び替えモードへ入った時点では全行・全列の移動可否を事前判定しない。判定結果を独立した Reorder Session 状態として保持せず、次の開始試行へ以前の判定結果を持ち越さない。
+DnD Interaction から DnD 開始試行に対応する解決要求を受けたときだけ、その時点の共通 Table structure から判定と制約情報導出を行う。並び替えモードへ入った時点では全行・全列の移動可否を事前判定しない。
 
-Reorder Constraint Resolution が提供する制約情報の Lifecycle はこの判定結果から分離し、同じ Table 構造に対する次の開始試行で制約情報が再利用されることを妨げない。
+移動可能な場合に提供した制約情報は DnD Interaction が開始する Reorder Session に引き継がれ、Reorder Target Resolution 自体は保持しない。次の DnD 開始試行では、その時点の共通 Table structure から改めて導出する。
 
 ##### Invariants
 
-- DnD 開始試行時の移動対象成立可否だけを判定し、DnD 開始後の移動先判定を担わない。
-- Table 全体を直接走査して並び替え制約を抽出しない。
+- DnD 開始試行時の移動対象成立可否と、その DnD で使う制約情報の導出だけを担い、DnD 開始後の移動先判定を担わない。
+- Table plugin 固有の構造表現を直接扱わず、Table Integration が提供する共通 Table structure を利用する。
 - 並び替えモード中の対象表示のために利用しない。
-- 行では `rowspan` によって一体化された範囲の一部を移動対象として返さない。
-- 行では `colspan` だけを理由に移動不可と判定しない。
-- 列では `colspan` によって一体化された範囲の一部を移動対象として返さない。
-- 列では `rowspan` だけを理由に移動不可と判定しない。
-- 移動不可の場合は DnD Interaction が利用できる理由を判定結果に含める。
-- 移動対象判定によって Table データを変更しない。
+- 行では縦結合によって一体化された範囲の一部を移動対象として返さず、横結合だけを理由に移動不可と判定しない。
+- 列では横結合によって一体化された範囲の一部を移動対象として返さず、縦結合だけを理由に移動不可と判定しない。
+- 行では縦結合、列では横結合を分断する移動先を許可しないための制約情報を導出する。
+- 結合範囲を越えること自体を禁止する制約情報にはしない。
+- 制約情報の Lifecycle を所有しない。
+- DnD をまたぐ制約情報を再利用しない。
+- 移動対象解決によって Table データを変更しない。
 
 #### Drop Target Resolution {#RESP_DROP_TARGET_RESOLUTION}
 
 ##### Responsibility
 
-開始済みの行または列 DnD に対して、現在位置が Table 構造を保てる有効な移動先かを、Reorder Constraint Resolution が提供する制約情報と現在の移動対象から判定する。結合セルなどにより構造が成立しなくなる位置は有効な移動先として返さない。
+開始済みの行または列 DnD に対して、DnD Interaction から渡された移動対象、並び替え方向、制約情報、現在位置を入力として、現在位置が有効な移動先かを判定する。対象方向の結合を分断する位置は有効な移動先として返さない。
 
 ##### State ownership
 
-永続的な DnD 状態、Table データ、制約情報の Lifecycle を所有しない。現在の判定に必要な移動対象、並び替え方向、Reorder Constraint Resolution が提供する制約情報、現在位置を入力として扱う。移動対象として選択できるかという開始前判定は所有しない。
+永続的な DnD 状態、Table データ、共通 Table structure、制約情報の Lifecycle を所有しない。現在の判定入力だけを扱い、Reorder Session 自体は所有または参照しない。
 
 ##### Contract
 
-active な DnD Interaction から現在の移動対象、行または列の方向、現在位置に対応する判定要求を受け取り、Reorder Constraint Resolution から現在の Table 構造に対応する制約情報を受け取る。
+active な DnD Interaction から現在の移動対象、行または列の方向、その DnD で利用する制約情報、現在位置を受け取る。
 
-Table 構造を保てる場合は有効な行間または列間を返し、成立しない場合は有効な移動先なしを返す。Table 全体を直接走査して制約を再構築せず、DnD 開始前の開始対象に対する判定結果は返さない。
+対象方向の結合を分断せず Table 構造を保てる場合は有効な行間または列間を返し、成立しない場合は有効な移動先なしを返す。Table 全体の構造を参照または再解析せず、DnD 開始前の開始対象に対する判定結果は返さない。
 
 ##### Dependencies
 
-Reorder Constraint Resolution が提供する現在の Table 構造に対応する制約情報に依存する。active な DnD Interaction は判定結果に依存する。対象 Table の構造解析と Reorder Target Resolution の移動対象判定を代替せず、Reorder Presentation と Data Update に直接 Table 変更を要求しない。
+DnD Interaction から渡された判定入力だけに依存する。Table Integration、Reorder Target Resolution、対象 Table の構造、Reorder Session 自体には依存しない。Reorder Presentation と Data Update に直接 Table 変更を要求しない。
 
 ##### Lifecycle
 
-DnD Interaction が active の間に必要に応じて判定を行う。現在位置が変化して判定を繰り返す場合も、同じ Table 構造が有効な間は Reorder Constraint Resolution が提供する抽出済みの制約情報を利用し、移動先判定ごとに Table 全体から再抽出しない。
+DnD Interaction が active の間に必要に応じて判定を行う。現在位置が変化して判定を繰り返す場合も、Reorder Session に保持された同じ制約情報を DnD Interaction から判定入力として受け取り、Table 全体を再解析しない。
 
-DnD が開始していない間は移動先判定を行わず、完了またはキャンセル後に個々の判定結果を独立した状態として保持しない。制約情報そのものの Lifecycle は個々の判定結果から分離する。
+DnD が開始していない間は移動先判定を行わず、完了またはキャンセル後に個々の判定結果や制約情報を独立した状態として保持しない。
 
 ##### Invariants
 
 - DnD 開始後の移動先だけを判定する。
 - DnD 開始前の移動対象成立可否を判定しない。
-- Table 全体を直接走査して並び替え制約を抽出しない。
-- Table 構造が成立しなくなる位置を有効な移動先として返さない。
+- Reorder Session 自体に依存しない。
+- Table Integration や Table 全体の構造を参照しない。
+- 渡された制約情報を再導出しない。
+- 行 DnD では縦結合、列 DnD では横結合を分断する位置を有効な移動先として返さない。
+- 結合範囲を越えることだけを理由に移動先を無効としない。
 - 行 DnD では行間、列 DnD では列間を移動先として扱う。
 - 移動先判定によって Table データを変更しない。
 
@@ -525,7 +518,7 @@ DnD Interaction から確定結果を受け取った場合は移動対象を最�
 
 ##### Dependencies
 
-Reorder Mode の現在状態に依存してモード中の対象表示を行う。DOM / Web API を利用する場合は Editor DOM Context が提供する現在の editor context に依存する。Reorder Constraint Resolution と Reorder Target Resolution には直接依存しない。移動不可理由は DnD Interaction 経由で受け取り、DnD 開始後の移動先の有効性は Drop Target Resolution の結果を DnD Interaction 経由で受け取る。
+Reorder Mode の現在状態に依存してモード中の対象表示を行う。DOM / Web API を利用する場合は Editor DOM Context が提供する現在の editor context に依存する。Table Integration と Reorder Target Resolution には直接依存しない。移動不可理由は DnD Interaction 経由で受け取り、DnD 開始後の移動先の有効性は Drop Target Resolution の結果を DnD Interaction 経由で受け取る。
 
 Auto Scroll とは互いの責務を侵食せず、移動対象の表示範囲制約によって必要な自動スクロールを妨げない。Data Update には Table 変更を要求しない。
 
@@ -573,7 +566,7 @@ DnD を開始していない通常状態、および移動不可な開始試行�
 
 ##### Dependencies
 
-DnD Interaction の active 状態と並び替え方向に依存する。DOM / Web API を利用する場合は Editor DOM Context が提供する現在の editor context に依存する。スクロール可能な Table または編集画面の領域と接続する。Reorder Presentation の表示範囲制約によって必要な自動スクロールが妨げられないことを前提とする。Reorder Constraint Resolution、Reorder Target Resolution、Drop Target Resolution、Data Update の責務を持たない。
+DnD Interaction の active 状態と並び替え方向に依存する。DOM / Web API を利用する場合は Editor DOM Context が提供する現在の editor context に依存する。スクロール可能な Table または編集画面の領域と接続する。Reorder Presentation の表示範囲制約によって必要な自動スクロールが妨げられないことを前提とする。Table Integration、Reorder Target Resolution、Drop Target Resolution、Data Update の責務を持たない。
 
 ##### Lifecycle
 
@@ -606,13 +599,11 @@ WordPress Core Table または Flexible Table Block の対象データに対し�
 
 ##### Dependencies
 
-DnD Interaction からの確定済みの並び替えにだけ依存する。WordPress Core Table または Flexible Table Block の Table データと Undo の仕組みに接続する。Reorder Constraint Resolution、Reorder Target Resolution、Drop Target Resolution、Reorder Presentation、Auto Scroll から直接更新要求を受け取らない。
+DnD Interaction からの確定済みの並び替えにだけ依存する。WordPress Core Table または Flexible Table Block の Table データと Undo の仕組みに接続する。Table Integration、Reorder Target Resolution、Drop Target Resolution、Reorder Presentation、Auto Scroll から直接更新要求を受け取らない。
 
 ##### Lifecycle
 
 確定済みの並び替えを受け取ったときだけ動作する。更新を反映した後に DnD の一時状態を保持しない。移動不可な開始試行、キャンセル、無効な DnD では動作しない。
-
-Data Update による並び替え確定で Table 構造が変化した後は、以前の構造に対応する Reorder Constraint Resolution の制約情報を次の判定へ再利用しない。
 
 ##### Invariants
 
@@ -628,51 +619,49 @@ Data Update による並び替え確定で Table 構造が変化した後は、�
 
 ### DnD start with movable target {#RV_DND_START_MOVABLE}
 
-移動可能な対象から DnD 開始が試みられ、現在の Table 構造に対応する制約情報を利用して active な Reorder Session が成立するまでの協調を示す。
+移動可能な対象から DnD 開始が試みられ、その時点の共通 Table structure から移動対象と制約情報を解決して active な Reorder Session が成立するまでの協調を示す。
 
 | Step | Source | Target | Interaction |
 | ---: | --- | --- | --- |
 | 1 | RESP_INPUT_INTERACTION | RESP_DND_INTERACTION | 開始対象を含む DnD 開始試行を渡す。 |
 | 2 | RESP_REORDER_MODE | RESP_DND_INTERACTION | 現在の並び替え方向を提供する。 |
-| 3 | RESP_DND_INTERACTION | RESP_REORDER_TARGET_RESOLUTION | 開始対象と並び替え方向に対する移動対象判定を要求する。 |
-| 4 | RESP_REORDER_TARGET_RESOLUTION | RESP_REORDER_CONSTRAINT_RESOLUTION | 現在の Table 構造に対応する移動対象判定用の制約情報を要求する。 |
-| 5 | RESP_REORDER_CONSTRAINT_RESOLUTION | RESP_REORDER_TARGET_RESOLUTION | 同じ Table 構造が有効な間に再利用できる制約情報を提供する。 |
-| 6 | RESP_REORDER_TARGET_RESOLUTION | RESP_DND_INTERACTION | 移動可能であることを返す。 |
+| 3 | RESP_DND_INTERACTION | RESP_REORDER_TARGET_RESOLUTION | 開始対象と並び替え方向に対する移動対象解決を要求する。 |
+| 4 | RESP_REORDER_TARGET_RESOLUTION | RESP_TABLE_INTEGRATION | 対象 Table の要求時点の共通 Table structure を要求する。 |
+| 5 | RESP_TABLE_INTEGRATION | RESP_REORDER_TARGET_RESOLUTION | 対応可能な Table の現在の共通 Table structure を提供する。 |
+| 6 | RESP_REORDER_TARGET_RESOLUTION | RESP_DND_INTERACTION | 移動対象と、その DnD で利用する制約情報を提供する。 |
 | 7 | RESP_DND_INTERACTION | RESP_REORDER_PRESENTATION | DnD が開始した移動対象と進行状態を提供する。 |
 | 8 | RESP_DND_INTERACTION | RESP_AUTO_SCROLL | active な DnD と並び替え方向を提供する。 |
 
 ### DnD start with immovable target {#RV_DND_START_IMMOVABLE}
 
-移動不可な対象から DnD 開始が試みられ、現在の Table 構造に対応する制約情報を利用して Reorder Session を作らず理由を表示するまでの協調を示す。
+移動不可な対象から DnD 開始が試みられ、要求時点の共通 Table structure に基づく解決結果から Reorder Session を作らず理由を表示するまでの協調を示す。
 
 | Step | Source | Target | Interaction |
 | ---: | --- | --- | --- |
 | 1 | RESP_INPUT_INTERACTION | RESP_DND_INTERACTION | 開始対象を含む DnD 開始試行を渡す。 |
 | 2 | RESP_REORDER_MODE | RESP_DND_INTERACTION | 現在の並び替え方向を提供する。 |
-| 3 | RESP_DND_INTERACTION | RESP_REORDER_TARGET_RESOLUTION | 開始対象と並び替え方向に対する移動対象判定を要求する。 |
-| 4 | RESP_REORDER_TARGET_RESOLUTION | RESP_REORDER_CONSTRAINT_RESOLUTION | 現在の Table 構造に対応する移動対象判定用の制約情報を要求する。 |
-| 5 | RESP_REORDER_CONSTRAINT_RESOLUTION | RESP_REORDER_TARGET_RESOLUTION | 同じ Table 構造が有効な間に再利用できる制約情報を提供する。 |
+| 3 | RESP_DND_INTERACTION | RESP_REORDER_TARGET_RESOLUTION | 開始対象と並び替え方向に対する移動対象解決を要求する。 |
+| 4 | RESP_REORDER_TARGET_RESOLUTION | RESP_TABLE_INTEGRATION | 対象 Table の要求時点の共通 Table structure を要求する。 |
+| 5 | RESP_TABLE_INTEGRATION | RESP_REORDER_TARGET_RESOLUTION | 対応可能な Table の現在の共通 Table structure を提供する。 |
 | 6 | RESP_REORDER_TARGET_RESOLUTION | RESP_DND_INTERACTION | 移動不可であることと理由を返す。 |
 | 7 | RESP_DND_INTERACTION | RESP_REORDER_PRESENTATION | DnD を開始せず、移動不可理由を一時表示するために渡す。 |
 
 ### DnD progress {#RV_DND_PROGRESS}
 
-開始済み DnD の進行に応じて、同じ Table 構造から抽出済みの制約情報を利用しながら移動先、表示、自動スクロールを更新する協調を示す。
+開始済み DnD の進行に応じて、Reorder Session に保持された制約情報を DnD Interaction から判定入力として渡し、Table 全体を再解析せずに移動先、表示、自動スクロールを更新する協調を示す。
 
 | Step | Source | Target | Interaction |
 | ---: | --- | --- | --- |
 | 1 | RESP_INPUT_INTERACTION | RESP_DND_INTERACTION | 現在位置に対応する DnD 進行情報を渡す。 |
-| 2 | RESP_DND_INTERACTION | RESP_DROP_TARGET_RESOLUTION | 現在の移動対象、並び替え方向、現在位置に対する移動先判定を要求する。 |
-| 3 | RESP_DROP_TARGET_RESOLUTION | RESP_REORDER_CONSTRAINT_RESOLUTION | 現在の Table 構造に対応する移動先判定用の制約情報を要求する。 |
-| 4 | RESP_REORDER_CONSTRAINT_RESOLUTION | RESP_DROP_TARGET_RESOLUTION | 同じ Table 構造が有効な間に再利用できる制約情報を提供する。 |
-| 5 | RESP_DROP_TARGET_RESOLUTION | RESP_DND_INTERACTION | 有効な移動先、または有効な移動先なしを返す。 |
-| 6 | RESP_DND_INTERACTION | RESP_REORDER_PRESENTATION | 移動対象と現在の有効な移動先を提供し、挿入線と必要な周囲の表示変化を更新させる。 |
-| 7 | RESP_DND_INTERACTION | RESP_AUTO_SCROLL | active な DnD と並び替え方向を提供する。 |
-| 8 | RESP_AUTO_SCROLL | EXT_SCROLL_AREA | 行では縦方向、列では横方向に必要な自動スクロールを行う。 |
+| 2 | RESP_DND_INTERACTION | RESP_DROP_TARGET_RESOLUTION | 現在の移動対象、並び替え方向、制約情報、現在位置を渡して移動先判定を要求する。 |
+| 3 | RESP_DROP_TARGET_RESOLUTION | RESP_DND_INTERACTION | 有効な移動先、または有効な移動先なしを返す。 |
+| 4 | RESP_DND_INTERACTION | RESP_REORDER_PRESENTATION | 移動対象と現在の有効な移動先を提供し、挿入線と必要な周囲の表示変化を更新させる。 |
+| 5 | RESP_DND_INTERACTION | RESP_AUTO_SCROLL | active な DnD と並び替え方向を提供する。 |
+| 6 | RESP_AUTO_SCROLL | EXT_SCROLL_AREA | 行では縦方向、列では横方向に必要な自動スクロールを行う。 |
 
 ### DnD commit to Core Table {#RV_DND_COMMIT_CORE_TABLE}
 
-有効な移動先で DnD が完了し、Core Table データへ 1 回だけ確定結果を反映する協調を示す。
+有効な移動先で DnD が完了し、Core Table データへ 1 回だけ確定結果を反映して Reorder Session を終了する協調を示す。
 
 | Step | Source | Target | Interaction |
 | ---: | --- | --- | --- |
@@ -684,7 +673,7 @@ Data Update による並び替え確定で Table 構造が変化した後は、�
 
 ### DnD commit to Flexible Table Block {#RV_DND_COMMIT_FLEXIBLE_TABLE_BLOCK}
 
-有効な移動先で DnD が完了し、Flexible Table Block データへ 1 回だけ確定結果を反映する協調を示す。
+有効な移動先で DnD が完了し、Flexible Table Block データへ 1 回だけ確定結果を反映して Reorder Session を終了する協調を示す。
 
 | Step | Source | Target | Interaction |
 | ---: | --- | --- | --- |
@@ -696,7 +685,7 @@ Data Update による並び替え確定で Table 構造が変化した後は、�
 
 ### DnD cancel {#RV_DND_CANCEL}
 
-開始済み DnD がキャンセルされ、Table データを変更せず表示状態を終了する協調を示す。
+開始済み DnD がキャンセルされ、Table データを変更せず表示状態と Reorder Session を終了する協調を示す。
 
 | Step | Source | Target | Interaction |
 | ---: | --- | --- | --- |
@@ -713,11 +702,11 @@ Data Update への Interaction は発生しない。
 - PC とタッチ端末ごとの初回案内の表示済み状態は First-use Guidance が所有する。
 - 再案内を判定するための直近の操作傾向と、同じ状況で過度に再案内しないための一時状態は Reorder Rediscovery が所有する。
 - 現在の editor DOM context は Editor DOM Context が必要な時点で解決して提供し、editor lifecycle をまたぐ永続的な YTR 状態として所有しない。
+- Table Integration は共通 Table structure、Table ごとの状態、監視状態、DnD 状態を所有しない。
 - PC とタッチ端末の入力固有の解釈に必要な一時状態は Input Interaction が所有し、移動対象、移動先、確定可能性などの Reorder Session 状態は所有しない。
-- 現在の Table 構造に対応する並び替え制約とその有効期間は Reorder Constraint Resolution が所有する。Table データそのものや個々の判定結果は所有しない。
-- DnD 開始試行時に開始対象を移動対象として選択できるかと、移動不可の場合の理由は Reorder Target Resolution が判定し、永続的な DnD 状態や制約情報としては所有しない。
-- 進行中の DnD、移動対象、現在の移動先、確定可能性、完了結果は DnD Interaction が所有する。移動不可な開始試行ではこれらの Reorder Session 状態を作らない。
-- 移動先の有効性そのものは Drop Target Resolution が DnD 開始後に判定し、永続的な Table 状態や制約情報としては所有しない。
+- DnD 開始試行時の移動対象可否と、その DnD で使用する制約情報は Reorder Target Resolution が現在の共通 Table structure から導出するが、制約情報の Lifecycle は所有しない。
+- 進行中の DnD、移動対象、並び替え方向、制約情報、現在の移動先、確定可能性、完了結果は DnD Interaction が Reorder Session として所有する。移動不可な開始試行では Reorder Session を作らない。
+- 移動先の有効性そのものは Drop Target Resolution が DnD 開始後に判定し、Reorder Session、Table 構造、制約情報を状態として所有しない。
 - 並び替えモード中の対象表示、移動不可理由の一時表示、DnD 中の移動対象、挿入線、周囲の行・列の表示変化、確定・キャンセル時の一時的な表示状態は Reorder Presentation が所有する。
 - Table のデータは WordPress の対象ブロック側に存在し、YTR 内でその順序変更を行う責務は Data Update に限定する。
 
@@ -725,17 +714,21 @@ Data Update への Interaction は発生しない。
 
 - DOM / Web API を利用する責務は Editor DOM Context が提供する現在の editor context を利用し、iframe / non-iframe の違いを直接判定しない。
 - Editor DOM Context は現在の editor context に属する基準から context を解決し、editor lifecycle をまたいだ有効性を前提にしない。
-- Editor DOM Context の context 解決と、Reorder Mode、DnD Session、Table データ、移動対象、移動先の状態所有を分離する。
+- Editor DOM Context の context 解決と、Reorder Mode、Reorder Session、Table データ、移動対象、移動先の状態所有を分離する。
+- Table plugin 固有の構造表現は Table Integration の境界で共通 Table structure へ適応し、Reorder core の他責務へ漏らさない。
+- Table Integration は状態、Table 監視、制約情報導出、Data Update を所有しない。
 - PC とタッチ端末の入力固有の差を DnD Interaction 以降の共通処理へ持ち込まない。
 - DnD Interaction が Reorder Target Resolution に渡す並び替え方向は Reorder Mode の現在状態から得る。Input Interaction を並び替え方向の情報源にしない。
-- DnD Interaction は DnD 開始前の移動対象判定を Reorder Target Resolution に委ね、開始後の移動先判定を Drop Target Resolution に委ねる。Reorder Constraint Resolution には直接依存しない。
-- Reorder Constraint Resolution は Table 構造から移動対象・移動先判定に必要な制約だけを抽出し、Reorder Target Resolution と Drop Target Resolution は Table 全体の構造を直接解析しない。
-- 同じ Table 構造が有効な間は抽出済みの制約情報を再利用し、個々の開始試行や移動先判定ごとに Table 全体から制約情報を再抽出しない。
-- 並び替え確定、行・列の追加または削除、セル結合状態の変更、Undo / Redo その他の経路で Table 構造が変化した場合、以前の構造から抽出した制約情報を再利用しない。
-- Table 全体を並び替え用の中間構造へ変換・保持せず、セル数に比例する並び替え用中間オブジェクトを常駐させない。
+- Reorder Target Resolution は DnD 開始試行ごとに要求時点の共通 Table structure から移動対象を判定し、その DnD で使用する制約情報を導出する。
+- Reorder Target Resolution は制約情報の Lifecycle を所有せず、成立した Reorder Session が DnD 完了またはキャンセルまで保持する。
+- 制約情報を DnD をまたいで再利用せず、constraint cache、structure revision、cache invalidation を Architecture の前提にしない。
+- Drop Target Resolution は DnD Interaction から渡された判定入力だけを利用し、Reorder Session 自体、Table Integration、Table 全体の構造に依存しない。
+- 行並び替えでは縦結合、列並び替えでは横結合に由来する制約を扱い、対象方向の結合を分断する移動を禁止する。
+- 結合範囲を越える移動自体は禁止しない。
+- Table 全体を並び替え用の中間構造として DnD をまたいで保持せず、セル数に比例する並び替え用中間オブジェクトを常駐させない。
 - 移動対象として成立しない行または列から DnD を開始しない。
-- 行の移動対象判定では `rowspan` による移動不可を扱い、`colspan` だけを理由に不要な制限を掛けない。
-- 列の移動対象判定では `colspan` による移動不可を扱い、`rowspan` だけを理由に不要な制限を掛けない。
+- 行の移動対象判定では縦結合による移動不可を扱い、横結合だけを理由に不要な制限を掛けない。
+- 列の移動対象判定では横結合による移動不可を扱い、縦結合だけを理由に不要な制限を掛けない。
 - Reorder Target Resolution は DnD 開始試行時だけ移動対象判定を行い、並び替えモード中の対象表示のために全行・全列を事前判定しない。
 - Reorder Presentation は Reorder Target Resolution を直接利用しない。
 - Drop Target Resolution は DnD 開始前の移動対象判定を担わない。
@@ -751,21 +744,19 @@ Data Update への Interaction は発生しない。
 
 Editor DOM Context が提供する context は、その時点の editor lifecycle に属するものとして扱う。DOM / Web API を利用する責務は、以前の editor lifecycle で得た context の永続性を前提にせず、現在の editor context が必要な時点では Editor DOM Context を境界として扱う。Editor DOM Context 自体も以前の context を現在の context として持ち越さない。
 
+Table Integration は Reorder Target Resolution から現在構造を要求された時点で共通 Table structure を提供し、提供結果を次の要求へ持ち越さない。Table の追加・削除・構造変更を監視せず、構造の revision や cache invalidation を Lifecycle として所有しない。
+
 Reorder Mode が通常状態にある間は Input Interaction から DnD Interaction への開始試行を成立させない。行または列の並び替えモードへ入った後に、その方向の DnD 開始を試行できる。
 
 Input Interaction の入力固有の一時状態は、その入力を DnD の開始試行・進行・完了・キャンセルとして扱うために必要な期間だけ有効とする。DnD が完了またはキャンセルされた場合、Reorder Target Resolution により開始不可と判定された場合、または入力が DnD として成立しなかった場合は、次の操作へ不要な入力状態を持ち越さない。
 
-Reorder Constraint Resolution の制約情報は、同じ Table 構造が有効な期間について 1 回抽出し、その期間中の複数回の DnD 開始試行と DnD 中の移動先判定で再利用できる。DnD Session の開始・完了・キャンセルだけを理由に制約情報を作り直さない。
+Reorder Target Resolution は開始試行ごとに、その時点の共通 Table structure から移動対象可否と制約情報を導出する。移動可能な場合だけ DnD Interaction が Reorder Session を開始し、制約情報をその Session に保持する。
 
-並び替えの確定だけでなく、行・列の追加または削除、セル結合状態の変更、Undo / Redo など別経路によって Table 構造が変化した場合も、以前の構造に対応する制約情報を無効とする。新しい Table 構造に対して判定が必要になった時点で新しい制約情報を抽出する。
+Drop Target Resolution は active な DnD 中に必要に応じて移動先を判定する。現在位置が変化しても Table 全体を再解析せず、DnD Interaction が Reorder Session から取り出した同じ制約情報を判定入力として利用する。個々の判定結果を完了またはキャンセル後に保持しない。
 
-DnD Interaction は開始試行ごとに Reorder Target Resolution の判定を受け、移動可能な場合だけ active になる。移動不可の場合は active にならず、その理由を Reorder Presentation へ渡して開始試行を終了する。Reorder Target Resolution の個々の判定結果は次の開始試行へ持ち越さず、Reorder Constraint Resolution の制約情報の Lifecycle とは分離する。
-
-Drop Target Resolution は active な DnD 中に必要に応じて移動先を判定する。同じ Table 構造が有効な間は Reorder Constraint Resolution の抽出済み制約情報を利用し、個々の判定結果は完了またはキャンセル後に独立した状態として保持しない。
+DnD に属する状態は 1 回の成立した操作中だけ有効とする。完了またはキャンセル時に、移動対象、並び替え方向、制約情報、移動先、確定可能性、DnD 用 Presentation、自動スクロールに関する一時状態を次の DnD へ持ち越さない。次の開始試行では現在の共通 Table structure から改めて制約情報を導出する。
 
 Reorder Presentation は並び替えモードへ入ると現在方向の対象表示を開始する。この時点では Reorder Target Resolution に移動対象判定を要求しない。移動不可な開始試行では DnD Interaction から受け取った理由を一時的に表示する。DnD 開始後は移動対象、移動先、周囲の表示変化を扱い、完了またはキャンセル時の表示遷移が終わった後に DnD 用の一時状態を破棄する。並び替えモードが継続している場合は対象表示へ戻る。
-
-DnD に属する状態は 1 回の成立した操作中だけ有効とする。完了またはキャンセル時に、移動対象、移動先、確定可能性、DnD 用 Presentation、自動スクロールに関する一時状態を次の DnD へ持ち越さない。
 
 並び替えモードを切り替えた場合は、以後の DnD 開始試行、DnD、対象表示を切り替え後の方向として扱う。並び替えモードを終了した場合は通常の Table 編集へ戻り、モード中の対象表示も終了する。
 
@@ -785,15 +776,13 @@ Reorder Rediscovery の判定用状態は通常編集状態でのみ有効とし
 
 Reorder v1 が想定する現実的な最大規模は、1,000 行、20 列、20,000 セルとする。
 
-この規模でも、Editor DOM Context、Reorder Mode、First-use Guidance、Reorder Rediscovery、Input Interaction、DnD Interaction、Reorder Constraint Resolution、Reorder Target Resolution、Drop Target Resolution、Reorder Presentation、Auto Scroll、Data Update の責務分離を保ち、行・列の DnD を実用的に利用できることをアーキテクチャ上の制約とする。
+この規模でも、Editor DOM Context、Table Integration、Reorder Mode、First-use Guidance、Reorder Rediscovery、Input Interaction、DnD Interaction、Reorder Target Resolution、Drop Target Resolution、Reorder Presentation、Auto Scroll、Data Update の責務分離を保ち、行・列の DnD を実用的に利用できることをアーキテクチャ上の制約とする。
 
-正式 v1 は、Table 全体の行数・列数・セル数に比例する並び替え用の常駐状態、常駐 UI、中間オブジェクトを並び替え成立の前提にしない。Table 全体を並び替え用の中間構造へ変換・保持せず、大規模 Table でもセル数に比例する並び替え用中間オブジェクトを常駐させる構造を要求しない。
+正式 v1 は、Table 全体の行数・列数・セル数に比例する並び替え用の常駐状態、常駐 UI、中間オブジェクトを並び替え成立の前提にしない。Table Integration が提供する共通 Table structure と Reorder Target Resolution が導出する制約情報は DnD をまたぐ常駐 cache とせず、structure revision や cache invalidation を必要とする設計を前提にしない。
 
-Table 構造の解析は Reorder Constraint Resolution に集約し、同じ Table 構造が有効な期間について、移動対象判定と移動先判定に必要な制約情報を 1 回抽出する。抽出済みの制約情報は複数回の DnD 開始試行と DnD 中の移動先判定で共有し、DnD ごと、開始試行ごと、現在位置の変化ごとに Table 全体から再抽出しない。
+DnD 開始試行では Reorder Target Resolution がその時点の共通 Table structure から移動対象判定と制約情報導出を行う。成立した DnD では、その制約情報を Reorder Session に保持して Drop Target Resolution の複数回の移動先判定に利用し、現在位置が変わるたびに Table 全体を再解析しない。
 
-Reorder Target Resolution は DnD 開始試行時だけ移動対象を判定し、個々の判定結果を次の開始試行へ再利用しない。並び替えモード中の対象表示のために全行・全列を事前判定したり、Presentation の表示更新から Reorder Target Resolution を再評価したりすることを共通 Contract の前提にしない。
-
-DnD の進行中は、Drop Target Resolution が Reorder Constraint Resolution の抽出済み制約情報と現在の移動対象・現在位置を利用する。移動先が変わるたびに Table 全体を走査または再評価することを共通 Contract の前提にしない。
+Reorder Target Resolution は DnD 開始試行時だけ移動対象を判定する。並び替えモード中の対象表示のために全行・全列を事前判定したり、Presentation の表示更新から Reorder Target Resolution を再評価したりすることを共通 Contract の前提にしない。
 
 Drop Target Resolution に必要な状態評価と Reorder Presentation の表示更新は責務として分離し、表示更新が再び Table 全体の状態評価を要求する循環を DnD の進行経路に作らない。
 
@@ -808,8 +797,9 @@ DnD 中は Table 上の実際の順序を変更せず、destination と必要な
 | Term | Meaning |
 | --- | --- |
 | editor DOM context | 現在の editor で DOM / Web API を利用するために、その時点の editor lifecycle に属するものとして Editor DOM Context が解決して提供する context。 |
-| reorder constraint information | 現在の Table 構造から Reorder Constraint Resolution が抽出し、Reorder Target Resolution と Drop Target Resolution が共有して利用する、移動不可対象・移動不可境界などの構造上の制約情報。 |
-| Reorder Session | Reorder Target Resolution が移動可能と判定した後から、完了またはキャンセルまで DnD Interaction が所有する 1 回の並び替え操作状態。 |
+| common Table structure | Table Integration が要求時点の Table plugin 固有構造を適応して提供する、Reorder core が共通に扱う Table 構造表現。Table Integration はこれを状態として保持しない。 |
+| reorder constraint information | DnD 開始試行時に Reorder Target Resolution が現在の共通 Table structure から導出し、成立した Reorder Session が 1 回の DnD 中だけ保持する、移動対象・移動先判定に必要な構造上の制約情報。 |
+| Reorder Session | Reorder Target Resolution が移動可能と判定した後から、完了またはキャンセルまで DnD Interaction が所有する 1 回の並び替え操作状態。移動対象、並び替え方向、制約情報、現在の移動先などを含む。 |
 | start target | Input Interaction が DnD 開始試行として DnD Interaction に渡す、利用者がドラッグ開始を試みた行または列。 |
 | reorder target | Reorder Target Resolution が移動可能と判定し、DnD Interaction が active な Reorder Session の移動対象として扱う行または列。 |
 | destination | Drop Target Resolution が DnD 開始後に判定する有効な行間または列間。 |
@@ -823,3 +813,5 @@ DnD 中は Table 上の実際の順序を変更せず、destination と必要な
 - #521 大規模Tableを前提に並び替え制約の計算方式を見直す
 - #523 アーキテクチャ設計書を arc42 ベースへ整理し Structurizr DSL 自動生成を導入する
 - #524 Architecture documentation rules を arc42 対応へ更新する
+- #552 Table Integration の責務設計を Architecture 上で確定する
+- #553 Reorder Constraint Resolution 廃止後の責務配置を Architecture に反映する
