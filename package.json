@@ -24,6 +24,8 @@
 		"prearchitecture:generate": "npm run architecture:compile",
 		"architecture:generate": "node .architecture-build/generate-structurizr.js",
 		"postarchitecture:generate": "rm -rf .architecture-build",
+		"architecture:validate": "npm run architecture:compile && node .architecture-build/validate-structurizr-cli.js",
+		"postarchitecture:validate": "rm -rf .architecture-build",
 		"test": "npm run format:check && npm run lint:js && npm run lint:css && npm run typecheck && npm run test:unit:coverage && npm run test:architecture",
 		"test:architecture": "npm run architecture:compile && node --test .architecture-build/*.test.js && rm -rf .architecture-build",
 		"test:unit": "wp-scripts test-unit-js",
