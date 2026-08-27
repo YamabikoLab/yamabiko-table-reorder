@@ -7,7 +7,7 @@ Run application commands from the repository root. Use the narrowest relevant ch
 The active formal v1 source and E2E suite are intentionally minimal while #481 defines the new behavior contracts.
 
 - Jest currently verifies the minimal source skeleton and i18n source.
-- Node.js architecture tests verify deterministic Markdown parsing and Structurizr DSL generation.
+- Node.js architecture tests verify deterministic Markdown parsing, architecture validation, and Structurizr DSL generation.
 - Playwright currently keeps the E2E infrastructure alive with an administration smoke test that verifies the plugin is active.
 - Prototype-specific unit and E2E behavior is available from the `prototype-final` tag and is reference material, not the active formal v1 specification.
 - Add tests as formal v1 responsibilities and user-visible contracts are implemented. Do not restore Prototype tests solely to preserve historical coverage.
@@ -51,7 +51,7 @@ Run Jest with coverage reporting directly:
 npm run test:unit:coverage
 ```
 
-Run the architecture parser and Structurizr DSL generator tests directly:
+Run the architecture parser, validator, and Structurizr DSL generator tests directly:
 
 ```bash
 npm run test:architecture
@@ -63,10 +63,20 @@ Generate Structurizr DSL from an architecture Markdown file:
 npm run architecture:generate -- docs/architecture/reorder-v1-architecture.md
 ```
 
+Architecture generation validates the machine-readable Markdown structure and Architecture Model before generating DSL. The generated DSL is then validated with Structurizr before it is written to the final output path. If any validation fails, the command exits unsuccessfully and does not replace the final DSL file.
+
+Structurizr validation uses Docker and the pinned `structurizr/structurizr:2026.06.28-noble` image. Docker must therefore be available when running `architecture:generate` or `architecture:validate`.
+
 When the output path is omitted, the generator writes a `.dsl` file next to the input Markdown using the same base name. To select another output path explicitly, pass it as the second argument:
 
 ```bash
 npm run architecture:generate -- docs/architecture/reorder-v1-architecture.md docs/architecture/reorder-v1-architecture.dsl
+```
+
+Validate an existing Structurizr DSL file directly:
+
+```bash
+npm run architecture:validate -- docs/architecture/reorder-v1-architecture.dsl
 ```
 
 The global Jest coverage threshold is 80% for Statements, Branches, Functions, and Lines. Keep the coverage configuration aligned with the active source rather than lowering it to accommodate untested formal v1 code.
@@ -208,6 +218,7 @@ The manually triggered `.github/workflows/pr-validation.yml` workflow runs depen
 
 - Documentation-only changes: `git diff --check origin/main...HEAD`.
 - JavaScript, TypeScript, JSON, CSS, or SCSS changes: `npm test`, `npm run build`, and the repository check.
+- Architecture Markdown or architecture tooling changes: the Node.js checks, `npm run architecture:generate -- docs/architecture/reorder-v1-architecture.md`, and the repository check. The generation command includes Structurizr validation and requires Docker.
 - Playwright configuration or E2E changes: the Node.js checks and `npm run test:e2e` when a compatible WordPress environment is available.
 - GitHub Actions or CI environment changes: the repository check and GitHub-hosted PR Validation.
 - PHP or Composer changes: Composer validation, PHP syntax, coding standards, and PHPStan.
