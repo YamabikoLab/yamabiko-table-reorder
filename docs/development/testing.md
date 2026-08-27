@@ -57,10 +57,16 @@ Run the architecture parser and Structurizr DSL generator tests directly:
 npm run test:architecture
 ```
 
-Generate Structurizr DSL from the architecture Markdown source:
+Generate Structurizr DSL from an architecture Markdown file:
 
 ```bash
-npm run architecture:generate
+npm run architecture:generate -- docs/architecture/reorder-v1-architecture.md
+```
+
+When the output path is omitted, the generator writes a `.dsl` file next to the input Markdown using the same base name. To select another output path explicitly, pass it as the second argument:
+
+```bash
+npm run architecture:generate -- docs/architecture/reorder-v1-architecture.md docs/architecture/reorder-v1-architecture.dsl
 ```
 
 The global Jest coverage threshold is 80% for Statements, Branches, Functions, and Lines. Keep the coverage configuration aligned with the active source rather than lowering it to accommodate untested formal v1 code.
