@@ -4,7 +4,7 @@
  * `edit`、`row`、`column`のいずれか1つだけを現在状態として持つことで、
  * 行並び替えと列並び替えが同時に有効にならない状態を表現する。
  */
-export type ReorderModeState = 'edit' | 'row' | 'column';
+type ReorderModeState = 'edit' | 'row' | 'column';
 
 /**
  * Reorder Modeが並び替え対象として扱う行または列の種別を表す。
@@ -12,7 +12,7 @@ export type ReorderModeState = 'edit' | 'row' | 'column';
  * 通常編集モードを表す`edit`は含めず、個々の行または列が実際に
  * 並び替え対象として成立するかどうかも表さない。
  */
-export type ReorderKind = Exclude< ReorderModeState, 'edit' >;
+type ReorderKind = Exclude< ReorderModeState, 'edit' >;
 
 /**
  * 通常編集、行並び替え、列並び替えの現在状態を所有・管理するReorder Modeを表す。
