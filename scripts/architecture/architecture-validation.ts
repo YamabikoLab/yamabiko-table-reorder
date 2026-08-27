@@ -19,7 +19,7 @@ const validateStableId = ( id: string, prefix: string, item: string ): void => {
 
 	if ( ! id.startsWith( prefix ) ) {
 		throw new Error(
-			`Architecture validation failed: ${ item } ID "${ id }" must use the ${ prefix} prefix.`
+			`Architecture validation failed: ${ item } ID "${ id }" must use the ${ prefix } prefix.`
 		);
 	}
 };
@@ -177,7 +177,7 @@ const validateRuntimeViews = (
 				);
 			}
 
-			const item = `Runtime View ${ runtimeView.id} Step ${ step.step }`;
+			const item = `Runtime View ${ runtimeView.id } Step ${ step.step }`;
 			requireValue( step.source, `${ item } Source` );
 			requireValue( step.target, `${ item } Target` );
 			requireValue( step.interaction, `${ item } Interaction` );
