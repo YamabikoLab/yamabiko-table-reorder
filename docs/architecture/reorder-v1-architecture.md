@@ -29,7 +29,7 @@ Keyboard 操作、ドラッグを必要としない操作、focus、announcement
 | --- | --- | --- | --- |
 | EXT_WORDPRESS_EDITOR | WordPress Editor | External System | YTR が動作する編集環境と PC・タッチ端末の入力状態を提供する。 |
 | EXT_CORE_TABLE | WordPress Core Table | External Block | YTR が行・列の並び替えを行う対象 Table の一つ。 |
-| EXT_FLEXIBLE_TABLE_BLOCK | Flexible Table Block | External Block | YTR が行・列の並び替えを行う対象 Table の一つ。 |
+| EXT_FLEXIBLE_TABLE_BLOCK | Flexible Table Block | YTR が行・列の並び替えを行う対象 Table の一つ。 |
 | EXT_WORDPRESS_UNDO | WordPress Undo | External Capability | 成立した 1 回の並び替えを 1 回の Undo で戻せる更新単位を提供する。 |
 | EXT_SCROLL_AREA | Editor Scroll Area | External Environment | DnD 中に Table または編集画面を必要な方向へ自動スクロールする対象領域を提供する。 |
 
@@ -534,20 +534,29 @@ DnD Interaction からの確定済みの並び替えにだけ依存する。Word
 | 5 | RESP_DND_INTERACTION | RESP_AUTO_SCROLL | active な DnD と並び替え方向を提供する。 |
 | 6 | RESP_AUTO_SCROLL | EXT_SCROLL_AREA | 行では縦方向、列では横方向に必要な自動スクロールを行う。 |
 
-### DnD commit {#RV_DND_COMMIT}
+### DnD commit to Core Table {#RV_DND_COMMIT_CORE_TABLE}
 
-有効な移動先で DnD が完了し、Table データへ 1 回だけ確定結果を反映する協調を示す。
+有効な移動先で DnD が完了し、Core Table データへ 1 回だけ確定結果を反映する協調を示す。
 
 | Step | Source | Target | Interaction |
 | ---: | --- | --- | --- |
 | 1 | RESP_INPUT_INTERACTION | RESP_DND_INTERACTION | DnD 完了を渡す。 |
 | 2 | RESP_DND_INTERACTION | RESP_DATA_UPDATE | 移動対象と移動先を含む確定済みの並び替えを渡す。 |
-| 3 | RESP_DATA_UPDATE | EXT_CORE_TABLE | 対象が Core Table の場合に行または列の位置を更新する。 |
-| 4 | RESP_DATA_UPDATE | EXT_FLEXIBLE_TABLE_BLOCK | 対象が Flexible Table Block の場合に行または列の位置を更新する。 |
-| 5 | RESP_DATA_UPDATE | EXT_WORDPRESS_UNDO | 1 回の並び替えを 1 回の Undo で戻せる更新単位として成立させる。 |
-| 6 | RESP_DND_INTERACTION | RESP_REORDER_PRESENTATION | 確定結果を提供し、移動対象を最終位置へつなぐ表示を完了させる。 |
+| 3 | RESP_DATA_UPDATE | EXT_CORE_TABLE | Core Table の行または列の位置を更新する。 |
+| 4 | RESP_DATA_UPDATE | EXT_WORDPRESS_UNDO | 1 回の並び替えを 1 回の Undo で戻せる更新単位として成立させる。 |
+| 5 | RESP_DND_INTERACTION | RESP_REORDER_PRESENTATION | 確定結果を提供し、移動対象を最終位置へつなぐ表示を完了させる。 |
 
-Steps 3 と 4 は対象 Table の種類に応じていずれか一方が成立する。両方の Table を同時に更新する意味ではない。
+### DnD commit to Flexible Table Block {#RV_DND_COMMIT_FLEXIBLE_TABLE_BLOCK}
+
+有効な移動先で DnD が完了し、Flexible Table Block データへ 1 回だけ確定結果を反映する協調を示す。
+
+| Step | Source | Target | Interaction |
+| ---: | --- | --- | --- |
+| 1 | RESP_INPUT_INTERACTION | RESP_DND_INTERACTION | DnD 完了を渡す。 |
+| 2 | RESP_DND_INTERACTION | RESP_DATA_UPDATE | 移動対象と移動先を含む確定済みの並び替えを渡す。 |
+| 3 | RESP_DATA_UPDATE | EXT_FLEXIBLE_TABLE_BLOCK | Flexible Table Block の行または列の位置を更新する。 |
+| 4 | RESP_DATA_UPDATE | EXT_WORDPRESS_UNDO | 1 回の並び替えを 1 回の Undo で戻せる更新単位として成立させる。 |
+| 5 | RESP_DND_INTERACTION | RESP_REORDER_PRESENTATION | 確定結果を提供し、移動対象を最終位置へつなぐ表示を完了させる。 |
 
 ### DnD cancel {#RV_DND_CANCEL}
 
