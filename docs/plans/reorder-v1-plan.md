@@ -3,145 +3,195 @@
 ## References
 
 - Parent issue: #499
+- Reconstruction issue: #532
 - Requirements: `docs/requirements/reorder-v1-requirements.md`
 - Design: `docs/design/reorder-v1-design.md`
 - Architecture: `docs/architecture/reorder-v1-architecture.md`
 
 ## Goal
 
-正式v1のArchitectureを、依存関係に沿って小さくレビュー可能な実装単位へ分割し、Core TableとFlexible Table Blockの行・列DnDを段階的に実装できる状態にする。
+確定したReorder v1 Architectureを、Phase 1からの実装順序、レビュー可能な実装単位、検証方法、Issue分割へ落とし込み、Core TableとFlexible Table Blockの行・列DnDを段階的に実装できる状態にする。
 
 ## Scope
 
 ### Included
 
 - 正式v1の行・列DnD実装
-- PCとタッチ端末の入力対応
-- 並び替えモード、初回案内、再案内
-- 移動先判定、DnD中の表示、自動スクロール、確定時のデータ更新
-- Core TableとFlexible Table Blockへの対応
-- 大規模Tableを含む性能検証
-- 正式v1の実際のWordPress / Gutenberg統合と入力操作のE2E検証
+- Editor DOM Context、Reorder Mode、Reorder Constraint Resolutionの実装
+- Reorder Target Resolution、Drop Target Resolutionの実装
+- DnD Interactionと共通Reorder Sessionの実装
+- PCとタッチ端末のInput Interaction実装
+- Reorder Presentation、Auto Scrollの実装
+- Core TableとFlexible Table BlockのData Update実装
+- First-use Guidance、Reorder Rediscoveryの実装
+- 大規模Tableを含むPerformance検証
+- WordPress / Gutenberg統合と入力操作のE2E検証
 
 ### Not included
 
 - Keyboard操作、ドラッグを必要としない操作、focus、announcementなど、別要件として扱うアクセシビリティ実装
 - Requirements、Design、Architectureの再定義
+- Architecture確定前に作成されたformal v1実装を前提とした継ぎ足し
+- Prototypeの構造を正式v1へそのまま復元すること
 
 ## Approach
 
 - 実装は`src/AGENTS.md`に従う。
-- Architectureで定義された責務を`src/`の実装モジュールへ対応付ける。
-- Prototypeの実装は`prototype-final`を調査・比較のための参考資料としてのみ利用し、旧構造をそのまま復元しない。
-- まずReorder基盤を成立させ、その上に入力、Presentation、自動スクロール、案内機能を順に接続する。
-- 各PhaseでそのPhaseに適した検証を行い、後続Phaseが依存できる状態を確認してから進める。
+- `docs/architecture/reorder-v1-architecture.md`を責務、Contract、Dependency、Lifecycle、Invariantの唯一のArchitecture入力として扱い、Planではそれらを再定義しない。
+- Architectureで定義された責務を実装モジュールへ対応付けるが、Architecture上の責務名とソースファイルを機械的に1対1対応させることは前提にしない。
+- Editor DOM Context、Reorder Mode、Reorder Constraint Resolutionを最初の実装基盤として成立させる。
+- Reorder Target ResolutionとDrop Target Resolutionは、Reorder Constraint Resolutionの実装後に成立させる。
+- DnD Interactionと共通Reorder Session、Data Updateは、対象判定と移動先判定の実装後に実装する。
+- PC / タッチのInput Interaction、Reorder Presentation、Auto Scroll、案内機能は、共通DnD基盤の実装後に段階的に実装する。
+- Prototypeの実装は`prototype-final`を調査・比較の参考資料としてのみ利用し、旧構造を新しいsourceの前提にしない。
+- Architecture確定前のformal v1実装はGit履歴から参照してよいが、そのPhase完了状態や実装構造を新Planへ引き継がない。
+- 各Phaseは後続Phaseが依存できるレビュー可能なOutcomeを持ち、そのPhaseに適した自動テスト、実環境検証、または計測で実装結果を確認する。
+- 実装中にArchitectureの変更が必要になった場合は、その判断をPlanで解決せずArchitectureへ戻して確定した後にPlanを追随させる。
 
 ## Implementation phases
 
-### Phase 1: Reorder基盤
+### Phase 1: 共通基盤
 
-- Outcome: 行・列に共通するReorder Sessionと確定更新の基盤が成立する。
+- Outcome: 後続Phaseが利用できるEditor DOM Context、Reorder Mode、Reorder Constraint Resolutionの実装基盤が成立する。
 - Tasks:
+  - Editor DOM Contextを実装する。
   - Reorder Modeを実装する。
-  - DnD Interactionの共通Lifecycleを実装する。
-  - Drop Target Resolutionを実装する。
-  - Data Updateを実装し、Core TableとFlexible Table Blockの確定更新を接続する。
+  - Reorder Constraint Resolutionを実装する。
+  - ArchitectureのPerformance / Lifecycle条件を満たすため、制約情報の表現、再利用、無効化の実装方式を決定する。
 - Validation:
-  - 行・列それぞれで有効な移動先だけが確定できることをJestで確認する。
-  - キャンセルまたは無効な完了でデータ更新されないことを確認する。
-  - 1回の成立した並び替えが1回のUndoで戻ることを実環境で確認する。
+  - Editor DOM Context、Reorder Mode、Reorder Constraint ResolutionがArchitectureで定義されたContract / Lifecycleを満たすことをJestと実環境で確認する。
+  - Core TableとFlexible Table Blockについて、Architectureで定義された制約抽出結果をJestで確認する。
+  - 制約情報の再利用・無効化方式と常駐データ量がArchitectureのPerformance条件を満たせる実装になっていることをレビューまたは計測で確認する。
 
-### Phase 2: 入力と基本DnD
+### Phase 2: 移動対象判定と移動先判定
 
-- Outcome: PCとタッチ端末から共通Reorder Sessionを開始・進行・完了・キャンセルできる。
+- Outcome: Reorder Target ResolutionとDrop Target Resolutionが独立した実装単位として成立する。
 - Tasks:
-  - Input Interactionを実装し、PCとタッチ端末の入力差を共通DnD進行へ接続する。
-  - 行・列それぞれの開始対象と並び替え方向を実装する。
-  - 通常編集状態ではDnDを開始しない入力境界を実装する。
+  - Reorder Target Resolutionを実装する。
+  - Drop Target Resolutionを実装する。
+  - Architectureで定義されたDependency境界に従って実装する。
 - Validation:
-  - 入力解釈とDnD開始境界のロジックをJestで確認する。
-  - PCとタッチ端末の実入力から行・列DnDが成立することをPlaywrightで確認する。
-  - 通常編集とDnD開始が競合しないことを実環境で確認する。
+  - Architectureで定義されたReorder Target Resolution / Drop Target ResolutionのContract、Lifecycle、Dependency境界に従っていることをJestで確認する。
+  - 行・列それぞれの判定結果がArchitectureで定義された規則と一致することをJestで確認する。
+  - 判定処理の実装がArchitectureのPerformance条件に反する全体再解析を前提としていないことをレビューまたは計測で確認する。
 
-### Phase 3: DnD Presentation
+### Phase 3: 共通DnD Sessionと確定更新
 
-- Outcome: 並び替えモード中とDnD中の視覚フィードバックが成立する。
+- Outcome: 入力方式に依存しないDnD Interactionと共通Reorder Session、Data Updateが一連の実装として成立する。
+- Tasks:
+  - DnD Interactionと共通Reorder Sessionを実装する。
+  - Data Updateを実装する。
+  - Architectureで定義されたDependency境界に従ってPhase 2の実装と統合する。
+- Validation:
+  - DnD InteractionとReorder SessionがArchitectureで定義されたLifecycle / Dependency境界を満たすことをJestで確認する。
+  - Requirements / Designで定義された成立、キャンセル、確定更新、Undoの主要フローをJestまたは実環境で確認する。
+  - Core TableとFlexible Table Blockの更新処理を共通DnD経路から利用できることを確認する。
+
+### Phase 4: Input Interaction
+
+- Outcome: PCとタッチ端末の入力で共通DnD経路を利用できる。
+- Tasks:
+  - Input Interactionの共通実装境界を決定する。
+  - PC向け入力解釈を実装する。
+  - タッチ向け入力解釈を実装する。
+  - Architectureで定義されたDependency境界に従って入力処理を実装する。
+- Validation:
+  - Input InteractionがArchitectureで定義されたContract / Dependency境界を満たすことをJestで確認する。
+  - PCとタッチ端末の主要入力フローがRequirements / Designどおり共通DnD経路へ接続されることをPlaywrightで確認する。
+  - Editor DOM Contextを利用する入力実装が対応editor環境で成立することを実環境で確認する。
+
+### Phase 5: Reorder Presentation
+
+- Outcome: 必要な視覚フィードバックが共通DnD経路で成立する。
 - Tasks:
   - Reorder Presentationを実装する。
-  - 並び替えモード中のDnD可能対象を表示する。
-  - 移動対象、挿入線、移動先変更に伴う周囲の表示移動を実装する。
-  - 確定時とキャンセル時の表示遷移を実装する。
+  - 並び替えモード表示と移動不可フィードバックを実装する。
+  - DnD中の移動対象、移動先、確定・キャンセルに対応する表示を実装する。
+  - 大規模Tableでも実用的な表示更新範囲とアニメーション方式を決定する。
 - Validation:
-  - 行・列それぞれで現在の有効な移動先が正しく表示されることを確認する。
-  - DnD中にTableの実データ順序が変わらないことを確認する。
-  - 無関係な行・列を一斉に表示更新しないことを確認する。
+  - Requirements / Designで定義された主要な視覚フィードバックをPlaywrightまたは実環境で確認する。
+  - Reorder PresentationがArchitectureで定義されたContract / Dependency / Lifecycle境界を満たすことをJestまたはレビューで確認する。
+  - 表示更新の範囲と頻度がArchitectureのPerformance条件を満たせることを計測またはinstrumentationで確認する。
 
-### Phase 4: 自動スクロール
+### Phase 6: Auto Scroll
 
-- Outcome: 画面内に収まらないTableでも、行・列の移動方向に沿ってDnDを継続できる。
+- Outcome: Auto Scrollが実装され、画面内に収まらないTableでも主要DnDを継続できる。
 - Tasks:
   - Auto Scrollを実装する。
-  - 行DnDでは縦方向、列DnDでは横方向の自動スクロールを実装する。
-  - Presentationと自動スクロールを接続する。
+  - Architectureで定義されたDependency境界に従って統合する。
+  - スクロール開始領域、速度、更新頻度などの実装値を実環境で調整する。
 - Validation:
-  - 長いTableで行DnDの縦方向自動スクロールをPlaywrightで確認する。
-  - 横に広いTableで列DnDの横方向自動スクロールをPlaywrightで確認する。
-  - DnDしていない通常スクロールが制限されないことを確認する。
+  - 行・列DnDのAuto ScrollがRequirements / DesignとArchitectureで定義された条件に従って動作することをPlaywrightで確認する。
+  - 通常操作との競合がないことを実環境で確認する。
+  - Editor DOM Contextを利用するAuto Scroll実装が対応editor環境で成立することを確認する。
 
-### Phase 5: 案内と再発見
+### Phase 7: 初回案内と再案内
 
-- Outcome: 初回利用者と機能を忘れた利用者が並び替え入口を発見できる。
+- Outcome: First-use GuidanceとReorder Rediscoveryが正式v1の入力・表示とともに利用できる。
 - Tasks:
   - First-use Guidanceを実装する。
-  - PCとタッチ端末で独立した表示済み状態を扱う。
   - Reorder Rediscoveryを実装する。
-  - 再案内候補となる操作の判定を実装する。
+  - Architectureで定義されたDependency境界に従って統合する。
+  - PC / タッチごとの状態保存、表示制御、抑制の実装方式を決定する。
 - Validation:
-  - PCとタッチ端末それぞれの初回表示と終了条件をPlaywrightで確認する。
-  - 一度だけの短いドラッグや通常編集では再案内しないことを確認する。
-  - 同じ状況で再案内が過度に繰り返されないことを確認する。
+  - Requirements / Designで定義された初回案内と再案内の主要フローをPlaywrightで確認する。
+  - First-use GuidanceとReorder RediscoveryがArchitectureで定義されたContract / Lifecycle境界を満たすことをJestまたはレビューで確認する。
+  - 通常編集や通常入力との競合がないことを実環境で確認する。
 
-### Phase 6: Performanceと統合検証
+### Phase 8: Performanceと統合検証
 
-- Outcome: 正式v1全体が対応Tableと想定最大規模で実用的に利用できることを確認する。
+- Outcome: 正式v1全体が対応Tableと想定最大規模で、Architectureの条件を満たしながら実用的に利用できることを確認する。
 - Tasks:
+  - Core TableとFlexible Table Blockについて、行・列、PC・タッチの主要E2Eを揃える。
   - 400行以上、12列以上、または2,000セル以上の大規模Tableで主要DnD経路を計測する。
-  - 最大1,000行・20列・20,000セルを想定した負荷で、操作中の全体走査、常駐状態、不要な表示更新を確認する。
+  - 最大1,000行・20列・20,000セルを想定した負荷で、制約抽出、対象判定、移動先判定、Presentation更新、常駐状態を確認する。
+  - hot path、全体走査、常駐データ量、表示更新範囲を計測またはinstrumentationで確認する。
   - 必要に応じて実装方式を調整する。ただしArchitecture変更が必要な場合は先にArchitectureを更新する。
-  - Core TableとFlexible Table Blockの正式v1主要E2Eを揃える。
 - Validation:
   - 行・列、PC・タッチ、Core Table・Flexible Table Blockの主要フローをPlaywrightで確認する。
-  - 大規模TableでDnDの実用性を計測し、ボトルネックがArchitectureのPerformance制約に反していないことを確認する。
+  - 大規模TableでDnDの実用性を計測し、ArchitectureのPerformance条件を満たすことを確認する。
+  - Architectureで定義されたContract / Dependency / Lifecycle / Invariantが統合後も維持されていることをレビューする。
 
 ## Decisions and validation questions
 
 ### Decide before implementation
 
-- Architectureで定義された各責務を`src/`内のどのモジュールへ対応付けるか。
-- Architectureで定義されたCore TableとFlexible Table Blockの境界を、どの実装モジュールへ対応付けるか。
-- Prototypeから参考にする実装知見と、正式v1では採用しない旧実装方式を区別する。
+- Architectureで定義された各責務を`src/`内のどのモジュール境界へ対応付けるか。
+- Core TableとFlexible Table Blockの構造取得・更新差を、Reorder Constraint ResolutionとData Updateの実装でどのように吸収するか。
+- Editor DOM Contextへ渡す「現在のeditor contextに属する基準」を実装上どの値として表現するか。
+- Reorder Constraint Resolutionの制約情報について、Architectureの条件を満たす再利用・無効化方式をどの実装で管理するか。
+- Reorder Presentationの表示更新とアニメーションをどの実装方式で成立させるか。
+- PrototypeおよびArchitecture確定前のformal v1実装から参考にする知見と、新しい正式v1では採用しない実装構造を区別する。
 
 ### Validate during implementation
 
-- 大規模Tableで移動先判定とPresentation更新のどこが実測上のhot pathになるか。
+- Editor lifecycleが変化する実環境で、Editor DOM Contextの実装方式が安定して機能するか。
+- 大規模TableでReorder Constraint Resolutionの抽出コストと再利用方式が実用的か。
+- DnD中のDrop Target ResolutionとReorder Presentationのどこが実測上のhot pathになるか。
 - Presentationのアニメーションを実用的な性能で維持できる更新範囲と実装方式。
-- Reorder Rediscoveryで通常編集を誤判定せず再案内を成立させる判定値。
-- PCとタッチ端末でArchitectureのContractを維持しながら、入力固有の開始判定を安定して扱えるか。
+- Reorder Rediscoveryの実装値が通常編集と競合せず安定して機能するか。
+- PCとタッチ端末で共通DnD経路へ安定して接続できる入力実装方式は何か。
 
 ## Issue breakdown
 
-- [ ] Reorder Modeと共通Reorder Sessionを実装する
-- [ ] Drop Target ResolutionとData Updateを実装する
-- [ ] PC向けInput Interactionを実装する
-- [ ] タッチ向けInput Interactionを実装する
-- [ ] Reorder Presentationを実装する
-- [ ] Auto Scrollを実装する
-- [ ] First-use Guidanceを実装する
-- [ ] Reorder Rediscoveryを実装する
-- [ ] 大規模TableのPerformanceを検証・調整する
-- [ ] Core TableとFlexible Table Blockの正式v1 E2Eを完成させる
+- [ ] Editor DOM Contextを実装する。
+- [ ] Reorder Modeを実装する。
+- [ ] Reorder Constraint Resolutionを実装する。
+- [ ] Reorder Target Resolutionを実装する。
+- [ ] Drop Target Resolutionを実装する。
+- [ ] DnD Interactionと共通Reorder Sessionを実装する。
+- [ ] Core TableとFlexible Table BlockのData Updateを実装する。
+- [ ] PC向けInput Interactionを実装する。
+- [ ] タッチ向けInput Interactionを実装する。
+- [ ] Reorder Presentationのモード表示と移動不可フィードバックを実装する。
+- [ ] Reorder PresentationのDnD表示と確定・キャンセル遷移を実装する。
+- [ ] Auto Scrollを実装する。
+- [ ] First-use Guidanceを実装する。
+- [ ] Reorder Rediscoveryを実装する。
+- [ ] 大規模TableのPerformanceを検証・調整する。
+- [ ] Core TableとFlexible Table Blockの正式v1主要E2Eを完成させる。
 
-子Issueは本Planのレビュー後に作成し、実装順序または検証上の依存がある場合だけIssue間依存を設定する。
+子Issueは本Planのレビュー後に作成する。Issue間依存は、Architecture上の責務関係そのものを複製するためではなく、実装または検証の順序上必要な場合だけ設定する。
 
 ## Validation
 
@@ -150,13 +200,19 @@
 - DocumentationのみのPlan変更: `git diff --check origin/main...HEAD`
 - TypeScript、CSSなどの実装変更: `npm test`、`npm run build`、repository check
 - 実際のWordPress / Gutenberg統合やmouse・touch・pointer操作を含む変更: 対応するPlaywright E2E
-- Expected result: 各PhaseのOutcomeとArchitectureのInvariantを維持した状態で、そのPhaseに必要な検証が成功する。
+- Performance変更または大規模Tableに関する変更: 対象規模での計測とArchitectureのPerformance条件に対する確認
+- Expected result: 各PhaseのOutcomeを満たし、Architectureで定義されたContract / Dependency / Lifecycle / Invariantを参照して必要な検証が成功する。
 
 ## Completion criteria
 
-- Architectureで定義された正式v1の責務が実装されている。
-- Core TableとFlexible Table Blockで、PC・タッチの行・列DnDが成立することをPlaywright E2Eで確認できている。
-- DnD中のPresentation、自動スクロール、確定・キャンセル、Undoが設計どおり動作する。
-- 初回案内と再案内が通常編集を妨げず成立する。
-- 大規模Tableで正式v1のDnDを実用的に利用できることを検証できている。
-- 実装から得た結果によってArchitecture変更が必要になった場合、その変更がPlanより先に反映されている。
+- 本PlanのPhaseとIssue breakdownに沿って、Architectureで定義された正式v1の責務が実装されている。
+- Core TableとFlexible Table Blockについて、PC・タッチの行・列DnD主要フローがRequirements / Designどおり成立することをPlaywright E2Eで確認できている。
+- Architectureで定義されたContract / Dependency / Lifecycle / Invariantを、対応するJest、Playwright、実環境確認、レビューで検証できている。
+- 大規模Tableの計測を完了し、ArchitectureのPerformance条件を満たしている。
+- 実装前に必要な実装レベルの決定事項が解消され、必要に応じてPlanの順序またはIssue breakdownへ反映されている。
+- 実装からArchitecture変更の必要性が判明した場合、その変更がPlanより先にArchitectureへ反映されている。
+
+## Notes
+
+- 本Planは#532により、Architecture確定前のformal v1実装の進捗を引き継がず、確定ArchitectureからPhase 1以降を全面再構成したものである。
+- 過去のformal v1実装はGit履歴から、Prototypeの知見は`prototype-final` tagから参照する。
