@@ -42,7 +42,7 @@ export const validateStructurizrWorkspace = ( workspacePath: string ): void => {
 		throw new Error( `Structurizr validation could not start: ${ result.error.message }` );
 	}
 	if ( result.status !== 0 ) {
-		const detail = ( result.stderr || result.stdout ).trim();
+		const detail = ( result.stderr || result.stdout || '' ).trim();
 		throw new Error(
 			`Structurizr validation failed for ${ workspacePath }: ${ detail || 'unknown error' }`
 		);
