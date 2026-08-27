@@ -4,7 +4,6 @@ These instructions apply to files under `tests/e2e/`.
 
 ## Current phase
 
-- Active E2E is intentionally minimal while formal v1 behavior is implemented from the accepted user-visible contracts.
 - The previous Table Reorder E2E suite belongs to the YTR Prototype and is available from the `prototype-final` tag.
 - Do not restore Prototype specs or helpers merely to preserve the previous test structure.
 - Add v1 E2E scenarios only when the corresponding user-visible contract has been established for the formal v1 implementation.
