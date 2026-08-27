@@ -1,5 +1,4 @@
-import MarkdownIt from 'markdown-it';
-import type Token from 'markdown-it/lib/token';
+import MarkdownIt, { type Token } from 'markdown-it';
 
 export type ExternalContext = {
 	id: string;
