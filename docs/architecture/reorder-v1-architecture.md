@@ -34,7 +34,7 @@ Keyboard 操作、ドラッグを必要としない操作、focus、announcement
 | --- | --- | --- | --- |
 | EXT_WORDPRESS_EDITOR | WordPress Editor | External System | YTR が動作する編集環境と PC・タッチ端末の入力状態を提供する。 |
 | EXT_CORE_TABLE | WordPress Core Table | External Block | YTR が行・列の並び替えを行う対象 Table の一つ。 |
-| EXT_FLEXIBLE_TABLE_BLOCK | Flexible Table Block | YTR が行・列の並び替えを行う対象 Table の一つ。 |
+| EXT_FLEXIBLE_TABLE_BLOCK | Flexible Table Block | External Block | YTR が行・列の並び替えを行う対象 Table の一つ。 |
 | EXT_WORDPRESS_UNDO | WordPress Undo | External Capability | 成立した 1 回の並び替えを 1 回の Undo で戻せる更新単位を提供する。 |
 | EXT_SCROLL_AREA | Editor Scroll Area | External Environment | DnD 中に Table または編集画面を必要な方向へ自動スクロールする対象領域を提供する。 |
 
