@@ -2,6 +2,7 @@ import MarkdownIt, { type Token } from 'markdown-it';
 
 const markdown = new MarkdownIt();
 const headingIdPattern = /^(.*?)\s+\{#([A-Za-z][A-Za-z0-9_]*)\}\s*$/u;
+const positiveIntegerPattern = /^\d+$/u;
 
 const expectedHeaders = {
 	externalContext: [ 'ID', 'Name', 'Type', 'Summary' ],
@@ -59,6 +60,49 @@ const parseTableHeader = ( tokens: Token[], tableStartIndex: number ): string[] 
 	return header;
 };
 
+const parseTableColumn = (
+	tokens: Token[],
+	tableStartIndex: number,
+	columnIndex: number
+): string[] => {
+	const values: string[] = [];
+	let inBody = false;
+	let currentColumnIndex = -1;
+	let inCell = false;
+
+	for ( let index = tableStartIndex + 1; index < tokens.length; index++ ) {
+		const token = tokens[ index ];
+		if ( token.type === 'tbody_open' ) {
+			inBody = true;
+			continue;
+		}
+		if ( token.type === 'tbody_close' || token.type === 'table_close' ) {
+			break;
+		}
+		if ( ! inBody ) {
+			continue;
+		}
+		if ( token.type === 'tr_open' ) {
+			currentColumnIndex = -1;
+			continue;
+		}
+		if ( token.type === 'td_open' ) {
+			currentColumnIndex++;
+			inCell = currentColumnIndex === columnIndex;
+			continue;
+		}
+		if ( token.type === 'inline' && inCell ) {
+			values.push( inlineText( token ) );
+			continue;
+		}
+		if ( token.type === 'td_close' ) {
+			inCell = false;
+		}
+	}
+
+	return values;
+};
+
 const requireExactHeader = (
 	actual: string[],
 	expected: readonly string[],
@@ -74,6 +118,24 @@ const requireExactHeader = (
 			) }.`
 		);
 	}
+};
+
+const requirePositiveIntegerRuntimeSteps = (
+	tokens: Token[],
+	tableStartIndex: number,
+	runtimeScenarioId: string
+): void => {
+	const stepValues = parseTableColumn( tokens, tableStartIndex, 0 );
+
+	stepValues.forEach( ( step ) => {
+		const stepNumber = Number.parseInt( step, 10 );
+		const isPositiveInteger = positiveIntegerPattern.test( step ) && stepNumber > 0;
+		if ( ! isPositiveInteger ) {
+			throw new Error(
+				`Architecture validation failed: Runtime View ${ runtimeScenarioId } Step "${ step }" must be a positive integer.`
+			);
+		}
+	} );
 };
 
 /**
@@ -162,6 +224,7 @@ export const validateArchitectureMarkdownStructure = ( source: string ): void =>
 			const match = level3.match( headingIdPattern );
 			if ( match !== null ) {
 				requireExactHeader( header, expectedHeaders.runtime, `Runtime View ${ match[ 2 ] }` );
+				requirePositiveIntegerRuntimeSteps( tokens, index, match[ 2 ] );
 				runtimeScenarioTables.add( match[ 2 ] );
 			}
 		}
