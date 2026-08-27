@@ -10,7 +10,9 @@ Current source boundary:
 src/
 ├── reorder/
 │   ├── editor-dom-context.test.ts
-│   └── editor-dom-context.ts
+│   ├── editor-dom-context.ts
+│   ├── reorder-mode.test.ts
+│   └── reorder-mode.ts
 ├── AGENTS.md
 ├── README.md
 ├── index.tsx
