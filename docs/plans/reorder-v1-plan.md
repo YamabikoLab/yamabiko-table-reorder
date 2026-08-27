@@ -39,6 +39,8 @@
 - 実装は`src/AGENTS.md`に従う。
 - `docs/architecture/reorder-v1-architecture.md`を責務、Contract、Dependency、Lifecycle、Invariantの唯一のArchitecture入力として扱い、Planではそれらを再定義しない。
 - Architectureで定義された責務を実装モジュールへ対応付けるが、Architecture上の責務名とソースファイルを機械的に1対1対応させることは前提にしない。
+- `src/`の正式v1実装は、行・列に共通する責務を`reorder/`、行固有の責務を`row-reorder/`、列固有の責務を`column-reorder/`へ配置する。
+- 共通化は、具体的な共有責務または共有する変更理由がある場合だけ行い、実装が似ていることだけを理由に共通化しない。
 - Editor DOM Context、Reorder Mode、Reorder Constraint Resolutionを最初の実装基盤として成立させる。
 - Reorder Target ResolutionとDrop Target Resolutionは、Reorder Constraint Resolutionの実装後に成立させる。
 - DnD Interactionと共通Reorder Session、Data Updateは、対象判定と移動先判定の実装後に実装する。
@@ -156,7 +158,6 @@
 
 ### Decide before implementation
 
-- Architectureで定義された各責務を`src/`内のどのモジュール境界へ対応付けるか。
 - Core TableとFlexible Table Blockの構造取得・更新差を、Reorder Constraint ResolutionとData Updateの実装でどのように吸収するか。
 - Editor DOM Contextへ渡す「現在のeditor contextに属する基準」を実装上どの値として表現するか。
 - Reorder Constraint Resolutionの制約情報について、Architectureの条件を満たす再利用・無効化方式をどの実装で管理するか。
