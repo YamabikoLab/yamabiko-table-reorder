@@ -1,5 +1,6 @@
 {
 	"$schema": "https://unpkg.com/knip@6/schema.json",
+	"entry": [ "scripts/architecture/generate-structurizr.ts" ],
 	"webpack": true,
 	"jest": {
 		"config": [ "jest-unit.config.js" ]

@@ -7,6 +7,7 @@ Run application commands from the repository root. Use the narrowest relevant ch
 The active formal v1 source and E2E suite are intentionally minimal while #481 defines the new behavior contracts.
 
 - Jest currently verifies the minimal source skeleton and i18n source.
+- Node.js architecture tests verify deterministic Markdown parsing and Structurizr DSL generation.
 - Playwright currently keeps the E2E infrastructure alive with an administration smoke test that verifies the plugin is active.
 - Prototype-specific unit and E2E behavior is available from the `prototype-final` tag and is reference material, not the active formal v1 specification.
 - Add tests as formal v1 responsibilities and user-visible contracts are implemented. Do not restore Prototype tests solely to preserve historical coverage.
@@ -33,6 +34,7 @@ npm run lint:js
 npm run lint:css
 npm run typecheck
 npm run test:unit:coverage
+npm run test:architecture
 ```
 
 Use individual commands while iterating on a focused change. Before handoff for JavaScript, TypeScript, JSON, CSS, or SCSS changes, use the applicable checks unless validation is intentionally left to the user.
@@ -47,6 +49,24 @@ Run Jest with coverage reporting directly:
 
 ```bash
 npm run test:unit:coverage
+```
+
+Run the architecture parser and Structurizr DSL generator tests directly:
+
+```bash
+npm run test:architecture
+```
+
+Generate Structurizr DSL from an architecture Markdown file:
+
+```bash
+npm run architecture:generate -- docs/architecture/reorder-v1-architecture.md
+```
+
+When the output path is omitted, the generator writes a `.dsl` file next to the input Markdown using the same base name. To select another output path explicitly, pass it as the second argument:
+
+```bash
+npm run architecture:generate -- docs/architecture/reorder-v1-architecture.md docs/architecture/reorder-v1-architecture.dsl
 ```
 
 The global Jest coverage threshold is 80% for Statements, Branches, Functions, and Lines. Keep the coverage configuration aligned with the active source rather than lowering it to accommodate untested formal v1 code.
