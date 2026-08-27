@@ -5,7 +5,6 @@ These instructions apply to the entire repository.
 ## Current development phase
 
 - The implementation through 0.4.0 is **YTR Prototype** and is preserved by the `prototype-final` tag.
-- `main` is the active development line for **formal YTR v1**, redesigned from #481.
 - Do not restore Prototype code, tests, design documents, implementation plans, dependencies, or directory structure merely to preserve the old shape.
 - Use `prototype-final` when historical implementation or documentation is needed as reference material.
 - Treat formal v1 as a design and implementation generation. Release version history continues from 0.4.0, with the next release using 0.5.0.

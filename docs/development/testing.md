@@ -4,8 +4,6 @@ Run application commands from the repository root. Use the narrowest relevant ch
 
 ## Current formal v1 test state
 
-The active formal v1 source and E2E suite are intentionally minimal while #481 defines the new behavior contracts.
-
 - Jest currently verifies the minimal source skeleton and i18n source.
 - Node.js architecture tests verify deterministic Markdown parsing, architecture validation, and Structurizr DSL generation.
 - Playwright currently keeps the E2E infrastructure alive with an administration smoke test that verifies the plugin is active.

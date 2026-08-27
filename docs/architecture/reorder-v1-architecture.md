@@ -818,7 +818,6 @@ DnD 中は Table 上の実際の順序を変更せず、destination と必要な
 ### Related documents
 
 - `docs/design/reorder-v1-design.md`
-- #481 YTR 正式 v1 の並び替え仕様を再設計する
 - #490 Reorder v1 アーキテクチャ設計書を作成する
 - #493 DnD の視覚フィードバックを要件定義・基本設計に反映する
 - #521 大規模Tableを前提に並び替え制約の計算方式を見直す
