@@ -56,8 +56,8 @@ test( '必須見出しの欠落を拒否する', () => {
 
 test( '機械可読表の列違いを項目名付きで拒否する', () => {
 	const markdown = validMarkdown.replace(
-		'| ID | Name | Type | Summary |',
-		'| ID | Name | Summary |'
+		'| ID | Name | Type | Summary |\n| --- | --- | --- | --- |\n| EXT_EDITOR | Editor | External System | 編集環境。 |',
+		'| ID | Name | Summary |\n| --- | --- | --- |\n| EXT_EDITOR | Editor | 編集環境。 |'
 	);
 
 	assert.throws(
