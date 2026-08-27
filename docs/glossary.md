@@ -21,3 +21,4 @@
 | 13 | DnD | ドラッグ＆ドロップ | `DnD` | ドラッグ操作によって行または列を並び替える入力方式。 | コードや技術文書では`DnD`を使用する。 |
 | 14 | Drop Target Resolution | ドロップ先判定 | `Drop Target Resolution` | ドロップ候補から有効なReorder Destinationを判定する責務。 | 現在はコメント内の責務名として登場する。ここでの`Target`は`Reorder Target`とは別概念。 |
 | 15 | Data Update | データ更新 | `Data Update` | Committed Reorderを受け取り、並び替え結果をデータへ反映する責務。 | 現在はコメント内の責務名として登場し、`src/`には実装されていない。 |
+| 16 | Editor DOM Context | エディターDOM環境 | `EditorDomContext`, `resolveEditorDomContext()` | 現在のエディター画面内の基準要素から、その要素と同じ表示環境の`document`と`window`を解決し、DOM / Web APIを利用する責務へ提供する概念。 | iframe / non-iframeの違いを利用側へ持ち込まず、解決結果を保持しない。 |
