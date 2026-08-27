@@ -41,8 +41,8 @@
 - Architectureで定義された責務を実装モジュールへ対応付けるが、Architecture上の責務名とソースファイルを機械的に1対1対応させることは前提にしない。
 - Editor DOM Context、Reorder Mode、Reorder Constraint Resolutionを最初の実装基盤として成立させる。
 - Reorder Target ResolutionとDrop Target Resolutionは、Reorder Constraint Resolutionの実装後に成立させる。
-- DnD Interactionと共通Reorder Session、Data Updateは、対象判定と移動先判定の実装後に接続する。
-- PC / タッチのInput Interaction、Reorder Presentation、Auto Scroll、案内機能は、共通DnD基盤へ段階的に接続する。
+- DnD Interactionと共通Reorder Session、Data Updateは、対象判定と移動先判定の実装後に実装する。
+- PC / タッチのInput Interaction、Reorder Presentation、Auto Scroll、案内機能は、共通DnD基盤の実装後に段階的に実装する。
 - Prototypeの実装は`prototype-final`を調査・比較の参考資料としてのみ利用し、旧構造を新しいsourceの前提にしない。
 - Architecture確定前のformal v1実装はGit履歴から参照してよいが、そのPhase完了状態や実装構造を新Planへ引き継がない。
 - 各Phaseは後続Phaseが依存できるレビュー可能なOutcomeを持ち、そのPhaseに適した自動テスト、実環境検証、または計測で実装結果を確認する。
@@ -69,7 +69,7 @@
 - Tasks:
   - Reorder Target Resolutionを実装する。
   - Drop Target Resolutionを実装する。
-  - 両責務をReorder Constraint Resolutionへ接続する。
+  - Architectureで定義されたDependency境界に従って実装する。
 - Validation:
   - Architectureで定義されたReorder Target Resolution / Drop Target ResolutionのContract、Lifecycle、Dependency境界に従っていることをJestで確認する。
   - 行・列それぞれの判定結果がArchitectureで定義された規則と一致することをJestで確認する。
@@ -80,8 +80,8 @@
 - Outcome: 入力方式に依存しないDnD Interactionと共通Reorder Session、Data Updateが一連の実装として成立する。
 - Tasks:
   - DnD Interactionと共通Reorder Sessionを実装する。
-  - Reorder Target Resolution、Drop Target Resolution、Data UpdateをArchitectureで定義された境界に従ってDnD Interactionへ接続する。
-  - Core TableとFlexible Table BlockのData Update実装を接続する。
+  - Data Updateを実装する。
+  - Architectureで定義されたDependency境界に従ってPhase 2の実装と統合する。
 - Validation:
   - DnD InteractionとReorder SessionがArchitectureで定義されたLifecycle / Dependency境界を満たすことをJestで確認する。
   - Requirements / Designで定義された成立、キャンセル、確定更新、Undoの主要フローをJestまたは実環境で確認する。
@@ -89,12 +89,12 @@
 
 ### Phase 4: Input Interaction
 
-- Outcome: PCとタッチ端末の入力実装が共通DnD Interactionへ接続される。
+- Outcome: PCとタッチ端末の入力で共通DnD経路を利用できる。
 - Tasks:
   - Input Interactionの共通実装境界を決定する。
   - PC向け入力解釈を実装する。
   - タッチ向け入力解釈を実装する。
-  - DOM / Web APIを利用する入力処理をEditor DOM Contextへ接続する。
+  - Architectureで定義されたDependency境界に従って入力処理を実装する。
 - Validation:
   - Input InteractionがArchitectureで定義されたContract / Dependency境界を満たすことをJestで確認する。
   - PCとタッチ端末の主要入力フローがRequirements / Designどおり共通DnD経路へ接続されることをPlaywrightで確認する。
@@ -102,9 +102,9 @@
 
 ### Phase 5: Reorder Presentation
 
-- Outcome: Reorder Presentationが共通DnD経路へ接続され、必要な視覚フィードバックが成立する。
+- Outcome: 必要な視覚フィードバックが共通DnD経路で成立する。
 - Tasks:
-  - Reorder Presentationを実装し、DOM / Web API利用をEditor DOM Contextへ接続する。
+  - Reorder Presentationを実装する。
   - 並び替えモード表示と移動不可フィードバックを実装する。
   - DnD中の移動対象、移動先、確定・キャンセルに対応する表示を実装する。
   - 大規模Tableでも実用的な表示更新範囲とアニメーション方式を決定する。
@@ -115,10 +115,10 @@
 
 ### Phase 6: Auto Scroll
 
-- Outcome: Auto Scrollが共通DnD経路へ接続され、画面内に収まらないTableでも主要DnDを継続できる。
+- Outcome: Auto Scrollが実装され、画面内に収まらないTableでも主要DnDを継続できる。
 - Tasks:
-  - Auto Scrollを実装し、DOM / Web API利用をEditor DOM Contextへ接続する。
-  - DnD InteractionとReorder Presentationへ接続する。
+  - Auto Scrollを実装する。
+  - Architectureで定義されたDependency境界に従って統合する。
   - スクロール開始領域、速度、更新頻度などの実装値を実環境で調整する。
 - Validation:
   - 行・列DnDのAuto ScrollがRequirements / DesignとArchitectureで定義された条件に従って動作することをPlaywrightで確認する。
@@ -127,10 +127,11 @@
 
 ### Phase 7: 初回案内と再案内
 
-- Outcome: First-use GuidanceとReorder Rediscoveryが正式v1の入力・表示実装へ接続される。
+- Outcome: First-use GuidanceとReorder Rediscoveryが正式v1の入力・表示とともに利用できる。
 - Tasks:
-  - First-use Guidanceを実装し、DOM / Web API利用をEditor DOM Contextへ接続する。
-  - Reorder Rediscoveryを実装し、DOM / Web API利用をEditor DOM Contextへ接続する。
+  - First-use Guidanceを実装する。
+  - Reorder Rediscoveryを実装する。
+  - Architectureで定義されたDependency境界に従って統合する。
   - PC / タッチごとの状態保存、表示制御、抑制の実装方式を決定する。
 - Validation:
   - Requirements / Designで定義された初回案内と再案内の主要フローをPlaywrightで確認する。
@@ -179,7 +180,7 @@
 - [ ] Reorder Target Resolutionを実装する。
 - [ ] Drop Target Resolutionを実装する。
 - [ ] DnD Interactionと共通Reorder Sessionを実装する。
-- [ ] Data Updateを実装し、Core TableとFlexible Table Blockの確定更新を接続する。
+- [ ] Core TableとFlexible Table BlockのData Updateを実装する。
 - [ ] PC向けInput Interactionを実装する。
 - [ ] タッチ向けInput Interactionを実装する。
 - [ ] Reorder Presentationのモード表示と移動不可フィードバックを実装する。
