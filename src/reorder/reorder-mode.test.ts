@@ -1,9 +1,4 @@
-import {
-	createReorderMode,
-	enterReorderMode,
-	exitReorderMode,
-	getReorderKind,
-} from './reorder-mode';
+import { createReorderMode } from './reorder-mode';
 
 describe( 'Reorder Mode', () => {
 	/**
@@ -16,18 +11,18 @@ describe( 'Reorder Mode', () => {
 	 * - createReorderMode()を実行する。
 	 *
 	 * 期待結果:
-	 * - 通常編集モードを表す`edit`が返される。
+	 * - 現在状態は通常編集モードを表す`edit`になる。
 	 * - 行・列の並び替え種別は存在しない。
 	 */
 	it( 'when reorder mode is created, should start in edit mode', () => {
 		const mode = createReorderMode();
 
-		expect( mode ).toBe( 'edit' );
-		expect( getReorderKind( mode ) ).toBeNull();
+		expect( mode.getState() ).toBe( 'edit' );
+		expect( mode.getReorderKind() ).toBeNull();
 	} );
 
 	/**
-	 * 行並び替えを選択した場合に行だけが現在の並び替え種別になることを確認する。
+	 * 行並び替えを選択した場合に同じReorder Modeの現在状態が行へ切り替わることを確認する。
 	 *
 	 * 事前条件:
 	 * - Reorder Modeは通常編集モードである。
@@ -40,14 +35,16 @@ describe( 'Reorder Mode', () => {
 	 * - DnDで扱う並び替え種別として`row`が返される。
 	 */
 	it( 'when row reorder is selected, should expose row kind', () => {
-		const mode = enterReorderMode( 'row' );
+		const mode = createReorderMode();
 
-		expect( mode ).toBe( 'row' );
-		expect( getReorderKind( mode ) ).toBe( 'row' );
+		mode.enter( 'row' );
+
+		expect( mode.getState() ).toBe( 'row' );
+		expect( mode.getReorderKind() ).toBe( 'row' );
 	} );
 
 	/**
-	 * 列並び替えを選択した場合に列だけが現在の並び替え種別になることを確認する。
+	 * 列並び替えを選択した場合に同じReorder Modeの現在状態が列へ切り替わることを確認する。
 	 *
 	 * 事前条件:
 	 * - Reorder Modeは通常編集モードである。
@@ -60,50 +57,59 @@ describe( 'Reorder Mode', () => {
 	 * - DnDで扱う並び替え種別として`column`が返される。
 	 */
 	it( 'when column reorder is selected, should expose column kind', () => {
-		const mode = enterReorderMode( 'column' );
+		const mode = createReorderMode();
 
-		expect( mode ).toBe( 'column' );
-		expect( getReorderKind( mode ) ).toBe( 'column' );
+		mode.enter( 'column' );
+
+		expect( mode.getState() ).toBe( 'column' );
+		expect( mode.getReorderKind() ).toBe( 'column' );
 	} );
 
 	/**
-	 * 別方向の入口を選択した場合に選択された側へ切り替えられることを確認する。
+	 * 別方向の入口を選択した場合に同じ現在状態が選択された側へ切り替わることを確認する。
 	 *
 	 * 事前条件:
 	 * - 行並び替えモードが有効である。
 	 *
 	 * 操作:
-	 * - 列並び替えモードを選択する。
+	 * - 同じReorder Modeで列並び替えモードを選択する。
 	 *
 	 * 期待結果:
-	 * - 次のReorder Modeは`column`になり、行と列が同時に有効な状態を作らない。
+	 * - 現在状態は`column`になり、行と列が同時に有効な状態を作らない。
 	 */
 	it( 'when another reorder kind is selected, should switch to the selected mode', () => {
-		const rowMode = enterReorderMode( 'row' );
-		const columnMode = enterReorderMode( 'column' );
+		const mode = createReorderMode();
+		mode.enter( 'row' );
 
-		expect( getReorderKind( rowMode ) ).toBe( 'row' );
-		expect( columnMode ).toBe( 'column' );
-		expect( getReorderKind( columnMode ) ).toBe( 'column' );
+		expect( mode.getState() ).toBe( 'row' );
+		expect( mode.getReorderKind() ).toBe( 'row' );
+
+		mode.enter( 'column' );
+
+		expect( mode.getState() ).toBe( 'column' );
+		expect( mode.getReorderKind() ).toBe( 'column' );
 	} );
 
 	/**
-	 * 並び替えモードを終了すると通常編集モードへ戻ることを確認する。
+	 * 並び替えモードを終了すると同じReorder Modeの現在状態が通常編集へ戻ることを確認する。
 	 *
 	 * 事前条件:
-	 * - 行または列の並び替えモードが有効である。
+	 * - 行並び替えモードが有効である。
 	 *
 	 * 操作:
-	 * - exitReorderMode()を実行する。
+	 * - 同じReorder Modeでexit()を実行する。
 	 *
 	 * 期待結果:
-	 * - 通常編集モードを表す`edit`が返される。
+	 * - 現在状態は通常編集モードを表す`edit`へ戻る。
 	 * - 行・列の並び替え種別は存在しない。
 	 */
 	it( 'when reorder mode exits, should return to edit mode', () => {
-		const mode = exitReorderMode();
+		const mode = createReorderMode();
+		mode.enter( 'row' );
 
-		expect( mode ).toBe( 'edit' );
-		expect( getReorderKind( mode ) ).toBeNull();
+		mode.exit();
+
+		expect( mode.getState() ).toBe( 'edit' );
+		expect( mode.getReorderKind() ).toBeNull();
 	} );
 } );
