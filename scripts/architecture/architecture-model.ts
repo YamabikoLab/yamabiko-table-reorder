@@ -145,22 +145,15 @@ const parseTable = ( tokens: Token[], tableStartIndex: number ): ParsedTable => 
 	return { header, bodyRows, endIndex: index };
 };
 
-const hasExactHeader = (
-	table: ParsedTable,
-	expectedHeader: readonly string[]
-): boolean => {
+const hasExactHeader = ( table: ParsedTable, expectedHeader: readonly string[] ): boolean => {
 	const sameLength = table.header.length === expectedHeader.length;
-	const sameColumns = table.header.every(
-		( column, index ) => column === expectedHeader[ index ]
-	);
+	const sameColumns = table.header.every( ( column, index ) => column === expectedHeader[ index ] );
 	return sameLength && sameColumns;
 };
 
-const rowsAsRecords = ( table: ParsedTable ): Array<Record<string, string>> =>
+const rowsAsRecords = ( table: ParsedTable ): Array< Record< string, string > > =>
 	table.bodyRows.map( ( row ) =>
-		Object.fromEntries(
-			table.header.map( ( column, index ) => [ column, row[ index ] ?? '' ] )
-		)
+		Object.fromEntries( table.header.map( ( column, index ) => [ column, row[ index ] ?? '' ] ) )
 	);
 
 /**
@@ -172,7 +165,7 @@ const rowsAsRecords = ( table: ParsedTable ): Array<Record<string, string>> =>
  */
 export const parseArchitectureMarkdown = ( source: string ): ArchitectureModel => {
 	const tokens = markdown.parse( source, {} );
-	const headings = new Map<number, ParsedHeading>();
+	const headings = new Map< number, ParsedHeading >();
 	const model: ArchitectureModel = {
 		externalContexts: [],
 		responsibilities: [],
@@ -194,8 +187,7 @@ export const parseArchitectureMarkdown = ( source: string ): ArchitectureModel =
 			}
 
 			const buildingBlockSection = headings.get( 2 )?.title === '5. Building Block View';
-			const responsibilityDetailsSection =
-				headings.get( 3 )?.title === 'Responsibility Details';
+			const responsibilityDetailsSection = headings.get( 3 )?.title === 'Responsibility Details';
 			const isResponsibilityDetail =
 				level === 4 && buildingBlockSection && responsibilityDetailsSection;
 

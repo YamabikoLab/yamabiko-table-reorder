@@ -62,10 +62,7 @@ test( '同一 Architecture Model から同一 DSL を生成する', () => {
 	assert.match( first, /custom "RV_DND_START"/u );
 	assert.match( first, /"runtime\.steps" "1=REL_001;2=REL_002"/u );
 	assert.match( first, /"runtime\.RV_DND_START\.step\.1" "入力する。"/u );
-	assert.match(
-		first,
-		/EXT_EDITOR = element "Editor" "External System" "編集環境。"/u
-	);
+	assert.match( first, /EXT_EDITOR = element "Editor" "External System" "編集環境。"/u );
 	assert.match(
 		first,
 		/RESP_INPUT = element "Input Interaction" "Responsibility" "入力を扱う。"/u

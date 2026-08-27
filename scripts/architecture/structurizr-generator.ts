@@ -29,8 +29,8 @@ const relationshipKey = ( source: string, destination: string ): string =>
 
 const buildRelationshipIndex = (
 	relationships: ArchitectureRelationship[]
-): Map<string, number[]> => {
-	const index = new Map<string, number[]>();
+): Map< string, number[] > => {
+	const index = new Map< string, number[] >();
 
 	relationships.forEach( ( relationship, relationshipIndex ) => {
 		const key = relationshipKey( relationship.source, relationship.destination );
@@ -73,7 +73,9 @@ const generateElement = (
 	metadata: string,
 	tag: string
 ): string[] => [
-	`\t\t${ element.id } = element ${ quoted( element.name ) } ${ quoted( metadata ) } ${ quoted( element.summary ) } {`,
+	`\t\t${ element.id } = element ${ quoted( element.name ) } ${ quoted( metadata ) } ${ quoted(
+		element.summary
+	) } {`,
 	`\t\t\ttags ${ quoted( tag ) }`,
 	'\t\t}',
 ];
@@ -86,7 +88,9 @@ const generateRelationship = (
 	const identifier = relationshipIdentifier( index );
 	const tags = [ 'Architecture Relationship' ];
 	const lines = [
-		`\t\t${ identifier } = ${ relationship.source } -> ${ relationship.destination } ${ quoted( relationship.description ) } {`,
+		`\t\t${ identifier } = ${ relationship.source } -> ${ relationship.destination } ${ quoted(
+			relationship.description
+		) } {`,
 	];
 
 	runtimeBindings.forEach( ( binding ) => {
@@ -102,9 +106,7 @@ const generateRelationship = (
 		lines.push( '\t\t\tproperties {' );
 		runtimeBindings.forEach( ( binding ) => {
 			const propertyName = `runtime.${ binding.runtimeViewId }.step.${ binding.step }`;
-			lines.push(
-				`\t\t\t\t${ quoted( propertyName ) } ${ quoted( binding.interaction ) }`
-			);
+			lines.push( `\t\t\t\t${ quoted( propertyName ) } ${ quoted( binding.interaction ) }` );
 		} );
 		lines.push( '\t\t\t}' );
 	}
@@ -129,7 +131,7 @@ const runtimeElements = ( runtimeView: RuntimeView ): string[] => {
 
 const runtimeStepProperty = (
 	runtimeView: RuntimeView,
-	relationshipIndex: Map<string, number[]>
+	relationshipIndex: Map< string, number[] >
 ): string =>
 	runtimeView.steps
 		.map( ( step ) => {
@@ -156,7 +158,7 @@ const generateResponsibilityView = (): string[] => [
 
 const generateRuntimeView = (
 	runtimeView: RuntimeView,
-	relationshipIndex: Map<string, number[]>
+	relationshipIndex: Map< string, number[] >
 ): string[] => {
 	const elements = runtimeElements( runtimeView );
 	const sequence = runtimeStepProperty( runtimeView, relationshipIndex );
@@ -194,9 +196,7 @@ export const generateStructurizrDsl = ( model: ArchitectureModel ): string => {
 	];
 
 	model.externalContexts.forEach( ( externalContext ) => {
-		lines.push(
-			...generateElement( externalContext, externalContext.type, 'External Context' )
-		);
+		lines.push( ...generateElement( externalContext, externalContext.type, 'External Context' ) );
 	} );
 
 	if ( model.externalContexts.length > 0 && model.responsibilities.length > 0 ) {

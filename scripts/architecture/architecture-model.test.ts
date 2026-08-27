@@ -84,8 +84,7 @@ test( '説明文から Relationship を補完しない', () => {
 	assert.equal(
 		model.relationships.some(
 			( relationship ) =>
-				relationship.source === 'RESP_DND' &&
-				relationship.destination === 'EXT_EDITOR'
+				relationship.source === 'RESP_DND' && relationship.destination === 'EXT_EDITOR'
 		),
 		false
 	);

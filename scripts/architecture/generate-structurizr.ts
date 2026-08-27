@@ -3,7 +3,7 @@ import { readFile, writeFile } from 'node:fs/promises';
 import { parseArchitectureMarkdown } from './architecture-model';
 import { generateStructurizrDsl } from './structurizr-generator';
 
-const generate = async (): Promise<void> => {
+const generate = async (): Promise< void > => {
 	const [ inputPath, outputPath ] = process.argv.slice( 2 );
 
 	if ( inputPath === undefined || outputPath === undefined ) {

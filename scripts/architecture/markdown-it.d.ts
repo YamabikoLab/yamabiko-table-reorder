@@ -7,6 +7,6 @@ declare module 'markdown-it' {
 	};
 
 	export default class MarkdownIt {
-		parse( source: string, env: Record<string, unknown> ): Token[];
+		parse( source: string, env: Record< string, unknown > ): Token[];
 	}
 }
