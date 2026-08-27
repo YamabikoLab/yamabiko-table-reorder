@@ -19,12 +19,12 @@ export type ArchitectureRelationship = {
 	description: string;
 };
 
-export type ResponsibilityDetail = {
+type ResponsibilityDetail = {
 	id: string | null;
 	name: string;
 };
 
-export type RuntimeStep = {
+type RuntimeStep = {
 	step: number;
 	source: string;
 	target: string;
