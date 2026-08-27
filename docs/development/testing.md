@@ -4,7 +4,7 @@ Run application commands from the repository root. Use the narrowest relevant ch
 
 ## Current formal v1 test state
 
-The active formal v1 source and E2E suite are intentionally minimal while #481 defines the new behavior contracts.
+The active formal v1 source and E2E suite are intentionally minimal while the formal v1 implementation is added according to the accepted requirements, design, architecture, and implementation plan.
 
 - Jest currently verifies the minimal source skeleton and i18n source.
 - Node.js architecture tests verify deterministic Markdown parsing, architecture validation, and Structurizr DSL generation.
