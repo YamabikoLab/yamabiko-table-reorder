@@ -4,7 +4,7 @@ This document defines the cross-cutting development rules for Yamabiko Table Reo
 
 ## Current development phase
 
-YTR Prototype is preserved by the `prototype-final` tag. Formal v1 is being redesigned from #481.
+YTR Prototype is preserved by the `prototype-final` tag. Formal v1 is the active development line.
 
 Do not use Prototype source structure, interaction details, tests, or archived documents as the default specification for formal v1. Historical material may be consulted from `prototype-final` as reference evidence when useful.
 
