@@ -17,16 +17,23 @@ const model: ArchitectureModel = {
 		{ id: 'RESP_INPUT', name: 'Input Interaction', summary: '入力を扱う。' },
 		{ id: 'RESP_DND', name: 'DnD Interaction', summary: 'DnD を扱う。' },
 	],
-	relationships: [
+	dependencies: [
 		{
-			source: 'EXT_EDITOR',
-			destination: 'RESP_INPUT',
-			description: '入力を提供する。',
+			dependent: 'RESP_INPUT',
+			dependsOn: 'EXT_EDITOR',
+			reason: '編集環境を必要とする。',
 		},
 		{
-			source: 'RESP_INPUT',
-			destination: 'RESP_DND',
-			description: '開始試行を渡す。',
+			dependent: 'RESP_DND',
+			dependsOn: 'RESP_INPUT',
+			reason: '入力境界を必要とする。',
+		},
+	],
+	dependencyViews: [
+		{
+			id: 'DV_INPUT',
+			name: 'Input',
+			includes: [ 'EXT_EDITOR', 'RESP_INPUT' ],
 		},
 	],
 	responsibilityDetails: [],
@@ -58,38 +65,90 @@ test( '同一 Architecture Model から同一 DSL を生成する', () => {
 
 	assert.equal( first, second );
 	assert.match( first, /!impliedRelationships false/u );
-	assert.match( first, /custom "ResponsibilityView"/u );
+	assert.match( first, /custom "DV_INPUT"/u );
 	assert.match( first, /custom "RV_DND_START"/u );
-	assert.match( first, /"runtime\.steps" "1=REL_001;2=REL_002"/u );
-	assert.match( first, /"runtime\.RV_DND_START\.step\.1" "入力する。"/u );
+	assert.match( first, /title "Structural Dependencies - Input"/u );
+	assert.match( first, /title "Runtime - DnD start"/u );
+	assert.match( first, /"runtime\.steps" "1=RT_001;2=RT_002"/u );
+	assert.match( first, /RESP_INPUT -> EXT_EDITOR "編集環境を必要とする。"/u );
+	assert.match( first, /tags "Structural Dependency"/u );
+	assert.match( first, /EXT_EDITOR -> RESP_INPUT "入力する。"/u );
+	assert.match( first, /tags "Runtime Interaction,Runtime_RV_DND_START"/u );
 	assert.match( first, /EXT_EDITOR = element "Editor" "External System" "編集環境。"/u );
-	assert.match(
-		first,
-		/RESP_INPUT = element "Input Interaction" "Responsibility" "入力を扱う。"/u
-	);
 } );
 
-test( 'Runtime View だけに存在する Relationship を生成しない', () => {
-	const invalidModel: ArchitectureModel = {
+test( 'Dependency View は Includes の要素だけを明示して Structural Dependency に限定する', () => {
+	const dsl = generateStructurizrDsl( model );
+	const view = dsl.slice(
+		dsl.indexOf( 'custom "DV_INPUT"' ),
+		dsl.indexOf( 'custom "RV_DND_START"' )
+	);
+
+	assert.match( view, /include EXT_EDITOR RESP_INPUT/u );
+	assert.match( view, /exclude "relationship\.tag!=Structural Dependency"/u );
+	assert.doesNotMatch( view, /RESP_DND/u );
+} );
+
+test( 'Runtime Interaction は Structural Dependency と独立して生成する', () => {
+	const reverseRuntimeModel: ArchitectureModel = {
 		...model,
 		runtimeViews: [
 			{
-				id: 'RV_INVALID',
-				name: 'Invalid runtime',
+				id: 'RV_REVERSE',
+				name: 'Reverse runtime',
 				steps: [
 					{
 						step: 1,
-						source: 'RESP_DND',
-						target: 'EXT_EDITOR',
-						interaction: '未定義の関係。',
+						source: 'EXT_EDITOR',
+						target: 'RESP_INPUT',
+						interaction: '依存方向とは逆向きに通知する。',
 					},
 				],
 			},
 		],
 	};
 
-	assert.throws(
-		() => generateStructurizrDsl( invalidModel ),
-		/resolve to exactly one explicit relationship/u
-	);
+	const dsl = generateStructurizrDsl( reverseRuntimeModel );
+	assert.match( dsl, /RESP_INPUT -> EXT_EDITOR "編集環境を必要とする。"/u );
+	assert.match( dsl, /EXT_EDITOR -> RESP_INPUT "依存方向とは逆向きに通知する。"/u );
+} );
+
+test( '同一 Runtime Interaction を複数 View で共有する', () => {
+	const sharedRuntimeModel: ArchitectureModel = {
+		...model,
+		runtimeViews: [
+			{
+				id: 'RV_FIRST',
+				name: 'First',
+				steps: [
+					{
+						step: 1,
+						source: 'RESP_INPUT',
+						target: 'RESP_DND',
+						interaction: '開始試行を渡す。',
+					},
+				],
+			},
+			{
+				id: 'RV_SECOND',
+				name: 'Second',
+				steps: [
+					{
+						step: 1,
+						source: 'RESP_INPUT',
+						target: 'RESP_DND',
+						interaction: '開始試行を渡す。',
+					},
+				],
+			},
+		],
+	};
+
+	const dsl = generateStructurizrDsl( sharedRuntimeModel );
+	assert.equal( dsl.match( /RESP_INPUT -> RESP_DND "開始試行を渡す。"/gu )?.length, 1 );
+	assert.match( dsl, /tags "Runtime Interaction,Runtime_RV_FIRST,Runtime_RV_SECOND"/u );
+	assert.match( dsl, /"runtime\.RV_FIRST\.step\.1" "開始試行を渡す。"/u );
+	assert.match( dsl, /"runtime\.RV_SECOND\.step\.1" "開始試行を渡す。"/u );
+	assert.match( dsl, /custom "RV_FIRST"[\s\S]*"runtime\.steps" "1=RT_001"/u );
+	assert.match( dsl, /custom "RV_SECOND"[\s\S]*"runtime\.steps" "1=RT_001"/u );
 } );

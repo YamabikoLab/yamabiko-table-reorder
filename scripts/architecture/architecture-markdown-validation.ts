@@ -7,7 +7,8 @@ const positiveIntegerPattern = /^\d+$/u;
 const expectedHeaders = {
 	externalContext: [ 'ID', 'Name', 'Type', 'Summary' ],
 	responsibilityInventory: [ 'ID', 'Responsibility', 'Summary' ],
-	relationships: [ 'Source', 'Destination', 'Description' ],
+	dependencies: [ 'Dependent', 'Depends on', 'Reason' ],
+	dependencyViews: [ 'ID', 'Name', 'Includes' ],
 	runtime: [ 'Step', 'Source', 'Target', 'Interaction' ],
 } as const;
 
@@ -150,7 +151,12 @@ export const validateArchitectureMarkdownStructure = ( source: string ): void =>
 	const requiredHeadings = new Set< string >();
 	let externalContextTable = false;
 	let responsibilityInventoryTable = false;
-	let relationshipsTable = false;
+	let dependenciesTable = false;
+	let dependencyViewsHeadingCount = 0;
+	let dependencyViewsTableCount = 0;
+	let dependenciesHeadingTokenIndex: number | null = null;
+	let dependencyViewsHeadingTokenIndex: number | null = null;
+	let dependencyViewsInBuildingBlockView = false;
 	let responsibilityDetailsHeading = false;
 	const runtimeScenarioHeadings = new Set< string >();
 	const runtimeScenarioTables = new Set< string >();
@@ -174,12 +180,18 @@ export const validateArchitectureMarkdownStructure = ( source: string ): void =>
 			) {
 				requiredHeadings.add( headingText );
 			}
-			if (
-				level === 3 &&
-				headings.get( 2 ) === '5. Building Block View' &&
-				headingText === 'Responsibility Details'
-			) {
-				responsibilityDetailsHeading = true;
+			if ( level === 3 && headingText === 'Dependency Views' ) {
+				dependencyViewsHeadingCount++;
+				dependencyViewsHeadingTokenIndex ??= index;
+				dependencyViewsInBuildingBlockView ||= headings.get( 2 ) === '5. Building Block View';
+			}
+			if ( level === 3 && headings.get( 2 ) === '5. Building Block View' ) {
+				if ( headingText === 'Dependencies' ) {
+					dependenciesHeadingTokenIndex = index;
+				}
+				if ( headingText === 'Responsibility Details' ) {
+					responsibilityDetailsHeading = true;
+				}
 			}
 			if ( level === 3 && headings.get( 2 ) === '6. Runtime View' ) {
 				const match = headingText.match( headingIdPattern );
@@ -215,9 +227,14 @@ export const validateArchitectureMarkdownStructure = ( source: string ): void =>
 			responsibilityInventoryTable = true;
 			continue;
 		}
-		if ( level2 === '5. Building Block View' && level3 === 'Relationships' ) {
-			requireExactHeader( header, expectedHeaders.relationships, 'Relationships' );
-			relationshipsTable = true;
+		if ( level2 === '5. Building Block View' && level3 === 'Dependencies' ) {
+			requireExactHeader( header, expectedHeaders.dependencies, 'Dependencies' );
+			dependenciesTable = true;
+			continue;
+		}
+		if ( level2 === '5. Building Block View' && level3 === 'Dependency Views' ) {
+			requireExactHeader( header, expectedHeaders.dependencyViews, 'Dependency Views' );
+			dependencyViewsTableCount++;
 			continue;
 		}
 		if ( level2 === '6. Runtime View' && level3 !== undefined ) {
@@ -243,8 +260,40 @@ export const validateArchitectureMarkdownStructure = ( source: string ): void =>
 	if ( ! responsibilityInventoryTable ) {
 		throw new Error( 'Architecture validation failed: Responsibility Inventory table is missing.' );
 	}
-	if ( ! relationshipsTable ) {
-		throw new Error( 'Architecture validation failed: Relationships table is missing.' );
+	if ( ! dependenciesTable ) {
+		throw new Error( 'Architecture validation failed: Dependencies table is missing.' );
+	}
+	if ( dependencyViewsHeadingCount > 1 ) {
+		throw new Error(
+			'Architecture validation failed: Dependency Views heading may appear at most once.'
+		);
+	}
+	if ( dependencyViewsHeadingCount === 1 && ! dependencyViewsInBuildingBlockView ) {
+		throw new Error(
+			'Architecture validation failed: Dependency Views must appear immediately after Dependencies.'
+		);
+	}
+	if ( dependencyViewsHeadingCount === 1 && dependencyViewsTableCount !== 1 ) {
+		throw new Error( 'Architecture validation failed: Dependency Views table is missing.' );
+	}
+	if ( dependencyViewsHeadingTokenIndex !== null ) {
+		if (
+			dependenciesHeadingTokenIndex === null ||
+			dependencyViewsHeadingTokenIndex < dependenciesHeadingTokenIndex
+		) {
+			throw new Error(
+				'Architecture validation failed: Dependency Views must appear immediately after Dependencies.'
+			);
+		}
+
+		const interveningHeading = tokens
+			.slice( dependenciesHeadingTokenIndex + 3, dependencyViewsHeadingTokenIndex )
+			.some( ( token ) => token.type === 'heading_open' && token.tag === 'h3' );
+		if ( interveningHeading ) {
+			throw new Error(
+				'Architecture validation failed: Dependency Views must appear immediately after Dependencies.'
+			);
+		}
 	}
 	if ( ! responsibilityDetailsHeading ) {
 		throw new Error( 'Architecture validation failed: Responsibility Details heading is missing.' );

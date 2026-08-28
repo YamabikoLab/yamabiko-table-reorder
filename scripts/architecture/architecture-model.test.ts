@@ -23,12 +23,19 @@ const markdown = `
 | RESP_INPUT | Input Interaction | 入力を扱う。 |
 | RESP_DND | DnD Interaction | DnD を扱う。 |
 
-### Relationships
+### Dependencies
 
-| Source | Destination | Description |
+| Dependent | Depends on | Reason |
 | --- | --- | --- |
-| EXT_EDITOR | RESP_INPUT | 入力を提供する。 |
-| RESP_INPUT | RESP_DND | 開始試行を渡す。 |
+| RESP_INPUT | EXT_EDITOR | 編集環境を必要とする。 |
+| RESP_DND | RESP_INPUT | 入力境界を必要とする。 |
+
+### Dependency Views
+
+| ID | Name | Includes |
+| --- | --- | --- |
+| DV_INPUT | Input | EXT_EDITOR RESP_INPUT |
+| DV_DND | DnD | RESP_INPUT RESP_DND |
 
 ### Responsibility Details
 
@@ -45,7 +52,7 @@ const markdown = `
 ### DnD start {#RV_DND_START}
 
 | Step | Source | Target | Interaction |
-| --- | --- | --- | --- |
+| ---: | --- | --- | --- |
 | 2 | RESP_INPUT | RESP_DND | 開始試行を渡す。 |
 | 1 | EXT_EDITOR | RESP_INPUT | 入力する。 |
 `;
@@ -65,6 +72,14 @@ test( '固定見出しと表だけから Architecture Model を構築する', ()
 		model.responsibilities.map( ( responsibility ) => responsibility.id ),
 		[ 'RESP_INPUT', 'RESP_DND' ]
 	);
+	assert.deepEqual( model.dependencies, [
+		{ dependent: 'RESP_INPUT', dependsOn: 'EXT_EDITOR', reason: '編集環境を必要とする。' },
+		{ dependent: 'RESP_DND', dependsOn: 'RESP_INPUT', reason: '入力境界を必要とする。' },
+	] );
+	assert.deepEqual( model.dependencyViews, [
+		{ id: 'DV_INPUT', name: 'Input', includes: [ 'EXT_EDITOR', 'RESP_INPUT' ] },
+		{ id: 'DV_DND', name: 'DnD', includes: [ 'RESP_INPUT', 'RESP_DND' ] },
+	] );
 	assert.deepEqual( model.responsibilityDetails, [
 		{ id: 'RESP_INPUT', name: 'Input Interaction' },
 		{ id: 'RESP_DND', name: 'DnD Interaction' },
@@ -75,16 +90,16 @@ test( '固定見出しと表だけから Architecture Model を構築する', ()
 	);
 } );
 
-test( '説明文から Relationship を補完しない', () => {
+test( '説明文から Dependency や Dependency View を補完しない', () => {
 	const model = parseArchitectureMarkdown(
-		`${ markdown }\nRESP_DND から EXT_EDITOR へ通知する。\n`
+		`${ markdown }\nRESP_DND は EXT_EDITOR に依存する。DV_EXTRA には両方を含める。\n`
 	);
 
-	assert.equal( model.relationships.length, 2 );
+	assert.equal( model.dependencies.length, 2 );
+	assert.equal( model.dependencyViews.length, 2 );
 	assert.equal(
-		model.relationships.some(
-			( relationship ) =>
-				relationship.source === 'RESP_DND' && relationship.destination === 'EXT_EDITOR'
+		model.dependencies.some(
+			( dependency ) => dependency.dependent === 'RESP_DND' && dependency.dependsOn === 'EXT_EDITOR'
 		),
 		false
 	);

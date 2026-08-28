@@ -29,6 +29,7 @@ const validateUniqueIds = ( model: ArchitectureModel ): void => {
 	const ids = [
 		...model.externalContexts.map( ( item ) => item.id ),
 		...model.responsibilities.map( ( item ) => item.id ),
+		...model.dependencyViews.map( ( item ) => item.id ),
 		...model.runtimeViews.map( ( item ) => item.id ),
 	];
 
@@ -51,8 +52,8 @@ const validateRequiredRows = ( model: ArchitectureModel ): void => {
 			'Architecture validation failed: Responsibility Inventory requires at least one row.'
 		);
 	}
-	if ( model.relationships.length === 0 ) {
-		throw new Error( 'Architecture validation failed: Relationships requires at least one row.' );
+	if ( model.dependencies.length === 0 ) {
+		throw new Error( 'Architecture validation failed: Dependencies requires at least one row.' );
 	}
 	if ( model.responsibilityDetails.length === 0 ) {
 		throw new Error(
@@ -128,41 +129,51 @@ const validateResponsibilityDetails = ( model: ArchitectureModel ): void => {
 	} );
 };
 
-const validateRelationships = (
-	model: ArchitectureModel,
-	elementIds: Set< string >
-): Map< string, number > => {
-	const relationshipCounts = new Map< string, number >();
+const validateDependencies = ( model: ArchitectureModel, elementIds: Set< string > ): void => {
+	const seen = new Set< string >();
 
-	model.relationships.forEach( ( relationship, index ) => {
-		const item = `Relationship row ${ index + 1 }`;
-		requireValue( relationship.source, `${ item } Source` );
-		requireValue( relationship.destination, `${ item } Destination` );
-		requireValue( relationship.description, `${ item } Description` );
+	model.dependencies.forEach( ( dependency, index ) => {
+		const item = `Dependency row ${ index + 1 }`;
+		requireValue( dependency.dependent, `${ item } Dependent` );
+		requireValue( dependency.dependsOn, `${ item } Depends on` );
+		requireValue( dependency.reason, `${ item } Reason` );
 
-		if ( ! elementIds.has( relationship.source ) ) {
+		if ( ! elementIds.has( dependency.dependent ) ) {
 			throw new Error(
-				`Architecture validation failed: ${ item } Source "${ relationship.source }" does not reference an External Context or Responsibility ID.`
+				`Architecture validation failed: ${ item } Dependent "${ dependency.dependent }" does not reference an External Context or Responsibility ID.`
 			);
 		}
-		if ( ! elementIds.has( relationship.destination ) ) {
+		if ( ! elementIds.has( dependency.dependsOn ) ) {
 			throw new Error(
-				`Architecture validation failed: ${ item } Destination "${ relationship.destination }" does not reference an External Context or Responsibility ID.`
+				`Architecture validation failed: ${ item } Depends on "${ dependency.dependsOn }" does not reference an External Context or Responsibility ID.`
 			);
 		}
 
-		const key = `${ relationship.source }\u0000${ relationship.destination }`;
-		relationshipCounts.set( key, ( relationshipCounts.get( key ) ?? 0 ) + 1 );
+		const key = `${ dependency.dependent }\u0000${ dependency.dependsOn }`;
+		if ( seen.has( key ) ) {
+			throw new Error(
+				`Architecture validation failed: duplicate Dependency ${ dependency.dependent } -> ${ dependency.dependsOn }.`
+			);
+		}
+		seen.add( key );
 	} );
-
-	return relationshipCounts;
 };
 
-const validateRuntimeViews = (
-	model: ArchitectureModel,
-	elementIds: Set< string >,
-	relationshipCounts: Map< string, number >
-): void => {
+const validateDependencyViews = ( model: ArchitectureModel, elementIds: Set< string > ): void => {
+	model.dependencyViews.forEach( ( view ) => {
+		validateStableId( view.id, 'DV_', 'Dependency View' );
+		requireValue( view.name, `Dependency View ${ view.id } Name` );
+		view.includes.forEach( ( id ) => {
+			if ( ! elementIds.has( id ) ) {
+				throw new Error(
+					`Architecture validation failed: Dependency View ${ view.id } Includes "${ id }" does not reference an External Context or Responsibility ID.`
+				);
+			}
+		} );
+	} );
+};
+
+const validateRuntimeViews = ( model: ArchitectureModel, elementIds: Set< string > ): void => {
 	model.runtimeViews.forEach( ( runtimeView ) => {
 		validateStableId( runtimeView.id, 'RV_', 'Runtime View' );
 		requireValue( runtimeView.name, `Runtime View ${ runtimeView.id } name` );
@@ -196,21 +207,13 @@ const validateRuntimeViews = (
 					`Architecture validation failed: ${ item } Target "${ step.target }" does not reference an External Context or Responsibility ID.`
 				);
 			}
-
-			const relationshipKey = `${ step.source }\u0000${ step.target }`;
-			const matches = relationshipCounts.get( relationshipKey ) ?? 0;
-			if ( matches !== 1 ) {
-				throw new Error(
-					`Architecture validation failed: ${ item } must resolve to exactly one explicit Relationship from ${ step.source } to ${ step.target }; found ${ matches }.`
-				);
-			}
 		} );
 	} );
 };
 
 /**
  * Architecture Model がアーキテクチャ設計書の機械可読規則を満たすことを検証する。
- * ID、一意性、責務詳細との対応、参照整合性、Runtime View の Step 順序を検証し、
+ * ID、一意性、責務詳細との対応、依存・View・Runtime の参照整合性、Runtime View の Step 順序を検証し、
  * 不整合がある場合は問題のある ID または項目を示して生成処理を停止させる。
  *
  * @param model Markdown から構築した Architecture Model。
@@ -220,6 +223,7 @@ export const validateArchitectureModel = ( model: ArchitectureModel ): void => {
 	validateUniqueIds( model );
 	const elementIds = validateElements( model );
 	validateResponsibilityDetails( model );
-	const relationshipCounts = validateRelationships( model, elementIds );
-	validateRuntimeViews( model, elementIds, relationshipCounts );
+	validateDependencies( model, elementIds );
+	validateDependencyViews( model, elementIds );
+	validateRuntimeViews( model, elementIds );
 };

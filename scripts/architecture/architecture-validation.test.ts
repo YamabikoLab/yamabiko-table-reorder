@@ -20,11 +20,18 @@ const validModel = (): ArchitectureModel => ( {
 			summary: '入力を扱う。',
 		},
 	],
-	relationships: [
+	dependencies: [
 		{
-			source: 'EXT_EDITOR',
-			destination: 'RESP_INPUT',
-			description: '入力を提供する。',
+			dependent: 'RESP_INPUT',
+			dependsOn: 'EXT_EDITOR',
+			reason: '編集環境を必要とする。',
+		},
+	],
+	dependencyViews: [
+		{
+			id: 'DV_INPUT',
+			name: 'Input',
+			includes: [ 'EXT_EDITOR', 'RESP_INPUT' ],
 		},
 	],
 	responsibilityDetails: [ { id: 'RESP_INPUT', name: 'Input Interaction' } ],
@@ -50,28 +57,86 @@ test( '有効な Architecture Model を受理する', () => {
 
 test( 'ID の重複を ID が分かるエラーとして拒否する', () => {
 	const model = validModel();
-	model.runtimeViews[ 0 ].id = 'RESP_INPUT';
+	model.runtimeViews[ 0 ].id = 'DV_INPUT';
 
-	assert.throws( () => validateArchitectureModel( model ), /duplicate ID "RESP_INPUT"/u );
+	assert.throws( () => validateArchitectureModel( model ), /duplicate ID "DV_INPUT"/u );
 } );
 
 test( 'ID の種別 prefix が不正な場合を拒否する', () => {
 	const model = validModel();
 	model.responsibilities[ 0 ].id = 'EXT_INPUT';
 	model.responsibilityDetails[ 0 ].id = 'EXT_INPUT';
-	model.relationships[ 0 ].destination = 'EXT_INPUT';
+	model.dependencies[ 0 ].dependent = 'EXT_INPUT';
+	model.dependencyViews[ 0 ].includes[ 1 ] = 'EXT_INPUT';
 	model.runtimeViews[ 0 ].steps[ 0 ].target = 'EXT_INPUT';
 
 	assert.throws( () => validateArchitectureModel( model ), /must use the RESP_ prefix/u );
 } );
 
-test( 'Relationship の未解決参照を項目名付きで拒否する', () => {
+test( 'Dependency の未解決 Dependent を項目名付きで拒否する', () => {
 	const model = validModel();
-	model.relationships[ 0 ].destination = 'RESP_UNKNOWN';
+	model.dependencies[ 0 ].dependent = 'RESP_UNKNOWN';
 
 	assert.throws(
 		() => validateArchitectureModel( model ),
-		/Relationship row 1 Destination "RESP_UNKNOWN"/u
+		/Dependency row 1 Dependent "RESP_UNKNOWN"/u
+	);
+} );
+
+test( 'Dependency の未解決 Depends on を項目名付きで拒否する', () => {
+	const model = validModel();
+	model.dependencies[ 0 ].dependsOn = 'RESP_UNKNOWN';
+
+	assert.throws(
+		() => validateArchitectureModel( model ),
+		/Dependency row 1 Depends on "RESP_UNKNOWN"/u
+	);
+} );
+
+test( 'Dependency の同一方向重複を拒否する', () => {
+	const model = validModel();
+	model.dependencies.push( { ...model.dependencies[ 0 ] } );
+
+	assert.throws(
+		() => validateArchitectureModel( model ),
+		/duplicate Dependency RESP_INPUT -> EXT_EDITOR/u
+	);
+} );
+
+test( 'Dependency View ID の prefix が不正な場合を拒否する', () => {
+	const model = validModel();
+	model.dependencyViews[ 0 ].id = 'VIEW_INPUT';
+
+	assert.throws( () => validateArchitectureModel( model ), /must use the DV_ prefix/u );
+} );
+
+test( 'Dependency View ID の stable ID 形式が不正な場合を拒否する', () => {
+	const model = validModel();
+	model.dependencyViews[ 0 ].id = 'DV_INPUT-VIEW';
+
+	assert.throws(
+		() => validateArchitectureModel( model ),
+		/must start with an ASCII letter and contain only ASCII letters, digits, and _/u
+	);
+} );
+
+test( 'Dependency View ID の重複を拒否する', () => {
+	const model = validModel();
+	model.dependencyViews.push( {
+		...model.dependencyViews[ 0 ],
+		includes: [ ...model.dependencyViews[ 0 ].includes ],
+	} );
+
+	assert.throws( () => validateArchitectureModel( model ), /duplicate ID "DV_INPUT"/u );
+} );
+
+test( 'Dependency View Includes の未解決参照を拒否する', () => {
+	const model = validModel();
+	model.dependencyViews[ 0 ].includes.push( 'RESP_UNKNOWN' );
+
+	assert.throws(
+		() => validateArchitectureModel( model ),
+		/Dependency View DV_INPUT Includes "RESP_UNKNOWN"/u
 	);
 } );
 
@@ -95,16 +160,14 @@ test( 'Runtime View の Step 欠番を scenario ID 付きで拒否する', () =>
 	);
 } );
 
-test( 'Runtime Step が明示的 Relationship を参照しない場合を拒否する', () => {
+test( 'Runtime Step は Structural Dependency と逆方向でも受理する', () => {
 	const model = validModel();
-	model.relationships[ 0 ] = {
+	model.runtimeViews[ 0 ].steps[ 0 ] = {
+		step: 1,
 		source: 'RESP_INPUT',
-		destination: 'EXT_EDITOR',
-		description: '逆方向。',
+		target: 'EXT_EDITOR',
+		interaction: '結果を通知する。',
 	};
 
-	assert.throws(
-		() => validateArchitectureModel( model ),
-		/Runtime View RV_INPUT Step 1 must resolve to exactly one explicit Relationship/u
-	);
+	assert.doesNotThrow( () => validateArchitectureModel( model ) );
 } );
