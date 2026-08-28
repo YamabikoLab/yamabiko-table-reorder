@@ -99,41 +99,42 @@ First-use Guidance は初回案内、Reorder Rediscovery は初回案内後の�
 | RESP_AUTO_SCROLL | Auto Scroll | DnD 中に、行では縦方向、列では横方向だけを移動のための自動スクロール対象とする。 |
 | RESP_DATA_UPDATE | Data Update | 確定した並び替えだけを Table に反映し、保持すべきセル情報と Undo 単位を維持する。 |
 
-### Relationships
+### Dependencies
 
-| Source | Destination | Description |
+| Dependent | Depends on | Reason |
 | --- | --- | --- |
-| EXT_WORDPRESS_EDITOR | RESP_FIRST_USE_GUIDANCE | 初回案内の表示契機となる編集環境の状態を提供する。 |
-| EXT_WORDPRESS_EDITOR | RESP_REORDER_REDISCOVERY | 通常編集として成立した操作と並び替え試行候補を区別するための情報を提供する。 |
-| EXT_WORDPRESS_EDITOR | RESP_EDITOR_DOM_CONTEXT | 現在の editor context に属する基準を通じて、解決対象となる編集環境を提供する。 |
-| EXT_WORDPRESS_EDITOR | RESP_INPUT_INTERACTION | PC またはタッチ端末の入力を提供する。DOM / Web API context の解決は提供しない。 |
-| EXT_CORE_TABLE | RESP_TABLE_INTEGRATION | Core Table 固有の現在の Table 構造表現を提供する。 |
-| EXT_FLEXIBLE_TABLE_BLOCK | RESP_TABLE_INTEGRATION | Flexible Table Block 固有の現在の Table 構造表現を提供する。 |
-| RESP_EDITOR_DOM_CONTEXT | RESP_FIRST_USE_GUIDANCE | 初回案内で DOM / Web API を利用する時点の editor context を提供する。 |
-| RESP_EDITOR_DOM_CONTEXT | RESP_REORDER_REDISCOVERY | 再案内判定で DOM / Web API を利用する時点の editor context を提供する。 |
-| RESP_EDITOR_DOM_CONTEXT | RESP_INPUT_INTERACTION | 入力解釈で DOM / Web API を利用する時点の editor context を提供する。 |
-| RESP_EDITOR_DOM_CONTEXT | RESP_REORDER_PRESENTATION | 表示処理で DOM / Web API を利用する時点の editor context を提供する。 |
-| RESP_EDITOR_DOM_CONTEXT | RESP_AUTO_SCROLL | 自動スクロールで DOM / Web API を利用する時点の editor context を提供する。 |
-| RESP_REORDER_MODE | RESP_FIRST_USE_GUIDANCE | 並び替え入口の選択による案内終了を伝える。 |
-| RESP_REORDER_MODE | RESP_REORDER_REDISCOVERY | 並び替えモード中は再案内判定を行わないための現在状態を提供する。 |
-| RESP_REORDER_MODE | RESP_INPUT_INTERACTION | 現在の並び替え状態を提供する。 |
-| RESP_REORDER_MODE | RESP_DND_INTERACTION | DnD 開始試行で使用する並び替え方向を提供する。 |
-| RESP_REORDER_MODE | RESP_REORDER_PRESENTATION | 並び替えモード中に表示する対象方向を提供する。 |
-| RESP_FIRST_USE_GUIDANCE | RESP_REORDER_REDISCOVERY | 初回案内が完了済みであることを再案内判定の前提として提供する。 |
-| RESP_INPUT_INTERACTION | RESP_DND_INTERACTION | DnD の開始試行、進行、完了、キャンセルを共通の意味で渡す。 |
-| RESP_DND_INTERACTION | RESP_REORDER_TARGET_RESOLUTION | DnD 開始試行時に開始対象と並び替え方向に対する移動対象解決を要求する。 |
-| RESP_REORDER_TARGET_RESOLUTION | RESP_TABLE_INTEGRATION | DnD 開始試行時に対象 Table の現在の共通 Table structure を要求する。 |
-| RESP_TABLE_INTEGRATION | RESP_REORDER_TARGET_RESOLUTION | 対応可能な Table について要求時点の共通 Table structure を提供する。 |
-| RESP_REORDER_TARGET_RESOLUTION | RESP_DND_INTERACTION | 移動対象の解決結果と、移動可能な場合はその DnD で利用する制約情報を返す。 |
-| RESP_DND_INTERACTION | RESP_DROP_TARGET_RESOLUTION | active な DnD 中に移動対象、並び替え方向、制約情報、現在位置を渡して移動先判定を要求する。 |
-| RESP_DROP_TARGET_RESOLUTION | RESP_DND_INTERACTION | 有効な移動先、または有効な移動先なしを返す。 |
-| RESP_DND_INTERACTION | RESP_REORDER_PRESENTATION | 移動不可理由、DnD の進行状態、確定結果、キャンセル結果を提供する。 |
-| RESP_DND_INTERACTION | RESP_AUTO_SCROLL | active な DnD と並び替え方向を提供する。 |
-| RESP_DND_INTERACTION | RESP_DATA_UPDATE | 有効な移動先で完了した確定済みの並び替えだけを渡す。 |
-| RESP_AUTO_SCROLL | EXT_SCROLL_AREA | 行では縦方向、列では横方向の必要な自動スクロールを行う。 |
-| RESP_DATA_UPDATE | EXT_CORE_TABLE | Core Table の行または列の位置を確定結果に従って更新する。 |
-| RESP_DATA_UPDATE | EXT_FLEXIBLE_TABLE_BLOCK | Flexible Table Block の行または列の位置を確定結果に従って更新する。 |
-| RESP_DATA_UPDATE | EXT_WORDPRESS_UNDO | 1 回の成立した並び替えを 1 回で戻せる更新単位として反映する。 |
+| RESP_FIRST_USE_GUIDANCE | EXT_WORDPRESS_EDITOR | 初回案内の表示契機となる編集環境の状態を必要とする。 |
+| RESP_FIRST_USE_GUIDANCE | RESP_EDITOR_DOM_CONTEXT | 初回案内で DOM / Web API を利用するため、現在の editor context を必要とする。 |
+| RESP_REORDER_REDISCOVERY | EXT_WORDPRESS_EDITOR | 通常編集と並び替え試行候補を区別する編集環境の情報を必要とする。 |
+| RESP_REORDER_REDISCOVERY | RESP_EDITOR_DOM_CONTEXT | 再案内判定で DOM / Web API を利用するため、現在の editor context を必要とする。 |
+| RESP_REORDER_REDISCOVERY | RESP_FIRST_USE_GUIDANCE | 初回案内が表示済みであることを再案内判定の前提として必要とする。 |
+| RESP_REORDER_REDISCOVERY | RESP_REORDER_MODE | 通常編集状態でだけ再案内判定を行うため、現在の並び替え状態を必要とする。 |
+| RESP_EDITOR_DOM_CONTEXT | EXT_WORDPRESS_EDITOR | 現在の editor context を解決するため、現在の WordPress Editor を必要とする。 |
+| RESP_TABLE_INTEGRATION | EXT_CORE_TABLE | Core Table 固有の現在構造を共通 Table structure へ適応するために必要とする。 |
+| RESP_TABLE_INTEGRATION | EXT_FLEXIBLE_TABLE_BLOCK | Flexible Table Block 固有の現在構造を共通 Table structure へ適応するために必要とする。 |
+| RESP_INPUT_INTERACTION | EXT_WORDPRESS_EDITOR | PC またはタッチ端末の入力を共通の DnD 意味へ変換するため、編集環境の入力を必要とする。 |
+| RESP_INPUT_INTERACTION | RESP_EDITOR_DOM_CONTEXT | 入力解釈で DOM / Web API を利用するため、現在の editor context を必要とする。 |
+| RESP_INPUT_INTERACTION | RESP_REORDER_MODE | 並び替えモード中の入力を解釈するため、現在の並び替え状態を必要とする。 |
+| RESP_DND_INTERACTION | RESP_REORDER_MODE | DnD 開始時に使用する現在の並び替え方向を必要とする。 |
+| RESP_DND_INTERACTION | RESP_REORDER_TARGET_RESOLUTION | DnD を開始できる移動対象と、その DnD で利用する制約情報の解決能力を必要とする。 |
+| RESP_DND_INTERACTION | RESP_DROP_TARGET_RESOLUTION | 開始済み DnD の現在位置が有効な移動先かを判定する能力を必要とする。 |
+| RESP_DND_INTERACTION | RESP_DATA_UPDATE | 確定した並び替えを Table データへ反映する能力を必要とする。 |
+| RESP_REORDER_TARGET_RESOLUTION | RESP_TABLE_INTEGRATION | 移動対象判定と制約情報導出に使用する現在の共通 Table structure を必要とする。 |
+| RESP_REORDER_PRESENTATION | RESP_REORDER_MODE | 並び替えモード中に表示する対象方向を決めるため、現在の並び替え状態を必要とする。 |
+| RESP_REORDER_PRESENTATION | RESP_EDITOR_DOM_CONTEXT | 表示処理で DOM / Web API を利用するため、現在の editor context を必要とする。 |
+| RESP_REORDER_PRESENTATION | RESP_DND_INTERACTION | 移動不可理由、DnD の進行状態、確定結果、キャンセル結果を表示するために必要とする。 |
+| RESP_AUTO_SCROLL | RESP_DND_INTERACTION | active な DnD と並び替え方向を自動スクロール判断に必要とする。 |
+| RESP_AUTO_SCROLL | RESP_EDITOR_DOM_CONTEXT | 自動スクロールで DOM / Web API を利用するため、現在の editor context を必要とする。 |
+| RESP_AUTO_SCROLL | EXT_SCROLL_AREA | DnD 中に移動方向へスクロールできる外部領域を必要とする。 |
+| RESP_DATA_UPDATE | EXT_CORE_TABLE | Core Table の行または列の位置を更新する対象データを必要とする。 |
+| RESP_DATA_UPDATE | EXT_FLEXIBLE_TABLE_BLOCK | Flexible Table Block の行または列の位置を更新する対象データを必要とする。 |
+| RESP_DATA_UPDATE | EXT_WORDPRESS_UNDO | 成立した 1 回の並び替えを 1 回で戻せる更新単位を維持するため、Undo の仕組みを必要とする。 |
+
+### Dependency Views
+
+| ID | Name | Includes |
+| --- | --- | --- |
+| DV_RESPONSIBILITY | Responsibility View | EXT_WORDPRESS_EDITOR EXT_CORE_TABLE EXT_FLEXIBLE_TABLE_BLOCK EXT_WORDPRESS_UNDO EXT_SCROLL_AREA RESP_REORDER_MODE RESP_FIRST_USE_GUIDANCE RESP_REORDER_REDISCOVERY RESP_EDITOR_DOM_CONTEXT RESP_TABLE_INTEGRATION RESP_INPUT_INTERACTION RESP_DND_INTERACTION RESP_REORDER_TARGET_RESOLUTION RESP_DROP_TARGET_RESOLUTION RESP_REORDER_PRESENTATION RESP_AUTO_SCROLL RESP_DATA_UPDATE |
 
 ### Responsibility Details
 
@@ -152,10 +153,6 @@ First-use Guidance は初回案内、Reorder Rediscovery は初回案内後の�
 「行を並び替え」「列を並び替え」の選択と並び替えモード終了を受け取り、現在の並び替え状態を Input Interaction、DnD Interaction、Reorder Presentation へ提供する。
 
 通常状態では DnD を有効にせず、行並び替えでは行、列並び替えでは列を DnD の開始候補として扱える状態を提供する。個々の行または列が実際に移動対象として成立するかは判定しない。
-
-##### Dependencies
-
-Input Interaction、DnD Interaction、Reorder Presentation は現在の並び替え状態を Reorder Mode に依存する。First-use Guidance と Reorder Rediscovery は入口が選択されたことを自身の案内終了条件または再案内停止条件として扱うが、案内状態を Reorder Mode に持たせない。
 
 ##### Lifecycle
 
@@ -186,10 +183,6 @@ PC では Table へのポインター進入、Table のフォーカス、また�
 
 行または列の並び替え入口が選択された場合、または案内が閉じられた場合に案内と入口の強調を終了し、その操作環境を表示済みとして扱う。PC では Table からポインターが外れたことだけを案内終了条件にしない。
 
-##### Dependencies
-
-Table へのポインター進入、Table のフォーカス、セル編集開始という編集環境側の状態に依存する。DOM / Web API を利用する場合は Editor DOM Context が提供する現在の editor context に依存する。入口の選択は Reorder Mode への切り替えと同時に First-use Guidance の終了条件になる。Reorder Rediscovery の再案内判定とは一時状態を共有しない。
-
 ##### Lifecycle
 
 対象の操作環境で未表示の状態から、操作環境に応じた表示契機によって表示状態になる。入口選択または案内を閉じる操作で表示を終了し、その操作環境を表示済みとする。
@@ -203,6 +196,7 @@ PC では表示中に Table からポインターが外れても、それだけ�
 - 初回案内は通常のセル編集を妨げない。
 - PC ではポインター離脱だけを初回案内終了条件にしない。
 - 案内終了後も並び替え入口そのものの利用可否を変更しない。
+- Reorder Rediscovery の再案内判定と一時状態を共有しない。
 
 #### Reorder Rediscovery {#RESP_REORDER_REDISCOVERY}
 
@@ -221,10 +215,6 @@ PC では表示中に Table からポインターが外れても、それだけ�
 同じ行または列の付近で短時間に操作候補が繰り返され、並び替えを試みていると判断できる場合だけ再案内を成立させる。一度だけの短いドラッグや通常の編集操作からは再案内を成立させない。
 
 再案内が成立した場合は、並び替えの入口を確認できる案内を表示するための状態を提供する。同じ状況で案内を過度に繰り返さない。
-
-##### Dependencies
-
-通常編集として成立した操作かどうかを区別できる編集環境側の情報に依存する。DOM / Web API を利用する場合は Editor DOM Context が提供する現在の editor context に依存する。First-use Guidance の初回案内が表示済みであることを前提とする。Reorder Mode が並び替えモードにある間は再案内判定を行わない。
 
 ##### Lifecycle
 
@@ -258,12 +248,6 @@ DOM / Web API を必要とする責務が現在の editor context を利用す�
 
 context の解決に使用する具体的な DOM 要素、Web API property、探索方法、識別子はこの Contract では固定しない。現在の editor context を解決できない場合に、以前の editor lifecycle で得た context を代替として提供しない。
 
-##### Dependencies
-
-現在の WordPress Editor と、現在の editor context に属する基準に依存する。DOM / Web API を利用する First-use Guidance、Reorder Rediscovery、Input Interaction、Reorder Presentation、Auto Scroll は Editor DOM Context が提供する context に依存する。
-
-Table Integration、Reorder Mode、DnD Interaction、Reorder Target Resolution、Drop Target Resolution、Data Update の状態や判定には依存しない。
-
 ##### Lifecycle
 
 DOM / Web API を利用する責務が現在の editor context を必要とする時点で、その時点の editor lifecycle に対して context を解決する。提供した context が editor lifecycle の変化後も有効であることは保証せず、新しい lifecycle では現在の editor context に対して改めて解決する。
@@ -278,6 +262,7 @@ DOM / Web API を利用する責務が現在の editor context を必要とす�
 - 以前の editor lifecycle で得た context を現在の context として再利用しない。
 - 並び替え状態、Table データ、移動対象、移動先を所有しない。
 - 具体的な DOM 要素、Web API property、探索方法、識別子を Architecture の必須 Contract として固定しない。
+- Table Integration、Reorder Mode、DnD Interaction、Reorder Target Resolution、Drop Target Resolution、Data Update の状態や判定に依存しない。
 
 #### Table Integration {#RESP_TABLE_INTEGRATION}
 
@@ -295,12 +280,6 @@ Reorder Target Resolution から対象 Table の現在構造を要求された�
 
 対応できない Table では共通 Table structure を提供しない。制約情報の導出は行わない。
 
-##### Dependencies
-
-WordPress Core Table または Flexible Table Block の plugin 固有の現在構造に依存する。Reorder Target Resolution から利用される。
-
-DnD Interaction、Drop Target Resolution、Data Update の状態や処理には依存しない。
-
 ##### Lifecycle
 
 要求時に現在構造を適応して提供し、提供結果を後続の要求へ持ち越さない。Table の追加・削除・構造変更を監視しない。
@@ -312,6 +291,7 @@ DnD Interaction、Drop Target Resolution、Data Update の状態や処理には�
 - 制約情報を導出しない。
 - 共通 Table structure や Table ごとの状態を常駐させない。
 - 対応不能な Table に対して不完全な共通 Table structure を返さない。
+- DnD Interaction、Drop Target Resolution、Data Update の状態や処理に依存しない。
 
 #### Input Interaction {#RESP_INPUT_INTERACTION}
 
@@ -331,10 +311,6 @@ Reorder Mode から現在の並び替え状態を受け取り、WordPress 編集
 
 DnD が開始された後は、進行、完了、キャンセルとして解釈した入力を DnD Interaction へ渡す。DnD Interaction へ渡す Contract には、PC とタッチ端末ごとの入力成立方法そのものを含めない。
 
-##### Dependencies
-
-Reorder Mode と WordPress 編集環境の入力に依存する。DOM / Web API を利用する場合は Editor DOM Context が提供する現在の editor context に依存する。DnD の開始試行と共通進行は DnD Interaction に渡し、Table Integration、Reorder Target Resolution、Drop Target Resolution、Reorder Presentation、Auto Scroll、Data Update には直接依存しない。
-
 ##### Lifecycle
 
 並び替えモード中に対象となる入力を受けたときだけ、一時的な入力解釈状態を持つ。開始試行が移動可能な対象に対して成立して DnD が開始された場合は、完了またはキャンセルまで共通の進行情報を DnD Interaction へ渡す。
@@ -351,6 +327,8 @@ DnD が完了またはキャンセルされた場合、開始試行が移動不�
 - Table データを変更しない。
 - Reorder Presentation の表示状態を所有しない。
 - Table の全行・全列について個別の常駐 Interaction 状態を持つことを前提にしない。
+- Table Integration、Reorder Target Resolution、Drop Target Resolution、Reorder Presentation、Auto Scroll、Data Update に直接依存しない。
+- DnD Interaction との実装上の結合方式を Architecture の Contract として固定しない。
 
 #### DnD Interaction {#RESP_DND_INTERACTION}
 
@@ -376,12 +354,6 @@ Reorder Target Resolution が移動可能と判定した場合だけ、返され
 
 キャンセル時は Data Update に何も渡さず、Reorder Presentation にキャンセル結果を提供する。無効な完了では確定した並び替えを生成しない。
 
-##### Dependencies
-
-Input Interaction から入力方式に依存しない DnD の開始試行と進行を受け取る。開始対象は Input Interaction から受け取り、並び替え方向は Reorder Mode に依存して決める。Reorder Target Resolution に依存して開始対象が移動対象として成立するかと、その DnD で利用する制約情報を受け取る。Drop Target Resolution に依存して DnD 開始後の有効な移動先を決める。
-
-Table Integration には直接依存しない。Reorder Presentation は移動不可理由と DnD Interaction の進行状態に依存し、Auto Scroll は active な DnD の進行状態に依存する。Data Update とは確定した並び替えだけを通じて接続する。
-
 ##### Lifecycle
 
 並び替えモード中に Input Interaction から DnD の開始試行を受ける。Reorder Target Resolution が移動可能と判定した場合だけ Reorder Session を開始し、完了またはキャンセルまで active を維持する。その間だけ移動対象、並び替え方向、制約情報、移動先などを保持する。
@@ -404,6 +376,7 @@ Table Integration には直接依存しない。Reorder Presentation は移動�
 - キャンセル時は Data Update へ更新要求を渡さない。
 - 完了またはキャンセル後に前回の Reorder Session 状態を次の DnD へ保持しない。
 - Data Update へ渡す時点で並び替えは確定済みである。
+- Table Integration に直接依存しない。
 
 #### Reorder Target Resolution {#RESP_REORDER_TARGET_RESOLUTION}
 
@@ -425,12 +398,6 @@ DnD Interaction から開始対象と行または列の並び替え方向に対�
 
 制約情報を導出するが、その Lifecycle は所有しない。個々の開始試行を越えて制約情報や判定結果を保持しない。
 
-##### Dependencies
-
-DnD Interaction から受け取る開始対象と並び替え方向、および Table Integration が提供する要求時点の共通 Table structure に依存する。DnD Interaction は開始可否、移動対象、制約情報の解決結果に依存する。
-
-Drop Target Resolution、Reorder Presentation、Auto Scroll、Data Update には依存せず、Table 変更を要求しない。
-
 ##### Lifecycle
 
 DnD Interaction から DnD 開始試行に対応する解決要求を受けたときだけ、その時点の共通 Table structure から判定と制約情報導出を行う。並び替えモードへ入った時点では全行・全列の移動可否を事前判定しない。
@@ -449,6 +416,7 @@ DnD Interaction から DnD 開始試行に対応する解決要求を受けた�
 - 制約情報の Lifecycle を所有しない。
 - DnD をまたぐ制約情報を再利用しない。
 - 移動対象解決によって Table データを変更しない。
+- Drop Target Resolution、Reorder Presentation、Auto Scroll、Data Update に依存しない。
 
 #### Drop Target Resolution {#RESP_DROP_TARGET_RESOLUTION}
 
@@ -465,10 +433,6 @@ DnD Interaction から DnD 開始試行に対応する解決要求を受けた�
 active な DnD Interaction から現在の移動対象、行または列の方向、その DnD で利用する制約情報、現在位置を受け取る。
 
 対象方向の結合を分断せず Table 構造を保てる場合は有効な行間または列間を返し、成立しない場合は有効な移動先なしを返す。Table 全体の構造を参照または再解析せず、DnD 開始前の開始対象に対する判定結果は返さない。
-
-##### Dependencies
-
-DnD Interaction から渡された判定入力だけに依存する。Table Integration、Reorder Target Resolution、対象 Table の構造、Reorder Session 自体には依存しない。Reorder Presentation と Data Update に直接 Table 変更を要求しない。
 
 ##### Lifecycle
 
@@ -487,6 +451,7 @@ DnD が開始していない間は移動先判定を行わず、完了または�
 - 結合範囲を越えることだけを理由に移動先を無効としない。
 - 行 DnD では行間、列 DnD では列間を移動先として扱う。
 - 移動先判定によって Table データを変更しない。
+- Reorder Target Resolution、Reorder Presentation、Data Update に直接依存しない。
 
 #### Reorder Presentation {#RESP_REORDER_PRESENTATION}
 
@@ -516,12 +481,6 @@ DnD Interaction から開始後の移動対象と現在の有効な移動先を�
 
 DnD Interaction から確定結果を受け取った場合は移動対象を最終位置へ自然につなぐ。キャンセル結果を受け取った場合は移動対象を元の位置へ戻す。
 
-##### Dependencies
-
-Reorder Mode の現在状態に依存してモード中の対象表示を行う。DOM / Web API を利用する場合は Editor DOM Context が提供する現在の editor context に依存する。Table Integration と Reorder Target Resolution には直接依存しない。移動不可理由は DnD Interaction 経由で受け取り、DnD 開始後の移動先の有効性は Drop Target Resolution の結果を DnD Interaction 経由で受け取る。
-
-Auto Scroll とは互いの責務を侵食せず、移動対象の表示範囲制約によって必要な自動スクロールを妨げない。Data Update には Table 変更を要求しない。
-
 ##### Lifecycle
 
 並び替えモードへ入ると現在方向の対象表示を開始する。この時点では Reorder Target Resolution に移動対象判定を要求しない。移動不可な対象から開始が試みられた場合は DnD Interaction から受け取った理由の一時表示を開始し、利用者が内容を確認できる時間だけ表示した後に終了する。
@@ -547,6 +506,7 @@ Reorder Mode が継続している場合はモード中の対象表示を維持�
 - ドラッグ中の行は Table の横方向、列は Table の縦方向から不必要にはみ出さない。
 - 表示範囲の制約によって必要な Auto Scroll を妨げない。
 - 確定時とキャンセル時の表示遷移によって Table データ更新の責務を持たない。
+- Table Integration に直接依存しない。
 
 #### Auto Scroll {#RESP_AUTO_SCROLL}
 
@@ -564,10 +524,6 @@ DnD Interaction から進行中の並び替え方向を受け取る。行 DnD �
 
 DnD を開始していない通常状態、および移動不可な開始試行では、この方向制限を通常の Table や編集画面のスクロールへ適用しない。
 
-##### Dependencies
-
-DnD Interaction の active 状態と並び替え方向に依存する。DOM / Web API を利用する場合は Editor DOM Context が提供する現在の editor context に依存する。スクロール可能な Table または編集画面の領域と接続する。Reorder Presentation の表示範囲制約によって必要な自動スクロールが妨げられないことを前提とする。Table Integration、Reorder Target Resolution、Drop Target Resolution、Data Update の責務を持たない。
-
 ##### Lifecycle
 
 DnD 中に必要な場合だけ有効になる。移動不可な開始試行では有効にならない。DnD の完了またはキャンセルで終了し、方向制限を通常状態へ持ち越さない。
@@ -578,6 +534,7 @@ DnD 中に必要な場合だけ有効になる。移動不可な開始試行で�
 - 行 DnD 中は横方向を自動スクロールしない。
 - 列 DnD 中は縦方向を自動スクロールしない。
 - active な DnD 中だけ移動方向に応じた自動スクロール制約を適用する。
+- Table Integration、Reorder Target Resolution、Drop Target Resolution、Data Update の責務を担わない。
 
 #### Data Update {#RESP_DATA_UPDATE}
 
@@ -597,10 +554,6 @@ WordPress Core Table または Flexible Table Block の対象データに対し�
 
 1 回の確定した並び替えを 1 回だけ Table データへ反映し、1 回の Undo で並び替え前へ戻せる更新とする。
 
-##### Dependencies
-
-DnD Interaction からの確定済みの並び替えにだけ依存する。WordPress Core Table または Flexible Table Block の Table データと Undo の仕組みに接続する。Table Integration、Reorder Target Resolution、Drop Target Resolution、Reorder Presentation、Auto Scroll から直接更新要求を受け取らない。
-
 ##### Lifecycle
 
 確定済みの並び替えを受け取ったときだけ動作する。更新を反映した後に DnD の一時状態を保持しない。移動不可な開始試行、キャンセル、無効な DnD では動作しない。
@@ -614,6 +567,7 @@ DnD Interaction からの確定済みの並び替えにだけ依存する。Word
 - テキスト、画像、RichText その他のセル内容の種類によって並び替えの扱いを変えない。
 - 1 回の成立した並び替えを 1 回の Undo で戻せる状態を維持する。
 - Core Table と Flexible Table Block で利用者から見た結果の方針を変えない。
+- Table Integration、Reorder Target Resolution、Drop Target Resolution、Reorder Presentation、Auto Scroll から直接更新要求を受け取らない。
 
 ## 6. Runtime View
 
@@ -627,10 +581,9 @@ DnD Interaction からの確定済みの並び替えにだけ依存する。Word
 | 2 | RESP_REORDER_MODE | RESP_DND_INTERACTION | 現在の並び替え方向を提供する。 |
 | 3 | RESP_DND_INTERACTION | RESP_REORDER_TARGET_RESOLUTION | 開始対象と並び替え方向に対する移動対象解決を要求する。 |
 | 4 | RESP_REORDER_TARGET_RESOLUTION | RESP_TABLE_INTEGRATION | 対象 Table の要求時点の共通 Table structure を要求する。 |
-| 5 | RESP_TABLE_INTEGRATION | RESP_REORDER_TARGET_RESOLUTION | 対応可能な Table の現在の共通 Table structure を提供する。 |
-| 6 | RESP_REORDER_TARGET_RESOLUTION | RESP_DND_INTERACTION | 移動対象と、その DnD で利用する制約情報を提供する。 |
-| 7 | RESP_DND_INTERACTION | RESP_REORDER_PRESENTATION | DnD が開始した移動対象と進行状態を提供する。 |
-| 8 | RESP_DND_INTERACTION | RESP_AUTO_SCROLL | active な DnD と並び替え方向を提供する。 |
+| 5 | RESP_REORDER_TARGET_RESOLUTION | RESP_DND_INTERACTION | 移動対象と、その DnD で利用する制約情報が解決されたことを通知する。 |
+| 6 | RESP_DND_INTERACTION | RESP_REORDER_PRESENTATION | DnD が開始した移動対象と進行状態を提供する。 |
+| 7 | RESP_DND_INTERACTION | RESP_AUTO_SCROLL | active な DnD と並び替え方向を提供する。 |
 
 ### DnD start with immovable target {#RV_DND_START_IMMOVABLE}
 
@@ -642,9 +595,8 @@ DnD Interaction からの確定済みの並び替えにだけ依存する。Word
 | 2 | RESP_REORDER_MODE | RESP_DND_INTERACTION | 現在の並び替え方向を提供する。 |
 | 3 | RESP_DND_INTERACTION | RESP_REORDER_TARGET_RESOLUTION | 開始対象と並び替え方向に対する移動対象解決を要求する。 |
 | 4 | RESP_REORDER_TARGET_RESOLUTION | RESP_TABLE_INTEGRATION | 対象 Table の要求時点の共通 Table structure を要求する。 |
-| 5 | RESP_TABLE_INTEGRATION | RESP_REORDER_TARGET_RESOLUTION | 対応可能な Table の現在の共通 Table structure を提供する。 |
-| 6 | RESP_REORDER_TARGET_RESOLUTION | RESP_DND_INTERACTION | 移動不可であることと理由を返す。 |
-| 7 | RESP_DND_INTERACTION | RESP_REORDER_PRESENTATION | DnD を開始せず、移動不可理由を一時表示するために渡す。 |
+| 5 | RESP_REORDER_TARGET_RESOLUTION | RESP_DND_INTERACTION | 移動不可であることと理由を通知する。 |
+| 6 | RESP_DND_INTERACTION | RESP_REORDER_PRESENTATION | DnD を開始せず、移動不可理由を一時表示するために渡す。 |
 
 ### DnD progress {#RV_DND_PROGRESS}
 
@@ -654,7 +606,7 @@ DnD Interaction からの確定済みの並び替えにだけ依存する。Word
 | ---: | --- | --- | --- |
 | 1 | RESP_INPUT_INTERACTION | RESP_DND_INTERACTION | 現在位置に対応する DnD 進行情報を渡す。 |
 | 2 | RESP_DND_INTERACTION | RESP_DROP_TARGET_RESOLUTION | 現在の移動対象、並び替え方向、制約情報、現在位置を渡して移動先判定を要求する。 |
-| 3 | RESP_DROP_TARGET_RESOLUTION | RESP_DND_INTERACTION | 有効な移動先、または有効な移動先なしを返す。 |
+| 3 | RESP_DROP_TARGET_RESOLUTION | RESP_DND_INTERACTION | 有効な移動先、または有効な移動先なしという判定結果を通知する。 |
 | 4 | RESP_DND_INTERACTION | RESP_REORDER_PRESENTATION | 移動対象と現在の有効な移動先を提供し、挿入線と必要な周囲の表示変化を更新させる。 |
 | 5 | RESP_DND_INTERACTION | RESP_AUTO_SCROLL | active な DnD と並び替え方向を提供する。 |
 | 6 | RESP_AUTO_SCROLL | EXT_SCROLL_AREA | 行では縦方向、列では横方向に必要な自動スクロールを行う。 |
