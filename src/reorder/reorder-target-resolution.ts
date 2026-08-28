@@ -1,3 +1,13 @@
+/**
+ * DnD開始時に並び替え対象と、そのDnDで利用する並び替え制約を確定する責務を提供する。
+ *
+ * Input InteractionとDnD Interactionから渡された開始対象を、Table Integrationが提供する要求時点の
+ * 共通Table構造と照合し、行または列を独立して並び替え可能か判定する。開始可能な場合はReorder Targetと
+ * Reorder Constraintsを返し、開始できない場合は理由を返す。
+ *
+ * この責務は判定結果や並び替え制約を保持しない。成立した並び替え制約の保持はReorder Session、
+ * DnD開始後の移動先判定はDrop Target Resolutionが担当する。
+ */
 import type {
 	TableIntegration,
 	TableMergedCellStructure,
@@ -5,54 +15,53 @@ import type {
 } from './table-integration';
 
 /**
- * Reorder Target Resolutionが受け取るDnD開始試行の入力。
+ * Reorder Target Resolutionが受け取る1回のDnD開始試行。
  *
- * Input Interactionが解釈した開始対象を、DnD Interactionからこの責務へ渡すための共通表現である。
- * 行並び替えでは開始したTable sectionと行位置を保持し、body sectionだけを対象にできるようにする。
- * 列並び替えではTable全体を対象とするためsectionを持たず、logical Table grid上の列位置だけを保持する。
- * `clientId`は要求時点の共通Table structureをTable Integrationから取得するために利用する。
+ * 行並び替えでは開始したTable区画と行位置を持ち、`body`区画だけを並び替え対象範囲として判定する。
+ * 列並び替えではTable全体が対象範囲のため、論理Tableグリッド上の列位置だけを持つ。
+ * `clientId`は要求時点の共通Table構造を取得する対象Tableの識別に利用する。
  */
 export type ReorderTargetResolutionRequest =
 	| {
 			kind: 'row';
 			clientId: string;
 			section: 'head' | 'body' | 'foot';
-			/** section内の0-based行index。 */
+			/** `body`区画を基準とする0-based行インデックス。 */
 			rowIndex: number;
 	  }
 	| {
 			kind: 'column';
 			clientId: string;
-			/** logical Table grid上の0-based列index。 */
+			/** 論理Tableグリッド上の0-based列インデックス。 */
 			columnIndex: number;
 	  };
 
 /**
- * 1回のDnDで実際に移動するReorder Target。
+ * 1回のDnDで実際に移動する並び替え対象。
  *
- * Reorder Target Resolutionで対象範囲と結合セル制約を確認した後だけ生成され、成立したReorder Sessionへ
- * 引き継がれる。行はbody section内の行、列はTable全体のlogical Table grid上の列だけを表す。
+ * Reorder Target Resolutionが対象範囲と結合セル制約を確認し、独立して移動できると判定した行または列だけを
+ * 表す。行は`body`区画内、列はTable全体の論理Tableグリッド上の位置を持つ。
  */
 export type ReorderTarget =
 	| {
 			kind: 'row';
 			clientId: string;
-			/** body section内の0-based行index。 */
+			/** `body`区画内の0-based行インデックス。 */
 			rowIndex: number;
 	  }
 	| {
 			kind: 'column';
 			clientId: string;
-			/** logical Table grid上の0-based列index。 */
+			/** 論理Tableグリッド上の0-based列インデックス。 */
 			columnIndex: number;
 	  };
 
 /**
- * 1回のDnD中にDrop Target Resolutionが利用する構造上の制約。
+ * 1回のDnD中にDrop Target Resolutionが利用する構造上の並び替え制約。
  *
- * 共通Table structureそのものをReorder Sessionへ保持せず、移動先判定に必要な意味だけへ変換した結果である。
- * `blockedBoundaries`には、対象方向の結合セルを分断するため移動先として利用できないinsertion boundary
- * indexを重複なし・昇順で保持する。この値は成立した1回のReorder Session内だけで利用する。
+ * 共通Table構造そのものではなく、対象方向の結合セルを分断するため移動先として利用できない
+ * 挿入境界インデックスだけを保持する。`blockedBoundaries`は重複のない昇順とし、成立した
+ * Reorder Sessionの間だけ利用する。
  */
 export type ReorderConstraints = {
 	blockedBoundaries: readonly number[];
@@ -61,12 +70,12 @@ export type ReorderConstraints = {
 /**
  * Reorder Target ResolutionがDnDを開始できない理由。
  *
- * 呼び出し側が非開始理由を区別できるよう、構造取得不能、対象範囲外、結合セルによる移動不能を
- * 別のreasonとして返す。
+ * 呼び出し側が開始不可の原因を区別できるよう、共通Table構造を確定できない場合、並び替え対象範囲外の場合、
+ * 対象方向の結合セルによって単独移動できない場合を別の値で表す。
  *
- * - `table-structure-unavailable`: 要求時点の共通Table structureを取得できない。
- * - `target-out-of-scope`: 開始対象が行・列の対象範囲または基本的なlogical index条件を満たさない。
- * - `merged-cell`: 開始対象が対象方向の結合セル範囲に含まれ、行・列単位の移動対象として成立しない。
+ * - `table-structure-unavailable`: 要求時点の共通Table構造を取得できない。
+ * - `target-out-of-scope`: 開始対象が現在の並び替え対象範囲として成立しない。
+ * - `merged-cell`: 開始対象が対象方向の結合セルに含まれ、単独の行または列として移動できない。
  */
 export type ReorderTargetResolutionFailureReason =
 	| 'table-structure-unavailable'
@@ -74,11 +83,11 @@ export type ReorderTargetResolutionFailureReason =
 	| 'merged-cell';
 
 /**
- * DnD開始試行に対するReorder Target Resolutionの解決結果。
+ * DnD開始試行に対するReorder Target Resolutionの判定結果。
  *
- * `movable`はReorder Targetと、そのDnD中に利用するReorder Constraintsを返す。
- * `immovable`はReorder Sessionへ持ち込む値を返さず、開始できないreasonだけを返す。
- * 判定結果自体はReorder Target Resolutionに保持せず、次の開始試行では改めて解決する。
+ * `movable`の場合だけReorder TargetとReorder Constraintsを返す。`immovable`の場合は
+ * Reorder Sessionを開始するための値を返さず、開始できない理由だけを返す。
+ * 判定結果は保持せず、次の開始試行では要求時点のTable構造から改めて判定する。
  */
 export type ReorderTargetResolutionResult =
 	| {
@@ -92,57 +101,57 @@ export type ReorderTargetResolutionResult =
 	  };
 
 /**
- * DnD開始試行時にReorder Targetと構造上の制約を解決する責務のContract。
+ * DnD開始試行時にReorder TargetとReorder Constraintsを解決する責務の契約。
  *
- * `resolve()`は開始試行ごとに要求時点の共通Table structureを利用し、以前の判定結果や制約情報を
- * 再利用しない。DnD開始後の移動先判定やReorder ConstraintsのLifecycleはこのContractでは所有しない。
+ * 開始試行ごとに要求時点の共通Table構造を利用し、以前の判定結果や並び替え制約を再利用しない。
+ * DnD開始後の移動先判定と並び替え制約の保持はこの契約の責務に含めない。
  */
 export type ReorderTargetResolution = {
 	/**
-	 * 1回のDnD開始試行を解決する。
+	 * 1回のDnD開始試行を判定する。
 	 *
 	 * @param request DnD Interactionから渡された開始対象と並び替え種別。
-	 * @return 開始可能な場合はReorder Targetと制約、開始不可の場合はそのreason。
+	 * @return 開始可能な場合はReorder TargetとReorder Constraints、開始不可の場合はその理由。
 	 */
 	resolve: ( request: ReorderTargetResolutionRequest ) => ReorderTargetResolutionResult;
 };
 
 /**
- * 0-based indexが開始対象として扱える基本的なlogical indexか判定する。
+ * 開始対象の位置がReorder Targetとして利用できる論理インデックスか判定する。
  *
- * Input Interactionから渡される開始対象は現在Table上の対象を表すため、TableStructureに
- * 行数・列数を重複保持せず、ここでは負数や小数など開始対象として成立しない値だけを除外する。
+ * Table構造は行数・列数を重複保持しないため、開始対象の位置はInput Interactionが現在Table上から解決した
+ * 値であることを前提とし、ここでは論理インデックスとして成立する基本条件だけを確認する。
  *
- * @param index 開始対象として検証する0-based index。
- * @return 0以上の整数として扱える場合は`true`。
+ * @param index 開始対象を示す0-based論理インデックス。
+ * @return 論理インデックスとして成立する場合は`true`。
  */
 const isLogicalIndex = ( index: number ): boolean => Number.isInteger( index ) && index >= 0;
 
 /**
- * 対象indexが指定方向の結合セル範囲に含まれるか判定する。
+ * 指定位置が結合セルの占有範囲に含まれるか判定する。
  *
- * 結合セルの開始位置を含み、`start + span`は含まない半開区間として扱うことで、行と列で同じ
- * 判定規則を利用する。
+ * 結合セルの占有範囲は開始位置を含み、開始位置に占有数を加えた次の位置は含まないものとして扱う。
+ * 行と列のどちらでも同じ占有範囲規則を利用する。
  *
- * @param start 結合セルが対象方向で開始する0-based index。
+ * @param start 結合セルが対象方向で開始する0-based論理インデックス。
  * @param span  結合セルが対象方向に占有する要素数。
- * @param index 結合セル範囲に含まれるか確認する0-based index。
- * @return `index`が結合セルの占有範囲内なら`true`。
+ * @param index 占有範囲に含まれるか確認する0-based論理インデックス。
+ * @return 指定位置が結合セルの占有範囲内の場合は`true`。
  */
 const containsIndex = ( start: number, span: number, index: number ): boolean =>
 	index >= start && index < start + span;
 
 /**
- * 対象方向の結合セルから、分断できない内部境界を重複なし・昇順で導出する。
+ * 対象方向の結合セルから、移動先として利用できない挿入境界を導出する。
  *
- * 1つの結合セルについて開始位置の直後から末尾直前までのinsertion boundaryを無効化する。
- * 複数の結合セルが同じ境界を占有してもSetで重複を除き、Drop Target Resolutionが安定した
- * 判定入力として利用できるよう昇順へ正規化して返す。
+ * 結合セルの内部にある境界だけを禁止し、結合範囲の外側へ移動すること自体は許可する。
+ * 複数の結合セルが同じ境界を禁止する場合も1つの境界として扱い、Drop Target Resolutionが
+ * 一意な順序で判定できるよう昇順で返す。
  *
  * @param mergedCells 対象方向の制約として扱う結合セル一覧。
- * @param getStart    結合セルから対象方向の0-based開始indexを取得する関数。
+ * @param getStart    結合セルから対象方向の開始位置を取得する関数。
  * @param getSpan     結合セルから対象方向の占有数を取得する関数。
- * @return 対象方向の結合を分断するため移動先にできないinsertion boundary index一覧。
+ * @return 移動先として利用できない挿入境界インデックス一覧。
  */
 const buildBlockedBoundaries = (
 	mergedCells: readonly TableMergedCellStructure[],
@@ -164,132 +173,142 @@ const buildBlockedBoundaries = (
 };
 
 /**
- * 行DnD開始試行をbody sectionのReorder Targetとして解決する。
+ * 並び替え対象範囲内の行または列について、対象方向の結合セル制約を適用して開始可否を判定する。
  *
- * head / footからの開始やlogical indexとして成立しない行は対象範囲外とし、body sectionの縦結合に
- * 含まれる行は行単位で移動できないため非開始とする。移動可能な場合はbody sectionの縦結合だけから
- * `blockedBoundaries`を導出し、横結合だけのセルは行DnDの制約へ含めない。
+ * 行・列で共通する規則として、有効な論理インデックスを持ち、対象方向の結合セルに含まれない場合だけ
+ * Reorder Targetとして成立する。成立時は同じ結合セル一覧からReorder Constraintsを生成する。
  *
- * @param request   DnD Interactionから渡された行DnD開始試行。
- * @param structure 要求時点の共通Table structure。
- * @return 行のReorder Targetと制約、またはDnDを開始できない理由。
+ * @param target 開始可能な場合に返すReorder Target候補。
+ * @param targetIndex 対象方向の0-based論理インデックス。
+ * @param mergedCells 対象方向の開始可否と移動先制約に影響する結合セル一覧。
+ * @param getStart 結合セルから対象方向の開始位置を取得する関数。
+ * @param getSpan 結合セルから対象方向の占有数を取得する関数。
+ * @return 開始可能なReorder TargetとReorder Constraints、または開始できない理由。
+ */
+const resolveTargetWithinScope = (
+	target: ReorderTarget,
+	targetIndex: number,
+	mergedCells: readonly TableMergedCellStructure[],
+	getStart: ( cell: TableMergedCellStructure ) => number,
+	getSpan: ( cell: TableMergedCellStructure ) => number
+): ReorderTargetResolutionResult => {
+	// Reorder Targetは現在Table上の要素を示す有効な論理インデックスを持つ必要がある。
+	if ( ! isLogicalIndex( targetIndex ) ) {
+		return { status: 'immovable', reason: 'target-out-of-scope' };
+	}
+
+	const isInsideMergedCell = mergedCells.some( ( cell ) =>
+		containsIndex( getStart( cell ), getSpan( cell ), targetIndex )
+	);
+
+	// 対象方向の結合セルに含まれる要素は、単独の行または列として並び替えることができない。
+	if ( isInsideMergedCell ) {
+		return { status: 'immovable', reason: 'merged-cell' };
+	}
+
+	const blockedBoundaries = buildBlockedBoundaries( mergedCells, getStart, getSpan );
+
+	return {
+		status: 'movable',
+		target,
+		constraints: { blockedBoundaries },
+	};
+};
+
+/**
+ * 行DnD開始試行を`body`区画内のReorder Targetとして判定する。
+ *
+ * 行並び替えの対象範囲は`body`区画だけとする。対象範囲内では縦方向に結合されたセルだけを
+ * 行の開始可否と移動先制約として扱い、横方向だけの結合は行並び替えを制限しない。
+ *
+ * @param request DnD Interactionから渡された行DnD開始試行。
+ * @param structure 要求時点の共通Table構造。
+ * @return 行のReorder TargetとReorder Constraints、または開始できない理由。
  */
 const resolveRowTarget = (
 	request: Extract< ReorderTargetResolutionRequest, { kind: 'row' } >,
 	structure: TableStructure
 ): ReorderTargetResolutionResult => {
-	// 行DnDの対象範囲はbody sectionだけなので、head / footからの開始は対象範囲外として扱う。
+	// 行並び替えでは`body`区画だけをReorder Targetの対象範囲とする。
 	if ( request.section !== 'body' ) {
 		return { status: 'immovable', reason: 'target-out-of-scope' };
 	}
 
-	// 行位置は0以上の整数だけを受け入れ、それ以外は開始対象として成立しない。
-	if ( ! isLogicalIndex( request.rowIndex ) ) {
-		return { status: 'immovable', reason: 'target-out-of-scope' };
-	}
-
-	// 行DnDではbody sectionの縦結合だけが開始可否と移動先制約に影響する。
+	const target: ReorderTarget = {
+		kind: 'row',
+		clientId: request.clientId,
+		rowIndex: request.rowIndex,
+	};
 	const mergedCells = structure.mergedCells.filter(
 		( cell ) => cell.section === 'body' && cell.rowSpan > 1
 	);
 
-	// 縦結合セルの占有範囲内にある行は、1行単位のReorder Targetとして成立しない。
-	if (
-		mergedCells.some( ( cell ) => containsIndex( cell.rowStart, cell.rowSpan, request.rowIndex ) )
-	) {
-		return { status: 'immovable', reason: 'merged-cell' };
-	}
-
-	// 対象範囲と結合セル条件を満たした場合だけ、Reorder Sessionへ渡せる開始結果を返す。
-	return {
-		status: 'movable',
-		target: {
-			kind: 'row',
-			clientId: request.clientId,
-			rowIndex: request.rowIndex,
-		},
-		constraints: {
-			blockedBoundaries: buildBlockedBoundaries(
-				mergedCells,
-				( cell ) => cell.rowStart,
-				( cell ) => cell.rowSpan
-			),
-		},
-	};
+	return resolveTargetWithinScope(
+		target,
+		request.rowIndex,
+		mergedCells,
+		( cell ) => cell.rowStart,
+		( cell ) => cell.rowSpan
+	);
 };
 
 /**
- * 列DnD開始試行をTable全体のReorder Targetとして解決する。
+ * 列DnD開始試行をTable全体のReorder Targetとして判定する。
  *
- * logical indexとして成立しない列は対象範囲外とし、head / body / footを問わず横結合に含まれる列は
- * 列単位で移動できないため非開始とする。移動可能な場合はTable全体の横結合だけから
- * `blockedBoundaries`を導出し、縦結合だけのセルは列DnDの制約へ含めない。
+ * 列並び替えは`head`、`body`、`foot`を含むTable全体を対象範囲とする。横方向に結合されたセルだけを
+ * 列の開始可否と移動先制約として扱い、縦方向だけの結合は列並び替えを制限しない。
  *
- * @param request   DnD Interactionから渡された列DnD開始試行。
- * @param structure 要求時点の共通Table structure。
- * @return 列のReorder Targetと制約、またはDnDを開始できない理由。
+ * @param request DnD Interactionから渡された列DnD開始試行。
+ * @param structure 要求時点の共通Table構造。
+ * @return 列のReorder TargetとReorder Constraints、または開始できない理由。
  */
 const resolveColumnTarget = (
 	request: Extract< ReorderTargetResolutionRequest, { kind: 'column' } >,
 	structure: TableStructure
 ): ReorderTargetResolutionResult => {
-	// 列位置は0以上の整数だけを受け入れ、それ以外は開始対象として成立しない。
-	if ( ! isLogicalIndex( request.columnIndex ) ) {
-		return { status: 'immovable', reason: 'target-out-of-scope' };
-	}
-
-	// 列DnDではsectionを問わずTable全体の横結合だけが開始可否と移動先制約に影響する。
+	const target: ReorderTarget = {
+		kind: 'column',
+		clientId: request.clientId,
+		columnIndex: request.columnIndex,
+	};
 	const mergedCells = structure.mergedCells.filter( ( cell ) => cell.columnSpan > 1 );
 
-	// 横結合セルの占有範囲内にある列は、1列単位のReorder Targetとして成立しない。
-	if (
-		mergedCells.some( ( cell ) =>
-			containsIndex( cell.columnStart, cell.columnSpan, request.columnIndex )
-		)
-	) {
-		return { status: 'immovable', reason: 'merged-cell' };
-	}
-
-	// 対象範囲と結合セル条件を満たした場合だけ、Reorder Sessionへ渡せる開始結果を返す。
-	return {
-		status: 'movable',
-		target: {
-			kind: 'column',
-			clientId: request.clientId,
-			columnIndex: request.columnIndex,
-		},
-		constraints: {
-			blockedBoundaries: buildBlockedBoundaries(
-				mergedCells,
-				( cell ) => cell.columnStart,
-				( cell ) => cell.columnSpan
-			),
-		},
-	};
+	return resolveTargetWithinScope(
+		target,
+		request.columnIndex,
+		mergedCells,
+		( cell ) => cell.columnStart,
+		( cell ) => cell.columnSpan
+	);
 };
 
 /**
- * DnD開始試行ごとに要求時点の共通Table structureを取得してReorder Target Resolutionを行う。
+ * DnD開始試行ごとに要求時点の共通Table構造を取得してReorder Target Resolutionを行う。
  *
- * Table Integrationから取得した共通Table structureを個々の開始試行の間だけ利用し、判定結果や
- * Reorder Constraintsを内部状態として保持しない。行ではbody sectionの縦結合、列ではTable全体の
- * 横結合だけを対象方向の制約へ変換し、結合範囲を越える移動自体は制限しない。
+ * 共通Table構造を取得できない場合は推測で開始可否を判定しない。構造を取得できた場合は並び替え種別に応じて
+ * 行または列の対象範囲と結合方向を適用する。判定に利用したTable構造と結果は次の開始試行へ持ち越さない。
  *
- * @param tableIntegration 要求時点の共通Table structureを提供するTable Integration。
- * @return 状態を保持せずDnD開始試行を解決するReorder Target Resolution。
+ * @param tableIntegration 要求時点の共通Table構造を提供するTable Integration。
+ * @return 状態を保持せずDnD開始試行を判定するReorder Target Resolution。
  */
 export const createReorderTargetResolution = (
 	tableIntegration: TableIntegration
 ): ReorderTargetResolution => ( {
+	/**
+	 * 要求時点の共通Table構造を基準に1回のDnD開始試行を判定する。
+	 *
+	 * @param request DnD Interactionから渡された開始対象と並び替え種別。
+	 * @return 開始可能なReorder TargetとReorder Constraints、または開始できない理由。
+	 */
 	resolve: ( request ) => {
 		const structure = tableIntegration.getStructure( request.clientId );
 
-		// 要求時点の共通Table structureを取得できない場合は、推測で判定せずDnDを開始不可とする。
+		// Table構造を確定できない開始試行では、安全のため並び替えを開始しない。
 		if ( structure === null ) {
 			return { status: 'immovable', reason: 'table-structure-unavailable' };
 		}
 
-		// 行と列では対象範囲と利用する結合方向が異なるため、Reorder Kindごとの解決処理へ分岐する。
+		// 並び替え種別ごとに定められた対象範囲と結合方向の規則を適用する。
 		if ( request.kind === 'row' ) {
 			return resolveRowTarget( request, structure );
 		}
