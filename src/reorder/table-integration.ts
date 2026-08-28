@@ -200,6 +200,7 @@ const normalizeCoreTableRows = (
 	}
 
 	const rows: TableRow[] = [];
+	// 区画を構成するすべての行を確認し、1行でも解釈できない場合は部分的な区画を作らない。
 	for ( const row of section ) {
 		// 各行はセル一覧を持つTable行として解釈できる場合だけ共通表現へ取り込む。
 		if ( ! isRecord( row ) || ! Array.isArray( row.cells ) ) {
@@ -207,6 +208,7 @@ const normalizeCoreTableRows = (
 		}
 
 		const cells: TableCell[] = [];
+		// 行内のすべてのセルを正規化し、行全体の結合範囲を共通表現として成立させる。
 		for ( const cell of row.cells ) {
 			// 各セルは結合範囲属性を安全に参照できるセルデータである必要がある。
 			if ( ! isRecord( cell ) ) {
@@ -286,6 +288,7 @@ const normalizeFlexibleTableBlockRows = (
 	}
 
 	const rows: TableRow[] = [];
+	// 区画を構成するすべての行を確認し、1行でも解釈できない場合は部分的な区画を作らない。
 	for ( const row of section ) {
 		// 各行はセル一覧を持つTable行として解釈できる場合だけ共通表現へ取り込む。
 		if ( ! isRecord( row ) || ! Array.isArray( row.cells ) ) {
@@ -293,6 +296,7 @@ const normalizeFlexibleTableBlockRows = (
 		}
 
 		const cells: TableCell[] = [];
+		// 行内のすべてのセルを正規化し、行全体の結合範囲を共通表現として成立させる。
 		for ( const cell of row.cells ) {
 			// 各セルは結合範囲属性を安全に参照できるセルデータである必要がある。
 			if ( ! isRecord( cell ) ) {
@@ -363,8 +367,10 @@ const findColumnStart = (
 ): number => {
 	let candidate = minimumColumn;
 
+	// 現在セルを置ける最初の論理列が確定するまで、先行する縦結合と重ならない候補位置を探す。
 	while ( true ) {
 		let isAvailable = true;
+		// 候補位置からセルの横幅全体を確認し、1列でも縦結合に占有されていればその候補を採用しない。
 		for ( let column = candidate; column < candidate + columnSpan; column++ ) {
 			// 先行する縦結合が占有中の列を含む候補位置には、新しいセルを配置しない。
 			if ( ( occupiedUntilRow[ column ] ?? 0 ) > rowStart ) {
@@ -400,10 +406,12 @@ const buildSectionMergedCells = (
 	const occupiedUntilRow: number[] = [];
 	const mergedCells: TableMergedCellStructure[] = [];
 
+	// 区画の行を上から順に配置し、先行行の縦結合による占有を後続行の論理列位置へ反映する。
 	for ( let rowStart = 0; rowStart < rows.length; rowStart++ ) {
 		const row = rows[ rowStart ];
 		let minimumColumn = 0;
 
+		// 1行内のセルを表示順に配置し、各セルについて結合を考慮した論理開始列を確定する。
 		for ( const cell of row.cells ) {
 			const rowSpan = Math.min( cell.rowSpan, rows.length - rowStart );
 			const columnStart = findColumnStart(
@@ -413,6 +421,7 @@ const buildSectionMergedCells = (
 				cell.columnSpan
 			);
 
+			// 現在セルが占有するすべての論理列へ縦方向の占有期限を反映し、後続行との重なりを防ぐ。
 			for ( let column = columnStart; column < columnStart + cell.columnSpan; column++ ) {
 				occupiedUntilRow[ column ] = Math.max(
 					occupiedUntilRow[ column ] ?? 0,
@@ -450,6 +459,7 @@ const buildSectionMergedCells = (
 const buildTableStructure = ( sections: TableSections ): TableStructure => {
 	const mergedCells: TableMergedCellStructure[] = [];
 
+	// `head`、`body`、`foot`をそれぞれ独立した論理Tableグリッドとして復元し、Table全体の結合セル構造へ集約する。
 	for ( const section of [ 'head', 'body', 'foot' ] as const ) {
 		mergedCells.push( ...buildSectionMergedCells( section, sections[ section ] ) );
 	}
