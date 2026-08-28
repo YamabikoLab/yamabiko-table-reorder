@@ -1,4 +1,29 @@
 /**
+ * Table Integrationの構造取得境界を実装する。
+ *
+ * このファイルは、WordPress Core TableとFlexible Table Blockが持つplugin固有のTableデータを、
+ * Reorder coreが共通して利用できるTable構造へ変換する責務を担当する。Reorder coreはこの境界を
+ * 利用することで、対象Table pluginごとのattributes構造、section表現、span property名の違いを
+ * 意識せず、同じ共通Table構造だけを扱える。
+ *
+ * 構造取得では、対象Table個体を`clientId`で特定し、要求のたびにBlock Editor storeからcurrent
+ * blockを取得し直す。取得した`block.name`でTable種類を判定し、Core TableまたはFlexible Table
+ * Blockに対応するIntegrationを選択する。そのIntegrationがcurrent attributesのhead、body、footを
+ * 共通sectionへ適応し、rowSpanとcolumnSpanを考慮したlogical Table gridを復元する。共通Table構造には、
+ * 並び替え制約の判断に必要な結合セルの位置と範囲だけを保持し、通常セルの内容や装飾は保持しない。
+ *
+ * 対象blockが存在しない場合、非対応Tableの場合、またはplugin固有データを安全に共通構造へ変換できない
+ * 場合は`null`を返し、読み取れた部分だけから不完全なTable構造を作らない。
+ *
+ * Table Integrationは状態を所有しない。取得したblock、attributes、共通Table構造を後続要求へ持ち越さず、
+ * Tableの追加・削除・構造変更も監視しない。また、Reorder固有の移動対象判定、制約情報の導出、移動先判定、
+ * DnD状態、Reorder Sessionは担当しない。
+ *
+ * このファイルでは#571で必要な構造取得側を実装する。確定した並び替えを対象Tableへ反映する更新側は、
+ * 後続のData Update実装から同じTable Integration境界を利用して接続する。
+ */
+
+/**
  * Table IntegrationがReorder coreへ提供する共通のTable sectionを表す。
  *
  * 対象Table pluginごとに異なるsection表現を、Reorder coreではhead、body、footの
