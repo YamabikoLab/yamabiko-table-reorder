@@ -18,8 +18,8 @@ type ReorderKind = Exclude< ReorderModeState, 'edit' >;
  * 通常編集、行並び替え、列並び替えの現在状態を所有・管理するReorder Modeを表す。
  *
  * 状態遷移の結果を呼び出し側へ値として返さず、このContract自身が1つの現在状態を
- * 保持する。Input Interaction、DnD Interaction、Reorder Presentationは必要な時点で
- * このContractから現在状態または並び替え種別を取得する。
+ * 保持する。Input InteractionとDnD Interactionは必要な時点で、このContractから
+ * 現在状態または並び替え種別を取得する。
  */
 export type ReorderMode = {
 	/** 現在有効なReorder Modeの状態を取得する。 */
