@@ -54,11 +54,7 @@ const buildRuntimeRelationships = ( runtimeViews: RuntimeView[] ): RuntimeRelati
 
 	runtimeViews.forEach( ( runtimeView ) => {
 		runtimeView.steps.forEach( ( step ) => {
-			const relationshipKey = runtimeRelationshipKey(
-				step.source,
-				step.target,
-				step.interaction
-			);
+			const relationshipKey = runtimeRelationshipKey( step.source, step.target, step.interaction );
 			let relationship = relationshipsByKey.get( relationshipKey );
 
 			if ( relationship === undefined ) {
@@ -81,10 +77,7 @@ const buildRuntimeRelationships = ( runtimeViews: RuntimeView[] ): RuntimeRelati
 				runtimeViewId: runtimeView.id,
 				step: step.step,
 			} );
-			stepRelationshipIds.set(
-				runtimeStepKey( runtimeView.id, step.step ),
-				relationship.id
-			);
+			stepRelationshipIds.set( runtimeStepKey( runtimeView.id, step.step ), relationship.id );
 		} );
 	} );
 
@@ -164,9 +157,7 @@ const runtimeStepProperty = (
 ): string =>
 	runtimeView.steps
 		.map( ( step ) => {
-			const relationshipId = stepRelationshipIds.get(
-				runtimeStepKey( runtimeView.id, step.step )
-			);
+			const relationshipId = stepRelationshipIds.get( runtimeStepKey( runtimeView.id, step.step ) );
 			if ( relationshipId === undefined ) {
 				throw new Error(
 					`Runtime step ${ runtimeView.id }#${ step.step } has no generated Runtime Interaction relationship.`
@@ -257,9 +248,7 @@ export const generateStructurizrDsl = ( model: ArchitectureModel ): string => {
 		if ( model.dependencyViews.length > 0 || runtimeView !== model.runtimeViews[ 0 ] ) {
 			lines.push( '' );
 		}
-		lines.push(
-			...generateRuntimeView( runtimeView, runtimeRelationships.stepRelationshipIds )
-		);
+		lines.push( ...generateRuntimeView( runtimeView, runtimeRelationships.stepRelationshipIds ) );
 	} );
 
 	lines.push( '\t}', '}', '' );
