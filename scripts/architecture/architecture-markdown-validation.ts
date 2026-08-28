@@ -156,6 +156,7 @@ export const validateArchitectureMarkdownStructure = ( source: string ): void =>
 	let dependencyViewsTableCount = 0;
 	let dependenciesHeadingTokenIndex: number | null = null;
 	let dependencyViewsHeadingTokenIndex: number | null = null;
+	let dependencyViewsInBuildingBlockView = false;
 	let responsibilityDetailsHeading = false;
 	const runtimeScenarioHeadings = new Set< string >();
 	const runtimeScenarioTables = new Set< string >();
@@ -179,13 +180,14 @@ export const validateArchitectureMarkdownStructure = ( source: string ): void =>
 			) {
 				requiredHeadings.add( headingText );
 			}
+			if ( level === 3 && headingText === 'Dependency Views' ) {
+				dependencyViewsHeadingCount++;
+				dependencyViewsHeadingTokenIndex ??= index;
+				dependencyViewsInBuildingBlockView ||= headings.get( 2 ) === '5. Building Block View';
+			}
 			if ( level === 3 && headings.get( 2 ) === '5. Building Block View' ) {
 				if ( headingText === 'Dependencies' ) {
 					dependenciesHeadingTokenIndex = index;
-				}
-				if ( headingText === 'Dependency Views' ) {
-					dependencyViewsHeadingCount++;
-					dependencyViewsHeadingTokenIndex ??= index;
 				}
 				if ( headingText === 'Responsibility Details' ) {
 					responsibilityDetailsHeading = true;
@@ -264,6 +266,11 @@ export const validateArchitectureMarkdownStructure = ( source: string ): void =>
 	if ( dependencyViewsHeadingCount > 1 ) {
 		throw new Error(
 			'Architecture validation failed: Dependency Views heading may appear at most once.'
+		);
+	}
+	if ( dependencyViewsHeadingCount === 1 && ! dependencyViewsInBuildingBlockView ) {
+		throw new Error(
+			'Architecture validation failed: Dependency Views must appear immediately after Dependencies.'
 		);
 	}
 	if ( dependencyViewsHeadingCount === 1 && dependencyViewsTableCount !== 1 ) {
