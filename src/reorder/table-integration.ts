@@ -59,7 +59,7 @@ export type TableStructure = {
  */
 export type TableMergedCellStructure = {
 	/** 結合セルが属する共通Table section。 */
-	section: TableSection;
+	section: 'head' | 'body' | 'foot';
 	/** section内で結合セルが開始する0-based行位置。 */
 	rowStart: number;
 	/** logical Table grid上で結合セルが開始する0-based列位置。 */
@@ -81,7 +81,12 @@ export type TableMergedCellStructure = {
  * Flexible Table BlockかというTable種類の判定にだけ利用する。
  */
 export type TableIntegrationBlockStore = {
-	/** `clientId`に対応する要求時点のcurrent blockを返す。 */
+	/**
+	 * `clientId`に対応する要求時点のcurrent blockを取得する。
+	 *
+	 * @param clientId 対象Table個体を特定するBlock EditorのclientId。
+	 * @return current block。対象が存在しない場合は`null`または`undefined`。
+	 */
 	getBlock: ( clientId: string ) =>
 		| {
 				name: string;
@@ -105,7 +110,12 @@ export type TableIntegrationBlockStore = {
  * 並び替え制約を状態として保持しない。
  */
 export type TableIntegration = {
-	/** 対象Tableの要求時点の共通Table構造を取得し、提供できない場合は`null`を返す。 */
+	/**
+	 * 対象Tableの要求時点の共通Table構造を取得する。
+	 *
+	 * @param clientId 対象Table個体を特定するBlock EditorのclientId。
+	 * @return 共通Table構造。対象を取得できない、非対応Table、または安全に変換できない場合は`null`。
+	 */
 	getStructure: ( clientId: string ) => TableStructure | null;
 };
 
@@ -140,9 +150,16 @@ type TableSections = Readonly< Record< TableSection, readonly TableRow[] > >;
 /**
  * 1種類のTable pluginについて、plugin固有attributesを共通Table構造へ適応するContract。
  *
- * Table種類の選択と、選択後の構造変換を分離するための内部境界である。
+ * Table種類の選択と、選択後の構造変換を分離するための内部境界である。各Integrationは
+ * plugin固有attributesを完全に解釈できた場合だけ共通Table構造を返し、不完全な構造を推測しない。
  */
 type TableStructureIntegration = {
+	/**
+	 * plugin固有attributesを共通Table構造へ変換する。
+	 *
+	 * @param attributes 要求時点のplugin固有Table attributes。
+	 * @return 共通Table構造。安全に変換できない場合は`null`。
+	 */
 	getStructure: ( attributes: unknown ) => TableStructure | null;
 };
 
@@ -187,7 +204,7 @@ const parseSpan = ( span: unknown ): number | null => {
  * Core Tableのrowは`cells`配列を持ち、cellの結合範囲は`rowspan`と`colspan`で表される。
  * これらのplugin固有shapeとproperty名はこの適応処理で解釈し、共通grid復元処理へ渡さない。
  *
- * @param section  Core Table固有のsection値。
+ * @param section Core Table固有のsection値。
  * @param optional section欠落を空sectionとして許容する場合は`true`。
  * @return 正規化済みrow一覧。sectionを安全に解釈できない場合は`null`。
  */
@@ -261,7 +278,7 @@ const normalizeCoreTableAttributes = ( attributes: unknown ): TableSections | nu
  * Flexible Table Blockのrowは`cells`配列を持ち、cellの結合範囲は`rowSpan`と`colSpan`で表される。
  * このplugin固有shapeとproperty名はこの適応処理で解釈し、共通grid復元処理へ渡さない。
  *
- * @param section  Flexible Table Block固有のsection値。
+ * @param section Flexible Table Block固有のsection値。
  * @param optional section欠落を空sectionとして許容する場合は`true`。
  * @return 正規化済みrow一覧。sectionを安全に解釈できない場合は`null`。
  */
@@ -337,9 +354,9 @@ const normalizeFlexibleTableBlockAttributes = ( attributes: unknown ): TableSect
  * 避けながら、現在cellのcolumnSpan全体を配置できる最初の列を探す。
  *
  * @param occupiedUntilRow 各論理列がどの行まで先行するrowSpanに占有されるかを表す一覧。
- * @param rowStart         現在cellが属するsection内の0-based行位置。
- * @param minimumColumn    現在cellについて探索を開始する最小列位置。
- * @param columnSpan       現在cellが横方向に占有する列数。
+ * @param rowStart 現在cellが属するsection内の0-based行位置。
+ * @param minimumColumn 現在cellについて探索を開始する最小列位置。
+ * @param columnSpan 現在cellが横方向に占有する列数。
  * @return 現在cellを配置できるlogical Table grid上の0-based開始列位置。
  */
 const findColumnStart = (
@@ -378,7 +395,7 @@ const findColumnStart = (
  * plugin固有attributesやspan property名はこの処理では扱わない。
  *
  * @param section 共通Table構造へ記録するTable section。
- * @param rows    plugin非依存に正規化されたsection内のTable行一覧。
+ * @param rows plugin非依存に正規化されたsection内のTable行一覧。
  * @return section内の結合セル一覧。
  */
 const buildSectionMergedCells = (
@@ -450,7 +467,8 @@ const buildTableStructure = ( sections: TableSections ): TableStructure => {
  *
  * Core Table固有のattributes、row、cell、`rowspan` / `colspan`をplugin非依存表現へ
  * 正規化してから、logical Table gridを復元する共通処理へ渡す。Core Table固有知識を
- * このIntegration側に閉じ込め、共通grid復元処理へ漏らさない。
+ * このIntegration側に閉じ込め、共通grid復元処理へ漏らさない。attributesを安全に正規化できない場合は
+ * `null`を返し、不完全な共通Table構造を生成しない。
  */
 const coreTableIntegration: TableStructureIntegration = {
 	getStructure: ( attributes ) => {
@@ -464,7 +482,8 @@ const coreTableIntegration: TableStructureIntegration = {
  *
  * Flexible Table Block固有のattributes、row、cell、`rowSpan` / `colSpan`をplugin非依存表現へ
  * 正規化してから、logical Table gridを復元する共通処理へ渡す。Flexible Table Block固有知識を
- * このIntegration側に閉じ込め、共通grid復元処理へ漏らさない。
+ * このIntegration側に閉じ込め、共通grid復元処理へ漏らさない。attributesを安全に正規化できない場合は
+ * `null`を返し、不完全な共通Table構造を生成しない。
  */
 const flexibleTableBlockIntegration: TableStructureIntegration = {
 	getStructure: ( attributes ) => {
