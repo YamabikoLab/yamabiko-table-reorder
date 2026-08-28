@@ -64,13 +64,19 @@ type TableStructureIntegration = {
 	getStructure: ( attributes: unknown ) => TableStructure | null;
 };
 
-/** propertyを安全に参照できるobjectかを判定する。 */
+/**
+ * propertyを安全に参照できるobjectかを判定する。
+ *
+ * @param value 判定対象の値。
+ */
 const isRecord = ( value: unknown ): value is Record< string, unknown > =>
 	value !== null && typeof value === 'object' && ! Array.isArray( value );
 
 /**
  * plugin固有のsection表現をlogical Table grid構築で利用できる行配列へ変換する。
  * 不完全なsectionは共通Table structureへ変換できないためnullを返す。
+ *
+ * @param section plugin固有のTable section表現。
  */
 const parseSectionRows = ( section: unknown ): readonly TableRow[] | null => {
 	if ( section === undefined ) {
@@ -104,6 +110,9 @@ const parseSectionRows = ( section: unknown ): readonly TableRow[] | null => {
 /**
  * cellのspan値を正の整数へ正規化する。
  * propertyが存在しない場合は通常セルとして1を返す。
+ *
+ * @param cell     span値を保持するTable cell。
+ * @param property plugin固有のspan property名。
  */
 const parseSpan = ( cell: Record< string, unknown >, property: string ): number | null => {
 	const span = cell[ property ];
@@ -121,6 +130,11 @@ const parseSpan = ( cell: Record< string, unknown >, property: string ): number 
 
 /**
  * 先行するrowSpanが占有する列を避け、現在cellが開始できる最初の論理列を返す。
+ *
+ * @param occupiedUntilRow 各論理列が何行目まで占有されているかを表す配列。
+ * @param rowStart         現在cellが属するsection内の0-based行index。
+ * @param minimumColumn    現在cellが探索を開始する最小論理列index。
+ * @param columnSpan       現在cellが横方向に占有する列数。
  */
 const findColumnStart = (
 	occupiedUntilRow: readonly number[],
@@ -149,6 +163,10 @@ const findColumnStart = (
 
 /**
  * 1つのTable sectionからlogical Table gridを復元し、結合セルだけを抽出する。
+ *
+ * @param section        共通Table structureへ記録するTable section。
+ * @param rows           section内のTable行一覧。
+ * @param spanProperties plugin固有のrowSpan / columnSpan property名。
  */
 const buildSectionMergedCells = (
 	section: TableSection,
@@ -199,6 +217,9 @@ const buildSectionMergedCells = (
 /**
  * plugin固有のspan property名を使って各sectionのlogical Table gridを復元し、
  * Reorder core共通のTable structureを構築する。
+ *
+ * @param attributes     要求時点のTable block attributes。
+ * @param spanProperties plugin固有のrowSpan / columnSpan property名。
  */
 const buildTableStructure = (
 	attributes: unknown,
@@ -256,6 +277,8 @@ const TABLE_INTEGRATIONS: Readonly< Partial< Record< string, TableStructureInteg
  * Table structureを要求されるたびにclientIdから現在のblockを再取得し、その時点の
  * block.nameに対応するIntegrationを選択する。取得したblock、attributes、
  * Table structureは後続の要求へ保持しない。
+ *
+ * @param blockEditorStore 対象clientIdから要求時点のblockを再取得するstore Contract。
  */
 export const createTableIntegration = (
 	blockEditorStore: TableIntegrationBlockStore
