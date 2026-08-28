@@ -1,4 +1,8 @@
-import type { TableIntegration } from './table-integration';
+import type {
+	TableIntegration,
+	TableMergedCellStructure,
+	TableStructure,
+} from './table-integration';
 
 /**
  * Reorder Target Resolutionが受け取るDnD開始試行の入力。
@@ -93,22 +97,6 @@ export type ReorderTargetResolutionResult =
 export type ReorderTargetResolution = {
 	resolve: ( request: ReorderTargetResolutionRequest ) => ReorderTargetResolutionResult;
 };
-
-/**
- * Reorder Target Resolutionが利用する共通Table structureの型。
- *
- * Table Integrationが公開している構造取得Contractの戻り値から型を導出し、共通Table structureの
- * 具体的な型を別の公開境界として増やさずに、Reorder core側で同じContractを型として利用する。
- */
-type TableStructure = NonNullable< ReturnType< TableIntegration[ 'getStructure' ] > >;
-
-/**
- * 共通Table structureに含まれる1つの結合セルの型。
- *
- * Reorder Target ResolutionはTable IntegrationのContractから得られる結合セル情報だけを利用し、
- * Table plugin固有のcell表現へ依存しない。
- */
-type TableMergedCellStructure = TableStructure[ 'mergedCells' ][ number ];
 
 /**
  * 0-based indexが開始対象として扱える基本的なlogical indexか判定する。
