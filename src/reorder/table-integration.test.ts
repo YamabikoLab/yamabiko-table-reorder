@@ -170,7 +170,7 @@ describe( 'Table Integration', () => {
 	} );
 
 	/**
-	 * 非対応Tableまたは不完全なattributesでは共通Table structureを提供しないことを確認する。
+	 * 非対応Tableまたは不完全なsectionでは共通Table structureを提供しないことを確認する。
 	 *
 	 * 事前条件:
 	 * - 対象clientIdから取得したblockが非対応、または対応blockのsection shapeが不正である。
@@ -196,5 +196,166 @@ describe( 'Table Integration', () => {
 
 		expect( integration.getStructure( 'unsupported-client-id' ) ).toBeNull();
 		expect( integration.getStructure( 'invalid-client-id' ) ).toBeNull();
+	} );
+
+	/**
+	 * 対象clientIdに対応するcurrent blockが存在しない場合に過去のデータで代替しないことを確認する。
+	 *
+	 * 事前条件:
+	 * - getBlock()がnullまたはundefinedを返す。
+	 *
+	 * 操作:
+	 * - getStructure()を実行する。
+	 *
+	 * 期待結果:
+	 * - 共通Table structureは提供されずnullになる。
+	 */
+	it( 'when the current block does not exist, should return null', () => {
+		const getBlock = jest.fn().mockReturnValueOnce( null ).mockReturnValueOnce( undefined );
+		const integration = createTableIntegration( { getBlock } );
+
+		expect( integration.getStructure( 'removed-client-id' ) ).toBeNull();
+		expect( integration.getStructure( 'missing-client-id' ) ).toBeNull();
+	} );
+
+	/**
+	 * headまたはfootを持たないTableも有効なTableとして構造取得できることを確認する。
+	 *
+	 * 事前条件:
+	 * - 対象Core Tableはbodyだけを持ち、headとfootは存在しない。
+	 * - bodyには横結合セルが存在する。
+	 *
+	 * 操作:
+	 * - getStructure()を実行する。
+	 *
+	 * 期待結果:
+	 * - 存在しないheadとfootは空sectionとして扱われる。
+	 * - bodyの結合セルは共通Table structureへ変換される。
+	 */
+	it( 'when optional Table sections are absent, should treat them as empty sections', () => {
+		const integration = createTableIntegration( {
+			getBlock: jest.fn().mockReturnValue( {
+				name: 'core/table',
+				attributes: {
+					body: [ { cells: [ { colspan: 2 }, {} ] } ],
+				},
+			} ),
+		} );
+
+		expect( integration.getStructure( 'body-only-client-id' ) ).toEqual( {
+			mergedCells: [
+				{
+					section: 'body',
+					rowStart: 0,
+					columnStart: 0,
+					rowSpan: 1,
+					columnSpan: 2,
+				},
+			],
+		} );
+	} );
+
+	/**
+	 * pluginデータに数値文字列で保存されたspanを有効な占有数として扱えることを確認する。
+	 *
+	 * 事前条件:
+	 * - Core Tableの結合セルが`rowspan`と`colspan`を数値文字列で保持している。
+	 *
+	 * 操作:
+	 * - getStructure()を実行する。
+	 *
+	 * 期待結果:
+	 * - 数値文字列が正の整数へ変換される。
+	 * - logical Table grid上の結合範囲として共通Table structureへ記録される。
+	 */
+	it( 'when span values are numeric strings, should normalize them as positive integers', () => {
+		const integration = createTableIntegration( {
+			getBlock: jest.fn().mockReturnValue( {
+				name: 'core/table',
+				attributes: {
+					body: [ { cells: [ { rowspan: '2', colspan: '2' } ] }, { cells: [] } ],
+				},
+			} ),
+		} );
+
+		expect( integration.getStructure( 'numeric-string-client-id' ) ).toEqual( {
+			mergedCells: [
+				{
+					section: 'body',
+					rowStart: 0,
+					columnStart: 0,
+					rowSpan: 2,
+					columnSpan: 2,
+				},
+			],
+		} );
+	} );
+
+	/**
+	 * attributes、row、cellのいずれかを安全に解釈できない場合に部分的な構造を返さないことを確認する。
+	 *
+	 * 事前条件:
+	 * - attributes自体がobjectではないケースがある。
+	 * - body内のrowがobjectではないケースがある。
+	 * - row.cells内のcellがobjectではないケースがある。
+	 *
+	 * 操作:
+	 * - 各不完全構造についてgetStructure()を実行する。
+	 *
+	 * 期待結果:
+	 * - いずれも共通Table structureを推測せずnullになる。
+	 */
+	it( 'when Table data shape is incomplete, should reject the entire structure', () => {
+		const getBlock = jest
+			.fn()
+			.mockReturnValueOnce( {
+				name: 'core/table',
+				attributes: null,
+			} )
+			.mockReturnValueOnce( {
+				name: 'core/table',
+				attributes: { body: [ null ] },
+			} )
+			.mockReturnValueOnce( {
+				name: 'core/table',
+				attributes: { body: [ { cells: [ null ] } ] },
+			} );
+		const integration = createTableIntegration( { getBlock } );
+
+		expect( integration.getStructure( 'invalid-attributes-client-id' ) ).toBeNull();
+		expect( integration.getStructure( 'invalid-row-client-id' ) ).toBeNull();
+		expect( integration.getStructure( 'invalid-cell-client-id' ) ).toBeNull();
+	} );
+
+	/**
+	 * Table grid上の占有数として成立しないspanを含む場合に部分的な共通Table structureを返さないことを確認する。
+	 *
+	 * 事前条件:
+	 * - 各Tableには先に有効な横結合セルが存在する。
+	 * - 後続セルのrowspanが0、負数、小数、非数値文字列、objectのいずれかである。
+	 *
+	 * 操作:
+	 * - 各不正spanについてgetStructure()を実行する。
+	 *
+	 * 期待結果:
+	 * - 先に読み取れた結合セルだけを部分返却しない。
+	 * - Table全体を変換不能としてnullになる。
+	 */
+	it( 'when any span value is invalid, should reject the entire structure without partial results', () => {
+		const invalidSpans: readonly unknown[] = [ 0, -1, 1.5, 'invalid', {} ];
+		const getBlock = jest.fn( () => {
+			const rowspan = invalidSpans[ getBlock.mock.calls.length - 1 ];
+			return {
+				name: 'core/table',
+				attributes: {
+					body: [ { cells: [ { colspan: 2 }, { rowspan } ] } ],
+				},
+			};
+		} );
+		const integration = createTableIntegration( { getBlock } );
+
+		for ( let index = 0; index < invalidSpans.length; index++ ) {
+			expect( integration.getStructure( `invalid-span-client-id-${ index }` ) ).toBeNull();
+		}
 	} );
 } );
