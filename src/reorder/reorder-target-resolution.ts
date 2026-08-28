@@ -160,15 +160,18 @@ const buildBlockedBoundaries = (
 ): readonly number[] => {
 	const boundaries = new Set< number >();
 
+	// 対象方向のすべての結合セルを確認し、各結合範囲を分断する境界だけを並び替え制約へ集約する。
 	for ( const cell of mergedCells ) {
 		const start = getStart( cell );
 		const span = getSpan( cell );
 
+		// 1つの結合セルについて内部境界だけを禁止し、結合範囲の外側は移動可能な境界として残す。
 		for ( let offset = 1; offset < span; offset++ ) {
 			boundaries.add( start + offset );
 		}
 	}
 
+	// Drop Target Resolutionが境界を一意の順序で扱えるよう、重複を除いた禁止境界を昇順で公開する。
 	return [ ...boundaries ].sort( ( left, right ) => left - right );
 };
 
@@ -197,6 +200,7 @@ const resolveTargetWithinScope = (
 		return { status: 'immovable', reason: 'target-out-of-scope' };
 	}
 
+	// 開始対象が対象方向の結合セルに1つでも含まれる場合は、独立した行または列として移動できない。
 	const isInsideMergedCell = mergedCells.some( ( cell ) =>
 		containsIndex( getStart( cell ), getSpan( cell ), targetIndex )
 	);
@@ -239,6 +243,7 @@ const resolveRowTarget = (
 		clientId: request.clientId,
 		rowIndex: request.rowIndex,
 	};
+	// 行DnDの開始可否と移動先制約には、`body`区画で縦方向に結合されたセルだけを適用する。
 	const mergedCells = structure.mergedCells.filter(
 		( cell ) => cell.section === 'body' && cell.rowSpan > 1
 	);
@@ -271,6 +276,7 @@ const resolveColumnTarget = (
 		clientId: request.clientId,
 		columnIndex: request.columnIndex,
 	};
+	// 列DnDの開始可否と移動先制約には、Table全体で横方向に結合されたセルだけを適用する。
 	const mergedCells = structure.mergedCells.filter( ( cell ) => cell.columnSpan > 1 );
 
 	return resolveTargetWithinScope(
