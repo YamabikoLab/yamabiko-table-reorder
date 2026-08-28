@@ -39,11 +39,12 @@ type TableSection = 'head' | 'body' | 'foot';
  * Table全体のセル内容や装飾を複製するのではなく、並び替え可否の判断に必要な
  * 結合セルの位置と範囲だけを保持する。これによりReorder coreはCore Tableや
  * Flexible Table Blockそれぞれのデータ形式を知らずに、同じ構造情報を利用できる。
+ * Reorder Target ResolutionなどTable Integrationの利用側が、この共通Contractを直接参照する。
  *
  * この値は要求時点のTableから作成する一時的な結果であり、Table Integrationは
  * 後続の要求や別のDnDへ持ち越さない。
  */
-type TableStructure = {
+export type TableStructure = {
 	/** Table内に存在する結合セルの位置と範囲。通常セルは含まない。 */
 	mergedCells: readonly TableMergedCellStructure[];
 };
@@ -54,8 +55,9 @@ type TableStructure = {
  * 行番号と列番号は画面上の見た目ではなく、rowSpanとcolumnSpanを考慮して復元した
  * logical Table grid上の位置で表す。これにより、Reorder coreはTable plugin固有の
  * cell配列表現を再解釈せず、結合セルが行・列のどこを占有しているか判断できる。
+ * `TableStructure`とともにTable Integrationの共通Contractとして利用側へ公開する。
  */
-type TableMergedCellStructure = {
+export type TableMergedCellStructure = {
 	/** 結合セルが属する共通Table section。 */
 	section: TableSection;
 	/** section内で結合セルが開始する0-based行位置。 */
