@@ -13,10 +13,16 @@ export type Responsibility = {
 	summary: string;
 };
 
-export type ArchitectureRelationship = {
-	source: string;
-	destination: string;
-	description: string;
+export type ArchitectureDependency = {
+	dependent: string;
+	dependsOn: string;
+	reason: string;
+};
+
+export type DependencyView = {
+	id: string;
+	name: string;
+	includes: string[];
 };
 
 type ResponsibilityDetail = {
@@ -40,7 +46,8 @@ export type RuntimeView = {
 export type ArchitectureModel = {
 	externalContexts: ExternalContext[];
 	responsibilities: Responsibility[];
-	relationships: ArchitectureRelationship[];
+	dependencies: ArchitectureDependency[];
+	dependencyViews: DependencyView[];
 	responsibilityDetails: ResponsibilityDetail[];
 	runtimeViews: RuntimeView[];
 };
@@ -62,7 +69,8 @@ const headingIdPattern = /^(.*?)\s+\{#([A-Za-z][A-Za-z0-9_]*)\}\s*$/u;
 const machineReadableTables = {
 	externalContext: [ 'ID', 'Name', 'Type', 'Summary' ],
 	responsibilityInventory: [ 'ID', 'Responsibility', 'Summary' ],
-	relationships: [ 'Source', 'Destination', 'Description' ],
+	dependencies: [ 'Dependent', 'Depends on', 'Reason' ],
+	dependencyViews: [ 'ID', 'Name', 'Includes' ],
 	runtime: [ 'Step', 'Source', 'Target', 'Interaction' ],
 } as const;
 
@@ -169,7 +177,8 @@ export const parseArchitectureMarkdown = ( source: string ): ArchitectureModel =
 	const model: ArchitectureModel = {
 		externalContexts: [],
 		responsibilities: [],
-		relationships: [],
+		dependencies: [],
+		dependencyViews: [],
 		responsibilityDetails: [],
 		runtimeViews: [],
 	};
@@ -238,13 +247,26 @@ export const parseArchitectureMarkdown = ( source: string ): ArchitectureModel =
 
 		if (
 			level2 === '5. Building Block View' &&
-			level3?.title === 'Relationships' &&
-			hasExactHeader( table, machineReadableTables.relationships )
+			level3?.title === 'Dependencies' &&
+			hasExactHeader( table, machineReadableTables.dependencies )
 		) {
-			model.relationships = rowsAsRecords( table ).map( ( row ) => ( {
-				source: row.Source,
-				destination: row.Destination,
-				description: row.Description,
+			model.dependencies = rowsAsRecords( table ).map( ( row ) => ( {
+				dependent: row.Dependent,
+				dependsOn: row[ 'Depends on' ],
+				reason: row.Reason,
+			} ) );
+			continue;
+		}
+
+		if (
+			level2 === '5. Building Block View' &&
+			level3?.title === 'Dependency Views' &&
+			hasExactHeader( table, machineReadableTables.dependencyViews )
+		) {
+			model.dependencyViews = rowsAsRecords( table ).map( ( row ) => ( {
+				id: row.ID,
+				name: row.Name,
+				includes: row.Includes.split( /\s+/u ).filter( ( id ) => id.length > 0 ),
 			} ) );
 			continue;
 		}
