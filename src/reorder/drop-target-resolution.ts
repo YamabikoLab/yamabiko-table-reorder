@@ -116,11 +116,22 @@ export const createDropTargetResolution = (): DropTargetResolution => ( {
 			return { status: 'none' };
 		}
 
-		const destination: ReorderDestination = {
-			kind: request.kind,
-			clientId: request.target.clientId,
-			boundaryIndex,
-		};
+		let destination: ReorderDestination;
+
+		// 並び替え種別ごとに、対応するReorder Destinationの種別を維持する。
+		if ( request.kind === 'row' ) {
+			destination = {
+				kind: 'row',
+				clientId: request.target.clientId,
+				boundaryIndex,
+			};
+		} else {
+			destination = {
+				kind: 'column',
+				clientId: request.target.clientId,
+				boundaryIndex,
+			};
+		}
 
 		return { status: 'valid', destination };
 	},
