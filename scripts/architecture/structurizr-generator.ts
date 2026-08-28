@@ -130,7 +130,7 @@ const generateRuntimeRelationship = ( relationship: RuntimeRelationship ): strin
 
 const generateDependencyView = ( view: DependencyView ): string[] => [
 	`\t\tcustom ${ quoted( view.id ) } {`,
-	`\t\t\ttitle ${ quoted( view.name ) }`,
+	`\t\t\ttitle ${ quoted( `Structural Dependencies - ${ view.name }` ) }`,
 	`\t\t\tinclude ${ view.includes.join( ' ' ) }`,
 	'\t\t\texclude "relationship.tag!=Structural Dependency"',
 	'\t\t\tautoLayout lr',
@@ -177,7 +177,7 @@ const generateRuntimeView = (
 
 	return [
 		`\t\tcustom ${ quoted( runtimeView.id ) } {`,
-		`\t\t\ttitle ${ quoted( runtimeView.name ) }`,
+		`\t\t\ttitle ${ quoted( `Runtime - ${ runtimeView.name }` ) }`,
 		`\t\t\tinclude ${ elements.join( ' ' ) }`,
 		`\t\t\texclude ${ quoted( `relationship.tag!=${ tag }` ) }`,
 		'\t\t\tproperties {',
