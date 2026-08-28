@@ -5,7 +5,9 @@ import type { ArchitectureModel } from './architecture-model';
 import { generateStructurizrDsl } from './structurizr-generator';
 
 const model: ArchitectureModel = {
-	externalContexts: [ { id: 'EXT_EDITOR', name: 'Editor', type: 'External System', summary: '編集環境。' } ],
+	externalContexts: [
+		{ id: 'EXT_EDITOR', name: 'Editor', type: 'External System', summary: '編集環境。' },
+	],
 	responsibilities: [
 		{ id: 'RESP_INPUT', name: 'Input Interaction', summary: '入力を扱う。' },
 		{ id: 'RESP_DND', name: 'DnD Interaction', summary: 'DnD を扱う。' },
@@ -52,7 +54,10 @@ test( '同一 Architecture Model から同一 DSL を生成する', () => {
 
 test( 'Process Flow View は Process Flow Relationship だけを表示する', () => {
 	const dsl = generateStructurizrDsl( model );
-	const view = dsl.slice( dsl.indexOf( 'custom "PV_REORDER"' ), dsl.indexOf( 'custom "RV_DND_START"' ) );
+	const view = dsl.slice(
+		dsl.indexOf( 'custom "PV_REORDER"' ),
+		dsl.indexOf( 'custom "RV_DND_START"' )
+	);
 	assert.match( view, /include EXT_EDITOR RESP_INPUT RESP_DND/u );
 	assert.match( view, /exclude "relationship\.tag!=ProcessFlow_PV_REORDER"/u );
 	assert.doesNotMatch( view, /Structural Dependency/u );

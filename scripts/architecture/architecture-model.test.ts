@@ -81,8 +81,14 @@ test( '固定見出しと表だけから Architecture Model を構築する', ()
 			],
 		},
 	] );
-	assert.deepEqual( model.externalContexts.map( ( item ) => item.id ), [ 'EXT_EDITOR' ] );
-	assert.deepEqual( model.responsibilities.map( ( item ) => item.id ), [ 'RESP_INPUT', 'RESP_DND' ] );
+	assert.deepEqual(
+		model.externalContexts.map( ( item ) => item.id ),
+		[ 'EXT_EDITOR' ]
+	);
+	assert.deepEqual(
+		model.responsibilities.map( ( item ) => item.id ),
+		[ 'RESP_INPUT', 'RESP_DND' ]
+	);
 	assert.deepEqual( model.dependencies, [
 		{ dependent: 'RESP_INPUT', dependsOn: 'EXT_EDITOR', reason: '編集環境を必要とする。' },
 		{ dependent: 'RESP_DND', dependsOn: 'RESP_INPUT', reason: '入力境界を必要とする。' },
@@ -95,7 +101,10 @@ test( '固定見出しと表だけから Architecture Model を構築する', ()
 		{ id: 'RESP_INPUT', name: 'Input Interaction' },
 		{ id: 'RESP_DND', name: 'DnD Interaction' },
 	] );
-	assert.deepEqual( model.runtimeViews[ 0 ].steps.map( ( step ) => step.step ), [ 1, 2 ] );
+	assert.deepEqual(
+		model.runtimeViews[ 0 ].steps.map( ( step ) => step.step ),
+		[ 1, 2 ]
+	);
 } );
 
 test( '説明文から Process Flow や Dependency を補完しない', () => {
