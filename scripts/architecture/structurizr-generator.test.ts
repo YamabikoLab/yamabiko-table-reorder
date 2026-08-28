@@ -75,13 +75,13 @@ test( '同一 Architecture Model から同一 DSL を生成する', () => {
 	assert.match( first, /EXT_EDITOR = element "Editor" "External System" "編集環境。"/u );
 } );
 
-test( 'Dependency View は Includes の両端を含む Dependency だけを出力する', () => {
+test( 'Dependency View は Includes の要素だけを明示して Structural Dependency に限定する', () => {
 	const dsl = generateStructurizrDsl( model );
 	const view = dsl.slice( dsl.indexOf( 'custom "DV_INPUT"' ), dsl.indexOf( 'custom "RV_DND_START"' ) );
 
-	assert.match( view, /include EXT_EDITOR RESP_INPUT DEP_001/u );
+	assert.match( view, /include EXT_EDITOR RESP_INPUT/u );
+	assert.match( view, /exclude "relationship\.tag!=Structural Dependency"/u );
 	assert.doesNotMatch( view, /RESP_DND/u );
-	assert.doesNotMatch( view, /DEP_002/u );
 } );
 
 test( 'Runtime Interaction は Structural Dependency と独立して生成する', () => {
