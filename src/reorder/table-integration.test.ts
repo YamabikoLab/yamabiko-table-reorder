@@ -391,6 +391,7 @@ describe( 'Table Integration', () => {
 		} );
 		const integration = createTableIntegration( { getBlock } );
 
+		// 仕様上許可しない各span表現について、いずれも部分的なTable構造を返さない同じ契約を確認する。
 		for ( let index = 0; index < invalidSpans.length; index++ ) {
 			expect( integration.getStructure( `invalid-span-client-id-${ index }` ) ).toBeNull();
 		}
