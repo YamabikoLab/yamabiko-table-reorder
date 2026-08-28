@@ -67,6 +67,8 @@ test( '同一 Architecture Model から同一 DSL を生成する', () => {
 	assert.match( first, /!impliedRelationships false/u );
 	assert.match( first, /custom "DV_INPUT"/u );
 	assert.match( first, /custom "RV_DND_START"/u );
+	assert.match( first, /title "Structural Dependencies - Input"/u );
+	assert.match( first, /title "Runtime - DnD start"/u );
 	assert.match( first, /"runtime\.steps" "1=RT_001;2=RT_002"/u );
 	assert.match( first, /RESP_INPUT -> EXT_EDITOR "編集環境を必要とする。"/u );
 	assert.match( first, /tags "Structural Dependency"/u );
