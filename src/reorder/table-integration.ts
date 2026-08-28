@@ -41,7 +41,7 @@ type TableSection = 'head' | 'body' | 'foot';
  * この値は要求時点のTableから作成する一時的な結果であり、Table Integrationは
  * 後続の要求や別のDnDへ持ち越さない。
  */
-export type TableStructure = {
+type TableStructure = {
 	/** Table内に存在する結合セルの位置と範囲。通常セルは含まない。 */
 	mergedCells: readonly TableMergedCellStructure[];
 };
@@ -53,7 +53,7 @@ export type TableStructure = {
  * logical Table grid上の位置で表す。これにより、Reorder coreはTable plugin固有の
  * cell配列表現を再解釈せず、結合セルが行・列のどこを占有しているか判断できる。
  */
-export type TableMergedCellStructure = {
+type TableMergedCellStructure = {
 	/** 結合セルが属する共通Table section。 */
 	section: TableSection;
 	/** section内で結合セルが開始する0-based行位置。 */
