@@ -58,6 +58,7 @@ When reviewing React code, focus on React-specific correctness, lifecycle behavi
 - For documented functions, methods, callbacks, and similar callables, add an `@param` entry for every parameter. Explain the specification-level meaning or role of a parameter when it is not obvious from its name and type.
 - For condition expressions, document the rule or decision represented by the condition at a basic-design level rather than explaining individual checks or translating the expression into prose.
 - Prioritize information that is difficult to infer from the implementation itself, such as important assumptions, constraints, return-value meaning, lifecycle, and cleanup responsibilities. Keep documentation aligned when the documented responsibility or contract changes, and do not mechanically add comments to self-explanatory local variables, temporary values, or implementation steps.
+- For loops and other iteration constructs, add a clear basic-design-level explanation when the purpose of the iteration is not self-explanatory. Write the comment so that readers who understand the specification but cannot read the implementation can understand what domain elements are being processed, what behavior or rule the iteration establishes, and why the iteration is necessary. Do not merely describe the loop condition, index movement, collection traversal, or other implementation steps.
 
 ## Internationalization and accessibility
 
