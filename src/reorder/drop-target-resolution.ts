@@ -6,10 +6,7 @@
  * Table Integrationや共通Table構造には依存せず、Reorder Target Resolutionが導出した
  * `blockedBoundaries`を再解析しない。
  */
-import type {
-	ReorderConstraints,
-	ReorderTarget,
-} from '@/reorder/reorder-target-resolution';
+import type { ReorderConstraints, ReorderTarget } from '@/reorder/reorder-target-resolution';
 
 /**
  * Drop Target Resolutionが判定対象とする現在位置。
