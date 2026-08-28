@@ -34,6 +34,19 @@ const validModel = (): ArchitectureModel => ( {
 			includes: [ 'EXT_EDITOR', 'RESP_INPUT' ],
 		},
 	],
+	processFlowViews: [
+		{
+			id: 'PV_INPUT',
+			name: 'Input flow',
+			edges: [
+				{
+					from: 'EXT_EDITOR',
+					to: 'RESP_INPUT',
+					meaning: '入力が処理へ進む。',
+				},
+			],
+		},
+	],
 	responsibilityDetails: [ { id: 'RESP_INPUT', name: 'Input Interaction' } ],
 	runtimeViews: [
 		{
@@ -68,6 +81,7 @@ test( 'ID の種別 prefix が不正な場合を拒否する', () => {
 	model.responsibilityDetails[ 0 ].id = 'EXT_INPUT';
 	model.dependencies[ 0 ].dependent = 'EXT_INPUT';
 	model.dependencyViews[ 0 ].includes[ 1 ] = 'EXT_INPUT';
+	model.processFlowViews[ 0 ].edges[ 0 ].to = 'EXT_INPUT';
 	model.runtimeViews[ 0 ].steps[ 0 ].target = 'EXT_INPUT';
 
 	assert.throws( () => validateArchitectureModel( model ), /must use the RESP_ prefix/u );
@@ -138,6 +152,48 @@ test( 'Dependency View Includes の未解決参照を拒否する', () => {
 		() => validateArchitectureModel( model ),
 		/Dependency View DV_INPUT Includes "RESP_UNKNOWN"/u
 	);
+} );
+
+test( 'Process Flow View ID の prefix が不正な場合を拒否する', () => {
+	const model = validModel();
+	model.processFlowViews[ 0 ].id = 'VIEW_INPUT';
+
+	assert.throws( () => validateArchitectureModel( model ), /must use the PV_ prefix/u );
+} );
+
+test( 'Process Flow View の未解決 From を拒否する', () => {
+	const model = validModel();
+	model.processFlowViews[ 0 ].edges[ 0 ].from = 'RESP_UNKNOWN';
+
+	assert.throws( () => validateArchitectureModel( model ), /From "RESP_UNKNOWN"/u );
+} );
+
+test( 'Process Flow View の未解決 To を拒否する', () => {
+	const model = validModel();
+	model.processFlowViews[ 0 ].edges[ 0 ].to = 'RESP_UNKNOWN';
+
+	assert.throws( () => validateArchitectureModel( model ), /To "RESP_UNKNOWN"/u );
+} );
+
+test( 'Process Flow View の同一 From + To 重複を拒否する', () => {
+	const model = validModel();
+	model.processFlowViews[ 0 ].edges.push( { ...model.processFlowViews[ 0 ].edges[ 0 ] } );
+
+	assert.throws(
+		() => validateArchitectureModel( model ),
+		/Process Flow View PV_INPUT contains duplicate edge EXT_EDITOR -> RESP_INPUT/u
+	);
+} );
+
+test( 'Process Flow は Structural Dependency と逆方向でも受理する', () => {
+	const model = validModel();
+	model.processFlowViews[ 0 ].edges[ 0 ] = {
+		from: 'RESP_INPUT',
+		to: 'EXT_EDITOR',
+		meaning: '処理が外部へ進む。',
+	};
+
+	assert.doesNotThrow( () => validateArchitectureModel( model ) );
 } );
 
 test( 'Responsibility Inventory に対応する責務詳細の欠落を拒否する', () => {

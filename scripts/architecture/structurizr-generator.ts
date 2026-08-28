@@ -3,6 +3,7 @@ import type {
 	ArchitectureModel,
 	DependencyView,
 	ExternalContext,
+	ProcessFlowView,
 	Responsibility,
 	RuntimeView,
 } from './architecture-model';
@@ -31,8 +32,14 @@ type RuntimeRelationships = {
 const dependencyIdentifier = ( index: number ): string =>
 	`DEP_${ String( index + 1 ).padStart( 3, '0' ) }`;
 
+const processFlowRelationshipIdentifier = ( index: number ): string =>
+	`PF_${ String( index + 1 ).padStart( 3, '0' ) }`;
+
 const runtimeRelationshipIdentifier = ( index: number ): string =>
 	`RT_${ String( index + 1 ).padStart( 3, '0' ) }`;
+
+const processFlowTag = ( processFlowViewId: string ): string =>
+	`ProcessFlow_${ processFlowViewId }`;
 
 const runtimeTag = ( runtimeViewId: string ): string => `Runtime_${ runtimeViewId }`;
 
@@ -104,6 +111,41 @@ const generateDependency = ( dependency: ArchitectureDependency, index: number )
 	'\t\t}',
 ];
 
+const processFlowElements = ( processFlowView: ProcessFlowView ): string[] => {
+	const identifiers: string[] = [];
+
+	processFlowView.edges.forEach( ( edge ) => {
+		[ edge.from, edge.to ].forEach( ( identifier ) => {
+			if ( ! identifiers.includes( identifier ) ) {
+				identifiers.push( identifier );
+			}
+		} );
+	} );
+
+	return identifiers;
+};
+
+const generateProcessFlowRelationships = ( processFlowViews: ProcessFlowView[] ): string[] => {
+	const lines: string[] = [];
+	let relationshipIndex = 0;
+
+	processFlowViews.forEach( ( processFlowView ) => {
+		processFlowView.edges.forEach( ( edge ) => {
+			const tags = [ 'Process Flow', processFlowTag( processFlowView.id ) ];
+			lines.push(
+				`\t\t${ processFlowRelationshipIdentifier( relationshipIndex ) } = ${ edge.from } -> ${
+					edge.to
+				} ${ quoted( edge.meaning ) } {`,
+				`\t\t\ttags ${ quoted( tags.join( ',' ) ) }`,
+				'\t\t}'
+			);
+			relationshipIndex++;
+		} );
+	} );
+
+	return lines;
+};
+
 const generateRuntimeRelationship = ( relationship: RuntimeRelationship ): string[] => {
 	const tags = [
 		'Runtime Interaction',
@@ -133,6 +175,15 @@ const generateDependencyView = ( view: DependencyView ): string[] => [
 	`\t\t\ttitle ${ quoted( `Structural Dependencies - ${ view.name }` ) }`,
 	`\t\t\tinclude ${ view.includes.join( ' ' ) }`,
 	'\t\t\texclude "relationship.tag!=Structural Dependency"',
+	'\t\t\tautoLayout lr',
+	'\t\t}',
+];
+
+const generateProcessFlowView = ( view: ProcessFlowView ): string[] => [
+	`\t\tcustom ${ quoted( view.id ) } {`,
+	`\t\t\ttitle ${ quoted( `Process Flow - ${ view.name }` ) }`,
+	`\t\t\tinclude ${ processFlowElements( view ).join( ' ' ) }`,
+	`\t\t\texclude ${ quoted( `relationship.tag!=${ processFlowTag( view.id ) }` ) }`,
 	'\t\t\tautoLayout lr',
 	'\t\t}',
 ];
@@ -190,15 +241,16 @@ const generateRuntimeView = (
 
 /**
  * Architecture Model に含まれる明示的な設計情報だけから Structurizr DSL を生成する。
- * Structural Dependency と Runtime Interaction は独立した Relationship として生成し、
+ * Structural Dependency、Process Flow、Runtime Interaction は独立した Relationship として生成する。
+ * Dependency View と Process Flow View は、それぞれの View に対応する Relationship だけを表示する。
  * 同一の Runtime Interaction が複数 Step で使われる場合は Structurizr Model 上の Relationship を共有する。
- * Dependency View は Includes に明示された要素と、その両端が含まれる Dependency だけを表示する。
  *
  * @param model Markdown から構築した Architecture Model。
  * @return 決定的に生成された Structurizr DSL。
  */
 export const generateStructurizrDsl = ( model: ArchitectureModel ): string => {
 	const runtimeRelationships = buildRuntimeRelationships( model.runtimeViews );
+	const processFlowRelationships = generateProcessFlowRelationships( model.processFlowViews );
 	const lines = [
 		'// Generated from docs/architecture/reorder-v1-architecture.md. Do not edit manually.',
 		'workspace "YTR Reorder v1 Architecture" {',
@@ -227,6 +279,10 @@ export const generateStructurizrDsl = ( model: ArchitectureModel ): string => {
 		lines.push( ...generateDependency( dependency, index ) );
 	} );
 
+	if ( processFlowRelationships.length > 0 ) {
+		lines.push( '', ...processFlowRelationships );
+	}
+
 	if ( runtimeRelationships.relationships.length > 0 ) {
 		lines.push( '' );
 	}
@@ -237,18 +293,29 @@ export const generateStructurizrDsl = ( model: ArchitectureModel ): string => {
 
 	lines.push( '\t}', '', '\tviews {' );
 
-	model.dependencyViews.forEach( ( view, index ) => {
-		if ( index > 0 ) {
+	let hasPreviousView = false;
+	model.dependencyViews.forEach( ( view ) => {
+		if ( hasPreviousView ) {
 			lines.push( '' );
 		}
 		lines.push( ...generateDependencyView( view ) );
+		hasPreviousView = true;
+	} );
+
+	model.processFlowViews.forEach( ( processFlowView ) => {
+		if ( hasPreviousView ) {
+			lines.push( '' );
+		}
+		lines.push( ...generateProcessFlowView( processFlowView ) );
+		hasPreviousView = true;
 	} );
 
 	model.runtimeViews.forEach( ( runtimeView ) => {
-		if ( model.dependencyViews.length > 0 || runtimeView !== model.runtimeViews[ 0 ] ) {
+		if ( hasPreviousView ) {
 			lines.push( '' );
 		}
 		lines.push( ...generateRuntimeView( runtimeView, runtimeRelationships.stepRelationshipIds ) );
+		hasPreviousView = true;
 	} );
 
 	lines.push( '\t}', '}', '' );

@@ -30,6 +30,7 @@ const validateUniqueIds = ( model: ArchitectureModel ): void => {
 		...model.externalContexts.map( ( item ) => item.id ),
 		...model.responsibilities.map( ( item ) => item.id ),
 		...model.dependencyViews.map( ( item ) => item.id ),
+		...model.processFlowViews.map( ( item ) => item.id ),
 		...model.runtimeViews.map( ( item ) => item.id ),
 	];
 
@@ -173,6 +174,46 @@ const validateDependencyViews = ( model: ArchitectureModel, elementIds: Set< str
 	} );
 };
 
+const validateProcessFlowViews = ( model: ArchitectureModel, elementIds: Set< string > ): void => {
+	model.processFlowViews.forEach( ( processFlowView ) => {
+		validateStableId( processFlowView.id, 'PV_', 'Process Flow View' );
+		requireValue( processFlowView.name, `Process Flow View ${ processFlowView.id } name` );
+
+		if ( processFlowView.edges.length === 0 ) {
+			throw new Error(
+				`Architecture validation failed: Process Flow View ${ processFlowView.id } requires at least one edge.`
+			);
+		}
+
+		const seenEdges = new Set< string >();
+		processFlowView.edges.forEach( ( edge, index ) => {
+			const item = `Process Flow View ${ processFlowView.id } row ${ index + 1 }`;
+			requireValue( edge.from, `${ item } From` );
+			requireValue( edge.to, `${ item } To` );
+			requireValue( edge.meaning, `${ item } Meaning` );
+
+			if ( ! elementIds.has( edge.from ) ) {
+				throw new Error(
+					`Architecture validation failed: ${ item } From "${ edge.from }" does not reference an External Context or Responsibility ID.`
+				);
+			}
+			if ( ! elementIds.has( edge.to ) ) {
+				throw new Error(
+					`Architecture validation failed: ${ item } To "${ edge.to }" does not reference an External Context or Responsibility ID.`
+				);
+			}
+
+			const key = `${ edge.from }\u0000${ edge.to }`;
+			if ( seenEdges.has( key ) ) {
+				throw new Error(
+					`Architecture validation failed: Process Flow View ${ processFlowView.id } contains duplicate edge ${ edge.from } -> ${ edge.to }.`
+				);
+			}
+			seenEdges.add( key );
+		} );
+	} );
+};
+
 const validateRuntimeViews = ( model: ArchitectureModel, elementIds: Set< string > ): void => {
 	model.runtimeViews.forEach( ( runtimeView ) => {
 		validateStableId( runtimeView.id, 'RV_', 'Runtime View' );
@@ -225,5 +266,6 @@ export const validateArchitectureModel = ( model: ArchitectureModel ): void => {
 	validateResponsibilityDetails( model );
 	validateDependencies( model, elementIds );
 	validateDependencyViews( model, elementIds );
+	validateProcessFlowViews( model, elementIds );
 	validateRuntimeViews( model, elementIds );
 };

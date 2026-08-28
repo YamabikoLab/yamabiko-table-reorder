@@ -132,6 +132,31 @@ workspace "YTR Reorder v1 Architecture" {
 			tags "Structural Dependency"
 		}
 
+		PF_001 = EXT_WORDPRESS_EDITOR -> RESP_INPUT_INTERACTION "WordPress Editor の入力が YTR の共通 Reorder 処理へ入る。" {
+			tags "Process Flow,ProcessFlow_PV_REORDER_END_TO_END"
+		}
+		PF_002 = RESP_INPUT_INTERACTION -> RESP_DND_INTERACTION "入力方式固有の解釈から、共通の DnD 処理へ進む。" {
+			tags "Process Flow,ProcessFlow_PV_REORDER_END_TO_END"
+		}
+		PF_003 = RESP_DND_INTERACTION -> RESP_REORDER_TARGET_RESOLUTION "DnD 開始試行から、移動対象と制約情報の解決へ進む。" {
+			tags "Process Flow,ProcessFlow_PV_REORDER_END_TO_END"
+		}
+		PF_004 = RESP_REORDER_TARGET_RESOLUTION -> RESP_DROP_TARGET_RESOLUTION "解決された移動対象と制約情報を前提に、開始後の移動先判定へ進む。" {
+			tags "Process Flow,ProcessFlow_PV_REORDER_END_TO_END"
+		}
+		PF_005 = RESP_DROP_TARGET_RESOLUTION -> RESP_DATA_UPDATE "有効な移動先で DnD が完了した場合、確定した並び替えの反映へ進む。" {
+			tags "Process Flow,ProcessFlow_PV_REORDER_END_TO_END"
+		}
+		PF_006 = RESP_DATA_UPDATE -> RESP_TABLE_INTEGRATION "確定した並び替えを対象 Table plugin 固有の更新境界へ渡す。" {
+			tags "Process Flow,ProcessFlow_PV_REORDER_END_TO_END"
+		}
+		PF_007 = RESP_TABLE_INTEGRATION -> EXT_CORE_TABLE "Core Table が対象の場合、plugin 固有の方法で Table データへ反映する。" {
+			tags "Process Flow,ProcessFlow_PV_REORDER_END_TO_END"
+		}
+		PF_008 = RESP_TABLE_INTEGRATION -> EXT_FLEXIBLE_TABLE_BLOCK "Flexible Table Block が対象の場合、plugin 固有の方法で Table データへ反映する。" {
+			tags "Process Flow,ProcessFlow_PV_REORDER_END_TO_END"
+		}
+
 		RT_001 = RESP_INPUT_INTERACTION -> RESP_DND_INTERACTION "開始対象を含む DnD 開始試行を渡す。" {
 			tags "Runtime Interaction,Runtime_RV_DND_START_MOVABLE,Runtime_RV_DND_START_IMMOVABLE"
 			properties {
@@ -322,6 +347,13 @@ workspace "YTR Reorder v1 Architecture" {
 			title "Structural Dependencies - Data Update"
 			include RESP_DND_INTERACTION RESP_DATA_UPDATE RESP_TABLE_INTEGRATION EXT_CORE_TABLE EXT_FLEXIBLE_TABLE_BLOCK EXT_WORDPRESS_UNDO
 			exclude "relationship.tag!=Structural Dependency"
+			autoLayout lr
+		}
+
+		custom "PV_REORDER_END_TO_END" {
+			title "Process Flow - Reorder End-to-End"
+			include EXT_WORDPRESS_EDITOR RESP_INPUT_INTERACTION RESP_DND_INTERACTION RESP_REORDER_TARGET_RESOLUTION RESP_DROP_TARGET_RESOLUTION RESP_DATA_UPDATE RESP_TABLE_INTEGRATION EXT_CORE_TABLE EXT_FLEXIBLE_TABLE_BLOCK
+			exclude "relationship.tag!=ProcessFlow_PV_REORDER_END_TO_END"
 			autoLayout lr
 		}
 

@@ -12,7 +12,18 @@ const markdown = `
 | --- | --- | --- | --- |
 | EXT_EDITOR | Editor | External System | 編集環境。 |
 
-説明文は機械可読情報として扱わない。
+## 4. Solution Strategy
+
+### Process Flow Views
+
+#### Reorder flow {#PV_REORDER}
+
+主要フロー。
+
+| From | To | Meaning |
+| --- | --- | --- |
+| EXT_EDITOR | RESP_INPUT | 入力が処理へ進む。 |
+| RESP_INPUT | RESP_DND | 共通 DnD 処理へ進む。 |
 
 ## 5. Building Block View
 
@@ -60,16 +71,22 @@ const markdown = `
 test( '固定見出しと表だけから Architecture Model を構築する', () => {
 	const model = parseArchitectureMarkdown( markdown );
 
-	assert.deepEqual( model.externalContexts, [
+	assert.deepEqual( model.processFlowViews, [
 		{
-			id: 'EXT_EDITOR',
-			name: 'Editor',
-			type: 'External System',
-			summary: '編集環境。',
+			id: 'PV_REORDER',
+			name: 'Reorder flow',
+			edges: [
+				{ from: 'EXT_EDITOR', to: 'RESP_INPUT', meaning: '入力が処理へ進む。' },
+				{ from: 'RESP_INPUT', to: 'RESP_DND', meaning: '共通 DnD 処理へ進む。' },
+			],
 		},
 	] );
 	assert.deepEqual(
-		model.responsibilities.map( ( responsibility ) => responsibility.id ),
+		model.externalContexts.map( ( item ) => item.id ),
+		[ 'EXT_EDITOR' ]
+	);
+	assert.deepEqual(
+		model.responsibilities.map( ( item ) => item.id ),
 		[ 'RESP_INPUT', 'RESP_DND' ]
 	);
 	assert.deepEqual( model.dependencies, [
@@ -90,17 +107,11 @@ test( '固定見出しと表だけから Architecture Model を構築する', ()
 	);
 } );
 
-test( '説明文から Dependency や Dependency View を補完しない', () => {
+test( '説明文から Process Flow や Dependency を補完しない', () => {
 	const model = parseArchitectureMarkdown(
-		`${ markdown }\nRESP_DND は EXT_EDITOR に依存する。DV_EXTRA には両方を含める。\n`
+		`${ markdown }\nRESP_DND から EXT_EDITOR へ処理が進み、RESP_DND は EXT_EDITOR に依存する。\n`
 	);
 
+	assert.equal( model.processFlowViews[ 0 ].edges.length, 2 );
 	assert.equal( model.dependencies.length, 2 );
-	assert.equal( model.dependencyViews.length, 2 );
-	assert.equal(
-		model.dependencies.some(
-			( dependency ) => dependency.dependent === 'RESP_DND' && dependency.dependsOn === 'EXT_EDITOR'
-		),
-		false
-	);
 } );

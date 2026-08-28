@@ -6,6 +6,7 @@ const positiveIntegerPattern = /^\d+$/u;
 
 const expectedHeaders = {
 	externalContext: [ 'ID', 'Name', 'Type', 'Summary' ],
+	processFlow: [ 'From', 'To', 'Meaning' ],
 	responsibilityInventory: [ 'ID', 'Responsibility', 'Summary' ],
 	dependencies: [ 'Dependent', 'Depends on', 'Reason' ],
 	dependencyViews: [ 'ID', 'Name', 'Includes' ],
@@ -16,7 +17,6 @@ const inlineText = ( token: Token ): string => {
 	if ( token.children === null || token.children === undefined ) {
 		return token.content.trim();
 	}
-
 	return token.children
 		.map( ( child ) => {
 			if ( child.type === 'softbreak' || child.type === 'hardbreak' ) {
@@ -32,7 +32,6 @@ const parseTableHeader = ( tokens: Token[], tableStartIndex: number ): string[] 
 	const header: string[] = [];
 	let inHeader = false;
 	let inCell = false;
-
 	for ( let index = tableStartIndex + 1; index < tokens.length; index++ ) {
 		const token = tokens[ index ];
 		if ( token.type === 'thead_open' ) {
@@ -57,7 +56,6 @@ const parseTableHeader = ( tokens: Token[], tableStartIndex: number ): string[] 
 			inCell = false;
 		}
 	}
-
 	return header;
 };
 
@@ -70,7 +68,6 @@ const parseTableColumn = (
 	let inBody = false;
 	let currentColumnIndex = -1;
 	let inCell = false;
-
 	for ( let index = tableStartIndex + 1; index < tokens.length; index++ ) {
 		const token = tokens[ index ];
 		if ( token.type === 'tbody_open' ) {
@@ -100,7 +97,6 @@ const parseTableColumn = (
 			inCell = false;
 		}
 	}
-
 	return values;
 };
 
@@ -126,12 +122,9 @@ const requirePositiveIntegerRuntimeSteps = (
 	tableStartIndex: number,
 	runtimeScenarioId: string
 ): void => {
-	const stepValues = parseTableColumn( tokens, tableStartIndex, 0 );
-
-	stepValues.forEach( ( step ) => {
+	parseTableColumn( tokens, tableStartIndex, 0 ).forEach( ( step ) => {
 		const stepNumber = Number.parseInt( step, 10 );
-		const isPositiveInteger = positiveIntegerPattern.test( step ) && stepNumber > 0;
-		if ( ! isPositiveInteger ) {
+		if ( ! positiveIntegerPattern.test( step ) || stepNumber <= 0 ) {
 			throw new Error(
 				`Architecture validation failed: Runtime View ${ runtimeScenarioId } Step "${ step }" must be a positive integer.`
 			);
@@ -140,10 +133,8 @@ const requirePositiveIntegerRuntimeSteps = (
 };
 
 /**
- * 機械可読 Markdown に必要な見出しと表構造が存在し、定義済みの列を持つことを検証する。
- * 欠落または誤った構造を自然文から補完せず、Architecture Model を構築する前に処理を停止する。
- *
- * @param source Architecture Markdown 全体。
+ * 機械可読 Markdown に必要な見出しと表構造を検証する。
+ * @param source
  */
 export const validateArchitectureMarkdownStructure = ( source: string ): void => {
 	const tokens = markdown.parse( source, {} );
@@ -158,12 +149,15 @@ export const validateArchitectureMarkdownStructure = ( source: string ): void =>
 	let dependencyViewsHeadingTokenIndex: number | null = null;
 	let dependencyViewsInBuildingBlockView = false;
 	let responsibilityDetailsHeading = false;
+	let processFlowViewsHeadingCount = 0;
+	let processFlowViewsInSolutionStrategy = false;
+	const processFlowHeadings = new Set< string >();
+	const processFlowTables = new Set< string >();
 	const runtimeScenarioHeadings = new Set< string >();
 	const runtimeScenarioTables = new Set< string >();
 
 	for ( let index = 0; index < tokens.length; index++ ) {
 		const token = tokens[ index ];
-
 		if ( token.type === 'heading_open' ) {
 			const level = Number.parseInt( token.tag.slice( 1 ), 10 );
 			const headingText = inlineText( tokens[ index + 1 ] );
@@ -179,6 +173,23 @@ export const validateArchitectureMarkdownStructure = ( source: string ): void =>
 				)
 			) {
 				requiredHeadings.add( headingText );
+			}
+			if ( level === 3 && headingText === 'Process Flow Views' ) {
+				processFlowViewsHeadingCount++;
+				processFlowViewsInSolutionStrategy ||= headings.get( 2 ) === '4. Solution Strategy';
+			}
+			if (
+				level === 4 &&
+				headings.get( 2 ) === '4. Solution Strategy' &&
+				headings.get( 3 ) === 'Process Flow Views'
+			) {
+				const match = headingText.match( headingIdPattern );
+				if ( match === null ) {
+					throw new Error(
+						`Architecture validation failed: Process Flow View heading "${ headingText }" requires an embedded process flow ID.`
+					);
+				}
+				processFlowHeadings.add( match[ 2 ] );
 			}
 			if ( level === 3 && headingText === 'Dependency Views' ) {
 				dependencyViewsHeadingCount++;
@@ -208,14 +219,30 @@ export const validateArchitectureMarkdownStructure = ( source: string ): void =>
 		if ( token.type !== 'table_open' ) {
 			continue;
 		}
-
 		const level2 = headings.get( 2 );
 		const level3 = headings.get( 3 );
+		const level4 = headings.get( 4 );
 		const header = parseTableHeader( tokens, index );
 
 		if ( level2 === '3. Context and Scope' && level3 === 'External Context' ) {
 			requireExactHeader( header, expectedHeaders.externalContext, 'External Context' );
 			externalContextTable = true;
+			continue;
+		}
+		if (
+			level2 === '4. Solution Strategy' &&
+			level3 === 'Process Flow Views' &&
+			level4 !== undefined
+		) {
+			const match = level4.match( headingIdPattern );
+			if ( match !== null ) {
+				requireExactHeader(
+					header,
+					expectedHeaders.processFlow,
+					`Process Flow View ${ match[ 2 ] }`
+				);
+				processFlowTables.add( match[ 2 ] );
+			}
 			continue;
 		}
 		if ( level2 === '5. Building Block View' && level3 === 'Responsibility Inventory' ) {
@@ -263,6 +290,23 @@ export const validateArchitectureMarkdownStructure = ( source: string ): void =>
 	if ( ! dependenciesTable ) {
 		throw new Error( 'Architecture validation failed: Dependencies table is missing.' );
 	}
+	if ( processFlowViewsHeadingCount > 1 ) {
+		throw new Error(
+			'Architecture validation failed: Process Flow Views heading may appear at most once.'
+		);
+	}
+	if ( processFlowViewsHeadingCount === 1 && ! processFlowViewsInSolutionStrategy ) {
+		throw new Error(
+			'Architecture validation failed: Process Flow Views must appear under 4. Solution Strategy.'
+		);
+	}
+	processFlowHeadings.forEach( ( id ) => {
+		if ( ! processFlowTables.has( id ) ) {
+			throw new Error(
+				`Architecture validation failed: Process Flow View ${ id } table is missing.`
+			);
+		}
+	} );
 	if ( dependencyViewsHeadingCount > 1 ) {
 		throw new Error(
 			'Architecture validation failed: Dependency Views heading may appear at most once.'
@@ -285,10 +329,9 @@ export const validateArchitectureMarkdownStructure = ( source: string ): void =>
 				'Architecture validation failed: Dependency Views must appear immediately after Dependencies.'
 			);
 		}
-
 		const interveningHeading = tokens
 			.slice( dependenciesHeadingTokenIndex + 3, dependencyViewsHeadingTokenIndex )
-			.some( ( token ) => token.type === 'heading_open' && token.tag === 'h3' );
+			.some( ( item ) => item.type === 'heading_open' && item.tag === 'h3' );
 		if ( interveningHeading ) {
 			throw new Error(
 				'Architecture validation failed: Dependency Views must appear immediately after Dependencies.'
