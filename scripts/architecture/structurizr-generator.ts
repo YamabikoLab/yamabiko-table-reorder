@@ -56,35 +56,14 @@ const generateRuntimeRelationship = ( runtimeView: RuntimeView, stepIndex: numbe
 	];
 };
 
-const dependencyViewRelationshipIds = (
-	view: DependencyView,
-	dependencies: ArchitectureDependency[]
-): string[] => {
-	const included = new Set( view.includes );
-	return dependencies
-		.map( ( dependency, index ) =>
-			included.has( dependency.dependent ) && included.has( dependency.dependsOn )
-				? dependencyIdentifier( index )
-				: null
-		)
-		.filter( ( id ): id is string => id !== null );
-};
-
-const generateDependencyView = (
-	view: DependencyView,
-	dependencies: ArchitectureDependency[]
-): string[] => {
-	const relationshipIds = dependencyViewRelationshipIds( view, dependencies );
-	const includes = [ ...view.includes, ...relationshipIds ].join( ' ' );
-
-	return [
-		`\t\tcustom ${ quoted( view.id ) } {`,
-		`\t\t\ttitle ${ quoted( view.name ) }`,
-		`\t\t\tinclude ${ includes }`,
-		'\t\t\tautoLayout lr',
-		'\t\t}',
-	];
-};
+const generateDependencyView = ( view: DependencyView ): string[] => [
+	`\t\tcustom ${ quoted( view.id ) } {`,
+	`\t\t\ttitle ${ quoted( view.name ) }`,
+	`\t\t\tinclude ${ view.includes.join( ' ' ) }`,
+	'\t\t\texclude "relationship.tag!=Structural Dependency"',
+	'\t\t\tautoLayout lr',
+	'\t\t}',
+];
 
 const runtimeElements = ( runtimeView: RuntimeView ): string[] => {
 	const identifiers: string[] = [];
@@ -110,15 +89,14 @@ const runtimeStepProperty = ( runtimeView: RuntimeView ): string =>
 
 const generateRuntimeView = ( runtimeView: RuntimeView ): string[] => {
 	const elements = runtimeElements( runtimeView );
-	const relationships = runtimeView.steps.map( ( step ) =>
-		runtimeRelationshipIdentifier( runtimeView.id, step.step )
-	);
 	const sequence = runtimeStepProperty( runtimeView );
+	const tag = runtimeTag( runtimeView.id );
 
 	return [
 		`\t\tcustom ${ quoted( runtimeView.id ) } {`,
 		`\t\t\ttitle ${ quoted( runtimeView.name ) }`,
-		`\t\t\tinclude ${ [ ...elements, ...relationships ].join( ' ' ) }`,
+		`\t\t\tinclude ${ elements.join( ' ' ) }`,
+		`\t\t\texclude ${ quoted( `relationship.tag!=${ tag }` ) }`,
 		'\t\t\tproperties {',
 		`\t\t\t\t"runtime.steps" ${ quoted( sequence ) }`,
 		'\t\t\t}',
@@ -183,7 +161,7 @@ export const generateStructurizrDsl = ( model: ArchitectureModel ): string => {
 		if ( index > 0 ) {
 			lines.push( '' );
 		}
-		lines.push( ...generateDependencyView( view, model.dependencies ) );
+		lines.push( ...generateDependencyView( view ) );
 	} );
 
 	model.runtimeViews.forEach( ( runtimeView ) => {
