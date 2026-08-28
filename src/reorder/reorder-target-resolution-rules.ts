@@ -26,10 +26,10 @@ export type ReorderTargetAxis = {
  * 行・列で共通する規則として、有効な論理インデックスを持ち、対象方向の結合セルに含まれない場合だけ
  * Reorder Targetとして成立する。成立時は同じ結合セル一覧からReorder Constraintsを生成する。
  *
- * @param target 開始可能な場合に返すReorder Target候補。
+ * @param target      開始可能な場合に返すReorder Target候補。
  * @param targetIndex 対象方向の0-based論理インデックス。
  * @param mergedCells 対象方向の開始可否と移動先制約に影響する結合セル一覧。
- * @param axis 対象方向の開始位置と占有数を結合セルから取得する規則。
+ * @param axis        対象方向の開始位置と占有数を結合セルから取得する規則。
  * @return 開始可能なReorder TargetとReorder Constraints、または開始できない理由。
  */
 export const resolveTargetWithinScope = (
@@ -74,7 +74,7 @@ const isLogicalIndex = ( index: number ): boolean => Number.isInteger( index ) &
  * 指定位置が結合セルの占有範囲に含まれるか判定する。
  *
  * @param start 結合セルが対象方向で開始する0-based論理インデックス。
- * @param span 結合セルが対象方向に占有する要素数。
+ * @param span  結合セルが対象方向に占有する要素数。
  * @param index 占有範囲に含まれるか確認する0-based論理インデックス。
  * @return 指定位置が結合セルの占有範囲内の場合は`true`。
  */
@@ -85,7 +85,7 @@ const containsIndex = ( start: number, span: number, index: number ): boolean =>
  * 対象方向の結合セルから、移動先として利用できない挿入境界を導出する。
  *
  * @param mergedCells 対象方向の制約として扱う結合セル一覧。
- * @param axis 対象方向の開始位置と占有数を結合セルから取得する規則。
+ * @param axis        対象方向の開始位置と占有数を結合セルから取得する規則。
  * @return 移動先として利用できない挿入境界インデックス一覧。
  */
 const buildBlockedBoundaries = (

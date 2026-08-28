@@ -15,7 +15,7 @@ import type { TableStructure } from '@/reorder/table-integration';
 /**
  * 列DnD開始試行をTable全体のReorder Targetとして判定する。
  *
- * @param request DnD Interactionから渡された列DnD開始試行。
+ * @param request   DnD Interactionから渡された列DnD開始試行。
  * @param structure 要求時点の共通Table構造。
  * @return 列のReorder TargetとReorder Constraints、または開始できない理由。
  */
