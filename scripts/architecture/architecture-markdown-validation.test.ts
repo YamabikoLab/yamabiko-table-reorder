@@ -104,13 +104,15 @@ test( 'Dependency Views の重複見出しを拒否する', () => {
 } );
 
 test( 'Building Block View 外の Dependency Views を拒否する', () => {
-	const markdown = validMarkdown.replace(
-		'### Dependency Views\n\n| ID | Name | Includes |\n| --- | --- | --- |\n| DV_INPUT | Input | EXT_EDITOR RESP_INPUT |\n\n',
-		''
-	).replace(
-		'## 6. Runtime View',
-		'## 8. Crosscutting Concepts\n\n### Dependency Views\n\n| ID | Name | Includes |\n| --- | --- | --- |\n| DV_INPUT | Input | EXT_EDITOR RESP_INPUT |\n\n## 6. Runtime View'
-	);
+	const markdown = validMarkdown
+		.replace(
+			'### Dependency Views\n\n| ID | Name | Includes |\n| --- | --- | --- |\n| DV_INPUT | Input | EXT_EDITOR RESP_INPUT |\n\n',
+			''
+		)
+		.replace(
+			'## 6. Runtime View',
+			'## 8. Crosscutting Concepts\n\n### Dependency Views\n\n| ID | Name | Includes |\n| --- | --- | --- |\n| DV_INPUT | Input | EXT_EDITOR RESP_INPUT |\n\n## 6. Runtime View'
+		);
 
 	assert.throws(
 		() => validateArchitectureMarkdownStructure( markdown ),
