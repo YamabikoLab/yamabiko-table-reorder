@@ -15,6 +15,8 @@ src/
 │   ├── row-reorder/
 │   │   ├── reorder-target-resolution.test.ts
 │   │   └── reorder-target-resolution.ts
+│   ├── drop-target-resolution.test.ts
+│   ├── drop-target-resolution.ts
 │   ├── editor-dom-context.test.ts
 │   ├── editor-dom-context.ts
 │   ├── reorder-mode.test.ts
