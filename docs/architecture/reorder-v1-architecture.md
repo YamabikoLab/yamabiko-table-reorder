@@ -81,6 +81,25 @@ Reorder Presentation は Table データとは分離して移動対象、挿入�
 
 First-use Guidance は初回案内、Reorder Rediscovery は初回案内後の再案内を扱い、いずれも Reorder Mode や DnD の状態を所有しない。
 
+### Process Flow Views
+
+#### Reorder End-to-End {#PV_REORDER_END_TO_END}
+
+WordPress Editor から並び替え入力を受け取り、共通 Reorder 処理で移動対象と移動先を解決し、確定した並び替えを対象 Table へ反映するまでの主要な処理進行を示す。
+
+| From | To | Meaning |
+| --- | --- | --- |
+| EXT_WORDPRESS_EDITOR | RESP_INPUT_INTERACTION | WordPress Editor の入力が YTR の共通 Reorder 処理へ入る。 |
+| RESP_INPUT_INTERACTION | RESP_DND_INTERACTION | 入力方式固有の解釈から、共通の DnD 処理へ進む。 |
+| RESP_DND_INTERACTION | RESP_REORDER_TARGET_RESOLUTION | DnD 開始試行から、移動対象と制約情報の解決へ進む。 |
+| RESP_REORDER_TARGET_RESOLUTION | RESP_DROP_TARGET_RESOLUTION | 解決された移動対象と制約情報を前提に、開始後の移動先判定へ進む。 |
+| RESP_DROP_TARGET_RESOLUTION | RESP_DATA_UPDATE | 有効な移動先で DnD が完了した場合、確定した並び替えの反映へ進む。 |
+| RESP_DATA_UPDATE | RESP_TABLE_INTEGRATION | 確定した並び替えを対象 Table plugin 固有の更新境界へ渡す。 |
+| RESP_TABLE_INTEGRATION | EXT_CORE_TABLE | Core Table が対象の場合、plugin 固有の方法で Table データへ反映する。 |
+| RESP_TABLE_INTEGRATION | EXT_FLEXIBLE_TABLE_BLOCK | Flexible Table Block が対象の場合、plugin 固有の方法で Table データへ反映する。 |
+
+この View は主要な処理の進行方向だけを示し、補助的な責務や Runtime Interaction の往復は表さない。
+
 ## 5. Building Block View
 
 ### Responsibility Inventory
