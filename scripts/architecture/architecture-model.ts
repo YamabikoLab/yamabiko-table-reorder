@@ -25,7 +25,7 @@ export type DependencyView = {
 	includes: string[];
 };
 
-export type ProcessFlowEdge = {
+type ProcessFlowEdge = {
 	from: string;
 	to: string;
 	meaning: string;
