@@ -163,11 +163,6 @@ const validateDependencyViews = ( model: ArchitectureModel, elementIds: Set< str
 	model.dependencyViews.forEach( ( view ) => {
 		validateStableId( view.id, 'DV_', 'Dependency View' );
 		requireValue( view.name, `Dependency View ${ view.id } Name` );
-		if ( view.includes.length === 0 ) {
-			throw new Error(
-				`Architecture validation failed: Dependency View ${ view.id} Includes requires at least one ID.`
-			);
-		}
 		view.includes.forEach( ( id ) => {
 			if ( ! elementIds.has( id ) ) {
 				throw new Error(
