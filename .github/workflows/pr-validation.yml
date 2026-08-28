@@ -8,6 +8,11 @@ on:
         required: true
         type: boolean
         default: false
+      run_knip:
+        description: 'Run Knip'
+        required: true
+        type: boolean
+        default: true
 
 permissions:
   contents: read
@@ -57,7 +62,12 @@ jobs:
         run: npm test
 
       - name: Run Knip
+        if: ${{ inputs.run_knip }}
         run: npm run knip
+
+      - name: Skip Knip
+        if: ${{ !inputs.run_knip }}
+        run: echo "::notice::Knip was intentionally skipped for this PR Validation run."
 
       - name: Build
         run: npm run build
