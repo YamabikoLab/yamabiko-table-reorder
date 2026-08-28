@@ -25,6 +25,18 @@ export type DependencyView = {
 	includes: string[];
 };
 
+export type ProcessFlowEdge = {
+	from: string;
+	to: string;
+	meaning: string;
+};
+
+export type ProcessFlowView = {
+	id: string;
+	name: string;
+	edges: ProcessFlowEdge[];
+};
+
 type ResponsibilityDetail = {
 	id: string | null;
 	name: string;
@@ -48,6 +60,7 @@ export type ArchitectureModel = {
 	responsibilities: Responsibility[];
 	dependencies: ArchitectureDependency[];
 	dependencyViews: DependencyView[];
+	processFlowViews: ProcessFlowView[];
 	responsibilityDetails: ResponsibilityDetail[];
 	runtimeViews: RuntimeView[];
 };
@@ -68,6 +81,7 @@ const headingIdPattern = /^(.*?)\s+\{#([A-Za-z][A-Za-z0-9_]*)\}\s*$/u;
 
 const machineReadableTables = {
 	externalContext: [ 'ID', 'Name', 'Type', 'Summary' ],
+	processFlow: [ 'From', 'To', 'Meaning' ],
 	responsibilityInventory: [ 'ID', 'Responsibility', 'Summary' ],
 	dependencies: [ 'Dependent', 'Depends on', 'Reason' ],
 	dependencyViews: [ 'ID', 'Name', 'Includes' ],
@@ -179,6 +193,7 @@ export const parseArchitectureMarkdown = ( source: string ): ArchitectureModel =
 		responsibilities: [],
 		dependencies: [],
 		dependencyViews: [],
+		processFlowViews: [],
 		responsibilityDetails: [],
 		runtimeViews: [],
 	};
@@ -217,6 +232,7 @@ export const parseArchitectureMarkdown = ( source: string ): ArchitectureModel =
 		index = table.endIndex;
 		const level2 = headings.get( 2 )?.title;
 		const level3 = headings.get( 3 );
+		const level4 = headings.get( 4 );
 
 		if (
 			level2 === '3. Context and Scope' &&
@@ -229,6 +245,25 @@ export const parseArchitectureMarkdown = ( source: string ): ArchitectureModel =
 				type: row.Type,
 				summary: row.Summary,
 			} ) );
+			continue;
+		}
+
+		if (
+			level2 === '4. Solution Strategy' &&
+			level3?.title === 'Process Flow Views' &&
+			level4?.id !== null &&
+			level4?.id !== undefined &&
+			hasExactHeader( table, machineReadableTables.processFlow )
+		) {
+			model.processFlowViews.push( {
+				id: level4.id,
+				name: level4.title,
+				edges: rowsAsRecords( table ).map( ( row ) => ( {
+					from: row.From,
+					to: row.To,
+					meaning: row.Meaning,
+				} ) ),
+			} );
 			continue;
 		}
 
