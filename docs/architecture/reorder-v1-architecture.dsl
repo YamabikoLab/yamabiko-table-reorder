@@ -284,49 +284,49 @@ workspace "YTR Reorder v1 Architecture" {
 
 	views {
 		custom "DV_RESPONSIBILITY" {
-			title "Responsibility View"
+			title "Structural Dependencies - Responsibility View"
 			include EXT_WORDPRESS_EDITOR EXT_CORE_TABLE EXT_FLEXIBLE_TABLE_BLOCK EXT_WORDPRESS_UNDO EXT_SCROLL_AREA RESP_REORDER_MODE RESP_FIRST_USE_GUIDANCE RESP_REORDER_REDISCOVERY RESP_EDITOR_DOM_CONTEXT RESP_TABLE_INTEGRATION RESP_INPUT_INTERACTION RESP_DND_INTERACTION RESP_REORDER_TARGET_RESOLUTION RESP_DROP_TARGET_RESOLUTION RESP_REORDER_PRESENTATION RESP_AUTO_SCROLL RESP_DATA_UPDATE
 			exclude "relationship.tag!=Structural Dependency"
 			autoLayout lr
 		}
 
 		custom "DV_EDITOR_INTERACTION" {
-			title "Editor Interaction"
+			title "Structural Dependencies - Editor Interaction"
 			include EXT_WORDPRESS_EDITOR RESP_EDITOR_DOM_CONTEXT RESP_FIRST_USE_GUIDANCE RESP_REORDER_REDISCOVERY RESP_INPUT_INTERACTION RESP_REORDER_MODE
 			exclude "relationship.tag!=Structural Dependency"
 			autoLayout lr
 		}
 
 		custom "DV_DND_CORE" {
-			title "DnD Core"
+			title "Structural Dependencies - DnD Core"
 			include RESP_REORDER_MODE RESP_DND_INTERACTION RESP_REORDER_TARGET_RESOLUTION RESP_DROP_TARGET_RESOLUTION RESP_DATA_UPDATE RESP_TABLE_INTEGRATION
 			exclude "relationship.tag!=Structural Dependency"
 			autoLayout lr
 		}
 
 		custom "DV_TABLE_STRUCTURE" {
-			title "Table Structure"
+			title "Structural Dependencies - Table Structure"
 			include EXT_CORE_TABLE EXT_FLEXIBLE_TABLE_BLOCK RESP_TABLE_INTEGRATION RESP_REORDER_TARGET_RESOLUTION
 			exclude "relationship.tag!=Structural Dependency"
 			autoLayout lr
 		}
 
 		custom "DV_DND_FEEDBACK" {
-			title "DnD Feedback"
+			title "Structural Dependencies - DnD Feedback"
 			include RESP_DND_INTERACTION RESP_REORDER_MODE RESP_REORDER_PRESENTATION RESP_AUTO_SCROLL RESP_EDITOR_DOM_CONTEXT EXT_SCROLL_AREA
 			exclude "relationship.tag!=Structural Dependency"
 			autoLayout lr
 		}
 
 		custom "DV_DATA_UPDATE" {
-			title "Data Update"
+			title "Structural Dependencies - Data Update"
 			include RESP_DND_INTERACTION RESP_DATA_UPDATE RESP_TABLE_INTEGRATION EXT_CORE_TABLE EXT_FLEXIBLE_TABLE_BLOCK EXT_WORDPRESS_UNDO
 			exclude "relationship.tag!=Structural Dependency"
 			autoLayout lr
 		}
 
 		custom "RV_DND_START_MOVABLE" {
-			title "DnD start with movable target"
+			title "Runtime - DnD start with movable target"
 			include RESP_INPUT_INTERACTION RESP_DND_INTERACTION RESP_REORDER_MODE RESP_REORDER_TARGET_RESOLUTION RESP_TABLE_INTEGRATION RESP_REORDER_PRESENTATION RESP_AUTO_SCROLL
 			exclude "relationship.tag!=Runtime_RV_DND_START_MOVABLE"
 			properties {
@@ -336,7 +336,7 @@ workspace "YTR Reorder v1 Architecture" {
 		}
 
 		custom "RV_DND_START_IMMOVABLE" {
-			title "DnD start with immovable target"
+			title "Runtime - DnD start with immovable target"
 			include RESP_INPUT_INTERACTION RESP_DND_INTERACTION RESP_REORDER_MODE RESP_REORDER_TARGET_RESOLUTION RESP_TABLE_INTEGRATION RESP_REORDER_PRESENTATION
 			exclude "relationship.tag!=Runtime_RV_DND_START_IMMOVABLE"
 			properties {
@@ -346,7 +346,7 @@ workspace "YTR Reorder v1 Architecture" {
 		}
 
 		custom "RV_DND_PROGRESS" {
-			title "DnD progress"
+			title "Runtime - DnD progress"
 			include RESP_INPUT_INTERACTION RESP_DND_INTERACTION RESP_DROP_TARGET_RESOLUTION RESP_REORDER_PRESENTATION RESP_AUTO_SCROLL EXT_SCROLL_AREA
 			exclude "relationship.tag!=Runtime_RV_DND_PROGRESS"
 			properties {
@@ -356,7 +356,7 @@ workspace "YTR Reorder v1 Architecture" {
 		}
 
 		custom "RV_DND_COMMIT_CORE_TABLE" {
-			title "DnD commit to Core Table"
+			title "Runtime - DnD commit to Core Table"
 			include RESP_INPUT_INTERACTION RESP_DND_INTERACTION RESP_DATA_UPDATE RESP_TABLE_INTEGRATION EXT_CORE_TABLE EXT_WORDPRESS_UNDO RESP_REORDER_PRESENTATION
 			exclude "relationship.tag!=Runtime_RV_DND_COMMIT_CORE_TABLE"
 			properties {
@@ -366,7 +366,7 @@ workspace "YTR Reorder v1 Architecture" {
 		}
 
 		custom "RV_DND_COMMIT_FLEXIBLE_TABLE_BLOCK" {
-			title "DnD commit to Flexible Table Block"
+			title "Runtime - DnD commit to Flexible Table Block"
 			include RESP_INPUT_INTERACTION RESP_DND_INTERACTION RESP_DATA_UPDATE RESP_TABLE_INTEGRATION EXT_FLEXIBLE_TABLE_BLOCK EXT_WORDPRESS_UNDO RESP_REORDER_PRESENTATION
 			exclude "relationship.tag!=Runtime_RV_DND_COMMIT_FLEXIBLE_TABLE_BLOCK"
 			properties {
@@ -376,7 +376,7 @@ workspace "YTR Reorder v1 Architecture" {
 		}
 
 		custom "RV_DND_CANCEL" {
-			title "DnD cancel"
+			title "Runtime - DnD cancel"
 			include RESP_INPUT_INTERACTION RESP_DND_INTERACTION RESP_REORDER_PRESENTATION
 			exclude "relationship.tag!=Runtime_RV_DND_CANCEL"
 			properties {
