@@ -43,7 +43,7 @@ Use the sections as follows:
 - **Introduction and Goals**: Describe the purpose, scope, architecture goals, and important stakeholders or readers.
 - **Architecture Constraints**: Record architecture-wide constraints that materially limit the solution space.
 - **Context and Scope**: Define the YTR system boundary and the external systems, platforms, blocks, or environments that interact with it.
-- **Solution Strategy**: Summarize the principal architecture choices that shape the responsibility model without describing implementation steps.
+- **Solution Strategy**: Summarize the principal architecture choices that shape the responsibility model without describing implementation steps. Use Process Flow Views here when a major end-to-end flow is needed to explain how processing progresses across architecture elements.
 - **Building Block View**: Define YTR architectural responsibilities, their stable IDs, structural dependencies, optional dependency views, state ownership, contracts, lifecycle, and invariants.
 - **Runtime View**: Describe important runtime scenarios as ordered interactions between identified architecture elements.
 - **Deployment View**: Describe deployment structure only when deployment topology is architecturally relevant.
@@ -59,11 +59,13 @@ Do not force existing architecture information into an arc42 section if doing so
 
 Architecture documents contain both human-readable design information and machine-readable architecture data.
 
-The machine-readable source is limited to the fixed headings and tables defined in this file. A parser or generator must not infer architecture elements, structural dependencies, dependency views, runtime interactions, IDs, or references from explanatory prose.
+The machine-readable source is limited to the fixed headings and tables defined in this file. A parser or generator must not infer architecture elements, structural dependencies, dependency views, process flows, runtime interactions, IDs, or references from explanatory prose.
 
 The following structures are machine-readable:
 
 - External Context table under `## 3. Context and Scope`.
+- Process Flow View headings under `## 4. Solution Strategy`; the view name and embedded Process Flow View ID are machine-readable.
+- Process Flow View tables under `## 4. Solution Strategy`.
 - Responsibility Inventory table under `## 5. Building Block View`.
 - Dependencies table under `## 5. Building Block View`.
 - Dependency Views table under `## 5. Building Block View`, when present.
@@ -89,6 +91,7 @@ IDs are required for:
 - External context elements.
 - Architectural responsibilities.
 - Dependency Views.
+- Process Flow Views.
 - Runtime scenarios.
 
 IDs must:
@@ -104,6 +107,7 @@ Use these prefixes:
 - External context: `EXT_`
 - Responsibility: `RESP_`
 - Dependency View: `DV_`
+- Process Flow View: `PV_`
 - Runtime scenario: `RV_`
 
 Examples:
@@ -113,6 +117,7 @@ Examples:
 - `RESP_DND_INTERACTION`
 - `RESP_DATA_UPDATE`
 - `DV_DND_CORE`
+- `PV_REORDER_END_TO_END`
 - `RV_DND_START`
 
 Do not reuse a removed ID for a different architecture concept.
@@ -132,6 +137,59 @@ Rules:
 - `Type` classifies the external element without introducing implementation detail.
 - `Summary` briefly states why the element is relevant to the YTR boundary.
 - Structural Dependencies involving external elements are not inferred from this table. Define them explicitly in the Dependencies table.
+
+## Solution Strategy
+
+Use `## 4. Solution Strategy` for major architecture choices and for Process Flow Views that make the principal end-to-end processing direction understandable across architecture elements.
+
+### Process Flow Views
+
+When Process Flow Views are present, group them under exactly one child heading named `### Process Flow Views` within `## 4. Solution Strategy`.
+
+Each Process Flow View must use this heading form:
+
+`#### <Process Flow View name> {#<Process Flow View ID>}`
+
+Example:
+
+`#### Reorder End-to-End {#PV_REORDER_END_TO_END}`
+
+The Process Flow View name and embedded ID in this heading are machine-readable and identify the flow represented by the table below it.
+
+Immediately below the heading, include a short human-readable purpose or flow description, followed by a table with this exact structure:
+
+| From | To | Meaning |
+| --- | --- | --- |
+| EXT_WORDPRESS_EDITOR | RESP_INPUT_INTERACTION | Reorder processing enters YTR from editor input. |
+| RESP_INPUT_INTERACTION | RESP_DND_INTERACTION | Input processing proceeds into common DnD processing. |
+
+`A → B` means that processing progresses from A toward B at the architecture level.
+
+Rules:
+
+- A Process Flow View represents a major end-to-end flow, not an exhaustive listing of every responsibility or interaction.
+- `From` and `To` must contain stable IDs defined in the External Context or Responsibility Inventory tables.
+- `Meaning` briefly states what architecture-level processing progression the edge represents.
+- The `From + To` pair must be unique within one Process Flow View. Duplicate pairs are invalid and must be rejected by validation.
+- Process Flow rows do not have a `Step` column. Table row order does not define runtime sequence.
+- Process Flow direction represents progression of processing. It does not represent Structural Dependency direction or Runtime Interaction direction.
+- Process Flow Views do not define new responsibilities, external context elements, Structural Dependencies, or Runtime Interactions.
+- Do not infer Process Flow edges from Dependencies, Dependency Views, Runtime View, Responsibility Details, prose, names, or table order.
+- Do not infer Structural Dependencies or Runtime Interactions from Process Flow Views.
+- A generator must use only Process Flow edges explicitly defined in the Process Flow View table.
+
+Process Flow View, Dependency View, and Runtime View describe different architecture meanings:
+
+```text
+Dependency View:
+A → B = A requires B to fulfill A's responsibility
+
+Process Flow View:
+A → B = processing progresses from A toward B
+
+Runtime View:
+A → B = A interacts with B at runtime in a specific scenario
+```
 
 ## Building Block View
 
@@ -261,7 +319,7 @@ Runtime View:
 A → B = A interacts with B at runtime
 ```
 
-A Runtime View step does not have to use the same direction as a Structural Dependency. Do not infer a Structural Dependency from Runtime View, and do not infer Runtime Interaction from Dependencies.
+A Runtime View step does not have to use the same direction as a Structural Dependency or Process Flow edge. Do not infer a Structural Dependency or Process Flow edge from Runtime View, and do not infer Runtime Interaction from Dependencies or Process Flow Views.
 
 Each runtime scenario must use this heading form:
 
@@ -287,9 +345,9 @@ Rules:
 - `Source` and `Target` must contain stable IDs defined in the External Context or Responsibility Inventory tables.
 - `Interaction` states what architecture-level request, event, command, result notification, or control meaning crosses the boundary in that step.
 - Runtime order comes only from the `Step` column. Do not infer order from prose or table position when the Step value says otherwise.
-- Runtime steps are independent from Structural Dependency direction and do not need a same-direction entry in the Dependencies table.
-- Runtime scenarios do not define new responsibilities, external context elements, or Structural Dependencies.
-- Do not infer missing Runtime Interaction from the Dependencies table.
+- Runtime steps are independent from Structural Dependency direction and Process Flow direction and do not need a same-direction entry in either source.
+- Runtime scenarios do not define new responsibilities, external context elements, Structural Dependencies, or Process Flow edges.
+- Do not infer missing Runtime Interaction from the Dependencies table or Process Flow Views.
 - Record architecture-significant requests, events, commands, and other interactions. Omit a simple reply or return by default when it adds no architecture meaning.
 - A result notification may be included when the notification itself is important to understanding the architecture.
 - Do not use source-code calls, handlers, DOM procedures, or implementation sequencing as runtime steps.
@@ -332,13 +390,16 @@ Any parser, validator, or generator that consumes architecture Markdown must fol
 - Reject missing, duplicate, malformed, or unresolved IDs rather than guessing their intended target.
 - Reject malformed required table structures rather than recovering architecture information from surrounding prose.
 - Reject duplicate `Dependent + Depends on` pairs in the Dependencies table.
+- If `### Process Flow Views` is present, allow the heading at most once under `## 4. Solution Strategy`, parse Process Flow Views only from `#### <name> {#PV_*}` headings and their fixed `From | To | Meaning` tables, and require every `From` and `To` ID to resolve to an External Context or Responsibility Inventory entry.
+- Require Process Flow View IDs to be unique and reject duplicate `From + To` pairs within a Process Flow View.
 - If `### Dependency Views` is present, require it to appear immediately after `### Dependencies`, allow the heading at most once, and parse multiple views only from rows of its fixed table.
 - Require Dependency View IDs to be unique and require every `Includes` ID to resolve to an External Context or Responsibility Inventory entry.
 - Do not use natural-language interpretation, AI inference, fuzzy matching, responsibility names, heading similarity, or prose analysis to supplement missing machine-readable information.
-- Do not infer Structural Dependencies from Runtime View, Contract, Responsibility Details, or prose.
-- Do not infer Runtime Interaction from Dependencies.
-- Do not infer Dependency View membership from Dependencies, Runtime View, prose, or names.
-- Given the same valid Markdown input, parsing must produce the same architecture elements, Structural Dependencies, Dependency Views, and Runtime Interactions.
+- Do not infer Structural Dependencies from Process Flow Views, Runtime View, Contract, Responsibility Details, or prose.
+- Do not infer Process Flow edges from Dependencies, Dependency Views, Runtime View, Responsibility Details, prose, or names.
+- Do not infer Runtime Interaction from Dependencies or Process Flow Views.
+- Do not infer Dependency View membership from Dependencies, Process Flow Views, Runtime View, prose, or names.
+- Given the same valid Markdown input, parsing must produce the same architecture elements, Structural Dependencies, Dependency Views, Process Flow Views, and Runtime Interactions.
 
 ## Example
 
@@ -353,6 +414,19 @@ Good:
 | --- | --- | --- | --- |
 | EXT_WORDPRESS_EDITOR | WordPress Editor | External System | Provides the editing environment in which YTR operates. |
 
+## 4. Solution Strategy
+
+### Process Flow Views
+
+#### Reorder End-to-End {#PV_REORDER_END_TO_END}
+
+Show the major processing direction from editor input into reorder processing.
+
+| From | To | Meaning |
+| --- | --- | --- |
+| EXT_WORDPRESS_EDITOR | RESP_DND_INTERACTION | Reorder processing progresses from the editor into DnD coordination. |
+| RESP_DND_INTERACTION | RESP_DATA_UPDATE | A confirmed reorder progresses to data update. |
+
 ## 5. Building Block View
 
 ### Responsibility Inventory
@@ -362,6 +436,7 @@ Good:
 | RESP_DND_INTERACTION | DnD Interaction | Manages DnD start eligibility and interaction progress through completion. |
 | RESP_REORDER_MODE | Reorder Mode | Owns the current edit, row-reorder, or column-reorder mode. |
 | RESP_REORDER_TARGET_RESOLUTION | Reorder Target Resolution | Determines whether the attempted start target can become the moving row or column. |
+| RESP_DATA_UPDATE | Data Update | Applies a committed reorder request to Table data. |
 
 ### Dependencies
 
@@ -412,8 +487,8 @@ Describe the collaboration that either starts DnD with a movable target or rejec
 | 2 | RESP_REORDER_TARGET_RESOLUTION | RESP_DND_INTERACTION | Notifies DnD Interaction when the target cannot be used and why. |
 ```
 
-The second runtime step may point opposite to the Structural Dependency. Runtime direction represents interaction direction, not dependency direction.
+The Process Flow rows describe overall processing direction without defining runtime order. The second runtime step may point opposite to the Structural Dependency. Runtime direction represents interaction direction, not dependency or Process Flow direction.
 
 Bad:
 
-> `drag-controller.ts` calls `resolveTarget()` from `handlePointerDown()`, so the generator should infer a Structural Dependency and add both runtime directions automatically.
+> `drag-controller.ts` calls `resolveTarget()` from `handlePointerDown()`, so the generator should infer a Structural Dependency, a Process Flow edge, and both runtime directions automatically.
