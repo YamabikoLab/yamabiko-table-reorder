@@ -31,7 +31,7 @@ workspace "YTR Reorder v1 Architecture" {
 		RESP_EDITOR_DOM_CONTEXT = element "Editor DOM Context" "Responsibility" "現在の editor context に属する基準から、その時点で利用すべき DOM / Web API context を解決し、必要とする責務へ提供する。" {
 			tags "Responsibility"
 		}
-		RESP_TABLE_INTEGRATION = element "Table Repository" "Responsibility" "外部 Table plugin と Reorder core の境界を担い、Table plugin 固有の Table 構造取得およびデータ更新方法を Reorder core から隠蔽する。" {
+		RESP_TABLE_INTEGRATION = element "Table Integration" "Responsibility" "外部 Table plugin と Reorder core の境界を担い、Table plugin 固有の Table 構造取得およびデータ更新方法を Reorder core から隠蔽する。" {
 			tags "Responsibility"
 		}
 		RESP_INPUT_INTERACTION = element "Input Interaction" "Responsibility" "PC とタッチ端末の入力固有の差を共通の DnD 進行から分離し、開始試行・進行・完了・キャンセルとして DnD Interaction へ渡す境界を担う。" {
