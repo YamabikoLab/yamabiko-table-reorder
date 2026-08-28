@@ -79,22 +79,26 @@ const isRecord = ( value: unknown ): value is Record< string, unknown > =>
  * @param section plugin固有のTable section表現。
  */
 const parseSectionRows = ( section: unknown ): readonly TableRow[] | null => {
+	// headやfootを持たないTableもあるため、未定義sectionは空sectionとして扱う。
 	if ( section === undefined ) {
 		return [];
 	}
 
+	// sectionが行配列でなければ共通Table structureへ安全に適応できない。
 	if ( ! Array.isArray( section ) ) {
 		return null;
 	}
 
 	const rows: TableRow[] = [];
 	for ( const row of section ) {
+		// 行構造が不完全な場合は部分的なTable structureを返さない。
 		if ( ! isRecord( row ) || ! Array.isArray( row.cells ) ) {
 			return null;
 		}
 
 		const cells: Record< string, unknown >[] = [];
 		for ( const cell of row.cells ) {
+			// cell構造が不完全な場合もsection全体を変換不能として扱う。
 			if ( ! isRecord( cell ) ) {
 				return null;
 			}
@@ -116,10 +120,13 @@ const parseSectionRows = ( section: unknown ): readonly TableRow[] | null => {
  */
 const parseSpan = ( cell: Record< string, unknown >, property: string ): number | null => {
 	const span = cell[ property ];
+
+	// span指定がなければ、HTML Tableと同じく1セル分を占有する通常セルとして扱う。
 	if ( span === undefined ) {
 		return 1;
 	}
 
+	// plugin由来のspan値は数値または数値文字列だけを受け入れる。
 	if ( typeof span !== 'number' && typeof span !== 'string' ) {
 		return null;
 	}
@@ -147,12 +154,14 @@ const findColumnStart = (
 	while ( true ) {
 		let isAvailable = true;
 		for ( let column = candidate; column < candidate + columnSpan; column++ ) {
+			// 先行するrowSpanが候補列を占有している間は、その位置からcellを開始できない。
 			if ( ( occupiedUntilRow[ column ] ?? 0 ) > rowStart ) {
 				isAvailable = false;
 				break;
 			}
 		}
 
+		// columnSpan全体が空いていれば、その候補列がlogical Table grid上の開始列になる。
 		if ( isAvailable ) {
 			return candidate;
 		}
@@ -183,10 +192,13 @@ const buildSectionMergedCells = (
 		for ( const cell of row.cells ) {
 			const declaredRowSpan = parseSpan( cell, spanProperties.rowSpan );
 			const columnSpan = parseSpan( cell, spanProperties.columnSpan );
+
+			// span値を正規化できないcellを含む場合は、不完全なTable structureを返さない。
 			if ( declaredRowSpan === null || columnSpan === null ) {
 				return null;
 			}
 
+			// section末尾を越えるrowSpanは存在する行数までに制限してlogical gridを構築する。
 			const rowSpan = Math.min( declaredRowSpan, rows.length - rowStart );
 			const columnStart = findColumnStart( occupiedUntilRow, rowStart, minimumColumn, columnSpan );
 
@@ -197,6 +209,7 @@ const buildSectionMergedCells = (
 				);
 			}
 
+			// 共通Table structureは通常セルを保持せず、結合セルだけを保持する。
 			if ( rowSpan > 1 || columnSpan > 1 ) {
 				mergedCells.push( {
 					section,
@@ -225,6 +238,7 @@ const buildTableStructure = (
 	attributes: unknown,
 	spanProperties: SpanProperties
 ): TableStructure | null => {
+	// attributesをTable sectionとして参照できない場合は、共通構造を生成しない。
 	if ( ! isRecord( attributes ) ) {
 		return null;
 	}
@@ -232,11 +246,15 @@ const buildTableStructure = (
 	const mergedCells: TableMergedCellStructure[] = [];
 	for ( const section of TABLE_SECTIONS ) {
 		const rows = parseSectionRows( attributes[ section ] );
+
+		// いずれかのsectionを解釈できなければ、部分的なTable structureを返さない。
 		if ( rows === null ) {
 			return null;
 		}
 
 		const sectionMergedCells = buildSectionMergedCells( section, rows, spanProperties );
+
+		// いずれかのsectionでlogical gridを復元できなければ、Table全体を変換不能とする。
 		if ( sectionMergedCells === null ) {
 			return null;
 		}
@@ -285,11 +303,15 @@ export const createTableIntegration = (
 ): TableIntegration => ( {
 	getStructure: ( clientId ) => {
 		const block = blockEditorStore.getBlock( clientId );
+
+		// clientIdに対応するcurrent blockを取得できなければ、対象Tableを解決できない。
 		if ( ! block ) {
 			return null;
 		}
 
 		const integration = TABLE_INTEGRATIONS[ block.name ];
+
+		// block.nameに対応するIntegrationがなければ、非対応Tableとして扱う。
 		if ( ! integration ) {
 			return null;
 		}
