@@ -170,12 +170,7 @@ const buildSectionMergedCells = (
 			}
 
 			const rowSpan = Math.min( declaredRowSpan, rows.length - rowStart );
-			const columnStart = findColumnStart(
-				occupiedUntilRow,
-				rowStart,
-				minimumColumn,
-				columnSpan
-			);
+			const columnStart = findColumnStart( occupiedUntilRow, rowStart, minimumColumn, columnSpan );
 
 			for ( let column = columnStart; column < columnStart + columnSpan; column++ ) {
 				occupiedUntilRow[ column ] = Math.max(

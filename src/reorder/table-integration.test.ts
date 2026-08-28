@@ -21,19 +21,12 @@ describe( 'Table Integration', () => {
 			attributes: {
 				head: [
 					{
-						cells: [
-							{ content: 'A', colspan: 2 },
-							{ content: 'B' },
-						],
+						cells: [ { content: 'A', colspan: 2 }, { content: 'B' } ],
 					},
 				],
 				body: [
 					{
-						cells: [
-							{ content: 'C' },
-							{ content: 'D', rowspan: 2 },
-							{ content: 'E' },
-						],
+						cells: [ { content: 'C' }, { content: 'D', rowspan: 2 }, { content: 'E' } ],
 					},
 					{
 						cells: [ { content: 'F' }, { content: 'G' } ],
@@ -91,16 +84,10 @@ describe( 'Table Integration', () => {
 				attributes: {
 					body: [
 						{
-							cells: [
-								{ content: 'A', rowSpan: 2 },
-								{ content: 'B' },
-								{ content: 'C' },
-							],
+							cells: [ { content: 'A', rowSpan: 2 }, { content: 'B' }, { content: 'C' } ],
 						},
 						{
-							cells: [
-								{ content: 'D', colSpan: 2 },
-							],
+							cells: [ { content: 'D', colSpan: 2 } ],
 						},
 					],
 				},
