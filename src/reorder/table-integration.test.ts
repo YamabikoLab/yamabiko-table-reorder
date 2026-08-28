@@ -343,8 +343,10 @@ describe( 'Table Integration', () => {
 	 */
 	it( 'when any span value is invalid, should reject the entire structure without partial results', () => {
 		const invalidSpans: readonly unknown[] = [ 0, -1, 1.5, 'invalid', {} ];
+		let invalidSpanIndex = 0;
 		const getBlock = jest.fn( () => {
-			const rowspan = invalidSpans[ getBlock.mock.calls.length - 1 ];
+			const rowspan = invalidSpans[ invalidSpanIndex ];
+			invalidSpanIndex++;
 			return {
 				name: 'core/table',
 				attributes: {
