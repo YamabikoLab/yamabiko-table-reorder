@@ -1,48 +1,30 @@
 /**
- * Table Integrationの構造取得境界を実装する。
+ * Table plugin固有のデータ構造を、Reorder coreが利用する共通Table構造へ変換する境界を提供する。
  *
- * このファイルは、WordPress Core TableとFlexible Table Blockが持つplugin固有のTableデータを、
- * Reorder coreが共通して利用できるTable構造へ変換する責務を担当する。Reorder coreはこの境界を
- * 利用することで、対象Table pluginごとのattributes構造、section表現、span property名の違いを
- * 意識せず、同じ共通Table構造だけを扱える。
+ * 対応Tableから要求時点のデータを取得し、`head`、`body`、`foot`の区画と結合セルの位置・範囲を
+ * 共通表現へ変換する。Reorder coreはこの境界を通じて、対象Tableごとの属性構造や結合セル表現の違いを
+ * 意識せずにTable構造を利用できる。
  *
- * 構造取得では、対象Table個体を`clientId`で特定し、要求のたびにBlock Editor storeからcurrent
- * blockを取得し直す。取得した`block.name`でTable種類を判定し、Core TableまたはFlexible Table
- * Blockに対応するIntegrationを選択する。選択されたIntegrationがplugin固有attributesを
- * plugin非依存のsection、row、cell表現へ正規化し、その後の共通処理がrowSpanとcolumnSpanを
- * 考慮したlogical Table gridを復元する。共通Table構造には、並び替え制約の判断に必要な
- * 結合セルの位置と範囲だけを保持し、通常セルの内容や装飾は保持しない。
- *
- * 対象blockが存在しない場合、非対応Tableの場合、またはplugin固有データを安全に共通構造へ変換できない
- * 場合は`null`を返し、読み取れた部分だけから不完全なTable構造を作らない。headとfootは任意だが、
- * bodyはTable本体として必須とし、欠落している場合は変換不能として扱う。
- *
- * Table Integrationは状態を所有しない。取得したblock、attributes、共通Table構造を後続要求へ持ち越さず、
- * Tableの追加・削除・構造変更も監視しない。また、Reorder固有の移動対象判定、制約情報の導出、移動先判定、
- * DnD状態、Reorder Sessionは担当しない。
- *
- * このファイルでは要求時点の共通Table構造を提供する構造取得側を実装する。確定した並び替えを対象Tableへ
- * 反映する更新側は、Data Updateから同じTable Integration境界を利用して接続する。
+ * Table IntegrationはTableデータや変換結果を保持せず、要求ごとに現在データから共通Table構造を作る。
+ * 対象Tableを安全に変換できない場合は不完全な構造を返さず`null`とする。並び替え対象判定、
+ * 並び替え制約の導出、移動先判定、Reorder Sessionの状態管理はこの責務に含めない。
  */
 
 /**
- * Table IntegrationがReorder coreへ提供する共通のTable sectionを表す。
+ * Table Integration内部で利用する共通のTable区画。
  *
- * 対象Table pluginごとに異なるsection表現を、Reorder coreではhead、body、footの
- * 3種類だけで扱えるようにするための共通表現である。
+ * 対象Tableごとに異なる区画表現を`head`、`body`、`foot`の3種類へ統一する。
  */
 type TableSection = 'head' | 'body' | 'foot';
 
 /**
  * Reorder coreがTableの構造上の制約を判断するために利用する共通Table構造。
  *
- * Table全体のセル内容や装飾を複製するのではなく、並び替え可否の判断に必要な
- * 結合セルの位置と範囲だけを保持する。これによりReorder coreはCore Tableや
- * Flexible Table Blockそれぞれのデータ形式を知らずに、同じ構造情報を利用できる。
- * Reorder Target ResolutionなどTable Integrationの利用側が、この共通Contractを直接参照する。
+ * 通常セルの内容や装飾は保持せず、並び替え可否の判断に必要な結合セルの位置と範囲だけを保持する。
+ * Reorder Target ResolutionなどTable Integrationの利用側は、この共通契約を直接参照する。
  *
- * この値は要求時点のTableから作成する一時的な結果であり、Table Integrationは
- * 後続の要求や別のDnDへ持ち越さない。
+ * この値は要求時点のTableから作成する一時的な結果であり、Table Integrationは後続要求や別のDnDへ
+ * 持ち越さない。
  */
 export type TableStructure = {
 	/** Table内に存在する結合セルの位置と範囲。通常セルは含まない。 */
@@ -52,17 +34,15 @@ export type TableStructure = {
 /**
  * 共通Table構造上で1つの結合セルが占有する位置と範囲を表す。
  *
- * 行番号と列番号は画面上の見た目ではなく、rowSpanとcolumnSpanを考慮して復元した
- * logical Table grid上の位置で表す。これにより、Reorder coreはTable plugin固有の
- * cell配列表現を再解釈せず、結合セルが行・列のどこを占有しているか判断できる。
- * `TableStructure`とともにTable Integrationの共通Contractとして利用側へ公開する。
+ * 行位置と列位置は、結合による占有範囲を考慮した論理Tableグリッド上で表す。
+ * `TableStructure`とともにTable Integrationの共通契約として利用側へ公開する。
  */
 export type TableMergedCellStructure = {
-	/** 結合セルが属する共通Table section。 */
+	/** 結合セルが属するTable区画。 */
 	section: 'head' | 'body' | 'foot';
-	/** section内で結合セルが開始する0-based行位置。 */
+	/** 区画内で結合セルが開始する0-based行位置。 */
 	rowStart: number;
-	/** logical Table grid上で結合セルが開始する0-based列位置。 */
+	/** 論理Tableグリッド上で結合セルが開始する0-based列位置。 */
 	columnStart: number;
 	/** 結合セルが縦方向に占有する行数。 */
 	rowSpan: number;
@@ -71,21 +51,17 @@ export type TableMergedCellStructure = {
 };
 
 /**
- * Table Integrationが対象Tableの現在データを取得するために利用するBlock Editor storeのContract。
+ * Table Integrationが対象Tableの現在データを取得するために利用するBlock Editorストアの契約。
  *
- * `clientId`は対象Table個体を特定するために利用する。Table Integrationは要求のたびに
- * `clientId`からcurrent blockを取得し直し、以前取得したblockやattributesを再利用しない。
- * これにより、Table編集やeditor lifecycleの変化後でも要求時点のデータを基準にできる。
- *
- * `block.name`はTable個体の識別には利用せず、取得したTableがCore Tableか
- * Flexible Table BlockかというTable種類の判定にだけ利用する。
+ * `clientId`は対象Table個体の識別に利用する。要求ごとに現在のBlockを取得し、以前取得したBlockや属性を
+ * 再利用しない。`block.name`はTable個体の識別ではなく、対応Table種類の判定にだけ利用する。
  */
 export type TableIntegrationBlockStore = {
 	/**
-	 * `clientId`に対応する要求時点のcurrent blockを取得する。
+	 * `clientId`に対応する要求時点のBlockを取得する。
 	 *
 	 * @param clientId 対象Table個体を特定するBlock EditorのclientId。
-	 * @return current block。対象が存在しない場合は`null`または`undefined`。
+	 * @return 要求時点のBlock。対象が存在しない場合は`null`または`undefined`。
 	 */
 	getBlock: ( clientId: string ) =>
 		| {
@@ -97,17 +73,14 @@ export type TableIntegrationBlockStore = {
 };
 
 /**
- * 外部Table pluginとReorder coreの間でTable構造を受け渡すTable IntegrationのContract。
+ * 外部Table pluginとReorder coreの間でTable構造を受け渡すTable Integrationの契約。
  *
- * 呼び出し側は対象Tableの`clientId`だけを渡し、Table plugin固有のattributes構造や
- * span property名を意識しない。Table Integrationは要求時点のcurrent blockを取得し、
- * 対応Tableであれば共通Table構造へ変換して返す。
+ * 呼び出し側は対象Tableの`clientId`だけを渡し、対象Table固有の属性構造や結合セル表現を意識しない。
+ * 対象Blockが存在しない、非対応Table、`body`区画が欠落している、または安全に共通構造へ変換できない場合は
+ * `null`を返し、不完全なTable構造は提供しない。
  *
- * 対象blockが存在しない、対応Tableではない、bodyが欠落している、または安全に共通構造へ
- * 変換できない場合は`null`を返す。不完全なTable構造を部分的に返すことはしない。
- *
- * Table Integration自身はTableデータ、共通Table構造、DnD状態、Reorder Session、
- * 並び替え制約を状態として保持しない。
+ * Table Integration自身はTableデータ、共通Table構造、DnD状態、Reorder Session、並び替え制約を
+ * 状態として保持しない。
  */
 export type TableIntegration = {
 	/**
@@ -120,10 +93,9 @@ export type TableIntegration = {
 };
 
 /**
- * Table sectionをlogical Table gridへ復元する前のplugin非依存cell表現。
+ * Table区画を論理Tableグリッドへ復元する前の、Table種類に依存しないセル表現。
  *
- * plugin固有のspan property名は各Integrationで解釈済みであり、共通grid復元処理は
- * `rowSpan`と`columnSpan`だけを利用する。
+ * 対象Table固有の結合範囲表現は各Integrationで解釈済みとし、共通処理は`rowSpan`と`columnSpan`だけを扱う。
  */
 type TableCell = {
 	rowSpan: number;
@@ -131,59 +103,57 @@ type TableCell = {
 };
 
 /**
- * Table sectionをlogical Table gridへ復元する前のplugin非依存row表現。
+ * Table区画を論理Tableグリッドへ復元する前の、Table種類に依存しない行表現。
  *
- * cell内容や装飾はTable構造判定には不要なため保持しない。
+ * セル内容や装飾はTable構造判定に不要なため保持しない。
  */
 type TableRow = {
 	cells: readonly TableCell[];
 };
 
 /**
- * 各Integrationがplugin固有attributesから作成し、共通grid復元処理へ渡すsection一覧。
+ * 各Integrationが対象Table固有の属性から作成し、共通構造復元へ渡すTable区画一覧。
  *
- * headとfootは元データで省略可能だが、この共通表現では空配列へ正規化する。
- * bodyは元データに必須であり、欠落時はこの表現自体を作成しない。
+ * `head`と`foot`は省略可能なため空配列へ正規化する。`body`はTable本体として必須とし、欠落時は
+ * この表現を成立させない。
  */
 type TableSections = Readonly< Record< TableSection, readonly TableRow[] > >;
 
 /**
- * 1種類のTable pluginについて、plugin固有attributesを共通Table構造へ適応するContract。
+ * 1種類のTableについて、固有属性を共通Table構造へ適応する内部契約。
  *
- * Table種類の選択と、選択後の構造変換を分離するための内部境界である。各Integrationは
- * plugin固有attributesを完全に解釈できた場合だけ共通Table構造を返し、不完全な構造を推測しない。
+ * 対象Table固有属性を完全に解釈できた場合だけ共通Table構造を返し、不完全な構造を推測しない。
  */
 type TableStructureIntegration = {
 	/**
-	 * plugin固有attributesを共通Table構造へ変換する。
+	 * 対象Table固有属性を共通Table構造へ変換する。
 	 *
-	 * @param attributes 要求時点のplugin固有Table attributes。
+	 * @param attributes 要求時点の対象Table固有属性。
 	 * @return 共通Table構造。安全に変換できない場合は`null`。
 	 */
 	getStructure: ( attributes: unknown ) => TableStructure | null;
 };
 
 /**
- * 値をTable attributes、row、cellとして安全に参照できるobjectか判定する。
+ * 値をTable属性、行、セルとして安全に参照できるオブジェクトか判定する。
  *
- * 配列や`null`を通常objectとして扱わないことで、不完全なpluginデータから
- * 推測でTable構造を作成することを防ぐ。
+ * 配列や`null`は対象Tableデータのオブジェクトとして扱わず、不完全なデータから共通Table構造を
+ * 推測することを防ぐ。
  *
  * @param value 判定対象の値。
- * @return propertyを安全に参照できるobjectの場合は`true`。
+ * @return プロパティを安全に参照できるオブジェクトの場合は`true`。
  */
 const isRecord = ( value: unknown ): value is Record< string, unknown > =>
 	value !== null && typeof value === 'object' && ! Array.isArray( value );
 
 /**
- * plugin固有cellに保存されたspan値を、plugin非依存の占有数へ正規化する。
+ * 対象Table固有セルに保存された結合範囲を、共通の占有数へ正規化する。
  *
- * span指定がないcellは通常セルなので1を返す。指定がある場合は、Table grid上の占有数として
- * 利用できる1以上の整数だけを受け入れる。数値文字列はpluginデータとして許容するが、
- * それ以外の値は安全に構造を復元できないため`null`とする。
+ * 結合範囲の指定がないセルは通常セルとして1を返す。指定がある場合は1以上の整数だけを受け入れる。
+ * 数値文字列は対象Tableデータとして許容し、それ以外は安全に構造を復元できないため`null`とする。
  *
- * @param span plugin固有cellから取得したspan値。
- * @return 1以上の占有数。解釈できないspan値の場合は`null`。
+ * @param span 対象Table固有セルから取得した結合範囲値。
+ * @return 1以上の占有数。解釈できない値の場合は`null`。
  */
 const parseSpan = ( span: unknown ): number | null => {
 	if ( span === undefined ) {
@@ -195,25 +165,27 @@ const parseSpan = ( span: unknown ): number | null => {
 	}
 
 	const value = Number( span );
-	return Number.isInteger( value ) && value >= 1 ? value : null;
+	const normalizedSpan = Number.isInteger( value ) && value >= 1 ? value : null;
+	return normalizedSpan;
 };
 
 /**
- * Core Table固有の1sectionをplugin非依存row表現へ正規化する。
+ * Core Table固有の1区画を共通の行表現へ正規化する。
  *
- * Core Tableのrowは`cells`配列を持ち、cellの結合範囲は`rowspan`と`colspan`で表される。
- * これらのplugin固有shapeとproperty名はこの適応処理で解釈し、共通grid復元処理へ渡さない。
+ * Core Tableではセルの結合範囲を`rowspan`と`colspan`で表す。区画や行、セルの構造を安全に解釈できない
+ * 場合は`null`とし、不完全なデータを後続の共通構造復元へ渡さない。
  *
- * @param section  Core Table固有のsection値。
- * @param optional section欠落を空sectionとして許容する場合は`true`。
- * @return 正規化済みrow一覧。sectionを安全に解釈できない場合は`null`。
+ * @param section Core Table固有の区画値。
+ * @param optional 区画欠落を空区画として許容する場合は`true`。
+ * @return 正規化済み行一覧。区画を安全に解釈できない場合は`null`。
  */
 const normalizeCoreTableRows = (
 	section: unknown,
 	optional: boolean
 ): readonly TableRow[] | null => {
 	if ( section === undefined ) {
-		return optional ? [] : null;
+		const missingSectionRows = optional ? [] : null;
+		return missingSectionRows;
 	}
 
 	if ( ! Array.isArray( section ) ) {
@@ -248,13 +220,13 @@ const normalizeCoreTableRows = (
 };
 
 /**
- * Core Table固有attributesを共通grid復元処理が利用するplugin非依存section表現へ正規化する。
+ * Core Table固有属性を共通構造復元で利用するTable区画一覧へ正規化する。
  *
- * headとfootは省略可能なので空sectionへ正規化する。bodyはTable本体として必須であり、
- * 欠落または不完全な場合は部分的なTable構造を作らず`null`を返す。
+ * `head`と`foot`は省略可能とし、`body`はTable本体として必須とする。いずれかの区画を安全に解釈できない
+ * 場合は部分的なTable構造を作らず`null`を返す。
  *
- * @param attributes 要求時点のCore Table attributes。
- * @return plugin非依存section一覧。安全に正規化できない場合は`null`。
+ * @param attributes 要求時点のCore Table属性。
+ * @return 共通のTable区画一覧。安全に正規化できない場合は`null`。
  */
 const normalizeCoreTableAttributes = ( attributes: unknown ): TableSections | null => {
 	if ( ! isRecord( attributes ) ) {
@@ -273,21 +245,22 @@ const normalizeCoreTableAttributes = ( attributes: unknown ): TableSections | nu
 };
 
 /**
- * Flexible Table Block固有の1sectionをplugin非依存row表現へ正規化する。
+ * Flexible Table Block固有の1区画を共通の行表現へ正規化する。
  *
- * Flexible Table Blockのrowは`cells`配列を持ち、cellの結合範囲は`rowSpan`と`colSpan`で表される。
- * このplugin固有shapeとproperty名はこの適応処理で解釈し、共通grid復元処理へ渡さない。
+ * Flexible Table Blockではセルの結合範囲を`rowSpan`と`colSpan`で表す。区画や行、セルの構造を安全に
+ * 解釈できない場合は`null`とし、不完全なデータを後続の共通構造復元へ渡さない。
  *
- * @param section  Flexible Table Block固有のsection値。
- * @param optional section欠落を空sectionとして許容する場合は`true`。
- * @return 正規化済みrow一覧。sectionを安全に解釈できない場合は`null`。
+ * @param section Flexible Table Block固有の区画値。
+ * @param optional 区画欠落を空区画として許容する場合は`true`。
+ * @return 正規化済み行一覧。区画を安全に解釈できない場合は`null`。
  */
 const normalizeFlexibleTableBlockRows = (
 	section: unknown,
 	optional: boolean
 ): readonly TableRow[] | null => {
 	if ( section === undefined ) {
-		return optional ? [] : null;
+		const missingSectionRows = optional ? [] : null;
+		return missingSectionRows;
 	}
 
 	if ( ! Array.isArray( section ) ) {
@@ -322,13 +295,13 @@ const normalizeFlexibleTableBlockRows = (
 };
 
 /**
- * Flexible Table Block固有attributesを共通grid復元処理が利用するplugin非依存section表現へ正規化する。
+ * Flexible Table Block固有属性を共通構造復元で利用するTable区画一覧へ正規化する。
  *
- * headとfootは省略可能なので空sectionへ正規化する。bodyはTable本体として必須であり、
- * 欠落または不完全な場合は部分的なTable構造を作らず`null`を返す。
+ * `head`と`foot`は省略可能とし、`body`はTable本体として必須とする。いずれかの区画を安全に解釈できない
+ * 場合は部分的なTable構造を作らず`null`を返す。
  *
- * @param attributes 要求時点のFlexible Table Block attributes。
- * @return plugin非依存section一覧。安全に正規化できない場合は`null`。
+ * @param attributes 要求時点のFlexible Table Block属性。
+ * @return 共通のTable区画一覧。安全に正規化できない場合は`null`。
  */
 const normalizeFlexibleTableBlockAttributes = ( attributes: unknown ): TableSections | null => {
 	if ( ! isRecord( attributes ) ) {
@@ -347,17 +320,16 @@ const normalizeFlexibleTableBlockAttributes = ( attributes: unknown ): TableSect
 };
 
 /**
- * 現在cellがlogical Table grid上で開始できる最初の列位置を求める。
+ * 現在セルが論理Tableグリッド上で開始できる最初の列位置を求める。
  *
- * 前の行にrowSpanを持つ結合セルがあると、その結合セルは後続行の同じ列を引き続き占有する。
- * そのため、cell配列上の単純なindexを列位置として利用せず、先行する結合セルの占有範囲を
- * 避けながら、現在cellのcolumnSpan全体を配置できる最初の列を探す。
+ * 先行行の縦結合が後続行の列を占有している場合、その占有範囲を避けて現在セルの横幅全体を配置できる
+ * 最初の列を採用する。これにより、物理的なセル配列位置ではなく結合を考慮した論理列位置を確定する。
  *
- * @param occupiedUntilRow 各論理列がどの行まで先行するrowSpanに占有されるかを表す一覧。
- * @param rowStart         現在cellが属するsection内の0-based行位置。
- * @param minimumColumn    現在cellについて探索を開始する最小列位置。
- * @param columnSpan       現在cellが横方向に占有する列数。
- * @return 現在cellを配置できるlogical Table grid上の0-based開始列位置。
+ * @param occupiedUntilRow 各論理列がどの行まで先行する縦結合に占有されるかを表す一覧。
+ * @param rowStart 現在セルが属する区画内の0-based行位置。
+ * @param minimumColumn 現在セルについて探索を開始する最小列位置。
+ * @param columnSpan 現在セルが横方向に占有する列数。
+ * @return 現在セルを配置できる論理Tableグリッド上の0-based開始列位置。
  */
 const findColumnStart = (
 	occupiedUntilRow: readonly number[],
@@ -385,18 +357,15 @@ const findColumnStart = (
 };
 
 /**
- * 1つのplugin非依存Table sectionについてlogical Table gridを復元し、結合セルの共通構造を作成する。
+ * 1つのTable区画について論理Tableグリッドを復元し、結合セルの共通構造を作成する。
  *
- * 各行を上から順に確認し、先行するrowSpanが後続行で占有している列を考慮しながら、
- * それぞれのcellがTable上のどの列から始まるかを決定する。rowSpanまたはcolumnSpanが
- * 2以上のcellだけを結合セルとして結果へ追加し、通常セルは位置計算にだけ利用する。
+ * 先行する縦結合の占有範囲を考慮して各セルの論理列位置を確定し、縦または横に2以上を占有するセルだけを
+ * 結合セルとして結果へ含める。通常セルは位置計算に利用するが共通Table構造には保持しない。
+ * 縦結合が区画末尾を越える指定は、実在する行までを占有範囲として扱う。
  *
- * rowSpanがsection末尾を越える場合は、実際に存在する行までを占有範囲として扱う。
- * plugin固有attributesやspan property名はこの処理では扱わない。
- *
- * @param section 共通Table構造へ記録するTable section。
- * @param rows    plugin非依存に正規化されたsection内のTable行一覧。
- * @return section内の結合セル一覧。
+ * @param section 共通Table構造へ記録するTable区画。
+ * @param rows Table種類に依存しない区画内の行一覧。
+ * @return 区画内の結合セル一覧。
  */
 const buildSectionMergedCells = (
 	section: TableSection,
@@ -425,6 +394,7 @@ const buildSectionMergedCells = (
 				);
 			}
 
+			// 共通Table構造には、並び替え制約の判断に必要な結合セルだけを保持する。
 			if ( rowSpan > 1 || cell.columnSpan > 1 ) {
 				mergedCells.push( {
 					section,
@@ -443,13 +413,12 @@ const buildSectionMergedCells = (
 };
 
 /**
- * plugin非依存に正規化されたsection一覧からReorder core共通のTable構造を構築する。
+ * 正規化済みのTable区画一覧からReorder core共通のTable構造を構築する。
  *
- * 各Integrationがplugin固有attributes、row、cell、span propertyを解釈した後のデータだけを受け取り、
- * head、body、footそれぞれのlogical Table gridを復元する。この処理はCore Tableや
- * Flexible Table Blockのraw attributesを参照せず、Table種類追加時にも変更を要求しない境界とする。
+ * `head`、`body`、`foot`それぞれについて結合を考慮した論理Tableグリッドを復元し、結合セルだけを
+ * `TableStructure`へ集約する。対象Table固有属性はこの処理へ持ち込まない。
  *
- * @param sections plugin非依存に正規化されたTable section一覧。
+ * @param sections Table種類に依存しないTable区画一覧。
  * @return Reorder coreが利用する共通Table構造。
  */
 const buildTableStructure = ( sections: TableSections ): TableStructure => {
@@ -463,41 +432,37 @@ const buildTableStructure = ( sections: TableSections ): TableStructure => {
 };
 
 /**
- * Core Tableのattributesを共通Table構造へ適応するTable Integration。
+ * Core Table固有属性を共通Table構造へ適応する内部Integration。
  *
- * Core Table固有のattributes、row、cell、`rowspan` / `colspan`をplugin非依存表現へ
- * 正規化してから、logical Table gridを復元する共通処理へ渡す。Core Table固有知識を
- * このIntegration側に閉じ込め、共通grid復元処理へ漏らさない。attributesを安全に正規化できない場合は
- * `null`を返し、不完全な共通Table構造を生成しない。
+ * Core Tableの属性を安全に正規化できた場合だけ共通Table構造を返し、不完全なデータから構造を推測しない。
  */
 const coreTableIntegration: TableStructureIntegration = {
 	getStructure: ( attributes ) => {
 		const sections = normalizeCoreTableAttributes( attributes );
-		return sections === null ? null : buildTableStructure( sections );
+		const structure = sections === null ? null : buildTableStructure( sections );
+		return structure;
 	},
 };
 
 /**
- * Flexible Table Blockのattributesを共通Table構造へ適応するTable Integration。
+ * Flexible Table Block固有属性を共通Table構造へ適応する内部Integration。
  *
- * Flexible Table Block固有のattributes、row、cell、`rowSpan` / `colSpan`をplugin非依存表現へ
- * 正規化してから、logical Table gridを復元する共通処理へ渡す。Flexible Table Block固有知識を
- * このIntegration側に閉じ込め、共通grid復元処理へ漏らさない。attributesを安全に正規化できない場合は
- * `null`を返し、不完全な共通Table構造を生成しない。
+ * Flexible Table Blockの属性を安全に正規化できた場合だけ共通Table構造を返し、不完全なデータから構造を
+ * 推測しない。
  */
 const flexibleTableBlockIntegration: TableStructureIntegration = {
 	getStructure: ( attributes ) => {
 		const sections = normalizeFlexibleTableBlockAttributes( attributes );
-		return sections === null ? null : buildTableStructure( sections );
+		const structure = sections === null ? null : buildTableStructure( sections );
+		return structure;
 	},
 };
 
 /**
- * current blockのTable種類から利用するTable Integrationを選択する対応表。
+ * 要求時点のTable種類に対応する内部Integrationを選択する対応表。
  *
- * `clientId`で対象Table個体を取得した後、そのcurrent blockの`block.name`を使って
- * Table種類だけを識別する。Table種類ごとの分岐をReorder coreへ漏らさず、対応していない
- * `block.name`にはIntegrationを割り当てないことで、非対応Tableを明確に区別する。
+ * 対象Table個体を`clientId`で取得した後、そのBlockの`block.name`をTable種類の判定に利用する。
+ * 対応していないTable種類にはIntegrationを割り当てず、非対応Tableを明確に区別する。
  */
 const TABLE_INTEGRATIONS: Readonly< Partial< Record< string, TableStructureIntegration > > > = {
 	'core/table': coreTableIntegration,
@@ -507,21 +472,13 @@ const TABLE_INTEGRATIONS: Readonly< Partial< Record< string, TableStructureInteg
 /**
  * Reorder coreから利用するTable Integrationを作成する。
  *
- * 構造取得要求を受けるたびに、対象Table個体を`clientId`でBlock Editor storeから取得し直す。
- * 取得したcurrent blockの`block.name`から、その時点のTable種類に対応するIntegrationを選択し、
- * current attributesを共通Table構造へ変換する。
+ * 構造取得要求ごとに対象Tableの現在Blockを取得し、その時点のTable種類に対応するIntegrationで共通Table構造へ
+ * 変換する。Block、属性、共通Table構造は内部状態として保持せず、後続要求では現在のストア状態を基準にする。
  *
- * block、attributes、共通Table構造を内部状態として保持しないため、後続要求では必ず現在の
- * store状態を基準にする。Tableの追加・削除・構造変更を監視する責務も持たない。
+ * 対象Blockが存在しない、非対応Table、または属性を安全に変換できない場合は`null`を返す。
+ * Reorder固有の並び替え対象判定、並び替え制約導出、移動先判定はこの境界では行わない。
  *
- * `clientId`に対応するcurrent blockが存在しない場合、`block.name`が対応Tableではない場合、
- * bodyが欠落している場合、または選択したIntegrationがattributesを安全に変換できない場合は
- * `null`を返す。Reorder固有の移動対象判定、制約導出、移動先判定はこの境界では行わない。
- *
- * この実装は要求時点の共通Table構造を提供する構造取得側を担う。確定した並び替えをTable plugin固有の
- * 方法で反映する更新側は、Data Updateから利用する同じTable Integration境界へ接続する。
- *
- * @param blockEditorStore 対象`clientId`から要求時点のcurrent blockを取得するstore Contract。
+ * @param blockEditorStore 対象`clientId`から要求時点のBlockを取得するストア契約。
  * @return 状態を保持せず要求時点のTable構造を提供するTable Integration。
  */
 export const createTableIntegration = (
@@ -530,12 +487,14 @@ export const createTableIntegration = (
 	getStructure: ( clientId ) => {
 		const block = blockEditorStore.getBlock( clientId );
 
+		// 対象Tableの現在データを取得できない場合は、共通Table構造を推測しない。
 		if ( ! block ) {
 			return null;
 		}
 
 		const integration = TABLE_INTEGRATIONS[ block.name ];
 
+		// 対応対象として定義されていないTable種類はReorder coreへ公開しない。
 		if ( ! integration ) {
 			return null;
 		}
