@@ -256,6 +256,41 @@ describe( 'Table Integration', () => {
 	} );
 
 	/**
+	 * 必須のbodyが欠落したsupported Tableを有効な空Tableとして扱わないことを確認する。
+	 *
+	 * 事前条件:
+	 * - Core TableとFlexible Table Blockのattributesにheadまたはfootは存在する。
+	 * - どちらのattributesにもbodyは存在しない。
+	 *
+	 * 操作:
+	 * - 各TableについてgetStructure()を実行する。
+	 *
+	 * 期待結果:
+	 * - body欠落を空sectionへ変換しない。
+	 * - どちらも不完全なTableとしてnullになる。
+	 */
+	it( 'when the required body section is absent, should reject the Table structure', () => {
+		const getBlock = jest
+			.fn()
+			.mockReturnValueOnce( {
+				name: 'core/table',
+				attributes: {
+					head: [ { cells: [ {} ] } ],
+				},
+			} )
+			.mockReturnValueOnce( {
+				name: 'flexible-table-block/table',
+				attributes: {
+					foot: [ { cells: [ {} ] } ],
+				},
+			} );
+		const integration = createTableIntegration( { getBlock } );
+
+		expect( integration.getStructure( 'core-without-body-client-id' ) ).toBeNull();
+		expect( integration.getStructure( 'flexible-without-body-client-id' ) ).toBeNull();
+	} );
+
+	/**
 	 * pluginデータに数値文字列で保存されたspanを有効な占有数として扱えることを確認する。
 	 *
 	 * 事前条件:
