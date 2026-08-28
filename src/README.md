@@ -9,10 +9,17 @@ Current source boundary:
 ```text
 src/
 ├── reorder/
+│   ├── column-reorder/
+│   │   ├── reorder-target-resolution.test.ts
+│   │   └── reorder-target-resolution.ts
+│   ├── row-reorder/
+│   │   ├── reorder-target-resolution.test.ts
+│   │   └── reorder-target-resolution.ts
 │   ├── editor-dom-context.test.ts
 │   ├── editor-dom-context.ts
 │   ├── reorder-mode.test.ts
 │   ├── reorder-mode.ts
+│   ├── reorder-target-resolution-rules.ts
 │   ├── reorder-target-resolution.test.ts
 │   ├── reorder-target-resolution.ts
 │   ├── table-integration.test.ts
@@ -23,6 +30,8 @@ src/
 ├── messages.test.ts
 └── messages.ts
 ```
+
+Row- and column-specific behavior is placed under `row-reorder/` and `column-reorder/`. Rules or responsibilities that have the same meaning and the same reason to change for both directions remain in the shared Reorder responsibility instead of being duplicated.
 
 Architecture-preceding formal v1 implementation is not kept in the active source tree. Refer to Git history when those implementation details are needed.
 
