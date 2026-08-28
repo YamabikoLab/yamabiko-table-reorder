@@ -77,7 +77,10 @@ test( '同一 Architecture Model から同一 DSL を生成する', () => {
 
 test( 'Dependency View は Includes の要素だけを明示して Structural Dependency に限定する', () => {
 	const dsl = generateStructurizrDsl( model );
-	const view = dsl.slice( dsl.indexOf( 'custom "DV_INPUT"' ), dsl.indexOf( 'custom "RV_DND_START"' ) );
+	const view = dsl.slice(
+		dsl.indexOf( 'custom "DV_INPUT"' ),
+		dsl.indexOf( 'custom "RV_DND_START"' )
+	);
 
 	assert.match( view, /include EXT_EDITOR RESP_INPUT/u );
 	assert.match( view, /exclude "relationship\.tag!=Structural Dependency"/u );

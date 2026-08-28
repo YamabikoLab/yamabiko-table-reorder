@@ -99,8 +99,7 @@ test( '説明文から Dependency や Dependency View を補完しない', () =>
 	assert.equal( model.dependencyViews.length, 2 );
 	assert.equal(
 		model.dependencies.some(
-			( dependency ) =>
-				dependency.dependent === 'RESP_DND' && dependency.dependsOn === 'EXT_EDITOR'
+			( dependency ) => dependency.dependent === 'RESP_DND' && dependency.dependsOn === 'EXT_EDITOR'
 		),
 		false
 	);

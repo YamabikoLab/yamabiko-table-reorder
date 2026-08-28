@@ -82,10 +82,7 @@ test( 'Dependencies 表の列違いを拒否する', () => {
 } );
 
 test( 'Dependency Views 表の列違いを拒否する', () => {
-	const markdown = validMarkdown.replace(
-		'| ID | Name | Includes |',
-		'| ID | Name | Members |'
-	);
+	const markdown = validMarkdown.replace( '| ID | Name | Includes |', '| ID | Name | Members |' );
 
 	assert.throws(
 		() => validateArchitectureMarkdownStructure( markdown ),
@@ -95,7 +92,10 @@ test( 'Dependency Views 表の列違いを拒否する', () => {
 
 test( 'Dependency Views の重複見出しを拒否する', () => {
 	const duplicate = `\n### Dependency Views\n\n| ID | Name | Includes |\n| --- | --- | --- |\n| DV_OTHER | Other | RESP_INPUT |\n`;
-	const markdown = validMarkdown.replace( '### Responsibility Details', `${ duplicate }\n### Responsibility Details` );
+	const markdown = validMarkdown.replace(
+		'### Responsibility Details',
+		`${ duplicate }\n### Responsibility Details`
+	);
 
 	assert.throws(
 		() => validateArchitectureMarkdownStructure( markdown ),

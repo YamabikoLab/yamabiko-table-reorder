@@ -35,9 +35,9 @@ const generateElement = (
 ];
 
 const generateDependency = ( dependency: ArchitectureDependency, index: number ): string[] => [
-	`\t\t${ dependencyIdentifier( index ) } = ${ dependency.dependent } -> ${ dependency.dependsOn } ${ quoted(
-		dependency.reason
-	) } {`,
+	`\t\t${ dependencyIdentifier( index ) } = ${ dependency.dependent } -> ${
+		dependency.dependsOn
+	} ${ quoted( dependency.reason ) } {`,
 	'\t\t\ttags "Structural Dependency"',
 	'\t\t}',
 ];
@@ -45,9 +45,9 @@ const generateDependency = ( dependency: ArchitectureDependency, index: number )
 const generateRuntimeRelationship = ( runtimeView: RuntimeView, stepIndex: number ): string[] => {
 	const step = runtimeView.steps[ stepIndex ];
 	return [
-		`\t\t${ runtimeRelationshipIdentifier( runtimeView.id, step.step ) } = ${ step.source } -> ${ step.target } ${ quoted(
-			step.interaction
-		) } {`,
+		`\t\t${ runtimeRelationshipIdentifier( runtimeView.id, step.step ) } = ${ step.source } -> ${
+			step.target
+		} ${ quoted( step.interaction ) } {`,
 		`\t\t\ttags ${ quoted( `Runtime Interaction,${ runtimeTag( runtimeView.id ) }` ) }`,
 		'\t\t\tproperties {',
 		`\t\t\t\t"runtime.step" ${ quoted( String( step.step ) ) }`,
@@ -82,8 +82,7 @@ const runtimeElements = ( runtimeView: RuntimeView ): string[] => {
 const runtimeStepProperty = ( runtimeView: RuntimeView ): string =>
 	runtimeView.steps
 		.map(
-			( step ) =>
-				`${ step.step }=${ runtimeRelationshipIdentifier( runtimeView.id, step.step ) }`
+			( step ) => `${ step.step }=${ runtimeRelationshipIdentifier( runtimeView.id, step.step ) }`
 		)
 		.join( ';' );
 
