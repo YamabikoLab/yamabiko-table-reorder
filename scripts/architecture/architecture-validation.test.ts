@@ -73,7 +73,17 @@ test( 'ID の種別 prefix が不正な場合を拒否する', () => {
 	assert.throws( () => validateArchitectureModel( model ), /must use the RESP_ prefix/u );
 } );
 
-test( 'Dependency の未解決参照を項目名付きで拒否する', () => {
+test( 'Dependency の未解決 Dependent を項目名付きで拒否する', () => {
+	const model = validModel();
+	model.dependencies[ 0 ].dependent = 'RESP_UNKNOWN';
+
+	assert.throws(
+		() => validateArchitectureModel( model ),
+		/Dependency row 1 Dependent "RESP_UNKNOWN"/u
+	);
+} );
+
+test( 'Dependency の未解決 Depends on を項目名付きで拒否する', () => {
 	const model = validModel();
 	model.dependencies[ 0 ].dependsOn = 'RESP_UNKNOWN';
 
@@ -98,6 +108,26 @@ test( 'Dependency View ID の prefix が不正な場合を拒否する', () => {
 	model.dependencyViews[ 0 ].id = 'VIEW_INPUT';
 
 	assert.throws( () => validateArchitectureModel( model ), /must use the DV_ prefix/u );
+} );
+
+test( 'Dependency View ID の stable ID 形式が不正な場合を拒否する', () => {
+	const model = validModel();
+	model.dependencyViews[ 0 ].id = 'DV_INPUT-VIEW';
+
+	assert.throws(
+		() => validateArchitectureModel( model ),
+		/must start with an ASCII letter and contain only ASCII letters, digits, and _/u
+	);
+} );
+
+test( 'Dependency View ID の重複を拒否する', () => {
+	const model = validModel();
+	model.dependencyViews.push( {
+		...model.dependencyViews[ 0 ],
+		includes: [ ...model.dependencyViews[ 0 ].includes ],
+	} );
+
+	assert.throws( () => validateArchitectureModel( model ), /duplicate ID "DV_INPUT"/u );
 } );
 
 test( 'Dependency View Includes の未解決参照を拒否する', () => {
