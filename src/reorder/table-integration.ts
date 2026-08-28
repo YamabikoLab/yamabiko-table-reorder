@@ -19,8 +19,8 @@
  * Tableの追加・削除・構造変更も監視しない。また、Reorder固有の移動対象判定、制約情報の導出、移動先判定、
  * DnD状態、Reorder Sessionは担当しない。
  *
- * このファイルでは#571で必要な構造取得側を実装する。確定した並び替えを対象Tableへ反映する更新側は、
- * 後続のData Update実装から同じTable Integration境界を利用して接続する。
+ * このファイルでは要求時点の共通Table構造を提供する構造取得側を実装する。確定した並び替えを対象Tableへ
+ * 反映する更新側は、Data Updateから同じTable Integration境界を利用して接続する。
  */
 
 /**
@@ -434,8 +434,8 @@ const TABLE_INTEGRATIONS: Readonly< Partial< Record< string, TableStructureInteg
  * または選択したIntegrationがattributesを安全に変換できない場合は`null`を返す。
  * Reorder固有の移動対象判定、制約導出、移動先判定はこの境界では行わない。
  *
- * この実装では#571の構造取得側を提供する。確定した並び替えをTable plugin固有の方法で
- * 反映する処理は、後続のData Update実装から利用する同じTable Integration境界へ接続する。
+ * この実装は要求時点の共通Table構造を提供する構造取得側を担う。確定した並び替えをTable plugin固有の
+ * 方法で反映する更新側は、Data Updateから利用する同じTable Integration境界へ接続する。
  *
  * @param blockEditorStore 対象`clientId`から要求時点のcurrent blockを取得するstore Contract。
  * @return 状態を保持せず要求時点のTable構造を提供するTable Integration。
