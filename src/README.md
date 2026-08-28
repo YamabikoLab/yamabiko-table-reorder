@@ -12,7 +12,9 @@ src/
 │   ├── editor-dom-context.test.ts
 │   ├── editor-dom-context.ts
 │   ├── reorder-mode.test.ts
-│   └── reorder-mode.ts
+│   ├── reorder-mode.ts
+│   ├── table-integration.test.ts
+│   └── table-integration.ts
 ├── AGENTS.md
 ├── README.md
 ├── index.tsx

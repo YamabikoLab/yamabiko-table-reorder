@@ -22,3 +22,6 @@
 | 14 | Drop Target Resolution | ドロップ先判定 | `Drop Target Resolution` | ドロップ候補から有効なReorder Destinationを判定する責務。 | 現在はコメント内の責務名として登場する。ここでの`Target`は`Reorder Target`とは別概念。 |
 | 15 | Data Update | データ更新 | `Data Update` | Committed Reorderを受け取り、並び替え結果をデータへ反映する責務。 | 現在はコメント内の責務名として登場し、`src/`には実装されていない。 |
 | 16 | Editor DOM Context | エディターDOM環境 | `EditorDomContext`, `resolveEditorDomContext()` | 現在のエディター画面内の基準要素から、その要素と同じ表示環境の`document`と`window`を解決し、DOM / Web APIを利用する責務へ提供する概念。 | iframe / non-iframeの違いを利用側へ持ち込まず、解決結果を保持しない。 |
+| 17 | Table Integration | Table統合 | `TableIntegration`, `createTableIntegration()` | 外部Table plugin固有のTable構造取得およびデータ更新方法をReorder coreから隠蔽する境界。 | 要求時に対象Tableの現在データを利用し、Tableデータや共通Table structureを保持しない。 |
+| 18 | Table Structure | Table構造 | `TableStructure` | Reorder coreが利用する共通Table structure。通常セルは持たず、結合セルの位置と範囲だけを保持する。 | `mergedCells`に`TableMergedCellStructure`を保持する。 |
+| 19 | Table Merged Cell Structure | Table結合セル構造 | `TableMergedCellStructure` | 共通Table structure上で1つの結合セルが属するsection、開始位置、縦横の占有範囲を表す。 | `rowStart` / `columnStart`は0-basedのlogical Table grid上の位置を表す。 |
