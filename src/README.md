@@ -13,6 +13,8 @@ src/
 │   ├── editor-dom-context.ts
 │   ├── reorder-mode.test.ts
 │   ├── reorder-mode.ts
+│   ├── reorder-target-resolution.test.ts
+│   ├── reorder-target-resolution.ts
 │   ├── table-integration.test.ts
 │   └── table-integration.ts
 ├── AGENTS.md
