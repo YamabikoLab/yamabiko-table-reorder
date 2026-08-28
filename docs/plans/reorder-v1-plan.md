@@ -233,7 +233,7 @@ Architectureで定義済みの責務、Contract、Dependency、Lifecycle、Invar
 
 ### Decide before implementation
 
-- #585で、共通Table structureの具体的なTypeと、行数・列数・section・結合セル情報の表現を確定する。
+- #585で、共通Table structureの具体的なTypeを確定する。
 - #571で、Core Table / Flexible Table Blockから共通Table structureへ変換する具体的な方法と、対応Tableに適切なIntegrationを適用する実装方式を確定する。
 - #572で、移動対象解決結果と制約情報の具体的なTypeを確定する。
 - #574で、Reorder Sessionの具体的な状態表現を確定する。
