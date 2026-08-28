@@ -103,6 +103,33 @@ test( 'Dependency Views の重複見出しを拒否する', () => {
 	);
 } );
 
+test( 'Building Block View 外の Dependency Views を拒否する', () => {
+	const markdown = validMarkdown.replace(
+		'### Dependency Views\n\n| ID | Name | Includes |\n| --- | --- | --- |\n| DV_INPUT | Input | EXT_EDITOR RESP_INPUT |\n\n',
+		''
+	).replace(
+		'## 6. Runtime View',
+		'## 8. Crosscutting Concepts\n\n### Dependency Views\n\n| ID | Name | Includes |\n| --- | --- | --- |\n| DV_INPUT | Input | EXT_EDITOR RESP_INPUT |\n\n## 6. Runtime View'
+	);
+
+	assert.throws(
+		() => validateArchitectureMarkdownStructure( markdown ),
+		/Dependency Views must appear immediately after Dependencies/u
+	);
+} );
+
+test( '正しい Dependency Views と別セクションの重複見出しを拒否する', () => {
+	const markdown = validMarkdown.replace(
+		'## 6. Runtime View',
+		'## 8. Crosscutting Concepts\n\n### Dependency Views\n\n| ID | Name | Includes |\n| --- | --- | --- |\n| DV_OTHER | Other | RESP_INPUT |\n\n## 6. Runtime View'
+	);
+
+	assert.throws(
+		() => validateArchitectureMarkdownStructure( markdown ),
+		/Dependency Views heading may appear at most once/u
+	);
+} );
+
 test( 'Dependency Views が Dependencies 直後でない場合を拒否する', () => {
 	const markdown = validMarkdown.replace(
 		'### Dependency Views',
