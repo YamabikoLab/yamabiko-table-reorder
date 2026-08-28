@@ -311,9 +311,7 @@ const normalizeFlexibleTableBlockRows = (
  * @param attributes 要求時点のFlexible Table Block attributes。
  * @return plugin非依存section一覧。安全に正規化できない場合は`null`。
  */
-const normalizeFlexibleTableBlockAttributes = (
-	attributes: unknown
-): TableSections | null => {
+const normalizeFlexibleTableBlockAttributes = ( attributes: unknown ): TableSections | null => {
 	if ( ! isRecord( attributes ) ) {
 		return null;
 	}
@@ -401,11 +399,7 @@ const buildSectionMergedCells = (
 				cell.columnSpan
 			);
 
-			for (
-				let column = columnStart;
-				column < columnStart + cell.columnSpan;
-				column++
-			) {
+			for ( let column = columnStart; column < columnStart + cell.columnSpan; column++ ) {
 				occupiedUntilRow[ column ] = Math.max(
 					occupiedUntilRow[ column ] ?? 0,
 					rowStart + rowSpan
