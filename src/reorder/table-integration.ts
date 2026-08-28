@@ -124,7 +124,7 @@ type TableStructureIntegration = {
  * 推測でTable構造を作成することを防ぐ。
  *
  * @param value 判定対象の値。
- * @returns propertyを安全に参照できるobjectの場合は`true`。
+ * @return propertyを安全に参照できるobjectの場合は`true`。
  */
 const isRecord = ( value: unknown ): value is Record< string, unknown > =>
 	value !== null && typeof value === 'object' && ! Array.isArray( value );
@@ -140,7 +140,7 @@ const isRecord = ( value: unknown ): value is Record< string, unknown > =>
  * 提供しないというTable IntegrationのContractを、この段階でも維持する。
  *
  * @param section plugin固有のTable section表現。
- * @returns 読み取れた行一覧。sectionが不完全な場合は`null`。
+ * @return 読み取れた行一覧。sectionが不完全な場合は`null`。
  */
 const parseSectionRows = ( section: unknown ): readonly TableRow[] | null => {
 	// headやfootを持たないTableも有効なため、存在しないsectionは空として扱う。
@@ -184,7 +184,7 @@ const parseSectionRows = ( section: unknown ): readonly TableRow[] | null => {
  *
  * @param cell     span値を保持するTable cell。
  * @param property 対象pluginがspan値を保持するproperty名。
- * @returns 1以上の占有数。解釈できないspan値の場合は`null`。
+ * @return 1以上の占有数。解釈できないspan値の場合は`null`。
  */
 const parseSpan = ( cell: Record< string, unknown >, property: string ): number | null => {
 	const span = cell[ property ];
@@ -214,7 +214,7 @@ const parseSpan = ( cell: Record< string, unknown >, property: string ): number 
  * @param rowStart         現在cellが属するsection内の0-based行位置。
  * @param minimumColumn    現在cellについて探索を開始する最小列位置。
  * @param columnSpan       現在cellが横方向に占有する列数。
- * @returns 現在cellを配置できるlogical Table grid上の0-based開始列位置。
+ * @return 現在cellを配置できるlogical Table grid上の0-based開始列位置。
  */
 const findColumnStart = (
 	occupiedUntilRow: readonly number[],
@@ -256,7 +256,7 @@ const findColumnStart = (
  * @param section        共通Table構造へ記録するTable section。
  * @param rows           section内のTable行一覧。
  * @param spanProperties 対象pluginのrowSpanとcolumnSpanのproperty名。
- * @returns section内の結合セル一覧。構造を復元できない場合は`null`。
+ * @return section内の結合セル一覧。構造を復元できない場合は`null`。
  */
 const buildSectionMergedCells = (
 	section: TableSection,
@@ -322,7 +322,7 @@ const buildSectionMergedCells = (
  *
  * @param attributes     要求時点のTable block attributes。
  * @param spanProperties 対象pluginのrowSpanとcolumnSpanのproperty名。
- * @returns 要求時点の共通Table構造。完全に構築できない場合は`null`。
+ * @return 要求時点の共通Table構造。完全に構築できない場合は`null`。
  */
 const buildTableStructure = (
 	attributes: unknown,
@@ -413,7 +413,7 @@ const TABLE_INTEGRATIONS: Readonly< Partial< Record< string, TableStructureInteg
  * 反映する処理は、後続のData Update実装から利用する同じTable Integration境界へ接続する。
  *
  * @param blockEditorStore 対象`clientId`から要求時点のcurrent blockを取得するstore Contract。
- * @returns 状態を保持せず要求時点のTable構造を提供するTable Integration。
+ * @return 状態を保持せず要求時点のTable構造を提供するTable Integration。
  */
 export const createTableIntegration = (
 	blockEditorStore: TableIntegrationBlockStore
