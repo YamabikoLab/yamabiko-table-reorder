@@ -178,11 +178,11 @@ const buildBlockedBoundaries = (
  * 行・列で共通する規則として、有効な論理インデックスを持ち、対象方向の結合セルに含まれない場合だけ
  * Reorder Targetとして成立する。成立時は同じ結合セル一覧からReorder Constraintsを生成する。
  *
- * @param target 開始可能な場合に返すReorder Target候補。
+ * @param target      開始可能な場合に返すReorder Target候補。
  * @param targetIndex 対象方向の0-based論理インデックス。
  * @param mergedCells 対象方向の開始可否と移動先制約に影響する結合セル一覧。
- * @param getStart 結合セルから対象方向の開始位置を取得する関数。
- * @param getSpan 結合セルから対象方向の占有数を取得する関数。
+ * @param getStart    結合セルから対象方向の開始位置を取得する関数。
+ * @param getSpan     結合セルから対象方向の占有数を取得する関数。
  * @return 開始可能なReorder TargetとReorder Constraints、または開始できない理由。
  */
 const resolveTargetWithinScope = (
@@ -221,7 +221,7 @@ const resolveTargetWithinScope = (
  * 行並び替えの対象範囲は`body`区画だけとする。対象範囲内では縦方向に結合されたセルだけを
  * 行の開始可否と移動先制約として扱い、横方向だけの結合は行並び替えを制限しない。
  *
- * @param request DnD Interactionから渡された行DnD開始試行。
+ * @param request   DnD Interactionから渡された行DnD開始試行。
  * @param structure 要求時点の共通Table構造。
  * @return 行のReorder TargetとReorder Constraints、または開始できない理由。
  */
@@ -258,7 +258,7 @@ const resolveRowTarget = (
  * 列並び替えは`head`、`body`、`foot`を含むTable全体を対象範囲とする。横方向に結合されたセルだけを
  * 列の開始可否と移動先制約として扱い、縦方向だけの結合は列並び替えを制限しない。
  *
- * @param request DnD Interactionから渡された列DnD開始試行。
+ * @param request   DnD Interactionから渡された列DnD開始試行。
  * @param structure 要求時点の共通Table構造。
  * @return 列のReorder TargetとReorder Constraints、または開始できない理由。
  */
