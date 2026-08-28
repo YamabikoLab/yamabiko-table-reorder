@@ -125,7 +125,7 @@ const isLogicalIndex = ( index: number ): boolean => Number.isInteger( index ) &
  * 判定規則を利用する。
  *
  * @param start 結合セルが対象方向で開始する0-based index。
- * @param span 結合セルが対象方向に占有する要素数。
+ * @param span  結合セルが対象方向に占有する要素数。
  * @param index 結合セル範囲に含まれるか確認する0-based index。
  * @return `index`が結合セルの占有範囲内なら`true`。
  */
@@ -140,8 +140,8 @@ const containsIndex = ( start: number, span: number, index: number ): boolean =>
  * 判定入力として利用できるよう昇順へ正規化して返す。
  *
  * @param mergedCells 対象方向の制約として扱う結合セル一覧。
- * @param getStart 結合セルから対象方向の0-based開始indexを取得する関数。
- * @param getSpan 結合セルから対象方向の占有数を取得する関数。
+ * @param getStart    結合セルから対象方向の0-based開始indexを取得する関数。
+ * @param getSpan     結合セルから対象方向の占有数を取得する関数。
  * @return 対象方向の結合を分断するため移動先にできないinsertion boundary index一覧。
  */
 const buildBlockedBoundaries = (
@@ -170,7 +170,7 @@ const buildBlockedBoundaries = (
  * 含まれる行は行単位で移動できないため非開始とする。移動可能な場合はbody sectionの縦結合だけから
  * `blockedBoundaries`を導出し、横結合だけのセルは行DnDの制約へ含めない。
  *
- * @param request DnD Interactionから渡された行DnD開始試行。
+ * @param request   DnD Interactionから渡された行DnD開始試行。
  * @param structure 要求時点の共通Table structure。
  * @return 行のReorder Targetと制約、またはDnDを開始できない理由。
  */
@@ -225,7 +225,7 @@ const resolveRowTarget = (
  * 列単位で移動できないため非開始とする。移動可能な場合はTable全体の横結合だけから
  * `blockedBoundaries`を導出し、縦結合だけのセルは列DnDの制約へ含めない。
  *
- * @param request DnD Interactionから渡された列DnD開始試行。
+ * @param request   DnD Interactionから渡された列DnD開始試行。
  * @param structure 要求時点の共通Table structure。
  * @return 列のReorder Targetと制約、またはDnDを開始できない理由。
  */
