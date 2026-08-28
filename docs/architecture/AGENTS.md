@@ -44,7 +44,7 @@ Use the sections as follows:
 - **Architecture Constraints**: Record architecture-wide constraints that materially limit the solution space.
 - **Context and Scope**: Define the YTR system boundary and the external systems, platforms, blocks, or environments that interact with it.
 - **Solution Strategy**: Summarize the principal architecture choices that shape the responsibility model without describing implementation steps.
-- **Building Block View**: Define YTR architectural responsibilities, their stable IDs, relationships, state ownership, contracts, dependencies, lifecycle, and invariants.
+- **Building Block View**: Define YTR architectural responsibilities, their stable IDs, structural dependencies, optional dependency views, state ownership, contracts, lifecycle, and invariants.
 - **Runtime View**: Describe important runtime scenarios as ordered interactions between identified architecture elements.
 - **Deployment View**: Describe deployment structure only when deployment topology is architecturally relevant.
 - **Crosscutting Concepts**: Describe architecture concepts and rules that affect multiple responsibilities, such as context resolution, state boundaries, or common interaction rules.
@@ -59,13 +59,14 @@ Do not force existing architecture information into an arc42 section if doing so
 
 Architecture documents contain both human-readable design information and machine-readable architecture data.
 
-The machine-readable source is limited to the fixed headings and tables defined in this file. A parser or generator must not infer architecture elements, relationships, runtime interactions, IDs, or references from explanatory prose.
+The machine-readable source is limited to the fixed headings and tables defined in this file. A parser or generator must not infer architecture elements, structural dependencies, dependency views, runtime interactions, IDs, or references from explanatory prose.
 
 The following structures are machine-readable:
 
 - External Context table under `## 3. Context and Scope`.
 - Responsibility Inventory table under `## 5. Building Block View`.
-- Relationships table under `## 5. Building Block View`.
+- Dependencies table under `## 5. Building Block View`.
+- Dependency Views table under `## 5. Building Block View`, when present.
 - Responsibility detail headings under `### Responsibility Details`; only the responsibility name and embedded responsibility ID in each heading are machine-readable.
 - Runtime Scenario headings under `## 6. Runtime View`; the scenario name and embedded runtime scenario ID are machine-readable.
 - Runtime Scenario tables under `## 6. Runtime View`.
@@ -74,7 +75,7 @@ The following information is human-readable only unless another rule explicitly 
 
 - Explanatory prose in any arc42 section.
 - Responsibility detail section contents below the machine-readable responsibility heading identity.
-- `Responsibility`, `State ownership`, `Contract`, `Dependencies`, `Lifecycle`, and `Invariants` descriptions.
+- `Responsibility`, `State ownership`, `Contract`, `Lifecycle`, and `Invariants` descriptions.
 - Rationale, constraints, crosscutting concepts, quality explanations, risks, and glossary descriptions.
 
 Do not duplicate machine-readable architecture facts in another machine-readable form. The fixed heading or table is the source of truth for the fact it represents; explanatory prose may explain its meaning but must not redefine it.
@@ -87,13 +88,14 @@ IDs are required for:
 
 - External context elements.
 - Architectural responsibilities.
+- Dependency Views.
 - Runtime scenarios.
 
 IDs must:
 
 - Use only ASCII letters, digits, and `_`.
 - Start with an ASCII letter.
-- Be unique within the architecture document.
+- Be unique within the architecture document for their element type.
 - Remain stable when display names or explanatory wording change.
 - Represent architecture identity rather than source-code identity.
 
@@ -101,6 +103,7 @@ Use these prefixes:
 
 - External context: `EXT_`
 - Responsibility: `RESP_`
+- Dependency View: `DV_`
 - Runtime scenario: `RV_`
 
 Examples:
@@ -109,6 +112,7 @@ Examples:
 - `EXT_TABLE_BLOCK`
 - `RESP_DND_INTERACTION`
 - `RESP_DATA_UPDATE`
+- `DV_DND_CORE`
 - `RV_DND_START`
 
 Do not reuse a removed ID for a different architecture concept.
@@ -127,7 +131,7 @@ Rules:
 - `Name` is the human-readable architecture name.
 - `Type` classifies the external element without introducing implementation detail.
 - `Summary` briefly states why the element is relevant to the YTR boundary.
-- Relationships between external elements and responsibilities are not inferred from this table. Define them explicitly in the Relationships table.
+- Structural Dependencies involving external elements are not inferred from this table. Define them explicitly in the Dependencies table.
 
 ## Building Block View
 
@@ -150,26 +154,62 @@ Rules:
 - Every responsibility detail section must correspond to exactly one row in this table.
 - Do not list source files, classes, functions, hooks, components, or other implementation units.
 
-### Relationships
+### Dependencies
 
-After the Responsibility Inventory, define a child heading exactly named `### Relationships` followed immediately by this table structure:
+After the Responsibility Inventory, define a child heading exactly named `### Dependencies` followed immediately by this table structure:
 
-| Source | Destination | Description |
+| Dependent | Depends on | Reason |
 | --- | --- | --- |
-| RESP_DND_INTERACTION | RESP_DATA_UPDATE | Passes only a committed reorder request after a valid DnD completes. |
+| RESP_DND_INTERACTION | RESP_REORDER_MODE | DnD start requires the current reorder direction. |
+
+`A → B` means that A requires B in order to fulfill A's own responsibility. This direction represents a Structural Dependency.
 
 Rules:
 
-- `Source` and `Destination` must contain stable IDs defined in the External Context or Responsibility Inventory tables.
-- `Description` states the architectural meaning of the relationship.
-- Direction is significant. Do not treat relationships as bidirectional unless two explicit rows are present.
-- Do not infer relationships from responsibility detail prose, dependency descriptions, runtime steps, names, or natural language.
-- Do not create implicit relationships that are absent from this table.
-- Runtime scenarios may reference a relationship defined here, but they do not create new architecture relationships by themselves.
+- `Dependent` is the architecture element that depends on another element.
+- `Depends on` is the architecture element required by the dependent element.
+- `Dependent` and `Depends on` must contain stable IDs defined in the External Context or Responsibility Inventory tables.
+- `Reason` states why `Dependent` requires `Depends on` to fulfill its responsibility.
+- `Reason` must not describe Runtime Interaction such as a request, reply, event, command, or return direction.
+- The `Dependent + Depends on` pair must be unique within the architecture document. Duplicate pairs are invalid and must be rejected by validation.
+- Direction is significant. A dependency in one direction does not imply a dependency in the opposite direction.
+- Do not infer Structural Dependencies from responsibility detail prose, contracts, runtime steps, names, or natural language.
+- Do not create implicit Structural Dependencies that are absent from this table.
+- Parsers, validators, and generators must interpret only the stable IDs and fixed columns. They must not infer the relationship or its direction from `Reason` prose.
+- The Dependencies table is the source of truth for the Architecture Model's Structural Dependencies.
+- Do not omit a Structural Dependency from the Architecture Model merely to make a generated view easier to read.
+
+### Dependency Views
+
+An architecture document may define static views of the Structural Dependency model. When present, define exactly one child heading named `### Dependency Views` immediately after `### Dependencies` and before `### Responsibility Details`.
+
+Use this exact table structure:
+
+| ID | Name | Includes |
+| --- | --- | --- |
+| DV_GUIDANCE | Guidance | RESP_FIRST_USE_GUIDANCE RESP_REORDER_REDISCOVERY RESP_REORDER_MODE RESP_EDITOR_DOM_CONTEXT EXT_WORDPRESS_EDITOR |
+| DV_DND_CORE | DnD Core | RESP_INPUT_INTERACTION RESP_DND_INTERACTION RESP_REORDER_TARGET_RESOLUTION RESP_DROP_TARGET_RESOLUTION RESP_TABLE_INTEGRATION |
+
+Rules:
+
+- `### Dependency Views` may appear at most once in one architecture document.
+- Define multiple Dependency Views as multiple rows in the same table.
+- `ID` is the stable Dependency View ID and must use the `DV_` prefix.
+- Dependency View IDs must be unique within the architecture document.
+- `Name` is the human-readable display name for the view.
+- `Includes` is a whitespace-separated list of stable IDs explicitly included in the view.
+- Every ID in `Includes` must be defined in the External Context or Responsibility Inventory tables.
+- A generator must include only the elements explicitly named in `Includes`.
+- A view contains only Dependencies whose `Dependent` and `Depends on` are both present in that view's `Includes`.
+- External elements and related responsibilities needed in a view must be named explicitly in `Includes`.
+- A generator must not infer view membership from responsibility names, Dependency structure, Runtime View, prose, or other context.
+- A Dependency View is a presentation of part of the Architecture Model. It does not define new Structural Dependencies, architecture responsibilities, responsibility boundaries, or groups.
+- Dependencies not shown in a particular view still exist in the Architecture Model.
+- A generator must not add, remove, reverse, or merge Structural Dependencies to suit a view.
 
 ### Responsibility Details
 
-After Relationships, group responsibility definitions under a child heading exactly named `### Responsibility Details`.
+After Dependencies, or after Dependency Views when that section is present, group responsibility definitions under a child heading exactly named `### Responsibility Details`.
 
 Each responsibility must be a child heading using this form:
 
@@ -193,13 +233,7 @@ Describe the state or data the responsibility owns, including important state it
 
 ##### Contract
 
-Describe what the responsibility receives, what it provides to other responsibilities, and the boundaries of those interactions.
-
-##### Dependencies
-
-Describe which responsibilities it depends on, which responsibilities depend on it, and any direct coupling that must not exist.
-
-This section is explanatory. The Relationships table remains the machine-readable source of truth for architecture relationships.
+Describe what the responsibility receives and what it provides across its boundary. A Contract is not the source of truth for Structural Dependencies.
 
 ##### Lifecycle
 
@@ -209,9 +243,25 @@ Describe when the responsibility becomes active, when its state is initialized o
 
 Describe the internal rules that must remain true while the responsibility is valid.
 
+Use Invariants to record prohibited coupling or negative dependency boundaries that apply to one responsibility, such as a requirement not to depend on a specific responsibility or not to read specific information. Use `## 2. Architecture Constraints` instead when the prohibition applies architecture-wide.
+
+Do not add `##### Dependencies` under Responsibility Details. Positive Structural Dependencies belong only in the machine-readable `### Dependencies` table.
+
 ## Runtime View
 
 Use `## 6. Runtime View` for important runtime scenarios whose ordered collaboration is necessary to understand the architecture.
+
+Runtime View and Structural Dependencies describe different things:
+
+```text
+Dependencies:
+A → B = A requires B to fulfill A's responsibility
+
+Runtime View:
+A → B = A interacts with B at runtime
+```
+
+A Runtime View step does not have to use the same direction as a Structural Dependency. Do not infer a Structural Dependency from Runtime View, and do not infer Runtime Interaction from Dependencies.
 
 Each runtime scenario must use this heading form:
 
@@ -229,20 +279,22 @@ Immediately below the heading, include a short human-readable purpose or scenari
 | ---: | --- | --- | --- |
 | 1 | RESP_INPUT_INTERACTION | RESP_DND_INTERACTION | Passes a DnD start attempt and its start target. |
 | 2 | RESP_DND_INTERACTION | RESP_REORDER_TARGET_RESOLUTION | Requests resolution of the movable reorder target. |
-| 3 | RESP_REORDER_TARGET_RESOLUTION | RESP_DND_INTERACTION | Returns whether the target is movable and, when not movable, the reason. |
 
 Rules:
 
 - `Step` must be a positive integer.
 - Step numbers must start at `1`, be unique within the runtime scenario, and increase without gaps.
 - `Source` and `Target` must contain stable IDs defined in the External Context or Responsibility Inventory tables.
-- `Interaction` states what architecture-level information, request, result, or control meaning crosses the boundary in that step.
+- `Interaction` states what architecture-level request, event, command, result notification, or control meaning crosses the boundary in that step.
 - Runtime order comes only from the `Step` column. Do not infer order from prose or table position when the Step value says otherwise.
-- A runtime step must use an architecture relationship that is explicitly present in the Relationships table in the same direction.
-- Runtime scenarios do not define new responsibilities or external context elements.
-- Do not use source-code calls, handlers, events, DOM procedures, or implementation sequencing as runtime steps.
+- Runtime steps are independent from Structural Dependency direction and do not need a same-direction entry in the Dependencies table.
+- Runtime scenarios do not define new responsibilities, external context elements, or Structural Dependencies.
+- Do not infer missing Runtime Interaction from the Dependencies table.
+- Record architecture-significant requests, events, commands, and other interactions. Omit a simple reply or return by default when it adds no architecture meaning.
+- A result notification may be included when the notification itself is important to understanding the architecture.
+- Do not use source-code calls, handlers, DOM procedures, or implementation sequencing as runtime steps.
 
-The Runtime View is a machine-readable description of ordered architecture collaboration. How the later Structurizr generator represents that sequence is outside the documentation-format rules and must not change the Markdown meaning defined here.
+The Runtime View is a machine-readable description of ordered runtime collaboration. How a later Structurizr generator represents that sequence is outside the documentation-format rules and must not change the Markdown meaning defined here.
 
 ## Document-level architecture information
 
@@ -261,7 +313,7 @@ Cover these perspectives in the appropriate arc42 section rather than creating a
 
 Keep these descriptions at architecture level. Do not turn them into source structure, concrete call sequences, DOM procedures, test design, or implementation plans.
 
-Do not duplicate every detail already described under individual responsibilities. Use document-level sections for relationships, flows, boundaries, constraints, and rules that are easier to understand from the system-wide view.
+Do not duplicate every detail already described under individual responsibilities. Use document-level sections for dependencies, flows, boundaries, constraints, and rules that are easier to understand from the system-wide view.
 
 ## Naming
 
@@ -279,9 +331,14 @@ Any parser, validator, or generator that consumes architecture Markdown must fol
 - Resolve references only by stable ID.
 - Reject missing, duplicate, malformed, or unresolved IDs rather than guessing their intended target.
 - Reject malformed required table structures rather than recovering architecture information from surrounding prose.
+- Reject duplicate `Dependent + Depends on` pairs in the Dependencies table.
+- If `### Dependency Views` is present, require it to appear immediately after `### Dependencies`, allow the heading at most once, and parse multiple views only from rows of its fixed table.
+- Require Dependency View IDs to be unique and require every `Includes` ID to resolve to an External Context or Responsibility Inventory entry.
 - Do not use natural-language interpretation, AI inference, fuzzy matching, responsibility names, heading similarity, or prose analysis to supplement missing machine-readable information.
-- Do not infer missing Relationships from Runtime View steps or responsibility Dependencies.
-- Given the same valid Markdown input, parsing must produce the same architecture information.
+- Do not infer Structural Dependencies from Runtime View, Contract, Responsibility Details, or prose.
+- Do not infer Runtime Interaction from Dependencies.
+- Do not infer Dependency View membership from Dependencies, Runtime View, prose, or names.
+- Given the same valid Markdown input, parsing must produce the same architecture elements, Structural Dependencies, Dependency Views, and Runtime Interactions.
 
 ## Example
 
@@ -303,14 +360,21 @@ Good:
 | ID | Responsibility | Summary |
 | --- | --- | --- |
 | RESP_DND_INTERACTION | DnD Interaction | Manages DnD start eligibility and interaction progress through completion. |
+| RESP_REORDER_MODE | Reorder Mode | Owns the current edit, row-reorder, or column-reorder mode. |
 | RESP_REORDER_TARGET_RESOLUTION | Reorder Target Resolution | Determines whether the attempted start target can become the moving row or column. |
 
-### Relationships
+### Dependencies
 
-| Source | Destination | Description |
+| Dependent | Depends on | Reason |
 | --- | --- | --- |
-| RESP_DND_INTERACTION | RESP_REORDER_TARGET_RESOLUTION | Requests movable-target resolution when DnD start is attempted. |
-| RESP_REORDER_TARGET_RESOLUTION | RESP_DND_INTERACTION | Returns the resolution result and any reason that prevents DnD start. |
+| RESP_DND_INTERACTION | RESP_REORDER_MODE | DnD start requires the current reorder direction. |
+| RESP_DND_INTERACTION | RESP_REORDER_TARGET_RESOLUTION | DnD start requires movable-target eligibility. |
+
+### Dependency Views
+
+| ID | Name | Includes |
+| --- | --- | --- |
+| DV_DND_CORE | DnD Core | RESP_DND_INTERACTION RESP_REORDER_MODE RESP_REORDER_TARGET_RESOLUTION |
 
 ### Responsibility Details
 
@@ -326,11 +390,7 @@ Own active DnD interaction state only after a start target has been accepted.
 
 ##### Contract
 
-Receive DnD start attempts and progress input. Request target resolution before creating an active DnD interaction.
-
-##### Dependencies
-
-Depend on Reorder Target Resolution for start-target eligibility.
+Receive DnD start attempts and progress input. Obtain the current reorder direction and target eligibility needed to decide whether DnD can start.
 
 ##### Lifecycle
 
@@ -349,9 +409,11 @@ Describe the collaboration that either starts DnD with a movable target or rejec
 | Step | Source | Target | Interaction |
 | ---: | --- | --- | --- |
 | 1 | RESP_DND_INTERACTION | RESP_REORDER_TARGET_RESOLUTION | Requests movable-target resolution for the attempted start target. |
-| 2 | RESP_REORDER_TARGET_RESOLUTION | RESP_DND_INTERACTION | Returns the resolution result and any reason that prevents DnD start. |
+| 2 | RESP_REORDER_TARGET_RESOLUTION | RESP_DND_INTERACTION | Notifies DnD Interaction when the target cannot be used and why. |
 ```
+
+The second runtime step may point opposite to the Structural Dependency. Runtime direction represents interaction direction, not dependency direction.
 
 Bad:
 
-> `drag-controller.ts` calls `resolveTarget()` from `handlePointerDown()`, and the generator should infer that DnD Interaction depends on Reorder Target Resolution.
+> `drag-controller.ts` calls `resolveTarget()` from `handlePointerDown()`, so the generator should infer a Structural Dependency and add both runtime directions automatically.
