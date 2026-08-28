@@ -9,11 +9,30 @@ import type {
 
 type ArchitectureElement = ExternalContext | Responsibility;
 
+type RuntimeRelationshipUsage = {
+	runtimeViewId: string;
+	step: number;
+};
+
+type RuntimeRelationship = {
+	id: string;
+	source: string;
+	target: string;
+	interaction: string;
+	runtimeViewIds: string[];
+	usages: RuntimeRelationshipUsage[];
+};
+
+type RuntimeRelationships = {
+	relationships: RuntimeRelationship[];
+	stepRelationshipIds: Map< string, string >;
+};
+
 const dependencyIdentifier = ( index: number ): string =>
 	`DEP_${ String( index + 1 ).padStart( 3, '0' ) }`;
 
-const runtimeRelationshipIdentifier = ( runtimeViewId: string, step: number ): string =>
-	`RT_${ runtimeViewId }_${ String( step ).padStart( 3, '0' ) }`;
+const runtimeRelationshipIdentifier = ( index: number ): string =>
+	`RT_${ String( index + 1 ).padStart( 3, '0' ) }`;
 
 const runtimeTag = ( runtimeViewId: string ): string => `Runtime_${ runtimeViewId }`;
 
@@ -21,6 +40,56 @@ const escapeDslString = ( value: string ): string =>
 	value.replaceAll( '\\', '\\\\' ).replaceAll( '"', '\\"' ).replaceAll( '\n', ' ' );
 
 const quoted = ( value: string ): string => `"${ escapeDslString( value ) }"`;
+
+const runtimeRelationshipKey = ( source: string, target: string, interaction: string ): string =>
+	`${ source }\u0000${ target }\u0000${ interaction }`;
+
+const runtimeStepKey = ( runtimeViewId: string, step: number ): string =>
+	`${ runtimeViewId }\u0000${ step }`;
+
+const buildRuntimeRelationships = ( runtimeViews: RuntimeView[] ): RuntimeRelationships => {
+	const relationships: RuntimeRelationship[] = [];
+	const relationshipsByKey = new Map< string, RuntimeRelationship >();
+	const stepRelationshipIds = new Map< string, string >();
+
+	runtimeViews.forEach( ( runtimeView ) => {
+		runtimeView.steps.forEach( ( step ) => {
+			const relationshipKey = runtimeRelationshipKey(
+				step.source,
+				step.target,
+				step.interaction
+			);
+			let relationship = relationshipsByKey.get( relationshipKey );
+
+			if ( relationship === undefined ) {
+				relationship = {
+					id: runtimeRelationshipIdentifier( relationships.length ),
+					source: step.source,
+					target: step.target,
+					interaction: step.interaction,
+					runtimeViewIds: [],
+					usages: [],
+				};
+				relationships.push( relationship );
+				relationshipsByKey.set( relationshipKey, relationship );
+			}
+
+			if ( ! relationship.runtimeViewIds.includes( runtimeView.id ) ) {
+				relationship.runtimeViewIds.push( runtimeView.id );
+			}
+			relationship.usages.push( {
+				runtimeViewId: runtimeView.id,
+				step: step.step,
+			} );
+			stepRelationshipIds.set(
+				runtimeStepKey( runtimeView.id, step.step ),
+				relationship.id
+			);
+		} );
+	} );
+
+	return { relationships, stepRelationshipIds };
+};
 
 const generateElement = (
 	element: ArchitectureElement,
@@ -42,18 +111,28 @@ const generateDependency = ( dependency: ArchitectureDependency, index: number )
 	'\t\t}',
 ];
 
-const generateRuntimeRelationship = ( runtimeView: RuntimeView, stepIndex: number ): string[] => {
-	const step = runtimeView.steps[ stepIndex ];
-	return [
-		`\t\t${ runtimeRelationshipIdentifier( runtimeView.id, step.step ) } = ${ step.source } -> ${
-			step.target
-		} ${ quoted( step.interaction ) } {`,
-		`\t\t\ttags ${ quoted( `Runtime Interaction,${ runtimeTag( runtimeView.id ) }` ) }`,
-		'\t\t\tproperties {',
-		`\t\t\t\t"runtime.step" ${ quoted( String( step.step ) ) }`,
-		'\t\t\t}',
-		'\t\t}',
+const generateRuntimeRelationship = ( relationship: RuntimeRelationship ): string[] => {
+	const tags = [
+		'Runtime Interaction',
+		...relationship.runtimeViewIds.map( ( runtimeViewId ) => runtimeTag( runtimeViewId ) ),
 	];
+	const lines = [
+		`\t\t${ relationship.id } = ${ relationship.source } -> ${ relationship.target } ${ quoted(
+			relationship.interaction
+		) } {`,
+		`\t\t\ttags ${ quoted( tags.join( ',' ) ) }`,
+		'\t\t\tproperties {',
+	];
+
+	relationship.usages.forEach( ( usage ) => {
+		lines.push(
+			`\t\t\t\t${ quoted( `runtime.${ usage.runtimeViewId }.step.${ usage.step }` ) } ${ quoted(
+				relationship.interaction
+			) }`
+		);
+	} );
+	lines.push( '\t\t\t}', '\t\t}' );
+	return lines;
 };
 
 const generateDependencyView = ( view: DependencyView ): string[] => [
@@ -79,16 +158,30 @@ const runtimeElements = ( runtimeView: RuntimeView ): string[] => {
 	return identifiers;
 };
 
-const runtimeStepProperty = ( runtimeView: RuntimeView ): string =>
+const runtimeStepProperty = (
+	runtimeView: RuntimeView,
+	stepRelationshipIds: Map< string, string >
+): string =>
 	runtimeView.steps
-		.map(
-			( step ) => `${ step.step }=${ runtimeRelationshipIdentifier( runtimeView.id, step.step ) }`
-		)
+		.map( ( step ) => {
+			const relationshipId = stepRelationshipIds.get(
+				runtimeStepKey( runtimeView.id, step.step )
+			);
+			if ( relationshipId === undefined ) {
+				throw new Error(
+					`Runtime step ${ runtimeView.id }#${ step.step } has no generated Runtime Interaction relationship.`
+				);
+			}
+			return `${ step.step }=${ relationshipId }`;
+		} )
 		.join( ';' );
 
-const generateRuntimeView = ( runtimeView: RuntimeView ): string[] => {
+const generateRuntimeView = (
+	runtimeView: RuntimeView,
+	stepRelationshipIds: Map< string, string >
+): string[] => {
 	const elements = runtimeElements( runtimeView );
-	const sequence = runtimeStepProperty( runtimeView );
+	const sequence = runtimeStepProperty( runtimeView, stepRelationshipIds );
 	const tag = runtimeTag( runtimeView.id );
 
 	return [
@@ -107,12 +200,14 @@ const generateRuntimeView = ( runtimeView: RuntimeView ): string[] => {
 /**
  * Architecture Model に含まれる明示的な設計情報だけから Structurizr DSL を生成する。
  * Structural Dependency と Runtime Interaction は独立した Relationship として生成し、
+ * 同一の Runtime Interaction が複数 Step で使われる場合は Structurizr Model 上の Relationship を共有する。
  * Dependency View は Includes に明示された要素と、その両端が含まれる Dependency だけを表示する。
  *
  * @param model Markdown から構築した Architecture Model。
  * @return 決定的に生成された Structurizr DSL。
  */
 export const generateStructurizrDsl = ( model: ArchitectureModel ): string => {
+	const runtimeRelationships = buildRuntimeRelationships( model.runtimeViews );
 	const lines = [
 		'// Generated from docs/architecture/reorder-v1-architecture.md. Do not edit manually.',
 		'workspace "YTR Reorder v1 Architecture" {',
@@ -141,17 +236,12 @@ export const generateStructurizrDsl = ( model: ArchitectureModel ): string => {
 		lines.push( ...generateDependency( dependency, index ) );
 	} );
 
-	if ( model.runtimeViews.length > 0 ) {
+	if ( runtimeRelationships.relationships.length > 0 ) {
 		lines.push( '' );
 	}
 
-	model.runtimeViews.forEach( ( runtimeView, runtimeViewIndex ) => {
-		runtimeView.steps.forEach( ( _step, stepIndex ) => {
-			lines.push( ...generateRuntimeRelationship( runtimeView, stepIndex ) );
-		} );
-		if ( runtimeViewIndex < model.runtimeViews.length - 1 ) {
-			lines.push( '' );
-		}
+	runtimeRelationships.relationships.forEach( ( relationship ) => {
+		lines.push( ...generateRuntimeRelationship( relationship ) );
 	} );
 
 	lines.push( '\t}', '', '\tviews {' );
@@ -167,7 +257,9 @@ export const generateStructurizrDsl = ( model: ArchitectureModel ): string => {
 		if ( model.dependencyViews.length > 0 || runtimeView !== model.runtimeViews[ 0 ] ) {
 			lines.push( '' );
 		}
-		lines.push( ...generateRuntimeView( runtimeView ) );
+		lines.push(
+			...generateRuntimeView( runtimeView, runtimeRelationships.stepRelationshipIds )
+		);
 	} );
 
 	lines.push( '\t}', '}', '' );
