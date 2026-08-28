@@ -1,21 +1,19 @@
 import type {
+	ArchitectureDependency,
 	ArchitectureModel,
-	ArchitectureRelationship,
+	DependencyView,
 	ExternalContext,
 	Responsibility,
 	RuntimeView,
 } from './architecture-model';
 
-type RuntimeBinding = {
-	runtimeViewId: string;
-	step: number;
-	interaction: string;
-};
-
 type ArchitectureElement = ExternalContext | Responsibility;
 
-const relationshipIdentifier = ( index: number ): string =>
-	`REL_${ String( index + 1 ).padStart( 3, '0' ) }`;
+const dependencyIdentifier = ( index: number ): string =>
+	`DEP_${ String( index + 1 ).padStart( 3, '0' ) }`;
+
+const runtimeRelationshipIdentifier = ( runtimeViewId: string, step: number ): string =>
+	`RT_${ runtimeViewId }_${ String( step ).padStart( 3, '0' ) }`;
 
 const runtimeTag = ( runtimeViewId: string ): string => `Runtime_${ runtimeViewId }`;
 
@@ -23,50 +21,6 @@ const escapeDslString = ( value: string ): string =>
 	value.replaceAll( '\\', '\\\\' ).replaceAll( '"', '\\"' ).replaceAll( '\n', ' ' );
 
 const quoted = ( value: string ): string => `"${ escapeDslString( value ) }"`;
-
-const relationshipKey = ( source: string, destination: string ): string =>
-	`${ source }\u0000${ destination }`;
-
-const buildRelationshipIndex = (
-	relationships: ArchitectureRelationship[]
-): Map< string, number[] > => {
-	const index = new Map< string, number[] >();
-
-	relationships.forEach( ( relationship, relationshipIndex ) => {
-		const key = relationshipKey( relationship.source, relationship.destination );
-		const existing = index.get( key ) ?? [];
-		existing.push( relationshipIndex );
-		index.set( key, existing );
-	} );
-
-	return index;
-};
-
-const bindRuntimeSteps = ( model: ArchitectureModel ): RuntimeBinding[][] => {
-	const relationshipIndex = buildRelationshipIndex( model.relationships );
-	const bindings: RuntimeBinding[][] = model.relationships.map( () => [] );
-
-	model.runtimeViews.forEach( ( runtimeView ) => {
-		runtimeView.steps.forEach( ( runtimeStep ) => {
-			const key = relationshipKey( runtimeStep.source, runtimeStep.target );
-			const matchingRelationships = relationshipIndex.get( key ) ?? [];
-
-			if ( matchingRelationships.length !== 1 ) {
-				throw new Error(
-					`Runtime step ${ runtimeView.id }#${ runtimeStep.step } must resolve to exactly one explicit relationship.`
-				);
-			}
-
-			bindings[ matchingRelationships[ 0 ] ].push( {
-				runtimeViewId: runtimeView.id,
-				step: runtimeStep.step,
-				interaction: runtimeStep.interaction,
-			} );
-		} );
-	} );
-
-	return bindings;
-};
 
 const generateElement = (
 	element: ArchitectureElement,
@@ -80,39 +34,56 @@ const generateElement = (
 	'\t\t}',
 ];
 
-const generateRelationship = (
-	relationship: ArchitectureRelationship,
-	index: number,
-	runtimeBindings: RuntimeBinding[]
-): string[] => {
-	const identifier = relationshipIdentifier( index );
-	const tags = [ 'Architecture Relationship' ];
-	const lines = [
-		`\t\t${ identifier } = ${ relationship.source } -> ${ relationship.destination } ${ quoted(
-			relationship.description
+const generateDependency = ( dependency: ArchitectureDependency, index: number ): string[] => [
+	`\t\t${ dependencyIdentifier( index ) } = ${ dependency.dependent } -> ${ dependency.dependsOn } ${ quoted(
+		dependency.reason
+	) } {`,
+	'\t\t\ttags "Structural Dependency"',
+	'\t\t}',
+];
+
+const generateRuntimeRelationship = ( runtimeView: RuntimeView, stepIndex: number ): string[] => {
+	const step = runtimeView.steps[ stepIndex ];
+	return [
+		`\t\t${ runtimeRelationshipIdentifier( runtimeView.id, step.step ) } = ${ step.source } -> ${ step.target } ${ quoted(
+			step.interaction
 		) } {`,
+		`\t\t\ttags ${ quoted( `Runtime Interaction,${ runtimeTag( runtimeView.id ) }` ) }`,
+		'\t\t\tproperties {',
+		`\t\t\t\t"runtime.step" ${ quoted( String( step.step ) ) }`,
+		'\t\t\t}',
+		'\t\t}',
 	];
+};
 
-	runtimeBindings.forEach( ( binding ) => {
-		const tag = runtimeTag( binding.runtimeViewId );
-		if ( ! tags.includes( tag ) ) {
-			tags.push( tag );
-		}
-	} );
+const dependencyViewRelationshipIds = (
+	view: DependencyView,
+	dependencies: ArchitectureDependency[]
+): string[] => {
+	const included = new Set( view.includes );
+	return dependencies
+		.map( ( dependency, index ) =>
+			included.has( dependency.dependent ) && included.has( dependency.dependsOn )
+				? dependencyIdentifier( index )
+				: null
+		)
+		.filter( ( id ): id is string => id !== null );
+};
 
-	lines.push( `\t\t\ttags ${ quoted( tags.join( ',' ) ) }` );
+const generateDependencyView = (
+	view: DependencyView,
+	dependencies: ArchitectureDependency[]
+): string[] => {
+	const relationshipIds = dependencyViewRelationshipIds( view, dependencies );
+	const includes = [ ...view.includes, ...relationshipIds ].join( ' ' );
 
-	if ( runtimeBindings.length > 0 ) {
-		lines.push( '\t\t\tproperties {' );
-		runtimeBindings.forEach( ( binding ) => {
-			const propertyName = `runtime.${ binding.runtimeViewId }.step.${ binding.step }`;
-			lines.push( `\t\t\t\t${ quoted( propertyName ) } ${ quoted( binding.interaction ) }` );
-		} );
-		lines.push( '\t\t\t}' );
-	}
-
-	lines.push( '\t\t}' );
-	return lines;
+	return [
+		`\t\tcustom ${ quoted( view.id ) } {`,
+		`\t\t\ttitle ${ quoted( view.name ) }`,
+		`\t\t\tinclude ${ includes }`,
+		'\t\t\tautoLayout lr',
+		'\t\t}',
+	];
 };
 
 const runtimeElements = ( runtimeView: RuntimeView ): string[] => {
@@ -129,46 +100,25 @@ const runtimeElements = ( runtimeView: RuntimeView ): string[] => {
 	return identifiers;
 };
 
-const runtimeStepProperty = (
-	runtimeView: RuntimeView,
-	relationshipIndex: Map< string, number[] >
-): string =>
+const runtimeStepProperty = ( runtimeView: RuntimeView ): string =>
 	runtimeView.steps
-		.map( ( step ) => {
-			const key = relationshipKey( step.source, step.target );
-			const matchingRelationships = relationshipIndex.get( key ) ?? [];
-
-			if ( matchingRelationships.length !== 1 ) {
-				throw new Error(
-					`Runtime step ${ runtimeView.id }#${ step.step } must resolve to exactly one explicit relationship.`
-				);
-			}
-
-			return `${ step.step }=${ relationshipIdentifier( matchingRelationships[ 0 ] ) }`;
-		} )
+		.map(
+			( step ) =>
+				`${ step.step }=${ runtimeRelationshipIdentifier( runtimeView.id, step.step ) }`
+		)
 		.join( ';' );
 
-const generateResponsibilityView = (): string[] => [
-	'\t\tcustom "ResponsibilityView" {',
-	'\t\t\ttitle "Responsibility View"',
-	'\t\t\tinclude *',
-	'\t\t\tautoLayout lr',
-	'\t\t}',
-];
-
-const generateRuntimeView = (
-	runtimeView: RuntimeView,
-	relationshipIndex: Map< string, number[] >
-): string[] => {
+const generateRuntimeView = ( runtimeView: RuntimeView ): string[] => {
 	const elements = runtimeElements( runtimeView );
-	const sequence = runtimeStepProperty( runtimeView, relationshipIndex );
-	const tag = runtimeTag( runtimeView.id );
+	const relationships = runtimeView.steps.map( ( step ) =>
+		runtimeRelationshipIdentifier( runtimeView.id, step.step )
+	);
+	const sequence = runtimeStepProperty( runtimeView );
 
 	return [
 		`\t\tcustom ${ quoted( runtimeView.id ) } {`,
 		`\t\t\ttitle ${ quoted( runtimeView.name ) }`,
-		`\t\t\tinclude ${ elements.join( ' ' ) }`,
-		`\t\t\texclude ${ quoted( `relationship.tag!=${ tag }` ) }`,
+		`\t\t\tinclude ${ [ ...elements, ...relationships ].join( ' ' ) }`,
 		'\t\t\tproperties {',
 		`\t\t\t\t"runtime.steps" ${ quoted( sequence ) }`,
 		'\t\t\t}',
@@ -179,14 +129,13 @@ const generateRuntimeView = (
 
 /**
  * Architecture Model に含まれる明示的な設計情報だけから Structurizr DSL を生成する。
- * Runtime View は既存 Relationship を参照し、Step 順序を Relationship property と View property に保持する。
+ * Structural Dependency と Runtime Interaction は独立した Relationship として生成し、
+ * Dependency View は Includes に明示された要素と、その両端が含まれる Dependency だけを表示する。
  *
  * @param model Markdown から構築した Architecture Model。
  * @return 決定的に生成された Structurizr DSL。
  */
 export const generateStructurizrDsl = ( model: ArchitectureModel ): string => {
-	const runtimeBindings = bindRuntimeSteps( model );
-	const relationshipIndex = buildRelationshipIndex( model.relationships );
 	const lines = [
 		'// Generated from docs/architecture/reorder-v1-architecture.md. Do not edit manually.',
 		'workspace "YTR Reorder v1 Architecture" {',
@@ -207,18 +156,41 @@ export const generateStructurizrDsl = ( model: ArchitectureModel ): string => {
 		lines.push( ...generateElement( responsibility, 'Responsibility', 'Responsibility' ) );
 	} );
 
-	if ( model.relationships.length > 0 ) {
+	if ( model.dependencies.length > 0 ) {
 		lines.push( '' );
 	}
 
-	model.relationships.forEach( ( relationship, index ) => {
-		lines.push( ...generateRelationship( relationship, index, runtimeBindings[ index ] ) );
+	model.dependencies.forEach( ( dependency, index ) => {
+		lines.push( ...generateDependency( dependency, index ) );
 	} );
 
-	lines.push( '\t}', '', '\tviews {', ...generateResponsibilityView() );
+	if ( model.runtimeViews.length > 0 ) {
+		lines.push( '' );
+	}
+
+	model.runtimeViews.forEach( ( runtimeView, runtimeViewIndex ) => {
+		runtimeView.steps.forEach( ( _step, stepIndex ) => {
+			lines.push( ...generateRuntimeRelationship( runtimeView, stepIndex ) );
+		} );
+		if ( runtimeViewIndex < model.runtimeViews.length - 1 ) {
+			lines.push( '' );
+		}
+	} );
+
+	lines.push( '\t}', '', '\tviews {' );
+
+	model.dependencyViews.forEach( ( view, index ) => {
+		if ( index > 0 ) {
+			lines.push( '' );
+		}
+		lines.push( ...generateDependencyView( view, model.dependencies ) );
+	} );
 
 	model.runtimeViews.forEach( ( runtimeView ) => {
-		lines.push( '', ...generateRuntimeView( runtimeView, relationshipIndex ) );
+		if ( model.dependencyViews.length > 0 || runtimeView !== model.runtimeViews[ 0 ] ) {
+			lines.push( '' );
+		}
+		lines.push( ...generateRuntimeView( runtimeView ) );
 	} );
 
 	lines.push( '\t}', '}', '' );
