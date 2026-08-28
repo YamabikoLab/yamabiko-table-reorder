@@ -67,7 +67,7 @@ test( '同一 Architecture Model から同一 DSL を生成する', () => {
 	assert.match( first, /!impliedRelationships false/u );
 	assert.match( first, /custom "DV_INPUT"/u );
 	assert.match( first, /custom "RV_DND_START"/u );
-	assert.match( first, /"runtime\.steps" "1=RT_RV_DND_START_001;2=RT_RV_DND_START_002"/u );
+	assert.match( first, /"runtime\.steps" "1=RT_001;2=RT_002"/u );
 	assert.match( first, /RESP_INPUT -> EXT_EDITOR "編集環境を必要とする。"/u );
 	assert.match( first, /tags "Structural Dependency"/u );
 	assert.match( first, /EXT_EDITOR -> RESP_INPUT "入力する。"/u );
@@ -109,4 +109,44 @@ test( 'Runtime Interaction は Structural Dependency と独立して生成する
 	const dsl = generateStructurizrDsl( reverseRuntimeModel );
 	assert.match( dsl, /RESP_INPUT -> EXT_EDITOR "編集環境を必要とする。"/u );
 	assert.match( dsl, /EXT_EDITOR -> RESP_INPUT "依存方向とは逆向きに通知する。"/u );
+} );
+
+test( '同一 Runtime Interaction を複数 View で共有する', () => {
+	const sharedRuntimeModel: ArchitectureModel = {
+		...model,
+		runtimeViews: [
+			{
+				id: 'RV_FIRST',
+				name: 'First',
+				steps: [
+					{
+						step: 1,
+						source: 'RESP_INPUT',
+						target: 'RESP_DND',
+						interaction: '開始試行を渡す。',
+					},
+				],
+			},
+			{
+				id: 'RV_SECOND',
+				name: 'Second',
+				steps: [
+					{
+						step: 1,
+						source: 'RESP_INPUT',
+						target: 'RESP_DND',
+						interaction: '開始試行を渡す。',
+					},
+				],
+			},
+		],
+	};
+
+	const dsl = generateStructurizrDsl( sharedRuntimeModel );
+	assert.equal( dsl.match( /RESP_INPUT -> RESP_DND "開始試行を渡す。"/gu )?.length, 1 );
+	assert.match( dsl, /tags "Runtime Interaction,Runtime_RV_FIRST,Runtime_RV_SECOND"/u );
+	assert.match( dsl, /"runtime\.RV_FIRST\.step\.1" "開始試行を渡す。"/u );
+	assert.match( dsl, /"runtime\.RV_SECOND\.step\.1" "開始試行を渡す。"/u );
+	assert.match( dsl, /custom "RV_FIRST"[\s\S]*"runtime\.steps" "1=RT_001"/u );
+	assert.match( dsl, /custom "RV_SECOND"[\s\S]*"runtime\.steps" "1=RT_001"/u );
 } );
