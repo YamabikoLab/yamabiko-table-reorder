@@ -19,7 +19,7 @@ workspace "YTR Reorder v1 Architecture" {
 			tags "External Context"
 		}
 
-		RESP_REORDER_MODE = element "Reorder Mode" "Responsibility" "通常の Table 編集、行並び替え、列並び替えのどの状態にあるかを管理し、並び替え操作の有効範囲を決める。" {
+		RESP_REORDER_MODE = element "Reorder Mode" "Responsibility" "通常の Table 編集、行並び替え、列並び替えのどの状態にあるかを管理し、現在のモードに応じた DnD 開始可否を提供する。" {
 			tags "Responsibility"
 		}
 		RESP_FIRST_USE_GUIDANCE = element "First-use Guidance" "Responsibility" "PC とタッチ端末ごとの初回案内の表示状態を管理し、並び替えの入口を利用者に案内する。" {
@@ -40,19 +40,19 @@ workspace "YTR Reorder v1 Architecture" {
 		RESP_DND_INTERACTION = element "DnD Interaction" "Responsibility" "入力方式と行・列に共通する DnD の開始可否判定と進行を統括し、成立した Reorder Session の状態を管理して、確定可能な操作だけを Data Update へ渡す。" {
 			tags "Responsibility"
 		}
-		RESP_REORDER_TARGET_RESOLUTION = element "Reorder Target Resolution" "Responsibility" "DnD 開始試行時に現在の共通 Table structure から移動対象可否を判定し、その DnD で利用する構造上の制約情報を導出する。" {
+		RESP_REORDER_TARGET_RESOLUTION = element "Reorder Target Resolution" "Responsibility" "DnD 開始試行時、行では共通 Table structure 上の body section、列では Table 全体から移動対象を解決し、対応する構造保持に必要な制約情報を導出する。" {
 			tags "Responsibility"
 		}
-		RESP_DROP_TARGET_RESOLUTION = element "Drop Target Resolution" "Responsibility" "DnD Interaction から渡された移動対象、並び替え方向、制約情報、現在位置から、現在の位置が有効な移動先かを判定する。" {
+		RESP_DROP_TARGET_RESOLUTION = element "Drop Target Resolution" "Responsibility" "DnD Interaction から渡された判定入力だけを使い、行では body section 内の行間、列では Table 全体の列間から有効な移動先を判定する。" {
 			tags "Responsibility"
 		}
-		RESP_REORDER_PRESENTATION = element "Reorder Presentation" "Responsibility" "並び替えモード中の対象表示、移動不可理由、および DnD 中から確定・キャンセルまでの視覚フィードバックを Table データの更新から分離して扱う。" {
+		RESP_REORDER_PRESENTATION = element "Reorder Presentation" "Responsibility" "移動不可理由、および DnD 開始後の現在の移動対象から確定・キャンセルまでの視覚フィードバックを Table データ更新から分離して扱う。" {
 			tags "Responsibility"
 		}
 		RESP_AUTO_SCROLL = element "Auto Scroll" "Responsibility" "DnD 中に、行では縦方向、列では横方向だけを移動のための自動スクロール対象とする。" {
 			tags "Responsibility"
 		}
-		RESP_DATA_UPDATE = element "Data Update" "Responsibility" "確定した並び替えだけを Table に反映し、保持すべきセル情報と Undo 単位を維持する。" {
+		RESP_DATA_UPDATE = element "Data Update" "Responsibility" "確定した並び替えについて、行では body section の行順、列では Table 全体の列順だけを Table に反映し、保持すべきセル情報と Undo 単位を維持する。" {
 			tags "Responsibility"
 		}
 
@@ -107,28 +107,25 @@ workspace "YTR Reorder v1 Architecture" {
 		DEP_017 = RESP_REORDER_TARGET_RESOLUTION -> RESP_TABLE_INTEGRATION "移動対象判定と制約情報導出に使用する現在の共通 Table structure を必要とする。" {
 			tags "Structural Dependency"
 		}
-		DEP_018 = RESP_REORDER_PRESENTATION -> RESP_REORDER_MODE "並び替えモード中に表示する対象方向を決めるため、現在の並び替え状態を必要とする。" {
+		DEP_018 = RESP_REORDER_PRESENTATION -> RESP_EDITOR_DOM_CONTEXT "表示処理で DOM / Web API を利用するため、現在の editor context を必要とする。" {
 			tags "Structural Dependency"
 		}
-		DEP_019 = RESP_REORDER_PRESENTATION -> RESP_EDITOR_DOM_CONTEXT "表示処理で DOM / Web API を利用するため、現在の editor context を必要とする。" {
+		DEP_019 = RESP_REORDER_PRESENTATION -> RESP_DND_INTERACTION "移動不可理由、DnD の進行状態、確定結果、キャンセル結果を表示するために必要とする。" {
 			tags "Structural Dependency"
 		}
-		DEP_020 = RESP_REORDER_PRESENTATION -> RESP_DND_INTERACTION "移動不可理由、DnD の進行状態、確定結果、キャンセル結果を表示するために必要とする。" {
+		DEP_020 = RESP_AUTO_SCROLL -> RESP_DND_INTERACTION "active な DnD と並び替え方向を自動スクロール判断に必要とする。" {
 			tags "Structural Dependency"
 		}
-		DEP_021 = RESP_AUTO_SCROLL -> RESP_DND_INTERACTION "active な DnD と並び替え方向を自動スクロール判断に必要とする。" {
+		DEP_021 = RESP_AUTO_SCROLL -> RESP_EDITOR_DOM_CONTEXT "自動スクロールで DOM / Web API を利用するため、現在の editor context を必要とする。" {
 			tags "Structural Dependency"
 		}
-		DEP_022 = RESP_AUTO_SCROLL -> RESP_EDITOR_DOM_CONTEXT "自動スクロールで DOM / Web API を利用するため、現在の editor context を必要とする。" {
+		DEP_022 = RESP_AUTO_SCROLL -> EXT_SCROLL_AREA "DnD 中に移動方向へスクロールできる外部領域を必要とする。" {
 			tags "Structural Dependency"
 		}
-		DEP_023 = RESP_AUTO_SCROLL -> EXT_SCROLL_AREA "DnD 中に移動方向へスクロールできる外部領域を必要とする。" {
+		DEP_023 = RESP_DATA_UPDATE -> RESP_TABLE_INTEGRATION "確定した並び替えを対象 Table plugin 固有の方法で反映する能力を必要とする。" {
 			tags "Structural Dependency"
 		}
-		DEP_024 = RESP_DATA_UPDATE -> RESP_TABLE_INTEGRATION "確定した並び替えを対象 Table plugin 固有の方法で反映する能力を必要とする。" {
-			tags "Structural Dependency"
-		}
-		DEP_025 = RESP_DATA_UPDATE -> EXT_WORDPRESS_UNDO "成立した 1 回の並び替えを 1 回で戻せる更新単位を維持するため、Undo の仕組みを必要とする。" {
+		DEP_024 = RESP_DATA_UPDATE -> EXT_WORDPRESS_UNDO "成立した 1 回の並び替えを 1 回で戻せる更新単位を維持するため、Undo の仕組みを必要とする。" {
 			tags "Structural Dependency"
 		}
 
@@ -191,10 +188,10 @@ workspace "YTR Reorder v1 Architecture" {
 				"runtime.RV_DND_START_MOVABLE.step.5" "移動対象と、その DnD で利用する制約情報が解決されたことを通知する。"
 			}
 		}
-		RT_006 = RESP_DND_INTERACTION -> RESP_REORDER_PRESENTATION "DnD が開始した移動対象と進行状態を提供する。" {
+		RT_006 = RESP_DND_INTERACTION -> RESP_REORDER_PRESENTATION "DnD が開始した現在の移動対象と進行状態を提供し、移動対象表示を開始させる。" {
 			tags "Runtime Interaction,Runtime_RV_DND_START_MOVABLE"
 			properties {
-				"runtime.RV_DND_START_MOVABLE.step.6" "DnD が開始した移動対象と進行状態を提供する。"
+				"runtime.RV_DND_START_MOVABLE.step.6" "DnD が開始した現在の移動対象と進行状態を提供し、移動対象表示を開始させる。"
 			}
 		}
 		RT_007 = RESP_DND_INTERACTION -> RESP_AUTO_SCROLL "active な DnD と並び替え方向を提供する。" {
@@ -222,16 +219,16 @@ workspace "YTR Reorder v1 Architecture" {
 				"runtime.RV_DND_PROGRESS.step.1" "現在位置に対応する DnD 進行情報を渡す。"
 			}
 		}
-		RT_011 = RESP_DND_INTERACTION -> RESP_DROP_TARGET_RESOLUTION "現在の移動対象、並び替え方向、制約情報、現在位置を渡して移動先判定を要求する。" {
+		RT_011 = RESP_DND_INTERACTION -> RESP_DROP_TARGET_RESOLUTION "現在の移動対象、並び替え方向、制約情報、現在位置を渡し、行では body section 内の行間、列では Table 全体の列間について移動先判定を要求する。" {
 			tags "Runtime Interaction,Runtime_RV_DND_PROGRESS"
 			properties {
-				"runtime.RV_DND_PROGRESS.step.2" "現在の移動対象、並び替え方向、制約情報、現在位置を渡して移動先判定を要求する。"
+				"runtime.RV_DND_PROGRESS.step.2" "現在の移動対象、並び替え方向、制約情報、現在位置を渡し、行では body section 内の行間、列では Table 全体の列間について移動先判定を要求する。"
 			}
 		}
-		RT_012 = RESP_DROP_TARGET_RESOLUTION -> RESP_DND_INTERACTION "有効な移動先、または有効な移動先なしという判定結果を通知する。" {
+		RT_012 = RESP_DROP_TARGET_RESOLUTION -> RESP_DND_INTERACTION "対象範囲の構造保持条件を満たす有効な移動先、または有効な移動先なしという判定結果を通知する。" {
 			tags "Runtime Interaction,Runtime_RV_DND_PROGRESS"
 			properties {
-				"runtime.RV_DND_PROGRESS.step.3" "有効な移動先、または有効な移動先なしという判定結果を通知する。"
+				"runtime.RV_DND_PROGRESS.step.3" "対象範囲の構造保持条件を満たす有効な移動先、または有効な移動先なしという判定結果を通知する。"
 			}
 		}
 		RT_013 = RESP_DND_INTERACTION -> RESP_REORDER_PRESENTATION "移動対象と現在の有効な移動先を提供し、挿入線と必要な周囲の表示変化を更新させる。" {
