@@ -25,3 +25,5 @@
 | 17 | Table Integration | Table統合 | `TableIntegration`, `createTableIntegration()` | 外部Table plugin固有のTable構造取得およびデータ更新方法をReorder coreから隠蔽する境界。 | 要求時に対象Tableの現在データを利用し、Tableデータや共通Table structureを保持しない。 |
 | 18 | Table Structure | Table構造 | `TableStructure` | Reorder coreが利用する共通Table structure。通常セルは持たず、結合セルの位置と範囲だけを保持する。 | `mergedCells`に`TableMergedCellStructure`を保持する。 |
 | 19 | Table Merged Cell Structure | Table結合セル構造 | `TableMergedCellStructure` | 共通Table structure上で1つの結合セルが属するsection、開始位置、縦横の占有範囲を表す。 | `rowStart` / `columnStart`は0-basedのlogical Table grid上の位置を表す。 |
+| 20 | Reorder Target Resolution | 並び替え対象解決 | `ReorderTargetResolution`, `createReorderTargetResolution()` | DnD開始試行時にReorder Targetの成立可否を判定し、そのDnDで利用するReorder Constraintsを導出する責務。 | 行ではbody sectionの縦結合、列ではTable全体の横結合を対象方向の制約として扱う。 |
+| 21 | Reorder Constraints | 並び替え制約 | `ReorderConstraints`, `blockedBoundaries` | 1回のDnD中に移動先判定で利用する構造上の制約。 | `blockedBoundaries`は対象方向の結合セル内部のinsertion boundary indexを重複なし・昇順で保持する。 |
