@@ -137,11 +137,10 @@ type TableStructureIntegration = {
 /**
  * 値をTable属性、行、セルとして安全に参照できるオブジェクトか判定する。
  *
- * 配列や`null`は対象Tableデータのオブジェクトとして扱わず、不完全なデータから共通Table構造を
- * 推測することを防ぐ。
+ * Table構造を推測しないため、属性を持つデータとして扱えるのは`null`でも配列でもないオブジェクトだけとする。
  *
  * @param value 判定対象の値。
- * @return プロパティを安全に参照できるオブジェクトの場合は`true`。
+ * @return Tableデータのオブジェクトとして安全に参照できる場合は`true`。
  */
 const isRecord = ( value: unknown ): value is Record< string, unknown > =>
 	value !== null && typeof value === 'object' && ! Array.isArray( value );
@@ -156,15 +155,18 @@ const isRecord = ( value: unknown ): value is Record< string, unknown > =>
  * @return 1以上の占有数。解釈できない値の場合は`null`。
  */
 const parseSpan = ( span: unknown ): number | null => {
+	// 結合範囲が指定されていないセルは、1行1列を占有する通常セルとして扱う。
 	if ( span === undefined ) {
 		return 1;
 	}
 
+	// 対応Tableが結合範囲として表現できる数値または数値文字列以外は受け入れない。
 	if ( typeof span !== 'number' && typeof span !== 'string' ) {
 		return null;
 	}
 
 	const value = Number( span );
+	// Table上の占有数は1以上の整数である必要があり、それ以外では共通Table構造を確定しない。
 	const normalizedSpan = Number.isInteger( value ) && value >= 1 ? value : null;
 	return normalizedSpan;
 };
@@ -183,29 +185,37 @@ const normalizeCoreTableRows = (
 	section: unknown,
 	optional: boolean
 ): readonly TableRow[] | null => {
+	// `head`と`foot`は省略を許容するが、Table本体である`body`は必須とする。
 	if ( section === undefined ) {
-		const missingSectionRows = optional ? [] : null;
-		return missingSectionRows;
+		if ( optional ) {
+			return [];
+		}
+
+		return null;
 	}
 
+	// 存在するTable区画は行の一覧として解釈できる必要がある。
 	if ( ! Array.isArray( section ) ) {
 		return null;
 	}
 
 	const rows: TableRow[] = [];
 	for ( const row of section ) {
+		// 各行はセル一覧を持つTable行として解釈できる場合だけ共通表現へ取り込む。
 		if ( ! isRecord( row ) || ! Array.isArray( row.cells ) ) {
 			return null;
 		}
 
 		const cells: TableCell[] = [];
 		for ( const cell of row.cells ) {
+			// 各セルは結合範囲属性を安全に参照できるセルデータである必要がある。
 			if ( ! isRecord( cell ) ) {
 				return null;
 			}
 
 			const rowSpan = parseSpan( cell.rowspan );
 			const columnSpan = parseSpan( cell.colspan );
+			// 縦横どちらかの結合範囲を確定できないセルがあれば、区画全体を不完全として扱う。
 			if ( rowSpan === null || columnSpan === null ) {
 				return null;
 			}
@@ -229,6 +239,7 @@ const normalizeCoreTableRows = (
  * @return 共通のTable区画一覧。安全に正規化できない場合は`null`。
  */
 const normalizeCoreTableAttributes = ( attributes: unknown ): TableSections | null => {
+	// Table属性そのものを安全に参照できない場合は、区画構造を推測しない。
 	if ( ! isRecord( attributes ) ) {
 		return null;
 	}
@@ -236,8 +247,10 @@ const normalizeCoreTableAttributes = ( attributes: unknown ): TableSections | nu
 	const head = normalizeCoreTableRows( attributes.head, true );
 	const body = normalizeCoreTableRows( attributes.body, false );
 	const foot = normalizeCoreTableRows( attributes.foot, true );
+	const hasUnavailableSection = head === null || body === null || foot === null;
 
-	if ( head === null || body === null || foot === null ) {
+	// 共通Table構造は`head`、`body`、`foot`を一組として成立させ、部分的に解釈できた区画だけでは作らない。
+	if ( hasUnavailableSection ) {
 		return null;
 	}
 
@@ -258,29 +271,37 @@ const normalizeFlexibleTableBlockRows = (
 	section: unknown,
 	optional: boolean
 ): readonly TableRow[] | null => {
+	// `head`と`foot`は省略を許容するが、Table本体である`body`は必須とする。
 	if ( section === undefined ) {
-		const missingSectionRows = optional ? [] : null;
-		return missingSectionRows;
+		if ( optional ) {
+			return [];
+		}
+
+		return null;
 	}
 
+	// 存在するTable区画は行の一覧として解釈できる必要がある。
 	if ( ! Array.isArray( section ) ) {
 		return null;
 	}
 
 	const rows: TableRow[] = [];
 	for ( const row of section ) {
+		// 各行はセル一覧を持つTable行として解釈できる場合だけ共通表現へ取り込む。
 		if ( ! isRecord( row ) || ! Array.isArray( row.cells ) ) {
 			return null;
 		}
 
 		const cells: TableCell[] = [];
 		for ( const cell of row.cells ) {
+			// 各セルは結合範囲属性を安全に参照できるセルデータである必要がある。
 			if ( ! isRecord( cell ) ) {
 				return null;
 			}
 
 			const rowSpan = parseSpan( cell.rowSpan );
 			const columnSpan = parseSpan( cell.colSpan );
+			// 縦横どちらかの結合範囲を確定できないセルがあれば、区画全体を不完全として扱う。
 			if ( rowSpan === null || columnSpan === null ) {
 				return null;
 			}
@@ -304,6 +325,7 @@ const normalizeFlexibleTableBlockRows = (
  * @return 共通のTable区画一覧。安全に正規化できない場合は`null`。
  */
 const normalizeFlexibleTableBlockAttributes = ( attributes: unknown ): TableSections | null => {
+	// Table属性そのものを安全に参照できない場合は、区画構造を推測しない。
 	if ( ! isRecord( attributes ) ) {
 		return null;
 	}
@@ -311,8 +333,10 @@ const normalizeFlexibleTableBlockAttributes = ( attributes: unknown ): TableSect
 	const head = normalizeFlexibleTableBlockRows( attributes.head, true );
 	const body = normalizeFlexibleTableBlockRows( attributes.body, false );
 	const foot = normalizeFlexibleTableBlockRows( attributes.foot, true );
+	const hasUnavailableSection = head === null || body === null || foot === null;
 
-	if ( head === null || body === null || foot === null ) {
+	// 共通Table構造は`head`、`body`、`foot`を一組として成立させ、部分的に解釈できた区画だけでは作らない。
+	if ( hasUnavailableSection ) {
 		return null;
 	}
 
@@ -342,12 +366,14 @@ const findColumnStart = (
 	while ( true ) {
 		let isAvailable = true;
 		for ( let column = candidate; column < candidate + columnSpan; column++ ) {
+			// 先行する縦結合が占有中の列を含む候補位置には、新しいセルを配置しない。
 			if ( ( occupiedUntilRow[ column ] ?? 0 ) > rowStart ) {
 				isAvailable = false;
 				break;
 			}
 		}
 
+		// 現在セルの横幅全体を配置できる最初の候補位置を、そのセルの論理開始列として確定する。
 		if ( isAvailable ) {
 			return candidate;
 		}
@@ -439,8 +465,13 @@ const buildTableStructure = ( sections: TableSections ): TableStructure => {
 const coreTableIntegration: TableStructureIntegration = {
 	getStructure: ( attributes ) => {
 		const sections = normalizeCoreTableAttributes( attributes );
-		const structure = sections === null ? null : buildTableStructure( sections );
-		return structure;
+
+		// Core Tableの全区画を安全に正規化できない場合は、部分的な共通Table構造を返さない。
+		if ( sections === null ) {
+			return null;
+		}
+
+		return buildTableStructure( sections );
 	},
 };
 
@@ -453,8 +484,13 @@ const coreTableIntegration: TableStructureIntegration = {
 const flexibleTableBlockIntegration: TableStructureIntegration = {
 	getStructure: ( attributes ) => {
 		const sections = normalizeFlexibleTableBlockAttributes( attributes );
-		const structure = sections === null ? null : buildTableStructure( sections );
-		return structure;
+
+		// Flexible Table Blockの全区画を安全に正規化できない場合は、部分的な共通Table構造を返さない。
+		if ( sections === null ) {
+			return null;
+		}
+
+		return buildTableStructure( sections );
 	},
 };
 
