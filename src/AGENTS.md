@@ -15,7 +15,9 @@ These instructions apply to source files under `src/`.
 ## Code structure and reuse
 
 - Keep abstractions meaningful and stable by introducing them only for concrete responsibilities or shared reasons for change. Do not abstract or commonize code merely because implementations currently look similar.
+- When implementing parallel row and column behavior, check for logic that represents the same rule or responsibility in both features. If it has the same meaning and the same reason to change, define it once in the appropriate shared Reorder responsibility rather than duplicating it in each feature.
 - Keep implementation details from crossing responsibility boundaries by placing integration-specific adaptation at the boundaries defined by the Architecture.
+- Never return a conditional expression directly. Assign its result to a meaningfully named variable first, using a basic-design-level name that makes the meaning of the returned value understandable without reading the implementation.
 
 ## React readability
 
@@ -43,17 +45,19 @@ When reviewing React code, focus on React-specific correctness, lifecycle behavi
 - Prefer public WordPress APIs, hooks, components, and data stores.
 - Keep DOM access correct in both iframe and non-iframe editors, including when the active editor context changes. Do not assume the global `document` or `window` is always the correct and persistent context; resolve them from the current editor context.
 - Use terminology defined in `../docs/glossary.md` for source code identifiers, JSDoc, and comments. When introducing a new concept that cannot be expressed with existing glossary terminology, update the glossary as part of the same change.
+- Do not use parent-relative imports at any depth, such as `../`, `../../`, or deeper paths. Use the `@/` alias instead. Relative imports within the same directory may use `./`.
 - In Japanese comments and explanatory text in product source and tests, do not insert spaces between Japanese text and adjacent English terms or identifiers unless the space is semantically necessary.
 
 ## Source documentation
 
-- Add Japanese JSDoc or documentation comments to exported top-level variables, constants, functions, types, React components, HOCs, custom hooks, and controller or other major public boundaries.
-- Also document non-exported top-level elements when they own an important responsibility or lifecycle that is not obvious from the code alone.
-- Explain the responsibility and purpose rather than merely translating the identifier into Japanese.
-- Prioritize information that is difficult to infer from the implementation itself, such as why the element exists, what it owns, important assumptions, return-value meaning, lifecycle, and cleanup responsibilities.
-- Keep documentation comments aligned when the documented responsibility or contract changes.
-- Do not mechanically add comments to self-explanatory local variables, temporary values, or implementation steps.
-- Follow the Japanese spacing rule in the Implementation rules section for these comments.
+- Write comments and documentation at a basic-design level of abstraction so that readers who understand the specification but cannot read the implementation can understand the specification, responsibility, purpose, behavior, and rationale. Documentation should remain understandable when read without the implementation beside it.
+- In Japanese documentation and comments, do not use general English words when their meaning can be expressed naturally in Japanese. Use Japanese for explanatory concepts and terminology. Keep English only when necessary for source-code identifiers, proper nouns, standardized technical terms, or other expressions whose English spelling is required for accuracy.
+- Describe behavior, rules, constraints, and decisions in terms of specification or domain concepts. Explain what is allowed, prohibited, required, or produced and why, rather than how the implementation performs the processing. Do not merely translate identifiers, expressions, data structures, algorithms, or implementation steps into natural language.
+- Start each source file with a Japanese file-level documentation comment that explains the file's responsibility, purpose, and ownership. Describe the role the file provides rather than listing its implementation details.
+- Add Japanese JSDoc or documentation comments to exported top-level variables, constants, functions, types, React components, HOCs, custom hooks, controllers, and other major public boundaries. Also document non-exported top-level elements when they own an important responsibility or lifecycle that is not obvious from the code alone.
+- For documented functions, methods, callbacks, and similar callables, add an `@param` entry for every parameter. Explain the specification-level meaning or role of a parameter when it is not obvious from its name and type.
+- For condition expressions, document the rule or decision represented by the condition at a basic-design level rather than explaining individual checks or translating the expression into prose.
+- Prioritize information that is difficult to infer from the implementation itself, such as important assumptions, constraints, return-value meaning, lifecycle, and cleanup responsibilities. Keep documentation aligned when the documented responsibility or contract changes, and do not mechanically add comments to self-explanatory local variables, temporary values, or implementation steps.
 
 ## Internationalization and accessibility
 
