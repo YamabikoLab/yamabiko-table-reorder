@@ -20,11 +20,17 @@ const validMarkdown = `
 | --- | --- | --- |
 | RESP_INPUT | Input Interaction | 入力を扱う。 |
 
-### Relationships
+### Dependencies
 
-| Source | Destination | Description |
+| Dependent | Depends on | Reason |
 | --- | --- | --- |
-| EXT_EDITOR | RESP_INPUT | 入力を提供する。 |
+| RESP_INPUT | EXT_EDITOR | 編集環境を必要とする。 |
+
+### Dependency Views
+
+| ID | Name | Includes |
+| --- | --- | --- |
+| DV_INPUT | Input | EXT_EDITOR RESP_INPUT |
 
 ### Responsibility Details
 
@@ -45,6 +51,15 @@ test( '必須見出しと表構造を受理する', () => {
 	assert.doesNotThrow( () => validateArchitectureMarkdownStructure( validMarkdown ) );
 } );
 
+test( 'Dependency Views がない文書も受理する', () => {
+	const markdown = validMarkdown.replace(
+		'### Dependency Views\n\n| ID | Name | Includes |\n| --- | --- | --- |\n| DV_INPUT | Input | EXT_EDITOR RESP_INPUT |\n\n',
+		''
+	);
+
+	assert.doesNotThrow( () => validateArchitectureMarkdownStructure( markdown ) );
+} );
+
 test( '必須見出しの欠落を拒否する', () => {
 	const markdown = validMarkdown.replace( '## 3. Context and Scope', '## Context' );
 
@@ -54,15 +69,49 @@ test( '必須見出しの欠落を拒否する', () => {
 	);
 } );
 
-test( '機械可読表の列違いを項目名付きで拒否する', () => {
+test( 'Dependencies 表の列違いを拒否する', () => {
 	const markdown = validMarkdown.replace(
-		'| ID | Name | Type | Summary |',
-		'| ID | Name | Kind | Summary |'
+		'| Dependent | Depends on | Reason |',
+		'| Source | Destination | Description |'
 	);
 
 	assert.throws(
 		() => validateArchitectureMarkdownStructure( markdown ),
-		/External Context table columns must be exactly: ID, Name, Type, Summary/u
+		/Dependencies table columns must be exactly: Dependent, Depends on, Reason/u
+	);
+} );
+
+test( 'Dependency Views 表の列違いを拒否する', () => {
+	const markdown = validMarkdown.replace(
+		'| ID | Name | Includes |',
+		'| ID | Name | Members |'
+	);
+
+	assert.throws(
+		() => validateArchitectureMarkdownStructure( markdown ),
+		/Dependency Views table columns must be exactly: ID, Name, Includes/u
+	);
+} );
+
+test( 'Dependency Views の重複見出しを拒否する', () => {
+	const duplicate = `\n### Dependency Views\n\n| ID | Name | Includes |\n| --- | --- | --- |\n| DV_OTHER | Other | RESP_INPUT |\n`;
+	const markdown = validMarkdown.replace( '### Responsibility Details', `${ duplicate }\n### Responsibility Details` );
+
+	assert.throws(
+		() => validateArchitectureMarkdownStructure( markdown ),
+		/Dependency Views heading may appear at most once/u
+	);
+} );
+
+test( 'Dependency Views が Dependencies 直後でない場合を拒否する', () => {
+	const markdown = validMarkdown.replace(
+		'### Dependency Views',
+		'### Other\n\n説明。\n\n### Dependency Views'
+	);
+
+	assert.throws(
+		() => validateArchitectureMarkdownStructure( markdown ),
+		/Dependency Views must appear immediately after Dependencies/u
 	);
 } );
 
