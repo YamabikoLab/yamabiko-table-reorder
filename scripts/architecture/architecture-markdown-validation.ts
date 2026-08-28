@@ -269,10 +269,16 @@ export const validateArchitectureMarkdownStructure = ( source: string ): void =>
 	if ( dependencyViewsHeadingCount === 1 && dependencyViewsTableCount !== 1 ) {
 		throw new Error( 'Architecture validation failed: Dependency Views table is missing.' );
 	}
-	if (
-		dependencyViewsHeadingTokenIndex !== null &&
-		dependenciesHeadingTokenIndex !== null
-	) {
+	if ( dependencyViewsHeadingTokenIndex !== null ) {
+		if (
+			dependenciesHeadingTokenIndex === null ||
+			dependencyViewsHeadingTokenIndex < dependenciesHeadingTokenIndex
+		) {
+			throw new Error(
+				'Architecture validation failed: Dependency Views must appear immediately after Dependencies.'
+			);
+		}
+
 		const interveningHeading = tokens
 			.slice( dependenciesHeadingTokenIndex + 3, dependencyViewsHeadingTokenIndex )
 			.some( ( token ) => token.type === 'heading_open' && token.tag === 'h3' );
