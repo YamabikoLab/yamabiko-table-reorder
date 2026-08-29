@@ -81,37 +81,23 @@ export const startReorderSession = (
 /**
  * Reorder Sessionの現在の有効な移動先を更新する。
  *
- * `null`は現在位置に有効な移動先が存在しない正常状態を表す。移動先が存在する場合は
- * 有効なReorder Sessionと同じ並び替え種別および対象Tableであることを要求する。
+ * `null`は現在位置に有効な移動先が存在しない正常状態を表す。移動先が存在する場合は、型によって
+ * Reorder Sessionと同じ並び替え種別であることを要求し、実行時には対象Tableが同じであることを確認する。
  *
  * @param session     更新対象の有効なReorder Session。
- * @param destination Drop Target Resolutionが返した現在の有効な移動先、または`null`。
- * @return 現在の有効な移動先を反映したReorder Session。
+ * @param destination Drop Target Resolutionが返した同種別の有効な移動先、または`null`。
+ * @return 現在の有効な移動先を反映した同じ種別のReorder Session。
  */
-export const updateReorderDestination = (
-	session: ReorderSession,
-	destination: ReorderDestination | null
-): ReorderSession => {
-	// 現在位置に有効な移動先がない場合は、開始時の対象と制約を維持したまま移動先だけを解除する。
-	if ( destination === null ) {
-		return { ...session, destination: null };
+export const updateReorderDestination = < TSession extends ReorderSession >(
+	session: TSession,
+	destination: NoInfer< NonNullable< TSession[ 'destination' ] > > | null
+): TSession => {
+	// 別Tableへの移動は型では表現不能にできないため、値として存在する移動先だけ同一Tableであることを確認する。
+	if ( destination !== null ) {
+		assertDestinationMatchesSession( session, destination );
 	}
 
-	assertDestinationMatchesSession( session, destination );
-
-	// 行のReorder Sessionには行の移動先だけを保持し、確定時まで種別の整合を維持する。
-	if ( session.kind === 'row' && destination.kind === 'row' ) {
-		return { ...session, destination };
-	}
-
-	// 列のReorder Sessionには列の移動先だけを保持し、確定時まで種別の整合を維持する。
-	if ( session.kind === 'column' && destination.kind === 'column' ) {
-		return { ...session, destination };
-	}
-
-	throw new Error(
-		'Reorder Session invariant violated: reorder kind must match destination kind.'
-	);
+	return { ...session, destination };
 };
 
 /**
@@ -156,22 +142,18 @@ export const cancelReorderSession = ( session: ReorderSession ): null => {
 };
 
 /**
- * 有効な移動先が有効なReorder Sessionと同じ並び替え操作に属することを確認する。
+ * 有効な移動先が有効なReorder Sessionと同じTableに属することを確認する。
+ *
+ * 並び替え種別の一致は`updateReorderDestination()`の型契約で保証し、実行時には値レベルでしか
+ * 保証できないTable個体の一致だけをReorder Sessionの不変条件として確認する。
  *
  * @param session     判定対象の有効なReorder Session。
- * @param destination Drop Target Resolutionが返した有効な移動先。
+ * @param destination Drop Target Resolutionが返した同種別の有効な移動先。
  */
 const assertDestinationMatchesSession = (
 	session: ReorderSession,
 	destination: ReorderDestination
 ): void => {
-	// 1回のDnDでは開始時に確定した並び替え種別を変更できないため、異なる種別の移動先を拒否する。
-	if ( session.kind !== destination.kind ) {
-		throw new Error(
-			'Reorder Session invariant violated: reorder kind must match destination kind.'
-		);
-	}
-
 	// 並び替え対象を別Tableへ移動する操作は扱わないため、移動先は開始時と同じTableに属する必要がある。
 	if ( session.target.clientId !== destination.clientId ) {
 		throw new Error(

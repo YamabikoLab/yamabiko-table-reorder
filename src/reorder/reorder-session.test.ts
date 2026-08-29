@@ -2,7 +2,7 @@
  * Reorder Sessionが1回のDnD中に保持する状態と確定条件を確認する単体テスト。
  *
  * 行・列それぞれで並び替え対象と並び替え制約を保持し、有効な移動先だけを確定済み並び替えへ変換し、
- * Reorder Sessionと異なる種別またはTableの移動先を内部不変条件違反として拒否することを検証する。
+ * 別Tableの移動先を内部不変条件違反として拒否することを検証する。行・列の種別整合は型契約で保証する。
  */
 import {
 	completeReorderSession,
@@ -120,37 +120,6 @@ describe( 'Reorder Session', () => {
 		const withoutDestination = updateReorderDestination( withDestination, null );
 
 		expect( completeReorderSession( withoutDestination ) ).toBeNull();
-	} );
-
-	/**
-	 * Reorder Sessionと異なる並び替え種別の移動先を受け入れないことを確認する。
-	 *
-	 * 事前条件:
-	 * - 行Reorder Sessionが有効である。
-	 *
-	 * 操作:
-	 * - 列のReorder Destinationで移動先を更新する。
-	 *
-	 * 期待結果:
-	 * - Reorder Sessionの不変条件違反としてErrorが送出される。
-	 */
-	it( 'when a destination kind differs from the Session kind, should throw an invariant error', () => {
-		const session = startReorderSession(
-			{
-				kind: 'row',
-				clientId: 'table-client-id',
-				rowIndex: 0,
-			},
-			{ blockedBoundaries: [] }
-		);
-
-		expect( () =>
-			updateReorderDestination( session, {
-				kind: 'column',
-				clientId: 'table-client-id',
-				boundaryIndex: 1,
-			} )
-		).toThrow( 'Reorder Session invariant violated: reorder kind must match destination kind.' );
 	} );
 
 	/**

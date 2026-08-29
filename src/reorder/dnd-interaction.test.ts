@@ -10,12 +10,14 @@ import type { DndInteractionDependencies, DndStartRequest } from './dnd-interact
 import type { DropTargetResolutionRequest } from './drop-target-resolution';
 import type { ReorderConstraints } from './reorder-target-resolution';
 
-/** Input Interactionから渡される方向非依存の開始対象。 */
+/** Input Interactionから渡されるTable上の方向非依存な開始位置。 */
 const startRequest: DndStartRequest = {
 	clientId: 'table-client-id',
-	section: 'body',
-	rowIndex: 0,
-	columnIndex: 0,
+	position: {
+		section: 'body',
+		rowIndex: 0,
+		columnIndex: 0,
+	},
 };
 
 /**
@@ -46,7 +48,7 @@ const createDependencies = (): DndInteractionDependencies => ( {
 
 describe( 'DnD Interaction', () => {
 	/**
-	 * 行並び替えモードでは、開始対象へ行方向を付与してReorder Target Resolutionへ渡すことを確認する。
+	 * 行並び替えモードでは、共通の開始位置を行固有の要求へ変換してReorder Target Resolutionへ渡すことを確認する。
 	 *
 	 * 事前条件:
 	 * - Reorder Modeは行並び替えである。
@@ -73,7 +75,7 @@ describe( 'DnD Interaction', () => {
 	} );
 
 	/**
-	 * 列並び替えモードでは、開始対象へ列方向を付与してReorder Target Resolutionへ渡すことを確認する。
+	 * 列並び替えモードでは、共通の開始位置を列固有の要求へ変換してReorder Target Resolutionへ渡すことを確認する。
 	 *
 	 * 事前条件:
 	 * - Reorder Modeは列並び替えである。

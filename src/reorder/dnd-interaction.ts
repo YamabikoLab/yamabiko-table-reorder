@@ -5,6 +5,7 @@
  * 1つだけ所有する。内部責務から伝播した失敗はoperation boundaryで1回だけ記録して安全終了へ合流させ、
  * 外部環境変化による継続不能は内部エラーとして扱わず同じ終了経路へ合流させる。
  */
+import { createColumnReorderTargetResolutionRequest } from '@/reorder/column-reorder/dnd-start-resolution';
 import type {
 	DropTargetPosition,
 	DropTargetResolution,
@@ -14,7 +15,6 @@ import type { ReorderMode } from '@/reorder/reorder-mode';
 import type {
 	ReorderTargetResolution,
 	ReorderTargetResolutionFailureReason,
-	ReorderTargetResolutionRequest,
 } from '@/reorder/reorder-target-resolution';
 import {
 	cancelReorderSession,
@@ -27,6 +27,7 @@ import type {
 	ReorderSession,
 	ReorderSessionState,
 } from '@/reorder/reorder-session';
+import { createRowReorderTargetResolutionRequest } from '@/reorder/row-reorder/dnd-start-resolution';
 
 /** Reorder operation boundaryで識別するDnD操作。 */
 export type DndOperation = 'start' | 'progress' | 'complete' | 'cancel';
@@ -40,19 +41,28 @@ export type DndOperation = 'start' | 'progress' | 'complete' | 'cancel';
 export type DndErrorLogger = ( operation: DndOperation, error: unknown ) => void;
 
 /**
- * Input InteractionからDnD Interactionへ渡すDnD開始対象。
+ * Input InteractionがDnD開始位置として確定したTable上の論理位置。
  *
- * 対象Table内の開始位置を行・列の両方について特定できる情報として表し、並び替え方向は含めない。
- * DnD InteractionがReorder Modeの現在状態から並び替え方向を確定し、Reorder Target Resolutionへの要求を
- * 組み立てる。
+ * 1つのセル位置をTable区画、区画内の行位置、論理Tableグリッド上の列位置で表す。
+ * 並び替え方向は含めず、行・列それぞれで必要な位置情報への解釈は方向固有責務が行う。
  */
-export type DndStartRequest = {
-	clientId: string;
+export type DndStartPosition = {
 	section: 'head' | 'body' | 'foot';
-	/** `body`区画を基準とする0-based行インデックス。 */
+	/** 対象Table区画を基準とする0-based行インデックス。 */
 	rowIndex: number;
 	/** 論理Tableグリッド上の0-based列インデックス。 */
 	columnIndex: number;
+};
+
+/**
+ * Input InteractionからDnD Interactionへ渡すDnD開始対象。
+ *
+ * 対象TableとTable上の1つの開始位置だけを表し、並び替え方向や方向固有のReorder Target Resolution要求は
+ * 含めない。DnD InteractionがReorder Modeから現在方向を選択し、方向固有責務へ要求生成を委譲する。
+ */
+export type DndStartRequest = {
+	clientId: string;
+	position: DndStartPosition;
 };
 
 /** DnD開始試行の結果。 */
@@ -120,7 +130,7 @@ export type DndInteraction = {
 	/**
 	 * DnD開始を試行する。
 	 *
-	 * @param request Input Interactionが示す開始対象。並び替え方向は含めない。
+	 * @param request Input Interactionが示すTable上の開始対象。並び替え方向は含めない。
 	 */
 	start: ( request: DndStartRequest ) => DndStartResult;
 	/**
@@ -186,23 +196,11 @@ export const createDndInteraction = (
 					return { status: 'not-started', reason: 'reorder-mode-inactive' };
 				}
 
-				let resolutionRequest: ReorderTargetResolutionRequest;
-
-				// 並び替え方向の唯一の情報源をReorder Modeとし、Input Interactionの開始対象へ現在方向を付与する。
-				if ( reorderKind === 'row' ) {
-					resolutionRequest = {
-						kind: 'row',
-						clientId: request.clientId,
-						section: request.section,
-						rowIndex: request.rowIndex,
-					};
-				} else {
-					resolutionRequest = {
-						kind: 'column',
-						clientId: request.clientId,
-						columnIndex: request.columnIndex,
-					};
-				}
+				// DnD Interactionは現在方向だけを選択し、方向固有の開始位置解釈と要求生成は各Reorder責務へ委譲する。
+				const resolutionRequest =
+					reorderKind === 'row'
+						? createRowReorderTargetResolutionRequest( request )
+						: createColumnReorderTargetResolutionRequest( request );
 
 				const resolution = dependencies.reorderTargetResolution.resolve( resolutionRequest );
 
