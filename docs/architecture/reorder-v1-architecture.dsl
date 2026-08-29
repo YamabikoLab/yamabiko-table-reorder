@@ -145,22 +145,22 @@ workspace "YTR Reorder v1 Architecture" {
 			tags "Process Flow,ProcessFlow_PV_REORDER_END_TO_END,ProcessFlowEdge_normal"
 		}
 		PF_008 = RESP_INPUT_INTERACTION -> RESP_DND_INTERACTION "[failure] 外部環境の変化などによりactiveなReorder操作を継続できない状態をReorder operation boundaryへ合流させる。" {
-			tags "Process Flow,ProcessFlow_PV_REORDER_FAILURE_RECOVERY,ProcessFlowEdge_failure"
+			tags "Process Flow,ProcessFlow_PV_REORDER_INPUT_FAILURE_RECOVERY,ProcessFlowEdge_failure"
 		}
-		PF_009 = RESP_DROP_TARGET_RESOLUTION -> RESP_DND_INTERACTION "[failure] DnD進行中に検出されたReorder内部のContract / Invariant不整合をReorder operation boundaryへ合流させる。" {
-			tags "Process Flow,ProcessFlow_PV_REORDER_FAILURE_RECOVERY,ProcessFlowEdge_failure"
+		PF_009 = RESP_DND_INTERACTION -> RESP_REORDER_PRESENTATION "[recovery] 共通abortとしてDnD表示の一時状態を終了する。" {
+			tags "Process Flow,ProcessFlow_PV_REORDER_INPUT_FAILURE_RECOVERY,ProcessFlow_PV_REORDER_DROP_TARGET_FAILURE_RECOVERY,ProcessFlow_PV_REORDER_DATA_UPDATE_FAILURE_RECOVERY,ProcessFlowEdge_recovery"
 		}
-		PF_010 = RESP_DATA_UPDATE -> RESP_DND_INTERACTION "[failure] Table更新を継続または確認できない結果をReorder operation boundaryへ返し、共通abortへ合流させる。" {
-			tags "Process Flow,ProcessFlow_PV_REORDER_FAILURE_RECOVERY,ProcessFlowEdge_failure"
+		PF_010 = RESP_DND_INTERACTION -> RESP_AUTO_SCROLL "[recovery] 共通abortとして自動スクロールの一時状態を終了する。" {
+			tags "Process Flow,ProcessFlow_PV_REORDER_INPUT_FAILURE_RECOVERY,ProcessFlow_PV_REORDER_DROP_TARGET_FAILURE_RECOVERY,ProcessFlow_PV_REORDER_DATA_UPDATE_FAILURE_RECOVERY,ProcessFlowEdge_recovery"
 		}
-		PF_011 = RESP_DND_INTERACTION -> RESP_REORDER_PRESENTATION "[recovery] 共通abortとしてDnD表示の一時状態を終了する。" {
-			tags "Process Flow,ProcessFlow_PV_REORDER_FAILURE_RECOVERY,ProcessFlowEdge_recovery"
+		PF_011 = RESP_DND_INTERACTION -> RESP_INPUT_INTERACTION "[recovery] 共通abortとして入力解釈の一時状態を終了する。" {
+			tags "Process Flow,ProcessFlow_PV_REORDER_INPUT_FAILURE_RECOVERY,ProcessFlow_PV_REORDER_DROP_TARGET_FAILURE_RECOVERY,ProcessFlow_PV_REORDER_DATA_UPDATE_FAILURE_RECOVERY,ProcessFlowEdge_recovery"
 		}
-		PF_012 = RESP_DND_INTERACTION -> RESP_AUTO_SCROLL "[recovery] 共通abortとして自動スクロールの一時状態を終了する。" {
-			tags "Process Flow,ProcessFlow_PV_REORDER_FAILURE_RECOVERY,ProcessFlowEdge_recovery"
+		PF_012 = RESP_DROP_TARGET_RESOLUTION -> RESP_DND_INTERACTION "[failure] DnD進行中に検出されたReorder内部のContract / Invariant不整合をReorder operation boundaryへ合流させる。" {
+			tags "Process Flow,ProcessFlow_PV_REORDER_DROP_TARGET_FAILURE_RECOVERY,ProcessFlowEdge_failure"
 		}
-		PF_013 = RESP_DND_INTERACTION -> RESP_INPUT_INTERACTION "[recovery] 共通abortとして入力解釈の一時状態を終了する。" {
-			tags "Process Flow,ProcessFlow_PV_REORDER_FAILURE_RECOVERY,ProcessFlowEdge_recovery"
+		PF_013 = RESP_DATA_UPDATE -> RESP_DND_INTERACTION "[failure] Table更新を継続または確認できない結果をReorder operation boundaryへ返し、共通abortへ合流させる。" {
+			tags "Process Flow,ProcessFlow_PV_REORDER_DATA_UPDATE_FAILURE_RECOVERY,ProcessFlowEdge_failure"
 		}
 
 		RT_001 = RESP_INPUT_INTERACTION -> RESP_DND_INTERACTION "開始対象を含むDnD開始試行をReorder operation boundaryへ渡す。" {
@@ -425,10 +425,24 @@ workspace "YTR Reorder v1 Architecture" {
 			autoLayout lr
 		}
 
-		custom "PV_REORDER_FAILURE_RECOVERY" {
-			title "Process Flow [Failure / Recovery] - Reorder Failure and Recovery"
-			include RESP_INPUT_INTERACTION RESP_DND_INTERACTION RESP_DROP_TARGET_RESOLUTION RESP_DATA_UPDATE RESP_REORDER_PRESENTATION RESP_AUTO_SCROLL
-			exclude "relationship.tag!=ProcessFlow_PV_REORDER_FAILURE_RECOVERY"
+		custom "PV_REORDER_INPUT_FAILURE_RECOVERY" {
+			title "Process Flow [Failure / Recovery] - Reorder Input Failure and Recovery"
+			include RESP_INPUT_INTERACTION RESP_DND_INTERACTION RESP_REORDER_PRESENTATION RESP_AUTO_SCROLL
+			exclude "relationship.tag!=ProcessFlow_PV_REORDER_INPUT_FAILURE_RECOVERY"
+			autoLayout lr
+		}
+
+		custom "PV_REORDER_DROP_TARGET_FAILURE_RECOVERY" {
+			title "Process Flow [Failure / Recovery] - Reorder Drop Target Failure and Recovery"
+			include RESP_DROP_TARGET_RESOLUTION RESP_DND_INTERACTION RESP_REORDER_PRESENTATION RESP_AUTO_SCROLL RESP_INPUT_INTERACTION
+			exclude "relationship.tag!=ProcessFlow_PV_REORDER_DROP_TARGET_FAILURE_RECOVERY"
+			autoLayout lr
+		}
+
+		custom "PV_REORDER_DATA_UPDATE_FAILURE_RECOVERY" {
+			title "Process Flow [Failure / Recovery] - Reorder Data Update Failure and Recovery"
+			include RESP_DATA_UPDATE RESP_DND_INTERACTION RESP_REORDER_PRESENTATION RESP_AUTO_SCROLL RESP_INPUT_INTERACTION
+			exclude "relationship.tag!=ProcessFlow_PV_REORDER_DATA_UPDATE_FAILURE_RECOVERY"
 			autoLayout lr
 		}
 
