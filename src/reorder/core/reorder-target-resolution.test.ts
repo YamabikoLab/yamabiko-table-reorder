@@ -4,7 +4,7 @@
  * 共通Table構造を取得できない場合と、Reorder Targetとして成立しない論理インデックスについて、
  * 行・列の固有規則へ依存しない外部から観測可能な判定結果を検証する。
  */
-import type { TableIntegration, TableStructure } from './table-integration';
+import type { TableIntegration, TableStructure } from '@/reorder/foundation/table-integration';
 import { createReorderTargetResolution } from './reorder-target-resolution';
 
 const createIntegration = ( structure: TableStructure | null ): TableIntegration => ( {
@@ -65,10 +65,7 @@ describe( 'Reorder Target Resolution shared rules', () => {
 				section: 'body',
 				rowIndex: -1,
 			} )
-		).toEqual( {
-			status: 'immovable',
-			reason: 'target-out-of-scope',
-		} );
+		).toEqual( { status: 'immovable', reason: 'target-out-of-scope' } );
 
 		expect(
 			resolution.resolve( {
@@ -76,9 +73,6 @@ describe( 'Reorder Target Resolution shared rules', () => {
 				clientId: 'table-client-id',
 				columnIndex: 1.5,
 			} )
-		).toEqual( {
-			status: 'immovable',
-			reason: 'target-out-of-scope',
-		} );
+		).toEqual( { status: 'immovable', reason: 'target-out-of-scope' } );
 	} );
 } );

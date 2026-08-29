@@ -1,16 +1,34 @@
 /**
- * 列並び替えに固有のReorder Target Resolutionを提供する。
+ * 列並び替えに固有のReorder Target Resolution契約と判定を提供する。
  *
- * 列並び替えではTable全体を対象範囲とし、横方向に結合されたセルだけを列の開始可否と
- * 移動先制約へ適用する。行・列で共通する判定規則はReorder Target Resolutionの共通規則を利用する。
+ * 列固有の開始要求、移動対象、判定結果をこの責務の正本として定義し、Table全体と横結合という
+ * 列固有の意味を共通側へ持ち込まない。論理インデックスと禁止境界の規則だけを共通責務へ委譲する。
  */
-import { resolveTargetWithinScope } from '@/reorder/reorder-target-resolution-rules';
-import type {
-	ReorderTarget,
-	ReorderTargetResolutionRequest,
-	ReorderTargetResolutionResult,
-} from '@/reorder/reorder-target-resolution';
-import type { TableStructure } from '@/reorder/table-integration';
+import {
+	resolveTargetWithinScope,
+	type ReorderTargetResolutionResult,
+} from '@/reorder/core/reorder-target-resolution-rules';
+import type { TableStructure } from '@/reorder/foundation/table-integration';
+
+/** 列DnD開始試行で必要な方向固有情報。 */
+export type ColumnReorderTargetResolutionRequest = {
+	kind: 'column';
+	clientId: string;
+	/** 論理Tableグリッド上の0-based列インデックス。 */
+	columnIndex: number;
+};
+
+/** Table全体で実際に移動する列。 */
+export type ColumnReorderTarget = {
+	kind: 'column';
+	clientId: string;
+	/** 論理Tableグリッド上の0-based列インデックス。 */
+	columnIndex: number;
+};
+
+/** 列Reorder Target Resolutionの判定結果。 */
+export type ColumnReorderTargetResolutionResult =
+	ReorderTargetResolutionResult< ColumnReorderTarget >;
 
 /**
  * 列DnD開始試行をTable全体のReorder Targetとして判定する。
@@ -20,16 +38,16 @@ import type { TableStructure } from '@/reorder/table-integration';
  * @return 列のReorder TargetとReorder Constraints、または開始できない理由。
  */
 export const resolveColumnReorderTarget = (
-	request: Extract< ReorderTargetResolutionRequest, { kind: 'column' } >,
+	request: ColumnReorderTargetResolutionRequest,
 	structure: TableStructure
-): ReorderTargetResolutionResult => {
-	const target: ReorderTarget = {
+): ColumnReorderTargetResolutionResult => {
+	const target: ColumnReorderTarget = {
 		kind: 'column',
 		clientId: request.clientId,
 		columnIndex: request.columnIndex,
 	};
 
-	// 列DnDの開始可否と移動先制約には、Table全体で横方向に結合されたセルだけを適用する。
+	// 列DnDではTable全体の横結合だけが開始可否と移動先制約に影響する。
 	const mergedCells = structure.mergedCells.filter( ( cell ) => cell.columnSpan > 1 );
 
 	return resolveTargetWithinScope( target, request.columnIndex, mergedCells, {

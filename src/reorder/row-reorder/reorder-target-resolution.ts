@@ -1,16 +1,34 @@
 /**
- * 行並び替えに固有のReorder Target Resolutionを提供する。
+ * 行並び替えに固有のReorder Target Resolution契約と判定を提供する。
  *
- * 行並び替えの対象範囲を`body`区画に限定し、縦方向に結合されたセルだけを行の開始可否と
- * 移動先制約へ適用する。行・列で共通する判定規則はReorder Target Resolutionの共通規則を利用する。
+ * 行固有の開始要求、移動対象、判定結果をこの責務の正本として定義し、`body`区画と縦結合という
+ * 行固有の意味を共通側へ持ち込まない。論理インデックスと禁止境界の規則だけを共通責務へ委譲する。
  */
-import { resolveTargetWithinScope } from '@/reorder/reorder-target-resolution-rules';
-import type {
-	ReorderTarget,
-	ReorderTargetResolutionRequest,
-	ReorderTargetResolutionResult,
-} from '@/reorder/reorder-target-resolution';
-import type { TableStructure } from '@/reorder/table-integration';
+import {
+	resolveTargetWithinScope,
+	type ReorderTargetResolutionResult,
+} from '@/reorder/core/reorder-target-resolution-rules';
+import type { TableStructure } from '@/reorder/foundation/table-integration';
+
+/** 行DnD開始試行で必要な方向固有情報。 */
+export type RowReorderTargetResolutionRequest = {
+	kind: 'row';
+	clientId: string;
+	section: 'head' | 'body' | 'foot';
+	/** 対象Table区画を基準とする0-based行インデックス。 */
+	rowIndex: number;
+};
+
+/** `body`区画内で実際に移動する行。 */
+export type RowReorderTarget = {
+	kind: 'row';
+	clientId: string;
+	/** `body`区画内の0-based行インデックス。 */
+	rowIndex: number;
+};
+
+/** 行Reorder Target Resolutionの判定結果。 */
+export type RowReorderTargetResolutionResult = ReorderTargetResolutionResult< RowReorderTarget >;
 
 /**
  * 行DnD開始試行を`body`区画内のReorder Targetとして判定する。
@@ -20,21 +38,21 @@ import type { TableStructure } from '@/reorder/table-integration';
  * @return 行のReorder TargetとReorder Constraints、または開始できない理由。
  */
 export const resolveRowReorderTarget = (
-	request: Extract< ReorderTargetResolutionRequest, { kind: 'row' } >,
+	request: RowReorderTargetResolutionRequest,
 	structure: TableStructure
-): ReorderTargetResolutionResult => {
-	// 行並び替えでは`body`区画だけをReorder Targetの対象範囲とする。
+): RowReorderTargetResolutionResult => {
+	// 行並び替えの移動対象はArchitectureで定義された`body`区画だけに限定する。
 	if ( request.section !== 'body' ) {
 		return { status: 'immovable', reason: 'target-out-of-scope' };
 	}
 
-	const target: ReorderTarget = {
+	const target: RowReorderTarget = {
 		kind: 'row',
 		clientId: request.clientId,
 		rowIndex: request.rowIndex,
 	};
 
-	// 行DnDの開始可否と移動先制約には、`body`区画で縦方向に結合されたセルだけを適用する。
+	// 行DnDでは`body`区画の縦結合だけが開始可否と移動先制約に影響する。
 	const mergedCells = structure.mergedCells.filter(
 		( cell ) => cell.section === 'body' && cell.rowSpan > 1
 	);
