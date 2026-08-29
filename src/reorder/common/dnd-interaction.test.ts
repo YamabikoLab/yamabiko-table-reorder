@@ -24,7 +24,10 @@ import type {
 import { createDndInteraction } from './dnd-interaction';
 import type { DndInteractionDependencies } from './dnd-interaction';
 import type { DndStartRequest } from './dnd-start-request';
-import type { DropTargetResolutionRequest, DropTargetResolutionResult } from './drop-target-resolution';
+import type {
+	DropTargetResolutionRequest,
+	DropTargetResolutionResult,
+} from './drop-target-resolution';
 import type {
 	ReorderTargetResolutionRequest,
 	ReorderTargetResolutionResult,
@@ -53,6 +56,7 @@ type DependencyOptions = {
  */
 const createDependencies = ( options: DependencyOptions = {} ) => {
 	const constraints = options.constraints ?? { blockedBoundaries: [] };
+	const reorderKind = options.reorderKind === undefined ? 'row' : options.reorderKind;
 	const targetRequestMock = jest.fn();
 	const dropRequestMock = jest.fn();
 
@@ -86,7 +90,9 @@ const createDependencies = ( options: DependencyOptions = {} ) => {
 		};
 	}
 
-	function resolveDrop( request: RowDropTargetResolutionRequest ): RowDropTargetResolutionResult;
+	function resolveDrop(
+		request: RowDropTargetResolutionRequest
+	): RowDropTargetResolutionResult;
 	function resolveDrop(
 		request: ColumnDropTargetResolutionRequest
 	): ColumnDropTargetResolutionResult;
@@ -123,7 +129,7 @@ const createDependencies = ( options: DependencyOptions = {} ) => {
 	}
 
 	const dependencies: DndInteractionDependencies = {
-		reorderMode: { getReorderKind: jest.fn( () => options.reorderKind ?? 'row' ) },
+		reorderMode: { getReorderKind: jest.fn( () => reorderKind ) },
 		reorderTargetResolution: { resolve: resolveTarget },
 		dropTargetResolution: { resolve: resolveDrop },
 		logError: jest.fn(),
