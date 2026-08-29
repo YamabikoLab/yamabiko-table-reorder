@@ -19,7 +19,15 @@ export type ReorderTargetResolutionFailureReason =
 
 /** 対象方向の開始位置と占有数を結合セルから取得する規則。 */
 export type ReorderTargetAxis = {
+	/**
+	 * @param cell 共通Table構造上の結合セル。
+	 * @return 対象方向の0-based開始インデックス。
+	 */
 	getStart: ( cell: TableMergedCellStructure ) => number;
+	/**
+	 * @param cell 共通Table構造上の結合セル。
+	 * @return 対象方向に占有する行数または列数。
+	 */
 	getSpan: ( cell: TableMergedCellStructure ) => number;
 };
 
