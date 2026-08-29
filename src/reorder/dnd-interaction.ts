@@ -1,9 +1,9 @@
 /**
  * 入力方式と行・列に共通するDnD InteractionとReorder operation boundaryを提供する。
  *
- * DnD開始試行では現在のReorder ModeとReorder Target Resolutionを組み合わせてReorder Sessionを開始し、
- * 進行中は同じSessionが保持する並び替え制約をDrop Target Resolutionへ渡す。完了、キャンセル、abortでは
- * Sessionを終了し、内部エラーはoperation boundaryで1回だけ記録して共通abortへ合流させる。
+ * DnDの開始可否、進行、完了、キャンセル、安全終了を統括し、1回のDnDで有効なReorder Sessionを
+ * 1つだけ所有する。内部責務から伝播した失敗はoperation boundaryで1回だけ記録して安全終了へ合流させ、
+ * 外部環境変化による継続不能は内部エラーとして扱わず同じ終了経路へ合流させる。
  */
 import type {
 	DropTargetPosition,
@@ -96,44 +96,52 @@ export type DndInteractionDependencies = {
 };
 
 /**
- * 入力方式と行・列に共通するDnDのLifecycleを統括する契約。
+ * 入力方式と行・列に共通するDnDの開始から終了までを統括する契約。
  */
 export type DndInteraction = {
-	/** 現在activeなReorder Sessionを取得する。 */
+	/** 現在有効なReorder Sessionを取得する。 */
 	getSession: () => ReorderSessionState;
-	/** DnD開始を試行する。 */
+	/**
+	 * DnD開始を試行する。
+	 *
+	 * @param request Input Interactionが指定した並び替え対象の候補。
+	 */
 	start: ( request: ReorderTargetResolutionRequest ) => DndStartResult;
-	/** activeなDnDの現在位置に対して移動先を更新する。 */
+	/**
+	 * 有効なDnDの現在位置に対して移動先を更新する。
+	 *
+	 * @param currentPosition Input Interactionが示す現在のドロップ候補位置。
+	 */
 	progress: ( currentPosition: DropTargetPosition ) => DndProgressResult;
-	/** activeなDnDを完了し、確定可能な場合だけCommitted Reorderを返す。 */
+	/** 有効なDnDを完了し、確定可能な場合だけCommitted Reorderを返す。 */
 	complete: () => DndCompleteResult;
-	/** activeなDnDを利用者操作としてキャンセルする。 */
+	/** 有効なDnDを利用者操作としてキャンセルする。 */
 	cancel: () => DndCancelResult;
-	/** 外部環境変化などから現在のDnDを共通abortで安全終了する。 */
+	/** 外部環境変化などから現在のDnDを共通`abort()`で安全終了する。 */
 	abort: () => void;
 };
 
 /**
  * Reorder operation boundaryとReorder Sessionを所有するDnD Interactionを作成する。
  *
- * 内部責務から伝播したエラーは各operation boundaryで記録した後に共通abortへ合流する。
+ * 内部責務から伝播したエラーは各operation boundaryで記録した後に共通`abort()`へ合流する。
  * 外部環境変化など、内部エラーではない処理不能は`abort()`から同じ終了経路へ合流できる。
  *
  * @param dependencies DnD Interactionが利用するReorder責務とエラー記録先。
- * @return 1つのactiveなReorder Sessionだけを所有するDnD Interaction。
+ * @return 1つの有効なReorder Sessionだけを所有するDnD Interaction。
  */
 export const createDndInteraction = (
 	dependencies: DndInteractionDependencies
 ): DndInteraction => {
 	let session: ReorderSessionState = null;
 
-	/** Reorder SessionとDnDに属する状態を終了してidleへ戻す共通abort。 */
+	/** Reorder SessionとDnDに属する状態を終了して待機状態へ戻す共通`abort()`。 */
 	const abort = (): void => {
 		session = null;
 	};
 
 	/**
-	 * operation boundaryまで伝播した内部エラーを記録し、共通abortへ合流する。
+	 * operation boundaryまで伝播した内部エラーを記録し、共通`abort()`へ合流する。
 	 *
 	 * @param operation 失敗したDnD操作。
 	 * @param error     operation boundaryまで伝播した元のエラー情報。
@@ -148,6 +156,7 @@ export const createDndInteraction = (
 
 		start: ( request ) => {
 			try {
+				// 1回のDnDで複数のReorder Sessionを並行して所有しないため、開始済みの場合は内部不変条件違反とする。
 				if ( session !== null ) {
 					throw new Error(
 						'DnD Interaction invariant violated: only one Reorder Session may be active.'
@@ -161,7 +170,7 @@ export const createDndInteraction = (
 					return { status: 'not-started', reason: 'reorder-mode-inactive' };
 				}
 
-				// Input Interactionから渡された対象種別と現在のReorder Modeが異なる状態は内部Contract違反として扱う。
+				// Input Interactionから渡された並び替え種別と現在のReorder Modeが異なる状態は内部契約違反とする。
 				if ( reorderKind !== request.kind ) {
 					throw new Error(
 						'DnD Interaction invariant violated: Reorder Mode must match the start request kind.'
@@ -170,6 +179,7 @@ export const createDndInteraction = (
 
 				const resolution = dependencies.reorderTargetResolution.resolve( request );
 
+				// 並び替え対象として成立しない要素ではDnDを開始せず、Reorder Sessionを作成しない。
 				if ( resolution.status === 'immovable' ) {
 					return { status: 'not-started', reason: resolution.reason };
 				}
@@ -184,6 +194,7 @@ export const createDndInteraction = (
 
 		progress: ( currentPosition ) => {
 			try {
+				// DnD進行は開始済みのReorder Sessionに対してのみ有効であり、開始前または終了後の呼び出しは内部不変条件違反とする。
 				if ( session === null ) {
 					throw new Error(
 						'DnD Interaction invariant violated: progress requires an active Reorder Session.'
@@ -195,6 +206,7 @@ export const createDndInteraction = (
 					session,
 					currentPosition
 				);
+				// 有効と判定された移動先だけをReorder Sessionへ保持し、それ以外は現在の有効な移動先がない状態とする。
 				const destination = resolution.status === 'valid' ? resolution.destination : null;
 				session = updateReorderDestination( session, destination );
 
@@ -207,6 +219,7 @@ export const createDndInteraction = (
 
 		complete: () => {
 			try {
+				// DnD完了は開始済みのReorder Sessionに対してのみ有効であり、開始前または終了後の呼び出しは内部不変条件違反とする。
 				if ( session === null ) {
 					throw new Error(
 						'DnD Interaction invariant violated: complete requires an active Reorder Session.'
@@ -216,6 +229,7 @@ export const createDndInteraction = (
 				const committedReorder = completeReorderSession( session );
 				session = null;
 
+				// 有効な移動先がないDnDはData Updateへ渡す結果を生成せず、正常完了としてReorder Sessionだけを終了する。
 				if ( committedReorder === null ) {
 					return { status: 'completed-without-commit' };
 				}
@@ -229,6 +243,7 @@ export const createDndInteraction = (
 
 		cancel: () => {
 			try {
+				// 利用者によるキャンセルは開始済みのReorder Sessionに対してのみ成立し、開始前または終了後の呼び出しは内部不変条件違反とする。
 				if ( session === null ) {
 					throw new Error(
 						'DnD Interaction invariant violated: cancel requires an active Reorder Session.'
@@ -248,10 +263,10 @@ export const createDndInteraction = (
 };
 
 /**
- * activeなReorder SessionからDrop Target Resolutionに必要な値だけを渡して移動先を判定する。
+ * 有効なReorder SessionからDrop Target Resolutionに必要な値だけを渡して移動先を判定する。
  *
  * @param resolution      DnD開始後の移動先を判定するDrop Target Resolution。
- * @param session         現在activeなReorder Session。
+ * @param session         現在有効なReorder Session。
  * @param currentPosition Input Interactionから渡された現在位置。
  * @return 現在位置に対するDrop Target Resolutionの判定結果。
  */
@@ -260,6 +275,7 @@ const resolveDestination = (
 	session: ReorderSession,
 	currentPosition: DropTargetPosition
 ) => {
+	// 1回のDnDでは開始時の並び替え種別を維持するため、Reorder Sessionと同じ種別の移動先だけを判定対象とする。
 	if ( session.kind === 'row' ) {
 		return resolution.resolve( {
 			kind: 'row',
