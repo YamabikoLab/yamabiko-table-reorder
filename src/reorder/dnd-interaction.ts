@@ -39,6 +39,22 @@ export type DndOperation = 'start' | 'progress' | 'complete' | 'cancel';
  */
 export type DndErrorLogger = ( operation: DndOperation, error: unknown ) => void;
 
+/**
+ * Input InteractionからDnD Interactionへ渡すDnD開始対象。
+ *
+ * 対象Table内の開始位置を行・列の両方について特定できる情報として表し、並び替え方向は含めない。
+ * DnD InteractionがReorder Modeの現在状態から並び替え方向を確定し、Reorder Target Resolutionへの要求を
+ * 組み立てる。
+ */
+export type DndStartRequest = {
+	clientId: string;
+	section: 'head' | 'body' | 'foot';
+	/** `body`区画を基準とする0-based行インデックス。 */
+	rowIndex: number;
+	/** 論理Tableグリッド上の0-based列インデックス。 */
+	columnIndex: number;
+};
+
 /** DnD開始試行の結果。 */
 export type DndStartResult =
 	| {
@@ -104,9 +120,9 @@ export type DndInteraction = {
 	/**
 	 * DnD開始を試行する。
 	 *
-	 * @param request Input Interactionが指定した並び替え対象の候補。
+	 * @param request Input Interactionが示す開始対象。並び替え方向は含めない。
 	 */
-	start: ( request: ReorderTargetResolutionRequest ) => DndStartResult;
+	start: ( request: DndStartRequest ) => DndStartResult;
 	/**
 	 * 有効なDnDの現在位置に対して移動先を更新する。
 	 *
@@ -170,14 +186,25 @@ export const createDndInteraction = (
 					return { status: 'not-started', reason: 'reorder-mode-inactive' };
 				}
 
-				// Input Interactionから渡された並び替え種別と現在のReorder Modeが異なる状態は内部契約違反とする。
-				if ( reorderKind !== request.kind ) {
-					throw new Error(
-						'DnD Interaction invariant violated: Reorder Mode must match the start request kind.'
-					);
+				let resolutionRequest: ReorderTargetResolutionRequest;
+
+				// 並び替え方向の唯一の情報源をReorder Modeとし、Input Interactionの開始対象へ現在方向を付与する。
+				if ( reorderKind === 'row' ) {
+					resolutionRequest = {
+						kind: 'row',
+						clientId: request.clientId,
+						section: request.section,
+						rowIndex: request.rowIndex,
+					};
+				} else {
+					resolutionRequest = {
+						kind: 'column',
+						clientId: request.clientId,
+						columnIndex: request.columnIndex,
+					};
 				}
 
-				const resolution = dependencies.reorderTargetResolution.resolve( request );
+				const resolution = dependencies.reorderTargetResolution.resolve( resolutionRequest );
 
 				// 並び替え対象として成立しない要素ではDnDを開始せず、Reorder Sessionを作成しない。
 				if ( resolution.status === 'immovable' ) {
