@@ -517,28 +517,32 @@ workspace "YTR Reorder v1 Architecture" {
 		}
 
 		styles {
-			element "External Context" {
-				background #f8fafc
-				color #344054
-				stroke #667085
+			element "Responsibility" {
+				shape Box
 			}
 			element "External System" {
 				shape RoundedBox
+				background #f8fafc
+				color #344054
+				stroke #667085
 				border solid
 			}
 			element "External Block" {
 				shape Component
 				background #eef4ff
+				color #344054
 				stroke #6172f3
 			}
 			element "External Capability" {
 				shape Hexagon
 				background #f4f3ff
+				color #344054
 				stroke #7f56d9
 			}
 			element "External Environment" {
 				shape Box
 				background #f2f4f7
+				color #344054
 				stroke #98a2b3
 				border dashed
 			}
