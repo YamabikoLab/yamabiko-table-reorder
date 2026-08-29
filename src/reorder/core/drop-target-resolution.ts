@@ -22,16 +22,20 @@ export type DropTargetPosition = { boundaryIndex: number } | null;
 
 /** 指定した並び替え種別に対応する移動先判定入力。 */
 export type DropTargetResolutionRequest< K extends ReorderKind = ReorderKind > = {
-	kind: K;
-	target: ReorderTarget< K >;
-	constraints: ReorderConstraints;
-	currentPosition: DropTargetPosition;
-};
+	[ Kind in K ]: {
+		kind: Kind;
+		target: ReorderTarget< Kind >;
+		constraints: ReorderConstraints;
+		currentPosition: DropTargetPosition;
+	};
+}[ K ];
 
 /** 指定した並び替え種別に対応する移動先判定結果。 */
-export type DropTargetResolutionResult< K extends ReorderKind = ReorderKind > =
-	| { status: 'valid'; destination: ReorderDestination< K > }
-	| { status: 'none' };
+export type DropTargetResolutionResult< K extends ReorderKind = ReorderKind > = {
+	[ Kind in K ]:
+		| { status: 'valid'; destination: ReorderDestination< Kind > }
+		| { status: 'none' };
+}[ K ];
 
 /** Requestと同じ並び替え種別のResultを返す判定関数。 */
 type DropTargetResolver = < K extends ReorderKind >(
