@@ -207,3 +207,48 @@ test( '同一 Runtime Interaction を複数 View で共有する', () => {
 	assert.match( dsl, /custom "RV_FIRST"[\s\S]*"runtime\.steps" "1=RT_001"/u );
 	assert.match( dsl, /custom "RV_SECOND"[\s\S]*"runtime\.steps" "1=RT_001"/u );
 } );
+
+test( '同一 Process Flow Relationship を複数 View で共有する', () => {
+	const sharedProcessFlowModel: ArchitectureModel = {
+		...model,
+		processFlowViews: [
+			{
+				id: 'PV_FIRST',
+				name: 'First failure',
+				kind: 'failure-recovery',
+				edges: [
+					{
+						from: 'RESP_INPUT',
+						to: 'RESP_DND',
+						kind: 'recovery',
+						meaning: '共通abortとして一時状態を終了する。',
+					},
+				],
+			},
+			{
+				id: 'PV_SECOND',
+				name: 'Second failure',
+				kind: 'failure-recovery',
+				edges: [
+					{
+						from: 'RESP_INPUT',
+						to: 'RESP_DND',
+						kind: 'recovery',
+						meaning: '共通abortとして一時状態を終了する。',
+					},
+				],
+			},
+		],
+	};
+
+	const dsl = generateStructurizrDsl( sharedProcessFlowModel );
+	assert.equal(
+		dsl.match( /RESP_INPUT -> RESP_DND "\[recovery\] 共通abortとして一時状態を終了する。"/gu )
+			?.length,
+		1
+	);
+	assert.match(
+		dsl,
+		/tags "Process Flow,ProcessFlow_PV_FIRST,ProcessFlow_PV_SECOND,ProcessFlowEdge_recovery"/u
+	);
+} );
