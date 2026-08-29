@@ -6,6 +6,8 @@
  * 外部環境変化による継続不能は内部エラーとして扱わず同じ終了経路へ合流させる。
  */
 import { createColumnReorderTargetResolutionRequest } from '@/reorder/column-reorder/dnd-start-resolution';
+import type { DndStartRequest } from '@/reorder/dnd-start-request';
+export type { DndStartPosition, DndStartRequest } from '@/reorder/dnd-start-request';
 import type {
 	DropTargetPosition,
 	DropTargetResolution,
@@ -39,31 +41,6 @@ export type DndOperation = 'start' | 'progress' | 'complete' | 'cancel';
  * @param error     operation boundaryまで伝播した元のエラー情報。
  */
 export type DndErrorLogger = ( operation: DndOperation, error: unknown ) => void;
-
-/**
- * Input InteractionがDnD開始位置として確定したTable上の論理位置。
- *
- * 1つのセル位置をTable区画、区画内の行位置、論理Tableグリッド上の列位置で表す。
- * 並び替え方向は含めず、行・列それぞれで必要な位置情報への解釈は方向固有責務が行う。
- */
-export type DndStartPosition = {
-	section: 'head' | 'body' | 'foot';
-	/** 対象Table区画を基準とする0-based行インデックス。 */
-	rowIndex: number;
-	/** 論理Tableグリッド上の0-based列インデックス。 */
-	columnIndex: number;
-};
-
-/**
- * Input InteractionからDnD Interactionへ渡すDnD開始対象。
- *
- * 対象TableとTable上の1つの開始位置だけを表し、並び替え方向や方向固有のReorder Target Resolution要求は
- * 含めない。DnD InteractionがReorder Modeから現在方向を選択し、方向固有責務へ要求生成を委譲する。
- */
-export type DndStartRequest = {
-	clientId: string;
-	position: DndStartPosition;
-};
 
 /** DnD開始試行の結果。 */
 export type DndStartResult =
@@ -111,9 +88,7 @@ export type DndCancelResult =
 			status: 'aborted';
 	  };
 
-/**
- * DnD Interactionが依存する既存のReorder責務とoperation boundaryのエラー記録先。
- */
+/** DnD Interactionが依存する既存のReorder責務とoperation boundaryのエラー記録先。 */
 export type DndInteractionDependencies = {
 	reorderMode: Pick< ReorderMode, 'getReorderKind' >;
 	reorderTargetResolution: ReorderTargetResolution;
@@ -121,9 +96,7 @@ export type DndInteractionDependencies = {
 	logError: DndErrorLogger;
 };
 
-/**
- * 入力方式と行・列に共通するDnDの開始から終了までを統括する契約。
- */
+/** 入力方式と行・列に共通するDnDの開始から終了までを統括する契約。 */
 export type DndInteraction = {
 	/** 現在有効なReorder Sessionを取得する。 */
 	getSession: () => ReorderSessionState;

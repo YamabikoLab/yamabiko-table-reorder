@@ -4,7 +4,7 @@
  * DnD Interactionは現在の並び替え方向を選択する責務だけを持ち、行固有の`section`と`rowIndex`の
  * 取り出しはこの境界へ委譲する。これにより、行固有の開始位置の意味を共通DnD処理へ持ち込まない。
  */
-import type { DndStartRequest } from '@/reorder/dnd-interaction';
+import type { DndStartRequest } from '@/reorder/dnd-start-request';
 import type { ReorderTargetResolutionRequest } from '@/reorder/reorder-target-resolution';
 
 /** 行並び替えで利用するReorder Target Resolution要求。 */
