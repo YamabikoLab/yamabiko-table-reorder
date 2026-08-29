@@ -42,21 +42,15 @@ export type CommittedReorder< K extends ReorderKind = ReorderKind > = {
  * @param constraints このDnD中だけ利用するReorder Constraints。
  * @return 有効な移動先をまだ持たない同じ方向のReorder Session。
  */
-export function startReorderSession< K extends ReorderKind >(
+export const startReorderSession = < K extends ReorderKind >(
 	target: ReorderTarget< K > & { kind: K },
 	constraints: ReorderConstraints
-): ReorderSession< K >;
-export function startReorderSession(
-	target: ReorderTarget,
-	constraints: ReorderConstraints
-): ReorderSession {
-	// Session開始時の方向を操作終了まで固定するため、方向固有Targetから対応するSessionを生成する。
-	if ( target.kind === 'row' ) {
-		return { kind: 'row', target, constraints, destination: null };
-	}
-
-	return { kind: 'column', target, constraints, destination: null };
-}
+): ReorderSession< K > => ( {
+	kind: target.kind,
+	target,
+	constraints,
+	destination: null,
+} );
 
 /**
  * Reorder Sessionの現在の有効な移動先を更新する。
@@ -88,22 +82,20 @@ export const updateReorderDestination = < TSession extends ReorderSession >(
  * @param session 完了対象のReorder Session。
  * @return 確定可能な同じ方向の並び替え、またはデータ変更を伴わない正常完了を表す`null`。
  */
-export function completeReorderSession< K extends ReorderKind >(
-	session: ReorderSession< K > & { kind: K }
-): CommittedReorder< K > | null;
-export function completeReorderSession( session: ReorderSession ): CommittedReorder | null {
+export const completeReorderSession = < K extends ReorderKind >(
+	session: ReorderSession< K >
+): CommittedReorder< K > | null => {
 	// 有効な移動先がないDnDはTableデータ変更を発生させない。
 	if ( session.destination === null ) {
 		return null;
 	}
 
-	// 両方向を束ねる完了境界ではSession方向を選択し、型で対応済みのTargetとDestinationを確定結果へ渡す。
-	if ( session.kind === 'row' ) {
-		return { kind: 'row', target: session.target, destination: session.destination };
-	}
-
-	return { kind: 'column', target: session.target, destination: session.destination };
-}
+	return {
+		kind: session.kind,
+		target: session.target,
+		destination: session.destination,
+	};
+};
 
 /**
  * Reorder SessionをキャンセルしてDnD待機状態へ戻す。
