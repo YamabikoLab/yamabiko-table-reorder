@@ -8,9 +8,15 @@ import type { RowReorderTargetResolutionRequest } from './reorder-target-resolut
 
 /**
  * 共通のDnD開始位置から行並び替え固有の対象解決要求を作成する。
+ *
  * @param request Input InteractionからDnD Interactionへ渡されたTable上の開始位置。
  * @return 行並び替えの対象解決に必要な情報だけを持つ要求。
  */
-export const createRowReorderTargetResolutionRequest = ( request: DndStartRequest ): RowReorderTargetResolutionRequest => ( {
-	kind: 'row', clientId: request.clientId, section: request.position.section, rowIndex: request.position.rowIndex,
+export const createRowReorderTargetResolutionRequest = (
+	request: DndStartRequest
+): RowReorderTargetResolutionRequest => ( {
+	kind: 'row',
+	clientId: request.clientId,
+	section: request.position.section,
+	rowIndex: request.position.rowIndex,
 } );
