@@ -4,57 +4,52 @@
  * 方向固有のTarget / Destinationは各Reorder責務の型を利用し、共通責務は1回のDnD中の保持、
  * destination更新、完了、キャンセルだけを扱う。方向対応は型で保証し、Table個体の一致だけを実行時に確認する。
  */
-import type { ColumnReorderDestination } from '@/reorder/column-reorder/drop-target-resolution';
-import type { ColumnReorderTarget } from '@/reorder/column-reorder/reorder-target-resolution';
-import type { RowReorderDestination } from '@/reorder/row-reorder/drop-target-resolution';
-import type { RowReorderTarget } from '@/reorder/row-reorder/reorder-target-resolution';
 import type { ReorderConstraints } from './reorder-target-resolution-rules';
+import type {
+	ReorderDestination,
+	ReorderKind,
+	ReorderTarget,
+} from './reorder-types';
+
+/** 指定した並び替え種別に対応するReorder Session。 */
+export type ReorderSession< K extends ReorderKind = ReorderKind > = {
+	[ Kind in K ]: {
+		kind: Kind;
+		target: ReorderTarget< Kind >;
+		constraints: ReorderConstraints;
+		destination: ReorderDestination< Kind > | null;
+	};
+}[ K ];
 
 /** 行Reorder Session。 */
-export type RowReorderSession = {
-	kind: 'row';
-	target: RowReorderTarget;
-	constraints: ReorderConstraints;
-	destination: RowReorderDestination | null;
-};
+export type RowReorderSession = ReorderSession< 'row' >;
 
 /** 列Reorder Session。 */
-export type ColumnReorderSession = {
-	kind: 'column';
-	target: ColumnReorderTarget;
-	constraints: ReorderConstraints;
-	destination: ColumnReorderDestination | null;
-};
-
-/** 進行中の1回の並び替え操作。 */
-export type ReorderSession = RowReorderSession | ColumnReorderSession;
+export type ColumnReorderSession = ReorderSession< 'column' >;
 
 /** DnD Interactionが所有するReorder Sessionの有効状態または待機状態。 */
-export type ReorderSessionState = ReorderSession | null;
+export type ReorderSessionState< K extends ReorderKind = ReorderKind > = ReorderSession< K > | null;
 
 /** Data Updateへ渡せる確定済み並び替え。 */
-export type CommittedReorder =
-	| { kind: 'row'; target: RowReorderTarget; destination: RowReorderDestination }
-	| { kind: 'column'; target: ColumnReorderTarget; destination: ColumnReorderDestination };
-
-/** Reorder Session開始境界で受け取る方向固有Target。 */
-type ReorderTarget = RowReorderTarget | ColumnReorderTarget;
+export type CommittedReorder< K extends ReorderKind = ReorderKind > = {
+	[ Kind in K ]: {
+		kind: Kind;
+		target: ReorderTarget< Kind >;
+		destination: ReorderDestination< Kind >;
+	};
+}[ K ];
 
 /**
  * Reorder Target Resolutionで成立した値から新しいReorder Sessionを開始する。
  *
  * @param target      並び替え対象として成立した方向固有Reorder Target。
  * @param constraints このDnD中だけ利用するReorder Constraints。
- * @return 有効な移動先をまだ持たないReorder Session。
+ * @return 有効な移動先をまだ持たない同じ方向のReorder Session。
  */
-export function startReorderSession(
-	target: RowReorderTarget,
+export function startReorderSession< K extends ReorderKind >(
+	target: ReorderTarget< K > & { kind: K },
 	constraints: ReorderConstraints
-): RowReorderSession;
-export function startReorderSession(
-	target: ColumnReorderTarget,
-	constraints: ReorderConstraints
-): ColumnReorderSession;
+): ReorderSession< K >;
 export function startReorderSession(
 	target: ReorderTarget,
 	constraints: ReorderConstraints
@@ -79,7 +74,7 @@ export function startReorderSession(
  */
 export const updateReorderDestination = < TSession extends ReorderSession >(
 	session: TSession,
-	destination: NoInfer< TSession[ 'destination' ] >
+	destination: NoInfer< ReorderDestination< TSession[ 'kind' ] > | null >
 ): TSession => {
 	// 並び替え対象を別Tableへ移動する操作は扱わないため、移動先は開始時と同じTableに属する必要がある。
 	if ( destination !== null && session.target.clientId !== destination.clientId ) {
@@ -95,9 +90,12 @@ export const updateReorderDestination = < TSession extends ReorderSession >(
  * Reorder Sessionを完了し、有効な移動先がある場合だけCommitted Reorderを生成する。
  *
  * @param session 完了対象のReorder Session。
- * @return 確定可能な並び替え、またはデータ変更を伴わない正常完了を表す`null`。
+ * @return 確定可能な同じ方向の並び替え、またはデータ変更を伴わない正常完了を表す`null`。
  */
-export const completeReorderSession = ( session: ReorderSession ): CommittedReorder | null => {
+export function completeReorderSession< K extends ReorderKind >(
+	session: ReorderSession< K > & { kind: K }
+): CommittedReorder< K > | null;
+export function completeReorderSession( session: ReorderSession ): CommittedReorder | null {
 	// 有効な移動先がないDnDはTableデータ変更を発生させない。
 	if ( session.destination === null ) {
 		return null;
@@ -109,7 +107,7 @@ export const completeReorderSession = ( session: ReorderSession ): CommittedReor
 	}
 
 	return { kind: 'column', target: session.target, destination: session.destination };
-};
+}
 
 /**
  * Reorder SessionをキャンセルしてDnD待機状態へ戻す。
