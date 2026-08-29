@@ -304,6 +304,45 @@ describe( 'DnD Interaction', () => {
 	} );
 
 	/**
+	 * Drop Target Resolutionが現在のReorder Sessionと異なる並び替え種別の移動先を返した場合に、安全終了することを確認する。
+	 *
+	 * 事前条件:
+	 * - 行Reorder Sessionが有効である。
+	 * - Drop Target Resolutionが同じTableの列Reorder Destinationを返す。
+	 *
+	 * 操作:
+	 * - `progress()`を実行する。
+	 *
+	 * 期待結果:
+	 * - Reorder Sessionの不変条件違反が`progress`失敗として1回だけ記録される。
+	 * - `aborted`が返され、Reorder Sessionが破棄される。
+	 */
+	it( 'when destination kind conflicts with the active Session, should log once and abort the Session', () => {
+		const dependencies = createDependencies();
+		dependencies.dropTargetResolution.resolve = jest.fn( () => ( {
+			status: 'valid',
+			destination: {
+				kind: 'column',
+				clientId: 'table-client-id',
+				boundaryIndex: 1,
+			},
+		} ) );
+		const interaction = createDndInteraction( dependencies );
+		interaction.start( startRequest );
+
+		expect( interaction.progress( { boundaryIndex: 1 } ) ).toEqual( { status: 'aborted' } );
+		expect( dependencies.logError ).toHaveBeenCalledTimes( 1 );
+		expect( dependencies.logError ).toHaveBeenCalledWith(
+			'progress',
+			expect.objectContaining( {
+				message:
+					'Reorder Session invariant violated: session and destination must have the same reorder kind.',
+			} )
+		);
+		expect( interaction.getSession() ).toBeNull();
+	} );
+
+	/**
 	 * 外部環境変化による共通`abort()`を内部エラーとして記録しないことを確認する。
 	 *
 	 * 事前条件:
