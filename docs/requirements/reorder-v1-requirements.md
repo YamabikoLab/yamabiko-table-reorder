@@ -14,14 +14,10 @@ Keyboard 操作、ドラッグを必要としない操作、focus、announcement
 
 ## 2. 対象範囲
 
-正式 v1 の最初の対象は次とする。
+正式 v1 の機能対象は、以下の Functional Requirements で定義する。
 
-- WordPress Core Table
-- Flexible Table Block
-- PC での行 DnD
-- PC での列 DnD
-- タッチ端末での行 DnD
-- タッチ端末での列 DnD
+- 行 DnD / 列 DnD と対応する操作環境: `FR-01`, `FR-02`
+- 対応する Table Block: `FR-13`
 
 ## 3. 要件
 
