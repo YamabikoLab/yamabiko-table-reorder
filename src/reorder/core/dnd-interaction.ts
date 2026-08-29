@@ -2,9 +2,12 @@
  * 入力方式と行・列に共通するDnD InteractionとReorder operation boundaryを提供する。
  *
  * DnDの開始可否、進行、完了、キャンセル、安全終了を統括し、1回のDnDで有効なReorder Sessionを
- * 1つだけ所有する。行・列の選択は方向選択境界に限定し、方向固有Request / Resultの対応は型で維持する。
+ * 1つだけ所有する。DnD Interactionは現在方向に対応する入口までを選択し、方向固有の解釈・規則・処理は各方向側へ委譲する。
  */
-import { createColumnReorderTargetResolutionRequest } from '@/reorder/column-reorder/dnd-start-resolution';
+import {
+	resolveColumnDndStart,
+	type ColumnDndStartResolution,
+} from '@/reorder/column-reorder/dnd-start-resolution';
 import type { DndStartRequest } from '@/reorder/core/dnd-start-request';
 import type {
 	DropTargetPosition,
@@ -16,6 +19,7 @@ import type {
 	ReorderTargetResolution,
 	ReorderTargetResolutionFailureReason,
 } from '@/reorder/core/reorder-target-resolution';
+import type { ReorderTargetResolutionResult } from '@/reorder/core/reorder-target-resolution-rules';
 import {
 	cancelReorderSession,
 	completeReorderSession,
@@ -31,9 +35,10 @@ import type {
 	ConcreteReorderKind,
 	ReorderDestination,
 	ReorderKind,
+	ReorderTarget,
 } from '@/reorder/core/reorder-types';
 import type { ReorderMode } from '@/reorder/foundation/reorder-mode';
-import { createRowReorderTargetResolutionRequest } from '@/reorder/row-reorder/dnd-start-resolution';
+import { resolveRowDndStart, type RowDndStartResolution } from '@/reorder/row-reorder/dnd-start-resolution';
 
 /** Reorder operation boundaryで識別するDnD操作。 */
 export type DndOperation = 'start' | 'progress' | 'complete' | 'cancel';
@@ -125,6 +130,21 @@ type ActiveDndBinding< K extends ReorderKind = ReorderKind > = {
 	};
 }[ K ];
 
+/** 指定方向のDnD開始入口が返す対象解決結果と同方向の移動先判定入口。 */
+type DndStartResolution< K extends ReorderKind > = {
+	targetResolution: ReorderTargetResolutionResult< ReorderTarget< K > >;
+	resolveDropTarget: (
+		request: DropTargetResolutionRequest< K >
+	) => DropTargetResolutionResult< K >;
+};
+
+/** 指定方向の開始位置解釈とResolver対応を方向側へ委譲する入口。 */
+type DndStartResolver< K extends ReorderKind > = (
+	request: DndStartRequest,
+	reorderTargetResolution: ReorderTargetResolution,
+	dropTargetResolution: DropTargetResolution
+) => DndStartResolution< K >;
+
 /**
  * 具体方向へ確定したReorder Sessionと同方向のDrop Target Resolverを束ねる。
  *
@@ -181,6 +201,36 @@ export const createDndInteraction = (
 		abort();
 	};
 
+	/**
+	 * 選択された方向固有入口から対象解決と移動先判定入口の対応を受け取り、共通Sessionを開始する。
+	 *
+	 * @param request Input Interactionから渡された方向非依存のDnD開始位置。
+	 * @param resolve 現在の並び替え方向に対応する方向固有入口。
+	 * @return DnD開始結果。
+	 */
+	const startForDirection = < K extends ReorderKind >(
+		request: DndStartRequest,
+		resolve: DndStartResolver< K >
+	): DndStartResult => {
+		const { targetResolution, resolveDropTarget } = resolve(
+			request,
+			dependencies.reorderTargetResolution,
+			dependencies.dropTargetResolution
+		);
+
+		// 並び替え対象として成立しない要素ではDnDを開始せず、その理由を呼び出し側へ返す。
+		if ( targetResolution.status === 'immovable' ) {
+			return { status: 'not-started', reason: targetResolution.reason };
+		}
+
+		const startedSession = startReorderSession(
+			targetResolution.target,
+			targetResolution.constraints
+		);
+		activeDnd = createActiveDndBinding( startedSession, resolveDropTarget );
+		return { status: 'started', session: startedSession };
+	};
+
 	return {
 		getSession: () => {
 			const currentSession = activeDnd === null ? null : activeDnd.getSession();
@@ -203,38 +253,18 @@ export const createDndInteraction = (
 					return { status: 'not-started', reason: 'reorder-mode-inactive' };
 				}
 
-				// DnD Interactionは開始時だけ現在方向を選択し、同方向のSessionと移動先判定入口を確定する。
+				// DnD Interactionは現在方向に対応する入口だけを選択し、方向固有の開始解釈と処理は各方向側へ委譲する。
 				if ( reorderKind === 'row' ) {
-					const resolutionRequest = createRowReorderTargetResolutionRequest( request );
-					const resolution = dependencies.reorderTargetResolution.resolve( resolutionRequest );
-
-					// 並び替え対象として成立しない要素ではDnDを開始せず、その理由を呼び出し側へ返す。
-					if ( resolution.status === 'immovable' ) {
-						return { status: 'not-started', reason: resolution.reason };
-					}
-
-					const startedSession = startReorderSession( resolution.target, resolution.constraints );
-					activeDnd = createActiveDndBinding(
-						startedSession,
-						dependencies.dropTargetResolution.resolveRow
+					return startForDirection< 'row' >(
+						request,
+						resolveRowDndStart as DndStartResolver< 'row' >
 					);
-					return { status: 'started', session: startedSession };
 				}
 
-				const resolutionRequest = createColumnReorderTargetResolutionRequest( request );
-				const resolution = dependencies.reorderTargetResolution.resolve( resolutionRequest );
-
-				// 並び替え対象として成立しない要素ではDnDを開始せず、その理由を呼び出し側へ返す。
-				if ( resolution.status === 'immovable' ) {
-					return { status: 'not-started', reason: resolution.reason };
-				}
-
-				const startedSession = startReorderSession( resolution.target, resolution.constraints );
-				activeDnd = createActiveDndBinding(
-					startedSession,
-					dependencies.dropTargetResolution.resolveColumn
+				return startForDirection< 'column' >(
+					request,
+					resolveColumnDndStart as DndStartResolver< 'column' >
 				);
-				return { status: 'started', session: startedSession };
 			} catch ( error ) {
 				handleOperationFailure( 'start', error );
 				return { status: 'aborted' };
