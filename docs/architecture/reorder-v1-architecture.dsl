@@ -124,43 +124,43 @@ workspace "YTR Reorder v1 Architecture" {
 		}
 
 		PF_001 = EXT_WORDPRESS_EDITOR -> RESP_INPUT_INTERACTION "WordPress Editorの入力がYTRの共通Reorder処理へ入る。" {
-			tags "Process Flow,ProcessFlow_PV_REORDER_END_TO_END"
+			tags "Process Flow,ProcessFlow_PV_REORDER_END_TO_END,ProcessFlowEdge_normal"
 		}
 		PF_002 = RESP_INPUT_INTERACTION -> RESP_DND_INTERACTION "入力方式固有の解釈から、共通のDnD処理へ進む。" {
-			tags "Process Flow,ProcessFlow_PV_REORDER_END_TO_END"
+			tags "Process Flow,ProcessFlow_PV_REORDER_END_TO_END,ProcessFlowEdge_normal"
 		}
 		PF_003 = RESP_DND_INTERACTION -> RESP_REORDER_TARGET_RESOLUTION "DnD開始試行から、移動対象と制約情報の解決へ進む。" {
-			tags "Process Flow,ProcessFlow_PV_REORDER_END_TO_END"
+			tags "Process Flow,ProcessFlow_PV_REORDER_END_TO_END,ProcessFlowEdge_normal"
 		}
 		PF_004 = RESP_REORDER_TARGET_RESOLUTION -> RESP_DROP_TARGET_RESOLUTION "解決された移動対象と制約情報を前提に、開始後の移動先判定へ進む。" {
-			tags "Process Flow,ProcessFlow_PV_REORDER_END_TO_END"
+			tags "Process Flow,ProcessFlow_PV_REORDER_END_TO_END,ProcessFlowEdge_normal"
 		}
 		PF_005 = RESP_DROP_TARGET_RESOLUTION -> RESP_DATA_UPDATE "有効な移動先でDnDが完了した場合、確定した並び替えの反映へ進む。" {
-			tags "Process Flow,ProcessFlow_PV_REORDER_END_TO_END"
+			tags "Process Flow,ProcessFlow_PV_REORDER_END_TO_END,ProcessFlowEdge_normal"
 		}
 		PF_006 = RESP_DATA_UPDATE -> RESP_TABLE_INTEGRATION "確定した並び替えを対応Table Block固有の更新境界へ渡す。" {
-			tags "Process Flow,ProcessFlow_PV_REORDER_END_TO_END"
+			tags "Process Flow,ProcessFlow_PV_REORDER_END_TO_END,ProcessFlowEdge_normal"
 		}
 		PF_007 = RESP_TABLE_INTEGRATION -> EXT_SUPPORTED_TABLE_BLOCK "FR-13で定義される対応Table Blockへ、そのBlock固有の方法でTableデータを反映する。" {
-			tags "Process Flow,ProcessFlow_PV_REORDER_END_TO_END"
+			tags "Process Flow,ProcessFlow_PV_REORDER_END_TO_END,ProcessFlowEdge_normal"
 		}
-		PF_008 = RESP_INPUT_INTERACTION -> RESP_DND_INTERACTION "外部環境の変化などによりactiveなReorder操作を継続できない状態をReorder operation boundaryへ合流させる。" {
-			tags "Process Flow,ProcessFlow_PV_REORDER_FAILURE_RECOVERY"
+		PF_008 = RESP_INPUT_INTERACTION -> RESP_DND_INTERACTION "[failure] 外部環境の変化などによりactiveなReorder操作を継続できない状態をReorder operation boundaryへ合流させる。" {
+			tags "Process Flow,ProcessFlow_PV_REORDER_FAILURE_RECOVERY,ProcessFlowEdge_failure"
 		}
-		PF_009 = RESP_DROP_TARGET_RESOLUTION -> RESP_DND_INTERACTION "DnD進行中に検出されたReorder内部のContract / Invariant不整合をReorder operation boundaryへ合流させる。" {
-			tags "Process Flow,ProcessFlow_PV_REORDER_FAILURE_RECOVERY"
+		PF_009 = RESP_DROP_TARGET_RESOLUTION -> RESP_DND_INTERACTION "[failure] DnD進行中に検出されたReorder内部のContract / Invariant不整合をReorder operation boundaryへ合流させる。" {
+			tags "Process Flow,ProcessFlow_PV_REORDER_FAILURE_RECOVERY,ProcessFlowEdge_failure"
 		}
-		PF_010 = RESP_DATA_UPDATE -> RESP_DND_INTERACTION "Table更新を継続または確認できない結果をReorder operation boundaryへ返し、共通abortへ合流させる。" {
-			tags "Process Flow,ProcessFlow_PV_REORDER_FAILURE_RECOVERY"
+		PF_010 = RESP_DATA_UPDATE -> RESP_DND_INTERACTION "[failure] Table更新を継続または確認できない結果をReorder operation boundaryへ返し、共通abortへ合流させる。" {
+			tags "Process Flow,ProcessFlow_PV_REORDER_FAILURE_RECOVERY,ProcessFlowEdge_failure"
 		}
-		PF_011 = RESP_DND_INTERACTION -> RESP_REORDER_PRESENTATION "共通abortとしてDnD表示の一時状態を終了する。" {
-			tags "Process Flow,ProcessFlow_PV_REORDER_FAILURE_RECOVERY"
+		PF_011 = RESP_DND_INTERACTION -> RESP_REORDER_PRESENTATION "[recovery] 共通abortとしてDnD表示の一時状態を終了する。" {
+			tags "Process Flow,ProcessFlow_PV_REORDER_FAILURE_RECOVERY,ProcessFlowEdge_recovery"
 		}
-		PF_012 = RESP_DND_INTERACTION -> RESP_AUTO_SCROLL "共通abortとして自動スクロールの一時状態を終了する。" {
-			tags "Process Flow,ProcessFlow_PV_REORDER_FAILURE_RECOVERY"
+		PF_012 = RESP_DND_INTERACTION -> RESP_AUTO_SCROLL "[recovery] 共通abortとして自動スクロールの一時状態を終了する。" {
+			tags "Process Flow,ProcessFlow_PV_REORDER_FAILURE_RECOVERY,ProcessFlowEdge_recovery"
 		}
-		PF_013 = RESP_DND_INTERACTION -> RESP_INPUT_INTERACTION "共通abortとして入力解釈の一時状態を終了する。" {
-			tags "Process Flow,ProcessFlow_PV_REORDER_FAILURE_RECOVERY"
+		PF_013 = RESP_DND_INTERACTION -> RESP_INPUT_INTERACTION "[recovery] 共通abortとして入力解釈の一時状態を終了する。" {
+			tags "Process Flow,ProcessFlow_PV_REORDER_FAILURE_RECOVERY,ProcessFlowEdge_recovery"
 		}
 
 		RT_001 = RESP_INPUT_INTERACTION -> RESP_DND_INTERACTION "開始対象を含むDnD開始試行をReorder operation boundaryへ渡す。" {
@@ -426,7 +426,7 @@ workspace "YTR Reorder v1 Architecture" {
 		}
 
 		custom "PV_REORDER_FAILURE_RECOVERY" {
-			title "Process Flow - Reorder Failure and Recovery"
+			title "Process Flow [Failure / Recovery] - Reorder Failure and Recovery"
 			include RESP_INPUT_INTERACTION RESP_DND_INTERACTION RESP_DROP_TARGET_RESOLUTION RESP_DATA_UPDATE RESP_REORDER_PRESENTATION RESP_AUTO_SCROLL
 			exclude "relationship.tag!=ProcessFlow_PV_REORDER_FAILURE_RECOVERY"
 			autoLayout lr
@@ -500,6 +500,22 @@ workspace "YTR Reorder v1 Architecture" {
 				"runtime.steps" "1=RT_027;2=RT_028;3=RT_017;4=RT_029;5=RT_030;6=RT_031;7=RT_032;8=RT_033;9=RT_034"
 			}
 			autoLayout lr
+		}
+
+		styles {
+			relationship "ProcessFlowEdge_normal" {
+				style solid
+			}
+			relationship "ProcessFlowEdge_failure" {
+				color #b42318
+				style dashed
+				thickness 3
+			}
+			relationship "ProcessFlowEdge_recovery" {
+				color #b54708
+				style dotted
+				thickness 3
+			}
 		}
 	}
 }
