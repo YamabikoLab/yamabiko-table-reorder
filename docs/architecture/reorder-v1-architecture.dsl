@@ -144,6 +144,24 @@ workspace "YTR Reorder v1 Architecture" {
 		PF_007 = RESP_TABLE_INTEGRATION -> EXT_SUPPORTED_TABLE_BLOCK "FR-13で定義される対応Table Blockへ、そのBlock固有の方法でTableデータを反映する。" {
 			tags "Process Flow,ProcessFlow_PV_REORDER_END_TO_END"
 		}
+		PF_008 = RESP_INPUT_INTERACTION -> RESP_DND_INTERACTION "外部環境の変化などによりactiveなReorder操作を継続できない状態をReorder operation boundaryへ合流させる。" {
+			tags "Process Flow,ProcessFlow_PV_REORDER_FAILURE_RECOVERY"
+		}
+		PF_009 = RESP_DROP_TARGET_RESOLUTION -> RESP_DND_INTERACTION "DnD進行中に検出されたReorder内部のContract / Invariant不整合をReorder operation boundaryへ合流させる。" {
+			tags "Process Flow,ProcessFlow_PV_REORDER_FAILURE_RECOVERY"
+		}
+		PF_010 = RESP_DATA_UPDATE -> RESP_DND_INTERACTION "Table更新を継続または確認できない結果をReorder operation boundaryへ返し、共通abortへ合流させる。" {
+			tags "Process Flow,ProcessFlow_PV_REORDER_FAILURE_RECOVERY"
+		}
+		PF_011 = RESP_DND_INTERACTION -> RESP_REORDER_PRESENTATION "共通abortとしてDnD表示の一時状態を終了する。" {
+			tags "Process Flow,ProcessFlow_PV_REORDER_FAILURE_RECOVERY"
+		}
+		PF_012 = RESP_DND_INTERACTION -> RESP_AUTO_SCROLL "共通abortとして自動スクロールの一時状態を終了する。" {
+			tags "Process Flow,ProcessFlow_PV_REORDER_FAILURE_RECOVERY"
+		}
+		PF_013 = RESP_DND_INTERACTION -> RESP_INPUT_INTERACTION "共通abortとして入力解釈の一時状態を終了する。" {
+			tags "Process Flow,ProcessFlow_PV_REORDER_FAILURE_RECOVERY"
+		}
 
 		RT_001 = RESP_INPUT_INTERACTION -> RESP_DND_INTERACTION "開始対象を含むDnD開始試行をReorder operation boundaryへ渡す。" {
 			tags "Runtime Interaction,Runtime_RV_DND_START_MOVABLE,Runtime_RV_DND_START_IMMOVABLE"
@@ -349,6 +367,12 @@ workspace "YTR Reorder v1 Architecture" {
 				"runtime.RV_DATA_UPDATE_FAILURE.step.8" "共通abortとしてDnDに属する自動スクロール状態を終了させる。"
 			}
 		}
+		RT_034 = RESP_DND_INTERACTION -> RESP_INPUT_INTERACTION "共通abortとして入力解釈の一時状態を次の操作へ持ち越さないよう終了させる。" {
+			tags "Runtime Interaction,Runtime_RV_DATA_UPDATE_FAILURE"
+			properties {
+				"runtime.RV_DATA_UPDATE_FAILURE.step.9" "共通abortとして入力解釈の一時状態を次の操作へ持ち越さないよう終了させる。"
+			}
+		}
 	}
 
 	views {
@@ -398,6 +422,13 @@ workspace "YTR Reorder v1 Architecture" {
 			title "Process Flow - Reorder End-to-End"
 			include EXT_WORDPRESS_EDITOR RESP_INPUT_INTERACTION RESP_DND_INTERACTION RESP_REORDER_TARGET_RESOLUTION RESP_DROP_TARGET_RESOLUTION RESP_DATA_UPDATE RESP_TABLE_INTEGRATION EXT_SUPPORTED_TABLE_BLOCK
 			exclude "relationship.tag!=ProcessFlow_PV_REORDER_END_TO_END"
+			autoLayout lr
+		}
+
+		custom "PV_REORDER_FAILURE_RECOVERY" {
+			title "Process Flow - Reorder Failure and Recovery"
+			include RESP_INPUT_INTERACTION RESP_DND_INTERACTION RESP_DROP_TARGET_RESOLUTION RESP_DATA_UPDATE RESP_REORDER_PRESENTATION RESP_AUTO_SCROLL
+			exclude "relationship.tag!=ProcessFlow_PV_REORDER_FAILURE_RECOVERY"
 			autoLayout lr
 		}
 
@@ -466,7 +497,7 @@ workspace "YTR Reorder v1 Architecture" {
 			include RESP_INPUT_INTERACTION RESP_DND_INTERACTION RESP_DATA_UPDATE RESP_TABLE_INTEGRATION EXT_SUPPORTED_TABLE_BLOCK RESP_REORDER_PRESENTATION RESP_AUTO_SCROLL
 			exclude "relationship.tag!=Runtime_RV_DATA_UPDATE_FAILURE"
 			properties {
-				"runtime.steps" "1=RT_027;2=RT_028;3=RT_017;4=RT_029;5=RT_030;6=RT_031;7=RT_032;8=RT_033"
+				"runtime.steps" "1=RT_027;2=RT_028;3=RT_017;4=RT_029;5=RT_030;6=RT_031;7=RT_032;8=RT_033;9=RT_034"
 			}
 			autoLayout lr
 		}
