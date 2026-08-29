@@ -15,7 +15,7 @@ describe( 'Drop Target Resolution', () => {
 	 * - 境界3は`blockedBoundaries`に含まれていない。
 	 *
 	 * 操作:
-	 * - 現在位置が境界3へ対応する状態で`resolve()`を実行する。
+	 * - 現在位置が境界3へ対応する状態で行の移動先判定を実行する。
 	 *
 	 * 期待結果:
 	 * - `body`区画内の境界3を表す行のReorder Destinationが返される。
@@ -24,7 +24,7 @@ describe( 'Drop Target Resolution', () => {
 		const resolution = createDropTargetResolution();
 
 		expect(
-			resolution.resolve( {
+			resolution.resolveRow( {
 				kind: 'row',
 				target: { kind: 'row', clientId: 'table-client-id', rowIndex: 2 },
 				constraints: { blockedBoundaries: [ 1 ] },
@@ -44,7 +44,7 @@ describe( 'Drop Target Resolution', () => {
 	 * - 境界4は`blockedBoundaries`に含まれていない。
 	 *
 	 * 操作:
-	 * - 現在位置が境界4へ対応する状態で`resolve()`を実行する。
+	 * - 現在位置が境界4へ対応する状態で列の移動先判定を実行する。
 	 *
 	 * 期待結果:
 	 * - Table全体の境界4を表す列のReorder Destinationが返される。
@@ -53,7 +53,7 @@ describe( 'Drop Target Resolution', () => {
 		const resolution = createDropTargetResolution();
 
 		expect(
-			resolution.resolve( {
+			resolution.resolveColumn( {
 				kind: 'column',
 				target: { kind: 'column', clientId: 'table-client-id', columnIndex: 1 },
 				constraints: { blockedBoundaries: [ 2, 3 ] },
@@ -81,7 +81,7 @@ describe( 'Drop Target Resolution', () => {
 		const resolution = createDropTargetResolution();
 
 		expect(
-			resolution.resolve( {
+			resolution.resolveRow( {
 				kind: 'row',
 				target: { kind: 'row', clientId: 'table-client-id', rowIndex: 0 },
 				constraints: { blockedBoundaries: [ 2 ] },
@@ -90,7 +90,7 @@ describe( 'Drop Target Resolution', () => {
 		).toEqual( { status: 'none' } );
 
 		expect(
-			resolution.resolve( {
+			resolution.resolveColumn( {
 				kind: 'column',
 				target: { kind: 'column', clientId: 'table-client-id', columnIndex: 0 },
 				constraints: { blockedBoundaries: [ 2 ] },
@@ -107,7 +107,7 @@ describe( 'Drop Target Resolution', () => {
 	 * - 現在位置は対象範囲内の行間へ対応していない。
 	 *
 	 * 操作:
-	 * - `currentPosition`を`null`として`resolve()`を実行する。
+	 * - `currentPosition`を`null`として行の移動先判定を実行する。
 	 *
 	 * 期待結果:
 	 * - 有効な移動先なしを表す`none`になる。
@@ -116,7 +116,7 @@ describe( 'Drop Target Resolution', () => {
 		const resolution = createDropTargetResolution();
 
 		expect(
-			resolution.resolve( {
+			resolution.resolveRow( {
 				kind: 'row',
 				target: { kind: 'row', clientId: 'table-client-id', rowIndex: 0 },
 				constraints: { blockedBoundaries: [] },
@@ -133,7 +133,7 @@ describe( 'Drop Target Resolution', () => {
 	 * - 行の境界は負数、列の境界は小数である。
 	 *
 	 * 操作:
-	 * - それぞれの現在位置を`resolve()`で判定する。
+	 * - それぞれの現在位置を対応する方向の移動先判定で確認する。
 	 *
 	 * 期待結果:
 	 * - どちらも有効な移動先なしを表す`none`になる。
@@ -142,7 +142,7 @@ describe( 'Drop Target Resolution', () => {
 		const resolution = createDropTargetResolution();
 
 		expect(
-			resolution.resolve( {
+			resolution.resolveRow( {
 				kind: 'row',
 				target: { kind: 'row', clientId: 'table-client-id', rowIndex: 0 },
 				constraints: { blockedBoundaries: [] },
@@ -151,7 +151,7 @@ describe( 'Drop Target Resolution', () => {
 		).toEqual( { status: 'none' } );
 
 		expect(
-			resolution.resolve( {
+			resolution.resolveColumn( {
 				kind: 'column',
 				target: { kind: 'column', clientId: 'table-client-id', columnIndex: 0 },
 				constraints: { blockedBoundaries: [] },
