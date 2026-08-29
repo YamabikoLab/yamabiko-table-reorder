@@ -62,13 +62,15 @@ test( '同一 Architecture Model から同一 DSL を生成する', () => {
 	assert.match( first, /title "Process Flow - Reorder"/u );
 	assert.match( first, /title "Runtime - DnD start"/u );
 	assert.match( first, /PF_001 = EXT_EDITOR -> RESP_INPUT "入力が処理へ進む。"/u );
-	assert.match( first, /tags "Process Flow,ProcessFlow_PV_REORDER,ProcessFlowEdge_normal"/u );
-	assert.match( first, /relationship "ProcessFlowEdge_normal" \{[\s\S]*style solid/u );
+	assert.match( first, /tags "Process Flow,ProcessFlow_PV_REORDER,normal"/u );
+	assert.match( first, /relationship "normal" \{[\s\S]*style solid/u );
 	assert.match( first, /"runtime\.steps" "1=RT_001;2=RT_002"/u );
 	assert.match( first, /RESP_INPUT -> EXT_EDITOR "編集環境を必要とする。"/u );
 	assert.match( first, /tags "Structural Dependency"/u );
+	assert.match( first, /relationship "Structural Dependency" \{[\s\S]*style solid/u );
 	assert.match( first, /EXT_EDITOR -> RESP_INPUT "入力する。"/u );
 	assert.match( first, /tags "Runtime Interaction,Runtime_RV_DND_START"/u );
+	assert.match( first, /relationship "Runtime Interaction" \{[\s\S]*style solid/u );
 	assert.match( first, /EXT_EDITOR = element "Editor" "External System" "編集環境。"/u );
 } );
 
@@ -125,15 +127,15 @@ test( 'Failure / Recovery Process Flow をタイトル・ラベル・線種で�
 	assert.match( dsl, /title "Process Flow \[Failure \/ Recovery\] - Failure and Recovery"/u );
 	assert.match( dsl, /PF_001 = EXT_EDITOR -> RESP_INPUT "\[failure\] 異常を合流させる。"/u );
 	assert.match( dsl, /PF_002 = RESP_INPUT -> RESP_DND "\[recovery\] 一時状態を終了する。"/u );
-	assert.match( dsl, /ProcessFlowEdge_failure/u );
-	assert.match( dsl, /ProcessFlowEdge_recovery/u );
+	assert.match( dsl, /tags "Process Flow,ProcessFlow_PV_FAILURE_RECOVERY,failure"/u );
+	assert.match( dsl, /tags "Process Flow,ProcessFlow_PV_FAILURE_RECOVERY,recovery"/u );
 	assert.match(
 		dsl,
-		/relationship "ProcessFlowEdge_failure" \{[\s\S]*color #b42318[\s\S]*style dashed/u
+		/relationship "failure" \{[\s\S]*color #b42318[\s\S]*style dashed/u
 	);
 	assert.match(
 		dsl,
-		/relationship "ProcessFlowEdge_recovery" \{[\s\S]*color #b54708[\s\S]*style dotted/u
+		/relationship "recovery" \{[\s\S]*color #b54708[\s\S]*style dotted/u
 	);
 } );
 
@@ -249,6 +251,6 @@ test( '同一 Process Flow Relationship を複数 View で共有する', () => {
 	);
 	assert.match(
 		dsl,
-		/tags "Process Flow,ProcessFlow_PV_FIRST,ProcessFlow_PV_SECOND,ProcessFlowEdge_recovery"/u
+		/tags "Process Flow,ProcessFlow_PV_FIRST,ProcessFlow_PV_SECOND,recovery"/u
 	);
 } );
