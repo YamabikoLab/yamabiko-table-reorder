@@ -1,17 +1,10 @@
 /**
  * DnD Interactionが受け取った共通の開始位置を、列並び替え固有のReorder Target Resolution要求へ変換する。
  *
- * DnD Interactionは現在の並び替え方向を選択する責務だけを持ち、列固有の`columnIndex`の取り出しは
- * この境界へ委譲する。これにより、列固有の開始位置の意味を共通DnD処理へ持ち込まない。
+ * 方向非依存のTable位置は共通契約として維持し、列固有の`columnIndex`の解釈だけをこの責務で行う。
  */
 import type { DndStartRequest } from '@/reorder/dnd-start-request';
-import type { ReorderTargetResolutionRequest } from '@/reorder/reorder-target-resolution';
-
-/** 列並び替えで利用するReorder Target Resolution要求。 */
-type ColumnReorderTargetResolutionRequest = Extract<
-	ReorderTargetResolutionRequest,
-	{ kind: 'column' }
->;
+import type { ColumnReorderTargetResolutionRequest } from './reorder-target-resolution';
 
 /**
  * 共通のDnD開始位置から列並び替え固有の対象解決要求を作成する。
