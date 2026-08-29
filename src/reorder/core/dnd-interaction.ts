@@ -275,9 +275,7 @@ type ProgressedSession< K extends ReorderKind = ReorderKind > = {
 const progressSession = < K extends ReorderKind >(
 	session: ReorderSession< K > & { kind: ConcreteReorderKind< K > },
 	currentPosition: DropTargetPosition,
-	resolve: (
-		request: DropTargetResolutionRequest< K >
-	) => DropTargetResolutionResult< K >
+	resolve: ( request: DropTargetResolutionRequest< K > ) => DropTargetResolutionResult< K >
 ): ProgressedSession< K > => {
 	const result = resolve( {
 		kind: session.kind,

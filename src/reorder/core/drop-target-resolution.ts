@@ -32,17 +32,13 @@ export type DropTargetResolutionRequest< K extends ReorderKind = ReorderKind > =
 
 /** 指定した並び替え種別に対応する移動先判定結果。 */
 export type DropTargetResolutionResult< K extends ReorderKind = ReorderKind > = {
-	[ Kind in K ]:
-		| { status: 'valid'; destination: ReorderDestination< Kind > }
-		| { status: 'none' };
+	[ Kind in K ]: { status: 'valid'; destination: ReorderDestination< Kind > } | { status: 'none' };
 }[ K ];
 
 /** DnD Interactionが具体方向ごとのRequest / Result対応を維持して利用する移動先判定契約。 */
 export type DropTargetResolution = {
 	resolveRow: ( request: RowDropTargetResolutionRequest ) => RowDropTargetResolutionResult;
-	resolveColumn: (
-		request: ColumnDropTargetResolutionRequest
-	) => ColumnDropTargetResolutionResult;
+	resolveColumn: ( request: ColumnDropTargetResolutionRequest ) => ColumnDropTargetResolutionResult;
 };
 
 /**
