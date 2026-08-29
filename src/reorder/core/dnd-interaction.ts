@@ -129,7 +129,9 @@ type ActiveDndBinding< K extends ReorderKind = ReorderKind > = {
 
 /** 指定方向のDnD開始入口が返す対象解決結果と同方向の移動先判定入口。 */
 type DndStartResolution< K extends ReorderKind > = {
-	targetResolution: ReorderTargetResolutionResult< ReorderTarget< K > >;
+	targetResolution: ReorderTargetResolutionResult<
+		ReorderTarget< K > & { kind: ConcreteReorderKind< K > }
+	>;
 	resolveDropTarget: (
 		request: DropTargetResolutionRequest< K >
 	) => DropTargetResolutionResult< K >;
@@ -141,6 +143,15 @@ type DndStartResolver< K extends ReorderKind > = (
 	reorderTargetResolution: ReorderTargetResolution,
 	dropTargetResolution: DropTargetResolution
 ) => DndStartResolution< K >;
+
+/** 方向固有入口の対象解決後に共通開始処理が生成する結果。 */
+type PreparedDndStart< K extends ReorderKind > =
+	| {
+			status: 'started';
+			session: ReorderSession< K > & { kind: ConcreteReorderKind< K > };
+			binding: ActiveDndBinding< K >;
+	  }
+	| { status: 'not-started'; reason: ReorderTargetResolutionFailureReason };
 
 /**
  * 具体方向へ確定したReorder Sessionと同方向のDrop Target Resolverを束ねる。
@@ -199,16 +210,16 @@ export const createDndInteraction = (
 	};
 
 	/**
-	 * 選択された方向固有入口から対象解決と移動先判定入口の対応を受け取り、共通Sessionを開始する。
+	 * 選択された方向固有入口から対象解決と移動先判定入口の対応を受け取り、共通Session開始結果を準備する。
 	 *
 	 * @param request Input Interactionから渡された方向非依存のDnD開始位置。
 	 * @param resolve 現在の並び替え方向に対応する方向固有入口。
-	 * @return DnD開始結果。
+	 * @return 具体方向を維持したSessionとBinding、またはDnDを開始できない理由。
 	 */
-	const startForDirection = < K extends ReorderKind >(
+	const prepareStartForDirection = < K extends ReorderKind >(
 		request: DndStartRequest,
 		resolve: DndStartResolver< K >
-	): DndStartResult => {
+	): PreparedDndStart< K > => {
 		const { targetResolution, resolveDropTarget } = resolve(
 			request,
 			dependencies.reorderTargetResolution,
@@ -220,12 +231,13 @@ export const createDndInteraction = (
 			return { status: 'not-started', reason: targetResolution.reason };
 		}
 
-		const startedSession = startReorderSession(
+		const startedSession = startReorderSession< K >(
 			targetResolution.target,
 			targetResolution.constraints
 		);
-		activeDnd = createActiveDndBinding( startedSession, resolveDropTarget );
-		return { status: 'started', session: startedSession };
+		const binding = createActiveDndBinding< K >( startedSession, resolveDropTarget );
+
+		return { status: 'started', session: startedSession, binding };
 	};
 
 	return {
@@ -252,10 +264,22 @@ export const createDndInteraction = (
 
 				// DnD Interactionは現在方向に対応する入口だけを選択し、方向固有の開始解釈と処理は各方向側へ委譲する。
 				if ( reorderKind === 'row' ) {
-					return startForDirection( request, resolveRowDndStart );
+					const preparedStart = prepareStartForDirection( request, resolveRowDndStart );
+					if ( preparedStart.status === 'not-started' ) {
+						return preparedStart;
+					}
+
+					activeDnd = preparedStart.binding;
+					return { status: 'started', session: preparedStart.session };
 				}
 
-				return startForDirection( request, resolveColumnDndStart );
+				const preparedStart = prepareStartForDirection( request, resolveColumnDndStart );
+				if ( preparedStart.status === 'not-started' ) {
+					return preparedStart;
+				}
+
+				activeDnd = preparedStart.binding;
+				return { status: 'started', session: preparedStart.session };
 			} catch ( error ) {
 				handleOperationFailure( 'start', error );
 				return { status: 'aborted' };
