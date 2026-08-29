@@ -183,7 +183,7 @@ const validateProcessFlowViews = ( model: ArchitectureModel, elementIds: Set< st
 
 		if ( ! processFlowViewKinds.has( processFlowView.kind ) ) {
 			throw new Error(
-				`Architecture validation failed: Process Flow View ${ processFlowView.id} kind "${ processFlowView.kind }" is invalid.`
+				`Architecture validation failed: Process Flow View ${ processFlowView.id } kind "${ processFlowView.kind }" is invalid.`
 			);
 		}
 
