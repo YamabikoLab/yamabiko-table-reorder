@@ -1,8 +1,8 @@
 /**
- * DnD InteractionのReorder operation boundaryとReorder Session Lifecycleを確認する単体テスト。
+ * DnD InteractionのReorder operation boundaryとReorder Sessionのライフサイクルを確認する単体テスト。
  *
- * DnD開始、複数回の移動先判定、確定、キャンセル、abortを通じて、1回のDnD中だけ
- * 同じ並び替え制約が保持され、内部エラーがoperation boundaryから共通abortへ合流することを検証する。
+ * DnD開始、複数回の移動先判定、確定、キャンセル、`abort()`を通じて、1回のDnD中だけ
+ * 同じ並び替え制約が保持され、内部エラーがoperation boundaryから共通`abort()`へ合流することを検証する。
  */
 import { createDndInteraction } from './dnd-interaction';
 import type { DndInteractionDependencies } from './dnd-interaction';
@@ -10,7 +10,7 @@ import type { DropTargetResolutionRequest } from './drop-target-resolution';
 import type { ReorderConstraints } from './reorder-target-resolution';
 
 /**
- * focused testで差し替えるReorder責務の既定値を作成する。
+ * 単体テストで差し替えるReorder責務の既定値を作成する。
  *
  * @return 行並び替えモードと移動可能な行0を既定値とする依存関係。
  */
@@ -47,7 +47,7 @@ describe( 'DnD Interaction', () => {
 	 * - 行0に対して`start()`を実行する。
 	 *
 	 * 期待結果:
-	 * - 行0と並び替え制約を保持し、移動先が未確定のReorder Sessionがactiveになる。
+	 * - 行0と並び替え制約を保持し、移動先が未確定のReorder Sessionが有効になる。
 	 */
 	it( 'when a movable target is resolved, should start one active Reorder Session', () => {
 		const dependencies = createDependencies();
@@ -131,7 +131,7 @@ describe( 'DnD Interaction', () => {
 	 * 有効な移動先でDnDを完了した場合だけCommitted Reorderを生成することを確認する。
 	 *
 	 * 事前条件:
-	 * - 行0のReorder Sessionがactiveである。
+	 * - 行0のReorder Sessionが有効である。
 	 * - Drop Target Resolutionは境界2を有効な移動先として返す。
 	 *
 	 * 操作:
@@ -139,7 +139,7 @@ describe( 'DnD Interaction', () => {
 	 *
 	 * 期待結果:
 	 * - 行0と境界2を持つCommitted Reorderが返される。
-	 * - 完了後はReorder Sessionがactiveではない。
+	 * - 完了後はReorder Sessionが有効ではない。
 	 */
 	it( 'when DnD completes with a valid destination, should return a Committed Reorder and clear the Session', () => {
 		const dependencies = createDependencies();
@@ -184,7 +184,7 @@ describe( 'DnD Interaction', () => {
 	 * 有効な移動先がない完了ではTable更新へ渡す結果を生成しないことを確認する。
 	 *
 	 * 事前条件:
-	 * - Reorder Sessionはactiveだが有効な移動先を持たない。
+	 * - Reorder Sessionは有効だが有効な移動先を持たない。
 	 *
 	 * 操作:
 	 * - `complete()`を実行する。
@@ -206,16 +206,16 @@ describe( 'DnD Interaction', () => {
 	} );
 
 	/**
-	 * 利用者によるキャンセルではCommitted Reorderを生成せずSessionだけを終了することを確認する。
+	 * 利用者によるキャンセルではCommitted Reorderを生成せずReorder Sessionだけを終了することを確認する。
 	 *
 	 * 事前条件:
-	 * - Reorder Sessionがactiveである。
+	 * - Reorder Sessionが有効である。
 	 *
 	 * 操作:
 	 * - `cancel()`を実行する。
 	 *
 	 * 期待結果:
-	 * - `cancelled`が返され、Reorder Sessionがactiveではなくなる。
+	 * - `cancelled`が返され、Reorder Sessionが有効ではなくなる。
 	 */
 	it( 'when an active DnD is cancelled, should clear the Session without committing', () => {
 		const interaction = createDndInteraction( createDependencies() );
@@ -231,17 +231,17 @@ describe( 'DnD Interaction', () => {
 	} );
 
 	/**
-	 * Drop Target Resolutionの内部エラーがoperation boundaryから共通abortへ合流することを確認する。
+	 * Drop Target Resolutionの内部エラーがoperation boundaryから共通`abort()`へ合流することを確認する。
 	 *
 	 * 事前条件:
-	 * - Reorder Sessionがactiveである。
+	 * - Reorder Sessionが有効である。
 	 * - Drop Target Resolutionが内部エラーを送出する。
 	 *
 	 * 操作:
 	 * - `progress()`を実行する。
 	 *
 	 * 期待結果:
-	 * - progress失敗として元のエラーが1回だけ記録される。
+	 * - `progress`失敗として元のエラーが1回だけ記録される。
 	 * - `aborted`が返され、Reorder Sessionが破棄される。
 	 */
 	it( 'when an internal progress error reaches the operation boundary, should log once and abort the Session', () => {
@@ -265,10 +265,10 @@ describe( 'DnD Interaction', () => {
 	} );
 
 	/**
-	 * 外部環境変化による共通abortを内部エラーとして記録しないことを確認する。
+	 * 外部環境変化による共通`abort()`を内部エラーとして記録しないことを確認する。
 	 *
 	 * 事前条件:
-	 * - Reorder Sessionがactiveである。
+	 * - Reorder Sessionが有効である。
 	 *
 	 * 操作:
 	 * - 外部の継続不能を表す`abort()`を実行する。
@@ -303,7 +303,7 @@ describe( 'DnD Interaction', () => {
 	 * - 列DnDの`start()`を実行する。
 	 *
 	 * 期待結果:
-	 * - start operationの内部Contract違反として1回だけ記録される。
+	 * - `start`操作の内部契約違反として1回だけ記録される。
 	 * - Reorder Sessionを開始せず`aborted`になる。
 	 */
 	it( 'when the start request kind conflicts with Reorder Mode, should abort at the start operation boundary', () => {
