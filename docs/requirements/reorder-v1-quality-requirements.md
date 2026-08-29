@@ -40,7 +40,18 @@ QR-01 の性能保証対象は、行数、列数、セル数の各指標が上�
 
 上記を超える Table は QR-01 の性能保証対象には含めない。
 
-### 3.3 設計との境界
+### 3.3 規模基準の根拠
+
+大規模 Table の規模を定める際は、次の Issue を根拠とする。
+
+- WordPress/gutenberg#30091 `Table block performance with large number of rows`: Core Table について、800 行超 × 2〜4 列の実利用例と、約 400 行 × 3〜5 列で入力遅延を再現する手順が報告されている。
+- #478 `Large table で Row / Column Reorder の controller 再生成コストを削減する`: YTR のプロトタイプで 1,000 行程度の Table における並び替え後の長時間停止を確認し、300 行の Core Table でも性能計測を行っている。
+
+400 行という大規模 Table の行数基準と、1,000 行という正式 v1 の想定最大規模は、これらの実利用例・検証結果を踏まえて設定する。
+
+12 列、20 列、2,000 セル、20,000 セルは WordPress の仕様上限を示す値ではなく、横長の Table と総セル数による規模も含めて扱うために YTR v1 で定める基準とする。
+
+### 3.4 設計との境界
 
 本書では、利用者の操作を妨げない応答性と、その品質保証の対象規模を定義する。
 
@@ -52,14 +63,9 @@ QR-01 の性能保証対象は、行数、列数、セル数の各指標が上�
 
 ### 4.1 対応する Table Block
 
-正式 v1 では、次の Table Block を Compatibility の保証対象とする。
+QR-02 の Compatibility 保証対象は、Functional Requirements の `FR-13` で定義する対応 Table Block とする。
 
-- WordPress Core Table
-- Flexible Table Block
-
-どの Table Block を正式 v1 の機能対象とするかは、Functional Requirements の `FR-13` で定義する。
-
-QR-02 では、対応する Table Block の違いによって、正式 v1 で定義された並び替え機能の正しさや利用可能性が損なわれないことを品質として定義する。
+対応する Table Block の違いによって、正式 v1 で定義された並び替え機能の正しさや利用可能性が損なわれないことを品質として定義する。
 
 ### 4.2 対応する Editor 環境
 
@@ -123,7 +129,9 @@ Keyboard、ドラッグを必要としない操作、focus、announcement、支�
 
 ## 関連
 
+- #478 Large table で Row / Column Reorder の controller 再生成コストを削減する
 - #546 DnD の performance architecture を整理する
 - #582 大規模 Table の performance 要件を整理する
 - #605 Reorder の例外処理・異常状態の扱いを整理する
 - #606 Reorder v1 の Quality Requirements 専用要件定義書を作成する
+- WordPress/gutenberg#30091 Table block performance with large number of rows
