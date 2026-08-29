@@ -5,7 +5,6 @@
  * 1つだけ所有する。行・列の選択は方向選択境界に限定し、方向固有Request / Resultの対応は型で維持する。
  */
 import { createColumnReorderTargetResolutionRequest } from '@/reorder/column-reorder/dnd-start-resolution';
-import type { ColumnReorderDestination } from '@/reorder/column-reorder/drop-target-resolution';
 import type { DndStartRequest } from '@/reorder/core/dnd-start-request';
 import type {
 	DropTargetPosition,
@@ -14,6 +13,7 @@ import type {
 import type {
 	ReorderTargetResolution,
 	ReorderTargetResolutionFailureReason,
+	ReorderTargetResolutionResult,
 } from '@/reorder/core/reorder-target-resolution';
 import {
 	cancelReorderSession,
@@ -22,15 +22,13 @@ import {
 	updateReorderDestination,
 } from '@/reorder/core/reorder-session';
 import type {
-	ColumnReorderSession,
 	CommittedReorder,
 	ReorderSession,
 	ReorderSessionState,
-	RowReorderSession,
 } from '@/reorder/core/reorder-session';
+import type { ReorderDestination, ReorderKind } from '@/reorder/core/reorder-types';
 import type { ReorderMode } from '@/reorder/foundation/reorder-mode';
 import { createRowReorderTargetResolutionRequest } from '@/reorder/row-reorder/dnd-start-resolution';
-import type { RowReorderDestination } from '@/reorder/row-reorder/drop-target-resolution';
 
 /** Reorder operation boundaryで識別するDnD操作。 */
 export type DndOperation = 'start' | 'progress' | 'complete' | 'cancel';
@@ -56,7 +54,7 @@ export type DndStartResult =
 export type DndProgressResult =
 	| {
 			status: 'progressed';
-			destination: RowReorderDestination | ColumnReorderDestination | null;
+			destination: ReorderDestination | null;
 	  }
 	| { status: 'aborted' };
 
@@ -149,22 +147,16 @@ export const createDndInteraction = (
 					return { status: 'not-started', reason: 'reorder-mode-inactive' };
 				}
 
+				let resolution: ReorderTargetResolutionResult;
+
 				// DnD Interactionは現在方向だけを選択し、開始位置の方向固有解釈は各Reorder責務へ委譲する。
 				if ( reorderKind === 'row' ) {
 					const resolutionRequest = createRowReorderTargetResolutionRequest( request );
-					const resolution = dependencies.reorderTargetResolution.resolve( resolutionRequest );
-
-					// 並び替え対象として成立しない要素ではDnDを開始せず、その理由を呼び出し側へ返す。
-					if ( resolution.status === 'immovable' ) {
-						return { status: 'not-started', reason: resolution.reason };
-					}
-
-					session = startReorderSession( resolution.target, resolution.constraints );
-					return { status: 'started', session };
+					resolution = dependencies.reorderTargetResolution.resolve( resolutionRequest );
+				} else {
+					const resolutionRequest = createColumnReorderTargetResolutionRequest( request );
+					resolution = dependencies.reorderTargetResolution.resolve( resolutionRequest );
 				}
-
-				const resolutionRequest = createColumnReorderTargetResolutionRequest( request );
-				const resolution = dependencies.reorderTargetResolution.resolve( resolutionRequest );
 
 				// 並び替え対象として成立しない要素ではDnDを開始せず、その理由を呼び出し側へ返す。
 				if ( resolution.status === 'immovable' ) {
@@ -246,46 +238,33 @@ export const createDndInteraction = (
 	};
 };
 
-/** DnD進行後のSessionと、その時点で有効な方向固有Destination。 */
-type ProgressedSession =
-	| { session: RowReorderSession; destination: RowReorderDestination | null }
-	| { session: ColumnReorderSession; destination: ColumnReorderDestination | null };
+/** 指定した方向のDnD進行後Sessionと、その時点で有効な同じ方向のDestination。 */
+type ProgressedSession< K extends ReorderKind = ReorderKind > = {
+	session: ReorderSession< K >;
+	destination: ReorderDestination< K > | null;
+};
 
 /**
- * 現在のSession方向に対応するDrop Target Resolutionだけを呼び出し、同じ方向のDestinationを更新する。
+ * 現在のSession方向を維持したままDrop Target Resolutionを呼び出し、同じ方向のDestinationを更新する。
  *
  * @param resolution      DnD開始後の移動先を判定するDrop Target Resolution。
  * @param session         現在有効なReorder Session。
  * @param currentPosition Input Interactionから渡された現在位置。
  * @return 同じ方向のSessionと現在の有効な移動先。
  */
-const progressSession = (
+const progressSession = < K extends ReorderKind >(
 	resolution: DropTargetResolution,
-	session: ReorderSession,
+	session: ReorderSession< K >,
 	currentPosition: DropTargetPosition
-): ProgressedSession => {
-	// 両方向を束ねるDnD境界ではSession方向だけを選択し、Request / Result / Destinationの対応は型で維持する。
-	if ( session.kind === 'row' ) {
-		const result = resolution.resolve( {
-			kind: 'row',
-			target: session.target,
-			constraints: session.constraints,
-			currentPosition,
-		} );
-		const destination = result.status === 'valid' ? result.destination : null;
-		return {
-			session: updateReorderDestination( session, destination ),
-			destination,
-		};
-	}
-
+): ProgressedSession< K > => {
 	const result = resolution.resolve( {
-		kind: 'column',
+		kind: session.kind,
 		target: session.target,
 		constraints: session.constraints,
 		currentPosition,
 	} );
 	const destination = result.status === 'valid' ? result.destination : null;
+
 	return {
 		session: updateReorderDestination( session, destination ),
 		destination,
