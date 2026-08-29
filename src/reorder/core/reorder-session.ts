@@ -66,12 +66,12 @@ export const startReorderSession = < K extends ReorderKind >(
  *
  * @param session     具体方向へ確定した更新対象のReorder Session。
  * @param destination 同じ方向の有効な移動先、または`null`。
- * @return 現在の移動先を反映した同じ方向のReorder Session。
+ * @return 現在の移動先を反映し、具体方向を維持したReorder Session。
  */
 export const updateReorderDestination = < K extends ReorderKind >(
 	session: ReorderSession< K > & { kind: ConcreteReorderKind< K > },
 	destination: NoInfer< ReorderDestination< K > | null >
-): ReorderSession< K > => {
+): ReorderSession< K > & { kind: ConcreteReorderKind< K > } => {
 	// 並び替え対象を別Tableへ移動する操作は扱わないため、移動先は開始時と同じTableに属する必要がある。
 	if ( destination !== null && session.target.clientId !== destination.clientId ) {
 		throw new Error(
