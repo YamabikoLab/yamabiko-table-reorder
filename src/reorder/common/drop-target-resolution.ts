@@ -28,10 +28,15 @@ export type DropTargetResolutionResult =
 	| RowDropTargetResolutionResult
 	| ColumnDropTargetResolutionResult;
 
+/** 行Requestには行Result、列Requestには列Resultを返す判定関数。 */
+type DropTargetResolver = {
+	( request: RowDropTargetResolutionRequest ): RowDropTargetResolutionResult;
+	( request: ColumnDropTargetResolutionRequest ): ColumnDropTargetResolutionResult;
+};
+
 /** 行Requestには行Result、列Requestには列Resultを返す移動先判定契約。 */
 export type DropTargetResolution = {
-	resolve( request: RowDropTargetResolutionRequest ): RowDropTargetResolutionResult;
-	resolve( request: ColumnDropTargetResolutionRequest ): ColumnDropTargetResolutionResult;
+	resolve: DropTargetResolver;
 };
 
 /**
