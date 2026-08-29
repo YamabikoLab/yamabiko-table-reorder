@@ -7,7 +7,10 @@
 import type { DndStartRequest } from '@/reorder/core/dnd-start-request';
 import type { DropTargetResolution } from '@/reorder/core/drop-target-resolution';
 import type { ReorderTargetResolution } from '@/reorder/core/reorder-target-resolution';
-import type { RowReorderTargetResolutionRequest, RowReorderTargetResolutionResult } from './reorder-target-resolution';
+import type {
+	RowReorderTargetResolutionRequest,
+	RowReorderTargetResolutionResult,
+} from './reorder-target-resolution';
 
 /** 行DnD開始時にDnD Interactionへ返す対象解決結果と同方向の移動先判定入口。 */
 export type RowDndStartResolution = {
