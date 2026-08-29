@@ -1,6 +1,8 @@
 import type { ArchitectureModel } from './architecture-model';
 
 const stableIdPattern = /^[A-Za-z][A-Za-z0-9_]*$/u;
+const processFlowViewKinds = new Set( [ 'normal', 'failure-recovery' ] );
+const processFlowEdgeKinds = new Set( [ 'normal', 'failure', 'recovery' ] );
 
 const requireValue = ( value: string, item: string ): void => {
 	if ( value.trim().length === 0 ) {
@@ -179,6 +181,12 @@ const validateProcessFlowViews = ( model: ArchitectureModel, elementIds: Set< st
 		validateStableId( processFlowView.id, 'PV_', 'Process Flow View' );
 		requireValue( processFlowView.name, `Process Flow View ${ processFlowView.id } name` );
 
+		if ( ! processFlowViewKinds.has( processFlowView.kind ) ) {
+			throw new Error(
+				`Architecture validation failed: Process Flow View ${ processFlowView.id } kind "${ processFlowView.kind }" is invalid.`
+			);
+		}
+
 		if ( processFlowView.edges.length === 0 ) {
 			throw new Error(
 				`Architecture validation failed: Process Flow View ${ processFlowView.id } requires at least one edge.`
@@ -190,8 +198,14 @@ const validateProcessFlowViews = ( model: ArchitectureModel, elementIds: Set< st
 			const item = `Process Flow View ${ processFlowView.id } row ${ index + 1 }`;
 			requireValue( edge.from, `${ item } From` );
 			requireValue( edge.to, `${ item } To` );
+			requireValue( edge.kind, `${ item } Kind` );
 			requireValue( edge.meaning, `${ item } Meaning` );
 
+			if ( ! processFlowEdgeKinds.has( edge.kind ) ) {
+				throw new Error(
+					`Architecture validation failed: ${ item } Kind "${ edge.kind }" is invalid.`
+				);
+			}
 			if ( ! elementIds.has( edge.from ) ) {
 				throw new Error(
 					`Architecture validation failed: ${ item } From "${ edge.from }" does not reference an External Context or Responsibility ID.`

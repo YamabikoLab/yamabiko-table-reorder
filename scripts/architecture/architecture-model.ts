@@ -25,15 +25,20 @@ export type DependencyView = {
 	includes: string[];
 };
 
-type ProcessFlowEdge = {
+export type ProcessFlowViewKind = 'normal' | 'failure-recovery';
+export type ProcessFlowEdgeKind = 'normal' | 'failure' | 'recovery';
+
+export type ProcessFlowEdge = {
 	from: string;
 	to: string;
+	kind: ProcessFlowEdgeKind;
 	meaning: string;
 };
 
 export type ProcessFlowView = {
 	id: string;
 	name: string;
+	kind: ProcessFlowViewKind;
 	edges: ProcessFlowEdge[];
 };
 
@@ -68,6 +73,7 @@ export type ArchitectureModel = {
 type ParsedHeading = {
 	title: string;
 	id: string | null;
+	kind: string | null;
 };
 
 type ParsedTable = {
@@ -78,10 +84,12 @@ type ParsedTable = {
 
 const markdown = new MarkdownIt();
 const headingIdPattern = /^(.*?)\s+\{#([A-Za-z][A-Za-z0-9_]*)\}\s*$/u;
+const processFlowHeadingPattern =
+	/^(.*?)\s+\{#([A-Za-z][A-Za-z0-9_]*)\s+kind=([A-Za-z][A-Za-z0-9_-]*)\}\s*$/u;
 
 const machineReadableTables = {
 	externalContext: [ 'ID', 'Name', 'Type', 'Summary' ],
-	processFlow: [ 'From', 'To', 'Meaning' ],
+	processFlow: [ 'From', 'To', 'Kind', 'Meaning' ],
 	responsibilityInventory: [ 'ID', 'Responsibility', 'Summary' ],
 	dependencies: [ 'Dependent', 'Depends on', 'Reason' ],
 	dependencyViews: [ 'ID', 'Name', 'Includes' ],
@@ -107,15 +115,25 @@ const inlineText = ( token: Token ): string => {
 
 const parseHeading = ( inlineToken: Token ): ParsedHeading => {
 	const text = inlineText( inlineToken );
-	const match = text.match( headingIdPattern );
+	const processFlowMatch = text.match( processFlowHeadingPattern );
 
+	if ( processFlowMatch !== null ) {
+		return {
+			title: processFlowMatch[ 1 ].trim(),
+			id: processFlowMatch[ 2 ],
+			kind: processFlowMatch[ 3 ],
+		};
+	}
+
+	const match = text.match( headingIdPattern );
 	if ( match === null ) {
-		return { title: text, id: null };
+		return { title: text, id: null, kind: null };
 	}
 
 	return {
 		title: match[ 1 ].trim(),
 		id: match[ 2 ],
+		kind: null,
 	};
 };
 
@@ -253,14 +271,17 @@ export const parseArchitectureMarkdown = ( source: string ): ArchitectureModel =
 			level3?.title === 'Process Flow Views' &&
 			level4?.id !== null &&
 			level4?.id !== undefined &&
+			level4.kind !== null &&
 			hasExactHeader( table, machineReadableTables.processFlow )
 		) {
 			model.processFlowViews.push( {
 				id: level4.id,
 				name: level4.title,
+				kind: level4.kind as ProcessFlowViewKind,
 				edges: rowsAsRecords( table ).map( ( row ) => ( {
 					from: row.From,
 					to: row.To,
+					kind: row.Kind as ProcessFlowEdgeKind,
 					meaning: row.Meaning,
 				} ) ),
 			} );

@@ -109,20 +109,44 @@ WordPress Editorから並び替え入力を受け取り、共通Reorder処理で
 
 このViewは主要な処理の進行方向だけを示し、補助的な責務、Runtime Interactionの往復、異常時の復旧経路は表さない。
 
-#### Reorder Failure and Recovery {#PV_REORDER_FAILURE_RECOVERY kind=failure-recovery}
+#### Reorder Input Failure and Recovery {#PV_REORDER_INPUT_FAILURE_RECOVERY kind=failure-recovery}
 
-activeなReorder Session中に外部環境の変化またはReorder内部のContract / Invariant不整合によって処理を継続できなくなった場合に、個別責務で独自に復旧せず、Reorder operation boundaryへ集約して共通abortからDnD idleへ戻る主要な復旧進行を示す。正常な不在やDnD開始前の開始不可はこのViewに含めない。
+activeなReorder Session中に外部環境の変化などによってInput Interactionが現在のReorder操作を継続できなくなった場合に、その失敗をReorder operation boundaryへ合流させ、共通abortでDnDに属する一時状態を終了する復旧進行を示す。
 
 | From | To | Kind | Meaning |
 | --- | --- | --- | --- |
 | RESP_INPUT_INTERACTION | RESP_DND_INTERACTION | failure | 外部環境の変化などによりactiveなReorder操作を継続できない状態をReorder operation boundaryへ合流させる。 |
+| RESP_DND_INTERACTION | RESP_REORDER_PRESENTATION | recovery | 共通abortとしてDnD表示の一時状態を終了する。 |
+| RESP_DND_INTERACTION | RESP_AUTO_SCROLL | recovery | 共通abortとして自動スクロールの一時状態を終了する。 |
+| RESP_DND_INTERACTION | RESP_INPUT_INTERACTION | recovery | 共通abortとして入力解釈の一時状態を終了する。 |
+
+このViewはInput Interactionで検出されたfailureと、そのfailureから共通abortへ合流した後の復旧先を示す。recovery Edgeの表記順は実装上のcleanup順序を規定しない。
+
+#### Reorder Drop Target Failure and Recovery {#PV_REORDER_DROP_TARGET_FAILURE_RECOVERY kind=failure-recovery}
+
+activeなDnD進行中にDrop Target ResolutionでReorder内部のContract / Invariant不整合が検出された場合に、その失敗をReorder operation boundaryへ合流させ、共通abortでDnDに属する一時状態を終了する復旧進行を示す。
+
+| From | To | Kind | Meaning |
+| --- | --- | --- | --- |
 | RESP_DROP_TARGET_RESOLUTION | RESP_DND_INTERACTION | failure | DnD進行中に検出されたReorder内部のContract / Invariant不整合をReorder operation boundaryへ合流させる。 |
+| RESP_DND_INTERACTION | RESP_REORDER_PRESENTATION | recovery | 共通abortとしてDnD表示の一時状態を終了する。 |
+| RESP_DND_INTERACTION | RESP_AUTO_SCROLL | recovery | 共通abortとして自動スクロールの一時状態を終了する。 |
+| RESP_DND_INTERACTION | RESP_INPUT_INTERACTION | recovery | 共通abortとして入力解釈の一時状態を終了する。 |
+
+このViewはDrop Target Resolutionで検出されたfailureと、そのfailureから共通abortへ合流した後の復旧先を示す。recovery Edgeの表記順は実装上のcleanup順序を規定しない。
+
+#### Reorder Data Update Failure and Recovery {#PV_REORDER_DATA_UPDATE_FAILURE_RECOVERY kind=failure-recovery}
+
+Data UpdateでTable更新を継続または確認できなくなった場合に、その失敗をReorder operation boundaryへ返して共通abortへ合流させ、開始済み更新のretry / rollbackを行わずDnDに属する一時状態を終了する復旧進行を示す。
+
+| From | To | Kind | Meaning |
+| --- | --- | --- | --- |
 | RESP_DATA_UPDATE | RESP_DND_INTERACTION | failure | Table更新を継続または確認できない結果をReorder operation boundaryへ返し、共通abortへ合流させる。 |
 | RESP_DND_INTERACTION | RESP_REORDER_PRESENTATION | recovery | 共通abortとしてDnD表示の一時状態を終了する。 |
 | RESP_DND_INTERACTION | RESP_AUTO_SCROLL | recovery | 共通abortとして自動スクロールの一時状態を終了する。 |
 | RESP_DND_INTERACTION | RESP_INPUT_INTERACTION | recovery | 共通abortとして入力解釈の一時状態を終了する。 |
 
-このViewは復旧の主要な収束先を示すものであり、具体的なError検出、throw / catch、log、cleanupの実装順序は規定しない。abortによってReorder Mode自体は変更しない。
+このViewはData Updateで発生したfailureと、そのfailureから共通abortへ合流した後の復旧先を示す。recovery Edgeの表記順は実装上のcleanup順序を規定せず、abortによって開始済み更新のretry / rollbackまたはReorder Mode変更を行わない。
 
 ## 5. Building Block View
 
@@ -851,7 +875,7 @@ abort自身は新たなData Updateを開始しない。Data Updateがすでに�
 - 移動対象として成立しない行または列からDnDを開始しない。
 - 行の移動対象判定では縦結合による移動不可を扱い、横結合だけを理由に不要な制限を掛けない。
 - 列の移動対象判定では横結合による移動不可を扱い、縦結合だけを理由に不要な制限を掛けない。
-- Reorder Target ResolutionはDnD開始試行時だけ移動対象判定を行い、並び替えモードへの移行だけを契機に全行・全列を事前判定しない。
+- Reorder Target ResolutionはDnD開始試行時だけ移動対象を判定し、並び替えモードへの移行だけを契機に全行・全列を事前判定しない。
 - Reorder Presentationは並び替えモードへ入っただけでは全行・全列の対象表示を開始せず、DnD開始後の現在の移動対象だけを表示対象として扱う。
 - Reorder PresentationはReorder ModeとReorder Target Resolutionを直接利用しない。
 - Drop Target ResolutionはDnD開始前の移動対象判定を担わない。

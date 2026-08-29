@@ -12,6 +12,16 @@ const validMarkdown = `
 | --- | --- | --- | --- |
 | EXT_EDITOR | Editor | External System | 編集環境。 |
 
+## 4. Solution Strategy
+
+### Process Flow Views
+
+#### Reorder End-to-End {#PF_REORDER kind=normal}
+
+| From | To | Kind | Meaning |
+| --- | --- | --- | --- |
+| EXT_EDITOR | RESP_INPUT | normal | 入力を渡す。 |
+
 ## 5. Building Block View
 
 ### Responsibility Inventory
@@ -47,7 +57,7 @@ const validMarkdown = `
 | 1 | EXT_EDITOR | RESP_INPUT | 入力を渡す。 |
 `;
 
-test( '必須見出しと表構造を受理する', () => {
+test( '必須見出しと kind 付き Process Flow View の表構造を受理する', () => {
 	assert.doesNotThrow( () => validateArchitectureMarkdownStructure( validMarkdown ) );
 } );
 
@@ -66,6 +76,30 @@ test( '必須見出しの欠落を拒否する', () => {
 	assert.throws(
 		() => validateArchitectureMarkdownStructure( markdown ),
 		/required heading "3\. Context and Scope" is missing/u
+	);
+} );
+
+test( 'Process Flow View kind の欠落を拒否する', () => {
+	const markdown = validMarkdown.replace(
+		'#### Reorder End-to-End {#PF_REORDER kind=normal}',
+		'#### Reorder End-to-End {#PF_REORDER}'
+	);
+
+	assert.throws(
+		() => validateArchitectureMarkdownStructure( markdown ),
+		/Process Flow View heading "Reorder End-to-End \{#PF_REORDER\}" requires an embedded process flow ID and kind/u
+	);
+} );
+
+test( 'Process Flow View の旧 3 列 schema を拒否する', () => {
+	const markdown = validMarkdown.replace(
+		'| From | To | Kind | Meaning |\n| --- | --- | --- | --- |\n| EXT_EDITOR | RESP_INPUT | normal | 入力を渡す。 |',
+		'| From | To | Meaning |\n| --- | --- | --- |\n| EXT_EDITOR | RESP_INPUT | 入力を渡す。 |'
+	);
+
+	assert.throws(
+		() => validateArchitectureMarkdownStructure( markdown ),
+		/Process Flow View PF_REORDER table columns must be exactly: From, To, Kind, Meaning/u
 	);
 } );
 

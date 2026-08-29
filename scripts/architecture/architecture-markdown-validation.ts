@@ -2,11 +2,13 @@ import MarkdownIt, { type Token } from 'markdown-it';
 
 const markdown = new MarkdownIt();
 const headingIdPattern = /^(.*?)\s+\{#([A-Za-z][A-Za-z0-9_]*)\}\s*$/u;
+const processFlowHeadingPattern =
+	/^(.*?)\s+\{#([A-Za-z][A-Za-z0-9_]*)\s+kind=([A-Za-z][A-Za-z0-9_-]*)\}\s*$/u;
 const positiveIntegerPattern = /^\d+$/u;
 
 const expectedHeaders = {
 	externalContext: [ 'ID', 'Name', 'Type', 'Summary' ],
-	processFlow: [ 'From', 'To', 'Meaning' ],
+	processFlow: [ 'From', 'To', 'Kind', 'Meaning' ],
 	responsibilityInventory: [ 'ID', 'Responsibility', 'Summary' ],
 	dependencies: [ 'Dependent', 'Depends on', 'Reason' ],
 	dependencyViews: [ 'ID', 'Name', 'Includes' ],
@@ -183,10 +185,10 @@ export const validateArchitectureMarkdownStructure = ( source: string ): void =>
 				headings.get( 2 ) === '4. Solution Strategy' &&
 				headings.get( 3 ) === 'Process Flow Views'
 			) {
-				const match = headingText.match( headingIdPattern );
+				const match = headingText.match( processFlowHeadingPattern );
 				if ( match === null ) {
 					throw new Error(
-						`Architecture validation failed: Process Flow View heading "${ headingText }" requires an embedded process flow ID.`
+						`Architecture validation failed: Process Flow View heading "${ headingText }" requires an embedded process flow ID and kind.`
 					);
 				}
 				processFlowHeadings.add( match[ 2 ] );
@@ -234,7 +236,7 @@ export const validateArchitectureMarkdownStructure = ( source: string ): void =>
 			level3 === 'Process Flow Views' &&
 			level4 !== undefined
 		) {
-			const match = level4.match( headingIdPattern );
+			const match = level4.match( processFlowHeadingPattern );
 			if ( match !== null ) {
 				requireExactHeader(
 					header,

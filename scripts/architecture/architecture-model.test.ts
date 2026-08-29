@@ -16,14 +16,14 @@ const markdown = `
 
 ### Process Flow Views
 
-#### Reorder flow {#PV_REORDER}
+#### Reorder flow {#PV_REORDER kind=failure-recovery}
 
 主要フロー。
 
-| From | To | Meaning |
-| --- | --- | --- |
-| EXT_EDITOR | RESP_INPUT | 入力が処理へ進む。 |
-| RESP_INPUT | RESP_DND | 共通 DnD 処理へ進む。 |
+| From | To | Kind | Meaning |
+| --- | --- | --- | --- |
+| EXT_EDITOR | RESP_INPUT | failure | 入力が処理へ進む。 |
+| RESP_INPUT | RESP_DND | recovery | 共通DnD処理へ進む。 |
 
 ## 5. Building Block View
 
@@ -32,7 +32,7 @@ const markdown = `
 | ID | Responsibility | Summary |
 | --- | --- | --- |
 | RESP_INPUT | Input Interaction | 入力を扱う。 |
-| RESP_DND | DnD Interaction | DnD を扱う。 |
+| RESP_DND | DnD Interaction | DnDを扱う。 |
 
 ### Dependencies
 
@@ -75,9 +75,20 @@ test( '固定見出しと表だけから Architecture Model を構築する', ()
 		{
 			id: 'PV_REORDER',
 			name: 'Reorder flow',
+			kind: 'failure-recovery',
 			edges: [
-				{ from: 'EXT_EDITOR', to: 'RESP_INPUT', meaning: '入力が処理へ進む。' },
-				{ from: 'RESP_INPUT', to: 'RESP_DND', meaning: '共通 DnD 処理へ進む。' },
+				{
+					from: 'EXT_EDITOR',
+					to: 'RESP_INPUT',
+					kind: 'failure',
+					meaning: '入力が処理へ進む。',
+				},
+				{
+					from: 'RESP_INPUT',
+					to: 'RESP_DND',
+					kind: 'recovery',
+					meaning: '共通DnD処理へ進む。',
+				},
 			],
 		},
 	] );
@@ -109,7 +120,7 @@ test( '固定見出しと表だけから Architecture Model を構築する', ()
 
 test( '説明文から Process Flow や Dependency を補完しない', () => {
 	const model = parseArchitectureMarkdown(
-		`${ markdown }\nRESP_DND から EXT_EDITOR へ処理が進み、RESP_DND は EXT_EDITOR に依存する。\n`
+		`${ markdown }\nRESP_DNDからEXT_EDITORへ処理が進み、RESP_DNDはEXT_EDITORに依存する。\n`
 	);
 
 	assert.equal( model.processFlowViews[ 0 ].edges.length, 2 );
