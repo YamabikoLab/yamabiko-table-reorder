@@ -15,6 +15,7 @@ import type { TableIntegration } from './table-integration';
 /**
  * Reorder Target Resolutionが受け取る1回のDnD開始試行。
  *
+ * `kind`はInput Interactionが指定する値ではなく、DnD InteractionがReorder Modeの現在状態から確定する。
  * 行並び替えでは開始したTable区画と行位置を持ち、`body`区画だけを並び替え対象範囲として判定する。
  * 列並び替えではTable全体が対象範囲のため、論理Tableグリッド上の列位置だけを持つ。
  * `clientId`は要求時点の共通Table構造を取得する対象Tableの識別に利用する。
@@ -108,7 +109,7 @@ export type ReorderTargetResolution = {
 	/**
 	 * 1回のDnD開始試行を判定する。
 	 *
-	 * @param request DnD Interactionから渡された開始対象と並び替え種別。
+	 * @param request DnD InteractionがReorder Modeの現在方向と開始対象から組み立てた判定要求。
 	 * @return 開始可能な場合はReorder TargetとReorder Constraints、開始不可の場合はその理由。
 	 */
 	resolve: ( request: ReorderTargetResolutionRequest ) => ReorderTargetResolutionResult;
@@ -129,7 +130,7 @@ export const createReorderTargetResolution = (
 	/**
 	 * 要求時点の共通Table構造を基準に1回のDnD開始試行を判定する。
 	 *
-	 * @param request DnD Interactionから渡された開始対象と並び替え種別。
+	 * @param request DnD InteractionがReorder Modeの現在方向と開始対象から組み立てた判定要求。
 	 * @return 開始可能なReorder TargetとReorder Constraints、または開始できない理由。
 	 */
 	resolve: ( request ) => {
