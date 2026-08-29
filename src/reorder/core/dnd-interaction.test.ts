@@ -256,11 +256,9 @@ describe( 'DnD Interaction', () => {
 	 * - 各進行後に更新された最新Sessionが次の進行と`getSession()`の正本になる。
 	 */
 	it( 'when row DnD progresses repeatedly, should keep the row resolver paired with the latest Session', () => {
-		const {
-			dependencies,
-			rowDropRequestMock,
-			columnDropRequestMock,
-		} = createDependencies( { dropBoundaryIndex: 2 } );
+		const { dependencies, rowDropRequestMock, columnDropRequestMock } = createDependencies( {
+			dropBoundaryIndex: 2,
+		} );
 		const interaction = createDndInteraction( dependencies );
 		interaction.start( startRequest );
 		const startedSession = interaction.getSession();
@@ -294,11 +292,7 @@ describe( 'DnD Interaction', () => {
 	 * - 各進行後に更新された最新Sessionが次の進行と`getSession()`の正本になる。
 	 */
 	it( 'when column DnD progresses repeatedly, should keep the column resolver paired with the latest Session', () => {
-		const {
-			dependencies,
-			rowDropRequestMock,
-			columnDropRequestMock,
-		} = createDependencies( {
+		const { dependencies, rowDropRequestMock, columnDropRequestMock } = createDependencies( {
 			reorderKind: 'column',
 			dropBoundaryIndex: 2,
 		} );
