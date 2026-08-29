@@ -14,27 +14,31 @@ import {
 	type RowDropTargetResolutionRequest,
 	type RowDropTargetResolutionResult,
 } from '@/reorder/row-reorder/drop-target-resolution';
+import type { ReorderConstraints } from './reorder-target-resolution-rules';
+import type { ReorderDestination, ReorderKind, ReorderTarget } from './reorder-types';
 
 /** DnD Interactionが現在の入力位置から解決した挿入境界。 */
 export type DropTargetPosition = { boundaryIndex: number } | null;
 
-/** 両方向を扱う境界で利用する移動先判定入力。 */
-export type DropTargetResolutionRequest =
-	| RowDropTargetResolutionRequest
-	| ColumnDropTargetResolutionRequest;
-
-/** 両方向を扱う境界で利用する移動先判定結果。 */
-export type DropTargetResolutionResult =
-	| RowDropTargetResolutionResult
-	| ColumnDropTargetResolutionResult;
-
-/** 行Requestには行Result、列Requestには列Resultを返す判定関数。 */
-type DropTargetResolver = {
-	( request: RowDropTargetResolutionRequest ): RowDropTargetResolutionResult;
-	( request: ColumnDropTargetResolutionRequest ): ColumnDropTargetResolutionResult;
+/** 指定した並び替え種別に対応する移動先判定入力。 */
+export type DropTargetResolutionRequest< K extends ReorderKind = ReorderKind > = {
+	kind: K;
+	target: ReorderTarget< K >;
+	constraints: ReorderConstraints;
+	currentPosition: DropTargetPosition;
 };
 
-/** 行Requestには行Result、列Requestには列Resultを返す移動先判定契約。 */
+/** 指定した並び替え種別に対応する移動先判定結果。 */
+export type DropTargetResolutionResult< K extends ReorderKind = ReorderKind > =
+	| { status: 'valid'; destination: ReorderDestination< K > }
+	| { status: 'none' };
+
+/** Requestと同じ並び替え種別のResultを返す判定関数。 */
+type DropTargetResolver = < K extends ReorderKind >(
+	request: DropTargetResolutionRequest< K >
+) => DropTargetResolutionResult< K >;
+
+/** Requestと同じ並び替え種別のResultを返す移動先判定契約。 */
 export type DropTargetResolution = {
 	resolve: DropTargetResolver;
 };
