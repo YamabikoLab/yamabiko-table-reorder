@@ -111,17 +111,19 @@ export type DndInteraction = {
  *
  * Reorder Sessionを状態の正本とし、この組み合わせ自体には独立した業務状態やLifecycleを持たせない。
  */
-type ActiveDndBinding = {
-	/** @return 現在の移動先更新まで反映した最新Reorder Session。 */
-	getSession: () => ReorderSession;
-	/**
-	 * 現在位置から同方向の移動先を解決し、Reorder Sessionへ反映する。
-	 *
-	 * @param currentPosition Input Interactionから渡された現在位置。
-	 * @return 現在の有効な移動先。
-	 */
-	progress: ( currentPosition: DropTargetPosition ) => ReorderDestination | null;
-};
+type ActiveDndBinding< K extends ReorderKind = ReorderKind > = {
+	[ Kind in K ]: {
+		/** @return 現在の移動先更新まで反映した最新Reorder Session。 */
+		getSession: () => ReorderSession< Kind >;
+		/**
+		 * 現在位置から同方向の移動先を解決し、Reorder Sessionへ反映する。
+		 *
+		 * @param currentPosition Input Interactionから渡された現在位置。
+		 * @return 現在の有効な移動先。
+		 */
+		progress: ( currentPosition: DropTargetPosition ) => ReorderDestination< Kind > | null;
+	};
+}[ K ];
 
 /**
  * 具体方向へ確定したReorder Sessionと同方向のDrop Target Resolverを束ねる。
@@ -133,7 +135,7 @@ type ActiveDndBinding = {
 const createActiveDndBinding = < K extends ReorderKind >(
 	initialSession: ReorderSession< K > & { kind: ConcreteReorderKind< K > },
 	resolve: ( request: DropTargetResolutionRequest< K > ) => DropTargetResolutionResult< K >
-): ActiveDndBinding => {
+): ActiveDndBinding< K > => {
 	let session = initialSession;
 
 	return {
