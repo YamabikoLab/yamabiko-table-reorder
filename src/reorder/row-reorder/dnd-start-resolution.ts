@@ -8,10 +8,7 @@ import type { DndStartRequest } from '@/reorder/dnd-start-request';
 import type { ReorderTargetResolutionRequest } from '@/reorder/reorder-target-resolution';
 
 /** 行並び替えで利用するReorder Target Resolution要求。 */
-type RowReorderTargetResolutionRequest = Extract<
-	ReorderTargetResolutionRequest,
-	{ kind: 'row' }
->;
+type RowReorderTargetResolutionRequest = Extract< ReorderTargetResolutionRequest, { kind: 'row' } >;
 
 /**
  * 共通のDnD開始位置から行並び替え固有の対象解決要求を作成する。
