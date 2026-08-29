@@ -11,6 +11,15 @@ import type {
 
 type ArchitectureElement = ExternalContext | Responsibility;
 
+type ProcessFlowRelationship = {
+	id: string;
+	from: string;
+	to: string;
+	kind: ProcessFlowEdgeKind;
+	meaning: string;
+	processFlowViewIds: string[];
+};
+
 type RuntimeRelationshipUsage = {
 	runtimeViewId: string;
 	step: number;
@@ -50,6 +59,51 @@ const escapeDslString = ( value: string ): string =>
 	value.replaceAll( '\\', '\\\\' ).replaceAll( '"', '\\"' ).replaceAll( '\n', ' ' );
 
 const quoted = ( value: string ): string => `"${ escapeDslString( value ) }"`;
+
+const processFlowRelationshipKey = (
+	from: string,
+	to: string,
+	kind: ProcessFlowEdgeKind,
+	meaning: string
+): string => `${ from }\u0000${ to }\u0000${ kind }\u0000${ meaning }`;
+
+const buildProcessFlowRelationships = (
+	processFlowViews: ProcessFlowView[]
+): ProcessFlowRelationship[] => {
+	const relationships: ProcessFlowRelationship[] = [];
+	const relationshipsByKey = new Map< string, ProcessFlowRelationship >();
+
+	processFlowViews.forEach( ( processFlowView ) => {
+		processFlowView.edges.forEach( ( edge ) => {
+			const relationshipKey = processFlowRelationshipKey(
+				edge.from,
+				edge.to,
+				edge.kind,
+				edge.meaning
+			);
+			let relationship = relationshipsByKey.get( relationshipKey );
+
+			if ( relationship === undefined ) {
+				relationship = {
+					id: processFlowRelationshipIdentifier( relationships.length ),
+					from: edge.from,
+					to: edge.to,
+					kind: edge.kind,
+					meaning: edge.meaning,
+					processFlowViewIds: [],
+				};
+				relationships.push( relationship );
+				relationshipsByKey.set( relationshipKey, relationship );
+			}
+
+			if ( ! relationship.processFlowViewIds.includes( processFlowView.id ) ) {
+				relationship.processFlowViewIds.push( processFlowView.id );
+			}
+		} );
+	} );
+
+	return relationships;
+};
 
 const runtimeRelationshipKey = ( source: string, target: string, interaction: string ): string =>
 	`${ source }\u0000${ target }\u0000${ interaction }`;
@@ -135,29 +189,22 @@ const processFlowRelationshipLabel = ( kind: ProcessFlowEdgeKind, meaning: strin
 	return `[${ kind }] ${ meaning }`;
 };
 
-const generateProcessFlowRelationships = ( processFlowViews: ProcessFlowView[] ): string[] => {
-	const lines: string[] = [];
-	let relationshipIndex = 0;
+const generateProcessFlowRelationship = ( relationship: ProcessFlowRelationship ): string[] => {
+	const tags = [
+		'Process Flow',
+		...relationship.processFlowViewIds.map( ( processFlowViewId ) =>
+			processFlowTag( processFlowViewId )
+		),
+		processFlowEdgeKindTag( relationship.kind ),
+	];
 
-	processFlowViews.forEach( ( processFlowView ) => {
-		processFlowView.edges.forEach( ( edge ) => {
-			const tags = [
-				'Process Flow',
-				processFlowTag( processFlowView.id ),
-				processFlowEdgeKindTag( edge.kind ),
-			];
-			lines.push(
-				`\t\t${ processFlowRelationshipIdentifier( relationshipIndex ) } = ${ edge.from } -> ${
-					edge.to
-				} ${ quoted( processFlowRelationshipLabel( edge.kind, edge.meaning ) ) } {`,
-				`\t\t\ttags ${ quoted( tags.join( ',' ) ) }`,
-				'\t\t}'
-			);
-			relationshipIndex++;
-		} );
-	} );
-
-	return lines;
+	return [
+		`\t\t${ relationship.id } = ${ relationship.from } -> ${ relationship.to } ${ quoted(
+			processFlowRelationshipLabel( relationship.kind, relationship.meaning )
+		) } {`,
+		`\t\t\ttags ${ quoted( tags.join( ',' ) ) }`,
+		'\t\t}',
+	];
 };
 
 const generateRuntimeRelationship = ( relationship: RuntimeRelationship ): string[] => {
@@ -280,14 +327,15 @@ const generateRuntimeView = (
  * Architecture Model に含まれる明示的な設計情報だけから Structurizr DSL を生成する。
  * Structural Dependency、Process Flow、Runtime Interaction は独立した Relationship として生成する。
  * Dependency View と Process Flow View は、それぞれの View に対応する Relationship だけを表示する。
- * 同一の Runtime Interaction が複数 Step で使われる場合は Structurizr Model 上の Relationship を共有する。
+ * 同一の Process Flow Relationship または Runtime Interaction が複数 View で使われる場合は、
+ * Structurizr Model 上の Relationship を共有する。
  *
  * @param model Markdown から構築した Architecture Model。
  * @return 決定的に生成された Structurizr DSL。
  */
 export const generateStructurizrDsl = ( model: ArchitectureModel ): string => {
+	const processFlowRelationships = buildProcessFlowRelationships( model.processFlowViews );
 	const runtimeRelationships = buildRuntimeRelationships( model.runtimeViews );
-	const processFlowRelationships = generateProcessFlowRelationships( model.processFlowViews );
 	const lines = [
 		'// Generated from docs/architecture/reorder-v1-architecture.md. Do not edit manually.',
 		'workspace "YTR Reorder v1 Architecture" {',
@@ -317,8 +365,12 @@ export const generateStructurizrDsl = ( model: ArchitectureModel ): string => {
 	} );
 
 	if ( processFlowRelationships.length > 0 ) {
-		lines.push( '', ...processFlowRelationships );
+		lines.push( '' );
 	}
+
+	processFlowRelationships.forEach( ( relationship ) => {
+		lines.push( ...generateProcessFlowRelationship( relationship ) );
+	} );
 
 	if ( runtimeRelationships.relationships.length > 0 ) {
 		lines.push( '' );
