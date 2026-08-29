@@ -5,7 +5,12 @@
  * destination更新、完了、キャンセルだけを扱う。方向対応は型で保証し、Table個体の一致だけを実行時に確認する。
  */
 import type { ReorderConstraints } from './reorder-target-resolution-rules';
-import type { ReorderDestination, ReorderKind, ReorderTarget } from './reorder-types';
+import type {
+	ConcreteReorderKind,
+	ReorderDestination,
+	ReorderKind,
+	ReorderTarget,
+} from './reorder-types';
 
 /** 指定した並び替え種別に対応するReorder Session。 */
 export type ReorderSession< K extends ReorderKind = ReorderKind > = {
@@ -55,15 +60,16 @@ export const startReorderSession = < K extends ReorderKind >(
 /**
  * Reorder Sessionの現在の有効な移動先を更新する。
  *
- * 型契約によりSessionとDestinationの方向を一致させる。Table個体は値レベルでしか保証できないため、
+ * 型契約によりSessionとDestinationの方向を一致させる。両方向を束ねたSessionは更新境界へ直接渡さず、
+ * 呼び出し側の方向選択境界で具体方向へ確定させる。Table個体は値レベルでしか保証できないため、
  * destinationが存在する場合だけ同一Tableであることを実行時に確認する。
  *
- * @param session     更新対象のReorder Session。
+ * @param session     具体方向へ確定した更新対象のReorder Session。
  * @param destination 同じ方向の有効な移動先、または`null`。
  * @return 現在の移動先を反映した同じ方向のReorder Session。
  */
 export const updateReorderDestination = < K extends ReorderKind >(
-	session: ReorderSession< K >,
+	session: ReorderSession< K > & { kind: ConcreteReorderKind< K > },
 	destination: NoInfer< ReorderDestination< K > | null >
 ): ReorderSession< K > => {
 	// 並び替え対象を別Tableへ移動する操作は扱わないため、移動先は開始時と同じTableに属する必要がある。
