@@ -6,10 +6,7 @@
  * あわせて、開始対象には並び替え方向を持たせず、Reorder Modeが方向の唯一の情報源になることを確認する。
  */
 import { createDndInteraction } from './dnd-interaction';
-import type {
-	DndInteractionDependencies,
-	DndStartRequest,
-} from './dnd-interaction';
+import type { DndInteractionDependencies, DndStartRequest } from './dnd-interaction';
 import type { DropTargetResolutionRequest } from './drop-target-resolution';
 import type { ReorderConstraints } from './reorder-target-resolution';
 
