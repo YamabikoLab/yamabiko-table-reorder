@@ -31,7 +31,13 @@ const model: ArchitectureModel = {
 			summary: 'スクロール領域。',
 		},
 	],
-	responsibilities: [],
+	responsibilities: [
+		{
+			id: 'RESP_INPUT',
+			name: 'Input Interaction',
+			summary: '入力を扱う。',
+		},
+	],
 	dependencies: [],
 	dependencyViews: [],
 	processFlowViews: [],
@@ -39,13 +45,15 @@ const model: ArchitectureModel = {
 	runtimeViews: [],
 };
 
-test( 'External Context の Type を tag と視覚スタイルへ反映する', () => {
+test( 'Architecture 要素の5分類を tag と視覚スタイルへ反映する', () => {
 	const dsl = generateStructurizrDsl( model );
 
+	assert.match( dsl, /tags "Responsibility"/u );
 	assert.match( dsl, /tags "External Context,External System"/u );
 	assert.match( dsl, /tags "External Context,External Block"/u );
 	assert.match( dsl, /tags "External Context,External Capability"/u );
 	assert.match( dsl, /tags "External Context,External Environment"/u );
+	assert.match( dsl, /element "Responsibility" \{[\s\S]*shape Box/u );
 	assert.match( dsl, /element "External System" \{[\s\S]*shape RoundedBox/u );
 	assert.match( dsl, /element "External Block" \{[\s\S]*shape Component/u );
 	assert.match( dsl, /element "External Capability" \{[\s\S]*shape Hexagon/u );
@@ -53,12 +61,14 @@ test( 'External Context の Type を tag と視覚スタイルへ反映する', 
 		dsl,
 		/element "External Environment" \{[\s\S]*shape Box[\s\S]*border dashed/u
 	);
+	assert.doesNotMatch( dsl, /element "External Context"/u );
 } );
 
-test( 'Process Flow View がなくても External Context のスタイルを生成する', () => {
+test( 'Process Flow View がなくても Architecture 要素のスタイルを生成する', () => {
 	const dsl = generateStructurizrDsl( model );
 
 	assert.match( dsl, /styles \{/u );
-	assert.match( dsl, /element "External Context"/u );
+	assert.match( dsl, /element "Responsibility"/u );
+	assert.match( dsl, /element "External System"/u );
 	assert.doesNotMatch( dsl, /ProcessFlowEdge_/u );
 } );
