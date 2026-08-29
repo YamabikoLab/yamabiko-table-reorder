@@ -12,6 +12,9 @@ import type { RowReorderTarget } from '@/reorder/row-reorder/reorder-target-reso
 /** Reorderが扱う行または列の並び替え種別。 */
 export type ReorderKind = 'row' | 'column';
 
+/** 行または列の一方向へ確定した並び替え種別。両方向を束ねた型は具体方向として扱わない。 */
+export type ConcreteReorderKind< K extends ReorderKind > = ReorderKind extends K ? never : K;
+
 /** 並び替え種別と方向固有Target / Destinationの対応関係。 */
 export type ReorderTypeMap = {
 	row: {
