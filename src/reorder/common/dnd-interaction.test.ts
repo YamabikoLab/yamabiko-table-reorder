@@ -5,10 +5,30 @@
  * 完了、内部エラーからの共通abort、外部環境変化によるabortを確認する。
  * Request / Result / Destinationの行・列対応は型契約で保証するため、方向不一致の実行時検証は行わない。
  */
+import type {
+	ColumnDropTargetResolutionRequest,
+	ColumnDropTargetResolutionResult,
+} from '@/reorder/column-reorder/drop-target-resolution';
+import type {
+	ColumnReorderTargetResolutionRequest,
+	ColumnReorderTargetResolutionResult,
+} from '@/reorder/column-reorder/reorder-target-resolution';
+import type {
+	RowDropTargetResolutionRequest,
+	RowDropTargetResolutionResult,
+} from '@/reorder/row-reorder/drop-target-resolution';
+import type {
+	RowReorderTargetResolutionRequest,
+	RowReorderTargetResolutionResult,
+} from '@/reorder/row-reorder/reorder-target-resolution';
 import { createDndInteraction } from './dnd-interaction';
 import type { DndInteractionDependencies } from './dnd-interaction';
 import type { DndStartRequest } from './dnd-start-request';
-import type { DropTargetResolutionRequest } from './drop-target-resolution';
+import type { DropTargetResolutionRequest, DropTargetResolutionResult } from './drop-target-resolution';
+import type {
+	ReorderTargetResolutionRequest,
+	ReorderTargetResolutionResult,
+} from './reorder-target-resolution';
 import type { ReorderConstraints } from './reorder-target-resolution-rules';
 
 /** Input Interactionから渡される方向非依存のTable上の開始位置。 */
@@ -17,23 +37,100 @@ const startRequest: DndStartRequest = {
 	position: { section: 'body', rowIndex: 0, columnIndex: 0 },
 };
 
+type DependencyOptions = {
+	reorderKind?: 'row' | 'column' | null;
+	constraints?: ReorderConstraints;
+	targetStatus?: 'movable' | 'immovable';
+	dropBoundaryIndex?: number;
+	dropError?: Error;
+};
+
 /**
- * 単体テストで差し替えるReorder責務の既定値を作成する。
+ * 行・列のoverload contractを維持したテスト用Reorder責務を作成する。
  *
- * @return 行並び替えモードと移動可能な行0を既定値とする依存関係。
+ * @param options 各テストで変更する並び替え方向、制約、判定結果。
+ * @return DnD Interactionの依存関係と呼び出し確認用mock。
  */
-const createDependencies = (): DndInteractionDependencies => ( {
-	reorderMode: { getReorderKind: jest.fn( () => 'row' ) },
-	reorderTargetResolution: {
-		resolve: jest.fn( () => ( {
+const createDependencies = ( options: DependencyOptions = {} ) => {
+	const constraints = options.constraints ?? { blockedBoundaries: [] };
+	const targetRequestMock = jest.fn();
+	const dropRequestMock = jest.fn();
+
+	function resolveTarget(
+		request: RowReorderTargetResolutionRequest
+	): RowReorderTargetResolutionResult;
+	function resolveTarget(
+		request: ColumnReorderTargetResolutionRequest
+	): ColumnReorderTargetResolutionResult;
+	function resolveTarget(
+		request: ReorderTargetResolutionRequest
+	): ReorderTargetResolutionResult {
+		targetRequestMock( request );
+
+		if ( options.targetStatus === 'immovable' ) {
+			return { status: 'immovable', reason: 'target-out-of-scope' };
+		}
+
+		if ( request.kind === 'row' ) {
+			return {
+				status: 'movable',
+				target: { kind: 'row', clientId: request.clientId, rowIndex: request.rowIndex },
+				constraints,
+			};
+		}
+
+		return {
 			status: 'movable',
-			target: { kind: 'row', clientId: 'table-client-id', rowIndex: 0 },
-			constraints: { blockedBoundaries: [] },
-		} ) ),
-	},
-	dropTargetResolution: { resolve: jest.fn( () => ( { status: 'none' } ) ) },
-	logError: jest.fn(),
-} );
+			target: { kind: 'column', clientId: request.clientId, columnIndex: request.columnIndex },
+			constraints,
+		};
+	}
+
+	function resolveDrop( request: RowDropTargetResolutionRequest ): RowDropTargetResolutionResult;
+	function resolveDrop(
+		request: ColumnDropTargetResolutionRequest
+	): ColumnDropTargetResolutionResult;
+	function resolveDrop( request: DropTargetResolutionRequest ): DropTargetResolutionResult {
+		dropRequestMock( request );
+
+		if ( options.dropError !== undefined ) {
+			throw options.dropError;
+		}
+
+		if ( options.dropBoundaryIndex === undefined ) {
+			return { status: 'none' };
+		}
+
+		if ( request.kind === 'row' ) {
+			return {
+				status: 'valid',
+				destination: {
+					kind: 'row',
+					clientId: request.target.clientId,
+					boundaryIndex: options.dropBoundaryIndex,
+				},
+			};
+		}
+
+		return {
+			status: 'valid',
+			destination: {
+				kind: 'column',
+				clientId: request.target.clientId,
+				boundaryIndex: options.dropBoundaryIndex,
+			},
+		};
+	}
+
+	const dependencies: DndInteractionDependencies = {
+		reorderMode: { getReorderKind: jest.fn( () => options.reorderKind ?? 'row' ) },
+		reorderTargetResolution: { resolve: resolveTarget },
+		dropTargetResolution: { resolve: resolveDrop },
+		logError: jest.fn(),
+	};
+
+	return { dependencies, targetRequestMock, dropRequestMock };
+};
 
 describe( 'DnD Interaction', () => {
 	/**
@@ -50,10 +147,10 @@ describe( 'DnD Interaction', () => {
 	 * - Reorder Target Resolutionへ`section`と`rowIndex`を持つ行Requestだけが渡される。
 	 */
 	it( 'when Reorder Mode is row, should resolve the start target as a row request', () => {
-		const dependencies = createDependencies();
+		const { dependencies, targetRequestMock } = createDependencies();
 		const interaction = createDndInteraction( dependencies );
 		interaction.start( startRequest );
-		expect( dependencies.reorderTargetResolution.resolve ).toHaveBeenCalledWith( {
+		expect( targetRequestMock ).toHaveBeenCalledWith( {
 			kind: 'row',
 			clientId: 'table-client-id',
 			section: 'body',
@@ -75,15 +172,13 @@ describe( 'DnD Interaction', () => {
 	 * - Reorder Target Resolutionへ`columnIndex`を持つ列Requestだけが渡される。
 	 */
 	it( 'when Reorder Mode is column, should resolve the start target as a column request', () => {
-		const dependencies = createDependencies();
-		dependencies.reorderMode.getReorderKind = jest.fn( () => 'column' );
-		dependencies.reorderTargetResolution.resolve = jest.fn( () => ( {
-			status: 'immovable',
-			reason: 'target-out-of-scope',
-		} ) );
+		const { dependencies, targetRequestMock } = createDependencies( {
+			reorderKind: 'column',
+			targetStatus: 'immovable',
+		} );
 		const interaction = createDndInteraction( dependencies );
 		interaction.start( startRequest );
-		expect( dependencies.reorderTargetResolution.resolve ).toHaveBeenCalledWith( {
+		expect( targetRequestMock ).toHaveBeenCalledWith( {
 			kind: 'column',
 			clientId: 'table-client-id',
 			columnIndex: 0,
@@ -105,26 +200,18 @@ describe( 'DnD Interaction', () => {
 	 * - 2回のDrop Target Resolutionへ同一参照のReorder Constraintsが渡される。
 	 */
 	it( 'when destination resolution runs repeatedly, should reuse the same constraints within the Session', () => {
-		const dependencies = createDependencies();
 		const constraints: ReorderConstraints = { blockedBoundaries: [ 2 ] };
-		dependencies.reorderTargetResolution.resolve = jest.fn( () => ( {
-			status: 'movable',
-			target: { kind: 'row', clientId: 'table-client-id', rowIndex: 0 },
+		const { dependencies, targetRequestMock, dropRequestMock } = createDependencies( {
 			constraints,
-		} ) );
-		const requests: DropTargetResolutionRequest[] = [];
-		dependencies.dropTargetResolution.resolve = jest.fn( ( request ) => {
-			requests.push( request );
-			return { status: 'none' };
 		} );
 		const interaction = createDndInteraction( dependencies );
 		interaction.start( startRequest );
 		interaction.progress( { boundaryIndex: 1 } );
 		interaction.progress( { boundaryIndex: 3 } );
-		expect( dependencies.reorderTargetResolution.resolve ).toHaveBeenCalledTimes( 1 );
-		expect( requests ).toHaveLength( 2 );
-		expect( requests[ 0 ].constraints ).toBe( constraints );
-		expect( requests[ 1 ].constraints ).toBe( constraints );
+		expect( targetRequestMock ).toHaveBeenCalledTimes( 1 );
+		expect( dropRequestMock ).toHaveBeenCalledTimes( 2 );
+		expect( dropRequestMock.mock.calls[ 0 ][ 0 ].constraints ).toBe( constraints );
+		expect( dropRequestMock.mock.calls[ 1 ][ 0 ].constraints ).toBe( constraints );
 	} );
 
 	/**
@@ -142,11 +229,7 @@ describe( 'DnD Interaction', () => {
 	 * - 完了後はReorder Sessionが有効ではない。
 	 */
 	it( 'when row DnD completes with a valid destination, should commit the row reorder', () => {
-		const dependencies = createDependencies();
-		dependencies.dropTargetResolution.resolve = jest.fn( () => ( {
-			status: 'valid',
-			destination: { kind: 'row', clientId: 'table-client-id', boundaryIndex: 2 },
-		} ) );
+		const { dependencies } = createDependencies( { dropBoundaryIndex: 2 } );
 		const interaction = createDndInteraction( dependencies );
 		interaction.start( startRequest );
 		interaction.progress( { boundaryIndex: 2 } );
@@ -176,11 +259,8 @@ describe( 'DnD Interaction', () => {
 	 * - `aborted`が返され、Reorder Sessionが破棄される。
 	 */
 	it( 'when an internal progress error reaches the operation boundary, should log once and abort', () => {
-		const dependencies = createDependencies();
 		const error = new Error( 'drop target invariant' );
-		dependencies.dropTargetResolution.resolve = jest.fn( () => {
-			throw error;
-		} );
+		const { dependencies } = createDependencies( { dropError: error } );
 		const interaction = createDndInteraction( dependencies );
 		interaction.start( startRequest );
 		expect( interaction.progress( { boundaryIndex: 1 } ) ).toEqual( { status: 'aborted' } );
@@ -203,7 +283,7 @@ describe( 'DnD Interaction', () => {
 	 * - 内部エラーログは追加されない。
 	 */
 	it( 'when an external environment change aborts DnD, should clear the Session without logging', () => {
-		const dependencies = createDependencies();
+		const { dependencies } = createDependencies();
 		const interaction = createDndInteraction( dependencies );
 		interaction.start( startRequest );
 		interaction.abort();
