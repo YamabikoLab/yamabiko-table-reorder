@@ -35,7 +35,7 @@ const createColumnReorderTargetResolutionRequest = (
 /**
  * 列固有の開始位置解釈とResolver対応を確定する。
  *
- * @param request                  Input Interactionから渡された方向非依存のDnD開始位置。
+ * @param request                 Input Interactionから渡された方向非依存のDnD開始位置。
  * @param reorderTargetResolution DnD開始対象と制約を解決する共通Reorder Target Resolution。
  * @param dropTargetResolution    DnD中の移動先を判定する共通Drop Target Resolution。
  * @return 列の対象解決結果と、その列Sessionに対応する移動先判定入口。
