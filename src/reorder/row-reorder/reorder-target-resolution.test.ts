@@ -1,7 +1,7 @@
 /**
  * 行並び替えに固有のReorder Target Resolution規則を確認する単体テスト。
  */
-import { createReorderTargetResolution } from '@/reorder/reorder-target-resolution';
+import { createReorderTargetResolution } from '@/reorder/common/reorder-target-resolution';
 import type { TableIntegration, TableStructure } from '@/reorder/table-integration';
 
 const createIntegration = ( structure: TableStructure ): TableIntegration => ( {
