@@ -1,49 +1,42 @@
-# PLAN-499: Reorder v1実装
+# PLAN-620: Reorder v1実装
 
 ## References
 
-- Parent issue: #499
-- Reconstruction issues: #569, #593
-- Implementation parent: #539
+- Parent issue: #539
+- Reconstruction issue: #620
+- Current implementation baseline: #573完了時点
 - Requirements: `docs/requirements/reorder-v1-requirements.md`
+- Quality Requirements: `docs/requirements/reorder-v1-quality-requirements.md`
 - Design: `docs/design/reorder-v1-design.md`
 - Architecture: `docs/architecture/reorder-v1-architecture.md`
+- Plan instructions: `docs/plans/AGENTS.md`
+- Plan template: `docs/plans/TEMPLATE.md`
+- Source guidelines: `src/AGENTS.md`, `src/reorder/AGENTS.md`
 
 ## Goal
 
-更新後のReorder v1 Architectureを入力として、現在の実装状態から正式v1を完成させるための実装方向、実装順、実装依存、validation、Issue分割を明確にする。
+#573完了時点の実装をbaselineとして維持し、現在のRequirements / Quality Requirements / Design / Architecture / source guidelinesを入力に、正式v1を完成させるための実装方向、実装Phase、実装順、実装依存、validation、Issue分割を定める。
 
-Architectureで定義済みの責務、Contract、Dependency、Lifecycle、InvariantはPlanで再定義せず、実装をどの順序と単位で進めるかに集中する。
+Planでは正本文書の内容を複製・再定義せず、現在の実装状態から残りの実装をどの順序と単位で進めるかに集中する。
 
 ## Current implementation baseline
 
-### 維持する実装
-
-以下は現在のArchitectureと整合しているため維持する。
+#573までに成立している以下の実装を、Plan再作成時の出発点とする。
 
 - Editor DOM Context
-- Reorder Modeの現在の状態管理ロジック
-- `src/reorder/reorder-mode.ts`までの現在のsource状態
+- Reorder Mode
+- common Table structure
+- Table Integration
+- Reorder Target Resolution
+- Drop Target Resolution
 
-#547、#540、#541は完了済みとして扱う。#542はReorder Constraint Resolutionを独立責務として実装しない方針で完了済みとして扱う。
-
-### Reorder Modeのbaseline整合
-
-後続実装へ進む前に、`src/reorder/reorder-mode.ts`を更新後Architectureと照合し、旧Architecture前提だけを最小限修正する。
-
-現在の状態管理ロジックを作り直すことは目的としない。特にsourceコメント、公開Contractの説明、testの前提に、Reorder PresentationがReorder Modeへ直接依存するなど更新前Architectureの前提が残っていないことを確認する。
-
-このbaseline整合を完了した後、#585を現在の実装再開地点とする。
+これらを再実装することは目的としない。後続実装中に現在の正本との不整合が見つかった場合は、その影響を該当Issueへ反映する。Requirements / Design / Architecture / source guidelines側の決定変更が必要な場合は、Plan内で新しい決定を抱え込まず、該当する正本文書を先に更新する。
 
 ## Scope
 
 ### Included
 
-- Reorder Modeのbaseline整合
-- 共通Table structureの具体的なType確定
-- Table Integration
-- Reorder Target Resolution
-- Drop Target Resolution
+- #574以降の正式v1実装
 - DnD InteractionとReorder Session
 - Data Update
 - PC / タッチのInput Interaction
@@ -51,276 +44,309 @@ Architectureで定義済みの責務、Contract、Dependency、Lifecycle、Invar
 - Auto Scroll
 - First-use Guidance
 - Reorder Rediscovery
-- Core Table / Flexible Table Blockの統合
-- 大規模TableのPerformance検証
-- 正式v1の主要E2E
+- `QR-01` Performanceの検証・必要な調整
+- `QR-02` Compatibilityの横断検証
+- `QR-03` Reliability / Robustnessの横断検証
+- Core Table / Flexible Table Blockの正式v1主要E2E
+- #574〜#583のIssue境界を維持・修正・追加の観点で整理すること
 
 ### Not included
 
+- #573までのbaseline実装を作り直すこと
+- Requirementsの機能要件・受け入れ条件の再定義
+- Quality Requirementsの保証範囲・基準値の再定義
+- Designの利用者向け操作・表示・状態・メッセージの再定義
+- Architectureの責務、境界、状態所有、Contract、Dependency、Lifecycle、Invariant、Runtime Flowの再定義
+- `src/AGENTS.md`または`src/reorder/AGENTS.md`に属する恒久的source ruleの再定義
 - Keyboard操作、ドラッグを必要としない操作、focus、announcementなど、別要件として扱うアクセシビリティ実装
-- Requirements、Design、Architectureの再定義
-- Architectureで決定すべき事項をPlan内で決定すること
-- PrototypeまたはArchitecture確定前のformal v1実装構造の復元
 
 ## Approach
 
-- `docs/architecture/reorder-v1-architecture.md`と`docs/plans/AGENTS.md`をPlan再構成の正本として扱う。
-- 現行Planは既存の実装順とIssue構成を確認するための現状参照として扱い、旧Architecture前提を維持する根拠にはしない。
-- まずReorder Modeのbaseline整合を行い、その後#585から実装を再開する。
-- #585で共通Table structureの具体的なTypeを確定した後、#571でTable Integrationを実装する。
-- Table Integrationが提供する要求時点の共通Table structureを入力に、#572で開始対象解決とDnD中に利用する制約情報の具体的な実装表現を確定する。
-- #573では#572で具体化した判定入力を利用してDrop Target Resolutionを実装する。
-- #574でDnD InteractionとReorder Sessionを実装し、成立した1回のDnD中だけ制約情報を保持してDrop Target Resolutionへ必要な値を渡す経路を接続する。
-- #575で確定済み並び替えからTable Integrationへの更新経路を接続する。
-- その後にInput Interaction、Presentation、Auto Scroll、Guidanceを統合する。
-- Performance検証と正式v1主要E2Eは、主要実装が揃った後に行う。
-- 実装中にArchitecture変更が必要になった場合はPlanで解決せず、Architectureを先に更新する。
+- #573完了時点を固定したbaselineとし、次の実装再開地点を#574とする。
+- #574でDnD InteractionとReorder Sessionを成立させる際に、更新後ArchitectureのReorder operation boundaryと共通abortを実装上の中心へ置く。
+- #575以降は各責務を通常経路へ接続するだけでなく、処理不能または内部不整合がReorder operation boundaryへ合流し、共通abortで終了できる経路を段階的に完成させる。
+- `src/reorder/AGENTS.md`に従い、Reorder内部のContract / Invariant違反と外部環境による正常な利用不能を実装上も区別し、独自の局所recoverや重複logを増やさない。
+- DOM / Web APIを利用するIssueではEditor DOM Context経由の実装を前提とし、`QR-02`の保証対象となるEditor環境差を横断validationで確認する。
+- `QR-01`は主要DnD経路が揃った後に#582で計測する。ただし性能上の回帰リスクは各Phaseでもfocused test、実装レビュー、必要な計測で早期に確認する。
+- `QR-02`と`QR-03`は単一の既存Issueだけでは完了判定しにくいため、主要実装後に横断validation用の追加Issueを設ける。
+- #583はFunctional Requirementsだけでなく、Quality Requirementsを含む正式v1の統合結果を確認する最終E2Eとして位置づける。
+- 実装時の恒久ルールは`src/AGENTS.md`と`src/reorder/AGENTS.md`を正本とし、Planへ複製しない。
+
+## Architecture impact
+
+このPlanは現在の`docs/architecture/reorder-v1-architecture.md`を変更しない前提で実装順へ反映する。
+
+特に後続実装では、次のArchitecture参照を実装順とvalidationへ接続する。
+
+- `RESP_DND_INTERACTION`とReorder operation boundary
+- Reorder Input Failure and Recovery
+- Reorder Drop Target Failure and Recovery
+- Reorder Data Update Failure and Recovery
+- `RESP_INPUT_INTERACTION`
+- `RESP_REORDER_PRESENTATION`
+- `RESP_AUTO_SCROLL`
+- `RESP_DATA_UPDATE`
+
+実装中にこれらのArchitecture決定そのものを変更する必要が判明した場合は、Architectureを先に更新してからPlanまたはIssueを追随させる。
 
 ## Implementation phases
 
-### Phase 1: 実装済みbaseline
+### Phase 1: 完了済みbaseline
 
-- Outcome: 後続実装の出発点となる既存基盤が維持されている。
+- Outcome: #573までの実装が後続作業の出発点として利用できる。
 - Status: 完了。
-- Completed Issues:
-  - #547 sourceの共通・行・列モジュール境界
-  - #540 Editor DOM Context
-  - #541 Reorder Mode
-  - #542 Reorder Constraint Resolutionは独立責務として実装しないため終了
-
-### Phase 2: Baseline整合と共通Table structure確定
-
-- Outcome: 更新後Architectureと現在sourceのbaselineが一致し、Table Integration実装に必要な共通Table structureの具体的なTypeが確定している。
-- Implementation units:
-  - Reorder Mode baseline整合を行う新規Issue
-  - #585 共通Table structureのTypeを確定する
-- Implementation dependency:
-  - Reorder Mode baseline整合を先に完了する。
-  - #585を完了してから#571へ進む。
+- Baseline:
+  - Editor DOM Context
+  - Reorder Mode
+  - common Table structure
+  - Table Integration
+  - Reorder Target Resolution
+  - Drop Target Resolution
 - Validation:
-  - baseline整合では変更したsourceに適用されるfocused testを実行する。
-  - #585はTypeの実装可能性と、後続のTable Integration / Reorder Target Resolutionが必要とする情報を過不足なく表現できることをレビューで確認する。
+  - 後続Issueで不整合を発見した場合だけ影響を切り分ける。baseline全体の再実装は行わない。
 
-### Phase 3: Table Integration
+### Phase 2: Reorder operation boundaryと共通DnD
 
-- Outcome: #571が完了し、Core Table / Flexible Table Blockから要求時点の共通Table structureを取得し、後続の更新境界としても利用できる状態になる。
+- Outcome: #574が完了し、通常のDnD進行と共通abortを同じReorder operation boundaryで扱える実装基盤が成立する。
 - Issue:
-  - #571 Table Integrationを実装する。
-- Implementation dependency:
-  - #585で確定した共通Table structureを入力とする。
-- Validation:
-  - #571で追加・更新したfocused testを実行する。
-  - Core Table / Flexible Table Blockの主要な構造取得ケースを確認する。
-
-### Phase 4: Reorder Target Resolution
-
-- Outcome: #572が完了し、DnD開始試行から移動対象の解決結果と、そのDnDで使用する制約情報を得られる状態になる。
-- Issue:
-  - #572 Reorder Target Resolutionを実装する。
-- Implementation dependency:
-  - #571の共通Table structure取得経路を利用できること。
-- Validation:
-  - 行・列の開始対象解決と制約情報導出の主要ケースをfocused testで確認する。
-
-### Phase 5: Drop Target Resolution / DnD Interaction / Reorder Session
-
-- Outcome: #573と#574が完了し、開始済みDnDで同じ制約情報を利用しながら移動先を判定できる共通DnD実装が揃う。
-- Issues:
-  - #573 Drop Target Resolutionを実装する。
   - #574 DnD InteractionとReorder Sessionを実装する。
 - Implementation dependency:
-  - #573は#572で具体化した判定入力を前提とする。
-  - #574は#572 / #573の実装成果を接続する。
+  - #573までのbaselineを利用する。
 - Validation:
-  - #573と#574で追加・更新したfocused testを実行する。
-  - 複数回のdestination判定でTable全体を再解析せず、1回のDnD中の判定入力を再利用できる実装経路になっていることを確認する。
+  - 通常のstart / progress / complete / cancelをfocused testで確認する。
+  - Reorder SessionがDnD終了後へ持ち越されないことを確認する。
+  - Operation boundaryへ到達した内部エラーが共通abortへ合流し、safe idleへ戻れる実装経路を確認する。
+  - `src/reorder/AGENTS.md`に沿ってerror propagation / catch / logの境界を確認する。
 
-### Phase 6: Data Update
+### Phase 3: Data Updateと更新失敗の合流
 
-- Outcome: #575が完了し、有効な移動先で確定した並び替えを対象Tableへ反映できる状態になる。
+- Outcome: #575が完了し、確定済み並び替えをTableへ反映でき、更新失敗をReorder operation boundaryへ返せる。
 - Issue:
   - #575 Data Updateを実装する。
 - Implementation dependency:
-  - #574から確定済み並び替えを受け取れること。
-  - #571のTable Integration更新境界を利用できること。
+  - #574のReorder operation boundaryと確定経路を利用できること。
+  - baselineのTable Integration更新境界を利用できること。
 - Validation:
-  - Core Table / Flexible Table Blockの行・列更新の主要ケースをfocused testで確認する。
-  - 1回の確定操作が1回だけ反映されることを確認する。
+  - 正常な行・列更新、重複適用防止、Undoに関係する主要ケースをfocused testまたは必要な実環境確認で確認する。
+  - Reorder Data Update Failure and Recoveryへ接続できることを確認する。
+  - 開始済み更新に対してabortが独自retry / rollbackを行わないことを確認する。
 
-### Phase 7: Input Interaction
+### Phase 4: PC / タッチInput Interaction
 
-- Outcome: #576と#577が完了し、PCとタッチの主要入力を共通DnD経路へ接続できる状態になる。
+- Outcome: #576と#577が完了し、PCとタッチの入力が共通DnD経路へ接続され、入力側で継続不能になった操作も共通abortへ合流できる。
 - Issues:
   - #576 PC向けInput Interactionを実装する。
   - #577 タッチ向けInput Interactionを実装する。
+- Implementation dependency:
+  - #574の共通DnD経路を利用できること。
 - Validation:
-  - #576と#577で追加・更新した自動テストを実行する。
-  - PC / タッチの主要入力フローをPlaywrightで確認する。
+  - PC / タッチの主要入力フローをJest / Playwrightで確認する。
+  - DOM / Web API利用がEditor DOM Contextを通ることを確認する。
+  - Reorder Input Failure and Recoveryの入口となる継続不能ケースを確認する。
+  - タッチでは通常スクロールとの競合を実環境で確認する。
 
-### Phase 8: Reorder Presentation
+### Phase 5: Reorder Presentationとabort cleanup
 
-- Outcome: #578が完了し、DnD開始後の移動対象、destination、周囲の表示変化、commit / cancelの主要表示を共通DnD経路へ統合できる状態になる。
+- Outcome: #578が完了し、正式v1のDnD表示を共通DnD経路へ接続し、cancel / abortでも一時表示を安全に終了できる。
 - Issue:
   - #578 Reorder Presentationを実装する。
+- Implementation dependency:
+  - #574のDnD状態と終了結果を利用できること。
+  - #576 / #577で主要入力経路が利用できること。
 - Validation:
-  - #578で追加・更新した自動テストを実行する。
-  - DnD開始前のモード切替だけでは移動対象表示を開始せず、DnD開始後の現在対象だけを扱うことを主要フローで確認する。
+  - DnD開始不可、開始、progress、complete、cancelの主要表示を確認する。
+  - abort時にDnD表示の一時状態が残らないことを確認する。
+  - 主要な視覚フィードバックとアニメーションが`QR-01`を阻害しない実装形になっているか確認する。
+  - Editor context変更後にstaleなDOM参照を保持しないことを確認する。
 
-### Phase 9: Auto Scroll
+### Phase 6: Auto Scrollとabort cleanup
 
-- Outcome: #579が完了し、長大Tableでの主要DnDフローを確認できる状態になる。
+- Outcome: #579が完了し、行・列DnD中のAuto Scrollが共通DnD経路へ接続され、DnD終了またはabortで一時状態を破棄できる。
 - Issue:
   - #579 Auto Scrollを実装する。
+- Implementation dependency:
+  - #574のDnD状態と終了結果を利用できること。
+  - #578の主要DnD表示経路と組み合わせて確認できること。
 - Validation:
-  - #579で追加・更新した自動テストを実行する。
-  - 対応editor環境でPlaywrightまたは実環境確認を行う。
+  - 行・列の主要Auto ScrollをJest / Playwrightまたは実環境で確認する。
+  - abort時にtimer、listener、animation frameその他の一時的な実行状態が残らないことを確認する。
+  - Editor環境差を直接扱わずEditor DOM Contextを利用していることを確認する。
 
-### Phase 10: Guidance
+### Phase 7: Guidance
 
-- Outcome: #580と#581が完了し、Guidance関連の正式v1実装が揃う。
+- Outcome: #580と#581が完了し、First-use GuidanceとReorder Rediscoveryが正式v1の操作経路へ統合される。
 - Issues:
   - #580 First-use Guidanceを実装する。
   - #581 Reorder Rediscoveryを実装する。
+- Implementation dependency:
+  - 正式v1の主要入力・表示経路を確認できること。
 - Validation:
-  - #580と#581で追加・更新した自動テストを実行する。
-  - PC / タッチの主要案内フローをPlaywrightで確認する。
+  - PC / タッチの主要案内フローをJest / Playwrightで確認する。
+  - DOM / Web API利用がEditor DOM Contextを通ることを確認する。
+  - 通常編集を妨げないことを主要フローで確認する。
 
-### Phase 11: Performanceと統合E2E
+### Phase 8: QR-01 Performance validation
 
-- Outcome: #582と#583が完了し、正式v1の実装・計測・主要E2Eが揃う。
-- Issues:
+- Outcome: #582が完了し、`QR-01`の保証対象で主要DnD経路のPerformanceを評価し、必要な調整が完了する。
+- Issue:
   - #582 大規模TableのPerformanceを検証・調整する。
+- Implementation dependency:
+  - #574〜#581のうち計測対象となる主要経路が揃っていること。
+- Validation:
+  - `QR-01`の対象規模・保証範囲はQuality Requirementsを参照する。
+  - DnD開始、progress、Presentation、Auto Scroll、常駐状態などの主要hot pathを計測する。
+  - Architecture変更が必要な場合は先にArchitectureへ戻す。
+
+### Phase 9: QR-02 Compatibility validation
+
+- Outcome: 対応Table Blockと対応Editor環境の差によって正式v1の正しさ・利用可能性が損なわれないことを横断的に確認する。
+- Issue:
+  - 新規Issue: `QR-02 Compatibilityを横断検証する`。
+- Implementation dependency:
+  - #574〜#581の主要正式v1機能が利用できること。
+- Validation:
+  - 保証対象は`QR-02`を参照する。
+  - Core Table / Flexible Table Blockの両方で主要経路を確認する。
+  - 対応WordPress / Editor環境の代表構成でiframe / non-iframeを含むEditor context差を確認する。
+  - 不整合が個別責務の実装不足かArchitecture不足かを切り分ける。
+
+### Phase 10: QR-03 Reliability / Robustness validation
+
+- Outcome: 主要な異常経路で共通abortとcleanupが成立し、その後もTable編集を継続できることを横断的に確認する。
+- Issue:
+  - 新規Issue: `QR-03 Reliability / Robustnessを横断検証する`。
+- Implementation dependency:
+  - #574〜#579でReorder operation boundaryとcleanup対象が接続されていること。
+- Validation:
+  - 保証対象は`QR-03`を参照する。
+  - Reorder Input Failure and Recoveryを確認する。
+  - Reorder Drop Target Failure and Recoveryを確認する。
+  - Reorder Data Update Failure and Recoveryを確認する。
+  - abort後にReorder Session、Presentation、Auto Scroll、Input Interactionの一時状態が残らず、Table編集を継続できることを確認する。
+  - 内部エラーのlogがoperation boundaryで重複しないことを確認する。
+
+### Phase 11: 正式v1主要E2E完成
+
+- Outcome: #583が完了し、Functional RequirementsとQuality Requirementsを含む正式v1の主要統合フローを継続的に検証できる。
+- Issue:
   - #583 Core TableとFlexible Table Blockの正式v1主要E2Eを完成させる。
+- Implementation dependency:
+  - Phase 8〜10の横断validation結果を反映済みであること。
 - Validation:
   - Core Table / Flexible Table Block、行 / 列、PC / タッチの主要フローをPlaywrightで確認する。
-  - Architectureで定めた対象規模と条件に従ってPerformanceを計測する。
+  - commit / cancel / invalid operation / persistenceに加え、必要なCompatibility / Reliability回帰シナリオをCIで継続確認できる形にする。
 
 ## Implementation order
 
-現在の実装状態からの基本順は次とする。
+現在の基本順は次とする。
 
-1. Reorder Mode baseline整合の新規Issue
-2. #585 共通Table structureのType確定
-3. #571 Table Integration
-4. #572 Reorder Target Resolution
-5. #573 Drop Target Resolution
-6. #574 DnD Interaction / Reorder Session
-7. #575 Data Update
-8. #576 PC Input Interaction
-9. #577 Touch Input Interaction
-10. #578 Reorder Presentation
-11. #579 Auto Scroll
-12. #580 First-use Guidance
-13. #581 Reorder Rediscovery
-14. #582 Performance検証・調整
-15. #583 正式v1主要E2E完成
+1. #574 DnD InteractionとReorder Session
+2. #575 Data Update
+3. #576 PC向けInput Interaction
+4. #577 タッチ向けInput Interaction
+5. #578 Reorder Presentation
+6. #579 Auto Scroll
+7. #580 First-use Guidance
+8. #581 Reorder Rediscovery
+9. #582 QR-01 Performance検証・調整
+10. 新規Issue: QR-02 Compatibility横断検証
+11. 新規Issue: QR-03 Reliability / Robustness横断検証
+12. #583 正式v1主要E2E完成
 
-この順序はArchitecture上のStructural Dependencyを複製したものではなく、後続Issueが必要とする具体的な実装成果を先に成立させるための実装順である。
-
-次に着手する実装単位はReorder Mode baseline整合とし、その完了後に#585へ戻る。
+この順序はArchitecture上の責務Dependencyを転載したものではなく、後続Issueが必要とする具体的な実装成果とvalidation対象を先に成立させるための実装順である。
 
 ## Implementation dependencies
 
-- #585で共通Table structureの具体的なTypeを確定してから#571を実装する。
-- #571で要求時点の共通Table structure取得経路を成立させてから#572を実装する。
-- #572で移動対象解決結果と制約情報の具体的な表現を成立させてから#573を実装する。
-- #573でdestination判定を成立させてから#574でDnD Interaction / Reorder Sessionへ統合する。
-- #575は#574の確定済み並び替えと#571のTable Integration更新境界を接続する。
-- #576 / #577以降は共通DnD経路が成立した状態を前提に統合する。
-- #582 / #583は主要実装が揃った状態を前提にする。
+- #574でReorder operation boundaryと共通DnD経路を成立させてから、その境界へ後続責務を接続する。
+- #575は#574の確定経路とbaselineのTable Integration更新境界を接続する。
+- #576 / #577は#574の共通DnD経路を利用する。
+- #578 / #579は#574のDnD状態と終了結果へ接続し、abort時cleanupまで確認する。
+- #580 / #581は主要な正式v1入力・表示経路が利用できる状態で統合する。
+- #582は主要実装が揃った後に`QR-01`を横断計測する。
+- `QR-02`横断validationは対応Table BlockとEditor環境をまたいで主要機能を検証できる状態を前提にする。
+- `QR-03`横断validationは#574〜#579の異常経路とcleanup対象が接続された状態を前提にする。
+- #583は`QR-01` / `QR-02` / `QR-03`の横断validation結果を反映した後に完成させる。
 
 ## Decisions and validation questions
 
 ### Decide before implementation
 
-- #585で、共通Table structureの具体的なTypeを確定する。
-- #571で、Core Table / Flexible Table Blockから共通Table structureへ変換する具体的な方法と、対応Tableに適切なIntegrationを適用する実装方式を確定する。
-- #572で、移動対象解決結果と制約情報の具体的なTypeを確定する。
-- #574で、Reorder Sessionの具体的な状態表現を確定する。
-- #578で、Architectureの表示要件を満たす具体的なDOM更新・アニメーション方式を確定する。
+- #574で、Reorder Sessionの具体的な状態表現とReorder operation boundaryの具体的な実装境界を確定する。
+- #575で、確定済み並び替えをTable Integrationへ渡す具体的な更新表現を確定する。
+- #576 / #577で、入力イベントから共通DnD操作へ変換する具体的な実装方式をそれぞれ確定する。
+- #578で、DesignとArchitectureを満たす具体的なDOM更新・アニメーション方式を確定する。
+- #579で、Auto Scrollの具体的なtimer / animation frame / event接続方式を確定する。
+- 横断validation Issue作成時に、`QR-02`と`QR-03`の検証マトリクスをIssue単位でreview可能な範囲へ具体化する。
+
+Architecture決定が必要になる事項はここで決めず、Architectureへ戻す。
 
 ### Validate during implementation
 
-- DnD開始試行時の共通Table structure生成と制約情報導出が想定最大規模で実用的か。
-- DnD中のDrop Target ResolutionとReorder Presentationのどこが実測上のhot pathになるか。
-- Presentationの更新範囲と実装方式が大規模Tableで実用的か。
-- PC / タッチの入力を正式v1の共通DnD経路へ安定して接続できるか。
-- Reorder Rediscoveryの具体的な実装値が通常編集と競合しないか。
+- #574のoperation boundaryが同期処理だけでなく、必要な非同期callback境界からも同じ共通abortへ合流できるか。
+- #575の更新失敗を、開始済み更新への独自retry / rollbackを導入せず安全にoperation boundaryへ返せるか。
+- PC / タッチの入力継続不能を、内部Invariant違反と混同せず扱えるか。
+- PresentationとAuto Scrollのcleanupがcancel / abortの両方で確実に完了するか。
+- Editor context変更時にstaleなDOM参照、listener、observer、timerその他の一時状態が残らないか。
+- `QR-01`の保証対象規模で視覚フィードバックを含む主要DnDが実用的か。
+- `QR-02`の保証対象でTable Block差・Editor環境差による分岐漏れがないか。
+- `QR-03`の代表failureからabort後もTable編集を継続できるか。
 
 ## Issue breakdown
 
-### Completed baseline
+### Existing issues
 
-- [x] #547 Reorder v1 sourceの共通・行・列のモジュール境界を確定する。
-- [x] #540 Editor DOM Contextを実装する。
-- [x] #541 Reorder Modeを実装する。
-- [x] #542 Reorder Constraint Resolutionを独立責務として実装しない方針で終了する。
+| Issue | Plan上の扱い | 必要な対応 |
+| --- | --- | --- |
+| #574 DnD Interaction / Reorder Session | 維持・修正 | Reorder operation boundary、共通abort、`src/reorder/AGENTS.md`のerror handlingを反映する。 |
+| #575 Data Update | 維持・修正 | Data Update failureのoperation boundaryへの返却と`QR-03`観点を反映する。 |
+| #576 PC Input Interaction | 維持・修正 | Reorder Input Failure and Recovery、`QR-02`観点、`src/reorder/AGENTS.md`参照を反映する。 |
+| #577 Touch Input Interaction | 維持・修正 | Reorder Input Failure and Recovery、`QR-02`観点、`src/reorder/AGENTS.md`参照を反映する。 |
+| #578 Reorder Presentation | 維持・修正 | abort cleanup、`QR-01` / `QR-02`観点、`src/reorder/AGENTS.md`参照を反映する。 |
+| #579 Auto Scroll | 維持・修正 | abort cleanup、`QR-01` / `QR-02`観点、`src/reorder/AGENTS.md`参照を反映する。 |
+| #580 First-use Guidance | 維持 | 現在のIssue境界を基本的に維持する。必要なら`QR-02`validation観点だけ追記する。 |
+| #581 Reorder Rediscovery | 維持 | 現在のIssue境界を基本的に維持する。必要なら`QR-02`validation観点だけ追記する。 |
+| #582 Performance | 維持・修正 | Quality Requirementsの`QR-01`を正本として明示し、保証範囲の再定義をIssue内で行わない。 |
+| #583 正式v1主要E2E | 維持・修正 | `QR-02` / `QR-03`の横断validation結果を受けた最終E2Eとして整理する。 |
 
-### Required before resuming #585
+### Additional issues
 
-- [ ] 新規Issue: Reorder Modeの現在sourceを更新後Architectureへbaseline整合する。
-  - 既存ロジックは基本的に維持する。
-  - sourceコメント、Contract説明、test前提に残る旧Architecture依存だけを最小限修正する。
+- [ ] `QR-02 Compatibilityを横断検証する`
+  - #574〜#581の実装後、対応Table BlockとEditor環境をまたいだ正式v1の主要経路を検証する。
+  - Quality Requirementsを正本として参照し、保証範囲をIssue内で再定義しない。
+- [ ] `QR-03 Reliability / Robustnessを横断検証する`
+  - #574〜#579で接続したfailure / recovery経路とcleanupを横断検証する。
+  - Quality RequirementsとArchitectureのFailure / Recovery Viewsを参照し、異常処理ルールをIssue内で再定義しない。
 
-### Existing Issues after the Architecture update
-
-- [ ] #585 共通Table structureのTypeを確定する。
-  - 維持する。
-  - 着手時にIssue本文を現在のArchitectureと最新のType検討内容へ同期する。
-- [ ] #571 Table Integrationを実装する。
-  - 維持する。
-- [ ] #572 Reorder Target Resolutionを実装する。
-  - 維持する。
-- [ ] #573 Drop Target Resolutionを実装する。
-  - 維持する。
-- [ ] #574 DnD InteractionとReorder Sessionを実装する。
-  - 維持する。
-- [ ] #575 Data Updateを実装する。
-  - 維持する。
-- [ ] #576 PC向けInput Interactionを実装する。
-  - 維持する。
-- [ ] #577 タッチ向けInput Interactionを実装する。
-  - 維持する。
-- [ ] #578 Reorder Presentationを実装する。
-  - 維持する。実装時は更新後Architectureを入力とし、モード中の全対象表示という旧前提を持ち込まない。
-- [ ] #579 Auto Scrollを実装する。
-  - 維持する。
-- [ ] #580 First-use Guidanceを実装する。
-  - 維持する。
-- [ ] #581 Reorder Rediscoveryを実装する。
-  - 維持する。
-- [ ] #582 大規模TableのPerformanceを検証・調整する。
-  - 維持する。
-- [ ] #583 Core TableとFlexible Table Blockの正式v1主要E2Eを完成させる。
-  - 維持する。
-
-Plan確定後、#539の実装順と「次に着手するIssue」の記述をこのPlanへ追随させる。Issue本文ではArchitectureやPlanを複製せず、そのIssue固有のscope、completion conditions、validationに留める。
+これらの追加Issueと既存Issue本文の修正は、再作成したPlanのレビュー後に#539へ反映する。
 
 ## Validation
 
-検証コマンドと環境は`docs/development/testing.md`を正本とする。
+Plan自体の変更はdocumentation-onlyとし、`docs/development/testing.md`に従ってrepository checkを適用する。
 
-- 本Planの変更自体はdocumentation-onlyとして扱う。
-- 各後続Issueでは、そのIssueで変更するファイルと実装内容に適用されるfocused test、Node.js checks、build、Playwright、Performance計測を選択する。
-- WordPress / Gutenberg統合やmouse・touch・pointer操作を含む変更では、対応するPlaywright E2Eを実行する。
-- Performance変更または大規模Tableに関する変更では、Architectureで定めた対象条件に従って計測する。
+後続実装では各Issueの変更範囲に応じて、`docs/development/testing.md`に定義された最小のfocused checkから開始し、handoff前に適用されるnon-mutating checksを実行する。
 
-本Plan変更の手動検証はユーザーが実施する。
+正式v1全体では次を組み合わせる。
+
+- Jest: 責務単位のlogic、state、failure分岐、cleanupを確認する。
+- Playwright: 実際のWordPress Editor、PC / タッチ入力、iframe / non-iframe、対応Table Blockを含む統合挙動を確認する。
+- Performance measurement: `QR-01`の保証対象で主要hot pathを評価する。
+- Reliability validation: ArchitectureのFailure / Recovery Viewsに対応する代表failureとabort後の継続編集を確認する。
+
+手動検証は利用者が実施する。
 
 ## Completion criteria
 
-- Reorder Modeのbaseline整合後、#585から実装を再開できる順序になっている。
-- #585から#583まで、後続Issueが必要とする実装成果に基づいた順序と実装依存が明確になっている。
-- 更新後Architectureで変更されたTable Integration、Reorder Target Resolution、Drop Target Resolution、Reorder Session、Reorder Presentationの前提が実装順へ反映されている。
-- Plan内にArchitectureの責務、Contract、Structural Dependency、Lifecycle、Invariantを重複定義していない。
-- 既存Issueについて、維持するものと後続で本文同期が必要なものが整理されている。
-- PlanとIssue構成に、更新前Architectureの前提を維持する実装順が残っていない。
+- `docs/plans/reorder-v1-plan.md`が#573完了時点をbaselineとして再作成されている。
+- #574以降のImplementation phases、Implementation order、Implementation dependenciesが現在のArchitectureを入力として整理されている。
+- `QR-01`、`QR-02`、`QR-03`がvalidationとIssue分割へ接続されている。
+- Reorder operation boundary、共通abort、Failure / Recovery、cleanupが実装計画から漏れていない。
+- #574〜#583について維持・修正・追加の必要性が整理されている。
+- Requirements / Quality Requirements / Design / Architecture / source guidelinesの内容をPlan内で再定義していない。
+- 正本の内容が必要な箇所では文書名、要件ID、Architecture responsibility / viewへの参照で接続している。
+- #539をこのPlanへ追随させるための残りIssue構成と順序が明確になっている。
 
 ## Notes
 
-- #569で、当時確定していたArchitectureからPlanと#571〜#583のIssue構成を再構成した。
-- #591 / PR #592によるArchitecture更新を受け、#593で再度実装順とIssue構成を追随させる。
-- Editor DOM ContextとReorder Modeの状態管理ロジックは現在のbaselineとして維持する。
-- Reorder Modeは後続実装前に旧Architecture前提だけを最小限整合する。
-- #585をArchitecture更新後の実装再開地点とする。
-- 過去のformal v1実装はGit履歴から、Prototypeの知見は`prototype-final` tagから参照する。
+- このPlanの再作成だけでは#539、#574〜#583のIssue本文は変更しない。Planレビュー後に追随させる。
+- 追加する`QR-02` / `QR-03`横断validation Issueは、実装責務を新設するIssueではなく、既存実装をQuality Requirementsに対して横断確認するreviewable unitとする。
+- Prototypeの実装・testは参考資料としてのみ利用し、現在のRequirements / Quality Requirements / Design / Architectureを上書きする根拠にはしない。
