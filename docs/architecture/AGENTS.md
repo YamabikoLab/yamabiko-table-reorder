@@ -64,8 +64,8 @@ The machine-readable source is limited to the fixed headings and tables defined 
 The following structures are machine-readable:
 
 - External Context table under `## 3. Context and Scope`.
-- Process Flow View headings under `## 4. Solution Strategy`; the view name and embedded Process Flow View ID are machine-readable.
-- Process Flow View tables under `## 4. Solution Strategy`.
+- Process Flow View headings under `## 4. Solution Strategy`; the view name, embedded Process Flow View ID, and View `kind` are machine-readable.
+- Process Flow View tables under `## 4. Solution Strategy`; `From`, `To`, Edge `Kind`, and `Meaning` are machine-readable.
 - Responsibility Inventory table under `## 5. Building Block View`.
 - Dependencies table under `## 5. Building Block View`.
 - Dependency Views table under `## 5. Building Block View`, when present.
@@ -148,35 +148,54 @@ When Process Flow Views are present, group them under exactly one child heading 
 
 Each Process Flow View must use this heading form:
 
-`#### <Process Flow View name> {#<Process Flow View ID>}`
+`#### <Process Flow View name> {#<Process Flow View ID> kind=<Process Flow View kind>}`
 
-Example:
+Examples:
 
-`#### Reorder End-to-End {#PV_REORDER_END_TO_END}`
+`#### Reorder End-to-End {#PV_REORDER_END_TO_END kind=normal}`
 
-The Process Flow View name and embedded ID in this heading are machine-readable and identify the flow represented by the table below it.
+`#### Reorder Failure and Recovery {#PV_REORDER_FAILURE_RECOVERY kind=failure-recovery}`
 
-Immediately below the heading, include a short human-readable purpose or flow description, followed by a table with this exact structure:
+The Process Flow View name, embedded ID, and `kind` in this heading are machine-readable and identify the flow represented by the table below it.
 
-| From | To | Meaning |
-| --- | --- | --- |
-| EXT_WORDPRESS_EDITOR | RESP_INPUT_INTERACTION | Reorder processing enters YTR from editor input. |
-| RESP_INPUT_INTERACTION | RESP_DND_INTERACTION | Input processing proceeds into common DnD processing. |
+Process Flow View `kind` must be one of:
+
+- `normal`: the view represents the ordinary processing direction.
+- `failure-recovery`: the view represents failure and recovery processing that must remain distinguishable from the ordinary flow.
+
+Immediately below the heading, include a short human-readable purpose or flow description, followed by a table with this exact structure for every Process Flow View kind:
+
+| From | To | Kind | Meaning |
+| --- | --- | --- | --- |
+| EXT_WORDPRESS_EDITOR | RESP_INPUT_INTERACTION | normal | Reorder processing enters YTR from editor input. |
+| RESP_INPUT_INTERACTION | RESP_DND_INTERACTION | normal | Input processing proceeds into common DnD processing. |
 
 `A → B` means that processing progresses from A toward B at the architecture level.
+
+Process Flow Edge `Kind` must be one of:
+
+- `normal`: ordinary processing progression.
+- `failure`: processing progression that carries or represents a failure path.
+- `recovery`: processing progression that carries recovery, abort, cleanup, or restoration after a failure.
 
 Rules:
 
 - A Process Flow View represents a major end-to-end flow, not an exhaustive listing of every responsibility or interaction.
+- Every Process Flow View must declare exactly one machine-readable `kind` in its heading.
+- Do not infer a Process Flow View `kind` from its name, prose, Edge kinds, or included responsibilities.
+- Every Process Flow View uses the same `From | To | Kind | Meaning` table schema regardless of View `kind`.
 - `From` and `To` must contain stable IDs defined in the External Context or Responsibility Inventory tables.
+- `Kind` explicitly classifies the Process Flow Edge and must not be inferred from the View `kind`, `Meaning`, direction, or surrounding prose.
 - `Meaning` briefly states what architecture-level processing progression the edge represents.
 - The `From + To` pair must be unique within one Process Flow View. Duplicate pairs are invalid and must be rejected by validation.
 - Process Flow rows do not have a `Step` column. Table row order does not define runtime sequence.
-- Process Flow direction represents progression of processing. It does not represent Structural Dependency direction or Runtime Interaction direction.
+- Process Flow direction represents progression of processing. Edge `Kind` does not change that direction semantics.
 - Process Flow Views do not define new responsibilities, external context elements, Structural Dependencies, or Runtime Interactions.
 - Do not infer Process Flow edges from Dependencies, Dependency Views, Runtime View, Responsibility Details, prose, names, or table order.
 - Do not infer Structural Dependencies or Runtime Interactions from Process Flow Views.
-- A generator must use only Process Flow edges explicitly defined in the Process Flow View table.
+- A generator must use only Process Flow View and Edge kinds and Process Flow edges explicitly defined in the machine-readable Process Flow structures.
+- Unknown Process Flow View or Edge kind values are invalid and must be rejected rather than treated as `normal`.
+- Additional kinds may be introduced later only by extending this schema and the corresponding parser, validator, model, and generator behavior.
 
 Process Flow View, Dependency View, and Runtime View describe different architecture meanings:
 
@@ -390,8 +409,9 @@ Any parser, validator, or generator that consumes architecture Markdown must fol
 - Reject missing, duplicate, malformed, or unresolved IDs rather than guessing their intended target.
 - Reject malformed required table structures rather than recovering architecture information from surrounding prose.
 - Reject duplicate `Dependent + Depends on` pairs in the Dependencies table.
-- If `### Process Flow Views` is present, allow the heading at most once under `## 4. Solution Strategy`, parse Process Flow Views only from `#### <name> {#PV_*}` headings and their fixed `From | To | Meaning` tables, and require every `From` and `To` ID to resolve to an External Context or Responsibility Inventory entry.
+- If `### Process Flow Views` is present, allow the heading at most once under `## 4. Solution Strategy`, parse Process Flow Views only from `#### <name> {#PV_* kind=<kind>}` headings and their fixed `From | To | Kind | Meaning` tables, require View `kind` to be `normal` or `failure-recovery`, require Edge `Kind` to be `normal`, `failure`, or `recovery`, and require every `From` and `To` ID to resolve to an External Context or Responsibility Inventory entry.
 - Require Process Flow View IDs to be unique and reject duplicate `From + To` pairs within a Process Flow View.
+- Do not infer Process Flow View or Edge kind from names, prose, other kinds, relationship direction, or table order.
 - If `### Dependency Views` is present, require it to appear immediately after `### Dependencies`, allow the heading at most once, and parse multiple views only from rows of its fixed table.
 - Require Dependency View IDs to be unique and require every `Includes` ID to resolve to an External Context or Responsibility Inventory entry.
 - Do not use natural-language interpretation, AI inference, fuzzy matching, responsibility names, heading similarity, or prose analysis to supplement missing machine-readable information.
@@ -418,14 +438,23 @@ Good:
 
 ### Process Flow Views
 
-#### Reorder End-to-End {#PV_REORDER_END_TO_END}
+#### Reorder End-to-End {#PV_REORDER_END_TO_END kind=normal}
 
 Show the major processing direction from editor input into reorder processing.
 
-| From | To | Meaning |
-| --- | --- | --- |
-| EXT_WORDPRESS_EDITOR | RESP_DND_INTERACTION | Reorder processing progresses from the editor into DnD coordination. |
-| RESP_DND_INTERACTION | RESP_DATA_UPDATE | A confirmed reorder progresses to data update. |
+| From | To | Kind | Meaning |
+| --- | --- | --- | --- |
+| EXT_WORDPRESS_EDITOR | RESP_DND_INTERACTION | normal | Reorder processing progresses from the editor into DnD coordination. |
+| RESP_DND_INTERACTION | RESP_DATA_UPDATE | normal | A confirmed reorder progresses to data update. |
+
+#### Reorder Failure and Recovery {#PV_REORDER_FAILURE_RECOVERY kind=failure-recovery}
+
+Show failure propagation and the recovery path back to a stable reorder state.
+
+| From | To | Kind | Meaning |
+| --- | --- | --- | --- |
+| RESP_DATA_UPDATE | RESP_DND_INTERACTION | failure | A failed update progresses back to the reorder operation boundary. |
+| RESP_DND_INTERACTION | RESP_REORDER_PRESENTATION | recovery | Recovery progresses to presentation cleanup and abort. |
 
 ## 5. Building Block View
 
@@ -437,6 +466,7 @@ Show the major processing direction from editor input into reorder processing.
 | RESP_REORDER_MODE | Reorder Mode | Owns the current edit, row-reorder, or column-reorder mode. |
 | RESP_REORDER_TARGET_RESOLUTION | Reorder Target Resolution | Determines whether the attempted start target can become the moving row or column. |
 | RESP_DATA_UPDATE | Data Update | Applies a committed reorder request to Table data. |
+| RESP_REORDER_PRESENTATION | Reorder Presentation | Represents reorder interaction state to the user without owning Table data. |
 
 ### Dependencies
 
@@ -487,7 +517,7 @@ Describe the collaboration that either starts DnD with a movable target or rejec
 | 2 | RESP_REORDER_TARGET_RESOLUTION | RESP_DND_INTERACTION | Notifies DnD Interaction when the target cannot be used and why. |
 ```
 
-The Process Flow rows describe overall processing direction without defining runtime order. The second runtime step may point opposite to the Structural Dependency. Runtime direction represents interaction direction, not dependency or Process Flow direction.
+The Process Flow rows describe overall processing direction without defining runtime order. Process Flow View and Edge kinds explicitly classify the flow for generated representations without changing Process Flow direction semantics. The second runtime step may point opposite to the Structural Dependency. Runtime direction represents interaction direction, not dependency or Process Flow direction.
 
 Bad:
 
