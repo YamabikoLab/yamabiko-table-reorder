@@ -107,6 +107,21 @@ WordPress Editorから並び替え入力を受け取り、共通Reorder処理で
 
 このViewは主要な処理の進行方向だけを示し、補助的な責務、Runtime Interactionの往復、異常時の復旧経路は表さない。
 
+#### Reorder Failure and Recovery {#PV_REORDER_FAILURE_RECOVERY}
+
+activeなReorder Session中に外部環境の変化またはReorder内部のContract / Invariant不整合によって処理を継続できなくなった場合に、個別責務で独自に復旧せず、Reorder operation boundaryへ集約して共通abortからDnD idleへ戻る主要な復旧進行を示す。正常な不在やDnD開始前の開始不可はこのViewに含めない。
+
+| From | To | Meaning |
+| --- | --- | --- |
+| RESP_INPUT_INTERACTION | RESP_DND_INTERACTION | 外部環境の変化などによりactiveなReorder操作を継続できない状態をReorder operation boundaryへ合流させる。 |
+| RESP_DROP_TARGET_RESOLUTION | RESP_DND_INTERACTION | DnD進行中に検出されたReorder内部のContract / Invariant不整合をReorder operation boundaryへ合流させる。 |
+| RESP_DATA_UPDATE | RESP_DND_INTERACTION | Table更新を継続または確認できない結果をReorder operation boundaryへ返し、共通abortへ合流させる。 |
+| RESP_DND_INTERACTION | RESP_REORDER_PRESENTATION | 共通abortとしてDnD表示の一時状態を終了する。 |
+| RESP_DND_INTERACTION | RESP_AUTO_SCROLL | 共通abortとして自動スクロールの一時状態を終了する。 |
+| RESP_DND_INTERACTION | RESP_INPUT_INTERACTION | 共通abortとして入力解釈の一時状態を終了する。 |
+
+このViewは復旧の主要な収束先を示すものであり、具体的なError検出、throw / catch、log、cleanupの実装順序は規定しない。abortによってReorder Mode自体は変更しない。
+
 ## 5. Building Block View
 
 ### Responsibility Inventory
@@ -484,7 +499,7 @@ DnD InteractionからDnD開始試行に対応する解決要求を受けたと�
 - Table Block固有の構造表現を直接扱わず、Table Integrationが提供する共通Table structureを利用する。
 - 並び替えモード中の対象表示のために利用しない。
 - 行DnDでは共通Table structure上のbody sectionの行だけを移動対象候補として扱う。
-- 列DnDではTable全体の列を移動対象候補として扱う。
+- 列DnDではTable全体の列だけを移動対象候補として扱う。
 - 行では縦結合によって一体化された範囲の一部を移動対象として返さず、横結合だけを理由に移動不可と判定しない。
 - 列では横結合によって一体化された範囲の一部を移動対象として返さず、縦結合だけを理由に移動不可と判定しない。
 - 行ではbody sectionの構造、列ではTable全体の構造を保持し、縦結合または横結合を分断する移動先を許可しないための制約情報を導出する。
@@ -764,6 +779,7 @@ abort自身は新たなData Updateを開始せず、Reorder Modeを変更しな�
 | 6 | RESP_DATA_UPDATE | RESP_DND_INTERACTION | 更新失敗結果をReorder operation boundaryへ返す。 |
 | 7 | RESP_DND_INTERACTION | RESP_REORDER_PRESENTATION | 共通abortとしてDnD中だけの表示状態を破棄させる。 |
 | 8 | RESP_DND_INTERACTION | RESP_AUTO_SCROLL | 共通abortとしてDnDに属する自動スクロール状態を終了させる。 |
+| 9 | RESP_DND_INTERACTION | RESP_INPUT_INTERACTION | 共通abortとして入力解釈の一時状態を次の操作へ持ち越さないよう終了させる。 |
 
 このシナリオでは、abortから開始済み更新への自動retryまたはrollbackを行わない。更新済みか未更新かをDnD復旧側で上書きせず、その時点のTable状態を外部状態として扱う。
 
