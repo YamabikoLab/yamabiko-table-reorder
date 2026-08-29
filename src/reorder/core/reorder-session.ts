@@ -5,11 +5,7 @@
  * destination更新、完了、キャンセルだけを扱う。方向対応は型で保証し、Table個体の一致だけを実行時に確認する。
  */
 import type { ReorderConstraints } from './reorder-target-resolution-rules';
-import type {
-	ReorderDestination,
-	ReorderKind,
-	ReorderTarget,
-} from './reorder-types';
+import type { ReorderDestination, ReorderKind, ReorderTarget } from './reorder-types';
 
 /** 指定した並び替え種別に対応するReorder Session。 */
 export type ReorderSession< K extends ReorderKind = ReorderKind > = {

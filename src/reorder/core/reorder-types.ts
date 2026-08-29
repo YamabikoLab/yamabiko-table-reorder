@@ -25,8 +25,7 @@ export type ReorderTypeMap = {
 };
 
 /** 指定した並び替え種別に対応するReorder Target。 */
-export type ReorderTarget< K extends ReorderKind = ReorderKind > =
-	ReorderTypeMap[ K ][ 'target' ];
+export type ReorderTarget< K extends ReorderKind = ReorderKind > = ReorderTypeMap[ K ][ 'target' ];
 
 /** 指定した並び替え種別に対応するReorder Destination。 */
 export type ReorderDestination< K extends ReorderKind = ReorderKind > =
