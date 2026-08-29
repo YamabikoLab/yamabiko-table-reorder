@@ -3,11 +3,23 @@
  *
  * DnD開始、複数回の移動先判定、確定、キャンセル、`abort()`を通じて、1回のDnD中だけ
  * 同じ並び替え制約が保持され、内部エラーがoperation boundaryから共通`abort()`へ合流することを検証する。
+ * あわせて、開始対象には並び替え方向を持たせず、Reorder Modeが方向の唯一の情報源になることを確認する。
  */
 import { createDndInteraction } from './dnd-interaction';
-import type { DndInteractionDependencies } from './dnd-interaction';
+import type {
+	DndInteractionDependencies,
+	DndStartRequest,
+} from './dnd-interaction';
 import type { DropTargetResolutionRequest } from './drop-target-resolution';
 import type { ReorderConstraints } from './reorder-target-resolution';
+
+/** Input Interactionから渡される方向非依存の開始対象。 */
+const startRequest: DndStartRequest = {
+	clientId: 'table-client-id',
+	section: 'body',
+	rowIndex: 0,
+	columnIndex: 0,
+};
 
 /**
  * 単体テストで差し替えるReorder責務の既定値を作成する。
@@ -37,6 +49,64 @@ const createDependencies = (): DndInteractionDependencies => ( {
 
 describe( 'DnD Interaction', () => {
 	/**
+	 * 行並び替えモードでは、開始対象へ行方向を付与してReorder Target Resolutionへ渡すことを確認する。
+	 *
+	 * 事前条件:
+	 * - Reorder Modeは行並び替えである。
+	 * - Input Interactionの開始対象には並び替え方向が含まれない。
+	 *
+	 * 操作:
+	 * - `start()`を実行する。
+	 *
+	 * 期待結果:
+	 * - Reorder Target Resolutionには`kind: 'row'`と行判定に必要な開始位置だけが渡される。
+	 */
+	it( 'when Reorder Mode is row, should resolve the start target as a row request', () => {
+		const dependencies = createDependencies();
+		const interaction = createDndInteraction( dependencies );
+
+		interaction.start( startRequest );
+
+		expect( dependencies.reorderTargetResolution.resolve ).toHaveBeenCalledWith( {
+			kind: 'row',
+			clientId: 'table-client-id',
+			section: 'body',
+			rowIndex: 0,
+		} );
+	} );
+
+	/**
+	 * 列並び替えモードでは、開始対象へ列方向を付与してReorder Target Resolutionへ渡すことを確認する。
+	 *
+	 * 事前条件:
+	 * - Reorder Modeは列並び替えである。
+	 * - Input Interactionの開始対象には並び替え方向が含まれない。
+	 *
+	 * 操作:
+	 * - `start()`を実行する。
+	 *
+	 * 期待結果:
+	 * - Reorder Target Resolutionには`kind: 'column'`と列判定に必要な開始位置だけが渡される。
+	 */
+	it( 'when Reorder Mode is column, should resolve the start target as a column request', () => {
+		const dependencies = createDependencies();
+		dependencies.reorderMode.getReorderKind = jest.fn( () => 'column' );
+		dependencies.reorderTargetResolution.resolve = jest.fn( () => ( {
+			status: 'immovable',
+			reason: 'target-out-of-scope',
+		} ) );
+		const interaction = createDndInteraction( dependencies );
+
+		interaction.start( startRequest );
+
+		expect( dependencies.reorderTargetResolution.resolve ).toHaveBeenCalledWith( {
+			kind: 'column',
+			clientId: 'table-client-id',
+			columnIndex: 0,
+		} );
+	} );
+
+	/**
 	 * 移動可能な対象からReorder Sessionを開始できることを確認する。
 	 *
 	 * 事前条件:
@@ -44,7 +114,7 @@ describe( 'DnD Interaction', () => {
 	 * - Reorder Target Resolutionは行0と並び替え制約を返す。
 	 *
 	 * 操作:
-	 * - 行0に対して`start()`を実行する。
+	 * - 行0を含む開始対象に対して`start()`を実行する。
 	 *
 	 * 期待結果:
 	 * - 行0と並び替え制約を保持し、移動先が未確定のReorder Sessionが有効になる。
@@ -53,12 +123,7 @@ describe( 'DnD Interaction', () => {
 		const dependencies = createDependencies();
 		const interaction = createDndInteraction( dependencies );
 
-		const result = interaction.start( {
-			kind: 'row',
-			clientId: 'table-client-id',
-			section: 'body',
-			rowIndex: 0,
-		} );
+		const result = interaction.start( startRequest );
 
 		expect( result ).toEqual( {
 			status: 'started',
@@ -112,12 +177,7 @@ describe( 'DnD Interaction', () => {
 		} );
 
 		const interaction = createDndInteraction( dependencies );
-		interaction.start( {
-			kind: 'row',
-			clientId: 'table-client-id',
-			section: 'body',
-			rowIndex: 0,
-		} );
+		interaction.start( startRequest );
 		interaction.progress( { boundaryIndex: 1 } );
 		interaction.progress( { boundaryIndex: 3 } );
 
@@ -153,12 +213,7 @@ describe( 'DnD Interaction', () => {
 		} ) );
 		const interaction = createDndInteraction( dependencies );
 
-		interaction.start( {
-			kind: 'row',
-			clientId: 'table-client-id',
-			section: 'body',
-			rowIndex: 0,
-		} );
+		interaction.start( startRequest );
 		interaction.progress( { boundaryIndex: 2 } );
 
 		expect( interaction.complete() ).toEqual( {
@@ -194,12 +249,7 @@ describe( 'DnD Interaction', () => {
 	 */
 	it( 'when DnD completes without a valid destination, should finish without a Committed Reorder', () => {
 		const interaction = createDndInteraction( createDependencies() );
-		interaction.start( {
-			kind: 'row',
-			clientId: 'table-client-id',
-			section: 'body',
-			rowIndex: 0,
-		} );
+		interaction.start( startRequest );
 
 		expect( interaction.complete() ).toEqual( { status: 'completed-without-commit' } );
 		expect( interaction.getSession() ).toBeNull();
@@ -219,12 +269,7 @@ describe( 'DnD Interaction', () => {
 	 */
 	it( 'when an active DnD is cancelled, should clear the Session without committing', () => {
 		const interaction = createDndInteraction( createDependencies() );
-		interaction.start( {
-			kind: 'row',
-			clientId: 'table-client-id',
-			section: 'body',
-			rowIndex: 0,
-		} );
+		interaction.start( startRequest );
 
 		expect( interaction.cancel() ).toEqual( { status: 'cancelled' } );
 		expect( interaction.getSession() ).toBeNull();
@@ -251,12 +296,7 @@ describe( 'DnD Interaction', () => {
 			throw error;
 		} );
 		const interaction = createDndInteraction( dependencies );
-		interaction.start( {
-			kind: 'row',
-			clientId: 'table-client-id',
-			section: 'body',
-			rowIndex: 0,
-		} );
+		interaction.start( startRequest );
 
 		expect( interaction.progress( { boundaryIndex: 1 } ) ).toEqual( { status: 'aborted' } );
 		expect( dependencies.logError ).toHaveBeenCalledTimes( 1 );
@@ -280,45 +320,11 @@ describe( 'DnD Interaction', () => {
 	it( 'when an external environment change aborts DnD, should clear the Session without logging an internal error', () => {
 		const dependencies = createDependencies();
 		const interaction = createDndInteraction( dependencies );
-		interaction.start( {
-			kind: 'row',
-			clientId: 'table-client-id',
-			section: 'body',
-			rowIndex: 0,
-		} );
+		interaction.start( startRequest );
 
 		interaction.abort();
 
 		expect( interaction.getSession() ).toBeNull();
 		expect( dependencies.logError ).not.toHaveBeenCalled();
-	} );
-
-	/**
-	 * 行Reorder Mode中に列DnD開始要求が入る内部不整合を安全終了できることを確認する。
-	 *
-	 * 事前条件:
-	 * - Reorder Modeは行並び替えである。
-	 *
-	 * 操作:
-	 * - 列DnDの`start()`を実行する。
-	 *
-	 * 期待結果:
-	 * - `start`操作の内部契約違反として1回だけ記録される。
-	 * - Reorder Sessionを開始せず`aborted`になる。
-	 */
-	it( 'when the start request kind conflicts with Reorder Mode, should abort at the start operation boundary', () => {
-		const dependencies = createDependencies();
-		const interaction = createDndInteraction( dependencies );
-
-		expect(
-			interaction.start( {
-				kind: 'column',
-				clientId: 'table-client-id',
-				columnIndex: 0,
-			} )
-		).toEqual( { status: 'aborted' } );
-		expect( dependencies.logError ).toHaveBeenCalledTimes( 1 );
-		expect( dependencies.logError ).toHaveBeenCalledWith( 'start', expect.any( Error ) );
-		expect( interaction.getSession() ).toBeNull();
 	} );
 } );
