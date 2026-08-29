@@ -32,6 +32,26 @@ These instructions apply to the entire repository.
 - Create requirements, design, and architecture documents from accepted formal v1 decisions rather than copying Prototype documents forward.
 - Simple fixes and documentation-only changes do not require a plan.
 
+## Communication
+
+- Do not narrate routine file reads, searches, edits, or successful commands unless the information helps the user make a decision or understand an important finding.
+- Surface blocking issues, material changes in assumptions, required scope changes, and decisions that require user input.
+- Keep communication concise and focused on information relevant to the requested work.
+
+## Approval requests
+
+- Request approval before taking a destructive, unexpected, or decision-sensitive action that is not already clearly authorized and could materially affect the repository, environment, dependencies, or user data.
+- When approval is required, explain the action or issue, why a decision is needed, the expected effect or relevant options and tradeoffs, and the recommended choice. Keep simple, low-risk requests concise.
+- Do not take an alternative approach or broaden the requested scope while such a material decision remains unresolved.
+- Do not request additional approval for actions that are already clearly authorized by the user's request and applicable repository instructions.
+
+## End-of-turn reports
+
+- When repository work is performed, briefly report the work performed, changed files, validation results, and any open items.
+- Do not require a structured work report for simple questions, explanations, or other responses that do not perform repository work.
+- Never report validation as successful unless it actually ran successfully. If validation was not run or was intentionally left to the user, state that clearly.
+- When changes are pushed, include a compare URL using the repository state at the start of the work and the pushed SHA.
+
 ## Working rules
 
 - Make the smallest change that fully satisfies the current issue.
@@ -44,10 +64,10 @@ These instructions apply to the entire repository.
 
 ## GitHub Actions
 
-- Keep existing CI, security, and release workflows limited to their intended purpose. Do not reuse them for unrelated ad-hoc work.
-- Do not change workflow permissions, triggers, or jobs solely to run temporary processing.
-- Remove temporary workflows before merge unless there is a clear reason to keep them permanently.
-- When `.github/workflows/` changes, review the final diff and confirm that no obsolete Prototype fixtures or assumptions remain.
+- Keep existing CI, security, and release workflows limited to their intended purpose. Do not reuse them for unrelated ad-hoc or temporary processing.
+- Do not change workflow permissions, triggers, or jobs solely to run temporary processing. When a temporary workflow is genuinely required, keep its purpose, trigger, and permissions narrowly scoped.
+- Remove temporary workflows before merge unless the task explicitly establishes a permanent need for them.
+- When `.github/workflows/` changes, review the final diff and confirm that no unrelated changes, obsolete assumptions, or temporary workflows remain.
 
 ## Documentation responsibilities
 
@@ -70,24 +90,25 @@ These instructions apply to the entire repository.
 ## External tool boundaries
 
 - Distinguish failures caused by repository code or configuration from limitations, defects, or compatibility differences in external tools such as Docker, act, Dev Containers, package registries, or connectors.
-- When the available evidence reasonably places the root cause outside the repository, report the evidence and impact instead of changing product code merely to accommodate the external limitation.
+- When the available evidence reasonably places the root cause outside the repository, report the evidence and impact instead of changing product code or repository configuration merely to accommodate the external limitation.
 - Treat GitHub-hosted GitHub Actions runs as the authoritative CI result. Use act only as optional local feedback.
 - Follow the `YamabikoLab/wp-dev` documentation for commands that operate the local WordPress development environment.
+- Before materially extending investigation into an external-tool problem, implementing a repository workaround, or changing the development environment, surface the available options and tradeoffs when user direction is needed.
 
 ## Efficient workflow
 
 - Inspect only the files, documentation, and history required for the requested task.
-- Do not inspect generated, cache, build, distribution, or test-output directories unless the task requires them.
-- Before reading large diffs, logs, or file listings, inspect a summary or matching-file list and expand only the relevant section.
-- Prefer the narrowest relevant validation while iterating. Run complete quality gates only when required by the applicable development documentation or before final handoff.
+- Do not inspect dependency, generated, cache, build, distribution, or test-output directories unless the task requires them.
+- Before reading large diffs, logs, search results, or file listings, inspect a summary or matching-file list and expand only the relevant section.
+- Prefer the narrowest relevant validation while iterating. Follow the repository validation rules and `docs/development/testing.md` before handoff.
 - Do not re-read unchanged files or repeat successful commands unless new evidence makes it necessary.
 - Do not broaden the requested scope unless doing so is necessary to complete the requested outcome.
 
 ## Command output
 
-- Use `logcut` only inside the Dev Container.
-- Use it only for finite, non-interactive commands where concise successful output is sufficient.
+- Use `logcut` only inside the Dev Container and only for finite, non-interactive commands where concise successful output is sufficient.
 - Use `logcut` for supported Docker build commands and Git transfer commands such as `git push`, `git pull`, and `git fetch` when appropriate.
-- Never use `logcut` for commands containing tokens, passwords, Authorization headers, signed URLs, private keys, or other secrets.
-- Do not use `logcut` for Git information commands such as `git status`, `git log`, `git diff`, and `git show`, or for interactive, watch, follow, or long-running commands.
-- When `logcut` preserves a failure log, inspect the summary first and then only the relevant section of the full log.
+- Never use `logcut` for commands containing secrets. Do not rely on masking, `--no-retain-log`, or disabled failure-log retention as protection for secret-bearing commands.
+- Do not use `logcut` when the command output itself is the information being inspected, including Git information commands, diagnostic Docker output, or interactive, watch, follow, streaming, or long-running commands.
+- When a failure log is preserved, inspect the summary first and then only the relevant section. Do not rerun a failed command solely to reproduce output that is already available.
+- For diagnostic, inspection, and query commands, constrain output at the source when practical using paths, filters, ranges, counts, formats, or similar selectors.
