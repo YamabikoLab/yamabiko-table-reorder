@@ -6,20 +6,18 @@ Yamabiko Table Reorder 正式 v1 は、WordPress の対応する Table ブロッ
 
 本書は、正式 v1 の最初の段階で最低限満たす DnD 要件を定義する。
 
+Quality Requirements は `reorder-v1-quality-requirements.md` で別途管理する。
+
 具体的な画面構成、操作手順、表示方法、プログラム内部の実現方法は本書では扱わない。
 
 Keyboard 操作、ドラッグを必要としない操作、focus、announcement、支援技術への情報提供など、アクセシビリティ上追加で必要な要件は別文書で定義する。
 
 ## 2. 対象範囲
 
-正式 v1 の最初の対象は次とする。
+正式 v1 の機能対象は、以下の Functional Requirements で定義する。
 
-- WordPress Core Table
-- Flexible Table Block
-- PC での行 DnD
-- PC での列 DnD
-- タッチ端末での行 DnD
-- タッチ端末での列 DnD
+- 行 DnD / 列 DnD と対応する操作環境: `FR-01`, `FR-02`
+- 対応する Table Block: `FR-13`
 
 ## 3. 要件
 
@@ -42,7 +40,6 @@ Keyboard 操作、ドラッグを必要としない操作、focus、announcement
 | FR-15 | 移動の追跡 | DnD 中から確定後まで、利用者が移動対象を見失わず、移動対象と周囲の行・列の位置関係の変化を視覚的に追跡できる。 |
 | FR-16 | 機能の再発見 | 初回案内を表示済みでも、利用者が並び替えを必要としていると考えられる操作を行った場合、並び替え機能を再発見できる。 |
 | FR-17 | 移動不可理由の認識 | Table の構造上、移動対象として選べない行または列を利用者が移動しようとした場合、移動できないことと、その理由を認識できる。 |
-| QR-01 | Performance | 視覚フィードバックやアニメーションを含む行・列の DnD を、大規模な Table でも実用的に利用できる。 |
 
 ## 4. アクセシビリティ要件との分離
 
