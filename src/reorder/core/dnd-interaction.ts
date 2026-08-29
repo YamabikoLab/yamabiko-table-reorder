@@ -15,7 +15,6 @@ import type {
 import type {
 	ReorderTargetResolution,
 	ReorderTargetResolutionFailureReason,
-	ReorderTargetResolutionResult,
 } from '@/reorder/core/reorder-target-resolution';
 import {
 	cancelReorderSession,
@@ -108,6 +107,52 @@ export type DndInteraction = {
 };
 
 /**
+ * 現在のReorder Sessionと、その方向に対応するDrop Target Resolverを同じDnD中だけ束ねる内部契約。
+ *
+ * Reorder Sessionを状態の正本とし、この組み合わせ自体には独立した業務状態やLifecycleを持たせない。
+ */
+type ActiveDndBinding = {
+	/** @return 現在の移動先更新まで反映した最新Reorder Session。 */
+	getSession: () => ReorderSession;
+	/**
+	 * 現在位置から同方向の移動先を解決し、Reorder Sessionへ反映する。
+	 *
+	 * @param currentPosition Input Interactionから渡された現在位置。
+	 * @return 現在の有効な移動先。
+	 */
+	progress: ( currentPosition: DropTargetPosition ) => ReorderDestination | null;
+};
+
+/**
+ * 具体方向へ確定したReorder Sessionと同方向のDrop Target Resolverを束ねる。
+ *
+ * @param initialSession DnD開始時に成立した具体方向のReorder Session。
+ * @param resolve        同じ方向のRequest / Result対応を保証する移動先判定入口。
+ * @return 最新Reorder Sessionを保持しながら同方向の移動先判定を行う内部バインディング。
+ */
+const createActiveDndBinding = < K extends ReorderKind >(
+	initialSession: ReorderSession< K > & { kind: ConcreteReorderKind< K > },
+	resolve: ( request: DropTargetResolutionRequest< K > ) => DropTargetResolutionResult< K >
+): ActiveDndBinding => {
+	let session = initialSession;
+
+	return {
+		getSession: () => session,
+		progress: ( currentPosition ) => {
+			const result = resolve( {
+				kind: session.kind,
+				target: session.target,
+				constraints: session.constraints,
+				currentPosition,
+			} );
+			const destination = result.status === 'valid' ? result.destination : null;
+			session = updateReorderDestination( session, destination );
+			return destination;
+		},
+	};
+};
+
+/**
  * Reorder operation boundaryとReorder Sessionを所有するDnD Interactionを作成する。
  *
  * @param dependencies DnD Interactionが利用するReorder責務とエラー記録先。
@@ -116,11 +161,11 @@ export type DndInteraction = {
 export const createDndInteraction = (
 	dependencies: DndInteractionDependencies
 ): DndInteraction => {
-	let session: ReorderSessionState = null;
+	let activeDnd: ActiveDndBinding | null = null;
 
 	/** Reorder SessionとDnDに属する一時状態を終了して待機状態へ戻す共通`abort()`。 */
 	const abort = (): void => {
-		session = null;
+		activeDnd = null;
 	};
 
 	/**
@@ -135,12 +180,15 @@ export const createDndInteraction = (
 	};
 
 	return {
-		getSession: () => session,
+		getSession: () => {
+			const currentSession = activeDnd === null ? null : activeDnd.getSession();
+			return currentSession;
+		},
 
 		start: ( request ) => {
 			try {
 				// 1回のDnDではReorder Sessionを1つだけ所有し、開始済みの状態から別Sessionを開始しない。
-				if ( session !== null ) {
+				if ( activeDnd !== null ) {
 					throw new Error(
 						'DnD Interaction invariant violated: only one Reorder Session may be active.'
 					);
@@ -153,24 +201,38 @@ export const createDndInteraction = (
 					return { status: 'not-started', reason: 'reorder-mode-inactive' };
 				}
 
-				let resolution: ReorderTargetResolutionResult;
-
-				// DnD Interactionは現在方向だけを選択し、開始位置の方向固有解釈は各Reorder責務へ委譲する。
+				// DnD Interactionは開始時だけ現在方向を選択し、同方向のSessionと移動先判定入口を確定する。
 				if ( reorderKind === 'row' ) {
 					const resolutionRequest = createRowReorderTargetResolutionRequest( request );
-					resolution = dependencies.reorderTargetResolution.resolve( resolutionRequest );
-				} else {
-					const resolutionRequest = createColumnReorderTargetResolutionRequest( request );
-					resolution = dependencies.reorderTargetResolution.resolve( resolutionRequest );
+					const resolution = dependencies.reorderTargetResolution.resolve( resolutionRequest );
+
+					// 並び替え対象として成立しない要素ではDnDを開始せず、その理由を呼び出し側へ返す。
+					if ( resolution.status === 'immovable' ) {
+						return { status: 'not-started', reason: resolution.reason };
+					}
+
+					const startedSession = startReorderSession( resolution.target, resolution.constraints );
+					activeDnd = createActiveDndBinding(
+						startedSession,
+						dependencies.dropTargetResolution.resolveRow
+					);
+					return { status: 'started', session: startedSession };
 				}
+
+				const resolutionRequest = createColumnReorderTargetResolutionRequest( request );
+				const resolution = dependencies.reorderTargetResolution.resolve( resolutionRequest );
 
 				// 並び替え対象として成立しない要素ではDnDを開始せず、その理由を呼び出し側へ返す。
 				if ( resolution.status === 'immovable' ) {
 					return { status: 'not-started', reason: resolution.reason };
 				}
 
-				session = startReorderSession( resolution.target, resolution.constraints );
-				return { status: 'started', session };
+				const startedSession = startReorderSession( resolution.target, resolution.constraints );
+				activeDnd = createActiveDndBinding(
+					startedSession,
+					dependencies.dropTargetResolution.resolveColumn
+				);
+				return { status: 'started', session: startedSession };
 			} catch ( error ) {
 				handleOperationFailure( 'start', error );
 				return { status: 'aborted' };
@@ -180,31 +242,14 @@ export const createDndInteraction = (
 		progress: ( currentPosition ) => {
 			try {
 				// DnD進行は開始済みのReorder Sessionだけに成立し、開始前または終了後の進行は内部不変条件違反とする。
-				if ( session === null ) {
+				if ( activeDnd === null ) {
 					throw new Error(
 						'DnD Interaction invariant violated: progress requires an active Reorder Session.'
 					);
 				}
 
-				let progressed: ProgressedSession;
-
-				// 両方向を束ねたSessionはこのcomposition pointで具体方向へ確定し、方向対応を型で維持する。
-				if ( session.kind === 'row' ) {
-					progressed = progressSession(
-						session,
-						currentPosition,
-						dependencies.dropTargetResolution.resolveRow
-					);
-				} else {
-					progressed = progressSession(
-						session,
-						currentPosition,
-						dependencies.dropTargetResolution.resolveColumn
-					);
-				}
-
-				session = progressed.session;
-				return { status: 'progressed', destination: progressed.destination };
+				const destination = activeDnd.progress( currentPosition );
+				return { status: 'progressed', destination };
 			} catch ( error ) {
 				handleOperationFailure( 'progress', error );
 				return { status: 'aborted' };
@@ -214,14 +259,14 @@ export const createDndInteraction = (
 		complete: () => {
 			try {
 				// DnD完了は開始済みのReorder Sessionだけに成立し、開始前または終了後の完了は内部不変条件違反とする。
-				if ( session === null ) {
+				if ( activeDnd === null ) {
 					throw new Error(
 						'DnD Interaction invariant violated: complete requires an active Reorder Session.'
 					);
 				}
 
-				const committedReorder = completeReorderSession( session );
-				session = null;
+				const committedReorder = completeReorderSession( activeDnd.getSession() );
+				activeDnd = null;
 
 				// 有効な移動先がないDnDはData Updateへ渡す結果を生成せず正常完了する。
 				if ( committedReorder === null ) {
@@ -238,13 +283,14 @@ export const createDndInteraction = (
 		cancel: () => {
 			try {
 				// 利用者によるキャンセルは開始済みのReorder Sessionだけに成立する。
-				if ( session === null ) {
+				if ( activeDnd === null ) {
 					throw new Error(
 						'DnD Interaction invariant violated: cancel requires an active Reorder Session.'
 					);
 				}
 
-				session = cancelReorderSession( session );
+				cancelReorderSession( activeDnd.getSession() );
+				activeDnd = null;
 				return { status: 'cancelled' };
 			} catch ( error ) {
 				handleOperationFailure( 'cancel', error );
@@ -253,40 +299,5 @@ export const createDndInteraction = (
 		},
 
 		abort,
-	};
-};
-
-/** 指定した方向のDnD進行後Sessionと、その時点で有効な同じ方向のDestination。 */
-type ProgressedSession< K extends ReorderKind = ReorderKind > = {
-	[ Kind in K ]: {
-		session: ReorderSession< Kind >;
-		destination: ReorderDestination< Kind > | null;
-	};
-}[ K ];
-
-/**
- * 具体方向へ確定したSessionの方向を維持してDrop Target Resolutionを呼び出し、同じ方向のDestinationを更新する。
- *
- * @param session         現在有効で具体方向へ確定したReorder Session。
- * @param currentPosition Input Interactionから渡された現在位置。
- * @param resolve         同じ方向のRequest / Result対応を保証する移動先判定入口。
- * @return 同じ方向のSessionと現在の有効な移動先。
- */
-const progressSession = < K extends ReorderKind >(
-	session: ReorderSession< K > & { kind: ConcreteReorderKind< K > },
-	currentPosition: DropTargetPosition,
-	resolve: ( request: DropTargetResolutionRequest< K > ) => DropTargetResolutionResult< K >
-): ProgressedSession< K > => {
-	const result = resolve( {
-		kind: session.kind,
-		target: session.target,
-		constraints: session.constraints,
-		currentPosition,
-	} );
-	const destination = result.status === 'valid' ? result.destination : null;
-
-	return {
-		session: updateReorderDestination( session, destination ),
-		destination,
 	};
 };
