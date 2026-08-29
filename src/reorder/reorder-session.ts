@@ -6,10 +6,7 @@
  * Committed Reorderを生成し、キャンセルまたはabort後に状態を次のDnDへ持ち越さない。
  */
 import type { ReorderDestination } from '@/reorder/drop-target-resolution';
-import type {
-	ReorderConstraints,
-	ReorderTarget,
-} from '@/reorder/reorder-target-resolution';
+import type { ReorderConstraints, ReorderTarget } from '@/reorder/reorder-target-resolution';
 
 /**
  * 進行中の1回の並び替え操作を表す状態。
@@ -55,7 +52,7 @@ export type CommittedReorder =
 /**
  * Reorder Target Resolutionで成立した値から新しいReorder Sessionを開始する。
  *
- * @param target 並び替え対象として成立したReorder Target。
+ * @param target      並び替え対象として成立したReorder Target。
  * @param constraints このDnD中だけ利用するReorder Constraints。
  * @return 有効な移動先をまだ持たない新しいReorder Session。
  */
@@ -86,7 +83,7 @@ export const startReorderSession = (
  * `null`は現在位置に有効な移動先が存在しない正常状態を表す。移動先が存在する場合は
  * activeなReorder Sessionと同じ並び替え種別および対象Tableであることを要求する。
  *
- * @param session 更新対象のactiveなReorder Session。
+ * @param session     更新対象のactiveなReorder Session。
  * @param destination Drop Target Resolutionが返した現在の有効な移動先、または`null`。
  * @return 現在の有効な移動先を反映したReorder Session。
  */
@@ -112,7 +109,9 @@ export const updateReorderDestination = (
 		return { ...session, destination };
 	}
 
-	throw new Error( 'Reorder Session invariant violated: reorder kind must match destination kind.' );
+	throw new Error(
+		'Reorder Session invariant violated: reorder kind must match destination kind.'
+	);
 };
 
 /**
@@ -121,9 +120,7 @@ export const updateReorderDestination = (
  * @param session 完了対象のactiveなReorder Session。
  * @return 有効な移動先がある場合はCommitted Reorder、ない場合は`null`。
  */
-export const completeReorderSession = (
-	session: ReorderSession
-): CommittedReorder | null => {
+export const completeReorderSession = ( session: ReorderSession ): CommittedReorder | null => {
 	if ( session.destination === null ) {
 		return null;
 	}
@@ -159,7 +156,7 @@ export const cancelReorderSession = ( session: ReorderSession ): null => {
 /**
  * 有効な移動先がactiveなReorder Sessionと同じ並び替え操作に属することを確認する。
  *
- * @param session 判定対象のactiveなReorder Session。
+ * @param session     判定対象のactiveなReorder Session。
  * @param destination Drop Target Resolutionが返した有効な移動先。
  */
 const assertDestinationMatchesSession = (
@@ -167,10 +164,14 @@ const assertDestinationMatchesSession = (
 	destination: ReorderDestination
 ): void => {
 	if ( session.kind !== destination.kind ) {
-		throw new Error( 'Reorder Session invariant violated: reorder kind must match destination kind.' );
+		throw new Error(
+			'Reorder Session invariant violated: reorder kind must match destination kind.'
+		);
 	}
 
 	if ( session.target.clientId !== destination.clientId ) {
-		throw new Error( 'Reorder Session invariant violated: target and destination must belong to the same Table.' );
+		throw new Error(
+			'Reorder Session invariant violated: target and destination must belong to the same Table.'
+		);
 	}
 };

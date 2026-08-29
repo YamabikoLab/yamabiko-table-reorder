@@ -181,6 +181,8 @@ describe( 'Reorder Session', () => {
 				clientId: 'another-table-client-id',
 				boundaryIndex: 1,
 			} )
-		).toThrow( 'Reorder Session invariant violated: target and destination must belong to the same Table.' );
+		).toThrow(
+			'Reorder Session invariant violated: target and destination must belong to the same Table.'
+		);
 	} );
 } );

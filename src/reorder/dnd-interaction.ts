@@ -35,7 +35,7 @@ export type DndOperation = 'start' | 'progress' | 'complete' | 'cancel';
  * Reorder operation boundaryが内部エラーを1回だけ記録するための契約。
  *
  * @param operation 失敗したDnD操作。
- * @param error operation boundaryまで伝播した元のエラー情報。
+ * @param error     operation boundaryまで伝播した元のエラー情報。
  */
 export type DndErrorLogger = ( operation: DndOperation, error: unknown ) => void;
 
@@ -136,7 +136,7 @@ export const createDndInteraction = (
 	 * operation boundaryまで伝播した内部エラーを記録し、共通abortへ合流する。
 	 *
 	 * @param operation 失敗したDnD操作。
-	 * @param error operation boundaryまで伝播した元のエラー情報。
+	 * @param error     operation boundaryまで伝播した元のエラー情報。
 	 */
 	const handleOperationFailure = ( operation: DndOperation, error: unknown ): void => {
 		dependencies.logError( operation, error );
@@ -149,7 +149,9 @@ export const createDndInteraction = (
 		start: ( request ) => {
 			try {
 				if ( session !== null ) {
-					throw new Error( 'DnD Interaction invariant violated: only one Reorder Session may be active.' );
+					throw new Error(
+						'DnD Interaction invariant violated: only one Reorder Session may be active.'
+					);
 				}
 
 				const reorderKind = dependencies.reorderMode.getReorderKind();
@@ -161,7 +163,9 @@ export const createDndInteraction = (
 
 				// Input Interactionから渡された対象種別と現在のReorder Modeが異なる状態は内部Contract違反として扱う。
 				if ( reorderKind !== request.kind ) {
-					throw new Error( 'DnD Interaction invariant violated: Reorder Mode must match the start request kind.' );
+					throw new Error(
+						'DnD Interaction invariant violated: Reorder Mode must match the start request kind.'
+					);
 				}
 
 				const resolution = dependencies.reorderTargetResolution.resolve( request );
@@ -181,10 +185,16 @@ export const createDndInteraction = (
 		progress: ( currentPosition ) => {
 			try {
 				if ( session === null ) {
-					throw new Error( 'DnD Interaction invariant violated: progress requires an active Reorder Session.' );
+					throw new Error(
+						'DnD Interaction invariant violated: progress requires an active Reorder Session.'
+					);
 				}
 
-				const resolution = resolveDestination( dependencies.dropTargetResolution, session, currentPosition );
+				const resolution = resolveDestination(
+					dependencies.dropTargetResolution,
+					session,
+					currentPosition
+				);
 				const destination = resolution.status === 'valid' ? resolution.destination : null;
 				session = updateReorderDestination( session, destination );
 
@@ -198,7 +208,9 @@ export const createDndInteraction = (
 		complete: () => {
 			try {
 				if ( session === null ) {
-					throw new Error( 'DnD Interaction invariant violated: complete requires an active Reorder Session.' );
+					throw new Error(
+						'DnD Interaction invariant violated: complete requires an active Reorder Session.'
+					);
 				}
 
 				const committedReorder = completeReorderSession( session );
@@ -218,7 +230,9 @@ export const createDndInteraction = (
 		cancel: () => {
 			try {
 				if ( session === null ) {
-					throw new Error( 'DnD Interaction invariant violated: cancel requires an active Reorder Session.' );
+					throw new Error(
+						'DnD Interaction invariant violated: cancel requires an active Reorder Session.'
+					);
 				}
 
 				session = cancelReorderSession( session );
@@ -236,8 +250,8 @@ export const createDndInteraction = (
 /**
  * activeなReorder SessionからDrop Target Resolutionに必要な値だけを渡して移動先を判定する。
  *
- * @param resolution DnD開始後の移動先を判定するDrop Target Resolution。
- * @param session 現在activeなReorder Session。
+ * @param resolution      DnD開始後の移動先を判定するDrop Target Resolution。
+ * @param session         現在activeなReorder Session。
  * @param currentPosition Input Interactionから渡された現在位置。
  * @return 現在位置に対するDrop Target Resolutionの判定結果。
  */
