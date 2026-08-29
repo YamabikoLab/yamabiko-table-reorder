@@ -37,50 +37,66 @@ export type DropTargetResolutionResult< K extends ReorderKind = ReorderKind > = 
 		| { status: 'none' };
 }[ K ];
 
-/** Requestと同じ並び替え種別のResultを返す判定関数。 */
-type DropTargetResolver = < K extends ReorderKind >(
-	request: DropTargetResolutionRequest< K >
-) => DropTargetResolutionResult< K >;
-
-/** Requestと同じ並び替え種別のResultを返す移動先判定契約。 */
+/** DnD Interactionが具体方向ごとのRequest / Result対応を維持して利用する移動先判定契約。 */
 export type DropTargetResolution = {
-	resolve: DropTargetResolver;
+	resolveRow: ( request: RowDropTargetResolutionRequest ) => RowDropTargetResolutionResult;
+	resolveColumn: (
+		request: ColumnDropTargetResolutionRequest
+	) => ColumnDropTargetResolutionResult;
+};
+
+/**
+ * 共通規則から有効な挿入境界を判定する。
+ *
+ * @param constraints     DnD開始時に確定した構造保持制約。
+ * @param currentPosition Input Interactionから渡された現在位置。
+ * @return 有効な挿入境界、または有効な移動先がないことを表す`null`。
+ */
+const resolveBoundaryIndex = (
+	constraints: ReorderConstraints,
+	currentPosition: DropTargetPosition
+): number | null => {
+	const boundaryIndex = currentPosition?.boundaryIndex;
+
+	// 対象範囲内の挿入境界へ対応しない現在位置や無効な論理境界では移動先を成立させない。
+	if ( boundaryIndex === undefined || ! Number.isInteger( boundaryIndex ) || boundaryIndex < 0 ) {
+		return null;
+	}
+
+	// 対象方向の結合範囲を分断する禁止境界ではTable構造を保持できないため移動先を成立させない。
+	if ( constraints.blockedBoundaries.includes( boundaryIndex ) ) {
+		return null;
+	}
+
+	return boundaryIndex;
 };
 
 /**
  * 渡された判定入力だけを利用するDrop Target Resolutionを生成する。
  *
- * @return 行・列のRequest / Result対応を維持するDrop Target Resolution。
+ * @return 行・列それぞれのRequest / Result対応を型で固定したDrop Target Resolution。
  */
-export const createDropTargetResolution = (): DropTargetResolution => {
-	function resolve( request: RowDropTargetResolutionRequest ): RowDropTargetResolutionResult;
-	function resolve( request: ColumnDropTargetResolutionRequest ): ColumnDropTargetResolutionResult;
-	function resolve( request: DropTargetResolutionRequest ): DropTargetResolutionResult {
-		const boundaryIndex = request.currentPosition?.boundaryIndex;
-
-		// 対象範囲内の挿入境界へ対応しない現在位置や無効な論理境界では移動先を成立させない。
-		if ( boundaryIndex === undefined || ! Number.isInteger( boundaryIndex ) || boundaryIndex < 0 ) {
+export const createDropTargetResolution = (): DropTargetResolution => ( {
+	resolveRow: ( request ) => {
+		const boundaryIndex = resolveBoundaryIndex( request.constraints, request.currentPosition );
+		if ( boundaryIndex === null ) {
 			return { status: 'none' };
 		}
 
-		// 対象方向の結合範囲を分断する禁止境界ではTable構造を保持できないため移動先を成立させない。
-		if ( request.constraints.blockedBoundaries.includes( boundaryIndex ) ) {
+		return {
+			status: 'valid',
+			destination: createRowReorderDestination( request, boundaryIndex ),
+		};
+	},
+	resolveColumn: ( request ) => {
+		const boundaryIndex = resolveBoundaryIndex( request.constraints, request.currentPosition );
+		if ( boundaryIndex === null ) {
 			return { status: 'none' };
-		}
-
-		// 両方向を扱う入口では方向だけを選択し、Destinationの意味と生成は各Reorder責務へ委譲する。
-		if ( request.kind === 'row' ) {
-			return {
-				status: 'valid',
-				destination: createRowReorderDestination( request, boundaryIndex ),
-			};
 		}
 
 		return {
 			status: 'valid',
 			destination: createColumnReorderDestination( request, boundaryIndex ),
 		};
-	}
-
-	return { resolve };
-};
+	},
+} );
