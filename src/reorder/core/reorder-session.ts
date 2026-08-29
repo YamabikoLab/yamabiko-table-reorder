@@ -41,16 +41,18 @@ export type CommittedReorder< K extends ReorderKind = ReorderKind > = {
 }[ K ];
 
 /**
- * Reorder Target Resolutionで成立した値から新しいReorder Sessionを開始する。
+ * Reorder Target Resolutionで成立した具体方向の値から新しいReorder Sessionを開始する。
  *
- * @param target      並び替え対象として成立した方向固有Reorder Target。
+ * 両方向を束ねたTargetは開始境界へ直接渡さず、呼び出し側の方向選択境界で具体方向へ確定させる。
+ *
+ * @param target      並び替え対象として成立した具体方向のReorder Target。
  * @param constraints このDnD中だけ利用するReorder Constraints。
- * @return 有効な移動先をまだ持たない同じ方向のReorder Session。
+ * @return 有効な移動先をまだ持たず、入力と同じ具体方向を維持したReorder Session。
  */
 export const startReorderSession = < K extends ReorderKind >(
-	target: ReorderTarget< K > & { kind: K },
+	target: ReorderTarget< K > & { kind: ConcreteReorderKind< K > },
 	constraints: ReorderConstraints
-): ReorderSession< K > => ( {
+): ReorderSession< K > & { kind: ConcreteReorderKind< K > } => ( {
 	kind: target.kind,
 	target,
 	constraints,
