@@ -4,10 +4,7 @@
  * DnDの開始可否、進行、完了、キャンセル、安全終了を統括し、1回のDnDで有効なReorder Sessionを
  * 1つだけ所有する。DnD Interactionは現在方向に対応する入口までを選択し、方向固有の解釈・規則・処理は各方向側へ委譲する。
  */
-import {
-	resolveColumnDndStart,
-	type ColumnDndStartResolution,
-} from '@/reorder/column-reorder/dnd-start-resolution';
+import { resolveColumnDndStart } from '@/reorder/column-reorder/dnd-start-resolution';
 import type { DndStartRequest } from '@/reorder/core/dnd-start-request';
 import type {
 	DropTargetPosition,
@@ -38,7 +35,7 @@ import type {
 	ReorderTarget,
 } from '@/reorder/core/reorder-types';
 import type { ReorderMode } from '@/reorder/foundation/reorder-mode';
-import { resolveRowDndStart, type RowDndStartResolution } from '@/reorder/row-reorder/dnd-start-resolution';
+import { resolveRowDndStart } from '@/reorder/row-reorder/dnd-start-resolution';
 
 /** Reorder operation boundaryで識別するDnD操作。 */
 export type DndOperation = 'start' | 'progress' | 'complete' | 'cancel';
@@ -255,16 +252,10 @@ export const createDndInteraction = (
 
 				// DnD Interactionは現在方向に対応する入口だけを選択し、方向固有の開始解釈と処理は各方向側へ委譲する。
 				if ( reorderKind === 'row' ) {
-					return startForDirection< 'row' >(
-						request,
-						resolveRowDndStart as DndStartResolver< 'row' >
-					);
+					return startForDirection( request, resolveRowDndStart );
 				}
 
-				return startForDirection< 'column' >(
-					request,
-					resolveColumnDndStart as DndStartResolver< 'column' >
-				);
+				return startForDirection( request, resolveColumnDndStart );
 			} catch ( error ) {
 				handleOperationFailure( 'start', error );
 				return { status: 'aborted' };
