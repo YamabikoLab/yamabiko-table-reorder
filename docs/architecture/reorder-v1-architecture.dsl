@@ -4,16 +4,16 @@ workspace "YTR Reorder v1 Architecture" {
 
 	model {
 		EXT_WORDPRESS_EDITOR = element "WordPress Editor" "External System" "QR-02で保証対象とする編集環境を提供する。" {
-			tags "External Context"
+			tags "External Context,External System"
 		}
 		EXT_SUPPORTED_TABLE_BLOCK = element "Supported Table Block" "External Block" "FR-13で定義される対応Table Block。Table Integrationを介してReorder coreと接続する。" {
-			tags "External Context"
+			tags "External Context,External Block"
 		}
 		EXT_WORDPRESS_UNDO = element "WordPress Undo" "External Capability" "成立した1回の並び替えを1回のUndoで戻せる更新単位を提供する。" {
-			tags "External Context"
+			tags "External Context,External Capability"
 		}
 		EXT_SCROLL_AREA = element "Editor Scroll Area" "External Environment" "DnD中にTableまたは編集画面を必要な方向へ自動スクロールする対象領域を提供する。" {
-			tags "External Context"
+			tags "External Context,External Environment"
 		}
 
 		RESP_REORDER_MODE = element "Reorder Mode" "Responsibility" "通常のTable編集、行並び替え、列並び替えのどの状態にあるかを管理し、現在のモードに応じたDnD開始可否を提供する。" {
@@ -517,6 +517,31 @@ workspace "YTR Reorder v1 Architecture" {
 		}
 
 		styles {
+			element "External Context" {
+				background #f8fafc
+				color #344054
+				stroke #667085
+			}
+			element "External System" {
+				shape RoundedBox
+				border solid
+			}
+			element "External Block" {
+				shape Component
+				background #eef4ff
+				stroke #6172f3
+			}
+			element "External Capability" {
+				shape Hexagon
+				background #f4f3ff
+				stroke #7f56d9
+			}
+			element "External Environment" {
+				shape Box
+				background #f2f4f7
+				stroke #98a2b3
+				border dashed
+			}
 			relationship "ProcessFlowEdge_normal" {
 				style solid
 			}
