@@ -9,6 +9,8 @@ import type { DndStartRequest } from '@/reorder/core/dnd-start-request';
 import type {
 	DropTargetPosition,
 	DropTargetResolution,
+	DropTargetResolutionRequest,
+	DropTargetResolutionResult,
 } from '@/reorder/core/drop-target-resolution';
 import type {
 	ReorderTargetResolution,
@@ -26,7 +28,11 @@ import type {
 	ReorderSession,
 	ReorderSessionState,
 } from '@/reorder/core/reorder-session';
-import type { ReorderDestination, ReorderKind } from '@/reorder/core/reorder-types';
+import type {
+	ConcreteReorderKind,
+	ReorderDestination,
+	ReorderKind,
+} from '@/reorder/core/reorder-types';
 import type { ReorderMode } from '@/reorder/foundation/reorder-mode';
 import { createRowReorderTargetResolutionRequest } from '@/reorder/row-reorder/dnd-start-resolution';
 
@@ -180,11 +186,23 @@ export const createDndInteraction = (
 					);
 				}
 
-				const progressed = progressSession(
-					dependencies.dropTargetResolution,
-					session,
-					currentPosition
-				);
+				let progressed: ProgressedSession;
+
+				// 両方向を束ねたSessionはこのcomposition pointで具体方向へ確定し、方向対応を型で維持する。
+				if ( session.kind === 'row' ) {
+					progressed = progressSession(
+						session,
+						currentPosition,
+						dependencies.dropTargetResolution.resolveRow
+					);
+				} else {
+					progressed = progressSession(
+						session,
+						currentPosition,
+						dependencies.dropTargetResolution.resolveColumn
+					);
+				}
+
 				session = progressed.session;
 				return { status: 'progressed', destination: progressed.destination };
 			} catch ( error ) {
@@ -240,24 +258,28 @@ export const createDndInteraction = (
 
 /** 指定した方向のDnD進行後Sessionと、その時点で有効な同じ方向のDestination。 */
 type ProgressedSession< K extends ReorderKind = ReorderKind > = {
-	session: ReorderSession< K >;
-	destination: ReorderDestination< K > | null;
-};
+	[ Kind in K ]: {
+		session: ReorderSession< Kind >;
+		destination: ReorderDestination< Kind > | null;
+	};
+}[ K ];
 
 /**
- * 現在のSession方向を維持したままDrop Target Resolutionを呼び出し、同じ方向のDestinationを更新する。
+ * 具体方向へ確定したSessionの方向を維持してDrop Target Resolutionを呼び出し、同じ方向のDestinationを更新する。
  *
- * @param resolution      DnD開始後の移動先を判定するDrop Target Resolution。
- * @param session         現在有効なReorder Session。
+ * @param session         現在有効で具体方向へ確定したReorder Session。
  * @param currentPosition Input Interactionから渡された現在位置。
+ * @param resolve         同じ方向のRequest / Result対応を保証する移動先判定入口。
  * @return 同じ方向のSessionと現在の有効な移動先。
  */
 const progressSession = < K extends ReorderKind >(
-	resolution: DropTargetResolution,
-	session: ReorderSession< K >,
-	currentPosition: DropTargetPosition
+	session: ReorderSession< K > & { kind: ConcreteReorderKind< K > },
+	currentPosition: DropTargetPosition,
+	resolve: (
+		request: DropTargetResolutionRequest< K >
+	) => DropTargetResolutionResult< K >
 ): ProgressedSession< K > => {
-	const result = resolution.resolve( {
+	const result = resolve( {
 		kind: session.kind,
 		target: session.target,
 		constraints: session.constraints,
