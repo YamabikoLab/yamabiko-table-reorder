@@ -59,6 +59,8 @@ const createDependencies = ( options: DependencyOptions = {} ) => {
 	const reorderKind = options.reorderKind === undefined ? 'row' : options.reorderKind;
 	const targetRequestMock = jest.fn();
 	const dropRequestMock = jest.fn();
+	const rowDropRequestMock = jest.fn();
+	const columnDropRequestMock = jest.fn();
 
 	function resolveTarget(
 		request: RowReorderTargetResolutionRequest
@@ -124,17 +126,37 @@ const createDependencies = ( options: DependencyOptions = {} ) => {
 		};
 	}
 
+	const resolveRowDrop = (
+		request: RowDropTargetResolutionRequest
+	): RowDropTargetResolutionResult => {
+		rowDropRequestMock( request );
+		return resolveDrop( request );
+	};
+
+	const resolveColumnDrop = (
+		request: ColumnDropTargetResolutionRequest
+	): ColumnDropTargetResolutionResult => {
+		columnDropRequestMock( request );
+		return resolveDrop( request );
+	};
+
 	const dependencies: DndInteractionDependencies = {
 		reorderMode: { getReorderKind: jest.fn( () => reorderKind ) },
 		reorderTargetResolution: { resolve: resolveTarget },
 		dropTargetResolution: {
-			resolveRow: resolveDrop,
-			resolveColumn: resolveDrop,
+			resolveRow: resolveRowDrop,
+			resolveColumn: resolveColumnDrop,
 		},
 		logError: jest.fn(),
 	};
 
-	return { dependencies, targetRequestMock, dropRequestMock };
+	return {
+		dependencies,
+		targetRequestMock,
+		dropRequestMock,
+		rowDropRequestMock,
+		columnDropRequestMock,
+	};
 };
 
 describe( 'DnD Interaction', () => {
@@ -220,6 +242,85 @@ describe( 'DnD Interaction', () => {
 	} );
 
 	/**
+	 * 行DnDで複数回進行しても開始時に確定した行Resolverと最新Sessionの対応を維持することを確認する。
+	 *
+	 * 事前条件:
+	 * - 行並び替えモードでReorder Sessionが開始される。
+	 * - 行の移動先判定は有効なDestinationを返す。
+	 *
+	 * 操作:
+	 * - `progress()`を2回実行し、それぞれの後で現在Sessionを取得する。
+	 *
+	 * 期待結果:
+	 * - 行Resolverだけが2回利用され、列Resolverは利用されない。
+	 * - 各進行後に更新された最新Sessionが次の進行と`getSession()`の正本になる。
+	 */
+	it( 'when row DnD progresses repeatedly, should keep the row resolver paired with the latest Session', () => {
+		const {
+			dependencies,
+			rowDropRequestMock,
+			columnDropRequestMock,
+		} = createDependencies( { dropBoundaryIndex: 2 } );
+		const interaction = createDndInteraction( dependencies );
+		interaction.start( startRequest );
+		const startedSession = interaction.getSession();
+		interaction.progress( { boundaryIndex: 1 } );
+		const firstProgressedSession = interaction.getSession();
+		interaction.progress( { boundaryIndex: 2 } );
+		const secondProgressedSession = interaction.getSession();
+
+		expect( rowDropRequestMock ).toHaveBeenCalledTimes( 2 );
+		expect( columnDropRequestMock ).not.toHaveBeenCalled();
+		expect( firstProgressedSession ).not.toBe( startedSession );
+		expect( secondProgressedSession ).not.toBe( firstProgressedSession );
+		expect( secondProgressedSession ).toMatchObject( {
+			kind: 'row',
+			destination: { kind: 'row', clientId: 'table-client-id', boundaryIndex: 2 },
+		} );
+	} );
+
+	/**
+	 * 列DnDで複数回進行しても開始時に確定した列Resolverと最新Sessionの対応を維持することを確認する。
+	 *
+	 * 事前条件:
+	 * - 列並び替えモードでReorder Sessionが開始される。
+	 * - 列の移動先判定は有効なDestinationを返す。
+	 *
+	 * 操作:
+	 * - `progress()`を2回実行し、それぞれの後で現在Sessionを取得する。
+	 *
+	 * 期待結果:
+	 * - 列Resolverだけが2回利用され、行Resolverは利用されない。
+	 * - 各進行後に更新された最新Sessionが次の進行と`getSession()`の正本になる。
+	 */
+	it( 'when column DnD progresses repeatedly, should keep the column resolver paired with the latest Session', () => {
+		const {
+			dependencies,
+			rowDropRequestMock,
+			columnDropRequestMock,
+		} = createDependencies( {
+			reorderKind: 'column',
+			dropBoundaryIndex: 2,
+		} );
+		const interaction = createDndInteraction( dependencies );
+		interaction.start( startRequest );
+		const startedSession = interaction.getSession();
+		interaction.progress( { boundaryIndex: 1 } );
+		const firstProgressedSession = interaction.getSession();
+		interaction.progress( { boundaryIndex: 2 } );
+		const secondProgressedSession = interaction.getSession();
+
+		expect( columnDropRequestMock ).toHaveBeenCalledTimes( 2 );
+		expect( rowDropRequestMock ).not.toHaveBeenCalled();
+		expect( firstProgressedSession ).not.toBe( startedSession );
+		expect( secondProgressedSession ).not.toBe( firstProgressedSession );
+		expect( secondProgressedSession ).toMatchObject( {
+			kind: 'column',
+			destination: { kind: 'column', clientId: 'table-client-id', boundaryIndex: 2 },
+		} );
+	} );
+
+	/**
 	 * 有効な行DestinationでDnDを完了した場合に同じ方向のCommitted Reorderを生成することを確認する。
 	 *
 	 * 事前条件:
@@ -275,24 +376,25 @@ describe( 'DnD Interaction', () => {
 	} );
 
 	/**
-	 * 外部環境変化による共通abortを内部エラーとして記録しないことを確認する。
+	 * 外部環境変化による共通abortを内部エラーとして記録せず、DnD一時状態ごと終了することを確認する。
 	 *
 	 * 事前条件:
 	 * - Reorder Sessionが有効である。
 	 *
 	 * 操作:
-	 * - 外部の継続不能を表す`abort()`を実行する。
+	 * - 外部の継続不能を表す`abort()`を実行し、その後に同じTableからDnDを再開始する。
 	 *
 	 * 期待結果:
-	 * - Reorder Sessionが破棄される。
+	 * - Reorder SessionとDnD一時状態が破棄され、待機状態から新しいSessionを開始できる。
 	 * - 内部エラーログは追加されない。
 	 */
-	it( 'when an external environment change aborts DnD, should clear the Session without logging', () => {
+	it( 'when an external environment change aborts DnD, should clear temporary DnD state without logging', () => {
 		const { dependencies } = createDependencies();
 		const interaction = createDndInteraction( dependencies );
 		interaction.start( startRequest );
 		interaction.abort();
 		expect( interaction.getSession() ).toBeNull();
+		expect( interaction.start( startRequest ) ).toMatchObject( { status: 'started' } );
 		expect( dependencies.logError ).not.toHaveBeenCalled();
 	} );
 } );
