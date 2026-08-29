@@ -2,7 +2,7 @@
  * 入力方式と行・列に共通するDnD InteractionとReorder operation boundaryを提供する。
  *
  * DnDの開始可否、進行、完了、キャンセル、安全終了を統括し、1回のDnDで有効なReorder Sessionを
- * 1つだけ所有する。行・列の選択はrouting境界に限定し、方向固有Request / Resultの対応は型で維持する。
+ * 1つだけ所有する。行・列の選択は方向選択境界に限定し、方向固有Request / Resultの対応は型で維持する。
  */
 import { createColumnReorderTargetResolutionRequest } from '@/reorder/column-reorder/dnd-start-resolution';
 import type { ColumnReorderDestination } from '@/reorder/column-reorder/drop-target-resolution';
@@ -35,7 +35,12 @@ import type { RowReorderDestination } from '@/reorder/row-reorder/drop-target-re
 /** Reorder operation boundaryで識別するDnD操作。 */
 export type DndOperation = 'start' | 'progress' | 'complete' | 'cancel';
 
-/** Reorder operation boundaryが内部エラーを1回だけ記録するための契約。 */
+/**
+ * Reorder operation boundaryが内部エラーを1回だけ記録するための契約。
+ *
+ * @param operation 失敗したDnD操作。
+ * @param error     operation boundaryまで伝播した元のエラー情報。
+ */
 export type DndErrorLogger = ( operation: DndOperation, error: unknown ) => void;
 
 /** DnD開始試行の結果。 */
@@ -49,7 +54,10 @@ export type DndStartResult =
 
 /** DnD進行処理の結果。 */
 export type DndProgressResult =
-	| { status: 'progressed'; destination: RowReorderDestination | ColumnReorderDestination | null }
+	| {
+			status: 'progressed';
+			destination: RowReorderDestination | ColumnReorderDestination | null;
+	  }
 	| { status: 'aborted' };
 
 /** DnD完了処理の結果。 */
@@ -71,11 +79,27 @@ export type DndInteractionDependencies = {
 
 /** 入力方式と行・列に共通するDnDの開始から終了までを統括する契約。 */
 export type DndInteraction = {
+	/** @return 現在有効なReorder Session。待機状態では`null`。 */
 	getSession: () => ReorderSessionState;
+	/**
+	 * 方向非依存の開始対象から現在のReorder Modeに対応するDnD開始を試行する。
+	 *
+	 * @param request Input Interactionから渡されたTable上の開始対象。
+	 * @return DnD開始結果。
+	 */
 	start: ( request: DndStartRequest ) => DndStartResult;
+	/**
+	 * 有効なDnDの現在位置に対応する移動先を更新する。
+	 *
+	 * @param currentPosition Input Interactionから渡された現在のドロップ候補位置。
+	 * @return DnD進行結果。
+	 */
 	progress: ( currentPosition: DropTargetPosition ) => DndProgressResult;
+	/** @return 確定済み並び替えを含むDnD完了結果。 */
 	complete: () => DndCompleteResult;
+	/** @return 利用者操作によるDnDキャンセル結果。 */
 	cancel: () => DndCancelResult;
+	/** 外部環境変化などから現在のDnDを内部エラー記録なしで安全終了する。 */
 	abort: () => void;
 };
 
@@ -222,6 +246,7 @@ export const createDndInteraction = (
 	};
 };
 
+/** DnD進行後のSessionと、その時点で有効な方向固有Destination。 */
 type ProgressedSession =
 	| { session: RowReorderSession; destination: RowReorderDestination | null }
 	| { session: ColumnReorderSession; destination: ColumnReorderDestination | null };
