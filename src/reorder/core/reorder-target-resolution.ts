@@ -17,36 +17,58 @@ import {
 } from '@/reorder/row-reorder/reorder-target-resolution';
 import type { ReorderTargetResolutionFailureReason } from './reorder-target-resolution-rules';
 
-export type ReorderTargetResolutionRequest = RowReorderTargetResolutionRequest | ColumnReorderTargetResolutionRequest;
-export type ReorderTargetResolutionResult = RowReorderTargetResolutionResult | ColumnReorderTargetResolutionResult;
+/** 両方向を扱う境界で利用するReorder Target Resolution要求。 */
+export type ReorderTargetResolutionRequest =
+	| RowReorderTargetResolutionRequest
+	| ColumnReorderTargetResolutionRequest;
+
+/** 両方向を扱う境界で利用するReorder Target Resolution結果。 */
+export type ReorderTargetResolutionResult =
+	| RowReorderTargetResolutionResult
+	| ColumnReorderTargetResolutionResult;
+
 export type { ReorderTargetResolutionFailureReason } from './reorder-target-resolution-rules';
 
+/** 行Requestには行Result、列Requestには列Resultを返す対象解決関数。 */
 type ReorderTargetResolver = {
 	( request: RowReorderTargetResolutionRequest ): RowReorderTargetResolutionResult;
 	( request: ColumnReorderTargetResolutionRequest ): ColumnReorderTargetResolutionResult;
 };
-export type ReorderTargetResolution = { resolve: ReorderTargetResolver };
+
+/** 行Requestには行Result、列Requestには列Resultを返す対象解決契約。 */
+export type ReorderTargetResolution = {
+	resolve: ReorderTargetResolver;
+};
 
 /**
  * 要求時点の共通Table構造を取得し、方向固有の対象解決へ委譲する。
+ *
  * @param tableIntegration 共通Table構造を提供するTable Integration。
  * @return 行・列のRequest / Result対応を維持するReorder Target Resolution。
  */
-export const createReorderTargetResolution = ( tableIntegration: TableIntegration ): ReorderTargetResolution => {
+export const createReorderTargetResolution = (
+	tableIntegration: TableIntegration
+): ReorderTargetResolution => {
 	function resolve( request: RowReorderTargetResolutionRequest ): RowReorderTargetResolutionResult;
-	function resolve( request: ColumnReorderTargetResolutionRequest ): ColumnReorderTargetResolutionResult;
+	function resolve(
+		request: ColumnReorderTargetResolutionRequest
+	): ColumnReorderTargetResolutionResult;
 	function resolve( request: ReorderTargetResolutionRequest ): ReorderTargetResolutionResult {
 		const structure = tableIntegration.getStructure( request.clientId );
+
 		// Table構造を確定できない開始試行では、推測で並び替えを開始しない。
 		if ( structure === null ) {
 			const reason: ReorderTargetResolutionFailureReason = 'table-structure-unavailable';
 			return { status: 'immovable', reason };
 		}
+
 		// 両方向を扱う入口では現在方向を選択し、方向固有データの解釈は各Reorder責務へ委譲する。
 		if ( request.kind === 'row' ) {
 			return resolveRowReorderTarget( request, structure );
 		}
+
 		return resolveColumnReorderTarget( request, structure );
 	}
+
 	return { resolve };
 };
