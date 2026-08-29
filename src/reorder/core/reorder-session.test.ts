@@ -4,11 +4,29 @@
  * 行・列それぞれで並び替え対象と並び替え制約を保持し、有効な移動先だけを確定済み並び替えへ変換し、
  * 別Tableの移動先を内部不変条件違反として拒否することを検証する。行・列の種別整合は型契約で保証する。
  */
+import type { ColumnReorderDestination } from '@/reorder/column-reorder/drop-target-resolution';
 import {
 	completeReorderSession,
 	startReorderSession,
 	updateReorderDestination,
 } from './reorder-session';
+import type { ReorderSession } from './reorder-session';
+
+/**
+ * 両方向を束ねたReorder Sessionを具体方向へ確定せずに更新できない型契約を固定する。
+ *
+ * @param session           行または列のReorder Session。
+ * @param columnDestination 列のReorder Destination。
+ */
+const verifyConcreteDirectionRequired = (
+	session: ReorderSession,
+	columnDestination: ColumnReorderDestination
+): void => {
+	// @ts-expect-error 両方向を束ねたSessionは方向選択境界で具体方向へ確定してから更新する。
+	updateReorderDestination( session, columnDestination );
+};
+
+void verifyConcreteDirectionRequired;
 
 describe( 'Reorder Session', () => {
 	/**
