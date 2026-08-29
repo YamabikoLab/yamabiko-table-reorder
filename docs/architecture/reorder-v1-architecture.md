@@ -91,34 +91,36 @@ First-use Guidanceは初回案内、Reorder Rediscoveryは初回案内後の再�
 
 ### Process Flow Views
 
-#### Reorder End-to-End {#PV_REORDER_END_TO_END}
+Process Flow Edgeの`Kind`は、`normal`が通常の処理進行、`failure`が処理不能または不整合をReorder operation boundaryへ合流させる異常系の進行、`recovery`がabortによってDnDに属する一時状態を終了する復旧進行を表す。
+
+#### Reorder End-to-End {#PV_REORDER_END_TO_END kind=normal}
 
 WordPress Editorから並び替え入力を受け取り、共通Reorder処理で移動対象と移動先を解決し、確定した並び替えを対応Table Blockへ反映するまでの主要な処理進行を示す。
 
-| From | To | Meaning |
-| --- | --- | --- |
-| EXT_WORDPRESS_EDITOR | RESP_INPUT_INTERACTION | WordPress Editorの入力がYTRの共通Reorder処理へ入る。 |
-| RESP_INPUT_INTERACTION | RESP_DND_INTERACTION | 入力方式固有の解釈から、共通のDnD処理へ進む。 |
-| RESP_DND_INTERACTION | RESP_REORDER_TARGET_RESOLUTION | DnD開始試行から、移動対象と制約情報の解決へ進む。 |
-| RESP_REORDER_TARGET_RESOLUTION | RESP_DROP_TARGET_RESOLUTION | 解決された移動対象と制約情報を前提に、開始後の移動先判定へ進む。 |
-| RESP_DROP_TARGET_RESOLUTION | RESP_DATA_UPDATE | 有効な移動先でDnDが完了した場合、確定した並び替えの反映へ進む。 |
-| RESP_DATA_UPDATE | RESP_TABLE_INTEGRATION | 確定した並び替えを対応Table Block固有の更新境界へ渡す。 |
-| RESP_TABLE_INTEGRATION | EXT_SUPPORTED_TABLE_BLOCK | `FR-13`で定義される対応Table Blockへ、そのBlock固有の方法でTableデータを反映する。 |
+| From | To | Kind | Meaning |
+| --- | --- | --- | --- |
+| EXT_WORDPRESS_EDITOR | RESP_INPUT_INTERACTION | normal | WordPress Editorの入力がYTRの共通Reorder処理へ入る。 |
+| RESP_INPUT_INTERACTION | RESP_DND_INTERACTION | normal | 入力方式固有の解釈から、共通のDnD処理へ進む。 |
+| RESP_DND_INTERACTION | RESP_REORDER_TARGET_RESOLUTION | normal | DnD開始試行から、移動対象と制約情報の解決へ進む。 |
+| RESP_REORDER_TARGET_RESOLUTION | RESP_DROP_TARGET_RESOLUTION | normal | 解決された移動対象と制約情報を前提に、開始後の移動先判定へ進む。 |
+| RESP_DROP_TARGET_RESOLUTION | RESP_DATA_UPDATE | normal | 有効な移動先でDnDが完了した場合、確定した並び替えの反映へ進む。 |
+| RESP_DATA_UPDATE | RESP_TABLE_INTEGRATION | normal | 確定した並び替えを対応Table Block固有の更新境界へ渡す。 |
+| RESP_TABLE_INTEGRATION | EXT_SUPPORTED_TABLE_BLOCK | normal | `FR-13`で定義される対応Table Blockへ、そのBlock固有の方法でTableデータを反映する。 |
 
 このViewは主要な処理の進行方向だけを示し、補助的な責務、Runtime Interactionの往復、異常時の復旧経路は表さない。
 
-#### Reorder Failure and Recovery {#PV_REORDER_FAILURE_RECOVERY}
+#### Reorder Failure and Recovery {#PV_REORDER_FAILURE_RECOVERY kind=failure-recovery}
 
 activeなReorder Session中に外部環境の変化またはReorder内部のContract / Invariant不整合によって処理を継続できなくなった場合に、個別責務で独自に復旧せず、Reorder operation boundaryへ集約して共通abortからDnD idleへ戻る主要な復旧進行を示す。正常な不在やDnD開始前の開始不可はこのViewに含めない。
 
-| From | To | Meaning |
-| --- | --- | --- |
-| RESP_INPUT_INTERACTION | RESP_DND_INTERACTION | 外部環境の変化などによりactiveなReorder操作を継続できない状態をReorder operation boundaryへ合流させる。 |
-| RESP_DROP_TARGET_RESOLUTION | RESP_DND_INTERACTION | DnD進行中に検出されたReorder内部のContract / Invariant不整合をReorder operation boundaryへ合流させる。 |
-| RESP_DATA_UPDATE | RESP_DND_INTERACTION | Table更新を継続または確認できない結果をReorder operation boundaryへ返し、共通abortへ合流させる。 |
-| RESP_DND_INTERACTION | RESP_REORDER_PRESENTATION | 共通abortとしてDnD表示の一時状態を終了する。 |
-| RESP_DND_INTERACTION | RESP_AUTO_SCROLL | 共通abortとして自動スクロールの一時状態を終了する。 |
-| RESP_DND_INTERACTION | RESP_INPUT_INTERACTION | 共通abortとして入力解釈の一時状態を終了する。 |
+| From | To | Kind | Meaning |
+| --- | --- | --- | --- |
+| RESP_INPUT_INTERACTION | RESP_DND_INTERACTION | failure | 外部環境の変化などによりactiveなReorder操作を継続できない状態をReorder operation boundaryへ合流させる。 |
+| RESP_DROP_TARGET_RESOLUTION | RESP_DND_INTERACTION | failure | DnD進行中に検出されたReorder内部のContract / Invariant不整合をReorder operation boundaryへ合流させる。 |
+| RESP_DATA_UPDATE | RESP_DND_INTERACTION | failure | Table更新を継続または確認できない結果をReorder operation boundaryへ返し、共通abortへ合流させる。 |
+| RESP_DND_INTERACTION | RESP_REORDER_PRESENTATION | recovery | 共通abortとしてDnD表示の一時状態を終了する。 |
+| RESP_DND_INTERACTION | RESP_AUTO_SCROLL | recovery | 共通abortとして自動スクロールの一時状態を終了する。 |
+| RESP_DND_INTERACTION | RESP_INPUT_INTERACTION | recovery | 共通abortとして入力解釈の一時状態を終了する。 |
 
 このViewは復旧の主要な収束先を示すものであり、具体的なError検出、throw / catch、log、cleanupの実装順序は規定しない。abortによってReorder Mode自体は変更しない。
 
@@ -860,7 +862,7 @@ abort自身は新たなData Updateを開始しない。Data Updateがすでに�
 - 無効な移動先では確定可能な挿入線を表示せず、並び替えを確定しない。
 - Reorder Presentationの表示更新はTableデータの更新責務を持たない。
 - 移動先変更に伴う表示上の移動は、実際に表示位置が変わる行・列に限定し、無関係な行・列を一斉に移動させない。
-- 行のDnD中に自動スクロールする方向は縦方向だけとし、列のDnD中は横方向だけとする。
+- 行のDnD中に自動スクロールする方向は縦方向だけとし、列DnD中は横方向だけとする。
 - 完了、cancel、abort後はReorder SessionとそのDnDに属する一時状態を次のDnDへ持ち越さない。
 - abortによってReorder Mode自体を変更しない。
 - Data UpdateとTable Integrationは1回の確定した並び替えを1つの更新単位として扱う。
