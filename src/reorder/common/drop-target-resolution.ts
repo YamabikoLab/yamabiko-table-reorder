@@ -46,11 +46,7 @@ export const createDropTargetResolution = (): DropTargetResolution => {
 		const boundaryIndex = request.currentPosition?.boundaryIndex;
 
 		// 対象範囲内の挿入境界へ対応しない現在位置や無効な論理境界では移動先を成立させない。
-		if (
-			boundaryIndex === undefined ||
-			! Number.isInteger( boundaryIndex ) ||
-			boundaryIndex < 0
-		) {
+		if ( boundaryIndex === undefined || ! Number.isInteger( boundaryIndex ) || boundaryIndex < 0 ) {
 			return { status: 'none' };
 		}
 
@@ -61,7 +57,10 @@ export const createDropTargetResolution = (): DropTargetResolution => {
 
 		// 両方向を扱う入口では方向だけを選択し、Destinationの意味と生成は各Reorder責務へ委譲する。
 		if ( request.kind === 'row' ) {
-			return { status: 'valid', destination: createRowReorderDestination( request, boundaryIndex ) };
+			return {
+				status: 'valid',
+				destination: createRowReorderDestination( request, boundaryIndex ),
+			};
 		}
 
 		return {

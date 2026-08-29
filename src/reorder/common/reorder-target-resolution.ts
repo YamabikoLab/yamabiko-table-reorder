@@ -44,15 +44,11 @@ export type ReorderTargetResolution = {
 export const createReorderTargetResolution = (
 	tableIntegration: TableIntegration
 ): ReorderTargetResolution => {
-	function resolve(
-		request: RowReorderTargetResolutionRequest
-	): RowReorderTargetResolutionResult;
+	function resolve( request: RowReorderTargetResolutionRequest ): RowReorderTargetResolutionResult;
 	function resolve(
 		request: ColumnReorderTargetResolutionRequest
 	): ColumnReorderTargetResolutionResult;
-	function resolve(
-		request: ReorderTargetResolutionRequest
-	): ReorderTargetResolutionResult {
+	function resolve( request: ReorderTargetResolutionRequest ): ReorderTargetResolutionResult {
 		const structure = tableIntegration.getStructure( request.clientId );
 
 		// Table構造を確定できない開始試行では、推測で並び替えを開始しない。
