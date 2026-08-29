@@ -51,7 +51,7 @@ const runtimeRelationshipIdentifier = ( index: number ): string =>
 const processFlowTag = ( processFlowViewId: string ): string =>
 	`ProcessFlow_${ processFlowViewId }`;
 
-const processFlowEdgeKindTag = ( kind: ProcessFlowEdgeKind ): string => `ProcessFlowEdge_${ kind }`;
+const processFlowEdgeKindTag = ( kind: ProcessFlowEdgeKind ): string => kind;
 
 const runtimeTag = ( runtimeViewId: string ): string => `Runtime_${ runtimeViewId }`;
 
@@ -286,19 +286,25 @@ const generateStyles = ( hasProcessFlowViews: boolean ): string[] => {
 		'\t\t\t\tstroke #98a2b3',
 		'\t\t\t\tborder dashed',
 		'\t\t\t}',
+		'\t\t\trelationship "Structural Dependency" {',
+		'\t\t\t\tstyle solid',
+		'\t\t\t}',
+		'\t\t\trelationship "Runtime Interaction" {',
+		'\t\t\t\tstyle solid',
+		'\t\t\t}',
 	];
 
 	if ( hasProcessFlowViews ) {
 		lines.push(
-			'\t\t\trelationship "ProcessFlowEdge_normal" {',
+			'\t\t\trelationship "normal" {',
 			'\t\t\t\tstyle solid',
 			'\t\t\t}',
-			'\t\t\trelationship "ProcessFlowEdge_failure" {',
+			'\t\t\trelationship "failure" {',
 			'\t\t\t\tcolor #b42318',
 			'\t\t\t\tstyle dashed',
 			'\t\t\t\tthickness 3',
 			'\t\t\t}',
-			'\t\t\trelationship "ProcessFlowEdge_recovery" {',
+			'\t\t\trelationship "recovery" {',
 			'\t\t\t\tcolor #b54708',
 			'\t\t\t\tstyle dotted',
 			'\t\t\t\tthickness 3',
