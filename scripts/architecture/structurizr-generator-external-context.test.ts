@@ -67,5 +67,7 @@ test( 'Process Flow View がなくても Architecture 要素のスタイルを�
 	assert.match( dsl, /styles \{/u );
 	assert.match( dsl, /element "Responsibility"/u );
 	assert.match( dsl, /element "External System"/u );
-	assert.doesNotMatch( dsl, /ProcessFlowEdge_/u );
+	assert.doesNotMatch( dsl, /relationship "normal" \{/u );
+	assert.doesNotMatch( dsl, /relationship "failure" \{/u );
+	assert.doesNotMatch( dsl, /relationship "recovery" \{/u );
 } );
