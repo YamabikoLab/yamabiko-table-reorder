@@ -3,6 +3,7 @@ import type {
 	ArchitectureModel,
 	DependencyView,
 	ExternalContext,
+	ProcessFlowEdgeKind,
 	ProcessFlowView,
 	Responsibility,
 	RuntimeView,
@@ -40,6 +41,8 @@ const runtimeRelationshipIdentifier = ( index: number ): string =>
 
 const processFlowTag = ( processFlowViewId: string ): string =>
 	`ProcessFlow_${ processFlowViewId }`;
+
+const processFlowEdgeKindTag = ( kind: ProcessFlowEdgeKind ): string => `ProcessFlowEdge_${ kind }`;
 
 const runtimeTag = ( runtimeViewId: string ): string => `Runtime_${ runtimeViewId }`;
 
@@ -125,17 +128,28 @@ const processFlowElements = ( processFlowView: ProcessFlowView ): string[] => {
 	return identifiers;
 };
 
+const processFlowRelationshipLabel = ( kind: ProcessFlowEdgeKind, meaning: string ): string => {
+	if ( kind === 'normal' ) {
+		return meaning;
+	}
+	return `[${ kind }] ${ meaning }`;
+};
+
 const generateProcessFlowRelationships = ( processFlowViews: ProcessFlowView[] ): string[] => {
 	const lines: string[] = [];
 	let relationshipIndex = 0;
 
 	processFlowViews.forEach( ( processFlowView ) => {
 		processFlowView.edges.forEach( ( edge ) => {
-			const tags = [ 'Process Flow', processFlowTag( processFlowView.id ) ];
+			const tags = [
+				'Process Flow',
+				processFlowTag( processFlowView.id ),
+				processFlowEdgeKindTag( edge.kind ),
+			];
 			lines.push(
 				`\t\t${ processFlowRelationshipIdentifier( relationshipIndex ) } = ${ edge.from } -> ${
 					edge.to
-				} ${ quoted( edge.meaning ) } {`,
+				} ${ quoted( processFlowRelationshipLabel( edge.kind, edge.meaning ) ) } {`,
 				`\t\t\ttags ${ quoted( tags.join( ',' ) ) }`,
 				'\t\t}'
 			);
@@ -179,12 +193,35 @@ const generateDependencyView = ( view: DependencyView ): string[] => [
 	'\t\t}',
 ];
 
+const processFlowViewTitle = ( view: ProcessFlowView ): string =>
+	view.kind === 'failure-recovery'
+		? `Process Flow [Failure / Recovery] - ${ view.name }`
+		: `Process Flow - ${ view.name }`;
+
 const generateProcessFlowView = ( view: ProcessFlowView ): string[] => [
 	`\t\tcustom ${ quoted( view.id ) } {`,
-	`\t\t\ttitle ${ quoted( `Process Flow - ${ view.name }` ) }`,
+	`\t\t\ttitle ${ quoted( processFlowViewTitle( view ) ) }`,
 	`\t\t\tinclude ${ processFlowElements( view ).join( ' ' ) }`,
 	`\t\t\texclude ${ quoted( `relationship.tag!=${ processFlowTag( view.id ) }` ) }`,
 	'\t\t\tautoLayout lr',
+	'\t\t}',
+];
+
+const generateProcessFlowStyles = (): string[] => [
+	'\t\tstyles {',
+	'\t\t\trelationship "ProcessFlowEdge_normal" {',
+	'\t\t\t\tstyle solid',
+	'\t\t\t}',
+	'\t\t\trelationship "ProcessFlowEdge_failure" {',
+	'\t\t\t\tcolor #b42318',
+	'\t\t\t\tstyle dashed',
+	'\t\t\t\tthickness 3',
+	'\t\t\t}',
+	'\t\t\trelationship "ProcessFlowEdge_recovery" {',
+	'\t\t\t\tcolor #b54708',
+	'\t\t\t\tstyle dotted',
+	'\t\t\t\tthickness 3',
+	'\t\t\t}',
 	'\t\t}',
 ];
 
@@ -317,6 +354,10 @@ export const generateStructurizrDsl = ( model: ArchitectureModel ): string => {
 		lines.push( ...generateRuntimeView( runtimeView, runtimeRelationships.stepRelationshipIds ) );
 		hasPreviousView = true;
 	} );
+
+	if ( model.processFlowViews.length > 0 ) {
+		lines.push( '', ...generateProcessFlowStyles() );
+	}
 
 	lines.push( '\t}', '}', '' );
 	return lines.join( '\n' );
