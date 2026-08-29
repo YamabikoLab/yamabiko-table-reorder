@@ -129,14 +129,8 @@ test( 'Failure / Recovery Process Flow をタイトル・ラベル・線種で�
 	assert.match( dsl, /PF_002 = RESP_INPUT -> RESP_DND "\[recovery\] 一時状態を終了する。"/u );
 	assert.match( dsl, /tags "Process Flow,ProcessFlow_PV_FAILURE_RECOVERY,failure"/u );
 	assert.match( dsl, /tags "Process Flow,ProcessFlow_PV_FAILURE_RECOVERY,recovery"/u );
-	assert.match(
-		dsl,
-		/relationship "failure" \{[\s\S]*color #b42318[\s\S]*style dashed/u
-	);
-	assert.match(
-		dsl,
-		/relationship "recovery" \{[\s\S]*color #b54708[\s\S]*style dotted/u
-	);
+	assert.match( dsl, /relationship "failure" \{[\s\S]*color #b42318[\s\S]*style dashed/u );
+	assert.match( dsl, /relationship "recovery" \{[\s\S]*color #b54708[\s\S]*style dotted/u );
 } );
 
 test( 'Runtime Interaction は Structural Dependency と独立して生成する', () => {
@@ -249,8 +243,5 @@ test( '同一 Process Flow Relationship を複数 View で共有する', () => {
 			?.length,
 		1
 	);
-	assert.match(
-		dsl,
-		/tags "Process Flow,ProcessFlow_PV_FIRST,ProcessFlow_PV_SECOND,recovery"/u
-	);
+	assert.match( dsl, /tags "Process Flow,ProcessFlow_PV_FIRST,ProcessFlow_PV_SECOND,recovery"/u );
 } );

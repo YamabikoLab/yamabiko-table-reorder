@@ -57,10 +57,7 @@ test( 'Architecture 要素の5分類を tag と視覚スタイルへ反映する
 	assert.match( dsl, /element "External System" \{[\s\S]*shape RoundedBox/u );
 	assert.match( dsl, /element "External Block" \{[\s\S]*shape Component/u );
 	assert.match( dsl, /element "External Capability" \{[\s\S]*shape Hexagon/u );
-	assert.match(
-		dsl,
-		/element "External Environment" \{[\s\S]*shape Box[\s\S]*border dashed/u
-	);
+	assert.match( dsl, /element "External Environment" \{[\s\S]*shape Box[\s\S]*border dashed/u );
 	assert.doesNotMatch( dsl, /element "External Context"/u );
 } );
 
