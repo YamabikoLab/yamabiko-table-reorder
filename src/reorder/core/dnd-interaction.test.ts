@@ -49,7 +49,7 @@ type DependencyOptions = {
 };
 
 /**
- * 行・列のoverload contractを維持したテスト用Reorder責務を作成する。
+ * 行・列の方向対応を維持したテスト用Reorder責務を作成する。
  *
  * @param options 各テストで変更する並び替え方向、制約、判定結果。
  * @return DnD Interactionの依存関係と呼び出し確認用mock。
@@ -127,7 +127,10 @@ const createDependencies = ( options: DependencyOptions = {} ) => {
 	const dependencies: DndInteractionDependencies = {
 		reorderMode: { getReorderKind: jest.fn( () => reorderKind ) },
 		reorderTargetResolution: { resolve: resolveTarget },
-		dropTargetResolution: { resolve: resolveDrop },
+		dropTargetResolution: {
+			resolveRow: resolveDrop,
+			resolveColumn: resolveDrop,
+		},
 		logError: jest.fn(),
 	};
 
