@@ -28,6 +28,8 @@ export type ColumnReorderSession = {
 
 /** 進行中の1回の並び替え操作。 */
 export type ReorderSession = RowReorderSession | ColumnReorderSession;
+
+/** DnD Interactionが所有するReorder Sessionの有効状態または待機状態。 */
 export type ReorderSessionState = ReorderSession | null;
 
 /** Data Updateへ渡せる確定済み並び替え。 */
@@ -35,6 +37,7 @@ export type CommittedReorder =
 	| { kind: 'row'; target: RowReorderTarget; destination: RowReorderDestination }
 	| { kind: 'column'; target: ColumnReorderTarget; destination: ColumnReorderDestination };
 
+/** Reorder Session開始境界で受け取る方向固有Target。 */
 type ReorderTarget = RowReorderTarget | ColumnReorderTarget;
 
 /**
