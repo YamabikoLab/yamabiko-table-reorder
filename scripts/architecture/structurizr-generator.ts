@@ -151,12 +151,12 @@ const buildRuntimeRelationships = ( runtimeViews: RuntimeView[] ): RuntimeRelati
 const generateElement = (
 	element: ArchitectureElement,
 	metadata: string,
-	tag: string
+	tags: string[]
 ): string[] => [
 	`\t\t${ element.id } = element ${ quoted( element.name ) } ${ quoted( metadata ) } ${ quoted(
 		element.summary
 	) } {`,
-	`\t\t\ttags ${ quoted( tag ) }`,
+	`\t\t\ttags ${ quoted( tags.join( ',' ) ) }`,
 	'\t\t}',
 ];
 
@@ -254,23 +254,57 @@ const generateProcessFlowView = ( view: ProcessFlowView ): string[] => [
 	'\t\t}',
 ];
 
-const generateProcessFlowStyles = (): string[] => [
-	'\t\tstyles {',
-	'\t\t\trelationship "ProcessFlowEdge_normal" {',
-	'\t\t\t\tstyle solid',
-	'\t\t\t}',
-	'\t\t\trelationship "ProcessFlowEdge_failure" {',
-	'\t\t\t\tcolor #b42318',
-	'\t\t\t\tstyle dashed',
-	'\t\t\t\tthickness 3',
-	'\t\t\t}',
-	'\t\t\trelationship "ProcessFlowEdge_recovery" {',
-	'\t\t\t\tcolor #b54708',
-	'\t\t\t\tstyle dotted',
-	'\t\t\t\tthickness 3',
-	'\t\t\t}',
-	'\t\t}',
-];
+const generateStyles = ( hasProcessFlowViews: boolean ): string[] => {
+	const lines = [
+		'\t\tstyles {',
+		'\t\t\telement "External Context" {',
+		'\t\t\t\tbackground #f8fafc',
+		'\t\t\t\tcolor #344054',
+		'\t\t\t\tstroke #667085',
+		'\t\t\t}',
+		'\t\t\telement "External System" {',
+		'\t\t\t\tshape RoundedBox',
+		'\t\t\t\tborder solid',
+		'\t\t\t}',
+		'\t\t\telement "External Block" {',
+		'\t\t\t\tshape Component',
+		'\t\t\t\tbackground #eef4ff',
+		'\t\t\t\tstroke #6172f3',
+		'\t\t\t}',
+		'\t\t\telement "External Capability" {',
+		'\t\t\t\tshape Hexagon',
+		'\t\t\t\tbackground #f4f3ff',
+		'\t\t\t\tstroke #7f56d9',
+		'\t\t\t}',
+		'\t\t\telement "External Environment" {',
+		'\t\t\t\tshape Box',
+		'\t\t\t\tbackground #f2f4f7',
+		'\t\t\t\tstroke #98a2b3',
+		'\t\t\t\tborder dashed',
+		'\t\t\t}',
+	];
+
+	if ( hasProcessFlowViews ) {
+		lines.push(
+			'\t\t\trelationship "ProcessFlowEdge_normal" {',
+			'\t\t\t\tstyle solid',
+			'\t\t\t}',
+			'\t\t\trelationship "ProcessFlowEdge_failure" {',
+			'\t\t\t\tcolor #b42318',
+			'\t\t\t\tstyle dashed',
+			'\t\t\t\tthickness 3',
+			'\t\t\t}',
+			'\t\t\trelationship "ProcessFlowEdge_recovery" {',
+			'\t\t\t\tcolor #b54708',
+			'\t\t\t\tstyle dotted',
+			'\t\t\t\tthickness 3',
+			'\t\t\t}'
+		);
+	}
+
+	lines.push( '\t\t}' );
+	return lines;
+};
 
 const runtimeElements = ( runtimeView: RuntimeView ): string[] => {
 	const identifiers: string[] = [];
@@ -345,7 +379,12 @@ export const generateStructurizrDsl = ( model: ArchitectureModel ): string => {
 	];
 
 	model.externalContexts.forEach( ( externalContext ) => {
-		lines.push( ...generateElement( externalContext, externalContext.type, 'External Context' ) );
+		lines.push(
+			...generateElement( externalContext, externalContext.type, [
+				'External Context',
+				externalContext.type,
+			] )
+		);
 	} );
 
 	if ( model.externalContexts.length > 0 && model.responsibilities.length > 0 ) {
@@ -353,7 +392,7 @@ export const generateStructurizrDsl = ( model: ArchitectureModel ): string => {
 	}
 
 	model.responsibilities.forEach( ( responsibility ) => {
-		lines.push( ...generateElement( responsibility, 'Responsibility', 'Responsibility' ) );
+		lines.push( ...generateElement( responsibility, 'Responsibility', [ 'Responsibility' ] ) );
 	} );
 
 	if ( model.dependencies.length > 0 ) {
@@ -407,9 +446,7 @@ export const generateStructurizrDsl = ( model: ArchitectureModel ): string => {
 		hasPreviousView = true;
 	} );
 
-	if ( model.processFlowViews.length > 0 ) {
-		lines.push( '', ...generateProcessFlowStyles() );
-	}
+	lines.push( '', ...generateStyles( model.processFlowViews.length > 0 ) );
 
 	lines.push( '\t}', '}', '' );
 	return lines.join( '\n' );
