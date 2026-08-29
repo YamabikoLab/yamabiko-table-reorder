@@ -66,9 +66,7 @@ const createDependencies = ( options: DependencyOptions = {} ) => {
 	function resolveTarget(
 		request: ColumnReorderTargetResolutionRequest
 	): ColumnReorderTargetResolutionResult;
-	function resolveTarget(
-		request: ReorderTargetResolutionRequest
-	): ReorderTargetResolutionResult {
+	function resolveTarget( request: ReorderTargetResolutionRequest ): ReorderTargetResolutionResult {
 		targetRequestMock( request );
 
 		if ( options.targetStatus === 'immovable' ) {
@@ -90,9 +88,7 @@ const createDependencies = ( options: DependencyOptions = {} ) => {
 		};
 	}
 
-	function resolveDrop(
-		request: RowDropTargetResolutionRequest
-	): RowDropTargetResolutionResult;
+	function resolveDrop( request: RowDropTargetResolutionRequest ): RowDropTargetResolutionResult;
 	function resolveDrop(
 		request: ColumnDropTargetResolutionRequest
 	): ColumnDropTargetResolutionResult;
