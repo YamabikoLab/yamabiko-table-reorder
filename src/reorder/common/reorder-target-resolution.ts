@@ -29,10 +29,15 @@ export type ReorderTargetResolutionResult =
 
 export type { ReorderTargetResolutionFailureReason } from './reorder-target-resolution-rules';
 
+/** 行Requestには行Result、列Requestには列Resultを返す対象解決関数。 */
+type ReorderTargetResolver = {
+	( request: RowReorderTargetResolutionRequest ): RowReorderTargetResolutionResult;
+	( request: ColumnReorderTargetResolutionRequest ): ColumnReorderTargetResolutionResult;
+};
+
 /** 行Requestには行Result、列Requestには列Resultを返す対象解決契約。 */
 export type ReorderTargetResolution = {
-	resolve( request: RowReorderTargetResolutionRequest ): RowReorderTargetResolutionResult;
-	resolve( request: ColumnReorderTargetResolutionRequest ): ColumnReorderTargetResolutionResult;
+	resolve: ReorderTargetResolver;
 };
 
 /**
