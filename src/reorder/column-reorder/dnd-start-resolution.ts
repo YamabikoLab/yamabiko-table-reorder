@@ -3,7 +3,7 @@
  *
  * 方向非依存のTable位置は共通契約として維持し、列固有の`columnIndex`の解釈だけをこの責務で行う。
  */
-import type { DndStartRequest } from '@/reorder/common/dnd-start-request';
+import type { DndStartRequest } from '@/reorder/core/dnd-start-request';
 import type { ColumnReorderTargetResolutionRequest } from './reorder-target-resolution';
 
 /**

@@ -6,29 +6,29 @@
  */
 import { createColumnReorderTargetResolutionRequest } from '@/reorder/column-reorder/dnd-start-resolution';
 import type { ColumnReorderDestination } from '@/reorder/column-reorder/drop-target-resolution';
-import type { DndStartRequest } from '@/reorder/common/dnd-start-request';
+import type { DndStartRequest } from '@/reorder/core/dnd-start-request';
 import type {
 	DropTargetPosition,
 	DropTargetResolution,
-} from '@/reorder/common/drop-target-resolution';
+} from '@/reorder/core/drop-target-resolution';
 import type {
 	ReorderTargetResolution,
 	ReorderTargetResolutionFailureReason,
-} from '@/reorder/common/reorder-target-resolution';
+} from '@/reorder/core/reorder-target-resolution';
 import {
 	cancelReorderSession,
 	completeReorderSession,
 	startReorderSession,
 	updateReorderDestination,
-} from '@/reorder/common/reorder-session';
+} from '@/reorder/core/reorder-session';
 import type {
 	ColumnReorderSession,
 	CommittedReorder,
 	ReorderSession,
 	ReorderSessionState,
 	RowReorderSession,
-} from '@/reorder/common/reorder-session';
-import type { ReorderMode } from '@/reorder/reorder-mode';
+} from '@/reorder/core/reorder-session';
+import type { ReorderMode } from '@/reorder/foundation/reorder-mode';
 import { createRowReorderTargetResolutionRequest } from '@/reorder/row-reorder/dnd-start-resolution';
 import type { RowReorderDestination } from '@/reorder/row-reorder/drop-target-resolution';
 
