@@ -7,6 +7,7 @@
 import type { ReorderConstraints } from './reorder-target-resolution-rules';
 import type {
 	ConcreteReorderKind,
+	ConcreteReorderTarget,
 	ReorderDestination,
 	ReorderKind,
 	ReorderTarget,
@@ -21,6 +22,11 @@ export type ReorderSession< K extends ReorderKind = ReorderKind > = {
 		destination: ReorderDestination< Kind > | null;
 	};
 }[ K ];
+
+/** 指定した並び替え種別に対応し、行または列の一方向へ確定したReorder Session。 */
+export type ConcreteReorderSession< K extends ReorderKind > = ReorderSession< K > & {
+	kind: ConcreteReorderKind< K >;
+};
 
 /** 行Reorder Session。 */
 export type RowReorderSession = ReorderSession< 'row' >;
@@ -50,9 +56,9 @@ export type CommittedReorder< K extends ReorderKind = ReorderKind > = {
  * @return 有効な移動先をまだ持たず、入力と同じ具体方向を維持したReorder Session。
  */
 export const startReorderSession = < K extends ReorderKind >(
-	target: ReorderTarget< K > & { kind: ConcreteReorderKind< K > },
+	target: ConcreteReorderTarget< K >,
 	constraints: ReorderConstraints
-): ReorderSession< K > & { kind: ConcreteReorderKind< K > } => ( {
+): ConcreteReorderSession< K > => ( {
 	kind: target.kind,
 	target,
 	constraints,
@@ -71,9 +77,9 @@ export const startReorderSession = < K extends ReorderKind >(
  * @return 現在の移動先を反映し、具体方向を維持したReorder Session。
  */
 export const updateReorderDestination = < K extends ReorderKind >(
-	session: ReorderSession< K > & { kind: ConcreteReorderKind< K > },
+	session: ConcreteReorderSession< K >,
 	destination: NoInfer< ReorderDestination< K > | null >
-): ReorderSession< K > & { kind: ConcreteReorderKind< K > } => {
+): ConcreteReorderSession< K > => {
 	// 並び替え対象を別Tableへ移動する操作は扱わないため、移動先は開始時と同じTableに属する必要がある。
 	if ( destination !== null && session.target.clientId !== destination.clientId ) {
 		throw new Error(

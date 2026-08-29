@@ -25,14 +25,14 @@ import {
 } from '@/reorder/core/reorder-session';
 import type {
 	CommittedReorder,
+	ConcreteReorderSession,
 	ReorderSession,
 	ReorderSessionState,
 } from '@/reorder/core/reorder-session';
 import type {
-	ConcreteReorderKind,
+	ConcreteReorderTarget,
 	ReorderDestination,
 	ReorderKind,
-	ReorderTarget,
 } from '@/reorder/core/reorder-types';
 import type { ReorderMode } from '@/reorder/foundation/reorder-mode';
 import { resolveRowDndStart } from '@/reorder/row-reorder/dnd-start-resolution';
@@ -129,9 +129,7 @@ type ActiveDndBinding< K extends ReorderKind = ReorderKind > = {
 
 /** 指定方向のDnD開始入口が返す対象解決結果と同方向の移動先判定入口。 */
 type DndStartResolution< K extends ReorderKind > = {
-	targetResolution: ReorderTargetResolutionResult<
-		ReorderTarget< K > & { kind: ConcreteReorderKind< K > }
-	>;
+	targetResolution: ReorderTargetResolutionResult< ConcreteReorderTarget< K > >;
 	resolveDropTarget: (
 		request: DropTargetResolutionRequest< K >
 	) => DropTargetResolutionResult< K >;
@@ -148,7 +146,7 @@ type DndStartResolver< K extends ReorderKind > = (
 type PreparedDndStart< K extends ReorderKind > =
 	| {
 			status: 'started';
-			session: ReorderSession< K > & { kind: ConcreteReorderKind< K > };
+			session: ConcreteReorderSession< K >;
 			binding: ActiveDndBinding< K >;
 	  }
 	| { status: 'not-started'; reason: ReorderTargetResolutionFailureReason };
@@ -161,7 +159,7 @@ type PreparedDndStart< K extends ReorderKind > =
  * @return 最新Reorder Sessionを保持しながら同方向の移動先判定を行う内部バインディング。
  */
 const createActiveDndBinding = < K extends ReorderKind >(
-	initialSession: ReorderSession< K > & { kind: ConcreteReorderKind< K > },
+	initialSession: ConcreteReorderSession< K >,
 	resolve: ( request: DropTargetResolutionRequest< K > ) => DropTargetResolutionResult< K >
 ): ActiveDndBinding< K > => {
 	let session = initialSession;

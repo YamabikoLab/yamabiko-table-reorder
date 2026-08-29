@@ -30,6 +30,11 @@ export type ReorderTypeMap = {
 /** 指定した並び替え種別に対応するReorder Target。 */
 export type ReorderTarget< K extends ReorderKind = ReorderKind > = ReorderTypeMap[ K ][ 'target' ];
 
+/** 指定した並び替え種別に対応し、行または列の一方向へ確定したReorder Target。 */
+export type ConcreteReorderTarget< K extends ReorderKind > = ReorderTarget< K > & {
+	kind: ConcreteReorderKind< K >;
+};
+
 /** 指定した並び替え種別に対応するReorder Destination。 */
 export type ReorderDestination< K extends ReorderKind = ReorderKind > =
 	ReorderTypeMap[ K ][ 'destination' ];
