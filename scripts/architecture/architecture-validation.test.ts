@@ -38,10 +38,12 @@ const validModel = (): ArchitectureModel => ( {
 		{
 			id: 'PV_INPUT',
 			name: 'Input flow',
+			kind: 'normal',
 			edges: [
 				{
 					from: 'EXT_EDITOR',
 					to: 'RESP_INPUT',
+					kind: 'normal',
 					meaning: '入力が処理へ進む。',
 				},
 			],
@@ -161,6 +163,26 @@ test( 'Process Flow View ID の prefix が不正な場合を拒否する', () =>
 	assert.throws( () => validateArchitectureModel( model ), /must use the PV_ prefix/u );
 } );
 
+test( '未知の Process Flow View kind を拒否する', () => {
+	const model = validModel();
+	model.processFlowViews[ 0 ].kind = 'unknown' as never;
+
+	assert.throws(
+		() => validateArchitectureModel( model ),
+		/Process Flow View PV_INPUT kind "unknown" is invalid/u
+	);
+} );
+
+test( '未知の Process Flow Edge kind を拒否する', () => {
+	const model = validModel();
+	model.processFlowViews[ 0 ].edges[ 0 ].kind = 'unknown' as never;
+
+	assert.throws(
+		() => validateArchitectureModel( model ),
+		/Process Flow View PV_INPUT row 1 Kind "unknown" is invalid/u
+	);
+} );
+
 test( 'Process Flow View の未解決 From を拒否する', () => {
 	const model = validModel();
 	model.processFlowViews[ 0 ].edges[ 0 ].from = 'RESP_UNKNOWN';
@@ -190,6 +212,7 @@ test( 'Process Flow は Structural Dependency と逆方向でも受理する', (
 	model.processFlowViews[ 0 ].edges[ 0 ] = {
 		from: 'RESP_INPUT',
 		to: 'EXT_EDITOR',
+		kind: 'normal',
 		meaning: '処理が外部へ進む。',
 	};
 
