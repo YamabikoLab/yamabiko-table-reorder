@@ -31,6 +31,9 @@ export type ReorderSession =
 			destination: Extract< ReorderDestination, { kind: 'column' } > | null;
 	  };
 
+/** Reorder Sessionがactiveではない状態を含むDnD Interactionの所有状態。 */
+export type ReorderSessionState = ReorderSession | null;
+
 /**
  * Data Updateへ渡せる確定済み並び替え。
  *
@@ -92,7 +95,11 @@ export const updateReorderDestination = (
 	destination: ReorderDestination | null
 ): ReorderSession => {
 	if ( destination === null ) {
-		return { ...session, destination: null } as ReorderSession;
+		if ( session.kind === 'row' ) {
+			return { ...session, destination: null };
+		}
+
+		return { ...session, destination: null };
 	}
 
 	assertDestinationMatchesSession( session, destination );
@@ -137,15 +144,16 @@ export const completeReorderSession = (
 };
 
 /**
- * activeなReorder Sessionの終了を表す。
+ * activeなReorder SessionをキャンセルしてDnD idleへ戻す。
  *
- * Reorder Session自体はDnD Interactionが所有するため、この関数は更新要求や確定結果を生成せず、
- * 呼び出し側が保持しているsessionを破棄するLifecycle境界として利用する。
+ * キャンセルはCommitted Reorderを生成せず、Reorder Modeにも影響しない。
  *
  * @param session 終了対象のactiveなReorder Session。
+ * @return activeなReorder Sessionが存在しない状態。
  */
-export const cancelReorderSession = ( session: ReorderSession ): void => {
+export const cancelReorderSession = ( session: ReorderSession ): null => {
 	void session;
+	return null;
 };
 
 /**
