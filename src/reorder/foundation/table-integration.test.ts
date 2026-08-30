@@ -20,10 +20,7 @@ describe( 'Table Integration', () => {
 			name: 'core/table',
 			attributes: {
 				head: [ { cells: [ { colspan: 2 }, {} ] } ],
-				body: [
-					{ cells: [ {}, { rowspan: 2 }, {} ] },
-					{ cells: [ {}, {} ] },
-				],
+				body: [ { cells: [ {}, { rowspan: 2 }, {} ] }, { cells: [ {}, {} ] } ],
 				foot: [ { cells: [ {}, {}, {} ] } ],
 			},
 		} );
@@ -70,10 +67,7 @@ describe( 'Table Integration', () => {
 			getBlock: jest.fn().mockReturnValue( {
 				name: 'flexible-table-block/table',
 				attributes: {
-					body: [
-						{ cells: [ { rowSpan: 2 }, {}, {} ] },
-						{ cells: [ { colSpan: 2 } ] },
-					],
+					body: [ { cells: [ { rowSpan: 2 }, {}, {} ] }, { cells: [ { colSpan: 2 } ] } ],
 				},
 			} ),
 		} );

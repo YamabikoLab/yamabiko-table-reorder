@@ -103,9 +103,9 @@ const parseSpan = ( span: unknown ): number | null => {
  * 先行する縦結合セルの占有範囲を避け、現在セルを配置できる最初の論理列を求める。
  *
  * @param occupiedUntilRow 各論理列が占有されている終了行位置。
- * @param rowStart 現在の区画内行位置。
- * @param minimumColumn 探索を開始する最小列位置。
- * @param columnSpan 現在セルが横方向に占有する列数。
+ * @param rowStart         現在の区画内行位置。
+ * @param minimumColumn    探索を開始する最小列位置。
+ * @param columnSpan       現在セルが横方向に占有する列数。
  * @return 現在セルの論理開始列。
  */
 const findColumnStart = (
@@ -141,10 +141,10 @@ const findColumnStart = (
  * 全セルの中間構造は作らず、行とセルを要求時点の属性から直接読み取る。区画、行、セル、span値のいずれかを
  * 安全に解釈できない場合は部分的な構造を返さず失敗とする。
  *
- * @param section 共通Table構造上の区画。
+ * @param section      共通Table構造上の区画。
  * @param sectionValue 対応Table Blockの区画属性。
- * @param spanReader 対応Table Block固有の結合範囲属性を取得する処理。
- * @param mergedCells 構築中の共通結合セル一覧。
+ * @param spanReader   対応Table Block固有の結合範囲属性を取得する処理。
+ * @param mergedCells  構築中の共通結合セル一覧。
  * @return 区画全体を安全に解釈できた場合はtrue。
  */
 const appendSectionMergedCells = (
@@ -188,19 +188,11 @@ const appendSectionMergedCells = (
 				return false;
 			}
 
-			const columnStart = findColumnStart(
-				occupiedUntilRow,
-				rowStart,
-				minimumColumn,
-				columnSpan
-			);
+			const columnStart = findColumnStart( occupiedUntilRow, rowStart, minimumColumn, columnSpan );
 			const occupiedRowEnd = rowStart + rowSpan;
 
 			for ( let column = columnStart; column < columnStart + columnSpan; column++ ) {
-				occupiedUntilRow[ column ] = Math.max(
-					occupiedUntilRow[ column ] ?? 0,
-					occupiedRowEnd
-				);
+				occupiedUntilRow[ column ] = Math.max( occupiedUntilRow[ column ] ?? 0, occupiedRowEnd );
 			}
 
 			if ( rowSpan > 1 || columnSpan > 1 ) {
