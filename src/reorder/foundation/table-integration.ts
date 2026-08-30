@@ -10,13 +10,19 @@
  * 並び替え制約の導出、移動先判定、Reorder Sessionの状態管理はこの責務に含めない。
  */
 
-/** Table Integration内部で利用する共通のTable区画。 */
+/**
+ * Table Integration内部で利用する共通のTable区画。
+ *
+ * 対応Tableの区画は`head`、`body`、`foot`の3種類として共通に解釈する。
+ */
 type TableSection = 'head' | 'body' | 'foot';
 
 /**
  * Reorder coreがTableの構造上の制約を判断するために利用する共通Table構造。
  *
  * 通常セルの内容や装飾は保持せず、並び替え可否の判断に必要な結合セルの位置と範囲だけを保持する。
+ * Reorder Target ResolutionなどTable Integrationの利用側は、この共通契約を直接参照する。
+ *
  * この値は要求時点のTableから作成する一時的な結果であり、Table Integrationは後続要求や別のDnDへ
  * 持ち越さない。
  */
@@ -25,7 +31,12 @@ export type TableStructure = {
 	mergedCells: readonly TableMergedCellStructure[];
 };
 
-/** 共通Table構造上で1つの結合セルが占有する位置と範囲を表す。 */
+/**
+ * 共通Table構造上で1つの結合セルが占有する位置と範囲を表す。
+ *
+ * 行位置と列位置は、結合による占有範囲を考慮した論理Tableグリッド上で表す。
+ * `TableStructure`とともにTable Integrationの共通契約として利用側へ公開する。
+ */
 export type TableMergedCellStructure = {
 	/** 結合セルが属するTable区画。 */
 	section: 'head' | 'body' | 'foot';
@@ -41,6 +52,9 @@ export type TableMergedCellStructure = {
 
 /**
  * Table Integrationが対象Tableの現在データを取得するために利用するBlock Editorストアの契約。
+ *
+ * `clientId`は対象Table個体の識別に利用する。要求ごとに現在のBlockを取得し、以前取得したBlockや属性を
+ * 再利用しない。`block.name`はTable個体の識別ではなく、対応Table種類の判定にだけ利用する。
  */
 export type TableIntegrationBlockStore = {
 	/**
@@ -58,7 +72,16 @@ export type TableIntegrationBlockStore = {
 		| undefined;
 };
 
-/** 外部Table pluginとReorder coreの間でTable構造を受け渡すTable Integrationの契約。 */
+/**
+ * 外部Table pluginとReorder coreの間でTable構造を受け渡すTable Integrationの契約。
+ *
+ * 呼び出し側は対象Tableの`clientId`だけを渡し、対象Table固有の属性構造や結合セル表現を意識しない。
+ * 対象Blockが存在しない、非対応Table、`body`区画が欠落している、または安全に共通構造へ変換できない場合は
+ * `null`を返し、不完全なTable構造は提供しない。
+ *
+ * Table Integration自身はTableデータ、共通Table構造、DnD状態、Reorder Session、並び替え制約を
+ * 状態として保持しない。
+ */
 export type TableIntegration = {
 	/**
 	 * 対象Tableの要求時点の共通Table構造を取得する。
@@ -69,21 +92,39 @@ export type TableIntegration = {
 	getStructure: ( clientId: string ) => TableStructure | null;
 };
 
-/** Table区画を論理Tableグリッドへ復元する前の、Table種類に依存しないセル表現。 */
+/**
+ * Table区画を論理Tableグリッドへ復元する前の、Table種類に依存しないセル表現。
+ *
+ * 対応Table固有の結合範囲属性はSupported Block境界で取得し、共通処理は正規化後の`rowSpan`と
+ * `columnSpan`だけを扱う。
+ */
 type TableCell = {
 	rowSpan: number;
 	columnSpan: number;
 };
 
-/** Table区画を論理Tableグリッドへ復元する前の、Table種類に依存しない行表現。 */
+/**
+ * Table区画を論理Tableグリッドへ復元する前の、Table種類に依存しない行表現。
+ *
+ * セル内容や装飾はTable構造判定に不要なため保持しない。
+ */
 type TableRow = {
 	cells: readonly TableCell[];
 };
 
-/** 共通構造復元へ渡すTable区画一覧。 */
+/**
+ * 対応Table属性から作成し、共通構造復元へ渡すTable区画一覧。
+ *
+ * `head`と`foot`は省略可能なため空配列へ正規化する。`body`はTable本体として必須とし、欠落時は
+ * この表現を成立させない。
+ */
 type TableSections = Readonly< Record< TableSection, readonly TableRow[] > >;
 
-/** Supported Block固有セルから取得した結合範囲の生値。 */
+/**
+ * Supported Block固有セルから取得した結合範囲の生値。
+ *
+ * 属性名だけをSupported Block境界で解釈し、値自体の妥当性や既定値は共通処理で解釈する。
+ */
 type TableCellSpans = {
 	rowSpan: unknown;
 	columnSpan: unknown;
@@ -93,6 +134,8 @@ type TableCellSpans = {
  * Supported Block固有差分として、セルに保存された結合範囲属性だけを解釈する内部契約。
  *
  * Table属性、区画、行、セルの構造規則とspan値の正規化はTable Integration共通処理が所有する。
+ * 現在のSupported Block間では、Core Tableの`rowspan` / `colspan`とFlexible Table Blockの
+ * `rowSpan` / `colSpan`だけがこの境界で異なる。
  */
 type SupportedTableIntegration = {
 	/**
@@ -104,12 +147,22 @@ type SupportedTableIntegration = {
 	getCellSpans: ( cell: Record< string, unknown > ) => TableCellSpans;
 };
 
-/** 値をTable属性、行、セルとして安全に参照できるオブジェクトか判定する。 */
+/**
+ * 値をTable属性、行、セルとして安全に参照できるオブジェクトか判定する。
+ *
+ * Table構造を推測しないため、属性を持つデータとして扱えるのは`null`でも配列でもないオブジェクトだけとする。
+ *
+ * @param value 判定対象の値。
+ * @return Tableデータのオブジェクトとして安全に参照できる場合は`true`。
+ */
 const isRecord = ( value: unknown ): value is Record< string, unknown > =>
 	value !== null && typeof value === 'object' && ! Array.isArray( value );
 
 /**
  * 対象Table固有セルに保存された結合範囲を、共通の占有数へ正規化する。
+ *
+ * 結合範囲の指定がないセルは通常セルとして1を返す。指定がある場合は1以上の整数だけを受け入れる。
+ * 数値文字列は対象Tableデータとして許容し、それ以外は安全に構造を復元できないため`null`とする。
  *
  * @param span 対象Table固有セルから取得した結合範囲値。
  * @return 1以上の占有数。解釈できない値の場合は`null`。
@@ -133,6 +186,9 @@ const parseSpan = ( span: unknown ): number | null => {
 
 /**
  * 1つのTable区画をTable種類に依存しない行表現へ正規化する。
+ *
+ * 区画、行、セルの構造規則は対応Table間で同じものとしてTable Integrationが共通に解釈し、
+ * セルの結合範囲属性名だけをSupported Block固有境界へ委譲する。
  *
  * @param section     対象Tableの区画値。
  * @param optional    区画欠落を空区画として許容する場合は`true`。
@@ -194,6 +250,9 @@ const normalizeTableRows = (
 /**
  * Supported BlockのTable属性を共通構造復元で利用するTable区画一覧へ正規化する。
  *
+ * `head`と`foot`は省略可能とし、`body`はTable本体として必須とする。いずれかの区画を安全に解釈できない
+ * 場合は部分的なTable構造を作らず`null`を返す。区画構造の規則はSupported Blockごとに複製しない。
+ *
  * @param attributes  要求時点の対象Table属性。
  * @param integration Supported Block固有の結合範囲属性を取得する契約。
  * @return 共通のTable区画一覧。安全に正規化できない場合は`null`。
@@ -222,6 +281,9 @@ const normalizeTableAttributes = (
 
 /**
  * 現在セルが論理Tableグリッド上で開始できる最初の列位置を求める。
+ *
+ * 先行行の縦結合が後続行の列を占有している場合、その占有範囲を避けて現在セルの横幅全体を配置できる
+ * 最初の列を採用する。これにより、物理的なセル配列位置ではなく結合を考慮した論理列位置を確定する。
  *
  * @param occupiedUntilRow 各論理列がどの行まで先行する縦結合に占有されるかを表す一覧。
  * @param rowStart         現在セルが属する区画内の0-based行位置。
@@ -260,6 +322,10 @@ const findColumnStart = (
 
 /**
  * 1つのTable区画について論理Tableグリッドを復元し、結合セルの共通構造を作成する。
+ *
+ * 先行する縦結合の占有範囲を考慮して各セルの論理列位置を確定し、縦または横に2以上を占有するセルだけを
+ * 結合セルとして結果へ含める。通常セルは位置計算に利用するが共通Table構造には保持しない。
+ * 縦結合が区画末尾を越える指定は、実在する行までを占有範囲として扱う。
  *
  * @param section 共通Table構造へ記録するTable区画。
  * @param rows    Table種類に依存しない区画内の行一覧。
@@ -316,6 +382,9 @@ const buildSectionMergedCells = (
 /**
  * 正規化済みのTable区画一覧からReorder core共通のTable構造を構築する。
  *
+ * `head`、`body`、`foot`それぞれについて結合を考慮した論理Tableグリッドを復元し、結合セルだけを
+ * `TableStructure`へ集約する。対象Table固有属性はこの処理へ持ち込まない。
+ *
  * @param sections Table種類に依存しないTable区画一覧。
  * @return Reorder coreが利用する共通Table構造。
  */
@@ -330,7 +399,11 @@ const buildTableStructure = ( sections: TableSections ): TableStructure => {
 	return { mergedCells };
 };
 
-/** Core Table固有の結合範囲属性をTable Integration共通処理へ渡す。 */
+/**
+ * Core Table固有の結合範囲属性をTable Integration共通処理へ渡す。
+ *
+ * Core Table固有差分として`rowspan`と`colspan`だけを読み取り、値の正規化やTable構造規則は解釈しない。
+ */
 const coreTableIntegration: SupportedTableIntegration = {
 	getCellSpans: ( cell ) => ( {
 		rowSpan: cell.rowspan,
@@ -338,7 +411,12 @@ const coreTableIntegration: SupportedTableIntegration = {
 	} ),
 };
 
-/** Flexible Table Block固有の結合範囲属性をTable Integration共通処理へ渡す。 */
+/**
+ * Flexible Table Block固有の結合範囲属性をTable Integration共通処理へ渡す。
+ *
+ * Flexible Table Block固有差分として`rowSpan`と`colSpan`だけを読み取り、値の正規化やTable構造規則は
+ * 解釈しない。
+ */
 const flexibleTableBlockIntegration: SupportedTableIntegration = {
 	getCellSpans: ( cell ) => ( {
 		rowSpan: cell.rowSpan,
@@ -346,7 +424,12 @@ const flexibleTableBlockIntegration: SupportedTableIntegration = {
 	} ),
 };
 
-/** 要求時点のTable種類に対応するSupported Block差分を選択する対応表。 */
+/**
+ * 要求時点のTable種類に対応するSupported Block差分を選択する対応表。
+ *
+ * 対象Table個体を`clientId`で取得した後、そのBlockの`block.name`をTable種類の判定に利用する。
+ * 対応していないTable種類には境界を割り当てず、非対応Tableを明確に区別する。
+ */
 const TABLE_INTEGRATIONS: Readonly< Partial< Record< string, SupportedTableIntegration > > > = {
 	'core/table': coreTableIntegration,
 	'flexible-table-block/table': flexibleTableBlockIntegration,
@@ -354,6 +437,13 @@ const TABLE_INTEGRATIONS: Readonly< Partial< Record< string, SupportedTableInteg
 
 /**
  * Reorder coreから利用するTable Integrationを作成する。
+ *
+ * 構造取得要求ごとに対象Tableの現在Blockを取得し、そのTable種類に対応する結合範囲属性だけを選択してから、
+ * 共通の構造確認、span正規化、論理Tableグリッド復元を行う。Block、属性、共通Table構造は内部状態として
+ * 保持せず、後続要求では現在のストア状態を基準にする。
+ *
+ * 対象Blockが存在しない、非対応Table、または属性を安全に変換できない場合は`null`を返す。
+ * Reorder固有の並び替え対象判定、並び替え制約導出、移動先判定はこの境界では行わない。
  *
  * @param blockEditorStore 対象`clientId`から要求時点のBlockを取得するストア契約。
  * @return 状態を保持せず要求時点のTable構造を提供するTable Integration。
