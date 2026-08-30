@@ -6,7 +6,8 @@
  */
 import { resolveColumnDndStart } from '@/reorder/column-reorder/dnd-start-resolution';
 import { getColumnReorderSourceIndex } from '@/reorder/column-reorder/reorder-target-resolution';
-import type { DataUpdate, ReorderSourceIndexResolver } from '@/reorder/core/data-update';
+import { resolveColumnTableUpdateChanges } from '@/reorder/column-reorder/table-update';
+import type { DataUpdate, DataUpdateDirectionAdapter } from '@/reorder/core/data-update';
 import type { DndStartRequest } from '@/reorder/core/dnd-start-request';
 import type {
 	DropTargetPosition,
@@ -27,6 +28,7 @@ import {
 } from '@/reorder/core/reorder-session';
 import type {
 	CommittedReorder,
+	ConcreteCommittedReorder,
 	ConcreteReorderSession,
 	ReorderSession,
 	ReorderSessionState,
@@ -39,6 +41,7 @@ import type {
 import type { ReorderMode } from '@/reorder/foundation/reorder-mode';
 import { resolveRowDndStart } from '@/reorder/row-reorder/dnd-start-resolution';
 import { getRowReorderSourceIndex } from '@/reorder/row-reorder/reorder-target-resolution';
+import { resolveRowTableUpdateChanges } from '@/reorder/row-reorder/table-update';
 
 /** Reorder operation boundaryで識別するDnD操作。 */
 export type DndOperation = 'start' | 'progress' | 'complete' | 'cancel';
@@ -114,7 +117,7 @@ export type DndInteraction = {
 
 /** 具体方向のDnD完了処理がoperation boundaryへ返す内部結果。 */
 type ActiveDndCompleteResult< K extends ReorderKind > =
-	| { status: 'committed'; reorder: CommittedReorder< K > }
+	| { status: 'committed'; reorder: ConcreteCommittedReorder< K > }
 	| { status: 'completed-without-commit' }
 	| { status: 'update-failed' };
 
@@ -154,10 +157,10 @@ type DndStartResolver< K extends ReorderKind > = (
 	dropTargetResolution: DropTargetResolution
 ) => DndStartResolution< K >;
 
-/** 方向選択境界で同じ方向の開始解釈とData Update用Target射影を束ねる。 */
+/** 方向選択境界で同じ方向の開始解釈とData Update規則を束ねる。 */
 type DndDirectionAdapter< K extends ReorderKind > = {
 	resolveStart: DndStartResolver< K >;
-	getSourceIndex: ReorderSourceIndexResolver< K >;
+	dataUpdate: DataUpdateDirectionAdapter< K >;
 };
 
 /** 方向固有入口の対象解決後に共通開始処理が生成する結果。 */
@@ -170,18 +173,18 @@ type PreparedDndStart< K extends ReorderKind > =
 	| { status: 'not-started'; reason: ReorderTargetResolutionFailureReason };
 
 /**
- * 具体方向へ確定したReorder Sessionと同方向のDrop Target Resolver、Target射影を束ねる。
+ * 具体方向へ確定したReorder Sessionと同方向のDrop Target Resolver、Data Update規則を束ねる。
  *
- * @param initialSession DnD開始時に成立した具体方向のReorder Session。
- * @param resolve        同じ方向のRequest / Result対応を保証する移動先判定入口。
- * @param getSourceIndex 同じ方向のTargetをData Updateの共通位置へ射影する規則。
- * @param dataUpdate     確定済みReorderをTable Integrationへ接続する共通Data Update。
+ * @param initialSession  DnD開始時に成立した具体方向のReorder Session。
+ * @param resolve         同じ方向のRequest / Result対応を保証する移動先判定入口。
+ * @param dataUpdateRules 同じ方向のTarget位置取得とTableデータ変更規則。
+ * @param dataUpdate      確定済みReorderをTable Integrationへ接続する共通Data Update。
  * @return 最新Reorder Sessionを保持しながら同方向の進行・完了を行う内部バインディング。
  */
 const createActiveDndBinding = < K extends ReorderKind >(
 	initialSession: ConcreteReorderSession< K >,
 	resolve: ( request: DropTargetResolutionRequest< K > ) => DropTargetResolutionResult< K >,
-	getSourceIndex: ReorderSourceIndexResolver< K >,
+	dataUpdateRules: DataUpdateDirectionAdapter< K >,
 	dataUpdate: DataUpdate
 ): ActiveDndBinding< K > => {
 	let session = initialSession;
@@ -207,7 +210,7 @@ const createActiveDndBinding = < K extends ReorderKind >(
 				return { status: 'completed-without-commit' };
 			}
 
-			const updateResult = dataUpdate.update( committedReorder, getSourceIndex );
+			const updateResult = dataUpdate.update( committedReorder, dataUpdateRules );
 			// no-opは確定可能な境界だった場合もTableデータ変更を発生させず正常完了する。
 			if ( updateResult.status === 'unchanged' ) {
 				return { status: 'completed-without-commit' };
@@ -251,10 +254,10 @@ export const createDndInteraction = (
 	};
 
 	/**
-	 * 選択された方向固有入口から対象解決と移動先判定入口の対応を受け取り、共通Session開始結果を準備する。
+	 * 選択された方向固有入口から対象解決、移動先判定、Data Update規則の対応を受け取り、共通Session開始結果を準備する。
 	 *
 	 * @param request Input Interactionから渡された方向非依存のDnD開始位置。
-	 * @param adapter 現在の並び替え方向に対応する方向固有入口とTarget射影。
+	 * @param adapter 現在の並び替え方向に対応する方向固有入口とData Update規則。
 	 * @return 具体方向を維持したSessionとBinding、またはDnDを開始できない理由。
 	 */
 	const prepareStartForDirection = < K extends ReorderKind >(
@@ -279,7 +282,7 @@ export const createDndInteraction = (
 		const binding = createActiveDndBinding< K >(
 			startedSession,
 			resolveDropTarget,
-			adapter.getSourceIndex,
+			adapter.dataUpdate,
 			dependencies.dataUpdate
 		);
 
@@ -308,11 +311,14 @@ export const createDndInteraction = (
 					return { status: 'not-started', reason: 'reorder-mode-inactive' };
 				}
 
-				// 方向が未確定なこの境界だけで行・列を選択し、以降は同じ方向の型対応を維持する。
+				// 方向が未確定なこの境界だけで行・列を選択し、以降は同じ方向の型対応と更新規則を維持する。
 				if ( reorderKind === 'row' ) {
 					const preparedStart = prepareStartForDirection( request, {
 						resolveStart: resolveRowDndStart,
-						getSourceIndex: getRowReorderSourceIndex,
+						dataUpdate: {
+							getSourceIndex: getRowReorderSourceIndex,
+							resolveTableUpdateChanges: resolveRowTableUpdateChanges,
+						},
 					} );
 					if ( preparedStart.status === 'not-started' ) {
 						return preparedStart;
@@ -324,7 +330,10 @@ export const createDndInteraction = (
 
 				const preparedStart = prepareStartForDirection( request, {
 					resolveStart: resolveColumnDndStart,
-					getSourceIndex: getColumnReorderSourceIndex,
+					dataUpdate: {
+						getSourceIndex: getColumnReorderSourceIndex,
+						resolveTableUpdateChanges: resolveColumnTableUpdateChanges,
+					},
 				} );
 				if ( preparedStart.status === 'not-started' ) {
 					return preparedStart;
