@@ -55,3 +55,14 @@ export const resolveColumnReorderTarget = (
 		getSpan: ( cell ) => cell.columnSpan,
 	} );
 };
+
+/**
+ * 列のReorder TargetをData Updateが利用する共通の移動元位置へ射影する。
+ *
+ * `columnIndex`の意味は列並び替え責務が所有し、共通Data Updateは列固有のTarget構造を直接解釈しない。
+ *
+ * @param target Table全体で確定した列のReorder Target。
+ * @return 論理Tableグリッド上の0-based移動元位置。
+ */
+export const getColumnReorderSourceIndex = ( target: ColumnReorderTarget ): number =>
+	target.columnIndex;
