@@ -62,3 +62,13 @@ export const resolveRowReorderTarget = (
 		getSpan: ( cell ) => cell.rowSpan,
 	} );
 };
+
+/**
+ * 行のReorder TargetをData Updateが利用する共通の移動元位置へ射影する。
+ *
+ * `rowIndex`の意味は行並び替え責務が所有し、共通Data Updateは行固有のTarget構造を直接解釈しない。
+ *
+ * @param target `body`区画内で確定した行のReorder Target。
+ * @return `body`区画内の0-based移動元位置。
+ */
+export const getRowReorderSourceIndex = ( target: RowReorderTarget ): number => target.rowIndex;
