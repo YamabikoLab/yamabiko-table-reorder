@@ -64,7 +64,7 @@ export const resolveRowReorderTarget = (
 };
 
 /**
- * 行のReorder TargetをData Updateが利用する共通の移動元位置へ射影する。
+ * 行のReorder Targetから、Data Updateが利用する共通の移動元位置を取得する。
  *
  * `rowIndex`の意味は行並び替え責務が所有し、共通Data Updateは行固有のTarget構造を直接解釈しない。
  *
