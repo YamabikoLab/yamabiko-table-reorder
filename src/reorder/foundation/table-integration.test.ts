@@ -6,7 +6,6 @@
 import { createTableIntegration } from './table-integration';
 
 describe( 'Table Integration', () => {
-
 	/**
 	 * Supported Block Integrationから得た各sectionを共通Table structureへ集約できることを確認する。
 	 *
