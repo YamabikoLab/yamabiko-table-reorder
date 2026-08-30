@@ -1,22 +1,22 @@
 # YTR v1 source
 
-`src/` contains the active formal v1 source and follows the responsibilities and boundaries defined by the accepted Architecture.
+`src/` contains the active formal v1 source.
 
 Current Reorder source boundary:
 
 ```text
 src/reorder/
-├── foundation/
-├── core/
-├── row-reorder/
-└── column-reorder/
+├── editor-dom-context.ts
+├── editor-dom-context.test.ts
+├── reorder-mode.ts
+├── reorder-mode.test.ts
+└── row-reorder/
 ```
 
-- `foundation/` contains the infrastructure and external boundaries required to establish Reorder, such as Editor DOM Context, Reorder Mode, and Table Integration.
-- `core/` contains Reorder contracts, lifecycle, and rules whose meaning and reason to change are shared by row and column reordering.
-- `row-reorder/` contains responsibilities and types specific to row reordering.
-- `column-reorder/` contains responsibilities and types specific to column reordering.
+- Editor DOM Context remains directly under `src/reorder/` as the editor context boundary used by Reorder.
+- `row-reorder/` is the boundary for row-specific implementation. Its concrete internal structure is not defined by this README.
+- Row reordering and column reordering are independent implementations. Do not introduce shared reorder abstractions between them.
 
-`foundation/` is not a generic shared-code directory. Shared row/column Reorder behavior belongs in `core/`, while direction-specific behavior stays in its corresponding Reorder directory.
+The current source tree is not a substitute for Architecture. Responsibility boundaries and the concrete `row-reorder/` structure must follow the accepted Architecture once defined. Do not recreate the removed `foundation/`, `core/`, or shared row/column Reorder structure merely from historical source organization.
 
-Source structure should follow the Architecture and `src/AGENTS.md` rather than reproduce previous formal v1 or Prototype structures. Refer to Git history or the `prototype-final` tag only when historical implementation details are needed.
+Refer to Git history or the `prototype-final` tag only when historical implementation details are needed.
