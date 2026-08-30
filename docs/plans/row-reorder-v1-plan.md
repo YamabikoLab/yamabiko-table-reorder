@@ -56,78 +56,144 @@ Row Reorderの未実装責務は、まずSupported Table Blockとの境界と行
 
 ### Decide before implementation
 
-以下はRequirements / Design / Architectureを変更しない範囲で、該当する実装Issueを開始する前に確定する。決定結果がArchitectureの責務境界、状態所有、Contract、Lifecycle、Invariantを変更する場合は、実装判断として確定せずArchitectureへ戻す。
+以下はRequirements / Design / Architectureを変更しない範囲で、記載したPhaseを開始する前に確定する。決定結果がArchitectureの責務境界、状態所有、Contract、Lifecycle、Invariantを変更する場合は、実装判断として確定せずArchitectureへ戻す。
 
-1. **既存境界をそのまま利用できるか**
+1. **Phase 1開始前: 既存境界をそのまま利用できるか**
    - 現在の`Reorder Mode`と`Editor DOM Context`の公開API・状態モデル・テストが、確定済みArchitectureのContractとLifecycleをそのまま満たすか確認する。
-   - 満たす場合は既存実装を前提として後続へ進み、満たさない場合はArchitectureを変えずに必要な実装修正を先行させる。
+   - 満たす場合は既存実装を前提としてPhase 2へ進み、満たさない場合はArchitectureを変えずに必要な実装修正をPhase 1で完了させる。
 
-2. **Architecture責務をsourceへどう配置するか**
+2. **Phase 2開始前: Architecture責務をsourceへどう配置するか**
    - `src/reorder/row-reorder/`内で、Table Integration、Target Resolution、DnD Interaction、Data Update、Presentation、Auto Scroll、Input Interaction、Rediscovery Detectionをどのファイル・module境界へ対応させるか確定する。
    - Reorder GuidanceはRow Reorder外側の責務として、Row Reorder内部へ混在させない配置を確定する。
    - source構造は具体的責務を反映し、汎用的な`shared` / `utils` / `helpers`へ逃がさない。
 
-3. **Table Integrationの具体的なType表現をどうするか**
+3. **Phase 2開始前: Table Integrationの具体的なType表現をどうするか**
    - Architectureが要求するTable同一性、現在の行構造、行更新境界、正常な不在・更新不能を、TypeScript上でどのTypeとResult表現にするか確定する。
    - Core Table / Flexible Table Blockの差を境界内で吸収し、後続責務へBlock固有表現を漏らさない具体的な変換境界を確定する。
    - 行制約判定に必要な情報を超えて、列方向のための共通Table表現を導入しない。
 
-4. **DnD operationとSessionをTypeScriptでどう表現するか**
+4. **Phase 3開始前: Reorder Target Resolutionの実装境界をどう表現するか**
+   - DnD開始位置、現在のTable情報、移動可能な行、開始できない正常な理由をどのType / Resultとして表現するか確定する。
+   - `rowspan`等による行単位の移動可否を、Table Integrationから受け取る情報からどの形で導出し、後続へ何を渡すか確定する。
+   - Session開始後の状態やDrop Target Resolutionの責務を先取りしない。
+
+5. **Phase 4開始前: Drop Target Resolutionの移動先をどう表現するか**
+   - progress時の有効移動先と、現在は確定できない正常な結果をどのType / Resultで表現するか確定する。
+   - complete時にSessionの最終有効移動先を現在構造へ再照合できるよう、移動先のidentityと再照合入力をどの形で維持するか確定する。
+   - progress時の判定結果だけをcompleteの確定根拠にしないType / API境界とする。
+
+6. **Phase 5開始前: Data UpdateをWordPressの更新へどう接続するか**
+   - Table Integrationの更新境界を利用して、確定済み行移動を対象Blockへ一度だけ反映する具体的なWordPress data update経路を確定する。
+   - 一回の成立した行並び替えを一回のUndo単位として維持できる更新方式を確定する。
+   - 更新開始前の外部状態変化を正常な更新不能として返し、独自retry / rollbackを導入しない。
+
+7. **Phase 6開始前: DnD operationとSessionをTypeScriptでどう表現するか**
    - `start` / `progress` / `complete` / `cancel`のoperation APIと、その呼び出し経路を確定する。
    - idle / active、移動対象、Table同一性、最終有効移動先など、型で維持できる状態相関をどのstate modelで表現するか確定する。
    - 正常な不在・正常中止・外部環境変化と、内部Errorを具体的なType / Error経路でどう区別するか確定する。
    - operation boundaryとexecution boundaryが同じ共通中止経路へ合流する具体的なAPI境界を確定する。
 
-5. **Reorder Presentationをどの描画境界で実現するか**
+8. **Phase 7開始前: Reorder Presentationをどの描画境界で実現するか**
    - 移動対象、水平挿入線、周囲行の一時移動、移動不可理由を、TableデータをDnD中に更新せず表現する具体的な描画方式を確定する。
    - React component / hook、DOM要素、CSSによる表現の責務分担と、Editor context変更・DnD終了時のcleanup方法を確定する。
    - Architectureで定義された表示責務を越えて、共通案内状態やColumn Reorder表示を取り込まない。
 
-6. **Auto Scrollをどの実行方式で制御するか**
+9. **Phase 8開始前: Auto Scrollをどの実行方式で制御するか**
    - active DnD中の現在位置から縦方向Auto Scrollを更新する具体的な実行方式と、Editor Scroll Areaを扱う境界を確定する。
    - 非同期callback等のexecution boundaryを利用する場合は、Errorを独自に記録・回復せずDnD Interactionの共通中止経路へ渡せる構成を確定する。
 
-7. **PC / Touch入力を共通DnD operationへどう変換するか**
-   - PCとタッチそれぞれについて、利用するbrowser eventとlistener lifecycle、DnD開始判定から`start` / `progress` / `complete` / `cancel`へ変換する具体的な経路を各Input Interaction Issueで確定する。
-   - タッチではDnD開始前の通常スクロールを不必要に妨げないevent制御境界を確定する。
-   - PC / Touch固有状態をDnD Sessionへ持ち込まない。
+10. **Phase 9開始前: PC入力をDnD operationへどう変換するか**
+    - 利用するbrowser eventとlistener lifecycle、DnD開始判定から`start` / `progress` / `complete` / `cancel`へ変換する具体的な経路を確定する。
+    - 通常編集との競合を避けながら、PC固有状態をDnD Sessionへ持ち込まない構成を確定する。
 
-8. **Reorder Guidanceの状態をどの実装境界で保持するか**
-   - ArchitectureとDesignで定義済みのPC / タッチごとの初回案内表示済み状態、共通入口案内状態、案内抑制状態を、どのWordPress / React側の状態境界で保持するか確定する。
-   - 保存期間など利用者向け挙動の意味を新たに決める必要が生じた場合は、実装で補完せずDesign / Architectureへ戻す。
-   - Rediscovery Detectionは行側の候補通知だけを行い、共通案内状態を所有しない接続APIを確定する。
+11. **Phase 10開始前: Touch入力をDnD operationへどう変換するか**
+    - 利用するtouch / pointer系eventとlistener lifecycle、DnD開始判定から`start` / `progress` / `complete` / `cancel`へ変換する具体的な経路を確定する。
+    - DnD開始前の通常スクロールを不必要に妨げないevent制御境界を確定する。
+    - Touch固有状態をDnD Sessionへ持ち込まない。
+
+12. **Phase 11開始前: Reorder Guidanceの状態をどの実装境界で保持するか**
+    - ArchitectureとDesignで定義済みのPC / タッチごとの初回案内表示済み状態、共通入口案内状態、案内抑制状態を、どのWordPress / React側の状態境界で保持するか確定する。
+    - 保存期間など利用者向け挙動の意味を新たに決める必要が生じた場合は、実装で補完せずDesign / Architectureへ戻す。
+    - Reorder Modeとの接続と案内終了時の状態更新を、Row / Column固有状態を持ち込まず実現するAPI境界を確定する。
+
+13. **Phase 12開始前: Rediscovery Detectionをどの判定方式で実現するか**
+    - Designで定義された「同じ行付近で短時間に繰り返された行移動意図」を、通常編集、文字選択、通常スクロール等と区別する具体的な観測入力と短期状態を確定する。
+    - 回数、時間幅、位置範囲など具体値が必要な場合は、Designの意味を変えない実装値として確定し、利用者向け仕様の追加が必要ならDesignへ戻す。
+    - 成立時は行側の再案内候補だけをReorder Guidanceへ通知し、案内表示状態をRediscovery Detection側へ持たせない。
+
+14. **Phase 13開始前: 横断validationの実行単位をどう構成するか**
+    - Requirements / Design / Architecture / Quality Requirementsのどの主要契約をfocused test、Playwright、計測で確認するかvalidation matrixを確定する。
+    - Core Table / Flexible Table Block、PC / Touch、対象Editor環境について、重複を避けつつ保証範囲を確認できる代表scenarioを確定する。
+    - 新しいRequirementや固定性能基準をvalidation都合で追加しない。
 
 ### Validate during implementation
 
-以下は実装結果、実ブラウザ、計測から確認できるため、実装を進めながら検証する。
+以下は実装結果、実ブラウザ、計測から確認できるため、記載したPhaseで検証する。途中の検証結果が後続Phaseの実装方向・順序・Issue境界へ影響する場合はPlanを更新し、Architecture変更が必要ならArchitectureへ戻す。
 
-1. **Editor lifecycleへの追従**
-   - iframe / non-iframe、mount / unmount / remountを含む対象Editor環境で、入力listener、Presentation、Auto Scrollが古いDOM参照を保持せず現在のEditor contextへ追従できるか確認する。
-   - Evidence: 対象WordPress環境でのfocused E2Eと、必要なlifecycle test。
+1. **Phase 1: 既存境界のArchitecture適合**
+   - `Reorder Mode` / `Editor DOM Context`が現在のArchitectureのContract / Lifecycleを満たし、後続Phaseの前提として利用できることを確認する。
+   - Evidence: 既存または修正後のfocused test。
+   - Phase 1完了条件として確認し、未解決のままPhase 2へ進めない。
 
-2. **PC / Touch入力と通常編集の両立**
-   - PCで通常のTable編集と行DnDが意図せず競合しないこと、タッチでDnD開始前の通常スクロールを不必要に妨げないことを確認する。
-   - Evidence: 実browser inputを使ったPlaywright scenario。
-
-3. **DnD表示とcleanup**
-   - 移動対象、挿入線、周囲行の移動、移動不可理由がDesignどおり追跡でき、complete / cancel / 外部環境変化 / 内部Error recovery後にDnD中だけの表示が残らないことを確認する。
-   - Evidence: Presentationのfocused testと主要E2E。
-
-4. **外部環境変化とError recovery**
-   - active DnD中のTable / Editor状態変化、complete時の再照合不成立、operation boundaryとexecution boundaryの内部Errorが、Architectureで定義されたそれぞれの終了経路へ合流することを確認する。
-   - Evidence: 各failure / recovery pathのfocused test。
-
-5. **対応Table Block間の同等性とUndo**
-   - Core Table / Flexible Table Blockの双方で、同じRow Reorder flowが成立し、成立した一回の行並び替えが一回のUndo単位になることを確認する。
+2. **Phase 2 / 5、Phase 13で最終確認: 対応Table Block間の同等性とUndo**
+   - Phase 2でCore Table / Flexible Table Blockから必要な現在情報を同じRow Reorder Contractへ適応できることを確認する。
+   - Phase 5で成立した一回の行並び替えが一回のUndo単位になることを確認する。
+   - Phase 13で双方のTable Blockについて主要end-to-end flowを再確認する。
    - Evidence: focused integration testと主要E2E。
 
-6. **QR-01 Performance**
-   - Quality Requirementsの保証対象規模まで、DnD中のTarget Resolution、Presentation、Auto Scrollなどが利用者の操作を妨げる処理になっていないことを計測・確認する。
-   - Evidence: 想定最大規模を含む代表Tableでの計測結果と実操作確認。固定数値を新しいRequirementとして追加しない。
+3. **Phase 4 / 6、Phase 13で最終確認: 外部Table状態変化とcomplete再照合**
+   - progress後にTable状態が変化した場合、Phase 4のcomplete再照合が確定不能を正常な結果として返せることを確認する。
+   - Phase 6でその結果がData Updateへ進まず共通中止経路へ合流することを確認する。
+   - Phase 13で統合flowとして再確認する。
+   - Evidence: focused failure / recovery testと主要E2E。
 
-7. **Guidance / Rediscoveryの実利用経路**
-   - 初回案内と行側Rediscovery候補が通常編集を妨げず、外側のReorder Guidanceへ正しく接続されることを確認する。
-   - Evidence: state-level focused testと主要E2E。
+4. **Phase 6、Phase 8で追加確認、Phase 13で最終確認: 内部Error recovery**
+   - Phase 6でstart / progress / complete / cancelのoperation boundaryに伝播した内部Errorが一度だけ記録され、Sessionと一時状態を破棄してidleへ戻ることを確認する。
+   - Phase 8で非同期callback等のexecution boundaryを利用する場合は、独自recoveryを持たず同じ共通中止経路へ合流することを確認する。
+   - Phase 13で主要統合flowから安全に編集継続できることを再確認する。
+   - Evidence: 各failure / recovery pathのfocused testと必要なE2E。
+
+5. **Phase 7、Phase 13で最終確認: DnD表示とcleanup**
+   - 移動対象、挿入線、周囲行の移動、移動不可理由がDesignどおり追跡できることを確認する。
+   - complete / cancel / 外部環境変化 / 内部Error recovery後にDnD中だけの表示が残らないことを確認する。
+   - Evidence: Presentationのfocused testと主要E2E。
+
+6. **Phase 7〜10、Phase 13で最終確認: Editor lifecycleへの追従**
+   - iframe / non-iframe、mount / unmount / remountを含む対象Editor環境で、Presentation、Auto Scroll、PC / Touch入力listenerが古いDOM参照を保持せず現在のEditor contextへ追従できるか確認する。
+   - 各責務の実装Phaseでfocusedに確認し、Phase 13で主要flowとして再確認する。
+   - Evidence: lifecycle testと対象WordPress環境でのPlaywright scenario。
+
+7. **Phase 8、Phase 13で最終確認: Auto Scrollの継続性と終了**
+   - active Session中だけ必要な縦方向Auto Scrollが動作し、complete / cancel / abort / recoveryで終了することを確認する。
+   - Editor Scroll Areaを利用できない状態を内部Errorとして扱わず、安全に終了できることを確認する。
+   - Evidence: focused testと実ブラウザでの主要scenario。
+
+8. **Phase 9、Phase 13で最終確認: PC入力と通常編集の両立**
+   - PCで通常のTable編集と行DnDが意図せず競合せず、行並び替えモード中だけRow Reorder operationへ接続されることを確認する。
+   - Evidence: 実browser inputを使ったPlaywright scenario。
+
+9. **Phase 10、Phase 13で最終確認: Touch入力と通常スクロールの両立**
+   - DnD開始前の通常のTable / Editorスクロールを不必要に妨げず、DnD開始後だけRow Reorder operationとして進行できることを確認する。
+   - Evidence: 実browser inputを使ったPlaywright scenario。
+
+10. **Phase 11 / 12、Phase 13で最終確認: Guidance / Rediscoveryの実利用経路**
+    - Phase 11で初回案内が通常編集を妨げず、Reorder Modeと整合して終了・状態更新できることを確認する。
+    - Phase 12で行側Rediscovery候補が通常編集と区別され、Reorder Guidanceへ正しく接続されることを確認する。
+    - Phase 13で初回案内と再案内の主要flowを再確認する。
+    - Evidence: state-level focused testと主要E2E。
+
+11. **Phase 13: QR-01 Performance**
+    - Quality Requirementsの保証対象規模まで、DnD中のTarget Resolution、Presentation、Auto Scrollなどが利用者の操作を妨げる処理になっていないことを計測・確認する。
+    - Evidence: 想定最大規模を含む代表Tableでの計測結果と実操作確認。
+    - 固定数値を新しいRequirementとして追加しない。
+
+12. **Phase 13: QR-02 Compatibility**
+    - 対象WordPress / Editor環境、iframe / non-iframe、Core Table / Flexible Table Blockについて、Row Reorderの主要flowが保証範囲内で成立することを確認する。
+    - Evidence: Phase 13開始前に確定したvalidation matrixに基づくPlaywright / integration結果。
+
+13. **Phase 13: QR-03 Reliability / Robustness**
+    - 外部環境変化または内部Errorが発生してもTable / Editorを不正な状態にせず、Row Reorderを安全に終了し、その後も編集を継続できることを横断確認する。
+    - Evidence: Phase 4 / 6 / 8で成立させたfailure / recovery testと主要E2E。
 
 ## Implementation phases
 
@@ -287,8 +353,8 @@ Planレビュー後、次の単位で実装Issueを作成する。各Issueはこ
 ## Completion criteria
 
 - Row Reorder v1 Architectureで定義された実装対象が、依存関係に沿ったレビュー可能なIssue単位で完成している。
-- 実装開始前に確定が必要な実装判断が各該当Issueで解決されている。
-- 実装中に検証する事項について、必要なevidenceが得られている。
+- 各Phaseを開始する前に、そのPhaseに紐づく`Decide before implementation`が解決されている。
+- `Validate during implementation`について、各項目に紐づくPhaseで必要なevidenceが得られ、Phase 13で必要な横断確認が完了している。
 - Requirements / Design / ArchitectureをPlanまたは実装で再定義していない。
 - Column Reorder固有の状態・責務・内部仕様またはRow / Column共通Reorder抽象化へ依存していない。
 - Row Reorderの主要フローとQuality Requirementsに対するvalidationが完了している。
