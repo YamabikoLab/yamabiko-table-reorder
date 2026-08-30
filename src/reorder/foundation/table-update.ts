@@ -34,12 +34,13 @@ export type TableUpdateSectionName = 'head' | 'body' | 'foot';
 /**
  * 対応Table固有セルを、並び替え時に内容を保持したまま扱う共通表現。
  *
- * `data`は元のセルデータを変更せず保持し、結合範囲だけを方向固有規則が参照できる共通値として提供する。
+ * `data`は元のセルデータを変更せず保持する。結合範囲は対応Table固有表現から安全に解釈できた値を
+ * 提供し、解釈できない場合は`null`として、必要とする方向固有規則が更新可否を判断する。
  */
 export type TableUpdateCell = {
 	data: Record< string, unknown >;
-	rowSpan: number;
-	columnSpan: number;
+	rowSpan: number | null;
+	columnSpan: number | null;
 };
 
 /** 対応Table固有行を、セル内容を保持したまま扱う共通表現。 */
@@ -214,11 +215,7 @@ const normalizeTableSection = (
 
 			const rowSpan = spanReader.getRowSpan( cell );
 			const columnSpan = spanReader.getColumnSpan( cell );
-			// 結合範囲を確定できないセルが1つでもあれば、現在Tableを安全な更新対象として扱わない。
-			if ( rowSpan === null || columnSpan === null ) {
-				return null;
-			}
-
+			// 結合範囲の成立可否は、その情報を必要とする方向固有規則が判断できるよう結果を保持する。
 			cells.push( { data: cell, rowSpan, columnSpan } );
 		}
 
