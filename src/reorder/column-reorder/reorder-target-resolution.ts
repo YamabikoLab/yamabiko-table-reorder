@@ -57,7 +57,7 @@ export const resolveColumnReorderTarget = (
 };
 
 /**
- * 列のReorder TargetをData Updateが利用する共通の移動元位置へ射影する。
+ * 列のReorder Targetから、Data Updateが利用する共通の移動元位置を取得する。
  *
  * `columnIndex`の意味は列並び替え責務が所有し、共通Data Updateは列固有のTarget構造を直接解釈しない。
  *
