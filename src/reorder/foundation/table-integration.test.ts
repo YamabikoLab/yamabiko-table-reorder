@@ -93,6 +93,117 @@ describe( 'Table Integration', () => {
 	} );
 
 	/**
+	 * 1,000行×20列の大規模Tableで複数の縦結合・横結合が入り組んでも、共通Table構造を正しく復元できることを確認する。
+	 *
+	 * 事前条件:
+	 * - bodyは1,000行×20論理列で構成され、通常セルが大部分を占める。
+	 * - body内の複数箇所に、縦結合・横結合・縦横両方の結合セルが合計20個存在する。
+	 * - 近接する結合セル同士が後続行の論理列配置へ影響する領域を含む。
+	 *
+	 * 操作:
+	 * - getStructure()を1回実行し、その処理時間を計測する。
+	 *
+	 * 期待結果:
+	 * - 20個すべての結合セルについて、区画、開始行、開始列、縦結合数、横結合数が期待値と一致する。
+	 * - 計測結果から1,000行×20列の構造取得に要した時間を確認できる。
+	 */
+	it( 'when a 1000 by 20 table has complex merged cells, should restore every merged cell and report processing time', () => {
+		const rowCount = 1_000;
+		const columnCount = 20;
+		const mergedCellPlans = [
+			{ rowStart: 12, columnStart: 2, rowSpan: 4, columnSpan: 2 },
+			{ rowStart: 12, columnStart: 8, rowSpan: 3, columnSpan: 3 },
+			{ rowStart: 13, columnStart: 5, rowSpan: 1, columnSpan: 2 },
+			{ rowStart: 14, columnStart: 12, rowSpan: 4, columnSpan: 2 },
+			{ rowStart: 15, columnStart: 4, rowSpan: 3, columnSpan: 3 },
+			{ rowStart: 16, columnStart: 0, rowSpan: 2, columnSpan: 2 },
+			{ rowStart: 16, columnStart: 8, rowSpan: 2, columnSpan: 3 },
+			{ rowStart: 18, columnStart: 1, rowSpan: 5, columnSpan: 2 },
+			{ rowStart: 18, columnStart: 5, rowSpan: 2, columnSpan: 4 },
+			{ rowStart: 19, columnStart: 10, rowSpan: 4, columnSpan: 2 },
+			{ rowStart: 20, columnStart: 4, rowSpan: 3, columnSpan: 3 },
+			{ rowStart: 21, columnStart: 13, rowSpan: 2, columnSpan: 4 },
+			{ rowStart: 100, columnStart: 0, rowSpan: 10, columnSpan: 2 },
+			{ rowStart: 102, columnStart: 3, rowSpan: 4, columnSpan: 3 },
+			{ rowStart: 105, columnStart: 7, rowSpan: 2, columnSpan: 5 },
+			{ rowStart: 500, columnStart: 15, rowSpan: 8, columnSpan: 2 },
+			{ rowStart: 503, columnStart: 10, rowSpan: 3, columnSpan: 3 },
+			{ rowStart: 700, columnStart: 2, rowSpan: 2, columnSpan: 6 },
+			{ rowStart: 850, columnStart: 5, rowSpan: 6, columnSpan: 4 },
+			{ rowStart: 995, columnStart: 12, rowSpan: 5, columnSpan: 3 },
+		] as const;
+		const mergeByStart = new Map(
+			mergedCellPlans.map( ( mergedCell ) => [
+				`${ mergedCell.rowStart }:${ mergedCell.columnStart }`,
+				mergedCell,
+			] )
+		);
+		const occupied = Array.from( { length: rowCount }, () =>
+			Array< boolean >( columnCount ).fill( false )
+		);
+
+		const body = Array.from( { length: rowCount }, ( _, rowStart ) => {
+			const cells: Record< string, number >[] = [];
+
+			// 各行を20論理列として構成し、先行する結合セルが占有する位置には物理セルを作らない。
+			for ( let columnStart = 0; columnStart < columnCount; columnStart++ ) {
+				if ( occupied[ rowStart ][ columnStart ] ) {
+					continue;
+				}
+
+				const mergedCell = mergeByStart.get( `${ rowStart }:${ columnStart }` );
+				if ( ! mergedCell ) {
+					cells.push( {} );
+					continue;
+				}
+
+				const cell: Record< string, number > = {};
+				if ( mergedCell.rowSpan > 1 ) {
+					cell.rowspan = mergedCell.rowSpan;
+				}
+				if ( mergedCell.columnSpan > 1 ) {
+					cell.colspan = mergedCell.columnSpan;
+				}
+				cells.push( cell );
+
+				// 結合セルが占有する論理領域を記録し、後続行を含めて重複する物理セルを生成しない。
+				for ( let row = rowStart; row < rowStart + mergedCell.rowSpan; row++ ) {
+					for (
+						let column = columnStart;
+						column < columnStart + mergedCell.columnSpan;
+						column++
+					) {
+						occupied[ row ][ column ] = true;
+					}
+				}
+			}
+
+			return { cells };
+		} );
+		const integration = createTableIntegration( {
+			getBlock: jest.fn().mockReturnValue( {
+				name: 'core/table',
+				attributes: { body },
+			} ),
+		} );
+
+		const startedAt = performance.now();
+		const structure = integration.getStructure( 'large-core-table-client-id' );
+		const elapsedMilliseconds = performance.now() - startedAt;
+
+		process.stdout.write(
+			`Table Integration: 1,000 rows x 20 columns processed in ${ elapsedMilliseconds.toFixed( 3 ) } ms\n`
+		);
+
+		expect( structure ).toEqual( {
+			mergedCells: mergedCellPlans.map( ( mergedCell ) => ( {
+				section: 'body',
+				...mergedCell,
+			} ) ),
+		} );
+	} );
+
+	/**
 	 * 同じclientIdへの要求でも現在のBlockを毎回取得することを確認する。
 	 *
 	 * 事前条件:
