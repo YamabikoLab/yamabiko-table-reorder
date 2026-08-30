@@ -2,26 +2,30 @@
 
 ## 1. Introduction and Goals
 
-本書は、正式v1の行並び替えを実現するための内部責務、境界、状態所有、内部仕様、依存関係、Lifecycle、Invariantを定義する。
+本書は、正式v1の行並び替えを実現するための内部責務、境界、状態所有、Contract、依存関係、Lifecycle、Invariantを定義する。
 
 入力は`docs/design/reorder-v1-design.md`および`docs/design/row-reorder-v1-design.md`とし、利用者向け設計を行専用の責務モデルへ落とし込む。
 
-本書はRow Reorderだけを対象とする。Column Reorderの状態、責務、内部仕様は定義せず、Row Reorderから参照しない。
+本書はRow Reorderだけを対象とする。Column Reorderの状態、責務、Contractは定義せず、Row Reorderから参照しない。
 
 通常編集、行並び替え、列並び替えのモード選択と排他状態はRow Reorderの外側にあるReorder Mode境界が所有する。Row Reorderは、行並び替えが有効であることだけを受け取り、その有効期間における行DnDの状態とLifecycleを所有する。
+
+責務名はArchitecture上の概念名とし、行専用であることを責務名へ重複して付与しない。本書に定義するTable Integration、DnD InteractionなどはすべてRow Reorderの責務であり、将来Column Reorder側に同名の責務が存在しても共通実装または共有状態を意味しない。
 
 ## 2. Architecture Constraints
 
 - Row ReorderとColumn Reorderは独立した実装とし、両者の間に共通の並び替え抽象化を導入しない。
-- Reorder Mode境界は通常編集、行並び替え、列並び替えの排他状態だけを所有し、Row ReorderへColumn Reorderの内部状態、責務、内部仕様を公開しない。
+- Reorder Mode境界は通常編集、行並び替え、列並び替えの排他状態だけを所有し、Row ReorderへColumn Reorderの内部状態、責務、Contractを公開しない。
+- 本書の責務名がColumn ReorderのArchitectureと同一であっても、責務の同一性、実装共有、状態共有を意味しない。
 - Row Reorderは`tbody`の行だけを移動対象とし、行順以外のTable内容を変更しない。
 - 行DnD中はTableデータを並べ替えず、確定した場合だけData Updateが行順を更新する。
-- 行方向の自動スクロールは縦方向だけを扱い、列方向のための抽象化を持たない。
+- Auto Scrollは行DnDに必要な縦方向だけを扱い、列方向のための抽象化を持たない。
 - 対応Table BlockやEditor環境の差は、Row Reorderの利用者向け挙動へ漏らさず、それぞれを所有する境界で吸収する。
 - 正常な不在、外部環境変化による継続不能、内部仕様またはruntime invariant違反を区別する。
 - 型で表現できる状態相関は型と状態モデルで保証し、runtime assertionへ戻さない。runtime assertionはRow Reorderが所有し、型だけでは保証できない値レベルのInvariantに限定する。
 - 内部エラーはRow Reorder内部で局所的に握り潰さず、DnDのstart、progress、complete、cancelの操作境界まで伝播させる。
 - 操作境界で内部エラーを捕捉した場合は、Row Reorder内の共通中止経路へ合流し、Sessionと一時状態を破棄して安全なidleへ戻す。同じエラーを複数箇所で記録しない。
+- 外部環境変化による継続不能は内部エラーとして記録せず、必要な一時状態だけを破棄して安全に操作を終了する。
 
 ## 3. Context and Scope
 
@@ -29,47 +33,97 @@
 
 | ID | Name | Type | Summary |
 | --- | --- | --- | --- |
-| EXT_WORDPRESS_EDITOR | WordPress Editor | External System | Row Reorderが動作し、入力、表示、Table編集状態が存在する編集環境。 |
-| EXT_SUPPORTED_TABLE_BLOCK | Supported Table Block | External Component | Core TableまたはFlexible Table Blockとして存在し、Row Reorderが行情報を取得・更新する対象。 |
+| EXT_WORDPRESS_EDITOR | WordPress Editor | External System | `QR-02`で保証対象とする編集環境を提供し、Row Reorderの入力と表示が存在する。 |
+| EXT_SUPPORTED_TABLE_BLOCK | Supported Table Block | External Block | `FR-13`で定義されるCore TableまたはFlexible Table Blockであり、Table Integrationを介して行構造の取得と行順更新を行う対象。 |
+| EXT_WORDPRESS_UNDO | WordPress Undo | External Capability | 成立した1回の行並び替えを1回のUndoで戻せる更新単位を提供する。 |
+| EXT_SCROLL_AREA | Editor Scroll Area | External Environment | 行DnD中に縦方向へ自動スクロールする対象領域を提供する。 |
+
+Row ReorderはWordPress Editor、対応Table Block、WordPress Undo、およびEditor Scroll Areaと接続する。対応Table Blockの具体的な対象とEditor環境の保証範囲はRequirementsを正本とし、本書では再定義しない。
+
+Editor DOM ContextはWordPress Editorの現在のeditor contextからDOM / Web APIを利用するためのcontextを解決する。Table IntegrationはSupported Table Blockとの差を吸収する。Data UpdateはWordPress Undoの更新単位を壊さずに確定済み行移動を反映する。Auto Scrollは現在のEditor Scroll Areaだけを対象とする。
 
 ## 4. Solution Strategy
 
-Row Reorderは、入力方式、Table Block差、行制約、DnD状態、表示、更新を別責務として分離し、DnD Interactionを行操作のLifecycle中心とする。
+Row Reorderは、モード境界、editor context、入力、Table Block差、移動対象判定、移動先判定、DnD Session、表示、自動スクロール、Table更新、初回案内、再案内を別責務として扱う。
 
-Reorder Mode境界はRow Reorderを有効化する外側の境界であり、行DnDの状態を所有しない。Editor DOM Contextは、現在の編集環境に属するDOM/Web API参照を必要な時点で解決する共有境界であり、Row Reorder固有状態を所有しない。
+Reorder ModeはRow Reorderを有効化する外側の境界であり、行DnDの状態を所有しない。Editor DOM Contextは現在のWordPress Editorに属するDOM / Web API contextを必要な時点で解決する共有境界であり、Row Reorder固有状態を所有しない。
 
-Row ReorderのSessionは行専用であり、移動対象行、開始時に確定したTable同一性と構造上の前提、現在の移動先、DnD中の一時状態を保持する。列方向を識別する状態は持たない。
+DnD Interactionは行DnDのoperation boundaryとSession Lifecycleを所有する。Sessionは移動対象行、対象Table同一性、開始時に成立した行制約上の前提、現在の有効移動先、DnD中の一時状態だけを保持し、列方向を識別する状態を持たない。
+
+正常な処理進行と異常時の回復は別のProcess Flow Viewで表現する。異常系は発生責務の一覧ではなく、回復意味が異なるパターンとして、外部環境変化、Session開始前の内部failure、active DnD中の内部failure、Data Update failureに分ける。
 
 ### Process Flow Views
 
 #### Row Reorder End-to-End {#PV_ROW_REORDER_END_TO_END kind=normal}
 
-行並び替えが有効な状態から、行DnDの開始、進行、確定またはキャンセルまでの主要な処理方向を示す。
+WordPress Editorの入力から行DnDを開始し、有効な移動先で確定した行移動だけを対応Table Blockへ反映する主要な処理方向を示す。
 
 | From | To | Kind | Meaning |
 | --- | --- | --- | --- |
-| RESP_REORDER_MODE | RESP_ROW_INPUT_INTERACTION | normal | 行並び替えが有効である状態が行入力境界へ適用される。 |
-| RESP_ROW_INPUT_INTERACTION | RESP_ROW_DND_INTERACTION | normal | 行DnDの開始・進行・完了・キャンセル操作が行DnD境界へ進む。 |
-| RESP_ROW_DND_INTERACTION | RESP_ROW_REORDER_TARGET_RESOLUTION | normal | DnD開始処理が移動対象行の成立判定へ進む。 |
-| RESP_ROW_DND_INTERACTION | RESP_ROW_DROP_TARGET_RESOLUTION | normal | DnD進行処理が現在の有効な移動先判定へ進む。 |
-| RESP_ROW_DND_INTERACTION | RESP_ROW_PRESENTATION | normal | 行DnD状態が移動対象、移動先、周囲の表示へ反映される。 |
-| RESP_ROW_DND_INTERACTION | RESP_ROW_AUTO_SCROLL | normal | 行DnD進行処理が必要な縦方向スクロール判断へ進む。 |
-| RESP_ROW_DND_INTERACTION | RESP_ROW_DATA_UPDATE | normal | 確定した行移動だけがTableデータ更新へ進む。 |
-| RESP_ROW_DATA_UPDATE | EXT_SUPPORTED_TABLE_BLOCK | normal | 確定した行順が対応Table Blockへ反映される。 |
+| EXT_WORDPRESS_EDITOR | RESP_ROW_INPUT_INTERACTION | normal | WordPress Editorの入力が行並び替えの入力境界へ入る。 |
+| RESP_ROW_INPUT_INTERACTION | RESP_ROW_DND_INTERACTION | normal | 入力方式固有の解釈から行DnDのstart、progress、complete、cancelへ進む。 |
+| RESP_ROW_DND_INTERACTION | RESP_ROW_REORDER_TARGET_RESOLUTION | normal | DnD開始試行から移動対象行の解決へ進む。 |
+| RESP_ROW_REORDER_TARGET_RESOLUTION | RESP_ROW_DROP_TARGET_RESOLUTION | normal | 開始済み行DnDが有効な行間の移動先判定へ進む。 |
+| RESP_ROW_DROP_TARGET_RESOLUTION | RESP_ROW_DATA_UPDATE | normal | 有効な移動先でDnDが完了した場合だけ確定済み行移動の反映へ進む。 |
+| RESP_ROW_DATA_UPDATE | RESP_ROW_TABLE_INTEGRATION | normal | 確定済み行移動を対応Table Block固有の更新境界へ渡す。 |
+| RESP_ROW_TABLE_INTEGRATION | EXT_SUPPORTED_TABLE_BLOCK | normal | 対応Table Blockへ`tbody`の行順だけを反映する。 |
 
-#### Row Reorder Failure and Recovery {#PV_ROW_REORDER_FAILURE_RECOVERY kind=failure-recovery}
+このViewは主要な処理進行だけを示す。Presentation、Auto Scroll、Guidanceなどの補助責務やRuntime Interactionの往復はRuntime ViewとDependenciesで表現する。
 
-Row Reorder内部のエラーが操作境界へ伝播し、行専用の共通中止経路によって安全なidleへ回復する処理方向を示す。
+#### External Environment Change and Recovery {#PV_ROW_EXTERNAL_CHANGE_RECOVERY kind=failure-recovery}
+
+EditorまたはTableの外部状態変化によってactiveな行DnDを継続できなくなった場合に、内部エラーとして扱わず共通中止経路へ合流し、安全なidleへ戻る処理方向を示す。
 
 | From | To | Kind | Meaning |
 | --- | --- | --- | --- |
-| RESP_ROW_TABLE_INTEGRATION | RESP_ROW_DND_INTERACTION | failure | Table Integrationで検出した内部仕様またはInvariant違反が行DnD操作境界へ伝播する。 |
-| RESP_ROW_REORDER_TARGET_RESOLUTION | RESP_ROW_DND_INTERACTION | failure | 移動対象判定で検出した内部仕様またはInvariant違反が行DnD操作境界へ伝播する。 |
-| RESP_ROW_DROP_TARGET_RESOLUTION | RESP_ROW_DND_INTERACTION | failure | 移動先判定で検出した内部仕様またはInvariant違反が行DnD操作境界へ伝播する。 |
-| RESP_ROW_DATA_UPDATE | RESP_ROW_DND_INTERACTION | failure | 行更新で検出した内部仕様またはInvariant違反が行DnD操作境界へ伝播する。 |
-| RESP_ROW_DND_INTERACTION | RESP_ROW_PRESENTATION | recovery | 共通中止経路がDnD中だけの表示状態を解除する。 |
-| RESP_ROW_DND_INTERACTION | RESP_ROW_AUTO_SCROLL | recovery | 共通中止経路が行DnDに伴う自動スクロール状態を終了する。 |
-| RESP_ROW_DND_INTERACTION | RESP_ROW_DND_INTERACTION | recovery | Sessionと行DnD一時状態を破棄し、安全なidleへ復帰する。 |
+| RESP_ROW_INPUT_INTERACTION | RESP_ROW_DND_INTERACTION | failure | 現在のEditor contextを利用できないなど、外部環境変化による継続不能をoperation boundaryへ合流させる。 |
+| RESP_ROW_TABLE_INTEGRATION | RESP_ROW_DND_INTERACTION | failure | 対象Tableが現在利用できないなど、外部Table状態の変化による継続不能をoperation boundaryへ合流させる。 |
+| RESP_ROW_DND_INTERACTION | RESP_ROW_PRESENTATION | recovery | DnD中だけの表示状態を解除する。 |
+| RESP_ROW_DND_INTERACTION | RESP_ROW_AUTO_SCROLL | recovery | 行DnDの自動スクロール一時状態を終了する。 |
+| RESP_ROW_DND_INTERACTION | RESP_ROW_INPUT_INTERACTION | recovery | 入力方式固有のDnD一時状態を終了する。 |
+
+このViewの`failure`はProcess Flow Edgeの分類であり、内部エラーを意味しない。外部環境変化は正常に起こり得る継続不能として扱い、エラー記録の対象にしない。
+
+#### Start Failure and Recovery {#PV_ROW_START_FAILURE_RECOVERY kind=failure-recovery}
+
+Session開始前のstart処理でRow Reorder内部のContractまたはInvariant違反が検出された場合に、Errorをstart operation boundaryへ伝播し、Sessionを成立させずidleへ戻る処理方向を示す。
+
+| From | To | Kind | Meaning |
+| --- | --- | --- | --- |
+| RESP_ROW_TABLE_INTEGRATION | RESP_ROW_DND_INTERACTION | failure | start処理中に検出されたRow Reorder所有のContractまたはInvariant違反をoperation boundaryへ伝播する。 |
+| RESP_ROW_REORDER_TARGET_RESOLUTION | RESP_ROW_DND_INTERACTION | failure | 移動対象解決中に検出された内部Errorをstart operation boundaryへ伝播する。 |
+| RESP_ROW_DND_INTERACTION | RESP_ROW_INPUT_INTERACTION | recovery | startに属する入力一時状態を破棄し、Sessionを開始せずidleへ戻る。 |
+
+operation boundaryは元のErrorと失敗した操作を一度だけ記録する。移動対象が成立しない通常結果はこのViewのfailureに含めない。
+
+#### Active DnD Failure and Recovery {#PV_ROW_ACTIVE_DND_FAILURE_RECOVERY kind=failure-recovery}
+
+active Session中のprogressまたはcancel処理で内部Errorが発生した場合に、operation boundaryへ伝播して行専用の共通中止経路へ合流し、DnD一時状態を終了する処理方向を示す。
+
+| From | To | Kind | Meaning |
+| --- | --- | --- | --- |
+| RESP_ROW_DROP_TARGET_RESOLUTION | RESP_ROW_DND_INTERACTION | failure | progress中の移動先判定で検出された内部Errorをoperation boundaryへ伝播する。 |
+| RESP_ROW_PRESENTATION | RESP_ROW_DND_INTERACTION | failure | active DnD中の表示責務で検出された内部Errorをoperation boundaryへ伝播する。 |
+| RESP_ROW_AUTO_SCROLL | RESP_ROW_DND_INTERACTION | failure | active DnD中の自動スクロール責務で検出された内部Errorをoperation boundaryへ伝播する。 |
+| RESP_ROW_DND_INTERACTION | RESP_ROW_PRESENTATION | recovery | DnD中だけの表示状態を解除する。 |
+| RESP_ROW_DND_INTERACTION | RESP_ROW_AUTO_SCROLL | recovery | 自動スクロール一時状態を終了する。 |
+| RESP_ROW_DND_INTERACTION | RESP_ROW_INPUT_INTERACTION | recovery | 入力方式固有のDnD一時状態を終了する。 |
+
+operation boundaryはSessionを破棄してidleへ戻る。各内部責務は独自のcatch、log、recoveryを所有しない。
+
+#### Data Update Failure and Recovery {#PV_ROW_DATA_UPDATE_FAILURE_RECOVERY kind=failure-recovery}
+
+complete処理で確定済み行移動の更新を継続または確認できなくなった場合に、Errorまたは更新不能結果をoperation boundaryへ戻し、開始済み更新をretryまたはrollbackせず安全にDnDを終了する処理方向を示す。
+
+| From | To | Kind | Meaning |
+| --- | --- | --- | --- |
+| RESP_ROW_TABLE_INTEGRATION | RESP_ROW_DATA_UPDATE | failure | 対応Table Blockへの更新を継続または確認できない状態をData Updateへ返す。 |
+| RESP_ROW_DATA_UPDATE | RESP_ROW_DND_INTERACTION | failure | complete処理を継続できない結果または内部Errorをoperation boundaryへ返す。 |
+| RESP_ROW_DND_INTERACTION | RESP_ROW_PRESENTATION | recovery | DnD中だけの表示状態を解除する。 |
+| RESP_ROW_DND_INTERACTION | RESP_ROW_AUTO_SCROLL | recovery | 自動スクロール一時状態を終了する。 |
+| RESP_ROW_DND_INTERACTION | RESP_ROW_INPUT_INTERACTION | recovery | 入力方式固有のDnD一時状態を終了する。 |
+
+すでに外部Tableへ成立した更新を共通中止経路が自動的に巻き戻さない。Data UpdateまたはTable Integrationは独自のretryを開始しない。
 
 ## 5. Building Block View
 
@@ -78,47 +132,60 @@ Row Reorder内部のエラーが操作境界へ伝播し、行専用の共通中
 | ID | Responsibility | Summary |
 | --- | --- | --- |
 | RESP_REORDER_MODE | Reorder Mode | 通常編集、行並び替え、列並び替えのモード選択と排他状態を所有する外側の境界。 |
-| RESP_EDITOR_DOM_CONTEXT | Editor DOM Context | 現在の基準要素と同じ編集環境に属するdocumentとwindowを解決する。 |
-| RESP_ROW_INPUT_INTERACTION | Row Input Interaction | PC・タッチ入力を行DnDの操作へ変換し、入力方式固有状態を行DnD内部へ漏らさない。 |
-| RESP_ROW_TABLE_INTEGRATION | Row Table Integration | 対応Table Blockから行並び替えに必要なTable同一性、現在構造、行更新境界を提供する。 |
-| RESP_ROW_REORDER_TARGET_RESOLUTION | Row Reorder Target Resolution | DnD開始時に、入力位置から移動対象行を特定し、その行が移動可能か判定する。 |
-| RESP_ROW_DROP_TARGET_RESOLUTION | Row Drop Target Resolution | DnD中に、現在位置から構造を保てる行間の移動先を判定する。 |
-| RESP_ROW_DND_INTERACTION | Row DnD Interaction | 行DnDのSession、start・progress・complete・cancel、確定・中止・回復Lifecycleを所有する。 |
-| RESP_ROW_DATA_UPDATE | Row Data Update | 確定した行移動を対応Table Blockの行順へ一度だけ反映する。 |
-| RESP_ROW_PRESENTATION | Row Reorder Presentation | 行DnD中の移動対象、挿入位置、周囲の移動、移動不可理由、一時表示の状態を表現する。 |
-| RESP_ROW_AUTO_SCROLL | Row Auto Scroll | 行DnD中に必要な縦方向の自動スクロールを判断・制御する。 |
-| RESP_ROW_GUIDANCE | Row Guidance | 行並び替えの入口に関する初回案内をRow Reorderが所有する範囲で表現する。 |
-| RESP_ROW_REDISCOVERY | Row Rediscovery | 通常編集時の反復操作から、行並び替え入口の再案内が必要な状態を管理する。 |
+| RESP_EDITOR_DOM_CONTEXT | Editor DOM Context | 現在のWordPress Editorに属するDOM / Web API contextを必要な時点で解決する。 |
+| RESP_ROW_FIRST_USE_GUIDANCE | First-use Guidance | 行並び替えの入口に関する初回案内の表示状態を管理する。 |
+| RESP_ROW_REORDER_REDISCOVERY | Reorder Rediscovery | 通常編集時の反復操作から行並び替え入口の再案内が必要な状態を管理する。 |
+| RESP_ROW_INPUT_INTERACTION | Input Interaction | PCとタッチ端末の入力固有差を行DnDのstart、progress、complete、cancelへ変換する。 |
+| RESP_ROW_TABLE_INTEGRATION | Table Integration | 対応Table Blockとの差を吸収し、行並び替えに必要なTable同一性、現在構造、行更新境界を提供する。 |
+| RESP_ROW_REORDER_TARGET_RESOLUTION | Reorder Target Resolution | DnD開始時に入力位置から移動対象行を特定し、その行が移動可能か判定する。 |
+| RESP_ROW_DROP_TARGET_RESOLUTION | Drop Target Resolution | DnD中に現在位置から構造を保てる行間の移動先を判定する。 |
+| RESP_ROW_DND_INTERACTION | DnD Interaction | 行DnDのSession、operation boundary、確定、中止、回復Lifecycleを所有する。 |
+| RESP_ROW_DATA_UPDATE | Data Update | 確定済み行移動を対応Table Blockの行順へ一度だけ反映する。 |
+| RESP_ROW_PRESENTATION | Reorder Presentation | 移動不可理由と行DnD中の視覚フィードバック、および行入口の案内表示を表現する。 |
+| RESP_ROW_AUTO_SCROLL | Auto Scroll | 行DnD中に必要な縦方向の自動スクロールを判断・制御する。 |
 
 ### Dependencies
 
 | Dependent | Depends on | Reason |
 | --- | --- | --- |
-| RESP_ROW_INPUT_INTERACTION | RESP_REORDER_MODE | 行入力を受理できるのは行並び替えが有効な期間だけである。 |
-| RESP_ROW_INPUT_INTERACTION | RESP_EDITOR_DOM_CONTEXT | 入力処理は対象要素と同じ現在のEditor DOM環境を必要とする。 |
-| RESP_ROW_INPUT_INTERACTION | RESP_ROW_DND_INTERACTION | 入力を行DnDの操作へ変換するために行DnD境界を必要とする。 |
-| RESP_ROW_REORDER_TARGET_RESOLUTION | RESP_ROW_TABLE_INTEGRATION | 移動対象行の成立判定には現在の行構造とTable同一性が必要である。 |
-| RESP_ROW_DROP_TARGET_RESOLUTION | RESP_ROW_TABLE_INTEGRATION | 有効な行間判定には現在の行構造とTable同一性が必要である。 |
-| RESP_ROW_DND_INTERACTION | RESP_ROW_REORDER_TARGET_RESOLUTION | Session開始前に移動可能な行を確定する必要がある。 |
-| RESP_ROW_DND_INTERACTION | RESP_ROW_DROP_TARGET_RESOLUTION | DnD進行中に現在の有効な移動先を確定する必要がある。 |
-| RESP_ROW_DND_INTERACTION | RESP_ROW_TABLE_INTEGRATION | Sessionが参照するTable同一性と現在構造を取得する必要がある。 |
-| RESP_ROW_DND_INTERACTION | RESP_ROW_PRESENTATION | 行DnDの一時状態を利用者へ表現し、終了時に解除する必要がある。 |
-| RESP_ROW_DND_INTERACTION | RESP_ROW_AUTO_SCROLL | 行DnD中に必要な縦方向スクロールを連動させる必要がある。 |
-| RESP_ROW_DND_INTERACTION | RESP_ROW_DATA_UPDATE | 有効な移動先で確定した行移動だけをTableへ反映する必要がある。 |
-| RESP_ROW_DATA_UPDATE | RESP_ROW_TABLE_INTEGRATION | 対応Table Block差を越えて行順を更新する境界が必要である。 |
-| RESP_ROW_PRESENTATION | RESP_EDITOR_DOM_CONTEXT | 表示は現在のEditor DOM環境に属する表示境界を必要とする。 |
-| RESP_ROW_AUTO_SCROLL | RESP_EDITOR_DOM_CONTEXT | 自動スクロールは現在のEditor DOM環境に属するスクロール対象を必要とする。 |
-| RESP_ROW_GUIDANCE | RESP_REORDER_MODE | 案内終了や入口選択後の状態は外側のモード境界と整合する必要がある。 |
-| RESP_ROW_REDISCOVERY | RESP_REORDER_MODE | 再案内は通常編集状態でのみ成立する。 |
-| RESP_ROW_GUIDANCE | RESP_ROW_PRESENTATION | 初回案内をRow Reorderの表示境界へ反映する必要がある。 |
-| RESP_ROW_REDISCOVERY | RESP_ROW_PRESENTATION | 再案内をRow Reorderの表示境界へ反映する必要がある。 |
+| RESP_REORDER_MODE | EXT_WORDPRESS_EDITOR | WordPress Editor上の通常編集と行・列並び替えの排他状態を扱うために必要とする。 |
+| RESP_EDITOR_DOM_CONTEXT | EXT_WORDPRESS_EDITOR | 現在のeditor contextを解決するために現在のWordPress Editorを必要とする。 |
+| RESP_ROW_FIRST_USE_GUIDANCE | EXT_WORDPRESS_EDITOR | 初回案内の表示契機となる編集環境の状態を必要とする。 |
+| RESP_ROW_FIRST_USE_GUIDANCE | RESP_EDITOR_DOM_CONTEXT | 初回案内を現在のeditor contextで表現するために必要とする。 |
+| RESP_ROW_FIRST_USE_GUIDANCE | RESP_REORDER_MODE | 入口選択後の状態を外側のモード境界と整合させるために必要とする。 |
+| RESP_ROW_FIRST_USE_GUIDANCE | RESP_ROW_PRESENTATION | 初回案内を利用者へ表現するために必要とする。 |
+| RESP_ROW_REORDER_REDISCOVERY | EXT_WORDPRESS_EDITOR | 通常編集として成立する操作と再案内候補を区別するために必要とする。 |
+| RESP_ROW_REORDER_REDISCOVERY | RESP_REORDER_MODE | 通常編集状態でだけ再案内判定を行うために必要とする。 |
+| RESP_ROW_REORDER_REDISCOVERY | RESP_ROW_FIRST_USE_GUIDANCE | 初回案内表示済みであることを再案内判定の前提として必要とする。 |
+| RESP_ROW_REORDER_REDISCOVERY | RESP_ROW_PRESENTATION | 成立した再案内を利用者へ表現するために必要とする。 |
+| RESP_ROW_INPUT_INTERACTION | EXT_WORDPRESS_EDITOR | PCまたはタッチ端末の入力を行DnD操作へ変換するために必要とする。 |
+| RESP_ROW_INPUT_INTERACTION | RESP_EDITOR_DOM_CONTEXT | 入力処理で現在のeditor DOM contextを利用するために必要とする。 |
+| RESP_ROW_INPUT_INTERACTION | RESP_REORDER_MODE | 行並び替えが有効な期間だけ行入力を受理するために必要とする。 |
+| RESP_ROW_INPUT_INTERACTION | RESP_ROW_DND_INTERACTION | 入力を行DnDのoperationへ渡すために必要とする。 |
+| RESP_ROW_TABLE_INTEGRATION | EXT_SUPPORTED_TABLE_BLOCK | 対応Table Block固有の行構造取得と行順更新を行うために必要とする。 |
+| RESP_ROW_REORDER_TARGET_RESOLUTION | RESP_ROW_TABLE_INTEGRATION | 移動対象行の成立判定に現在の行構造とTable同一性を必要とする。 |
+| RESP_ROW_DROP_TARGET_RESOLUTION | RESP_ROW_TABLE_INTEGRATION | 有効な行間判定に現在の行構造とTable同一性を必要とする。 |
+| RESP_ROW_DND_INTERACTION | RESP_ROW_REORDER_TARGET_RESOLUTION | Session開始前に移動可能な行を確定するために必要とする。 |
+| RESP_ROW_DND_INTERACTION | RESP_ROW_DROP_TARGET_RESOLUTION | active DnD中に現在の有効な移動先を確定するために必要とする。 |
+| RESP_ROW_DND_INTERACTION | RESP_ROW_TABLE_INTEGRATION | Sessionが参照するTable同一性と外部Tableの現在利用可否を確認するために必要とする。 |
+| RESP_ROW_DND_INTERACTION | RESP_ROW_DATA_UPDATE | 有効な移動先で確定した行移動だけをTableへ反映するために必要とする。 |
+| RESP_ROW_DATA_UPDATE | RESP_ROW_TABLE_INTEGRATION | 対応Table Block差を越えて行順を更新するために必要とする。 |
+| RESP_ROW_DATA_UPDATE | EXT_WORDPRESS_UNDO | 成立した1回の行並び替えを1回のUndoで戻せる更新単位を維持するために必要とする。 |
+| RESP_ROW_PRESENTATION | RESP_EDITOR_DOM_CONTEXT | 現在のeditor contextで行DnDと案内の表示を行うために必要とする。 |
+| RESP_ROW_PRESENTATION | RESP_ROW_DND_INTERACTION | 移動不可理由、active DnD状態、確定、キャンセル、abortを表示状態へ反映するために必要とする。 |
+| RESP_ROW_AUTO_SCROLL | RESP_ROW_DND_INTERACTION | activeな行DnD状態と終了状態を自動スクロール判断に必要とする。 |
+| RESP_ROW_AUTO_SCROLL | RESP_EDITOR_DOM_CONTEXT | 現在のeditor contextでスクロール対象を扱うために必要とする。 |
+| RESP_ROW_AUTO_SCROLL | EXT_SCROLL_AREA | 行DnD中に縦方向へスクロールできる外部領域を必要とする。 |
 
 ### Dependency Views
 
 | ID | Name | Includes |
 | --- | --- | --- |
-| DV_ROW_DND_CORE | Row DnD Core | RESP_REORDER_MODE RESP_EDITOR_DOM_CONTEXT RESP_ROW_INPUT_INTERACTION RESP_ROW_TABLE_INTEGRATION RESP_ROW_REORDER_TARGET_RESOLUTION RESP_ROW_DROP_TARGET_RESOLUTION RESP_ROW_DND_INTERACTION RESP_ROW_DATA_UPDATE RESP_ROW_PRESENTATION RESP_ROW_AUTO_SCROLL EXT_SUPPORTED_TABLE_BLOCK |
-| DV_ROW_GUIDANCE | Row Guidance | RESP_REORDER_MODE RESP_ROW_GUIDANCE RESP_ROW_REDISCOVERY RESP_ROW_PRESENTATION |
+| DV_ROW_RESPONSIBILITY | Responsibility View | EXT_WORDPRESS_EDITOR EXT_SUPPORTED_TABLE_BLOCK EXT_WORDPRESS_UNDO EXT_SCROLL_AREA RESP_REORDER_MODE RESP_EDITOR_DOM_CONTEXT RESP_ROW_FIRST_USE_GUIDANCE RESP_ROW_REORDER_REDISCOVERY RESP_ROW_INPUT_INTERACTION RESP_ROW_TABLE_INTEGRATION RESP_ROW_REORDER_TARGET_RESOLUTION RESP_ROW_DROP_TARGET_RESOLUTION RESP_ROW_DND_INTERACTION RESP_ROW_DATA_UPDATE RESP_ROW_PRESENTATION RESP_ROW_AUTO_SCROLL |
+| DV_ROW_EDITOR_INTERACTION | Editor Interaction | EXT_WORDPRESS_EDITOR RESP_REORDER_MODE RESP_EDITOR_DOM_CONTEXT RESP_ROW_FIRST_USE_GUIDANCE RESP_ROW_REORDER_REDISCOVERY RESP_ROW_INPUT_INTERACTION |
+| DV_ROW_DND_CORE | DnD Core | EXT_SUPPORTED_TABLE_BLOCK RESP_REORDER_MODE RESP_ROW_INPUT_INTERACTION RESP_ROW_TABLE_INTEGRATION RESP_ROW_REORDER_TARGET_RESOLUTION RESP_ROW_DROP_TARGET_RESOLUTION RESP_ROW_DND_INTERACTION RESP_ROW_DATA_UPDATE |
+| DV_ROW_FEEDBACK | DnD Feedback | EXT_SCROLL_AREA RESP_EDITOR_DOM_CONTEXT RESP_ROW_DND_INTERACTION RESP_ROW_PRESENTATION RESP_ROW_AUTO_SCROLL |
+| DV_ROW_DATA_UPDATE | Data Update | EXT_SUPPORTED_TABLE_BLOCK EXT_WORDPRESS_UNDO RESP_ROW_DND_INTERACTION RESP_ROW_DATA_UPDATE RESP_ROW_TABLE_INTEGRATION |
 
 ### Responsibility Details
 
@@ -126,89 +193,150 @@ Row Reorder内部のエラーが操作境界へ伝播し、行専用の共通中
 
 ##### Responsibility
 
-通常編集、行並び替え、列並び替えのうち、その時点で有効な状態を一つだけ所有する。Row Reorderへは行並び替えが有効かどうかという境界情報だけを提供する。
+通常編集、行並び替え、列並び替えのうち、その時点で有効な状態を一つだけ所有する。Row Reorderへは行並び替えが有効であることだけを提供する。
 
 ##### State ownership
 
-モード選択と排他状態を所有する。行DnD Session、移動対象、移動先、Table構造、行表示状態は所有しない。
+通常編集、行並び替え、列並び替えの排他状態だけを所有する。行DnD Session、Column Reorder内部状態、移動対象、移動先、Table情報は所有しない。
 
 ##### Contract
 
-行並び替えが有効な期間をRow Reorderへ提供する。Column Reorderの内部状態や内部仕様は提供しない。
+行並び替えが選択された期間だけRow Reorderへ有効状態を提供する。個々の行が移動対象として成立するかは判定しない。
+
+##### Lifecycle
+
+通常編集から開始し、入口選択により行または列の並び替えへ移行する。並び替えモード終了時に通常編集へ戻る。DnDのcomplete、cancel、abortだけではReorder Modeを暗黙に終了しない。
 
 ##### Invariants
 
-- 通常編集、行並び替え、列並び替えは同時に複数有効にならない。
-- Row Reorderの内部状態をモード状態として保持しない。
-- Row ReorderとColumn Reorderを共通DnD実装へ統合する境界にならない。
+- 同時に有効なモードは一つだけとする。
+- Row ReorderへColumn Reorderの内部状態、責務、Contractを公開しない。
+- DnD SessionのLifecycleを所有しない。
 
 #### Editor DOM Context {#RESP_EDITOR_DOM_CONTEXT}
 
 ##### Responsibility
 
-現在の基準要素と同じEditor表示環境に属するdocumentとwindowを解決する。
+現在のWordPress Editorに属する基準から、その時点でDOM / Web APIを利用するためのeditor contextを解決する。
 
 ##### State ownership
 
-解決結果を長期保持せず、Editor再生成後も有効であるという状態を所有しない。
+解決したcontextをeditor lifecycleをまたぐ永続状態として所有しない。Reorder Mode、行DnD Session、Tableデータ、移動対象、移動先を所有しない。
 
 ##### Contract
 
-現在の基準要素を受け取り、その要素から解決できる現在のdocumentとwindowを提供する。現在のwindowを解決できない場合は正常な不在として扱う。
-
-##### Invariants
-
-- 別のdocumentやwindowを代替値として使用しない。
-- iframe / non-iframeをRow Reorder側の分岐条件として公開しない。
-
-#### Row Input Interaction {#RESP_ROW_INPUT_INTERACTION}
-
-##### Responsibility
-
-PC・タッチそれぞれの入力を、Row DnD Interactionが理解する行DnD操作へ変換する。
-
-##### State ownership
-
-入力方式に必要な一時状態だけを所有する。Row DnD Session、移動対象、移動先、Table更新状態は所有しない。
-
-##### Contract
-
-行並び替えが有効な期間だけ入力を受理し、start、progress、complete、cancelの意味へ変換してRow DnD Interactionへ渡す。
+現在のeditor contextを安全に提供できる場合だけ、そのcontextを必要な責務へ提供する。現在のcontextを解決できない場合は、以前のcontextへfallbackせず正常な不在を返す。
 
 ##### Lifecycle
 
-行並び替えの有効化に伴って入力を受理できる状態となり、無効化またはEditor環境の終了で入力方式固有状態を破棄する。
+DOM / Web APIを必要とする時点で現在のeditor contextを解決する。Editor lifecycleが変化した場合は現在の基準から解決し直す。
 
 ##### Invariants
 
-- 列並び替え入力を処理しない。
-- 入力方式の違いをRow DnD Sessionの状態モデルへ持ち込まない。
+- 現在のWordPress Editorとは異なるcontextをfallbackとして提供しない。
+- iframe / non-iframeというEditor方式を利用側へ判定させない。
+- 現在のcontextを解決できない状態をRow Reorder内部のInvariant違反として扱わない。
 
-#### Row Table Integration {#RESP_ROW_TABLE_INTEGRATION}
+#### First-use Guidance {#RESP_ROW_FIRST_USE_GUIDANCE}
 
 ##### Responsibility
 
-対応Table Blockの差を吸収し、行並び替えに必要なTable同一性、現在の行構造、行更新境界を提供する。
+行並び替え機能を初めて利用する人に対し、Row Reorderが所有する入口案内の表示状態を管理する。
 
 ##### State ownership
 
-DnD Sessionや入力状態を所有しない。外部TableデータをReorder独自の永続状態として複製しない。
+行入口の案内に必要な表示済み状態と現在の案内状態を所有する。通常編集 / 行 / 列の排他状態とDnD Sessionは所有しない。
 
 ##### Contract
 
-現在の対応Tableについて、行制約判定と更新に必要な情報を同一Table由来の情報として提供する。対応Tableが現在存在しない、または外部環境変化によって取得できない場合は正常な不在として扱う。
+設計で定義された初回案内条件をWordPress Editorから受け取り、必要な場合だけReorder Presentationへ案内表示を要求する。入口選択または案内終了により表示済み状態へ移行する。
 
 ##### Lifecycle
 
-必要な操作時点で現在のTable情報を取得し、外部Table状態が継続して不変であることを前提にしない。
+対象の操作環境で未表示の状態から表示契機により案内状態となり、入口選択または案内終了で表示済みとなる。
 
 ##### Invariants
 
-- 行並び替えに不要な列専用構造を内部仕様として要求しない。
+- 初回案内によって通常のTable編集を妨げない。
+- モード排他状態を複製しない。
+- Column Reorderの内部状態を案内条件として参照しない。
+
+#### Reorder Rediscovery {#RESP_ROW_REORDER_REDISCOVERY}
+
+##### Responsibility
+
+通常編集時に行を移動しようとする操作が繰り返されたと判断できる場合に、行並び替え入口の再案内状態を管理する。
+
+##### State ownership
+
+再案内判定に必要な短期状態と、同じ状況で過度に再案内しないための抑制状態だけを所有する。
+
+##### Contract
+
+通常編集状態で観測した操作から再案内が必要かを判定し、必要な場合だけReorder Presentationへ再案内を要求する。
+
+##### Lifecycle
+
+通常編集状態でだけ判定を行い、行並び替えが有効になった場合、通常編集として成立する操作へ移行した場合、または判定系列が終了した場合は短期状態を破棄する。
+
+##### Invariants
+
+- 一度だけの短いドラッグや通常の編集操作を再案内成立として扱わない。
+- 行DnD Sessionを所有しない。
+- Column Reorderの内部状態を再案内判定に利用しない。
+
+#### Input Interaction {#RESP_ROW_INPUT_INTERACTION}
+
+##### Responsibility
+
+PCとタッチ端末の入力固有の差を、行DnDのstart、progress、complete、cancelという共通のoperationへ変換する。
+
+##### State ownership
+
+入力方式固有の一時状態だけを所有する。行DnD Session、移動対象判定、移動先判定、Tableデータを所有しない。
+
+##### Contract
+
+Reorder Modeから行並び替えが有効であることを受け取り、その期間だけ行DnD入力を受理する。現在のEditor contextを利用できない場合は内部Errorへ変換せず、開始しない、またはactiveな操作を安全に終了できる継続不能結果としてoperation boundaryへ渡す。
+
+##### Lifecycle
+
+行並び替えが有効な期間にだけ活動する。DnD終了、モード終了、外部環境変化、内部failure recoveryで入力方式固有の一時状態を破棄する。
+
+##### Invariants
+
+- 列DnDを開始しない。
+- PCとタッチ固有の状態をDnD InteractionへSession状態として持ち込まない。
+- Editor contextの正常な不在を内部Errorとして扱わない。
+
+#### Table Integration {#RESP_ROW_TABLE_INTEGRATION}
+
+##### Responsibility
+
+Supported Table Blockとの差を吸収し、行並び替えに必要なTable同一性、現在の行構造、行更新境界を提供する。
+
+##### State ownership
+
+DnD Sessionや入力状態を所有しない。外部TableデータをRow Reorder独自の永続状態として複製しない。
+
+##### Contract
+
+現在の対応Tableについて、行制約判定と更新に必要な情報を同一Table由来の情報として提供する。対応Tableが現在存在しない、外部Table状態を安全に取得できない、または現在更新できない場合は正常な不在または更新不能結果として返す。
+
+対応Table Block固有の構造表現と更新方法はこの境界で吸収し、他のRow Reorder責務へ漏らさない。
+
+##### Lifecycle
+
+要求時点のSupported Table Blockから現在情報を取得または更新する。外部Table状態が継続して不変であることを前提にせず、取得した情報を外部状態監視用の永続状態として保持しない。
+
+##### Invariants
+
+- 行並び替えに不要な列専用構造をContractとして要求しない。
 - Row Reorderが所有するTable同一性に矛盾する値を内部で生成しない。
-- 外部Tableの消失やEditor lifecycle変化を内部Invariant違反としてassertしない。
+- Supported Table Blockの消失やEditor lifecycle変化を内部Invariant違反としてassertしない。
+- 対応外Blockへ不完全な行構造または更新能力を提供しない。
 
-#### Row Reorder Target Resolution {#RESP_ROW_REORDER_TARGET_RESOLUTION}
+#### Reorder Target Resolution {#RESP_ROW_REORDER_TARGET_RESOLUTION}
 
 ##### Responsibility
 
@@ -216,7 +344,7 @@ DnD開始試行時だけ、入力位置から`tbody`の移動対象行を解決�
 
 ##### State ownership
 
-判定結果をSession外で保持せず、進行中DnD状態を所有しない。
+判定結果をSession外で保持せず、active DnD状態を所有しない。
 
 ##### Contract
 
@@ -224,15 +352,15 @@ DnD開始試行時だけ、入力位置から`tbody`の移動対象行を解決�
 
 ##### Lifecycle
 
-start操作の開始判定時にだけ使用し、Session開始後の移動先判定には使用しない。
+start operationの開始判定時にだけ使用し、Session開始後の移動先判定には使用しない。
 
 ##### Invariants
 
 - `tbody`外の行を移動対象として成立させない。
 - `rowspan`等により行単位の移動で構造を保てない行を移動対象として成立させない。
-- 移動不可という正常な結果を内部エラーへ変換しない。
+- 移動不可という正常な結果を内部Errorへ変換しない。
 
-#### Row Drop Target Resolution {#RESP_ROW_DROP_TARGET_RESOLUTION}
+#### Drop Target Resolution {#RESP_ROW_DROP_TARGET_RESOLUTION}
 
 ##### Responsibility
 
@@ -254,13 +382,13 @@ Session開始後のprogress中に利用し、complete時にはSessionが保持�
 
 - `tbody`外を移動先として成立させない。
 - 行移動後にTable構造を壊す位置を有効な移動先として成立させない。
-- 有効な移動先がない状態を内部エラーとして扱わない。
+- 有効な移動先がない状態を内部Errorとして扱わない。
 
-#### Row DnD Interaction {#RESP_ROW_DND_INTERACTION}
+#### DnD Interaction {#RESP_ROW_DND_INTERACTION}
 
 ##### Responsibility
 
-行DnDのSessionと、start、progress、complete、cancelの操作境界を所有する。Session開始、移動先更新、確定、正常中止、外部環境変化による終了、内部エラーからの回復を一つの行専用Lifecycleとして管理する。
+行DnDのSessionとstart、progress、complete、cancelのoperation boundaryを所有する。Session開始、移動先更新、確定、正常中止、外部環境変化による終了、内部Errorからの回復を一つの行専用Lifecycleとして管理する。
 
 ##### State ownership
 
@@ -268,13 +396,13 @@ activeな行DnD Sessionを所有する。Sessionは移動対象行、対象Table
 
 ##### Contract
 
-startでは移動可能な行が成立した場合だけSessionを開始する。progressでは現在の移動先、表示、自動スクロールを更新する。completeでは有効な最終移動先がある場合だけData Updateへ確定を要求する。cancelまたは継続不能ではTableデータを新たに確定せず終了する。
+startでは移動可能な行が成立した場合だけSessionを開始する。progressでは現在の移動先を更新する。completeでは有効な最終移動先がある場合だけData Updateへ確定を要求する。cancelまたは継続不能ではTableデータを新たに確定せず終了する。
 
-内部責務から伝播したErrorは操作境界で捕捉し、対象操作と元のErrorを一度だけ記録した後、Row Reorder内の共通中止経路へ合流する。
+内部責務から伝播したErrorはoperation boundaryで捕捉し、対象operationと元のErrorを一度だけ記録した後、Row Reorder内の共通中止経路へ合流する。外部環境変化による継続不能は記録しない。
 
 ##### Lifecycle
 
-idleからstart成功時にactiveとなる。progressはactive Sessionだけを更新する。complete成功、cancel、外部環境変化による正常終了、内部エラー回復のいずれでもSessionとDnD中だけの一時状態を破棄してidleへ戻る。
+idleからstart成功時にactiveとなる。progressはactive Sessionだけを更新する。complete成功、cancel、外部環境変化による正常終了、内部Error recoveryのいずれでもSessionとDnD中だけの一時状態を破棄してidleへ戻る。
 
 Table更新がすでに成立した後で継続不能になった場合は、回復処理によって成立済み更新を自動的に巻き戻さない。
 
@@ -284,34 +412,35 @@ Table更新がすでに成立した後で継続不能になった場合は、回
 - Sessionが参照する移動対象とTable同一性は同じ行DnD開始から成立した値である。
 - completeは有効な移動先がある場合だけ新しい行順を確定する。
 - cancel、開始拒否、外部環境変化による終了は新しい行順を確定しない。
-- 操作境界で回復を所有した内部エラーをEditor全体へ再throwしない。
-- 内部エラーと正常な中止を同じログ対象として扱わない。
+- operation boundaryで回復を所有した内部ErrorをWordPress Editor全体へ再throwしない。
+- 内部Errorと正常な中止を同じログ対象として扱わない。
 
-#### Row Data Update {#RESP_ROW_DATA_UPDATE}
+#### Data Update {#RESP_ROW_DATA_UPDATE}
 
 ##### Responsibility
 
-Row DnD Interactionが確定した行移動を、対応Table Blockの`tbody`行順へ一度だけ反映する。
+DnD Interactionが確定した行移動を、Supported Table Blockの`tbody`行順へ一度だけ反映する。
 
 ##### State ownership
 
-DnD Sessionや確定前の候補を所有しない。
+DnD Sessionや確定前の候補を所有しない。更新後のTableデータを独自の永続状態として保持しない。
 
 ##### Contract
 
-確定済みの移動対象と移動先、および対象Tableの同一性を受け取り、セル内容・属性・装飾その他の保持対象を変えずに行順だけを更新する。
+確定済みの移動対象と移動先、および対象Tableの同一性を受け取り、セル内容・属性・装飾その他の保持対象を変えずに行順だけを更新する。1回の成立した行並び替えをWordPress Undo上の1回の更新単位として維持する。
 
 ##### Lifecycle
 
-completeで有効な確定要求が生じた場合だけ活動する。更新後のTableを独自に保持し続けない。
+completeで有効な確定要求が生じた場合だけ活動する。更新不能時に独自のretryまたはrollbackを開始しない。
 
 ##### Invariants
 
 - `tbody`の行順以外を並び替え結果として変更しない。
 - 一つの確定操作を複数回適用しない。
 - 対象Table同一性がRow Reorderのruntime invariantを満たさない場合は成功扱いにしない。
+- 1回の成立した行並び替えを複数の独立したUndo単位へ分割しない。
 
-#### Row Reorder Presentation {#RESP_ROW_PRESENTATION}
+#### Reorder Presentation {#RESP_ROW_PRESENTATION}
 
 ##### Responsibility
 
@@ -323,18 +452,19 @@ completeで有効な確定要求が生じた場合だけ活動する。更新後
 
 ##### Contract
 
-Row DnD Interaction、Guidance、Rediscoveryから表示状態を受け取り、現在のEditor環境で利用者へ表現する。終了要求ではDnD中だけの表示をすべて解除する。
+DnD Interaction、First-use Guidance、Reorder Rediscoveryから表示状態を受け取り、現在のWordPress Editorで利用者へ表現する。終了要求では該当するDnD中だけの表示を解除する。
 
 ##### Lifecycle
 
-各表示理由が成立した期間だけ有効となり、完了、キャンセル、継続不能、回復、案内終了に応じて該当する一時表示を破棄する。
+各表示理由が成立した期間だけ有効となり、complete、cancel、継続不能、recovery、案内終了に応じて該当する一時表示を破棄する。
 
 ##### Invariants
 
 - 表示状態をTableデータの正本として扱わない。
 - 無効な移動先を確定可能な挿入位置として表示しない。
+- Column Reorderの表示状態を共有しない。
 
-#### Row Auto Scroll {#RESP_ROW_AUTO_SCROLL}
+#### Auto Scroll {#RESP_ROW_AUTO_SCROLL}
 
 ##### Responsibility
 
@@ -346,58 +476,17 @@ Row DnD Interaction、Guidance、Rediscoveryから表示状態を受け取り、
 
 ##### Contract
 
-activeな行DnDと現在のEditor DOM環境を受け取り、必要な場合だけ縦方向へスクロールする。DnD終了時には自動スクロール状態を終了する。
+activeな行DnD、現在のEditor DOM Context、および現在のEditor Scroll Areaを利用し、必要な場合だけ縦方向へスクロールする。DnD終了時には自動スクロール状態を終了する。
 
 ##### Lifecycle
 
-active Session中だけ活動し、complete、cancel、継続不能、内部エラー回復で終了する。
+active Session中だけ活動し、complete、cancel、継続不能、内部Error recoveryで終了する。
 
 ##### Invariants
 
 - 横方向の自動スクロールを開始しない。
 - Column Reorderのスクロール規則を抽象化して所有しない。
-
-#### Row Guidance {#RESP_ROW_GUIDANCE}
-
-##### Responsibility
-
-行並び替え機能を初めて利用する人に対し、Row Reorderが所有する入口案内の表示状態を管理する。
-
-##### State ownership
-
-行入口の案内に必要な表示済み状態を所有する。通常編集 / 行 / 列の排他状態は所有しない。
-
-##### Contract
-
-案内条件が成立した場合にPresentationへ案内表示を要求し、入口選択または案内終了により表示済み状態へ移行する。
-
-##### Invariants
-
-- モード排他状態をRow Guidance自身で複製しない。
-- Column Reorder内部状態を案内条件として参照しない。
-
-#### Row Rediscovery {#RESP_ROW_REDISCOVERY}
-
-##### Responsibility
-
-通常編集時に行を移動しようとする操作が繰り返されたと判断できる場合に、行並び替え入口の再案内状態を管理する。
-
-##### State ownership
-
-再案内判定に必要な短期状態だけを所有する。
-
-##### Contract
-
-通常編集状態で観測した操作から再案内が必要かを判定し、必要な場合にPresentationへ再案内を要求する。
-
-##### Lifecycle
-
-通常編集状態でだけ判定を行い、行並び替えが有効になった場合や再案内条件が失われた場合は短期状態を破棄する。
-
-##### Invariants
-
-- 一度だけの短いドラッグや通常の編集操作を再案内成立として扱わない。
-- Row ReorderのDnD Sessionを所有しない。
+- 現在のEditor Scroll Areaを利用できない状態を内部Invariant違反として扱わない。
 
 ## 6. Runtime View
 
@@ -407,11 +496,12 @@ active Session中だけ活動し、complete、cancel、継続不能、内部エ�
 
 | Step | Source | Target | Interaction |
 | ---: | --- | --- | --- |
-| 1 | RESP_ROW_INPUT_INTERACTION | RESP_ROW_DND_INTERACTION | 行DnDのstart操作と開始位置を渡す。 |
-| 2 | RESP_ROW_DND_INTERACTION | RESP_ROW_TABLE_INTEGRATION | 現在の対象Table情報を要求する。 |
-| 3 | RESP_ROW_DND_INTERACTION | RESP_ROW_REORDER_TARGET_RESOLUTION | 開始位置から移動対象行の解決と移動可否判定を要求する。 |
-| 4 | RESP_ROW_REORDER_TARGET_RESOLUTION | RESP_ROW_DND_INTERACTION | 移動可能な行、または開始できない正常な理由を通知する。 |
-| 5 | RESP_ROW_DND_INTERACTION | RESP_ROW_PRESENTATION | Session開始時は移動対象行のDnD表示を開始し、開始拒否時は必要な理由表示を要求する。 |
+| 1 | RESP_ROW_INPUT_INTERACTION | RESP_ROW_DND_INTERACTION | 行DnDのstart operationと開始位置を渡す。 |
+| 2 | RESP_ROW_DND_INTERACTION | RESP_ROW_REORDER_TARGET_RESOLUTION | 開始位置から移動対象行の解決と移動可否判定を要求する。 |
+| 3 | RESP_ROW_REORDER_TARGET_RESOLUTION | RESP_ROW_TABLE_INTEGRATION | 現在の対象Table情報を要求する。 |
+| 4 | RESP_ROW_TABLE_INTEGRATION | EXT_SUPPORTED_TABLE_BLOCK | 現在の対応Table Blockから行構造とTable同一性を取得する。 |
+| 5 | RESP_ROW_REORDER_TARGET_RESOLUTION | RESP_ROW_DND_INTERACTION | 移動可能な行、または開始できない正常な理由を通知する。 |
+| 6 | RESP_ROW_DND_INTERACTION | RESP_ROW_PRESENTATION | Session開始時は移動対象行のDnD表示を開始し、開始拒否時は必要な理由表示を要求する。 |
 
 ### Row DnD progress {#RV_ROW_DND_PROGRESS}
 
@@ -419,12 +509,13 @@ activeな行Session中に、現在位置から有効な移動先と必要な表�
 
 | Step | Source | Target | Interaction |
 | ---: | --- | --- | --- |
-| 1 | RESP_ROW_INPUT_INTERACTION | RESP_ROW_DND_INTERACTION | 行DnDのprogress操作と現在位置を渡す。 |
-| 2 | RESP_ROW_DND_INTERACTION | RESP_ROW_TABLE_INTEGRATION | 現在も利用可能な対象Table情報を要求する。 |
-| 3 | RESP_ROW_DND_INTERACTION | RESP_ROW_DROP_TARGET_RESOLUTION | 現在位置に対応する有効な行間の判定を要求する。 |
+| 1 | RESP_ROW_INPUT_INTERACTION | RESP_ROW_DND_INTERACTION | 行DnDのprogress operationと現在位置を渡す。 |
+| 2 | RESP_ROW_DND_INTERACTION | RESP_ROW_DROP_TARGET_RESOLUTION | 現在位置に対応する有効な行間の判定を要求する。 |
+| 3 | RESP_ROW_DROP_TARGET_RESOLUTION | RESP_ROW_TABLE_INTEGRATION | 現在のTable同一性と行構造を要求する。 |
 | 4 | RESP_ROW_DROP_TARGET_RESOLUTION | RESP_ROW_DND_INTERACTION | 有効な移動先、または現在は確定できない正常な結果を通知する。 |
 | 5 | RESP_ROW_DND_INTERACTION | RESP_ROW_PRESENTATION | 現在の移動先と周囲行の一時表示を更新する。 |
 | 6 | RESP_ROW_DND_INTERACTION | RESP_ROW_AUTO_SCROLL | 現在位置に応じた縦方向自動スクロールの更新を要求する。 |
+| 7 | RESP_ROW_AUTO_SCROLL | EXT_SCROLL_AREA | 必要な場合だけ現在のEditor Scroll Areaを縦方向へスクロールする。 |
 
 ### Row DnD complete {#RV_ROW_DND_COMPLETE}
 
@@ -432,15 +523,17 @@ activeな行Session中に、現在位置から有効な移動先と必要な表�
 
 | Step | Source | Target | Interaction |
 | ---: | --- | --- | --- |
-| 1 | RESP_ROW_INPUT_INTERACTION | RESP_ROW_DND_INTERACTION | 行DnDのcomplete操作を渡す。 |
+| 1 | RESP_ROW_INPUT_INTERACTION | RESP_ROW_DND_INTERACTION | 行DnDのcomplete operationを渡す。 |
 | 2 | RESP_ROW_DND_INTERACTION | RESP_ROW_DATA_UPDATE | 有効な最終移動先がある場合だけ確定済み行移動の反映を要求する。 |
-| 3 | RESP_ROW_DATA_UPDATE | EXT_SUPPORTED_TABLE_BLOCK | `tbody`の行順だけを確定結果として更新する。 |
-| 4 | RESP_ROW_DND_INTERACTION | RESP_ROW_PRESENTATION | DnD中だけの表示を終了する。 |
-| 5 | RESP_ROW_DND_INTERACTION | RESP_ROW_AUTO_SCROLL | 行DnDの自動スクロール状態を終了する。 |
+| 3 | RESP_ROW_DATA_UPDATE | RESP_ROW_TABLE_INTEGRATION | 対応Table Block固有の行順更新を要求する。 |
+| 4 | RESP_ROW_TABLE_INTEGRATION | EXT_SUPPORTED_TABLE_BLOCK | `tbody`の行順だけを確定結果として更新する。 |
+| 5 | RESP_ROW_DATA_UPDATE | EXT_WORDPRESS_UNDO | 成立した行並び替えを1回のUndoで戻せる更新単位として維持する。 |
+| 6 | RESP_ROW_DND_INTERACTION | RESP_ROW_PRESENTATION | DnD中だけの表示を終了する。 |
+| 7 | RESP_ROW_DND_INTERACTION | RESP_ROW_AUTO_SCROLL | 行DnDの自動スクロール状態を終了する。 |
 
 ### Row DnD external change abort {#RV_ROW_DND_EXTERNAL_ABORT}
 
-EditorやTableの外部状態変化によって継続できなくなった場合に、内部エラーとして扱わず、安全に行DnDを終了する。
+EditorやTableの外部状態変化によって継続できなくなった場合に、内部Errorとして扱わず、安全に行DnDを終了する。
 
 | Step | Source | Target | Interaction |
 | ---: | --- | --- | --- |
@@ -448,42 +541,52 @@ EditorやTableの外部状態変化によって継続できなくなった場合
 | 2 | RESP_ROW_TABLE_INTEGRATION | RESP_ROW_DND_INTERACTION | 対象Tableが現在利用できないという正常な不在を通知する。 |
 | 3 | RESP_ROW_DND_INTERACTION | RESP_ROW_PRESENTATION | DnD中だけの表示を解除する。 |
 | 4 | RESP_ROW_DND_INTERACTION | RESP_ROW_AUTO_SCROLL | 自動スクロール状態を終了する。 |
+| 5 | RESP_ROW_DND_INTERACTION | RESP_ROW_INPUT_INTERACTION | 入力方式固有のDnD一時状態を終了する。 |
 
-### Row DnD failure and recovery {#RV_ROW_DND_FAILURE_RECOVERY}
+### Row DnD internal failure recovery {#RV_ROW_DND_FAILURE_RECOVERY}
 
-Row Reorder内部のErrorがstart、progress、complete、cancelの操作境界へ伝播した場合に、記録を一度だけ行い、同じ行専用中止経路でidleへ復帰する。
+Row Reorder内部のErrorがstart、progress、complete、cancelのoperation boundaryへ伝播した場合に、記録を一度だけ行い、同じ行専用中止経路でidleへ復帰する。
 
 | Step | Source | Target | Interaction |
 | ---: | --- | --- | --- |
-| 1 | RESP_ROW_TABLE_INTEGRATION | RESP_ROW_DND_INTERACTION | 内部仕様またはruntime invariant違反のErrorを操作境界へ伝播する。 |
-| 2 | RESP_ROW_DND_INTERACTION | RESP_ROW_DND_INTERACTION | 操作境界が対象操作と元のErrorを一度だけ記録し、共通中止経路へ合流する。 |
-| 3 | RESP_ROW_DND_INTERACTION | RESP_ROW_PRESENTATION | DnD中だけの表示を解除する。 |
-| 4 | RESP_ROW_DND_INTERACTION | RESP_ROW_AUTO_SCROLL | 自動スクロール状態を終了する。 |
-| 5 | RESP_ROW_DND_INTERACTION | RESP_ROW_DND_INTERACTION | Sessionと行DnD一時状態を破棄し、安全なidleへ戻る。 |
+| 1 | RESP_ROW_DROP_TARGET_RESOLUTION | RESP_ROW_DND_INTERACTION | 内部仕様またはruntime invariant違反のErrorをoperation boundaryへ伝播する。 |
+| 2 | RESP_ROW_DND_INTERACTION | RESP_ROW_PRESENTATION | 共通中止経路としてDnD中だけの表示を解除する。 |
+| 3 | RESP_ROW_DND_INTERACTION | RESP_ROW_AUTO_SCROLL | 共通中止経路として自動スクロール状態を終了する。 |
+| 4 | RESP_ROW_DND_INTERACTION | RESP_ROW_INPUT_INTERACTION | 共通中止経路として入力方式固有のDnD一時状態を終了する。 |
+
+operation boundaryはこのRuntime Interactionに先立って対象operationと元のErrorを一度だけ記録し、Sessionを破棄してidleへ戻る。記録自体は別責務へのRuntime Interactionを新設しない。
 
 ## 8. Crosscutting Concepts
 
-### 行専用状態境界
+### 行専用責務境界
 
-Row Reorder内部で扱う移動対象、移動先、Session、更新要求はすべて行として確定した意味を持つ。方向未確定のunionやRow / Column共通SessionをRow Reorder内部へ導入しない。
+本書のTable Integration、Input Interaction、DnD Interaction、Reorder Target Resolution、Drop Target Resolution、Data Update、Reorder Presentation、Auto Scroll、First-use Guidance、Reorder RediscoveryはすべてRow Reorderだけを実現する責務である。
 
-### 正常な不在と内部エラー
+責務名から`Row`を省いても、Column Reorderとの共通責務を意味しない。Row / Columnの独立性は文書境界、Architecture Constraints、状態所有、Contract、Invariantで保証する。
+
+### 外部Contextの分類
+
+Architecture Modelでは外部要素を同一の汎用要素として扱わず、WordPress Editorを`External System`、Supported Table Blockを`External Block`、WordPress Undoを`External Capability`、Editor Scroll Areaを`External Environment`として分類する。
+
+この分類はStructurizr生成時のArchitecture Modelにも引き継がれ、内部Responsibilityと外部要素の境界を図上でも区別する。
+
+### 正常な不在と内部Error
 
 Editor DOM Contextを解決できない、対象Tableが外部状態変化で存在しない、移動可能な行がない、有効な移動先がない、といった状態は成立し得る正常な結果として表現する。
 
-一方、Row Reorderが所有するTable同一性の矛盾や、内部仕様上成立しないSession状態など、型だけでは防げないRow Reorder所有のInvariant違反はErrorとして扱う。
+一方、Row Reorderが所有するTable同一性の矛盾や、Contract上成立しないSession状態など、型だけでは防げないRow Reorder所有のInvariant違反はErrorとして扱う。
 
-内部責務はErrorを`null`、silent return、fallback値へ変換しない。Errorは行DnD操作境界へ伝播させ、回復責務を一箇所へ集約する。
+内部責務はErrorを`null`、silent return、fallback値へ変換しない。Errorは行DnD operation boundaryへ伝播させ、回復責務を一箇所へ集約する。
 
 ### 安全な終了
 
-正常キャンセル、外部環境変化による継続不能、内部エラー回復はいずれも、Row Reorder内の同じ中止処理原則に従ってSessionとDnD中だけの一時状態を破棄し、利用者が現在のTable状態から編集を継続できるidleへ戻す。
+正常cancel、外部環境変化による継続不能、内部Error recoveryはいずれも、Row Reorder内の同じ中止処理原則に従ってSessionとDnD中だけの一時状態を破棄し、利用者が現在のTable状態から編集を継続できるidleへ戻す。
 
-ただし内部エラーだけがエラー記録の対象であり、正常な中止を内部エラーとして記録しない。
+ただし内部Errorだけがエラー記録の対象であり、正常な中止や外部環境変化を内部Errorとして記録しない。
 
 ### Compatibility
 
-Core TableとFlexible Table Blockの表現差はRow Table Integrationが吸収する。Editorのiframe / non-iframe差は、現在の基準要素から解決するEditor DOM Contextを通して扱い、Row Reorder本体がEditor方式を判定して分岐しない。
+Core TableとFlexible Table Blockの表現差はTable Integrationが吸収する。Editorのiframe / non-iframe差はEditor DOM Contextを通して扱い、Row Reorder本体がEditor方式を判定して分岐しない。
 
 ### Performance
 
@@ -500,34 +603,43 @@ Core TableとFlexible Table Blockの表現差はRow Table Integrationが吸収�
 
 行と列では対象範囲、制約、移動先、更新、表示、自動スクロールの意味と変更理由が異なるため、実装類似性を理由とした共通並び替え抽象化を採用しない。
 
-### AD-02 Reorder Modeを外側の排他境界として維持する
+### AD-02 責務名へRowを重複させない
 
-通常編集 / 行 / 列の排他状態は方向をまたいで一つである必要があるため、Reorder Modeが所有する。ただしRow Reorderへは行が有効であることだけを渡し、Row / Columnの内部実装を接続する共通Reorder責務にはしない。
+本書自体がRow ReorderのArchitecture境界であるため、Table IntegrationやDnD Interactionなどの責務名へ`Row`を付与しない。責務名の一致はColumn Reorderとの責務同一性または実装共有を意味せず、stable IDは行専用Architecture要素として識別できる形を維持する。
 
-### AD-03 Row DnD Interactionを回復境界とする
+### AD-03 Reorder Modeを外側の排他境界として維持する
 
-行DnD SessionのLifecycleを所有する責務が、start、progress、complete、cancelの操作境界で内部エラーを捕捉し、共通中止経路、エラー記録、idle復帰を所有する。これにより各内部責務に独自のcatch、log、recoveryを分散させない。
+通常編集 / 行 / 列の排他状態は方向をまたいで一つである必要があるためReorder Modeが所有する。ただしRow Reorderへは行が有効であることだけを渡し、Row / Columnの内部実装を接続する共通Reorder責務にはしない。
 
-### AD-04 外部環境変化を内部Invariant違反として扱わない
+### AD-04 DnD Interactionを回復境界とする
 
-Editor lifecycle、DOM availability、Table Block availability、外部TableデータはReorderの所有外で正当に変化し得るため、正常な不在または継続不能として扱う。runtime assertionはRow Reorderが所有する値レベルのInvariantに限定する。
+行DnD SessionのLifecycleを所有する責務が、start、progress、complete、cancelのoperation boundaryで内部Errorを捕捉し、共通中止経路、エラー記録、idle復帰を所有する。これにより各内部責務に独自のcatch、log、recoveryを分散させない。
+
+### AD-05 外部環境変化を内部Invariant違反として扱わない
+
+Editor lifecycle、DOM availability、Supported Table Block availability、外部TableデータはRow Reorderの所有外で正当に変化し得るため、正常な不在または継続不能として扱う。runtime assertionはRow Reorderが所有する値レベルのInvariantに限定する。
+
+### AD-06 Failure / Recoveryを回復パターンごとに分離する
+
+異常系Process Flowを一つの大きなViewへ集約せず、外部環境変化、Session開始前の内部failure、active DnD中の内部failure、Data Update failureに分ける。これにより、エラー記録の有無、Sessionの有無、更新後のrollback禁止など、回復意味の違いを図から判別できるようにする。
 
 ## 10. Quality Requirements
 
 - **Performance**: 想定最大1,000行、20列、20,000セルまで、行DnD中の視覚フィードバックと操作応答性を維持する責務分離とLifecycleを採用する。
 - **Compatibility**: WordPress 6.8以上のBlock Editorにおけるiframe / non-iframe差と、Core Table / Flexible Table Block差を、利用者向け行並び替えの正しさへ漏らさない。
-- **Reliability / Robustness**: 外部環境変化またはRow Reorder内部エラーが発生しても、TableやEditorを不正な状態にせず、行DnD一時状態を破棄して安全なidleへ戻り、その後の編集を継続できる。
+- **Reliability / Robustness**: 外部環境変化またはRow Reorder内部Errorが発生しても、TableやWordPress Editorを不正な状態にせず、行DnD一時状態を破棄して安全なidleへ戻り、その後の編集を継続できる。
 
 ## 11. Risks and Technical Debt
 
-- Column ReorderのArchitectureが後から作成された際、責務名や処理形状が似ていても、それだけを理由にRow Reorderとの共通実装へ統合しないよう継続して確認する必要がある。
-- Performance最適化で状態やキャッシュを追加する場合も、外部Table状態の監視やRow / Column共通制約キャッシュへ責務を拡張しないよう、所有境界を再確認する必要がある。
+- Column ReorderのArchitectureが後から作成された際、責務名が同じでも、それだけを理由にRow Reorderとの共通実装へ統合しないよう継続して確認する必要がある。
+- stable IDの`ROW`は独立したArchitecture要素の識別に使用するものであり、Responsibilityの表示名や共通抽象化を意味しない。
+- Performance最適化で状態やキャッシュを追加する場合も、外部Table状態の監視やRow / Column共通制約キャッシュへ責務を拡張しないよう所有境界を再確認する必要がある。
 
 ## 12. Glossary
 
 - **Reorder Mode境界**: 通常編集、行並び替え、列並び替えの排他状態を所有し、各方向へ有効状態だけを渡す外側の境界。
-- **Row Reorder**: `tbody`の行並び替えだけを所有する独立した責務群。
-- **Row DnD Session**: 一回の行DnDに必要な移動対象、対象Table同一性、現在の移動先、一時状態を保持する行専用状態。
+- **Row Reorder**: `tbody`の行並び替えだけを所有する独立したArchitecture境界。本書の方向固有Responsibility全体を含む。
+- **行DnD Session**: 一回の行DnDに必要な移動対象、対象Table同一性、現在の移動先、一時状態を保持する行専用状態。
 - **正常な不在**: 外部環境変化や利用者操作上、正当に発生し得る「現在利用できない」「対象が成立しない」という結果。
 - **runtime invariant**: 型だけでは保証できず、かつRow Reorder自身が所有する値レベルの成立条件。
-- **共通中止経路**: Row Reorder内のstart、progress、complete、cancelの各操作境界が合流し、Sessionと一時状態を破棄してsafe idleへ戻す行専用の回復経路。Row / Column間の共通実装を意味しない。
+- **共通中止経路**: Row Reorder内のstart、progress、complete、cancelの各operation boundaryが合流し、Sessionと一時状態を破棄してsafe idleへ戻す行専用の回復経路。Row / Column間の共通実装を意味しない。
