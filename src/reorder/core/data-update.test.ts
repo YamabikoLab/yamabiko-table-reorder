@@ -1,5 +1,5 @@
 /**
- * Data Updateの共通位置正規化、方向固有Target射影、no-op、Table Integration呼び出し回数を確認する単体テスト。
+ * Data Updateの共通位置正規化、方向固有Targetからの移動元位置取得、no-op、Table Integration呼び出し回数を確認する単体テスト。
  */
 import { getColumnReorderSourceIndex } from '@/reorder/column-reorder/reorder-target-resolution';
 import { getRowReorderSourceIndex } from '@/reorder/row-reorder/reorder-target-resolution';
@@ -24,7 +24,7 @@ describe( 'Data Update', () => {
 	} );
 
 	/**
-	 * 行Targetを行責務の射影で共通位置へ変換し、Table Integrationへ1回だけ渡すことを確認する。
+	 * 行Targetから行責務が共通の移動元位置を取得し、Table Integrationへ1回だけ渡すことを確認する。
 	 *
 	 * 事前条件:
 	 * - `body`内の行1を境界4へ移動する確定済みReorderがある。
@@ -34,10 +34,10 @@ describe( 'Data Update', () => {
 	 * - Data Updateを実行する。
 	 *
 	 * 期待結果:
-	 * - 行固有の`rowIndex`はData Updateで直接解釈されず、行責務の射影を通る。
+	 * - 行固有の`rowIndex`はData Updateで直接解釈されず、行責務から共通の移動元位置として取得される。
 	 * - `sourceIndex: 1`、`destinationIndex: 3`の行更新が1回だけ要求される。
 	 */
-	it( 'when a row reorder is committed, should project the row target and update the Table once', () => {
+	it( 'when a row reorder is committed, should get the row source index and update the Table once', () => {
 		const updateReorder = jest.fn().mockReturnValue( { status: 'updated' } );
 		const dataUpdate = createDataUpdate( {
 			updateReorder: ( update ) => updateReorder( update ),
@@ -63,7 +63,7 @@ describe( 'Data Update', () => {
 	} );
 
 	/**
-	 * 列Targetを列責務の射影で共通位置へ変換し、同じ更新契約へ渡すことを確認する。
+	 * 列Targetから列責務が共通の移動元位置を取得し、同じ更新契約へ渡すことを確認する。
 	 *
 	 * 事前条件:
 	 * - 列3を境界1へ移動する確定済みReorderがある。
@@ -73,10 +73,10 @@ describe( 'Data Update', () => {
 	 * - Data Updateを実行する。
 	 *
 	 * 期待結果:
-	 * - 列固有の`columnIndex`はData Updateで直接解釈されず、列責務の射影を通る。
+	 * - 列固有の`columnIndex`はData Updateで直接解釈されず、列責務から共通の移動元位置として取得される。
 	 * - `sourceIndex: 3`、`destinationIndex: 1`の列更新が1回だけ要求される。
 	 */
-	it( 'when a column reorder is committed, should project the column target and update the Table once', () => {
+	it( 'when a column reorder is committed, should get the column source index and update the Table once', () => {
 		const updateReorder = jest.fn().mockReturnValue( { status: 'updated' } );
 		const dataUpdate = createDataUpdate( {
 			updateReorder: ( update ) => updateReorder( update ),
