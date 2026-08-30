@@ -1,3 +1,9 @@
+/**
+ * Table Integrationが対応Table Blockの現在データから共通Table構造を提供する主要な振る舞いを確認する。
+ *
+ * Core TableとFlexible Table Blockの結合範囲属性差、論理Tableグリッド上の位置復元、要求ごとの
+ * current Block再取得、大規模Tableでの構造復元、および安全に構造を提供できない場合の振る舞いを確認する。
+ */
 import { createTableIntegration } from './table-integration';
 
 describe( 'Table Integration', () => {
@@ -142,32 +148,38 @@ describe( 'Table Integration', () => {
 			Array< boolean >( columnCount ).fill( false )
 		);
 
+		// 大規模Tableの各論理行を構築し、結合セルで占有済みの位置を除いた物理セル列を再現する。
 		const body = Array.from( { length: rowCount }, ( _, rowStart ) => {
 			const cells: Record< string, number >[] = [];
 
-			// 各行を20論理列として構成し、先行する結合セルが占有する位置には物理セルを作らない。
+			// 1行分の全論理列を評価し、結合セルの占有状態を反映した物理セル列を構築する。
 			for ( let columnStart = 0; columnStart < columnCount; columnStart++ ) {
+				// 先行する結合セルが占有する論理位置には、新しい物理セルを作成しない。
 				if ( occupied[ rowStart ][ columnStart ] ) {
 					continue;
 				}
 
 				const mergedCell = mergeByStart.get( `${ rowStart }:${ columnStart }` );
+				// 結合計画のない位置は通常セルとして1行1列を占有する。
 				if ( ! mergedCell ) {
 					cells.push( {} );
 					continue;
 				}
 
 				const cell: Record< string, number > = {};
+				// 縦方向に複数行を占有する場合だけCore Tableの結合属性を付与する。
 				if ( mergedCell.rowSpan > 1 ) {
 					cell.rowspan = mergedCell.rowSpan;
 				}
+				// 横方向に複数列を占有する場合だけCore Tableの結合属性を付与する。
 				if ( mergedCell.columnSpan > 1 ) {
 					cell.colspan = mergedCell.columnSpan;
 				}
 				cells.push( cell );
 
-				// 結合セルが占有する論理領域を記録し、後続行を含めて重複する物理セルを生成しない。
+				// 結合セルが占有する論理領域全体を記録し、後続行・後続列で重複する物理セルを生成しない。
 				for ( let row = rowStart; row < rowStart + mergedCell.rowSpan; row++ ) {
+					// 現在の結合セルが横方向に占有するすべての論理列を同じ占有領域として扱う。
 					for (
 						let column = columnStart;
 						column < columnStart + mergedCell.columnSpan;
