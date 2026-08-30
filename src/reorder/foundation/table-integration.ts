@@ -1,27 +1,51 @@
 /**
- * 対応Table Block固有のTableデータを、Reorder coreが利用する共通Table構造へ変換する境界を提供する。
+ * 対応Table BlockとReorder coreの間で、要求時点のTable構造を共通表現として提供する境界を担う。
  *
- * 対象TableはclientIdから要求時点のBlockを取得して識別し、Core TableとFlexible Table Blockの差分は
- * 結合セル属性の取得だけで吸収する。Table Integrationは取得したTableデータや変換結果を保持せず、
- * 並び替え対象判定、並び替え制約の導出、移動先判定、Reorder Sessionの状態管理を担当しない。
+ * Reorder coreが対応Table Block固有の属性表現へ依存しないように、Table IntegrationはTable個体を
+ * clientIdで識別し、対応Table Blockごとの差異を境界内で吸収する。提供する共通Table構造は、
+ * 並び替え制約の判断に必要な結合セルの位置と範囲だけを表し、通常セルの内容や装飾は所有しない。
+ *
+ * Table Integrationは要求ごとに現在のTableデータを参照し、Tableデータや共通Table構造を状態として
+ * 保持しない。Tableの監視、並び替え対象判定、並び替え制約の導出、移動先判定、Reorder Sessionの
+ * 状態管理は他のReorder責務が所有する。
  */
 
-/** Reorder coreが利用する共通Table構造。通常セルは保持しない。 */
+/**
+ * Reorder coreが利用する共通Table構造。
+ *
+ * Table Block固有のセル表現を持たず、行・列の並び替え制約を判断するために必要な結合セルだけを保持する。
+ * この値は要求時点のTableから構築される結果であり、Table Integrationが後続要求へ保持する状態ではない。
+ */
 export type TableStructure = {
+	/** Table内に存在する結合セルの位置と占有範囲。通常セルは含まない。 */
 	mergedCells: readonly TableMergedCellStructure[];
 };
 
-/** 共通Table構造上で1つの結合セルが占有する位置と範囲。 */
+/**
+ * 共通Table構造上で1つの結合セルが占有する位置と範囲。
+ *
+ * 行位置は結合セルが属するTable区画内、列位置は結合を考慮した論理Tableグリッド上の0-based位置で表す。
+ * Reorder coreはこの表現だけを利用し、対応Table Block固有の結合セル属性を再解釈しない。
+ */
 export type TableMergedCellStructure = {
+	/** 結合セルが属するTable区画。 */
 	section: 'head' | 'body' | 'foot';
+	/** Table区画内で結合セルが開始する0-based行位置。 */
 	rowStart: number;
+	/** 論理Tableグリッド上で結合セルが開始する0-based列位置。 */
 	columnStart: number;
+	/** 結合セルが縦方向に占有する行数。 */
 	rowSpan: number;
+	/** 結合セルが横方向に占有する列数。 */
 	columnSpan: number;
 };
 
 /**
  * Table Integrationが要求時点のBlockを取得するために利用するBlock Editorストアの契約。
+ *
+ * Table個体の識別にはclientIdを利用し、要求のたびに現在のBlockを取得する。以前取得したBlockや属性を
+ * 再利用しないことで、Table編集やEditor lifecycleによる外部状態の変化をTable Integrationの状態として
+ * 管理しない。
  */
 export type TableIntegrationBlockStore = {
 	/**
@@ -39,7 +63,13 @@ export type TableIntegrationBlockStore = {
 		| undefined;
 };
 
-/** 対応Table BlockとReorder coreの構造取得境界。 */
+/**
+ * 対応Table BlockとReorder coreの間でTable構造を受け渡すTable Integrationの契約。
+ *
+ * 呼び出し側はTable個体のclientIdだけを指定し、対応Table Block固有の属性構造や結合セル属性を扱わない。
+ * 対象Blockが存在しない、非対応Table Blockである、またはTable全体を安全に共通構造へ変換できない場合は
+ * nullを返し、不完全なTable構造を提供しない。
+ */
 export type TableIntegration = {
 	/**
 	 * 対象Tableの要求時点の共通Table構造を取得する。
@@ -50,15 +80,40 @@ export type TableIntegration = {
 	getStructure: ( clientId: string ) => TableStructure | null;
 };
 
+/**
+ * Table Integrationが共通Table構造で扱うTable区画。
+ *
+ * 対応Table BlockのTable構造は、Reorder coreへ公開する前にhead、body、footの共通区画として扱う。
+ */
 type TableSection = TableMergedCellStructure[ 'section' ];
 
+/**
+ * 対応Table Block固有セルから結合範囲属性を取得する内部境界。
+ *
+ * Core TableとFlexible Table Blockの現在の構造取得上の差異は結合範囲属性名だけであるため、
+ * その差異だけをこの境界へ閉じ込める。値の妥当性やTable構造規則は共通処理が判断する。
+ *
+ * @param cell 対応Table Blockの1セル。
+ * @return 対応Table Block固有属性から取得した縦横の結合範囲値。
+ */
 type CellSpanReader = ( cell: Record< string, unknown > ) => {
 	rowSpan: unknown;
 	columnSpan: unknown;
 };
 
+/**
+ * 共通Table構造として解釈するTable区画の順序。
+ *
+ * 各区画を同じ規則で評価し、どの対応Table Blockでも区画ごとの構造解釈を共通に保つ。
+ */
 const SECTION_NAMES: readonly TableSection[] = [ 'head', 'body', 'foot' ];
 
+/**
+ * 対応Table Blockごとに異なる結合範囲属性の読み取り規則。
+ *
+ * Block名は対応Table Blockの種類を選択するためだけに利用し、Table属性、区画、行、セルの構造規則は
+ * この対応表では分岐させない。
+ */
 const CELL_SPAN_READERS: Readonly< Partial< Record< string, CellSpanReader > > > = {
 	'core/table': ( cell ) => ( {
 		rowSpan: cell.rowspan,
@@ -71,7 +126,10 @@ const CELL_SPAN_READERS: Readonly< Partial< Record< string, CellSpanReader > > >
 };
 
 /**
- * Table属性や行・セルとして安全に参照できるオブジェクトか判定する。
+ * Table属性、行、セルとして安全に参照できるオブジェクトか判定する。
+ *
+ * 不完全な外部Tableデータから共通Table構造を推測しないため、属性を参照できる値だけをTableデータとして
+ * 受け入れる。
  *
  * @param value 判定対象。
  * @return 配列でもnullでもないオブジェクトの場合はtrue。
@@ -82,31 +140,40 @@ const isRecord = ( value: unknown ): value is Record< string, unknown > =>
 /**
  * セルの結合範囲を論理Tableグリッド上の占有数へ正規化する。
  *
+ * 結合範囲が未指定の通常セルは1行または1列を占有するものとして扱う。値が指定されている場合は、
+ * Table上の占有数として成立する1以上の整数だけを受け入れ、安全に解釈できない値では構造取得を成立させない。
+ *
  * @param span 対応Table Blockから取得した結合範囲値。
  * @return 1以上の整数。解釈できない場合はnull。
  */
 const parseSpan = ( span: unknown ): number | null => {
+	// 結合範囲が指定されていないセルは、1行または1列を占有する通常セルとして扱う。
 	if ( span === undefined ) {
 		return 1;
 	}
 
+	// 対応Table Blockが保持し得る数値表現以外は、占有範囲を確定できない外部データとして扱う。
 	if ( typeof span !== 'number' && typeof span !== 'string' ) {
 		return null;
 	}
 
 	const value = Number( span );
+	// Table上の占有数は1以上の整数だけが成立し、それ以外の値から共通Table構造を推測しない。
 	const normalizedSpan = Number.isInteger( value ) && value >= 1 ? value : null;
 	return normalizedSpan;
 };
 
 /**
- * 先行する縦結合セルの占有範囲を避け、現在セルを配置できる最初の論理列を求める。
+ * 先行する縦結合セルの占有範囲を考慮し、現在セルが開始できる論理列を解決する。
  *
- * @param occupiedUntilRow 各論理列が占有されている終了行位置。
- * @param rowStart         現在の区画内行位置。
- * @param minimumColumn    探索を開始する最小列位置。
+ * セル配列上の位置は縦結合による占有列を表さないため、論理Tableグリッドでは先行セルが占有している列を
+ * 避ける必要がある。現在セルの横方向の占有範囲全体が成立する最初の列を開始位置として返す。
+ *
+ * @param occupiedUntilRow 各論理列が先行する縦結合セルによって占有される終了行位置。
+ * @param rowStart         現在セルが属するTable区画内の0-based行位置。
+ * @param minimumColumn    同じ行で先行するセルから決まる最小開始列。
  * @param columnSpan       現在セルが横方向に占有する列数。
- * @return 現在セルの論理開始列。
+ * @return 現在セルの論理Tableグリッド上の0-based開始列。
  */
 const findColumnStart = (
 	occupiedUntilRow: readonly number[],
@@ -116,17 +183,20 @@ const findColumnStart = (
 ): number => {
 	let candidate = minimumColumn;
 
-	// 現在セルの横結合範囲全体が空いている最初の論理列まで候補位置を進める。
+	// 同じ行のセル順を保ちながら、現在セルの占有範囲が成立する最初の論理列を確定する。
 	while ( true ) {
 		let isAvailable = true;
 
+		// 横結合するすべての列について、先行する縦結合セルとの重複がないことを確認する。
 		for ( let column = candidate; column < candidate + columnSpan; column++ ) {
+			// 先行する縦結合セルが現在行まで占有する列には、現在セルを配置できない。
 			if ( ( occupiedUntilRow[ column ] ?? 0 ) > rowStart ) {
 				isAvailable = false;
 				break;
 			}
 		}
 
+		// 横方向の占有範囲全体が空いている候補を、現在セルの論理開始列として確定する。
 		if ( isAvailable ) {
 			return candidate;
 		}
@@ -136,15 +206,16 @@ const findColumnStart = (
 };
 
 /**
- * 1つのTable区画を走査しながら論理Tableグリッドを復元し、結合セルだけを共通構造へ追加する。
+ * 1つのTable区画から論理Tableグリッド上の結合セル構造を構築する。
  *
- * 全セルの中間構造は作らず、行とセルを要求時点の属性から直接読み取る。区画、行、セル、span値のいずれかを
- * 安全に解釈できない場合は部分的な構造を返さず失敗とする。
+ * Table区画内のすべてのセルを評価して論理位置を復元するが、共通Table構造として保持するのは結合セルだけとする。
+ * 区画、行、セル、結合範囲のいずれかを安全に解釈できない場合は、そのTableを不完全な構造として扱う。
+ * headとfootは省略できるが、Table本体であるbodyは必須とする。
  *
  * @param section      共通Table構造上の区画。
  * @param sectionValue 対応Table Blockの区画属性。
- * @param spanReader   対応Table Block固有の結合範囲属性を取得する処理。
- * @param mergedCells  構築中の共通結合セル一覧。
+ * @param spanReader   対応Table Block固有の結合範囲属性を取得する境界。
+ * @param mergedCells  同じTableについて既に構築済みの結合セル一覧。
  * @return 区画全体を安全に解釈できた場合はtrue。
  */
 const appendSectionMergedCells = (
@@ -155,27 +226,31 @@ const appendSectionMergedCells = (
 ): boolean => {
 	const isOptionalSection = section !== 'body';
 
+	// headとfootの省略は有効なTableとして扱うが、bodyの欠落では共通Table構造を成立させない。
 	if ( sectionValue === undefined ) {
 		return isOptionalSection;
 	}
 
+	// 存在するTable区画は行の集合として解釈できる必要があり、それ以外から行構造を推測しない。
 	if ( ! Array.isArray( sectionValue ) ) {
 		return false;
 	}
 
 	const occupiedUntilRow: number[] = [];
 
-	// 区画を上から順に走査し、縦結合が後続行で占有する論理列を継続して反映する。
+	// 区画内のすべての行を順序どおり評価し、縦結合セルが後続行で占有する論理列を引き継ぐ。
 	for ( let rowStart = 0; rowStart < sectionValue.length; rowStart++ ) {
 		const row = sectionValue[ rowStart ];
+		// 各行はセルの集合を持つTable行として解釈できる場合だけ、論理Tableグリッドへ取り込む。
 		if ( ! isRecord( row ) || ! Array.isArray( row.cells ) ) {
 			return false;
 		}
 
 		let minimumColumn = 0;
 
-		// 行内のセルを左から順に配置し、結合範囲を考慮した論理開始列を確定する。
+		// 行内のすべてのセルを元の順序で評価し、結合を考慮した論理列上の位置を確定する。
 		for ( const cell of row.cells ) {
+			// 各セルは対応Table Block固有の結合範囲属性を安全に参照できる必要がある。
 			if ( ! isRecord( cell ) ) {
 				return false;
 			}
@@ -184,6 +259,7 @@ const appendSectionMergedCells = (
 			const rowSpan = parseSpan( spans.rowSpan );
 			const columnSpan = parseSpan( spans.columnSpan );
 
+			// 縦横どちらかの占有範囲を確定できないセルがあれば、Table区画全体を不完全として扱う。
 			if ( rowSpan === null || columnSpan === null ) {
 				return false;
 			}
@@ -191,10 +267,12 @@ const appendSectionMergedCells = (
 			const columnStart = findColumnStart( occupiedUntilRow, rowStart, minimumColumn, columnSpan );
 			const occupiedRowEnd = rowStart + rowSpan;
 
+			// 現在セルが占有するすべての論理列へ縦方向の占有範囲を反映し、後続行の位置解決に利用する。
 			for ( let column = columnStart; column < columnStart + columnSpan; column++ ) {
 				occupiedUntilRow[ column ] = Math.max( occupiedUntilRow[ column ] ?? 0, occupiedRowEnd );
 			}
 
+			// Reorder coreが構造上の制約判断に必要とする結合セルだけを共通Table構造へ記録する。
 			if ( rowSpan > 1 || columnSpan > 1 ) {
 				mergedCells.push( {
 					section,
@@ -215,21 +293,25 @@ const appendSectionMergedCells = (
 /**
  * 対応Table Blockの要求時点の属性から共通Table構造を構築する。
  *
+ * head、body、footを同じ構造規則で評価し、すべての区画を安全に解釈できた場合だけTable全体の共通構造を
+ * 提供する。途中まで解釈できた結合セルだけを部分的な結果として返さない。
+ *
  * @param attributes 要求時点のTable属性。
- * @param spanReader 対応Table Block固有の結合範囲属性を取得する処理。
+ * @param spanReader 対応Table Block固有の結合範囲属性を取得する境界。
  * @return 共通Table構造。安全に構築できない場合はnull。
  */
 const buildTableStructure = (
 	attributes: unknown,
 	spanReader: CellSpanReader
 ): TableStructure | null => {
+	// Table属性そのものを安全に参照できない場合は、Table区画の存在や構造を推測しない。
 	if ( ! isRecord( attributes ) ) {
 		return null;
 	}
 
 	const mergedCells: TableMergedCellStructure[] = [];
 
-	// head、body、footを共通規則で処理し、1区画でも成立しなければTable全体を不完全として扱う。
+	// Table全区画を共通規則で評価し、すべて成立した場合だけ1つの共通Table構造として提供する。
 	for ( const section of SECTION_NAMES ) {
 		const isComplete = appendSectionMergedCells(
 			section,
@@ -238,6 +320,7 @@ const buildTableStructure = (
 			mergedCells
 		);
 
+		// 1区画でも安全に解釈できなければ、部分的なTable構造をReorder coreへ公開しない。
 		if ( ! isComplete ) {
 			return null;
 		}
@@ -249,8 +332,12 @@ const buildTableStructure = (
 /**
  * Reorder coreから利用するTable Integrationを作成する。
  *
- * 構造取得要求ごとにclientIdから現在のBlockを取得し直し、そのBlock名に対応するspan属性の読み取り方だけを
- * 選択する。Table属性の検証、区画走査、span正規化、論理Tableグリッド復元は共通処理が担当する。
+ * 構造取得要求ごとにclientIdから現在のBlockを取得し、そのBlock名で対応Table Blockを判定する。
+ * 対応Table Block間で異なる結合範囲属性の読み取りだけを選択し、Table属性、区画、行、セルの構造規則、
+ * 結合範囲の妥当性、論理Tableグリッド上の位置は共通規則として扱う。
+ *
+ * 作成したTable IntegrationはBlockや共通Table構造を保持せず、次の要求でも現在のBlockを基準とする。
+ * 対象Blockが存在しない場合や対応Table Blockとして安全に解釈できない場合は正常な利用不能としてnullを返す。
  *
  * @param blockEditorStore 対象clientIdから要求時点のBlockを取得するストア契約。
  * @return 状態を保持せず要求時点のTable構造を提供するTable Integration。
@@ -260,11 +347,13 @@ export const createTableIntegration = (
 ): TableIntegration => ( {
 	getStructure: ( clientId ) => {
 		const block = blockEditorStore.getBlock( clientId );
+		// 対象Tableが要求時点で存在しない場合は、過去のBlockや推測したTable構造で代替しない。
 		if ( ! block ) {
 			return null;
 		}
 
 		const spanReader = CELL_SPAN_READERS[ block.name ];
+		// 非対応BlockはReorder core向けのTable構造を提供できる対象として扱わない。
 		if ( ! spanReader ) {
 			return null;
 		}
