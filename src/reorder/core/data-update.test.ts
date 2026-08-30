@@ -1,8 +1,11 @@
 /**
- * Data Updateの共通位置正規化、方向固有Targetからの移動元位置取得、no-op、Table Integration呼び出し回数を確認する単体テスト。
+ * Data Updateの共通位置正規化、方向固有Targetからの位置取得、方向固有更新規則、no-op、
+ * Table Integration呼び出し回数を確認する単体テスト。
  */
 import { getColumnReorderSourceIndex } from '@/reorder/column-reorder/reorder-target-resolution';
+import { resolveColumnTableUpdateChanges } from '@/reorder/column-reorder/table-update';
 import { getRowReorderSourceIndex } from '@/reorder/row-reorder/reorder-target-resolution';
+import { resolveRowTableUpdateChanges } from '@/reorder/row-reorder/table-update';
 import { createDataUpdate, getReorderDestinationIndex } from './data-update';
 
 describe( 'Data Update', () => {
@@ -24,23 +27,23 @@ describe( 'Data Update', () => {
 	} );
 
 	/**
-	 * 行Targetから行責務が共通の移動元位置を取得し、Table Integrationへ1回だけ渡すことを確認する。
+	 * 行Targetから行責務の規則で共通位置を取得し、同じ行更新規則とともにTable Integrationへ1回だけ渡すことを確認する。
 	 *
 	 * 事前条件:
 	 * - `body`内の行1を境界4へ移動する確定済みReorderがある。
 	 * - Table Integrationは更新成立を返す。
 	 *
 	 * 操作:
-	 * - Data Updateを実行する。
+	 * - 行の位置取得規則とTableデータ更新規則を指定してData Updateを実行する。
 	 *
 	 * 期待結果:
-	 * - 行固有の`rowIndex`はData Updateで直接解釈されず、行責務から共通の移動元位置として取得される。
-	 * - `sourceIndex: 1`、`destinationIndex: 3`の行更新が1回だけ要求される。
+	 * - 行固有の`rowIndex`はData Updateで直接解釈されない。
+	 * - `sourceIndex: 1`、`destinationIndex: 3`の行更新と行更新規則が1回だけ渡される。
 	 */
-	it( 'when a row reorder is committed, should get the row source index and update the Table once', () => {
+	it( 'when a row reorder is committed, should keep the row update rules paired through Table Integration', () => {
 		const updateReorder = jest.fn().mockReturnValue( { status: 'updated' } );
 		const dataUpdate = createDataUpdate( {
-			updateReorder: ( update ) => updateReorder( update ),
+			updateReorder: ( update, resolveChanges ) => updateReorder( update, resolveChanges ),
 		} );
 
 		const result = dataUpdate.update(
@@ -49,37 +52,43 @@ describe( 'Data Update', () => {
 				target: { kind: 'row', clientId: 'table-client-id', rowIndex: 1 },
 				destination: { kind: 'row', clientId: 'table-client-id', boundaryIndex: 4 },
 			},
-			getRowReorderSourceIndex
+			{
+				getSourceIndex: getRowReorderSourceIndex,
+				resolveTableUpdateChanges: resolveRowTableUpdateChanges,
+			}
 		);
 
 		expect( result ).toEqual( { status: 'updated' } );
 		expect( updateReorder ).toHaveBeenCalledTimes( 1 );
-		expect( updateReorder ).toHaveBeenCalledWith( {
-			kind: 'row',
-			clientId: 'table-client-id',
-			sourceIndex: 1,
-			destinationIndex: 3,
-		} );
+		expect( updateReorder ).toHaveBeenCalledWith(
+			{
+				kind: 'row',
+				clientId: 'table-client-id',
+				sourceIndex: 1,
+				destinationIndex: 3,
+			},
+			resolveRowTableUpdateChanges
+		);
 	} );
 
 	/**
-	 * 列Targetから列責務が共通の移動元位置を取得し、同じ更新契約へ渡すことを確認する。
+	 * 列Targetから列責務の規則で共通位置を取得し、同じ列更新規則とともにTable Integrationへ渡すことを確認する。
 	 *
 	 * 事前条件:
 	 * - 列3を境界1へ移動する確定済みReorderがある。
 	 * - Table Integrationは更新成立を返す。
 	 *
 	 * 操作:
-	 * - Data Updateを実行する。
+	 * - 列の位置取得規則とTableデータ更新規則を指定してData Updateを実行する。
 	 *
 	 * 期待結果:
-	 * - 列固有の`columnIndex`はData Updateで直接解釈されず、列責務から共通の移動元位置として取得される。
-	 * - `sourceIndex: 3`、`destinationIndex: 1`の列更新が1回だけ要求される。
+	 * - 列固有の`columnIndex`はData Updateで直接解釈されない。
+	 * - `sourceIndex: 3`、`destinationIndex: 1`の列更新と列更新規則が1回だけ渡される。
 	 */
-	it( 'when a column reorder is committed, should get the column source index and update the Table once', () => {
+	it( 'when a column reorder is committed, should keep the column update rules paired through Table Integration', () => {
 		const updateReorder = jest.fn().mockReturnValue( { status: 'updated' } );
 		const dataUpdate = createDataUpdate( {
-			updateReorder: ( update ) => updateReorder( update ),
+			updateReorder: ( update, resolveChanges ) => updateReorder( update, resolveChanges ),
 		} );
 
 		const result = dataUpdate.update(
@@ -88,17 +97,23 @@ describe( 'Data Update', () => {
 				target: { kind: 'column', clientId: 'table-client-id', columnIndex: 3 },
 				destination: { kind: 'column', clientId: 'table-client-id', boundaryIndex: 1 },
 			},
-			getColumnReorderSourceIndex
+			{
+				getSourceIndex: getColumnReorderSourceIndex,
+				resolveTableUpdateChanges: resolveColumnTableUpdateChanges,
+			}
 		);
 
 		expect( result ).toEqual( { status: 'updated' } );
 		expect( updateReorder ).toHaveBeenCalledTimes( 1 );
-		expect( updateReorder ).toHaveBeenCalledWith( {
-			kind: 'column',
-			clientId: 'table-client-id',
-			sourceIndex: 3,
-			destinationIndex: 1,
-		} );
+		expect( updateReorder ).toHaveBeenCalledWith(
+			{
+				kind: 'column',
+				clientId: 'table-client-id',
+				sourceIndex: 3,
+				destinationIndex: 1,
+			},
+			resolveColumnTableUpdateChanges
+		);
 	} );
 
 	/**
@@ -117,9 +132,13 @@ describe( 'Data Update', () => {
 	it( 'when a committed destination normalizes to the source position, should not call Table Integration', () => {
 		const updateReorder = jest.fn().mockReturnValue( { status: 'updated' } );
 		const dataUpdate = createDataUpdate( {
-			updateReorder: ( update ) => updateReorder( update ),
+			updateReorder: ( update, resolveChanges ) => updateReorder( update, resolveChanges ),
 		} );
 		const target = { kind: 'row' as const, clientId: 'table-client-id', rowIndex: 1 };
+		const adapter = {
+			getSourceIndex: getRowReorderSourceIndex,
+			resolveTableUpdateChanges: resolveRowTableUpdateChanges,
+		};
 
 		expect(
 			dataUpdate.update(
@@ -128,7 +147,7 @@ describe( 'Data Update', () => {
 					target,
 					destination: { kind: 'row', clientId: 'table-client-id', boundaryIndex: 1 },
 				},
-				getRowReorderSourceIndex
+				adapter
 			)
 		).toEqual( { status: 'unchanged' } );
 		expect(
@@ -138,7 +157,7 @@ describe( 'Data Update', () => {
 					target,
 					destination: { kind: 'row', clientId: 'table-client-id', boundaryIndex: 2 },
 				},
-				getRowReorderSourceIndex
+				adapter
 			)
 		).toEqual( { status: 'unchanged' } );
 		expect( updateReorder ).not.toHaveBeenCalled();
