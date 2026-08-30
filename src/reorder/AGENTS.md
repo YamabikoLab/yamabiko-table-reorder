@@ -2,30 +2,9 @@
 
 These instructions apply to source files under `src/reorder/` in addition to `src/AGENTS.md`.
 
-## Row and column responsibility boundaries
+## Row and column implementation independence
 
-- Keep row-specific meaning, types, rules, and interpretation in `row-reorder` as the source of truth.
-- Keep column-specific meaning, types, rules, and interpretation in `column-reorder` as the source of truth.
-- Branch between row and column to select and delegate the direction only at boundaries where the direction has not yet been determined.
-- Limit shared processing and shared abstractions to responsibilities that have the same meaning and the same reason to change for row and column.
-- Once the direction has been determined, in processing paths where the correlation between that direction and its corresponding types must be maintained, do not return to a union merely for type convenience or re-check `kind` to restore the correlation.
-- In processing paths where direction correspondence must be maintained, preserve in the type system, through the actual call path, the correlation between the determined direction and its corresponding Request / Target / Session / Result / Destination.
-- Do not require unnecessary splitting into direction-specific APIs all the way to boundaries that expose or observe results for either row or column in a direction-independent way.
-- Do not move direction correspondence that can be guaranteed by types back into runtime assertions. Check at runtime only value-level invariants owned by Reorder that cannot be guaranteed by types, such as Table identity.
-
-## Row and column code review guidelines
-
-At minimum, verify the following when reviewing code under `src/reorder/`.
-
-- Verify that row-specific meaning, type definitions, rules, and interpretation remain owned by `row-reorder` and are not redefined or independently interpreted elsewhere.
-- Verify that column-specific meaning, type definitions, rules, and interpretation remain owned by `column-reorder` and are not redefined or independently interpreted elsewhere.
-- Verify that row / column branching does not appear outside boundaries that select and delegate the direction.
-- Verify that reorderable row and column elements use stable `key` values based on their identity rather than their current position.
-- Verify that processing paths after the direction has been determined do not return to a union for type convenience or re-check `kind` to restore type correlation.
-- Verify that the correlation between the direction and Request / Target / Session / Result / Destination is maintained in the type system where required by the processing path.
-- Verify that shared processing and abstractions truly represent responsibilities with the same meaning and the same reason to change for row and column.
-- Verify that boundaries exposing or observing results for either row or column in a direction-independent way are not unnecessarily split into direction-specific APIs.
-- Verify that direction correspondence already guaranteed by types is not revalidated with runtime assertions.
+- Row reordering and column reordering are independent implementations. Do not introduce shared reorder abstractions between them.
 
 ## Error handling and runtime invariants
 
