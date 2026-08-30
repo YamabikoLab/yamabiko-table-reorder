@@ -1,14 +1,16 @@
 /**
- * Table plugin固有のデータ構造を、Reorder coreが利用する共通Table構造へ変換する境界を提供する。
+ * Supported Table Block固有のデータ構造とReorder coreの共通Table構造を接続する境界を提供する。
  *
- * 対応Tableから要求時点のデータを取得し、`head`、`body`、`foot`の区画と結合セルの位置・範囲を
- * 共通表現へ変換する。Reorder coreはこの境界を通じて、対象Tableごとの属性構造や結合セル表現の違いを
- * 意識せずにTable構造を利用できる。
+ * 対応Tableから要求時点のデータを取得し、Supported Block固有の属性解釈を各Integrationへ委譲したうえで、
+ * `head`、`body`、`foot`の共通区画表現から結合セルの論理Tableグリッドを復元する。
+ * Reorder coreはこの境界を通じて、対象Tableごとの属性構造や結合セル表現の違いを意識せずにTable構造を利用できる。
  *
  * Table IntegrationはTableデータや変換結果を保持せず、要求ごとに現在データから共通Table構造を作る。
  * 対象Tableを安全に変換できない場合は不完全な構造を返さず`null`とする。並び替え対象判定、
  * 並び替え制約の導出、移動先判定、Reorder Sessionの状態管理はこの責務に含めない。
  */
+
+import { SUPPORTED_BLOCK_INTEGRATIONS } from '@/reorder/foundation/supported-block/registry';
 
 /**
  * Table Integration内部で利用する共通のTable区画。
@@ -95,10 +97,13 @@ export type TableIntegration = {
 /**
  * Table区画を論理Tableグリッドへ復元する前の、Table種類に依存しないセル表現。
  *
- * 対象Table固有の結合範囲表現は各Integrationで解釈済みとし、共通処理は`rowSpan`と`columnSpan`だけを扱う。
+ * 対象Table固有の結合範囲表現は各Supported Block Integrationで解釈済みとし、
+ * 共通処理は`rowSpan`と`columnSpan`だけを扱う。
  */
-type TableCell = {
+export type TableIntegrationCell = {
+	/** セルが縦方向に占有する行数。 */
 	rowSpan: number;
+	/** セルが横方向に占有する列数。 */
 	columnSpan: number;
 };
 
@@ -107,244 +112,34 @@ type TableCell = {
  *
  * セル内容や装飾はTable構造判定に不要なため保持しない。
  */
-type TableRow = {
-	cells: readonly TableCell[];
+export type TableIntegrationRow = {
+	/** 表示順に並ぶ区画内のセル一覧。 */
+	cells: readonly TableIntegrationCell[];
 };
 
 /**
- * 各Integrationが対象Table固有の属性から作成し、共通構造復元へ渡すTable区画一覧。
+ * 各Supported Block Integrationが固有属性から作成し、共通構造復元へ渡すTable区画一覧。
  *
  * `head`と`foot`は省略可能なため空配列へ正規化する。`body`はTable本体として必須とし、欠落時は
  * この表現を成立させない。
  */
-type TableSections = Readonly< Record< TableSection, readonly TableRow[] > >;
+export type TableIntegrationSections = Readonly<
+	Record< TableSection, readonly TableIntegrationRow[] >
+>;
 
 /**
- * 1種類のTableについて、固有属性を共通Table構造へ適応する内部契約。
+ * 1種類のSupported Blockについて、固有属性をTable Integration共通の区画表現へ適応する内部契約。
  *
- * 対象Table固有属性を完全に解釈できた場合だけ共通Table構造を返し、不完全な構造を推測しない。
+ * Supported Block固有属性を完全に解釈できた場合だけ共通区画表現を返し、不完全な構造を推測しない。
  */
-type TableStructureIntegration = {
+export type SupportedBlockIntegration = {
 	/**
-	 * 対象Table固有属性を共通Table構造へ変換する。
+	 * Supported Block固有属性をTable Integration共通の区画表現へ変換する。
 	 *
-	 * @param attributes 要求時点の対象Table固有属性。
-	 * @return 共通Table構造。安全に変換できない場合は`null`。
+	 * @param attributes 要求時点のSupported Block固有属性。
+	 * @return 共通のTable区画一覧。安全に変換できない場合は`null`。
 	 */
-	getStructure: ( attributes: unknown ) => TableStructure | null;
-};
-
-/**
- * 値をTable属性、行、セルとして安全に参照できるオブジェクトか判定する。
- *
- * Table構造を推測しないため、属性を持つデータとして扱えるのは`null`でも配列でもないオブジェクトだけとする。
- *
- * @param value 判定対象の値。
- * @return Tableデータのオブジェクトとして安全に参照できる場合は`true`。
- */
-const isRecord = ( value: unknown ): value is Record< string, unknown > =>
-	value !== null && typeof value === 'object' && ! Array.isArray( value );
-
-/**
- * 対象Table固有セルに保存された結合範囲を、共通の占有数へ正規化する。
- *
- * 結合範囲の指定がないセルは通常セルとして1を返す。指定がある場合は1以上の整数だけを受け入れる。
- * 数値文字列は対象Tableデータとして許容し、それ以外は安全に構造を復元できないため`null`とする。
- *
- * @param span 対象Table固有セルから取得した結合範囲値。
- * @return 1以上の占有数。解釈できない値の場合は`null`。
- */
-const parseSpan = ( span: unknown ): number | null => {
-	// 結合範囲が指定されていないセルは、1行1列を占有する通常セルとして扱う。
-	if ( span === undefined ) {
-		return 1;
-	}
-
-	// 対応Tableが結合範囲として表現できる数値または数値文字列以外は受け入れない。
-	if ( typeof span !== 'number' && typeof span !== 'string' ) {
-		return null;
-	}
-
-	const value = Number( span );
-	// Table上の占有数は1以上の整数である必要があり、それ以外では共通Table構造を確定しない。
-	const normalizedSpan = Number.isInteger( value ) && value >= 1 ? value : null;
-	return normalizedSpan;
-};
-
-/**
- * Core Table固有の1区画を共通の行表現へ正規化する。
- *
- * Core Tableではセルの結合範囲を`rowspan`と`colspan`で表す。区画や行、セルの構造を安全に解釈できない
- * 場合は`null`とし、不完全なデータを後続の共通構造復元へ渡さない。
- *
- * @param section  Core Table固有の区画値。
- * @param optional 区画欠落を空区画として許容する場合は`true`。
- * @return 正規化済み行一覧。区画を安全に解釈できない場合は`null`。
- */
-const normalizeCoreTableRows = (
-	section: unknown,
-	optional: boolean
-): readonly TableRow[] | null => {
-	// `head`と`foot`は省略を許容するが、Table本体である`body`は必須とする。
-	if ( section === undefined ) {
-		if ( optional ) {
-			return [];
-		}
-
-		return null;
-	}
-
-	// 存在するTable区画は行の一覧として解釈できる必要がある。
-	if ( ! Array.isArray( section ) ) {
-		return null;
-	}
-
-	const rows: TableRow[] = [];
-	// 区画を構成するすべての行を確認し、1行でも解釈できない場合は部分的な区画を作らない。
-	for ( const row of section ) {
-		// 各行はセル一覧を持つTable行として解釈できる場合だけ共通表現へ取り込む。
-		if ( ! isRecord( row ) || ! Array.isArray( row.cells ) ) {
-			return null;
-		}
-
-		const cells: TableCell[] = [];
-		// 行内のすべてのセルを正規化し、行全体の結合範囲を共通表現として成立させる。
-		for ( const cell of row.cells ) {
-			// 各セルは結合範囲属性を安全に参照できるセルデータである必要がある。
-			if ( ! isRecord( cell ) ) {
-				return null;
-			}
-
-			const rowSpan = parseSpan( cell.rowspan );
-			const columnSpan = parseSpan( cell.colspan );
-			// 縦横どちらかの結合範囲を確定できないセルがあれば、区画全体を不完全として扱う。
-			if ( rowSpan === null || columnSpan === null ) {
-				return null;
-			}
-
-			cells.push( { rowSpan, columnSpan } );
-		}
-
-		rows.push( { cells } );
-	}
-
-	return rows;
-};
-
-/**
- * Core Table固有属性を共通構造復元で利用するTable区画一覧へ正規化する。
- *
- * `head`と`foot`は省略可能とし、`body`はTable本体として必須とする。いずれかの区画を安全に解釈できない
- * 場合は部分的なTable構造を作らず`null`を返す。
- *
- * @param attributes 要求時点のCore Table属性。
- * @return 共通のTable区画一覧。安全に正規化できない場合は`null`。
- */
-const normalizeCoreTableAttributes = ( attributes: unknown ): TableSections | null => {
-	// Table属性そのものを安全に参照できない場合は、区画構造を推測しない。
-	if ( ! isRecord( attributes ) ) {
-		return null;
-	}
-
-	const head = normalizeCoreTableRows( attributes.head, true );
-	const body = normalizeCoreTableRows( attributes.body, false );
-	const foot = normalizeCoreTableRows( attributes.foot, true );
-	const hasUnavailableSection = head === null || body === null || foot === null;
-
-	// 共通Table構造は`head`、`body`、`foot`を一組として成立させ、部分的に解釈できた区画だけでは作らない。
-	if ( hasUnavailableSection ) {
-		return null;
-	}
-
-	return { head, body, foot };
-};
-
-/**
- * Flexible Table Block固有の1区画を共通の行表現へ正規化する。
- *
- * Flexible Table Blockではセルの結合範囲を`rowSpan`と`colSpan`で表す。区画や行、セルの構造を安全に
- * 解釈できない場合は`null`とし、不完全なデータを後続の共通構造復元へ渡さない。
- *
- * @param section  Flexible Table Block固有の区画値。
- * @param optional 区画欠落を空区画として許容する場合は`true`。
- * @return 正規化済み行一覧。区画を安全に解釈できない場合は`null`。
- */
-const normalizeFlexibleTableBlockRows = (
-	section: unknown,
-	optional: boolean
-): readonly TableRow[] | null => {
-	// `head`と`foot`は省略を許容するが、Table本体である`body`は必須とする。
-	if ( section === undefined ) {
-		if ( optional ) {
-			return [];
-		}
-
-		return null;
-	}
-
-	// 存在するTable区画は行の一覧として解釈できる必要がある。
-	if ( ! Array.isArray( section ) ) {
-		return null;
-	}
-
-	const rows: TableRow[] = [];
-	// 区画を構成するすべての行を確認し、1行でも解釈できない場合は部分的な区画を作らない。
-	for ( const row of section ) {
-		// 各行はセル一覧を持つTable行として解釈できる場合だけ共通表現へ取り込む。
-		if ( ! isRecord( row ) || ! Array.isArray( row.cells ) ) {
-			return null;
-		}
-
-		const cells: TableCell[] = [];
-		// 行内のすべてのセルを正規化し、行全体の結合範囲を共通表現として成立させる。
-		for ( const cell of row.cells ) {
-			// 各セルは結合範囲属性を安全に参照できるセルデータである必要がある。
-			if ( ! isRecord( cell ) ) {
-				return null;
-			}
-
-			const rowSpan = parseSpan( cell.rowSpan );
-			const columnSpan = parseSpan( cell.colSpan );
-			// 縦横どちらかの結合範囲を確定できないセルがあれば、区画全体を不完全として扱う。
-			if ( rowSpan === null || columnSpan === null ) {
-				return null;
-			}
-
-			cells.push( { rowSpan, columnSpan } );
-		}
-
-		rows.push( { cells } );
-	}
-
-	return rows;
-};
-
-/**
- * Flexible Table Block固有属性を共通構造復元で利用するTable区画一覧へ正規化する。
- *
- * `head`と`foot`は省略可能とし、`body`はTable本体として必須とする。いずれかの区画を安全に解釈できない
- * 場合は部分的なTable構造を作らず`null`を返す。
- *
- * @param attributes 要求時点のFlexible Table Block属性。
- * @return 共通のTable区画一覧。安全に正規化できない場合は`null`。
- */
-const normalizeFlexibleTableBlockAttributes = ( attributes: unknown ): TableSections | null => {
-	// Table属性そのものを安全に参照できない場合は、区画構造を推測しない。
-	if ( ! isRecord( attributes ) ) {
-		return null;
-	}
-
-	const head = normalizeFlexibleTableBlockRows( attributes.head, true );
-	const body = normalizeFlexibleTableBlockRows( attributes.body, false );
-	const foot = normalizeFlexibleTableBlockRows( attributes.foot, true );
-	const hasUnavailableSection = head === null || body === null || foot === null;
-
-	// 共通Table構造は`head`、`body`、`foot`を一組として成立させ、部分的に解釈できた区画だけでは作らない。
-	if ( hasUnavailableSection ) {
-		return null;
-	}
-
-	return { head, body, foot };
+	getSections: ( attributes: unknown ) => TableIntegrationSections | null;
 };
 
 /**
@@ -401,7 +196,7 @@ const findColumnStart = (
  */
 const buildSectionMergedCells = (
 	section: TableSection,
-	rows: readonly TableRow[]
+	rows: readonly TableIntegrationRow[]
 ): readonly TableMergedCellStructure[] => {
 	const occupiedUntilRow: number[] = [];
 	const mergedCells: TableMergedCellStructure[] = [];
@@ -451,12 +246,12 @@ const buildSectionMergedCells = (
  * 正規化済みのTable区画一覧からReorder core共通のTable構造を構築する。
  *
  * `head`、`body`、`foot`それぞれについて結合を考慮した論理Tableグリッドを復元し、結合セルだけを
- * `TableStructure`へ集約する。対象Table固有属性はこの処理へ持ち込まない。
+ * `TableStructure`へ集約する。Supported Block固有属性はこの処理へ持ち込まない。
  *
  * @param sections Table種類に依存しないTable区画一覧。
  * @return Reorder coreが利用する共通Table構造。
  */
-const buildTableStructure = ( sections: TableSections ): TableStructure => {
+const buildTableStructure = ( sections: TableIntegrationSections ): TableStructure => {
 	const mergedCells: TableMergedCellStructure[] = [];
 
 	// `head`、`body`、`foot`をそれぞれ独立した論理Tableグリッドとして復元し、Table全体の結合セル構造へ集約する。
@@ -468,58 +263,11 @@ const buildTableStructure = ( sections: TableSections ): TableStructure => {
 };
 
 /**
- * Core Table固有属性を共通Table構造へ適応する内部Integration。
- *
- * Core Tableの属性を安全に正規化できた場合だけ共通Table構造を返し、不完全なデータから構造を推測しない。
- */
-const coreTableIntegration: TableStructureIntegration = {
-	getStructure: ( attributes ) => {
-		const sections = normalizeCoreTableAttributes( attributes );
-
-		// Core Tableの全区画を安全に正規化できない場合は、部分的な共通Table構造を返さない。
-		if ( sections === null ) {
-			return null;
-		}
-
-		return buildTableStructure( sections );
-	},
-};
-
-/**
- * Flexible Table Block固有属性を共通Table構造へ適応する内部Integration。
- *
- * Flexible Table Blockの属性を安全に正規化できた場合だけ共通Table構造を返し、不完全なデータから構造を
- * 推測しない。
- */
-const flexibleTableBlockIntegration: TableStructureIntegration = {
-	getStructure: ( attributes ) => {
-		const sections = normalizeFlexibleTableBlockAttributes( attributes );
-
-		// Flexible Table Blockの全区画を安全に正規化できない場合は、部分的な共通Table構造を返さない。
-		if ( sections === null ) {
-			return null;
-		}
-
-		return buildTableStructure( sections );
-	},
-};
-
-/**
- * 要求時点のTable種類に対応する内部Integrationを選択する対応表。
- *
- * 対象Table個体を`clientId`で取得した後、そのBlockの`block.name`をTable種類の判定に利用する。
- * 対応していないTable種類にはIntegrationを割り当てず、非対応Tableを明確に区別する。
- */
-const TABLE_INTEGRATIONS: Readonly< Partial< Record< string, TableStructureIntegration > > > = {
-	'core/table': coreTableIntegration,
-	'flexible-table-block/table': flexibleTableBlockIntegration,
-};
-
-/**
  * Reorder coreから利用するTable Integrationを作成する。
  *
- * 構造取得要求ごとに対象Tableの現在Blockを取得し、その時点のTable種類に対応するIntegrationで共通Table構造へ
- * 変換する。Block、属性、共通Table構造は内部状態として保持せず、後続要求では現在のストア状態を基準にする。
+ * 構造取得要求ごとに対象Tableの現在Blockを取得し、その時点のTable種類に対応するSupported Block Integrationで
+ * 固有属性を共通区画表現へ適応してから、Table Integration共通の論理Tableグリッドを復元する。
+ * Block、属性、共通Table構造は内部状態として保持せず、後続要求では現在のストア状態を基準にする。
  *
  * 対象Blockが存在しない、非対応Table、または属性を安全に変換できない場合は`null`を返す。
  * Reorder固有の並び替え対象判定、並び替え制約導出、移動先判定はこの境界では行わない。
@@ -538,13 +286,20 @@ export const createTableIntegration = (
 			return null;
 		}
 
-		const integration = TABLE_INTEGRATIONS[ block.name ];
+		const integration = SUPPORTED_BLOCK_INTEGRATIONS[ block.name ];
 
 		// 対応対象として定義されていないTable種類はReorder coreへ公開しない。
 		if ( ! integration ) {
 			return null;
 		}
 
-		return integration.getStructure( block.attributes );
+		const sections = integration.getSections( block.attributes );
+
+		// Supported Block固有属性を安全に共通区画へ適応できない場合は、不完全なTable構造を返さない。
+		if ( sections === null ) {
+			return null;
+		}
+
+		return buildTableStructure( sections );
 	},
 } );
