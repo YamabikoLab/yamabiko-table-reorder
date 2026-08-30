@@ -133,7 +133,7 @@ Row Reorderの未実装責務は、まずSupported Table Blockとの境界と行
 
 ### Validate during implementation
 
-以下は実装結果、実ブラウザ、計測から確認できるため、記載したPhaseで検証する。途中の検証結果が後続Phaseの実装方向・順序・Issue境界へ影響する場合はPlanを更新し、Architecture変更が必要ならArchitectureへ戻す。
+以下は実装結果、実ブラウザ、計測から確認できるため、記載したPhaseで検証する。Phase 1〜12では製品compositionを前提としないfocused test / integration testまでを各Phaseの完了時evidenceとする。実WordPress Editorの製品経路を通るPlaywrightはPhase 13でcomposition成立後に開始し、Phase 14で主要flowを横断確認する。途中の検証結果が後続Phaseの実装方向・順序・Issue境界へ影響する場合はPlanを更新し、Architecture変更が必要ならArchitectureへ戻す。
 
 1. **Phase 1: 既存境界のArchitecture適合**
    - `Reorder Mode` / `Editor DOM Context`が現在のArchitectureのContract / Lifecycleを満たし、後続Phaseの前提として利用できることを確認する。
@@ -144,53 +144,58 @@ Row Reorderの未実装責務は、まずSupported Table Blockとの境界と行
    - Phase 2でCore Table / Flexible Table Blockから必要な現在情報を同じRow Reorder Contractへ適応できることを確認する。
    - Phase 5で成立した一回の行並び替えが一回のUndo単位になることを確認する。
    - Phase 14で双方のTable Blockについて主要end-to-end flowを再確認する。
-   - Evidence: focused integration testと主要E2E。
+   - Evidence: Phase 2 / 5のfocused integration testとPhase 14の主要E2E。
 
 3. **Phase 4 / 6、Phase 14で最終確認: 外部Table状態変化とcomplete再照合**
    - progress後にTable状態が変化した場合、Phase 4のcomplete再照合が確定不能を正常な結果として返せることを確認する。
    - Phase 6でその結果がData Updateへ進まず共通中止経路へ合流することを確認する。
    - Phase 14で統合flowとして再確認する。
-   - Evidence: focused failure / recovery testと主要E2E。
+   - Evidence: Phase 4 / 6のfocused failure / recovery testとPhase 14の主要E2E。
 
 4. **Phase 6、Phase 8で追加確認、Phase 14で最終確認: 内部Error recovery**
    - Phase 6でstart / progress / complete / cancelのoperation boundaryに伝播した内部Errorが一度だけ記録され、Sessionと一時状態を破棄してidleへ戻ることを確認する。
    - Phase 8で非同期callback等のexecution boundaryを利用する場合は、独自recoveryを持たず同じ共通中止経路へ合流することを確認する。
    - Phase 14で主要統合flowから安全に編集継続できることを再確認する。
-   - Evidence: 各failure / recovery pathのfocused testと必要なE2E。
+   - Evidence: Phase 6 / 8の各failure / recovery pathのfocused testとPhase 14の必要なE2E。
 
 5. **Phase 7、Phase 14で最終確認: DnD表示とcleanup**
    - 移動対象、挿入線、周囲行の移動、移動不可理由がDesignどおり追跡できることを確認する。
    - complete / cancel / 外部環境変化 / 内部Error recovery後にDnD中だけの表示が残らないことを確認する。
-   - Evidence: Presentationのfocused testと主要E2E。
+   - Evidence: Phase 7のPresentation focused testとPhase 14の主要E2E。
 
 6. **Phase 7〜10、Phase 13、Phase 14で最終確認: Editor lifecycleへの追従**
    - iframe / non-iframe、mount / unmount / remountを含む対象Editor環境で、Presentation、Auto Scroll、PC / Touch入力listenerと製品compositionが古いDOM参照や接続を保持せず現在のEditor contextへ追従できるか確認する。
-   - 各責務の実装PhaseとPhase 13でfocusedに確認し、Phase 14で主要flowとして再確認する。
-   - Evidence: lifecycle testと対象WordPress環境でのPlaywright scenario。
+   - Phase 7〜10では各責務のlifecycleをfocused testで確認する。Phase 13でcomposition成立後に実entry pointを通る最小Playwright scenarioから製品経路の追従を確認し、Phase 14で主要flowとして再確認する。
+   - Evidence: Phase 7〜10のlifecycle focused test、Phase 13の最小Playwright scenario、Phase 14の対象WordPress環境での代表Playwright scenario。
 
 7. **Phase 8、Phase 14で最終確認: Auto Scrollの継続性と終了**
    - active Session中だけ必要な縦方向Auto Scrollが動作し、complete / cancel / abort / recoveryで終了することを確認する。
    - Editor Scroll Areaを利用できない状態を内部Errorとして扱わず、安全に終了できることを確認する。
-   - Evidence: focused testと実ブラウザでの主要scenario。
+   - Evidence: Phase 8のfocused testとPhase 14の実ブラウザでの主要scenario。
 
-8. **Phase 9、Phase 14で最終確認: PC入力と通常編集の両立**
-   - PCで通常のTable編集と行DnDが意図せず競合せず、行並び替えモード中だけRow Reorder operationへ接続されることを確認する。
-   - Evidence: 実browser inputを使ったPlaywright scenario。
+8. **Phase 9、Phase 13で製品経路確認、Phase 14で最終確認: PC入力と通常編集の両立**
+   - Phase 9でPC入力の状態変換、listener lifecycle、Row Reorder operationへの接続をfocused testで確認する。
+   - Phase 13でcomposition成立後、実browser inputが製品経路からRow Reorderへ到達できることを確認する。
+   - Phase 14で通常のTable編集と行DnDが意図せず競合せず、行並び替えモード中だけRow Reorder operationへ接続される主要flowを再確認する。
+   - Evidence: Phase 9のfocused test、Phase 13の実entry pointを通る最小Playwright scenario、Phase 14の実browser inputを使った代表Playwright scenario。
 
-9. **Phase 10、Phase 14で最終確認: Touch入力と通常スクロールの両立**
-   - DnD開始前の通常のTable / Editorスクロールを不必要に妨げず、DnD開始後だけRow Reorder operationとして進行できることを確認する。
-   - Evidence: 実browser inputを使ったPlaywright scenario。
+9. **Phase 10、Phase 13で製品経路確認、Phase 14で最終確認: Touch入力と通常スクロールの両立**
+   - Phase 10でTouch入力の状態変換、listener lifecycle、DnD開始前後のevent制御境界をfocused testで確認する。
+   - Phase 13でcomposition成立後、実browser inputが製品経路からRow Reorderへ到達できることを確認する。
+   - Phase 14でDnD開始前の通常のTable / Editorスクロールを不必要に妨げず、DnD開始後だけRow Reorder operationとして進行できる主要flowを再確認する。
+   - Evidence: Phase 10のfocused test、Phase 13の実entry pointを通る最小Playwright scenario、Phase 14の実browser inputを使った代表Playwright scenario。
 
-10. **Phase 11 / 12、Phase 14で最終確認: Guidance / Rediscoveryの実利用経路**
-    - Phase 11で初回案内が通常編集を妨げず、Reorder Modeと整合して終了・状態更新できることを確認する。
-    - Phase 12で行側Rediscovery候補が通常編集と区別され、Reorder Guidanceへ正しく接続されることを確認する。
+10. **Phase 11 / 12、Phase 13で製品経路確認、Phase 14で最終確認: Guidance / Rediscoveryの実利用経路**
+    - Phase 11で初回案内状態、Reorder Modeとの接続、終了時の状態更新をfocused testで確認する。
+    - Phase 12で行側Rediscovery候補と通常編集との判定境界、Reorder Guidanceへの通知をfocused testで確認する。
+    - Phase 13でcomposition成立後、初回案内と再案内が実entry pointから製品経路へ到達できることを確認する。
     - Phase 14で初回案内と再案内の主要flowを再確認する。
-    - Evidence: state-level focused testと主要E2E。
+    - Evidence: Phase 11 / 12のstate-level focused test、Phase 13の最小Playwright scenario、Phase 14の主要E2E。
 
 11. **Phase 13: 製品compositionの成立**
     - plugin-wide entry pointからRow Reorderの既存責務がWordPress Editorの実利用経路へ接続され、各責務のfocused実装だけで終わっていないことを確認する。
     - Editor context変更、unmount / remount後も重複登録や古い接続を残さず、必要なcleanupと再接続が成立することを確認する。
-    - Evidence: composition boundaryのfocused integration testと、実entry pointを通る最小のPlaywright scenario。
+    - Evidence: composition boundaryのfocused integration testと、Phase 9〜12で実ブラウザ確認を保留した経路を含む実entry point経由の最小Playwright scenario。
 
 12. **Phase 14: QR-01 Performance**
     - Quality Requirementsの保証対象規模まで、DnD中のTarget Resolution、Presentation、Auto Scrollなどが利用者の操作を妨げる処理になっていないことを計測・確認する。
@@ -291,7 +296,8 @@ Row Reorderの未実装責務は、まずSupported Table Blockとの境界と行
   - PC入力経路をInput Interactionとして実装する。
   - Reorder Mode、Editor DOM Context、DnD Interactionへ接続する。
 - Validation:
-  - 実ブラウザ入力が必要な部分はPlaywright、分離可能な状態変換はfocused unit testで確認する。
+  - 分離可能な入力状態変換、listener lifecycle、DnD operationへの接続をfocused testで確認する。
+  - 実WordPress Editorの製品経路を通る実browser inputはPhase 9の完了条件に含めず、Phase 13のcomposition成立後にPlaywrightで確認する。
 
 ### Phase 10: Touch Input Interaction
 
@@ -300,7 +306,8 @@ Row Reorderの未実装責務は、まずSupported Table Blockとの境界と行
   - タッチ入力経路をInput Interactionとして実装する。
   - Reorder Mode、Editor DOM Context、DnD Interactionへ接続する。
 - Validation:
-  - 実ブラウザ入力と通常スクロールとの境界はPlaywright、分離可能な状態変換はfocused unit testで確認する。
+  - 分離可能な入力状態変換、listener lifecycle、DnD開始前後のevent制御境界をfocused testで確認する。
+  - 実WordPress Editorの製品経路を通るTouch入力と通常スクロールとの境界はPhase 10の完了条件に含めず、Phase 13のcomposition成立後にPlaywrightで確認する。
 
 ### Phase 11: Reorder Guidance
 
@@ -310,8 +317,8 @@ Row Reorderの未実装責務は、まずSupported Table Blockとの境界と行
   - Reorder ModeとEditor DOM Contextへ接続する。
   - Designで定義された初回案内を表現する。
 - Validation:
-  - 初回案内状態とReorder Modeへの接続をfocused testで確認する。
-  - 利用者向け初回案内の主要フローをPlaywrightで確認する。
+  - 初回案内状態、Reorder Modeへの接続、終了時の状態更新をfocused testで確認する。
+  - 実WordPress Editorの製品経路を通る初回案内はPhase 11の完了条件に含めず、Phase 13のcomposition成立後にPlaywrightで確認する。
 
 ### Phase 12: Rediscovery Detection
 
@@ -320,8 +327,8 @@ Row Reorderの未実装責務は、まずSupported Table Blockとの境界と行
   - Rediscovery Detectionを実装する。
   - Reorder ModeとReorder Guidanceへ接続する。
 - Validation:
-  - 通常編集として成立する操作との境界と、行側候補通知をfocused testで確認する。
-  - 再案内の主要フローをPlaywrightで確認する。
+  - 通常編集として成立する操作との判定境界と、行側候補通知をfocused testで確認する。
+  - 実WordPress Editorの製品経路を通る再案内はPhase 12の完了条件に含めず、Phase 13のcomposition成立後にPlaywrightで確認する。
 
 ### Phase 13: Product composition
 
@@ -332,13 +339,14 @@ Row Reorderの未実装責務は、まずSupported Table Blockとの境界と行
   - Editor context変更、unmount / remount時に必要なcleanupと再接続を成立させ、重複登録や古いDOM参照を残さない。
 - Validation:
   - composition boundaryのfocused integration testで生成・接続・cleanupを確認する。
-  - 実entry pointを通る最小のPlaywright scenarioでRow Reorderが製品経路へ接続されていることを確認する。
+  - Phase 9〜12で保留した実ブラウザ確認を含め、実entry pointを通る最小のPlaywright scenarioでRow Reorderが製品経路へ接続されていることを確認する。
 
 ### Phase 14: Cross-cutting validation
 
 - Outcome: Row Reorder v1の実装全体がRequirements / Design / Architecture / Quality Requirementsに対して整合していることを確認できる。
 - Tasks:
   - Phase 13で製品経路へ接続済みのRow Reorder主要end-to-end flowを確認する。
+  - PC / Touch入力、初回案内、Rediscoveryによる再案内を含むPhase 9〜12の主要実利用flowを横断確認する。
   - `QR-01`、`QR-02`、`QR-03`をRow Reorderについて横断検証する。
   - Core Table / Flexible Table Blockと対象Editor環境の主要E2Eを整備する。
 - Validation:
@@ -363,12 +371,13 @@ Planレビュー後、次の単位で実装Issueを作成する。各Issueはこ
 - [ ] Row Reorder product composition
 - [ ] Row Reorder cross-cutting validation and E2E
 
-実装順は上記Phase順を基本とし、後続Issueは必要な先行責務が成立してから開始する。Phase 1で既存境界のsource変更が不要と確認できた場合は、そのためだけのIssueは作成しない。独立して進められる後続責務がある場合でも、Architecture上の依存関係を変更する理由にはしない。
+実装順は上記Phase順を基本とし、後続Issueは必要な先行責務が成立してから開始する。Phase 1で既存境界のsource変更が不要と確認できた場合は、そのためだけのIssueは作成しない。Phase 9〜12のIssueは製品composition前に実行可能なfocused validationまでを完了条件とし、実WordPress Editorの製品経路を通るPlaywrightはPhase 13 / 14のIssueで扱う。独立して進められる後続責務がある場合でも、Architecture上の依存関係を変更する理由にはしない。
 
 ## Validation
 
-- 各実装Issueで、責務単位のfocused testを追加・更新する。
-- 実WordPress Editor、PC / タッチ入力、iframe / non-iframe、主要end-to-end flowはPlaywrightで確認する。
+- Phase 1〜12の各実装Issueでは、責務単位で製品composition前に実行可能なfocused test / integration testを追加・更新する。
+- Phase 13でproduct compositionを成立させ、実entry pointを通る最小のPlaywright scenarioでPhase 9〜12を含む製品経路への到達を確認する。
+- Phase 14で実WordPress Editor、PC / タッチ入力、iframe / non-iframe、初回案内 / 再案内、主要end-to-end flowをPlaywrightで横断確認する。
 - 完成時にRow ReorderについてQuality Requirementsを横断検証する。
 - 実行する具体的なコマンドと適用範囲は`docs/development/testing.md`を正本とする。
 
@@ -376,8 +385,9 @@ Planレビュー後、次の単位で実装Issueを作成する。各Issueはこ
 
 - Row Reorder v1 Architectureで定義された実装対象が、依存関係に沿ったレビュー可能なIssue単位で完成している。
 - 各Phaseを開始する前に、そのPhaseに紐づく`Decide before implementation`が解決されている。
-- `Validate during implementation`について、各項目に紐づくPhaseで必要なevidenceが得られ、Phase 14で必要な横断確認が完了している。
-- Phase 13で各責務がplugin-wide entry pointからWordPress Editorの製品経路へ接続され、Phase 14がvalidationだけを担当している。
+- `Validate during implementation`について、Phase 1〜12では製品composition前に実行可能なfocused evidenceが得られている。
+- Phase 13で各責務がplugin-wide entry pointからWordPress Editorの製品経路へ接続され、Phase 9〜12で保留した実ブラウザ確認を開始できる状態が成立している。
+- Phase 14でPC / Touch入力、初回案内 / 再案内を含む主要flowとQuality Requirementsの横断validationが完了している。
 - Requirements / Design / ArchitectureをPlanまたは実装で再定義していない。
 - Column Reorder固有の状態・責務・内部仕様またはRow / Column共通Reorder抽象化へ依存していない。
 - Row Reorderの主要フローとQuality Requirementsに対するvalidationが完了している。
