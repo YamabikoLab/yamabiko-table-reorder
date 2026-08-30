@@ -164,86 +164,81 @@ const parseSpan = ( span: unknown ): number | null => {
 };
 
 /**
- * 先行する縦結合セルの占有範囲を考慮し、現在セルが開始できる論理列を解決する。
+ * 先行する縦結合セルの占有を考慮し、現在セルが本来開始する論理列を解決する。
  *
- * セル配列上の位置は縦結合による占有列を表さないため、論理Tableグリッドでは先行セルが占有している列を
- * 避ける必要がある。現在セルの横方向の占有範囲全体が成立する最初の列を開始位置として返す。
+ * 同じ行で先行するセルの直後が縦結合によって占有されている場合だけ開始位置を進める。
+ * 開始位置が決まった後の横結合範囲に別の縦結合占有が含まれる場合は、別の空き位置へ移動して補正せず
+ * Table topologyの不成立として呼び出し側へ返す。
  *
  * @param occupiedUntilRow 各論理列が先行する縦結合セルによって占有される終了行位置。
  * @param rowStart         現在セルが属するTable区画内の0-based行位置。
  * @param minimumColumn    同じ行で先行するセルから決まる最小開始列。
  * @param columnSpan       現在セルが横方向に占有する列数。
- * @return 現在セルの論理Tableグリッド上の0-based開始列。
+ * @return 現在セルの論理開始列。横結合範囲が既存占有と衝突する場合はnull。
  */
 const findColumnStart = (
 	occupiedUntilRow: readonly number[],
 	rowStart: number,
 	minimumColumn: number,
 	columnSpan: number
-): number => {
-	let candidate = minimumColumn;
+): number | null => {
+	let columnStart = minimumColumn;
 
-	// 同じ行のセル順を保ちながら、現在セルの占有範囲が成立する最初の論理列を確定する。
-	while ( true ) {
-		let isAvailable = true;
-
-		// 横結合するすべての列について、先行する縦結合セルとの重複がないことを確認する。
-		for ( let column = candidate; column < candidate + columnSpan; column++ ) {
-			// 先行する縦結合セルが現在行まで占有する列には、現在セルを配置できない。
-			if ( ( occupiedUntilRow[ column ] ?? 0 ) > rowStart ) {
-				isAvailable = false;
-				break;
-			}
-		}
-
-		// 横方向の占有範囲全体が空いている候補を、現在セルの論理開始列として確定する。
-		if ( isAvailable ) {
-			return candidate;
-		}
-
-		candidate++;
+	// 現在セルより前の物理セルが存在しない占有列だけを飛ばし、物理セル順から決まる本来の開始位置を確定する。
+	while ( ( occupiedUntilRow[ columnStart ] ?? 0 ) > rowStart ) {
+		columnStart++;
 	}
+
+	// 開始位置の後ろにある既存占有をまたぐ横結合は、別位置へ移して意味を変えず不成立として扱う。
+	for ( let column = columnStart; column < columnStart + columnSpan; column++ ) {
+		if ( ( occupiedUntilRow[ column ] ?? 0 ) > rowStart ) {
+			return null;
+		}
+	}
+
+	return columnStart;
 };
 
 /**
  * 1つのTable区画から論理Tableグリッド上の結合セル構造を構築する。
  *
  * Table区画内のすべてのセルを評価して論理位置を復元するが、共通Table構造として保持するのは結合セルだけとする。
- * 区画、行、セル、結合範囲のいずれかを安全に解釈できない場合は、そのTableを不完全な構造として扱う。
- * headとfootは省略できるが、Table本体であるbodyは必須とする。
+ * 区画、行、セル、結合範囲、論理行幅、縦結合範囲のいずれかを安全に解釈できない場合は、
+ * そのTableを不完全な構造として扱う。headとfootは省略できるが、Table本体であるbodyは必須とする。
  *
  * @param section      共通Table構造上の区画。
  * @param sectionValue 対応Table Blockの区画属性。
  * @param spanReader   対応Table Block固有の結合範囲属性を取得する境界。
  * @param mergedCells  同じTableについて既に構築済みの結合セル一覧。
- * @return 区画全体を安全に解釈できた場合はtrue。
+ * @return 区画全体を安全に解釈できた場合は論理列数。省略された区画は0。不成立の場合はnull。
  */
 const appendSectionMergedCells = (
 	section: TableSection,
 	sectionValue: unknown,
 	spanReader: CellSpanReader,
 	mergedCells: TableMergedCellStructure[]
-): boolean => {
+): number | null => {
 	const isOptionalSection = section !== 'body';
 
 	// headとfootの省略は有効なTableとして扱うが、bodyの欠落では共通Table構造を成立させない。
 	if ( sectionValue === undefined ) {
-		return isOptionalSection;
+		return isOptionalSection ? 0 : null;
 	}
 
 	// 存在するTable区画は行の集合として解釈できる必要があり、それ以外から行構造を推測しない。
 	if ( ! Array.isArray( sectionValue ) ) {
-		return false;
+		return null;
 	}
 
 	const occupiedUntilRow: number[] = [];
+	let sectionColumnCount: number | null = null;
 
 	// 区画内のすべての行を順序どおり評価し、縦結合セルが後続行で占有する論理列を引き継ぐ。
 	for ( let rowStart = 0; rowStart < sectionValue.length; rowStart++ ) {
 		const row = sectionValue[ rowStart ];
 		// 各行はセルの集合を持つTable行として解釈できる場合だけ、論理Tableグリッドへ取り込む。
 		if ( ! isRecord( row ) || ! Array.isArray( row.cells ) ) {
-			return false;
+			return null;
 		}
 
 		let minimumColumn = 0;
@@ -252,7 +247,7 @@ const appendSectionMergedCells = (
 		for ( const cell of row.cells ) {
 			// 各セルは対応Table Block固有の結合範囲属性を安全に参照できる必要がある。
 			if ( ! isRecord( cell ) ) {
-				return false;
+				return null;
 			}
 
 			const spans = spanReader( cell );
@@ -261,11 +256,20 @@ const appendSectionMergedCells = (
 
 			// 縦横どちらかの占有範囲を確定できないセルがあれば、Table区画全体を不完全として扱う。
 			if ( rowSpan === null || columnSpan === null ) {
-				return false;
+				return null;
 			}
 
 			const columnStart = findColumnStart( occupiedUntilRow, rowStart, minimumColumn, columnSpan );
+			// 横結合範囲が先行する縦結合占有と衝突する場合は、別の論理位置へ移して補正しない。
+			if ( columnStart === null ) {
+				return null;
+			}
+
 			const occupiedRowEnd = rowStart + rowSpan;
+			// 縦結合は所属区画内だけで完結する必要があり、存在しない行まで占有する構造を受け入れない。
+			if ( occupiedRowEnd > sectionValue.length ) {
+				return null;
+			}
 
 			// 現在セルが占有するすべての論理列へ縦方向の占有範囲を反映し、後続行の位置解決に利用する。
 			for ( let column = columnStart; column < columnStart + columnSpan; column++ ) {
@@ -285,9 +289,21 @@ const appendSectionMergedCells = (
 
 			minimumColumn = columnStart + columnSpan;
 		}
+
+		let rowColumnCount = occupiedUntilRow.length;
+		// 過去の縦結合が終了した末尾列を行幅へ含めず、現在行で実際に占有される論理列数を確定する。
+		while ( rowColumnCount > 0 && ( occupiedUntilRow[ rowColumnCount - 1 ] ?? 0 ) <= rowStart ) {
+			rowColumnCount--;
+		}
+
+		// 同じ区画の全行は同じ論理列数で成立する必要があり、不足列を推測して補完しない。
+		if ( sectionColumnCount !== null && rowColumnCount !== sectionColumnCount ) {
+			return null;
+		}
+		sectionColumnCount = rowColumnCount;
 	}
 
-	return true;
+	return sectionColumnCount ?? 0;
 };
 
 /**
@@ -310,10 +326,11 @@ const buildTableStructure = (
 	}
 
 	const mergedCells: TableMergedCellStructure[] = [];
+	let tableColumnCount: number | null = null;
 
 	// Table全区画を共通規則で評価し、すべて成立した場合だけ1つの共通Table構造として提供する。
 	for ( const section of SECTION_NAMES ) {
-		const isComplete = appendSectionMergedCells(
+		const sectionColumnCount = appendSectionMergedCells(
 			section,
 			attributes[ section ],
 			spanReader,
@@ -321,8 +338,16 @@ const buildTableStructure = (
 		);
 
 		// 1区画でも安全に解釈できなければ、部分的なTable構造をReorder coreへ公開しない。
-		if ( ! isComplete ) {
+		if ( sectionColumnCount === null ) {
 			return null;
+		}
+
+		// 存在する各区画は同じ論理列数でTable全体を構成する必要があり、区画間の不足列を推測しない。
+		if ( sectionColumnCount > 0 ) {
+			if ( tableColumnCount !== null && sectionColumnCount !== tableColumnCount ) {
+				return null;
+			}
+			tableColumnCount = sectionColumnCount;
 		}
 	}
 
