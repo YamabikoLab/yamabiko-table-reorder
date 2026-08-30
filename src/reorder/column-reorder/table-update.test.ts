@@ -131,7 +131,9 @@ describe( 'Column Table Update', () => {
 			)
 		).toEqual( { status: 'updated' } );
 		expect( updateBlockAttributes ).toHaveBeenCalledWith( 'table-client-id', {
-			body: [ { cells: [ { content: 'D' }, { content: 'A' }, { content: 'B' }, { content: 'C' } ] } ],
+			body: [
+				{ cells: [ { content: 'D' }, { content: 'A' }, { content: 'B' }, { content: 'C' } ] },
+			],
 		} );
 	} );
 
@@ -154,7 +156,7 @@ describe( 'Column Table Update', () => {
 			getBlock: jest.fn().mockReturnValue( {
 				name: 'flexible-table-block/table',
 				attributes: {
-n					body: [
+					body: [
 						{
 							cells: [
 								{ content: 'A' },
