@@ -68,7 +68,8 @@ Table Integration以降の旧実装はbaselineに含めず、現在のArchitectu
 
 - Editor DOM Context / Reorder Mode完了状態を固定したbaselineとし、Table Integrationから実装を再開する。
 - Table Integration、Reorder Target Resolution、Drop Target Resolution、DnD Interaction / Reorder Sessionは、旧実装を前提にせず現在のArchitecture / source guidelinesから改めて実装する。
-- common Table structureはTable Integrationの再実装に必要な実装成果として同Phaseで具体化する。
+- common Table structureはTable Integrationの再実装に必要な実装成果としてPhase 2で具体化する。
+- Architecture上のTable Integration責務に含まれる更新境界は、Data Updateの確定経路と接続するPhase 6で具体化・実装する。Phase 2では将来利用のための更新APIを先行して置かない。
 - 共通Typeや抽象化を将来利用のために先行して作らず、各Phaseで実際に必要になった責務と利用経路から具体化する。
 - 行・列固有の意味・型・規則・解釈と共通責務の境界は`src/reorder/AGENTS.md`への準拠を各該当Issueで確認する。
 - #575以降は、再実装された前段の成果へ依存関係を付け替えたうえで現在のIssueを利用する。
@@ -113,14 +114,15 @@ Table Integration以降の旧実装はbaselineに含めず、現在のArchitectu
 
 ### Phase 2: Table Integration
 
-- Outcome: Table Integrationが現在のArchitecture / source guidelinesに沿って再実装され、後続責務が現在のTable情報とcommon Table structureを利用できる。
+- Outcome: Table Integrationの構造取得境界が現在のArchitecture / source guidelinesに沿って再実装され、後続責務が現在のTable情報とcommon Table structureを利用できる。
 - Issue:
   - 新規Issue: `Table Integrationを実装する`。
 - Implementation dependency:
   - Phase 1のbaselineを利用できること。
 - Validation:
   - 対応Tableから後続責務に必要な現在情報を取得できる主要ケースをfocused testで確認する。
-  - `RESP_TABLE_INTEGRATION`との整合を確認する。
+  - 安全に共通Table structureへ適応できないTable topologyを不完全な構造へ補正せず拒否できることをfocused testで確認する。
+  - `RESP_TABLE_INTEGRATION`の構造取得Contractとの整合を確認する。
   - plugin固有表現と共通表現の境界が現在のsource guidelinesに準拠していることを確認する。
 
 ### Phase 3: Reorder Target Resolution
@@ -162,14 +164,15 @@ Table Integration以降の旧実装はbaselineに含めず、現在のArchitectu
 
 ### Phase 6: Data Update
 
-- Outcome: #575が完了し、Data Updateが共通DnD経路と関連Architecture Viewへ接続される。
+- Outcome: #575が完了し、Data Updateが共通DnD経路へ接続され、Table Integrationの更新境界を通じて確定済み並び替えを対応Tableへ反映できる。
 - Issue:
   - #575 Data Updateを実装する。
 - Implementation dependency:
   - #656の確定経路を利用できること。
-  - Phase 2で再実装したTable Integrationの更新境界を利用できること。
+  - Phase 2で再実装したTable Integrationの構造取得境界とcommon Table structureを利用できること。
 - Validation:
   - Data Updateの主要ケースをRequirements / Designに対して確認する。
+  - Table Integrationの更新境界が`RESP_TABLE_INTEGRATION`の更新Contractと整合することを確認する。
   - Reorder Data Update Failure and Recoveryとの接続を確認する。
   - error handlingは`src/reorder/AGENTS.md`への準拠を確認する。
 
@@ -299,11 +302,11 @@ Table Integration以降の旧実装はbaselineに含めず、現在のArchitectu
 
 ## Implementation dependencies
 
-- Table IntegrationはbaselineのEditor DOM Context / Reorder Modeを出発点として、後続責務が必要とする現在のTable情報とcommon Table structureを利用できる状態にする。
+- Table IntegrationはbaselineのEditor DOM Context / Reorder Modeを出発点として、Phase 2で後続責務が必要とする現在のTable情報とcommon Table structureを利用できる状態にする。
 - #654は再実装したTable Integrationから現在のTable情報を利用できる状態で実装する。
 - #655は#654で後続処理に必要なType / 表現が成立した後に実装する。
 - #656は#654 / #655の実装成果を利用してReorder operation boundaryへ接続する。
-- #575は#656の確定経路と再実装したTable Integrationの更新境界を接続する。
+- #575は#656の確定経路を利用し、Table Integrationの更新境界をこのPhaseで具体化・実装してData Updateと接続する。
 - #576 / #577は#656の共通DnD経路を利用する。
 - #578 / #579は#656のDnD状態と終了結果を利用できる状態で統合する。
 - #580 / #581は主要な正式v1入力・表示経路が利用できる状態で統合する。
@@ -316,11 +319,11 @@ Table Integration以降の旧実装はbaselineに含めず、現在のArchitectu
 
 ### Decide before implementation
 
-- Table Integrationの新規Issueで、現在のArchitectureを実現する具体的なplugin適応とcommon Table structureの実装方式を確定する。
+- Table Integrationの新規Issueで、現在のArchitectureを実現する具体的なplugin適応とcommon Table structureの構造取得方式を確定する。
 - #654で、現在のArchitecture / source guidelinesを実現するために必要な具体的なType / 実装構造を確定する。
 - #655で、#654の実装成果を利用する具体的なType / APIを確定する。
 - #656で、Reorder Sessionの具体的な状態表現とReorder operation boundaryの具体的な実装方式を確定する。
-- #575で、確定済み並び替えをTable Integrationへ渡す具体的な更新表現を確定する。
+- #575で、確定済み並び替えをTable Integrationへ渡す具体的な更新表現とTable Integration更新境界の具体的な実装方式を確定する。
 - #576 / #577で、入力イベントから共通DnD操作へ変換する具体的な実装方式をそれぞれ確定する。
 - #578で、DesignとArchitectureを満たす具体的なDOM更新・アニメーション方式を確定する。
 - #579で、Auto Scrollの具体的な実装方式を確定する。
@@ -330,10 +333,10 @@ Architecture決定が必要になる事項はここで決めず、Architecture�
 
 ### Validate during implementation
 
-- Table Integrationの再実装が`RESP_TABLE_INTEGRATION`とsource guidelinesを満たすか。
+- Phase 2のTable Integration構造取得境界が`RESP_TABLE_INTEGRATION`とsource guidelinesを満たすか。
 - #654 / #655の実装が各Architecture responsibilityと`src/reorder/AGENTS.md`を満たすか。
 - #656の実装がReorder operation boundaryと参照先Architectureを満たすか。
-- #575の実装がData UpdateとReorder Data Update Failure and Recoveryを満たすか。
+- #575のData Update実装とTable Integration更新境界がData Update、`RESP_TABLE_INTEGRATION`、Reorder Data Update Failure and Recoveryを満たすか。
 - #576 / #577の実装がInput InteractionとReorder Input Failure and Recoveryを満たすか。
 - #578 / #579の実装が各responsibilityのLifecycle / Failure・Recovery Viewを満たすか。
 - 各該当Issueが`src/AGENTS.md` / `src/reorder/AGENTS.md`へ準拠しているか。
@@ -355,10 +358,10 @@ Architecture決定が必要になる事項はここで決めず、Architecture�
 
 | Issue | Plan上の扱い | 必要な対応 |
 | --- | --- | --- |
-| #654 Reorder Target Resolution | 維持・修正 | 新しいTable IntegrationをImplementation dependencyとする。 |
+| #654 Reorder Target Resolution | 維持・修正 | 新しいTable Integrationの構造取得境界をImplementation dependencyとする。 |
 | #655 Drop Target Resolution | 維持・修正 | Phase番号を更新し、#654への依存を維持する。 |
 | #656 DnD Interaction / Reorder Session | 維持・修正 | Phase番号を更新し、#654 / #655への依存を維持する。 |
-| #575 Data Update | 維持・修正 | #656の確定経路と新しいTable Integration更新境界を利用する。 |
+| #575 Data Update | 維持・修正 | #656の確定経路を利用し、Table Integration更新境界をこのIssueで具体化・実装する。 |
 | #576 PC Input Interaction | 維持・修正 | #656の共通DnD経路への依存とPhase番号を更新する。 |
 | #577 Touch Input Interaction | 維持・修正 | #656の共通DnD経路への依存とPhase番号を更新する。 |
 | #578 Reorder Presentation | 維持・修正 | 新しいDnD状態・終了結果への依存とPhase番号を更新する。 |
@@ -375,7 +378,8 @@ Architecture決定が必要になる事項はここで決めず、Architecture�
 - [ ] `Table Integrationを実装する`
   - Editor DOM Context / Reorder Mode完了状態から再開する最初の実装Issueとする。
   - 旧#571の実装構造を前提にせず、現在のArchitecture / source guidelinesから実装する。
-  - common Table structureを後続責務が利用できる実装成果として成立させる。
+  - common Table structureと構造取得境界を後続責務が利用できる実装成果として成立させる。
+  - Table Integrationの更新境界はPhase 6 / #575でData Updateと同時に具体化・実装する。
 
 新規Issue作成と既存Issue本文の修正は、このPlanを基準として順番に行う。
 
@@ -396,6 +400,7 @@ Plan自体の変更はdocumentation-onlyとし、`docs/development/testing.md`�
 
 - `docs/plans/reorder-v1-plan.md`がEditor DOM Context / Reorder Mode完了状態をbaselineとして更新されている。
 - Table Integrationから再開するImplementation phases、Implementation order、Implementation dependenciesが整理されている。
+- Phase 2のTable Integration構造取得境界とPhase 6のTable Integration更新境界の実装時期が明確に分かれている。
 - 旧#571 / #599 / #572 / #573 / #574を履歴として保持し、現在の実装Issueへ置き換える方針が整理されている。
 - #654以降の既存Issueを新しいTable Integrationへ接続する方針が整理されている。
 - `QR-01`、`QR-02`、`QR-03`がvalidationとIssue分割へ接続されている。
