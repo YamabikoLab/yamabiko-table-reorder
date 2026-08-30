@@ -386,7 +386,7 @@ Planレビュー後、次の単位で実装Issueを作成する。各Issueはこ
 - Row Reorder v1 Architectureで定義された実装対象が、依存関係に沿ったレビュー可能なIssue単位で完成している。
 - 各Phaseを開始する前に、そのPhaseに紐づく`Decide before implementation`が解決されている。
 - `Validate during implementation`について、Phase 1〜12では製品composition前に実行可能なfocused evidenceが得られている。
-- Phase 13で各責務がplugin-wide entry pointからWordPress Editorの製品経路へ接続され、Phase 9〜12で保留した実ブラウザ確認を開始できる状態が成立している。
+- Phase 13で各責務がplugin-wide entry pointからWordPress Editorの製品経路へ接続され、実entry pointを通る最小のPlaywright scenarioによってPhase 9〜12で保留した製品経路への到達確認まで完了している。
 - Phase 14でPC / Touch入力、初回案内 / 再案内を含む主要flowとQuality Requirementsの横断validationが完了している。
 - Requirements / Design / ArchitectureをPlanまたは実装で再定義していない。
 - Column Reorder固有の状態・責務・内部仕様またはRow / Column共通Reorder抽象化へ依存していない。
