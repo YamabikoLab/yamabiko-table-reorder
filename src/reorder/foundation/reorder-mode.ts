@@ -4,7 +4,7 @@
  * `edit`、`row`、`column`のいずれか1つだけを現在状態として持つことで、
  * 行並び替えと列並び替えが同時に有効にならない状態を表現する。
  */
-import type { ReorderKind } from '@/reorder/core/reorder-types';
+export type ReorderKind = 'row' | 'column';
 
 type ReorderModeState = 'edit' | ReorderKind;
 
