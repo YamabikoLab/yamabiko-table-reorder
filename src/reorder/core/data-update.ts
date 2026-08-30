@@ -12,7 +12,7 @@ import type {
 	TableUpdateResult,
 } from '@/reorder/foundation/table-update';
 
-/** 方向固有Targetを共通の移動元位置へ射影する契約。 */
+/** 方向固有Targetから共通の移動元位置を取得する契約。 */
 export type ReorderSourceIndexResolver< K extends ReorderKind > = (
 	target: ReorderTarget< K >
 ) => number;
@@ -26,7 +26,7 @@ export type DataUpdate = {
 	 * 同じ方向のTarget / Destination対応を保ったまま、確定済みReorderを1回だけ更新境界へ渡す。
 	 *
 	 * @param reorder        DnD Interactionで確定した同一方向の並び替え。
-	 * @param getSourceIndex 方向固有Targetを共通の移動元位置へ射影する同方向の規則。
+	 * @param getSourceIndex 方向固有Targetから共通の移動元位置を取得する同方向の規則。
 	 * @return 更新成立、データ変更なし、開始不可、または成立未確認の結果。
 	 */
 	update: < K extends ReorderKind >(
