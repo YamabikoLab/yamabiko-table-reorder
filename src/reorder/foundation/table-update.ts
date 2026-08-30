@@ -8,16 +8,16 @@
 import type { ConcreteReorderKind, ReorderKind } from '@/reorder/core/reorder-types';
 
 /** Reorder coreからTable Integrationへ渡す方向共通の更新表現。 */
-export type TableReorderUpdate< K extends ReorderKind = ReorderKind > = {
-	[ Kind in K ]: {
-		kind: Kind;
-		clientId: string;
-		/** 並び替え前の0-based位置。 */
-		sourceIndex: number;
-		/** 並び替え後に対象が占める0-based位置。 */
-		destinationIndex: number;
-	};
-}[ K ];
+export type TableReorderUpdate< K extends ReorderKind = ReorderKind > = K extends ReorderKind
+	? {
+			kind: K;
+			clientId: string;
+			/** 並び替え前の0-based位置。 */
+			sourceIndex: number;
+			/** 並び替え後に対象が占める0-based位置。 */
+			destinationIndex: number;
+	  }
+	: never;
 
 /** 具体的な一方向へ確定したTable更新。 */
 export type ConcreteTableReorderUpdate< K extends ReorderKind > = TableReorderUpdate< K > & {
