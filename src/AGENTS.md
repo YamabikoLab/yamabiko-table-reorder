@@ -15,7 +15,6 @@ These instructions apply to source files under `src/`.
 ## Code structure and reuse
 
 - Keep abstractions meaningful and stable by introducing them only for concrete responsibilities or shared reasons for change. Do not abstract or commonize code merely because implementations currently look similar.
-- When implementing parallel row and column behavior, check for logic that represents the same rule or responsibility in both features. If it has the same meaning and the same reason to change, define it once in the appropriate shared Reorder responsibility rather than duplicating it in each feature.
 - Keep implementation details from crossing responsibility boundaries by placing integration-specific adaptation at the boundaries defined by the Architecture.
 - Never return a conditional expression directly. Assign its result to a meaningfully named variable first, using a basic-design-level name that makes the meaning of the returned value understandable without reading the implementation.
 
@@ -36,7 +35,7 @@ When reviewing React code, focus on React-specific correctness, lifecycle behavi
 - Verify refs are used for mutable values or DOM references that should not drive rendering. Do not retain DOM references across editor context changes, unmounts, or remounts when they can become stale.
 - Verify mount, unmount, and remount behavior does not depend on one-time assumptions that can become invalid when React recreates a component or the editor context changes.
 - Verify event listeners, observers, timers, subscriptions, and similar resources are released correctly and are not duplicated across rerenders or remounts.
-- Verify list item identity is stable and `key` values represent the item's identity rather than its current position, especially when rows or columns can be reordered.
+- Verify list item identity is stable and `key` values represent the item's identity rather than its current position.
 - Check for unnecessary rerenders only when they can have a meaningful cost. Prefer fixing unstable ownership, dependencies, or object/function creation at the relevant boundary before adding memoization solely as a precaution.
 - Verify components and custom Hooks have coherent responsibility boundaries. Extract them when they own a meaningful UI, lifecycle, or synchronization responsibility, not merely to reduce line count.
 
