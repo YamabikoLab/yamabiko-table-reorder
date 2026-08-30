@@ -323,7 +323,7 @@ Designで定義された表示契機に基づき、未表示の操作環境で�
 
 ### 行DnD開始から確定まで {#RV_ROW_REORDER_COMPLETE}
 
-| Step | From | To | Interaction |
+| Step | Source | Target | Interaction |
 | --- | --- | --- | --- |
 | 1 | EXT_WORDPRESS_EDITOR | RESP_ROW_INPUT_INTERACTION | 行並び替えモード中の入力が入る。 |
 | 2 | RESP_ROW_INPUT_INTERACTION | RESP_ROW_DND_INTERACTION | 行DnD開始試行を渡す。 |
@@ -337,7 +337,7 @@ Designで定義された表示契機に基づき、未表示の操作環境で�
 
 ### 行DnD Failure / Recovery {#RV_ROW_REORDER_FAILURE_RECOVERY}
 
-| Step | From | To | Interaction |
+| Step | Source | Target | Interaction |
 | --- | --- | --- | --- |
 | 1 | RESP_ROW_DND_INTERACTION | RESP_ROW_REORDER_TARGET_RESOLUTION | DnD処理に必要な解決を要求する。 |
 | 2 | RESP_ROW_REORDER_TARGET_RESOLUTION | RESP_ROW_DND_INTERACTION | 処理継続不能な結果を返す。 |
