@@ -58,7 +58,7 @@ npm run test:architecture
 Generate Structurizr DSL from an architecture Markdown file:
 
 ```bash
-npm run architecture:generate -- docs/architecture/reorder-v1-architecture.md
+npm run architecture:generate -- <architecture-markdown-path>
 ```
 
 Architecture generation validates the machine-readable Markdown structure and Architecture Model before generating DSL. The generated DSL is then validated with Structurizr before it is written to the final output path. If any validation fails, the command exits unsuccessfully and does not replace the final DSL file.
@@ -68,13 +68,13 @@ Structurizr validation uses Docker and the pinned `structurizr/structurizr:2026.
 When the output path is omitted, the generator writes a `.dsl` file next to the input Markdown using the same base name. To select another output path explicitly, pass it as the second argument:
 
 ```bash
-npm run architecture:generate -- docs/architecture/reorder-v1-architecture.md docs/architecture/reorder-v1-architecture.dsl
+npm run architecture:generate -- <architecture-markdown-path> <architecture-dsl-path>
 ```
 
 Validate an existing Structurizr DSL file directly:
 
 ```bash
-npm run architecture:validate -- docs/architecture/reorder-v1-architecture.dsl
+npm run architecture:validate -- <architecture-dsl-path>
 ```
 
 The global Jest coverage threshold is 80% for Statements, Branches, Functions, and Lines. Keep the coverage configuration aligned with the active source rather than lowering it to accommodate untested formal v1 code.
@@ -216,7 +216,7 @@ The manually triggered `.github/workflows/pr-validation.yml` workflow runs depen
 
 - Documentation-only changes: `git diff --check origin/main...HEAD`.
 - JavaScript, TypeScript, JSON, CSS, or SCSS changes: `npm test`, `npm run build`, and the repository check.
-- Architecture Markdown or architecture tooling changes: the Node.js checks, `npm run architecture:generate -- docs/architecture/reorder-v1-architecture.md`, and the repository check. The generation command includes Structurizr validation and requires Docker.
+- Architecture Markdown or architecture tooling changes: the Node.js checks, `npm run architecture:generate -- <architecture-markdown-path>`, and the repository check. The generation command includes Structurizr validation and requires Docker.
 - Playwright configuration or E2E changes: the Node.js checks and `npm run test:e2e` when a compatible WordPress environment is available.
 - GitHub Actions or CI environment changes: the repository check and GitHub-hosted PR Validation.
 - PHP or Composer changes: Composer validation, PHP syntax, coding standards, and PHPStan.
