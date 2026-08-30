@@ -38,10 +38,7 @@ export type TableUpdateBlockStore = {
 	 * @param clientId 対象Table個体を特定するBlock EditorのclientId。
 	 * @return 現在Block。存在しない場合は`null`または`undefined`。
 	 */
-	getBlock: ( clientId: string ) =>
-		| { name: string; attributes: unknown }
-		| null
-		| undefined;
+	getBlock: ( clientId: string ) => { name: string; attributes: unknown } | null | undefined;
 	/**
 	 * 対象Blockへ1つの属性更新を適用する。
 	 *
@@ -145,7 +142,11 @@ const flexibleTableBlockSpanReader: SpanReader = {
 };
 
 /** 配列中の1要素だけを別位置へ移した新しい配列を返す。 */
-const moveArrayItem = < T >( items: readonly T[], sourceIndex: number, destinationIndex: number ): T[] => {
+const moveArrayItem = < T >(
+	items: readonly T[],
+	sourceIndex: number,
+	destinationIndex: number
+): T[] => {
 	const reordered = [ ...items ];
 	const [ moved ] = reordered.splice( sourceIndex, 1 );
 	reordered.splice( destinationIndex, 0, moved );
@@ -247,12 +248,7 @@ const parseSectionPlacement = (
 				return null;
 			}
 
-			const columnStart = findColumnStart(
-				occupiedUntilRow,
-				rowIndex,
-				minimumColumn,
-				columnSpan
-			);
+			const columnStart = findColumnStart( occupiedUntilRow, rowIndex, minimumColumn, columnSpan );
 			const effectiveRowSpan = Math.min( rowSpan, section.length - rowIndex );
 
 			// セルが占有する論理列へ縦結合の終了行を記録し、後続行の位置計算へ反映する。
@@ -400,16 +396,8 @@ const createColumnAttributesUpdate = (
 
 		attributesUpdate[ section.name ] = section.rows.map( ( row ) => {
 			const cells = [ ...row.cells ].sort( ( left, right ) => {
-				const leftStart = getMovedColumnIndex(
-					left.columnStart,
-					sourceIndex,
-					destinationIndex
-				);
-				const rightStart = getMovedColumnIndex(
-					right.columnStart,
-					sourceIndex,
-					destinationIndex
-				);
+				const leftStart = getMovedColumnIndex( left.columnStart, sourceIndex, destinationIndex );
+				const rightStart = getMovedColumnIndex( right.columnStart, sourceIndex, destinationIndex );
 				return leftStart - rightStart;
 			} );
 			return { ...row.row, cells: cells.map( ( placement ) => placement.cell ) };
@@ -454,7 +442,11 @@ const areEquivalent = ( actual: unknown, expected: unknown ): boolean => {
 	}
 
 	if ( Array.isArray( actual ) || Array.isArray( expected ) ) {
-		if ( ! Array.isArray( actual ) || ! Array.isArray( expected ) || actual.length !== expected.length ) {
+		if (
+			! Array.isArray( actual ) ||
+			! Array.isArray( expected ) ||
+			actual.length !== expected.length
+		) {
 			return false;
 		}
 		return actual.every( ( value, index ) => areEquivalent( value, expected[ index ] ) );
@@ -465,7 +457,9 @@ const areEquivalent = ( actual: unknown, expected: unknown ): boolean => {
 	}
 
 	const expectedKeys = Object.keys( expected );
-	return expectedKeys.every( ( key ) => key in actual && areEquivalent( actual[ key ], expected[ key ] ) );
+	return expectedKeys.every(
+		( key ) => key in actual && areEquivalent( actual[ key ], expected[ key ] )
+	);
 };
 
 /**
@@ -498,7 +492,11 @@ export const createTableUpdateIntegration = (
 
 		const updatedBlock = blockStore.getBlock( update.clientId );
 		// 更新開始後に対象Tableを取得できなくなった場合は成立状態を推測しない。
-		if ( ! updatedBlock || updatedBlock.name !== block.name || ! isRecord( updatedBlock.attributes ) ) {
+		if (
+			! updatedBlock ||
+			updatedBlock.name !== block.name ||
+			! isRecord( updatedBlock.attributes )
+		) {
 			return { status: 'unconfirmed' };
 		}
 

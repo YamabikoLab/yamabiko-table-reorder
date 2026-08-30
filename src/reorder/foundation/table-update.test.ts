@@ -89,11 +89,7 @@ describe( 'Table Integration update', () => {
 						],
 					},
 					{
-						cells: [
-							{ content: 'E' },
-							{ content: 'F-G', colSpan: 2 },
-							{ content: 'H' },
-						],
+						cells: [ { content: 'E' }, { content: 'F-G', colSpan: 2 }, { content: 'H' } ],
 					},
 				],
 			},
@@ -129,11 +125,7 @@ describe( 'Table Integration update', () => {
 					],
 				},
 				{
-					cells: [
-						{ content: 'F-G', colSpan: 2 },
-						{ content: 'H' },
-						{ content: 'E' },
-					],
+					cells: [ { content: 'F-G', colSpan: 2 }, { content: 'H' }, { content: 'E' } ],
 				},
 			],
 		} );

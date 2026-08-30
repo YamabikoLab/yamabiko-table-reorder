@@ -46,8 +46,7 @@ export const getReorderDestinationIndex = (
 	sourceIndex: number,
 	boundaryIndex: number
 ): number => {
-	const destinationIndex =
-		boundaryIndex <= sourceIndex ? boundaryIndex : boundaryIndex - 1;
+	const destinationIndex = boundaryIndex <= sourceIndex ? boundaryIndex : boundaryIndex - 1;
 	return destinationIndex;
 };
 
