@@ -13,6 +13,7 @@ import type {
 	ColumnReorderTargetResolutionRequest,
 	ColumnReorderTargetResolutionResult,
 } from '@/reorder/column-reorder/reorder-target-resolution';
+import type { DataUpdateResult } from '@/reorder/core/data-update';
 import type {
 	RowDropTargetResolutionRequest,
 	RowDropTargetResolutionResult,
@@ -46,6 +47,8 @@ type DependencyOptions = {
 	targetStatus?: 'movable' | 'immovable';
 	dropBoundaryIndex?: number;
 	dropError?: Error;
+	dataUpdateResult?: DataUpdateResult;
+	dataUpdateError?: Error;
 };
 
 /**
@@ -61,6 +64,12 @@ const createDependencies = ( options: DependencyOptions = {} ) => {
 	const dropRequestMock = jest.fn();
 	const rowDropRequestMock = jest.fn();
 	const columnDropRequestMock = jest.fn();
+	const dataUpdateMock = jest.fn( () => {
+		if ( options.dataUpdateError !== undefined ) {
+			throw options.dataUpdateError;
+		}
+		return options.dataUpdateResult ?? { status: 'updated' as const };
+	} );
 
 	function resolveTarget(
 		request: RowReorderTargetResolutionRequest
@@ -147,6 +156,7 @@ const createDependencies = ( options: DependencyOptions = {} ) => {
 			resolveRow: resolveRowDrop,
 			resolveColumn: resolveColumnDrop,
 		},
+		dataUpdate: { update: dataUpdateMock },
 		logError: jest.fn(),
 	};
 
@@ -156,6 +166,7 @@ const createDependencies = ( options: DependencyOptions = {} ) => {
 		dropRequestMock,
 		rowDropRequestMock,
 		columnDropRequestMock,
+		dataUpdateMock,
 	};
 };
 
@@ -315,21 +326,22 @@ describe( 'DnD Interaction', () => {
 	} );
 
 	/**
-	 * 有効な行DestinationでDnDを完了した場合に同じ方向のCommitted Reorderを生成することを確認する。
+	 * 有効な行DestinationでDnDを完了した場合にData Updateを1回だけ経由して確定することを確認する。
 	 *
 	 * 事前条件:
 	 * - 行0のReorder Sessionが有効である。
 	 * - 境界2が同じTableの有効な行Destinationとして判定される。
+	 * - Data Updateは更新成立を返す。
 	 *
 	 * 操作:
 	 * - `progress()`で移動先を更新してから`complete()`を実行する。
 	 *
 	 * 期待結果:
-	 * - 行Targetと行Destinationを持つCommitted Reorderが返される。
-	 * - 完了後はReorder Sessionが有効ではない。
+	 * - 同じ行Committed ReorderがData Updateへ1回だけ渡される。
+	 * - 更新成立後にCommitted Reorderが返され、Sessionが終了する。
 	 */
-	it( 'when row DnD completes with a valid destination, should commit the row reorder', () => {
-		const { dependencies } = createDependencies( { dropBoundaryIndex: 2 } );
+	it( 'when row DnD completes with a valid destination, should update once and commit the row reorder', () => {
+		const { dependencies, dataUpdateMock } = createDependencies( { dropBoundaryIndex: 2 } );
 		const interaction = createDndInteraction( dependencies );
 		interaction.start( startRequest );
 		interaction.progress( { boundaryIndex: 2 } );
@@ -341,6 +353,64 @@ describe( 'DnD Interaction', () => {
 				destination: { kind: 'row', clientId: 'table-client-id', boundaryIndex: 2 },
 			},
 		} );
+		expect( dataUpdateMock ).toHaveBeenCalledTimes( 1 );
+		expect( interaction.getSession() ).toBeNull();
+	} );
+
+	/**
+	 * Table Integrationで外部更新を開始できない結果が返った場合に内部エラー扱いせず共通abortすることを確認する。
+	 *
+	 * 事前条件:
+	 * - 有効なDestinationでDnDが完了する。
+	 * - Data Updateは外部Tableが利用できない結果を返す。
+	 *
+	 * 操作:
+	 * - `complete()`を実行する。
+	 *
+	 * 期待結果:
+	 * - 更新要求は1回だけで再試行されない。
+	 * - `aborted`となりSessionが終了するが、内部エラーログは追加されない。
+	 */
+	it( 'when Data Update is unavailable, should abort without retrying or logging an internal error', () => {
+		const { dependencies, dataUpdateMock } = createDependencies( {
+			dropBoundaryIndex: 2,
+			dataUpdateResult: { status: 'unavailable' },
+		} );
+		const interaction = createDndInteraction( dependencies );
+		interaction.start( startRequest );
+		interaction.progress( { boundaryIndex: 2 } );
+		expect( interaction.complete() ).toEqual( { status: 'aborted' } );
+		expect( dataUpdateMock ).toHaveBeenCalledTimes( 1 );
+		expect( dependencies.logError ).not.toHaveBeenCalled();
+		expect( interaction.getSession() ).toBeNull();
+	} );
+
+	/**
+	 * Data Updateの予期しない例外がcomplete operation boundaryで1回だけ記録されることを確認する。
+	 *
+	 * 事前条件:
+	 * - 有効なDestinationでDnDが完了する。
+	 * - Data Updateが内部例外を送出する。
+	 *
+	 * 操作:
+	 * - `complete()`を実行する。
+	 *
+	 * 期待結果:
+	 * - `complete`失敗として元の例外が1回だけ記録される。
+	 * - `aborted`となりSessionが終了する。
+	 */
+	it( 'when Data Update throws unexpectedly, should log once at complete boundary and abort', () => {
+		const error = new Error( 'data update invariant' );
+		const { dependencies } = createDependencies( {
+			dropBoundaryIndex: 2,
+			dataUpdateError: error,
+		} );
+		const interaction = createDndInteraction( dependencies );
+		interaction.start( startRequest );
+		interaction.progress( { boundaryIndex: 2 } );
+		expect( interaction.complete() ).toEqual( { status: 'aborted' } );
+		expect( dependencies.logError ).toHaveBeenCalledTimes( 1 );
+		expect( dependencies.logError ).toHaveBeenCalledWith( 'complete', error );
 		expect( interaction.getSession() ).toBeNull();
 	} );
 
