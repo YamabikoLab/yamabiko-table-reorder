@@ -5,6 +5,8 @@
  * 1つだけ所有する。DnD Interactionは現在方向に対応する入口までを選択し、方向固有の解釈・規則・処理は各方向側へ委譲する。
  */
 import { resolveColumnDndStart } from '@/reorder/column-reorder/dnd-start-resolution';
+import { getColumnReorderSourceIndex } from '@/reorder/column-reorder/reorder-target-resolution';
+import type { DataUpdate, ReorderSourceIndexResolver } from '@/reorder/core/data-update';
 import type { DndStartRequest } from '@/reorder/core/dnd-start-request';
 import type {
 	DropTargetPosition,
@@ -36,6 +38,7 @@ import type {
 } from '@/reorder/core/reorder-types';
 import type { ReorderMode } from '@/reorder/foundation/reorder-mode';
 import { resolveRowDndStart } from '@/reorder/row-reorder/dnd-start-resolution';
+import { getRowReorderSourceIndex } from '@/reorder/row-reorder/reorder-target-resolution';
 
 /** Reorder operation boundaryで識別するDnD操作。 */
 export type DndOperation = 'start' | 'progress' | 'complete' | 'cancel';
@@ -79,6 +82,7 @@ export type DndInteractionDependencies = {
 	reorderMode: Pick< ReorderMode, 'getReorderKind' >;
 	reorderTargetResolution: ReorderTargetResolution;
 	dropTargetResolution: DropTargetResolution;
+	dataUpdate: DataUpdate;
 	logError: DndErrorLogger;
 };
 
@@ -100,13 +104,19 @@ export type DndInteraction = {
 	 * @return DnD進行結果。
 	 */
 	progress: ( currentPosition: DropTargetPosition ) => DndProgressResult;
-	/** @return 確定済み並び替えを含むDnD完了結果。 */
+	/** @return Table更新まで完了した確定結果、データ変更なし、またはabort結果。 */
 	complete: () => DndCompleteResult;
 	/** @return 利用者操作によるDnDキャンセル結果。 */
 	cancel: () => DndCancelResult;
 	/** 外部環境変化などから現在のDnDを内部エラー記録なしで安全終了する。 */
 	abort: () => void;
 };
+
+/** 具体方向のDnD完了処理がoperation boundaryへ返す内部結果。 */
+type ActiveDndCompleteResult< K extends ReorderKind > =
+	| { status: 'committed'; reorder: CommittedReorder< K > }
+	| { status: 'completed-without-commit' }
+	| { status: 'update-failed' };
 
 /**
  * 現在のReorder Sessionと、その方向に対応するDrop Target Resolverを同じDnD中だけ束ねる内部契約。
@@ -116,7 +126,7 @@ export type DndInteraction = {
 type ActiveDndBinding< K extends ReorderKind = ReorderKind > = {
 	[ Kind in K ]: {
 		/** @return 現在の移動先更新まで反映した最新Reorder Session。 */
-		getSession: () => ReorderSession< Kind >;
+		getSession: () => ConcreteReorderSession< Kind >;
 		/**
 		 * 現在位置から同方向の移動先を解決し、Reorder Sessionへ反映する。
 		 *
@@ -124,6 +134,8 @@ type ActiveDndBinding< K extends ReorderKind = ReorderKind > = {
 		 * @return 現在の有効な移動先。
 		 */
 		progress: ( currentPosition: DropTargetPosition ) => ReorderDestination< Kind > | null;
+		/** @return 同方向のSessionを完了し、Data Updateまで接続した結果。 */
+		complete: () => ActiveDndCompleteResult< Kind >;
 	};
 }[ K ];
 
@@ -142,6 +154,12 @@ type DndStartResolver< K extends ReorderKind > = (
 	dropTargetResolution: DropTargetResolution
 ) => DndStartResolution< K >;
 
+/** 方向選択境界で同じ方向の開始解釈とData Update用Target射影を束ねる。 */
+type DndDirectionAdapter< K extends ReorderKind > = {
+	resolveStart: DndStartResolver< K >;
+	getSourceIndex: ReorderSourceIndexResolver< K >;
+};
+
 /** 方向固有入口の対象解決後に共通開始処理が生成する結果。 */
 type PreparedDndStart< K extends ReorderKind > =
 	| {
@@ -152,15 +170,19 @@ type PreparedDndStart< K extends ReorderKind > =
 	| { status: 'not-started'; reason: ReorderTargetResolutionFailureReason };
 
 /**
- * 具体方向へ確定したReorder Sessionと同方向のDrop Target Resolverを束ねる。
+ * 具体方向へ確定したReorder Sessionと同方向のDrop Target Resolver、Target射影を束ねる。
  *
  * @param initialSession DnD開始時に成立した具体方向のReorder Session。
  * @param resolve        同じ方向のRequest / Result対応を保証する移動先判定入口。
- * @return 最新Reorder Sessionを保持しながら同方向の移動先判定を行う内部バインディング。
+ * @param getSourceIndex 同じ方向のTargetをData Updateの共通位置へ射影する規則。
+ * @param dataUpdate     確定済みReorderをTable Integrationへ接続する共通Data Update。
+ * @return 最新Reorder Sessionを保持しながら同方向の進行・完了を行う内部バインディング。
  */
 const createActiveDndBinding = < K extends ReorderKind >(
 	initialSession: ConcreteReorderSession< K >,
-	resolve: ( request: DropTargetResolutionRequest< K > ) => DropTargetResolutionResult< K >
+	resolve: ( request: DropTargetResolutionRequest< K > ) => DropTargetResolutionResult< K >,
+	getSourceIndex: ReorderSourceIndexResolver< K >,
+	dataUpdate: DataUpdate
 ): ActiveDndBinding< K > => {
 	let session = initialSession;
 
@@ -176,6 +198,27 @@ const createActiveDndBinding = < K extends ReorderKind >(
 			const destination = result.status === 'valid' ? result.destination : null;
 			session = updateReorderDestination( session, destination );
 			return destination;
+		},
+		complete: () => {
+			const committedReorder = completeReorderSession( session );
+
+			// 有効な移動先がないDnDはData Updateを呼び出さず正常完了する。
+			if ( committedReorder === null ) {
+				return { status: 'completed-without-commit' };
+			}
+
+			const updateResult = dataUpdate.update( committedReorder, getSourceIndex );
+			// no-opは確定可能な境界だった場合もTableデータ変更を発生させず正常完了する。
+			if ( updateResult.status === 'unchanged' ) {
+				return { status: 'completed-without-commit' };
+			}
+
+			// 外部Table更新を開始できない、または成立を確認できない場合はoperation boundaryの共通abortへ返す。
+			if ( updateResult.status !== 'updated' ) {
+				return { status: 'update-failed' };
+			}
+
+			return { status: 'committed', reorder: committedReorder };
 		},
 	};
 };
@@ -211,14 +254,14 @@ export const createDndInteraction = (
 	 * 選択された方向固有入口から対象解決と移動先判定入口の対応を受け取り、共通Session開始結果を準備する。
 	 *
 	 * @param request Input Interactionから渡された方向非依存のDnD開始位置。
-	 * @param resolve 現在の並び替え方向に対応する方向固有入口。
+	 * @param adapter 現在の並び替え方向に対応する方向固有入口とTarget射影。
 	 * @return 具体方向を維持したSessionとBinding、またはDnDを開始できない理由。
 	 */
 	const prepareStartForDirection = < K extends ReorderKind >(
 		request: DndStartRequest,
-		resolve: DndStartResolver< K >
+		adapter: DndDirectionAdapter< K >
 	): PreparedDndStart< K > => {
-		const { targetResolution, resolveDropTarget } = resolve(
+		const { targetResolution, resolveDropTarget } = adapter.resolveStart(
 			request,
 			dependencies.reorderTargetResolution,
 			dependencies.dropTargetResolution
@@ -233,7 +276,12 @@ export const createDndInteraction = (
 			targetResolution.target,
 			targetResolution.constraints
 		);
-		const binding = createActiveDndBinding< K >( startedSession, resolveDropTarget );
+		const binding = createActiveDndBinding< K >(
+			startedSession,
+			resolveDropTarget,
+			adapter.getSourceIndex,
+			dependencies.dataUpdate
+		);
 
 		return { status: 'started', session: startedSession, binding };
 	};
@@ -260,9 +308,12 @@ export const createDndInteraction = (
 					return { status: 'not-started', reason: 'reorder-mode-inactive' };
 				}
 
-				// DnD Interactionは現在方向に対応する入口だけを選択し、方向固有の開始解釈と処理は各方向側へ委譲する。
+				// 方向が未確定なこの境界だけで行・列を選択し、以降は同じ方向の型対応を維持する。
 				if ( reorderKind === 'row' ) {
-					const preparedStart = prepareStartForDirection( request, resolveRowDndStart );
+					const preparedStart = prepareStartForDirection( request, {
+						resolveStart: resolveRowDndStart,
+						getSourceIndex: getRowReorderSourceIndex,
+					} );
 					if ( preparedStart.status === 'not-started' ) {
 						return preparedStart;
 					}
@@ -271,7 +322,10 @@ export const createDndInteraction = (
 					return { status: 'started', session: preparedStart.session };
 				}
 
-				const preparedStart = prepareStartForDirection( request, resolveColumnDndStart );
+				const preparedStart = prepareStartForDirection( request, {
+					resolveStart: resolveColumnDndStart,
+					getSourceIndex: getColumnReorderSourceIndex,
+				} );
 				if ( preparedStart.status === 'not-started' ) {
 					return preparedStart;
 				}
@@ -310,15 +364,16 @@ export const createDndInteraction = (
 					);
 				}
 
-				const committedReorder = completeReorderSession( activeDnd.getSession() );
+				const completion = activeDnd.complete();
 				activeDnd = null;
 
-				// 有効な移動先がないDnDはData Updateへ渡す結果を生成せず正常完了する。
-				if ( committedReorder === null ) {
-					return { status: 'completed-without-commit' };
+				// 外部更新の開始不可または成立未確認は内部エラーとして記録せず、同じ共通abort結果へ合流する。
+				if ( completion.status === 'update-failed' ) {
+					abort();
+					return { status: 'aborted' };
 				}
 
-				return { status: 'committed', reorder: committedReorder };
+				return completion;
 			} catch ( error ) {
 				handleOperationFailure( 'complete', error );
 				return { status: 'aborted' };
