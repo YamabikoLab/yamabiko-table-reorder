@@ -180,11 +180,7 @@ describe( 'Table Integration', () => {
 				// 結合セルが占有する論理領域全体を記録し、後続行・後続列で重複する物理セルを生成しない。
 				for ( let row = rowStart; row < rowStart + mergedCell.rowSpan; row++ ) {
 					// 現在の結合セルが横方向に占有するすべての論理列を同じ占有領域として扱う。
-					for (
-						let column = columnStart;
-						column < columnStart + mergedCell.columnSpan;
-						column++
-					) {
+					for ( let column = columnStart; column < columnStart + mergedCell.columnSpan; column++ ) {
 						occupied[ row ][ column ] = true;
 					}
 				}
@@ -204,7 +200,9 @@ describe( 'Table Integration', () => {
 		const elapsedMilliseconds = performance.now() - startedAt;
 
 		process.stdout.write(
-			`Table Integration: 1,000 rows x 20 columns processed in ${ elapsedMilliseconds.toFixed( 3 ) } ms\n`
+			`Table Integration: 1,000 rows x 20 columns processed in ${ elapsedMilliseconds.toFixed(
+				3
+			) } ms\n`
 		);
 
 		expect( structure ).toEqual( {
