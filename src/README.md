@@ -6,17 +6,13 @@ Current Reorder source boundary:
 
 ```text
 src/reorder/
-├── foundation/
-├── core/
-├── row-reorder/
-└── column-reorder/
+├── editor-dom-context.ts
+└── row-reorder/
 ```
 
-- `foundation/` contains the infrastructure and external boundaries required to establish Reorder, such as Editor DOM Context, Reorder Mode, and Table Integration.
-- `core/` contains Reorder contracts, lifecycle, and rules whose meaning and reason to change are shared by row and column reordering.
-- `row-reorder/` contains responsibilities and types specific to row reordering.
-- `column-reorder/` contains responsibilities and types specific to column reordering.
+- `editor-dom-context.ts` provides the current editor DOM context required by Reorder implementations.
+- `row-reorder/` contains the active row reordering implementation and owns the responsibilities, types, rules, and integrations required for row reordering.
 
-`foundation/` is not a generic shared-code directory. Shared row/column Reorder behavior belongs in `core/`, while direction-specific behavior stays in its corresponding Reorder directory.
+Row reordering and column reordering are independent implementations. Do not introduce shared reorder abstractions between them. When column reordering implementation begins, it will be added independently under `column-reorder/` rather than by extracting shared Reorder code from `row-reorder/`.
 
-Source structure should follow the Architecture and `src/AGENTS.md` rather than reproduce previous formal v1 or Prototype structures. Refer to Git history or the `prototype-final` tag only when historical implementation details are needed.
+Source structure should follow the Architecture, `src/AGENTS.md`, and `src/reorder/AGENTS.md` rather than reproduce previous formal v1 or Prototype structures. Refer to Git history or the `prototype-final` tag only when historical implementation details are needed.
