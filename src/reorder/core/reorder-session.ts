@@ -46,6 +46,11 @@ export type CommittedReorder< K extends ReorderKind = ReorderKind > = {
 	};
 }[ K ];
 
+/** 行または列の一方向へ確定し、その方向対応をData Updateまで維持する確定済み並び替え。 */
+export type ConcreteCommittedReorder< K extends ReorderKind > = CommittedReorder< K > & {
+	kind: ConcreteReorderKind< K >;
+};
+
 /**
  * Reorder Target Resolutionで成立した具体方向の値から新しいReorder Sessionを開始する。
  *
@@ -93,12 +98,12 @@ export const updateReorderDestination = < K extends ReorderKind >(
 /**
  * Reorder Sessionを完了し、有効な移動先がある場合だけCommitted Reorderを生成する。
  *
- * @param session 完了対象のReorder Session。
+ * @param session 完了対象の具体方向Reorder Session。
  * @return 確定可能な同じ方向の並び替え、またはデータ変更を伴わない正常完了を表す`null`。
  */
 export const completeReorderSession = < K extends ReorderKind >(
-	session: ReorderSession< K >
-): CommittedReorder< K > | null => {
+	session: ConcreteReorderSession< K >
+): ConcreteCommittedReorder< K > | null => {
 	// 有効な移動先がないDnDはTableデータ変更を発生させない。
 	if ( session.destination === null ) {
 		return null;
