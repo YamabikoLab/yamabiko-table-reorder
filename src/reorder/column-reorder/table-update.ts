@@ -18,6 +18,7 @@ import type {
 type CellPlacement = {
 	cell: TableUpdateCell;
 	columnStart: number;
+	rowSpan: number;
 	columnSpan: number;
 };
 
@@ -106,24 +107,31 @@ const resolveSectionPlacement = (
 
 		// 行内セルを順に配置し、縦結合が占有する列を避けた論理開始位置を確定する。
 		for ( const cell of row.cells ) {
+			// 列の論理グリッドを確定するには縦横両方の結合範囲が必要であり、解釈できないセルがあれば列更新しない。
+			if ( cell.rowSpan === null || cell.columnSpan === null ) {
+				return null;
+			}
+
+			const rowSpan = cell.rowSpan;
+			const columnSpan = cell.columnSpan;
 			const columnStart = findColumnStart(
 				occupiedUntilRow,
 				rowIndex,
 				minimumColumn,
-				cell.columnSpan
+				columnSpan
 			);
-			const effectiveRowSpan = Math.min( cell.rowSpan, section.rows.length - rowIndex );
+			const effectiveRowSpan = Math.min( rowSpan, section.rows.length - rowIndex );
 
 			// セルが占有する論理列へ縦結合の終了行を記録し、後続行の位置計算へ反映する。
-			for ( let column = columnStart; column < columnStart + cell.columnSpan; column++ ) {
+			for ( let column = columnStart; column < columnStart + columnSpan; column++ ) {
 				occupiedUntilRow[ column ] = Math.max(
 					occupiedUntilRow[ column ] ?? 0,
 					rowIndex + effectiveRowSpan
 				);
 			}
 
-			cells.push( { cell, columnStart, columnSpan: cell.columnSpan } );
-			minimumColumn = columnStart + cell.columnSpan;
+			cells.push( { cell, columnStart, rowSpan, columnSpan } );
+			minimumColumn = columnStart + columnSpan;
 			columnCount = Math.max( columnCount, minimumColumn );
 		}
 
@@ -137,7 +145,7 @@ const resolveSectionPlacement = (
 			// 現在位置へ届き得る先行行を確認し、縦結合を含めてその位置を占有するセル数を数える。
 			for ( let originRow = 0; originRow <= rowIndex; originRow++ ) {
 				for ( const placement of rows[ originRow ].cells ) {
-					const occupiesRow = rowIndex < originRow + placement.cell.rowSpan;
+					const occupiesRow = rowIndex < originRow + placement.rowSpan;
 					const occupiesColumn =
 						column >= placement.columnStart &&
 						column < placement.columnStart + placement.columnSpan;
