@@ -1,13 +1,15 @@
 /**
  * 確定済みReorderをTable Integrationへ渡す共通Data Updateを提供する。
  *
- * 行・列固有Targetの位置解釈は各方向責務から受け取り、共通側では挿入境界から最終位置への正規化、
- * no-op判定、1回だけのTable更新要求を扱う。Table Block固有のデータ構造や更新方法は扱わない。
+ * 行・列固有Targetの位置解釈とTableデータ変更規則は、DnD開始時に選択された同じ方向の責務から受け取る。
+ * 共通側では挿入境界から最終位置への正規化、no-op判定、1回だけのTable更新要求を扱い、
+ * 行・列固有の意味や対応Table Block固有のデータ構造は解釈しない。
  */
-import type { CommittedReorder } from '@/reorder/core/reorder-session';
+import type { ConcreteCommittedReorder } from '@/reorder/core/reorder-session';
 import type { ReorderKind, ReorderTarget } from '@/reorder/core/reorder-types';
 import type {
 	ConcreteTableReorderUpdate,
+	TableUpdateChangesResolver,
 	TableUpdateIntegration,
 	TableUpdateResult,
 } from '@/reorder/foundation/table-update';
@@ -17,21 +19,31 @@ export type ReorderSourceIndexResolver< K extends ReorderKind > = (
 	target: ReorderTarget< K >
 ) => number;
 
+/**
+ * DnD開始時に確定した方向について、Data Updateまで同じ方向対応を維持するための契約。
+ *
+ * 位置の意味とTableデータ変更規則は各方向責務が所有し、共通Data Updateは受け取った規則を組み合わせるだけとする。
+ */
+export type DataUpdateDirectionAdapter< K extends ReorderKind > = {
+	getSourceIndex: ReorderSourceIndexResolver< K >;
+	resolveTableUpdateChanges: TableUpdateChangesResolver< K >;
+};
+
 /** Data UpdateがDnD Interactionへ返す更新結果。 */
 export type DataUpdateResult = TableUpdateResult | { status: 'unchanged' };
 
 /** 確定済みReorderをTableデータ更新へ接続するData Update契約。 */
 export type DataUpdate = {
 	/**
-	 * 同じ方向のTarget / Destination対応を保ったまま、確定済みReorderを1回だけ更新境界へ渡す。
+	 * 同じ方向のTarget / Destination / 更新規則対応を保ったまま、確定済みReorderを1回だけ更新境界へ渡す。
 	 *
-	 * @param reorder        DnD Interactionで確定した同一方向の並び替え。
-	 * @param getSourceIndex 方向固有Targetから共通の移動元位置を取得する同方向の規則。
+	 * @param reorder DnD Interactionで確定した一方向の並び替え。
+	 * @param adapter 開始時に選択され、同じ方向を維持してきた位置取得とTableデータ変更規則。
 	 * @return 更新成立、データ変更なし、開始不可、または成立未確認の結果。
 	 */
 	update: < K extends ReorderKind >(
-		reorder: CommittedReorder< K >,
-		getSourceIndex: ReorderSourceIndexResolver< K >
+		reorder: ConcreteCommittedReorder< K >,
+		adapter: DataUpdateDirectionAdapter< K >
 	) => DataUpdateResult;
 };
 
@@ -59,8 +71,11 @@ export const getReorderDestinationIndex = (
 export const createDataUpdate = (
 	tableIntegration: Pick< TableUpdateIntegration, 'updateReorder' >
 ): DataUpdate => ( {
-	update: ( reorder, getSourceIndex ) => {
-		const sourceIndex = getSourceIndex( reorder.target );
+	update: < K extends ReorderKind >(
+		reorder: ConcreteCommittedReorder< K >,
+		adapter: DataUpdateDirectionAdapter< K >
+	): DataUpdateResult => {
+		const sourceIndex = adapter.getSourceIndex( reorder.target );
 		const destinationIndex = getReorderDestinationIndex(
 			sourceIndex,
 			reorder.destination.boundaryIndex
@@ -71,13 +86,13 @@ export const createDataUpdate = (
 			return { status: 'unchanged' };
 		}
 
-		const update = {
+		const update: ConcreteTableReorderUpdate< K > = {
 			kind: reorder.kind,
 			clientId: reorder.target.clientId,
 			sourceIndex,
 			destinationIndex,
-		} as ConcreteTableReorderUpdate< typeof reorder.kind >;
+		};
 
-		return tableIntegration.updateReorder( update );
+		return tableIntegration.updateReorder( update, adapter.resolveTableUpdateChanges );
 	},
 } );
