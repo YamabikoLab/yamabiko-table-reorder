@@ -97,12 +97,7 @@ describe( 'Column Table Update', () => {
 			attributes: {
 				body: [
 					{
-						cells: [
-							{ content: 'A' },
-							{ content: 'B' },
-							{ content: 'C' },
-							{ content: 'D' },
-						],
+						cells: [ { content: 'A' }, { content: 'B' }, { content: 'C' }, { content: 'D' } ],
 					},
 				],
 			},
@@ -158,11 +153,7 @@ describe( 'Column Table Update', () => {
 				attributes: {
 					body: [
 						{
-							cells: [
-								{ content: 'A' },
-								{ content: 'B-C', colSpan: 2 },
-								{ content: 'D' },
-							],
+							cells: [ { content: 'A' }, { content: 'B-C', colSpan: 2 }, { content: 'D' } ],
 						},
 					],
 				},
@@ -206,11 +197,7 @@ describe( 'Column Table Update', () => {
 				attributes: {
 					body: [
 						{
-							cells: [
-								{ content: 'A' },
-								{ content: 'B-C', colSpan: 2 },
-								{ content: 'D' },
-							],
+							cells: [ { content: 'A' }, { content: 'B-C', colSpan: 2 }, { content: 'D' } ],
 						},
 					],
 				},

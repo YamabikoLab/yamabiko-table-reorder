@@ -114,12 +114,7 @@ const resolveSectionPlacement = (
 
 			const rowSpan = cell.rowSpan;
 			const columnSpan = cell.columnSpan;
-			const columnStart = findColumnStart(
-				occupiedUntilRow,
-				rowIndex,
-				minimumColumn,
-				columnSpan
-			);
+			const columnStart = findColumnStart( occupiedUntilRow, rowIndex, minimumColumn, columnSpan );
 			const effectiveRowSpan = Math.min( rowSpan, section.rows.length - rowIndex );
 
 			// セルが占有する論理列へ縦結合の終了行を記録し、後続行の位置計算へ反映する。

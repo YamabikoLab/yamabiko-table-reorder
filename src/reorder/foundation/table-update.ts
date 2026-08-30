@@ -60,9 +60,7 @@ export type TableUpdateSection = {
  *
  * 行・列責務はこの値だけを利用し、Core TableやFlexible Table Block固有の属性名を直接解釈しない。
  */
-export type TableUpdateData = Readonly<
-	Record< TableUpdateSectionName, TableUpdateSection >
->;
+export type TableUpdateData = Readonly< Record< TableUpdateSectionName, TableUpdateSection > >;
 
 /** 1回の並び替えでBlock属性へ反映するTable区画の変更。 */
 export type TableUpdateChanges = Partial<
