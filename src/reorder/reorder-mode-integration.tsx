@@ -1,5 +1,5 @@
 /**
- * Reorder ModeをWordPress Editorへ接続し、対応TableのToolbar入口と通常編集との排他を所有する。
+ * Reorder ModeをWordPress Editorへ接続し、対応TableのToolbar入口、通常編集との排他、Block選択ライフサイクルを所有する。
  *
  * Reorder Modeの状態はこの接続境界の外側に保持し、Toolbarの再生成では失わない。
  * Reactは状態の正本を持たず、購読結果から表示と編集可否を導出する。
@@ -209,25 +209,37 @@ const ReorderModeEdit = ( componentProps: ReorderModeEditProps ) => {
 };
 
 /**
- * BlockEditへReorder ModeのToolbar接続境界を追加するHOC。
+ * BlockEditへReorder ModeのBlock選択ライフサイクルとToolbar接続境界を追加するHOC。
  *
  * BlockEdit自体は独自DOM要素で囲まず、Gutenberg本来のBlock構造を維持する。
  *
  * @param BlockEdit Gutenbergが提供する元のBlockEdit component。
- * @return 対応TableだけへReorder Modeを接続するBlockEdit component。
+ * @return Block選択をReorder Modeへ反映し、対応TableにはToolbar入口を追加するBlockEdit component。
  */
 export const withReorderMode = ( BlockEdit: ComponentType< TableBlockEditProps > ) =>
 	/**
-	 * 対応TableだけをReorder Modeへ接続するBlockEdit component。
+	 * Block選択ライフサイクルをReorder Modeへ接続し、対応TableだけへToolbar入口を追加するcomponent。
 	 *
 	 * @param props Gutenbergから渡されるBlockEdit props。
 	 * @return 非対応Blockは元の編集表示、対応TableはReorder Mode接続済みの編集表示。
 	 */
 	function WithReorderMode( props: TableBlockEditProps ) {
+		const { isSelected, name } = props;
+
+		useEffect( () => {
+			/*
+			 * 対象Tableとは別のBlockが実際に選択された場合だけReorder Modeを終了する。
+			 * 非対応Blockが非選択であるだけの状態は、一時的な選択解除と区別して現在状態へ介入させない。
+			 */
+			if ( isSelected && ! SUPPORTED_TABLE_BLOCKS.has( name ) ) {
+				reorderModeIntegration.exit();
+			}
+		}, [ isSelected, name ] );
+
 		/*
-		 * Reorder Modeの責務は対応Tableだけに限定し、その他のBlockの編集挙動には介入しない。
+		 * Toolbar入口と編集抑止は対応Tableだけに限定し、その他のBlockの編集挙動には介入しない。
 		 */
-		if ( ! SUPPORTED_TABLE_BLOCKS.has( props.name ) ) {
+		if ( ! SUPPORTED_TABLE_BLOCKS.has( name ) ) {
 			return <BlockEdit { ...props } />;
 		}
 
