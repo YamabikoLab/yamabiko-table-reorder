@@ -36,6 +36,7 @@ export type RowReorderMode = {
 	 * 対象Tableで行並び替えが有効か確認する。
 	 *
 	 * @param tableIdentity 行並び替えの有効状態を確認するTable Identity。
+	 * @return 対象Tableで行並び替えが有効な場合はtrue。それ以外はfalse。
 	 */
 	isActive: ( tableIdentity: ReorderTableIdentity ) => boolean;
 };
@@ -70,12 +71,14 @@ export type ReorderMode = {
 	 *
 	 * @param kind          確認する並び替え方向。
 	 * @param tableIdentity 確認するTable Identity。
+	 * @return 対象Tableで指定方向が選択状態の場合はtrue。それ以外はfalse。
 	 */
 	isSelected: ( kind: ReorderKind, tableIdentity: ReorderTableIdentity ) => boolean;
 	/**
 	 * 対象Tableで通常編集を開始できるか確認する。
 	 *
 	 * @param tableIdentity 編集可否を確認するTable Identity。
+	 * @return 対象Tableが並び替えモード中でなければtrue。対象Tableが並び替えモード中ならfalse。
 	 */
 	isEditingAllowed: ( tableIdentity: ReorderTableIdentity ) => boolean;
 	/**
