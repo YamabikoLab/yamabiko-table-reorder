@@ -6,6 +6,11 @@
 
 import { addFilter } from '@wordpress/hooks';
 
-import { withReorderMode } from '@/reorder/reorder-mode-integration';
+import { withReorderMode, withReorderModeBlockListBlock } from '@/reorder/reorder-mode-integration';
 
 addFilter( 'editor.BlockEdit', 'yamabiko-table-reorder/reorder-mode', withReorderMode );
+addFilter(
+	'editor.BlockListBlock',
+	'yamabiko-table-reorder/reorder-mode-editing-guard',
+	withReorderModeBlockListBlock
+);
