@@ -1,8 +1,8 @@
 /**
- * #714の第2段階PoCとして、Reorder Modeを維持したままTable選択解除、属性更新、必要時だけの再選択を行う。
+ * #714の第2段階PoCとして、Reorder Modeを維持したままTable選択状態とcommit性能の関係を比較する。
  *
- * 正式なRow / Column Data UpdateやDnD状態は所有せず、実Editorでcommit前後のBlock選択ライフサイクルと
- * Reorder Modeの分離を検証するための一時的な入口だけを提供する。
+ * 正式なRow / Column Data UpdateやDnD状態は所有せず、実Editorで選択解除あり / なしのcommitを
+ * 同じ計測境界で比較し、必要な場合だけ再選択する一時的な入口だけを提供する。
  */
 
 import { reorderModeIntegration, type ReorderKind } from './reorder-mode';
@@ -54,6 +54,9 @@ type WordPressData = {
 	select: ( storeName: typeof BLOCK_EDITOR_STORE ) => BlockEditorSelector;
 };
 
+/** A/B比較でcommit直前のTable選択をどう扱ったかを表す。 */
+export type ReorderCommitSelectionStrategy = 'clear-before-commit' | 'keep-selected';
+
 /** commit後の選択判定結果。 */
 export type ReorderCommitSelectionOutcome =
 	| 'reselected-table'
@@ -68,33 +71,21 @@ export type ReorderCommitPoCResult = {
 	observationBoundaryMs: number;
 	reselectionDispatchMs: number | null;
 	selectionOutcome: ReorderCommitSelectionOutcome;
+	selectionStrategy: ReorderCommitSelectionStrategy;
 	updateDispatchMs: number;
 };
 
 /** DevToolsから第2段階PoCを実行するための一時API。 */
 export type ReorderCommitPoCApi = {
-	/**
-	 * 選択中Tableの行を移動し、#714のcommitライフサイクルを実行する。
-	 *
-	 * @param fromIndex 移動する行の0-based位置。
-	 * @param toIndex   移動後の行の0-based位置。
-	 * @return commitと再選択判断の計測結果。
-	 */
+	/** 選択解除ありでRow commitを計測する。 */
 	row: ( fromIndex: number, toIndex: number ) => Promise< ReorderCommitPoCResult >;
-	/**
-	 * 選択中Tableの列を移動し、#714のcommitライフサイクルを実行する。
-	 *
-	 * @param fromIndex 移動する列の0-based位置。
-	 * @param toIndex   移動後の列の0-based位置。
-	 * @return commitと再選択判断の計測結果。
-	 */
+	/** 選択解除なしでRow commitを計測する。 */
+	rowWithoutClear: ( fromIndex: number, toIndex: number ) => Promise< ReorderCommitPoCResult >;
+	/** 選択解除ありでColumn commitを計測する。 */
 	column: ( fromIndex: number, toIndex: number ) => Promise< ReorderCommitPoCResult >;
-	/**
-	 * 対象TableがPoCのcommit処理中か確認する。
-	 *
-	 * @param clientId 確認するTable BlockのclientId。
-	 * @return commit処理中の場合はtrue。それ以外はfalse。
-	 */
+	/** 選択解除なしでColumn commitを計測する。 */
+	columnWithoutClear: ( fromIndex: number, toIndex: number ) => Promise< ReorderCommitPoCResult >;
+	/** 対象TableがPoCのcommit処理中か確認する。 */
 	isCommitting: ( clientId: string ) => boolean;
 };
 
@@ -175,8 +166,7 @@ const createRowUpdate = (
 		throw new Error( 'Reorder commit PoC requires Table body rows.' );
 	}
 
-	const body = moveItem( attributes.body, fromIndex, toIndex );
-	return { body };
+	return { body: moveItem( attributes.body, fromIndex, toIndex ) };
 };
 
 /**
@@ -193,8 +183,7 @@ const moveColumnInRows = ( rows: TableRow[], fromIndex: number, toIndex: number 
 			throw new Error( 'Reorder commit PoC requires Table row cells.' );
 		}
 
-		const cells = moveItem( row.cells, fromIndex, toIndex );
-		return { ...row, cells };
+		return { ...row, cells: moveItem( row.cells, fromIndex, toIndex ) };
 	} );
 
 /**
@@ -273,21 +262,22 @@ const getCommitTarget = ( kind: ReorderKind ): BlockRecord => {
 };
 
 /**
- * #714で検証する一時選択解除、属性更新、現在状態に応じた再選択を実行する。
+ * #714で比較する属性更新と現在状態に応じた再選択を実行する。
  *
- * commit処理中は同じTableのPoC commitを重ねて開始させず、Reorder Mode自体は変更しない。
- * 更新後は現在のBlock選択と開始時と同じReorder Modeが維持されているかを確認し、
- * 選択Blockがない場合だけ対象Tableを再選択する。
+ * A/B差分はcommit直前にTable選択を解除するかどうかだけとする。属性更新と2回の描画境界、
+ * その後のBlock選択 / Reorder Mode判定は同じ経路を通す。選択解除ありの場合でもReorder Mode自体は変更しない。
  *
- * @param kind       実行する並び替え方向。
- * @param attributes `updateBlockAttributes()`へ1回だけ渡す属性差分。
- * @param clientId   commit対象TableのclientId。
+ * @param kind              実行する並び替え方向。
+ * @param attributes        `updateBlockAttributes()`へ1回だけ渡す属性差分。
+ * @param clientId          commit対象TableのclientId。
+ * @param selectionStrategy commit直前のTable選択を解除するかどうか。
  * @return commitと再選択判断の計測結果。
  */
 const runCommitLifecycle = async (
 	kind: ReorderKind,
 	attributes: Partial< TableAttributes >,
-	clientId: string
+	clientId: string,
+	selectionStrategy: ReorderCommitSelectionStrategy
 ): Promise< ReorderCommitPoCResult > => {
 	if ( committingTableClientId !== null ) {
 		throw new Error( 'Reorder commit PoC does not allow another commit while one is active.' );
@@ -299,7 +289,9 @@ const runCommitLifecycle = async (
 	committingTableClientId = clientId;
 
 	try {
-		actions.clearSelectedBlock();
+		if ( selectionStrategy === 'clear-before-commit' ) {
+			actions.clearSelectedBlock();
+		}
 
 		const updateStartedAt = performance.now();
 		actions.updateBlockAttributes( clientId, attributes );
@@ -331,6 +323,7 @@ const runCommitLifecycle = async (
 			observationBoundaryMs,
 			reselectionDispatchMs,
 			selectionOutcome,
+			selectionStrategy,
 			updateDispatchMs,
 		};
 	} finally {
@@ -346,13 +339,11 @@ const runCommitLifecycle = async (
  * @param clientId 確認するTable BlockのclientId。
  * @return 対象Tableがcommit処理中の場合はtrue。それ以外はfalse。
  */
-export const isReorderCommitInProgressPoC = ( clientId: string ): boolean => {
-	const inProgress = committingTableClientId === clientId;
-	return inProgress;
-};
+export const isReorderCommitInProgressPoC = ( clientId: string ): boolean =>
+	committingTableClientId === clientId;
 
 /**
- * 選択中Tableの行移動で第2段階PoCを実行する。
+ * 選択解除ありでRow commitを実行する。
  *
  * @param fromIndex 移動する行の0-based位置。
  * @param toIndex   移動後の行の0-based位置。
@@ -364,12 +355,27 @@ export const runRowReorderCommitPoC = async (
 ): Promise< ReorderCommitPoCResult > => {
 	const block = getCommitTarget( 'row' );
 	const update = createRowUpdate( block.attributes, fromIndex, toIndex );
-	const result = await runCommitLifecycle( 'row', update, block.clientId );
-	return result;
+	return runCommitLifecycle( 'row', update, block.clientId, 'clear-before-commit' );
 };
 
 /**
- * 選択中Tableの列移動で第2段階PoCを実行する。
+ * 選択解除なしでRow commitを実行する比較経路。
+ *
+ * @param fromIndex 移動する行の0-based位置。
+ * @param toIndex   移動後の行の0-based位置。
+ * @return commitと現在選択の判定結果。
+ */
+export const runRowReorderCommitWithoutClearPoC = async (
+	fromIndex: number,
+	toIndex: number
+): Promise< ReorderCommitPoCResult > => {
+	const block = getCommitTarget( 'row' );
+	const update = createRowUpdate( block.attributes, fromIndex, toIndex );
+	return runCommitLifecycle( 'row', update, block.clientId, 'keep-selected' );
+};
+
+/**
+ * 選択解除ありでColumn commitを実行する。
  *
  * @param fromIndex 移動する列の0-based位置。
  * @param toIndex   移動後の列の0-based位置。
@@ -381,19 +387,36 @@ export const runColumnReorderCommitPoC = async (
 ): Promise< ReorderCommitPoCResult > => {
 	const block = getCommitTarget( 'column' );
 	const update = createColumnUpdate( block.attributes, fromIndex, toIndex );
-	const result = await runCommitLifecycle( 'column', update, block.clientId );
-	return result;
+	return runCommitLifecycle( 'column', update, block.clientId, 'clear-before-commit' );
 };
 
 /**
- * 実WordPress EditorのDevToolsから第2段階PoCを実行できる一時APIを登録する。
+ * 選択解除なしでColumn commitを実行する比較経路。
+ *
+ * @param fromIndex 移動する列の0-based位置。
+ * @param toIndex   移動後の列の0-based位置。
+ * @return commitと現在選択の判定結果。
+ */
+export const runColumnReorderCommitWithoutClearPoC = async (
+	fromIndex: number,
+	toIndex: number
+): Promise< ReorderCommitPoCResult > => {
+	const block = getCommitTarget( 'column' );
+	const update = createColumnUpdate( block.attributes, fromIndex, toIndex );
+	return runCommitLifecycle( 'column', update, block.clientId, 'keep-selected' );
+};
+
+/**
+ * 実WordPress EditorのDevToolsから第2段階PoCとA/B比較経路を実行できる一時APIを登録する。
  */
 export const registerReorderCommitLifecyclePoC = (): void => {
 	const editorWindow = window as ReorderCommitPoCWindow;
 
 	editorWindow.ytrReorderCommitPoC = {
 		row: runRowReorderCommitPoC,
+		rowWithoutClear: runRowReorderCommitWithoutClearPoC,
 		column: runColumnReorderCommitPoC,
+		columnWithoutClear: runColumnReorderCommitWithoutClearPoC,
 		isCommitting: isReorderCommitInProgressPoC,
 	};
 };
