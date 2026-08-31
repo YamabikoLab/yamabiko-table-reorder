@@ -1,13 +1,14 @@
 /**
- * #714第2段階PoCのcommit前後におけるBlock選択とReorder Modeの分離を確認する。
+ * #714第2段階PoCのcommit前後におけるBlock選択とReorder Modeの分離、および選択解除あり / なしの比較経路を確認する。
  *
- * 実Editorの描画性能は検証せず、一時選択解除、1回の属性更新、観測境界後の再選択判断だけを確認する。
+ * 実Editorの描画性能は検証せず、属性更新を同じ計測境界で1回だけ実行し、選択解除有無だけをA/B差分とすることを確認する。
  */
 
 import { reorderModeIntegration } from './reorder-mode';
 import {
 	registerReorderCommitLifecyclePoC,
 	runRowReorderCommitPoC,
+	runRowReorderCommitWithoutClearPoC,
 } from './reorder-commit-lifecycle-poc';
 
 type BlockRecord = {
@@ -96,20 +97,20 @@ describe( 'Reorder commit lifecycle PoC', () => {
 
 	/**
 	 * 概要:
-	 * - commit後も選択Blockがなく同じReorder Modeが維持されている場合だけ対象Tableを再選択することを確認する。
+	 * - 選択解除ありのcommitでは、選択Blockがなく同じReorder Modeが維持されている場合だけ対象Tableを再選択することを確認する。
 	 *
 	 * 事前条件:
 	 * - Table Aが選択され、行並び替えモードが有効である。
 	 *
 	 * 操作:
-	 * - Row `0 → 1`のPoC commitを実行する。
+	 * - Row `0 → 1`の選択解除ありPoC commitを実行する。
 	 *
 	 * 期待結果:
 	 * - Table選択を一度解除する。
 	 * - `updateBlockAttributes()`を一度だけ実行する。
 	 * - Reorder Modeを維持したままTable Aを再選択する。
 	 */
-	it( 'when selection remains empty after commit, should reselect the active reorder table', async () => {
+	it( 'when clear-before-commit leaves selection empty, should reselect the active reorder table', async () => {
 		reorderModeIntegration.select( 'row', table.clientId );
 
 		const result = await runRowReorderCommitPoC( 0, 1 );
@@ -122,7 +123,40 @@ describe( 'Reorder commit lifecycle PoC', () => {
 		expect( selectBlock ).toHaveBeenCalledTimes( 1 );
 		expect( selectBlock ).toHaveBeenCalledWith( table.clientId, null );
 		expect( reorderModeIntegration.isSelected( 'row', table.clientId ) ).toBe( true );
+		expect( result.selectionStrategy ).toBe( 'clear-before-commit' );
 		expect( result.selectionOutcome ).toBe( 'reselected-table' );
+	} );
+
+	/**
+	 * 概要:
+	 * - 選択解除なしの比較経路ではTable選択を維持したまま、同じ属性更新と観測境界を通ることを確認する。
+	 *
+	 * 事前条件:
+	 * - Table Aが選択され、行並び替えモードが有効である。
+	 *
+	 * 操作:
+	 * - Row `0 → 1`の選択解除なしPoC commitを実行する。
+	 *
+	 * 期待結果:
+	 * - `clearSelectedBlock()`を呼ばない。
+	 * - `updateBlockAttributes()`は一度だけ実行する。
+	 * - Table Aの選択とReorder Modeを維持し、再選択しない。
+	 */
+	it( 'when keeping selection for comparison, should update once without clearing or reselecting', async () => {
+		reorderModeIntegration.select( 'row', table.clientId );
+
+		const result = await runRowReorderCommitWithoutClearPoC( 0, 1 );
+
+		expect( clearSelectedBlock ).not.toHaveBeenCalled();
+		expect( updateBlockAttributes ).toHaveBeenCalledTimes( 1 );
+		expect( updateBlockAttributes ).toHaveBeenCalledWith( table.clientId, {
+			body: [ table.attributes.body[ 1 ], table.attributes.body[ 0 ] ],
+		} );
+		expect( selectBlock ).not.toHaveBeenCalled();
+		expect( selectedClientId ).toBe( table.clientId );
+		expect( reorderModeIntegration.isSelected( 'row', table.clientId ) ).toBe( true );
+		expect( result.selectionStrategy ).toBe( 'keep-selected' );
+		expect( result.selectionOutcome ).toBe( 'table-already-selected' );
 	} );
 
 	/**
@@ -184,7 +218,7 @@ describe( 'Reorder commit lifecycle PoC', () => {
 
 	/**
 	 * 概要:
-	 * - 実Editorから第2段階PoCを実行するための一時APIが登録されることを確認する。
+	 * - 実Editorから第2段階PoCとA/B比較を実行する一時APIが登録されることを確認する。
 	 *
 	 * 事前条件:
 	 * - PoC APIはまだwindowへ登録されていない。
@@ -193,16 +227,18 @@ describe( 'Reorder commit lifecycle PoC', () => {
 	 * - PoC APIを登録する。
 	 *
 	 * 期待結果:
-	 * - Row / Column commitとcommit処理中確認の入口が公開される。
+	 * - Row / Columnそれぞれに選択解除あり / なしのcommit入口が公開される。
 	 */
-	it( 'when the PoC runner is registered, should expose row and column commit entry points', () => {
+	it( 'when the PoC runner is registered, should expose clear and no-clear comparison entry points', () => {
 		registerReorderCommitLifecyclePoC();
 
 		const testWindow = window as TestWindow;
 		expect( testWindow.ytrReorderCommitPoC ).toEqual( {
 			column: expect.any( Function ),
+			columnWithoutClear: expect.any( Function ),
 			isCommitting: expect.any( Function ),
 			row: expect.any( Function ),
+			rowWithoutClear: expect.any( Function ),
 		} );
 	} );
 } );
