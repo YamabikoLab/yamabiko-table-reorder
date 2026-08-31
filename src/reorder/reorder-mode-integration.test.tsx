@@ -155,7 +155,9 @@ describe( 'Reorder Mode integration', () => {
 		expect( columnButton.getAttribute( 'aria-pressed' ) ).toBe( 'false' );
 		expect( rowButton.querySelector( 'svg' ) ).not.toBeNull();
 		expect( columnButton.querySelector( 'svg' ) ).not.toBeNull();
-		expect( container.querySelector( '[data-testid="table-edit"]' )?.parentElement ).toBe( container );
+		expect( container.querySelector( '[data-testid="table-edit"]' )?.parentElement ).toBe(
+			container
+		);
 	} );
 
 	/**
@@ -177,11 +179,17 @@ describe( 'Reorder Mode integration', () => {
 
 		act( () => {
 			root.render(
-				<WrappedBlockListBlock clientId="table-a" name="core/table" wrapperProps={ { title: 'table' } } />
+				<WrappedBlockListBlock
+					clientId="table-a"
+					name="core/table"
+					wrapperProps={ { title: 'table' } }
+				/>
 			);
 		} );
 
-		const blockWrapper = container.querySelector< HTMLDivElement >( '[data-testid="block-wrapper"]' );
+		const blockWrapper = container.querySelector< HTMLDivElement >(
+			'[data-testid="block-wrapper"]'
+		);
 		if ( ! blockWrapper ) {
 			throw new Error( 'Expected Gutenberg Block wrapper was not rendered.' );
 		}

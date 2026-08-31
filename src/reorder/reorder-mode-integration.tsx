@@ -253,7 +253,7 @@ export const withReorderModeBlockListBlock = (
 					onDoubleClickCapture: editingStartHandler,
 					onMouseDownCapture: editingStartHandler,
 					onPointerDownCapture: editingStartHandler,
-				}
+			  }
 			: wrapperProps;
 
 		return <BlockListBlock { ...props } wrapperProps={ reorderWrapperProps } />;

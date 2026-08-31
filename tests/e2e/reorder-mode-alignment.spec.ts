@@ -56,9 +56,7 @@ test.describe( 'Reorder Mode Table alignment', () => {
 		await alignmentButton.click();
 		await page.getByRole( 'menuitem', { name: /^(None|なし)$/ } ).click();
 		await expect( tableFigure ).not.toHaveClass( /align(?:wide|full)/ );
-		await expect
-			.poll( () => getTableWidth( tableFigure ) )
-			.toBeCloseTo( normalWidth, 0 );
+		await expect.poll( () => getTableWidth( tableFigure ) ).toBeCloseTo( normalWidth, 0 );
 
 		await expect( reorderRowsButton ).toHaveAttribute( 'aria-pressed', 'true' );
 	} );
