@@ -49,10 +49,7 @@ const installSynchronousAnimationFrame = () => {
 describe( 'Reorder commit lifecycle PoC', () => {
 	const table: BlockRecord = {
 		attributes: {
-			body: [
-				{ cells: [ { content: 'A' } ] },
-				{ cells: [ { content: 'B' } ] },
-			],
+			body: [ { cells: [ { content: 'A' } ] }, { cells: [ { content: 'B' } ] } ],
 		},
 		clientId: 'table-a',
 		name: 'core/table',
@@ -82,7 +79,7 @@ describe( 'Reorder commit lifecycle PoC', () => {
 					updateBlockAttributes,
 				} ),
 				select: () => ( {
-					getBlock: ( clientId ) => ( clientId === table.clientId ? table : null ),
+					getBlock: ( clientId: string ) => ( clientId === table.clientId ? table : null ),
 					getSelectedBlockClientId: () => selectedClientId,
 				} ),
 			},

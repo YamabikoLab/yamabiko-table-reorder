@@ -134,7 +134,7 @@ const getWordPressData = (): WordPressData => {
  * @param toIndex   移動後の0-based位置。
  * @return 元の要素参照を維持した新しい配列。
  */
-const moveItem = < T, >( items: T[], fromIndex: number, toIndex: number ): T[] => {
+const moveItem = < T >( items: T[], fromIndex: number, toIndex: number ): T[] => {
 	const indicesAreValid =
 		Number.isInteger( fromIndex ) &&
 		Number.isInteger( toIndex ) &&
@@ -387,8 +387,6 @@ export const runColumnReorderCommitPoC = async (
 
 /**
  * 実WordPress EditorのDevToolsから第2段階PoCを実行できる一時APIを登録する。
- *
- * @return なし。
  */
 export const registerReorderCommitLifecyclePoC = (): void => {
 	const editorWindow = window as ReorderCommitPoCWindow;
