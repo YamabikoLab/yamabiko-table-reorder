@@ -2,7 +2,7 @@
  * Reorder ModeとWordPress Editor接続境界のReact lifecycleを確認する。
  *
  * 実Editorの描画詳細には依存せず、実際のReact購読とEffectを通して、Toolbar入口、通常編集との排他、
- * および別Tableへ操作対象が移った場合のLifecycleが描画へ反映されることを検証する。
+ * および操作対象が別Blockへ移った場合のLifecycleが描画へ反映されることを検証する。
  */
 
 import type { BlockEditProps } from '@wordpress/blocks';
@@ -167,21 +167,20 @@ describe( 'Reorder Mode integration', () => {
 	} );
 
 	/**
-	 * 並び替えモード中のTableへ戻る最初の入力でも、通常編集を開始せず同じTableを再選択できることを確認する。
+	 * 並び替えモード中のTableから別Blockへ操作対象を移すと、通常編集へ戻ることを確認する。
 	 *
 	 * 事前条件:
 	 * - Table Aで行並び替えモードが選択されている。
-	 * - Table Aは一度非選択となっているが、Reorder ModeはTable Aに対して有効なままである。
+	 * - Table Aは選択中である。
 	 *
 	 * 操作:
-	 * - 同じTable Aの内容へ戻る入力を行う。
-	 * - WordPress Editor標準のfocusによるBlock再選択をReact描画へ反映する。
+	 * - Table Aを非選択状態へ更新する。
 	 *
 	 * 期待結果:
-	 * - 戻る最初の入力ではTable内容編集の開始が抑止され、Table Aの接続境界だけへfocusが移る。
-	 * - Table Aの再選択後も行並び替えモードが維持され、Toolbar入口が選択状態で再表示される。
+	 * - Reorder Modeは通常編集へ戻る。
+	 * - Table Aへ戻る入力は抑止されず、WordPress Editor標準の再選択Lifecycleを利用できる。
 	 */
-	it( 'when returning to the active reorder table, should reselect the table without starting content editing', () => {
+	it( 'when the active reorder table loses selection, should return to edit mode', () => {
 		const selectedTable = {
 			attributes: {},
 			clientId: 'table-a',
@@ -198,28 +197,22 @@ describe( 'Reorder Mode integration', () => {
 		act( () => {
 			getToolbarButton( container, 'Reorder rows' ).click();
 		} );
-
-		renderTable( root, Wrapped, unselectedTable );
-		expect( container.querySelector( '[data-testid="block-controls"]' ) ).toBeNull();
 		expect( reorderModeIntegration.isSelected( 'row', 'table-a' ) ).toBe( true );
 
-		const editWrapper = container.querySelector< HTMLElement >( '[data-testid="table-edit"]' )
-			?.parentElement;
+		renderTable( root, Wrapped, unselectedTable );
+
+		expect( container.querySelector( '[data-testid="block-controls"]' ) ).toBeNull();
+		expect( reorderModeIntegration.isSelected( 'row', 'table-a' ) ).toBe( false );
+		expect( reorderModeIntegration.isEditingAllowed( 'table-a' ) ).toBe( true );
+
+		const editWrapper = container.querySelector( '[data-testid="table-edit"]' )?.parentElement;
 		if ( ! editWrapper ) {
 			throw new Error( 'Expected Table edit wrapper was not rendered.' );
 		}
 
 		const pointerDown = new Event( 'pointerdown', { bubbles: true, cancelable: true } );
 		editWrapper.dispatchEvent( pointerDown );
-
-		expect( pointerDown.defaultPrevented ).toBe( true );
-		expect( editWrapper.ownerDocument.activeElement ).toBe( editWrapper );
-		expect( reorderModeIntegration.isSelected( 'row', 'table-a' ) ).toBe( true );
-
-		renderTable( root, Wrapped, selectedTable );
-		expect( getToolbarButton( container, 'Reorder rows' ).getAttribute( 'aria-pressed' ) ).toBe(
-			'true'
-		);
+		expect( pointerDown.defaultPrevented ).toBe( false );
 	} );
 
 	/**
