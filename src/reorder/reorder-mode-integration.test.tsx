@@ -213,7 +213,7 @@ describe( 'Reorder Mode integration', () => {
 		editWrapper.dispatchEvent( pointerDown );
 
 		expect( pointerDown.defaultPrevented ).toBe( true );
-		expect( document.activeElement ).toBe( editWrapper );
+		expect( editWrapper.ownerDocument.activeElement ).toBe( editWrapper );
 		expect( reorderModeIntegration.isSelected( 'row', 'table-a' ) ).toBe( true );
 
 		renderTable( root, Wrapped, selectedTable );
