@@ -51,7 +51,7 @@ Editor DOM ContextはWordPress Editorの現在のeditor contextからDOM / Web A
 
 Row Reorderは、モード境界、共通入口案内境界、editor context、行の再案内候補検出、入力、Table Block差、移動対象判定、移動先判定、DnD Session、表示、自動スクロール、Table更新を別責務として扱う。
 
-Reorder ModeはTableツールバーの行・列入口と`edit | row | column`の排他状態を所有し、`row | column`を入口選択時のTable Identityへ関連付ける外側の境界である。選択中の入口の再選択では`edit`へ戻り、別方向の入口選択ではその方向へ切り替える。同じTable内では選択中のモードを維持し、別Tableへ操作対象が移った場合は`edit`へ戻る。Toolbar componentのunmount / remountそのものはモード終了条件としない。Reorder Modeは行DnDのSessionや方向固有Table情報を所有せず、Row Reorderへは行DnDが有効であることだけを提供する。
+Reorder ModeはTableツールバーの行・列入口と`edit | row | column`の排他状態を所有し、`row | column`を入口選択時のTable Identityへ関連付ける外側の境界である。選択中の入口の再選択では`edit`へ戻り、別方向の入口選択ではその方向へ切り替える。同じTable内では選択中のモードを維持し、別Blockを選択した場合は`edit`へ戻る。Toolbar componentのunmount / remountそのものはモード終了条件としない。Reorder Modeは行DnDのSessionや方向固有Table情報を所有せず、Row Reorderへは行DnDが有効であることだけを提供する。
 
 Reorder Guidanceは初回案内と再案内でReorder Modeが所有する行・列の入口をまとめて案内する外側の境界であり、入口選択状態そのもの、行DnD Session、Column Reorder内部状態を所有しない。Editor DOM Contextは現在のWordPress Editorに属するDOM / Web API contextを必要な時点で解決する共有境界であり、Row Reorder固有状態を所有しない。
 
@@ -220,7 +220,7 @@ Tableツールバーの入口選択を受け取り、行または列のモード
 
 ##### Lifecycle
 
-`edit`から開始する。入口選択により選択時のTable Identityへ関連付けられた`row`または`column`へ移行する。同じTable内では現在のモードを維持し、別Tableへ操作対象が移った場合は`edit`へ戻る。選択中の入口の再選択でも`edit`へ戻り、別方向の入口選択では同じTableに対する方向を切り替える。
+`edit`から開始する。入口選択により選択時のTable Identityへ関連付けられた`row`または`column`へ移行する。同じTable内では現在のモードを維持し、別Blockを選択した場合は`edit`へ戻る。選択中の入口の再選択でも`edit`へ戻り、別方向の入口選択では同じTableに対する方向を切り替える。
 
 DnDのcomplete、cancel、成立しないdropだけではReorder Modeを終了しない。DnDを安全に継続できなくなった場合は、そのDnD終了後に現在のTableでReorder Modeを安全に継続できるかを評価し、継続できる場合は選択中の`row | column`を維持し、継続できない場合だけ`edit`へ戻る。Toolbar componentのunmount / remountそのものはモード終了条件としない。
 
@@ -624,7 +624,7 @@ Row Reorder内部のErrorがstart、progress、complete、cancelのoperation bou
 
 Reorder ModeとReorder GuidanceはRow Reorderの外側にある。Reorder ModeはTableツールバーの行・列入口、`edit | row | column`の排他状態、および`row | column`を関連付ける最小限のTable Identityを所有する。Reorder GuidanceはPC / タッチごとの初回案内表示済み状態と、Reorder Modeが所有する行・列入口をまとめて提示する共通案内状態だけを所有する。
 
-Reorder Modeは`row | column`中の対象Table編集を開始させず、通常編集と並び替えモードを排他的に成立させる。同じTable内では選択中モードを維持し、別Tableへ操作対象が移った場合は`edit`へ戻る。Toolbar componentのunmount / remountはそれ自体ではLifecycle境界としない。
+Reorder Modeは`row | column`中の対象Table編集を開始させず、通常編集と並び替えモードを排他的に成立させる。同じTable内では選択中モードを維持し、別Blockを選択した場合は`edit`へ戻る。Toolbar componentのunmount / remountはそれ自体ではLifecycle境界としない。
 
 Row Reorderは通常編集時に行を移動しようとする操作の検出を所有できるが、その検出結果を列入口まで含む案内状態へ変換しない。Column Reorder側の検出状態や内部仕様にも依存しない。Row Reorderへ公開されるReorder Mode情報は、対象Tableで行並び替えが有効であることだけとする。
 
@@ -688,7 +688,7 @@ Core TableとFlexible Table Blockの表現差はTable Integrationが吸収する
 
 ### AD-03 Reorder Modeを外側のTable単位排他境界として維持する
 
-通常編集 / 行 / 列の排他状態、Tableツールバーの行・列入口、および選択中モードのTable単位Lifecycleは方向をまたいで一つである必要があるためReorder Modeが所有する。`row | column`は入口選択時のTable Identityへ関連付け、同じTable内では維持し、別Tableへの移動または現在Tableでモード自体を安全に継続できない場合に`edit`へ戻す。Row Reorderへは対象Tableで行が有効であることだけを渡し、Row / Columnの内部実装を接続する共通Reorder責務にはしない。
+通常編集 / 行 / 列の排他状態、Tableツールバーの行・列入口、および選択中モードのTable単位Lifecycleは方向をまたいで一つである必要があるためReorder Modeが所有する。`row | column`は入口選択時のTable Identityへ関連付け、同じTable内では維持し、別Blockの選択または現在Tableでモード自体を安全に継続できない場合に`edit`へ戻す。Row Reorderへは対象Tableで行が有効であることだけを渡し、Row / Columnの内部実装を接続する共通Reorder責務にはしない。
 
 ### AD-04 共通入口案内をRow Reorder外へ置く
 
