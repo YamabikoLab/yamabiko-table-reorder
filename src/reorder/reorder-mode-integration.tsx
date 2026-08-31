@@ -9,7 +9,6 @@ import { BlockControls } from '@wordpress/block-editor';
 import type { BlockEditProps } from '@wordpress/blocks';
 import { ToolbarButton, ToolbarGroup } from '@wordpress/components';
 import { useEffect, useSyncExternalStore, type ComponentType } from '@wordpress/element';
-import { tableColumnAfter, tableRowAfter } from '@wordpress/icons';
 
 import { getColumnReorderName, getRowReorderName } from '@/messages';
 
@@ -34,6 +33,77 @@ type EditingStartEvent = {
 	preventDefault: () => void;
 };
 
+/** Block wrapperへ追加できる編集開始入力handler。 */
+type EditingStartWrapperProps = {
+	onDoubleClickCapture?: ( event: EditingStartEvent ) => void;
+	onMouseDownCapture?: ( event: EditingStartEvent ) => void;
+	onPointerDownCapture?: ( event: EditingStartEvent ) => void;
+	[ key: string ]: unknown;
+};
+
+/** BlockListBlock HOCが利用するprops。 */
+type ReorderModeBlockListBlockProps = {
+	clientId: string;
+	name: string;
+	wrapperProps?: EditingStartWrapperProps;
+	[ key: string ]: unknown;
+};
+
+/**
+ * 行並び替えToolbar入口に表示する専用アイコン。
+ */
+const rowReorderIcon = (
+	<svg
+		aria-hidden="true"
+		fill="none"
+		stroke="currentColor"
+		strokeLinecap="round"
+		strokeLinejoin="round"
+		strokeWidth="1.5"
+		viewBox="0 0 24 24"
+		xmlns="http://www.w3.org/2000/svg"
+	>
+		<rect height="4" rx="0.75" width="14" x="2.5" y="3.5" />
+		<line x1="6" x2="6" y1="3.5" y2="7.5" />
+		<line x1="8.25" x2="13.75" y1="5.5" y2="5.5" />
+		<rect height="4" rx="0.75" width="14" x="2.5" y="10" />
+		<line x1="6" x2="6" y1="10" y2="14" />
+		<line x1="8.25" x2="13.75" y1="12" y2="12" />
+		<rect height="4" rx="0.75" width="14" x="2.5" y="16.5" />
+		<line x1="6" x2="6" y1="16.5" y2="20.5" />
+		<line x1="8.25" x2="13.75" y1="18.5" y2="18.5" />
+		<line x1="20" x2="20" y1="6.25" y2="17.75" />
+		<polyline points="18,8.25 20,6.25 22,8.25" />
+		<polyline points="18,15.75 20,17.75 22,15.75" />
+	</svg>
+);
+
+/**
+ * 列並び替えToolbar入口に表示する専用アイコン。
+ */
+const columnReorderIcon = (
+	<svg
+		aria-hidden="true"
+		fill="none"
+		stroke="currentColor"
+		strokeLinecap="round"
+		strokeLinejoin="round"
+		strokeWidth="1.5"
+		viewBox="0 0 24 24"
+		xmlns="http://www.w3.org/2000/svg"
+	>
+		<rect height="14" rx="0.75" width="4" x="3.5" y="2.5" />
+		<line x1="3.5" x2="7.5" y1="6" y2="6" />
+		<rect height="14" rx="0.75" width="4" x="10" y="2.5" />
+		<line x1="10" x2="14" y1="6" y2="6" />
+		<rect height="14" rx="0.75" width="4" x="16.5" y="2.5" />
+		<line x1="16.5" x2="20.5" y1="6" y2="6" />
+		<line x1="6.25" x2="17.75" y1="20" y2="20" />
+		<polyline points="8.25,18 6.25,20 8.25,22" />
+		<polyline points="15.75,18 17.75,20 15.75,22" />
+	</svg>
+);
+
 /**
  * Reorder ModeのrevisionをReactへ購読させる。
  *
@@ -47,6 +117,15 @@ const useReorderModeRevision = () =>
 		reorderModeIntegration.getRevision,
 		reorderModeIntegration.getRevision
 	);
+
+/**
+ * 並び替えモード中の選択Tableで、通常の内容編集だけを開始させない。
+ *
+ * @param event Table内容への編集開始につながる入力イベント。
+ */
+const preventEditingStart = ( event: EditingStartEvent ) => {
+	event.preventDefault();
+};
 
 /**
  * 対応TableのToolbar入口と編集可否をReorder Modeへ接続する。
@@ -87,29 +166,12 @@ const ReorderModeEdit = ( componentProps: ReorderModeEditProps ) => {
 		reorderModeIntegration.select( kind, clientId );
 	};
 
-	/**
-	 * 並び替えモード中の選択Tableで、通常の内容編集だけを開始させない。
-	 *
-	 * @param event Table内容への編集開始につながる入力イベント。
-	 */
-	const preventEditingStart = ( event: EditingStartEvent ) => {
-		event.preventDefault();
-	};
-
-	const editingAllowed = reorderModeIntegration.isEditingAllowed( clientId );
-	const editingStartHandler = isSelected && ! editingAllowed ? preventEditingStart : undefined;
 	const rowSelected = reorderModeIntegration.isSelected( 'row', clientId );
 	const columnSelected = reorderModeIntegration.isSelected( 'column', clientId );
 
 	return (
 		<>
-			<div
-				onDoubleClickCapture={ editingStartHandler }
-				onMouseDownCapture={ editingStartHandler }
-				onPointerDownCapture={ editingStartHandler }
-			>
-				<BlockEdit { ...props } />
-			</div>
+			<BlockEdit { ...props } />
 			{ /*
 			 * Toolbar入口は現在選択中の対応Tableだけに表示し、他のTableへ操作対象を広げない。
 			 */ }
@@ -117,13 +179,13 @@ const ReorderModeEdit = ( componentProps: ReorderModeEditProps ) => {
 				<BlockControls>
 					<ToolbarGroup>
 						<ToolbarButton
-							icon={ tableRowAfter }
+							icon={ rowReorderIcon }
 							isPressed={ rowSelected }
 							label={ getRowReorderName() }
 							onClick={ () => selectReorderMode( 'row' ) }
 						/>
 						<ToolbarButton
-							icon={ tableColumnAfter }
+							icon={ columnReorderIcon }
 							isPressed={ columnSelected }
 							label={ getColumnReorderName() }
 							onClick={ () => selectReorderMode( 'column' ) }
@@ -136,7 +198,9 @@ const ReorderModeEdit = ( componentProps: ReorderModeEditProps ) => {
 };
 
 /**
- * BlockEditへReorder Modeの接続境界を追加するHOC。
+ * BlockEditへReorder ModeのToolbar接続境界を追加するHOC。
+ *
+ * BlockEdit自体は独自DOM要素で囲まず、Gutenberg本来のBlock構造を維持する。
  *
  * @param BlockEdit Gutenbergが提供する元のBlockEdit component。
  * @return 対応TableだけへReorder Modeを接続するBlockEdit component。
@@ -157,4 +221,40 @@ export const withReorderMode = ( BlockEdit: ComponentType< TableBlockEditProps >
 		}
 
 		return <ReorderModeEdit BlockEdit={ BlockEdit } props={ props } />;
+	};
+
+/**
+ * Gutenberg既存のBlock wrapperへ、並び替えモード中の内容編集抑止だけを追加するHOC。
+ *
+ * 新しいDOM階層を追加せず、Block Toolbarや配置操作を既存のEditor構造のまま利用可能にする。
+ *
+ * @param BlockListBlock Gutenbergが提供する元のBlockListBlock component。
+ * @return 対応Tableの既存Block wrapperだけへ編集開始抑止を追加するcomponent。
+ */
+export const withReorderModeBlockListBlock = (
+	BlockListBlock: ComponentType< ReorderModeBlockListBlockProps >
+) =>
+	/**
+	 * 対応Tableの既存Block wrapperへReorder Modeの編集可否を反映する。
+	 *
+	 * @param props Gutenbergから渡されるBlockListBlock props。
+	 * @return Gutenberg本来のBlock wrapper構造を維持したBlockListBlock。
+	 */
+	function WithReorderModeBlockListBlock( props: ReorderModeBlockListBlockProps ) {
+		useReorderModeRevision();
+
+		const { clientId, name, wrapperProps } = props;
+		const editingAllowed = reorderModeIntegration.isEditingAllowed( clientId );
+		const shouldPreventEditing = SUPPORTED_TABLE_BLOCKS.has( name ) && ! editingAllowed;
+		const editingStartHandler = shouldPreventEditing ? preventEditingStart : undefined;
+		const reorderWrapperProps = shouldPreventEditing
+			? {
+					...wrapperProps,
+					onDoubleClickCapture: editingStartHandler,
+					onMouseDownCapture: editingStartHandler,
+					onPointerDownCapture: editingStartHandler,
+				}
+			: wrapperProps;
+
+		return <BlockListBlock { ...props } wrapperProps={ reorderWrapperProps } />;
 	};
