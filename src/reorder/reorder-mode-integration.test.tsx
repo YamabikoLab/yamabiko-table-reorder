@@ -203,9 +203,8 @@ describe( 'Reorder Mode integration', () => {
 		expect( container.querySelector( '[data-testid="block-controls"]' ) ).toBeNull();
 		expect( reorderModeIntegration.isSelected( 'row', 'table-a' ) ).toBe( true );
 
-		const editWrapper = container.querySelector< HTMLElement >(
-			'[data-testid="table-edit"]'
-		)?.parentElement;
+		const editWrapper = container.querySelector< HTMLElement >( '[data-testid="table-edit"]' )
+			?.parentElement;
 		if ( ! editWrapper ) {
 			throw new Error( 'Expected Table edit wrapper was not rendered.' );
 		}
