@@ -17,13 +17,7 @@ jest.mock( '@wordpress/block-editor', () => ( {
 } ) );
 
 jest.mock( '@wordpress/components', () => ( {
-	ToolbarButton: ( {
-		label,
-		onClick,
-	}: {
-		label: string;
-		onClick: () => void;
-	} ) => (
+	ToolbarButton: ( { label, onClick }: { label: string; onClick: () => void } ) => (
 		<button aria-label={ label } onClick={ onClick } type="button">
 			{ label }
 		</button>
@@ -47,7 +41,11 @@ type ReactActGlobal = typeof globalThis & {
  * @param Wrapped Reorder Modeへ接続済みBlockEdit component。
  * @param props   Gutenbergから渡されるBlock props。
  */
-const renderBlock = ( root: Root, Wrapped: ReturnType< typeof withReorderMode >, props: BlockProps ) => {
+const renderBlock = (
+	root: Root,
+	Wrapped: ReturnType< typeof withReorderMode >,
+	props: BlockProps
+) => {
 	act( () => {
 		root.render( <Wrapped { ...props } /> );
 	} );
