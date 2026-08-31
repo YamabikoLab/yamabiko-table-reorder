@@ -1,3 +1,9 @@
+/**
+ * Editor DOM Contextが現在の基準要素に属する表示環境だけを解決することを検証する。
+ *
+ * iframeと非iframeの両方で、古い表示環境を保持せず、利用できない表示環境を別の値で代用しないことを確認する。
+ */
+
 import { resolveEditorDomContext } from './editor-dom-context';
 
 describe( 'Editor DOM Context', () => {
@@ -61,6 +67,58 @@ describe( 'Editor DOM Context', () => {
 		} );
 
 		iframe.remove();
+	} );
+
+	/**
+	 * エディター表示環境が再生成された場合は、現在の基準要素から新しいcontextを解決し直すことを確認する。
+	 *
+	 * 事前条件:
+	 * - 最初のiframeに属する基準要素からcontextを解決済みである。
+	 * - その後、別のiframeが現在のエディター表示環境として生成されている。
+	 *
+	 * 操作:
+	 * - 新しいiframeに属する基準要素からEditor DOM Contextを改めて解決する。
+	 *
+	 * 期待結果:
+	 * - 以前のcontextを保持せず、新しい基準要素のdocumentとwindowが返される。
+	 */
+	it( 'when the editor browsing context changes, should resolve the current reference context again', () => {
+		const firstIframe = document.createElement( 'iframe' );
+		document.body.append( firstIframe );
+		const firstDocument = firstIframe.contentDocument;
+
+		expect( firstDocument ).not.toBeNull();
+		if ( firstDocument === null ) {
+			firstIframe.remove();
+			throw new Error( 'first iframe browsing context was not created' );
+		}
+
+		const firstReference = firstDocument.createElement( 'div' );
+		const firstContext = resolveEditorDomContext( firstReference );
+		firstIframe.remove();
+
+		const currentIframe = document.createElement( 'iframe' );
+		document.body.append( currentIframe );
+		const currentDocument = currentIframe.contentDocument;
+		const currentWindow = currentIframe.contentWindow;
+
+		expect( currentDocument ).not.toBeNull();
+		expect( currentWindow ).not.toBeNull();
+		if ( currentDocument === null || currentWindow === null ) {
+			currentIframe.remove();
+			throw new Error( 'current iframe browsing context was not created' );
+		}
+
+		const currentReference = currentDocument.createElement( 'div' );
+		const currentContext = resolveEditorDomContext( currentReference );
+
+		expect( currentContext ).toEqual( {
+			document: currentDocument,
+			window: currentWindow,
+		} );
+		expect( currentContext ).not.toEqual( firstContext );
+
+		currentIframe.remove();
 	} );
 
 	/**

@@ -8,14 +8,14 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "POT-Creation-Date: 2026-08-23T07:05:15+09:00\n"
-"PO-Revision-Date: 2026-08-20 06:05+0900\n"
+"PO-Revision-Date: 2026-08-31 12:00+0900\n"
 "Language: ja\n"
 "Plural-Forms: nplurals=1; plural=0;\n"
 "X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: yamabiko-table-reorder\n"
 
 #. Plugin Name of the plugin
-#: src/messages.ts:3
+#: src/messages.ts:10
 #: yamabiko-table-reorder.php
 msgid "Yamabiko Table Reorder"
 msgstr "Yamabiko Table Reorder"
@@ -29,3 +29,11 @@ msgstr ""
 #: yamabiko-table-reorder.php
 msgid "Table reordering for supported blocks in the WordPress block editor."
 msgstr ""
+
+#: src/messages.ts:17
+msgid "Reorder rows"
+msgstr "行を並び替え"
+
+#: src/messages.ts:24
+msgid "Reorder columns"
+msgstr "列を並び替え"
