@@ -1,3 +1,9 @@
+/**
+ * Reorder Modeの状態、Table単位のライフサイクル、通常編集との排他、および購読境界を検証する。
+ *
+ * WordPressやReactには依存せず、Reorder Mode単体が所有する状態遷移と公開内部仕様だけを確認する。
+ */
+
 import { createReorderMode } from './reorder-mode';
 
 describe( 'Reorder Mode', () => {
