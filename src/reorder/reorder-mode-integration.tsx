@@ -73,16 +73,29 @@ const ReorderModeEdit = ( componentProps: ReorderModeEditProps ) => {
 		reorderMode.select( kind, clientId );
 	};
 
+	/**
+	 * 選択中のTableで、並び替えモードと競合する内容編集の開始だけを抑止する。
+	 *
+	 * Table自体を再選択する操作は許可し、別Blockから同じTableへ戻ったときにToolbarへ再到達できるようにする。
+	 *
+	 * @param event Table内容への編集開始につながる入力イベント。
+	 */
+	const preventEditingStart = ( event: { preventDefault: () => void } ) => {
+		event.preventDefault();
+	};
+
 	const editingAllowed = reorderMode.isEditingAllowed( clientId );
+	const editingStartPrevented = isSelected && ! editingAllowed;
+	const editingStartHandler = editingStartPrevented ? preventEditingStart : undefined;
 	const rowSelected = reorderMode.isSelected( 'row', clientId );
 	const columnSelected = reorderMode.isSelected( 'column', clientId );
 
 	return (
 		<>
 			<div
-				onDoubleClickCapture={ editingAllowed ? undefined : ( event ) => event.preventDefault() }
-				onMouseDownCapture={ editingAllowed ? undefined : ( event ) => event.preventDefault() }
-				onPointerDownCapture={ editingAllowed ? undefined : ( event ) => event.preventDefault() }
+				onDoubleClickCapture={ editingStartHandler }
+				onMouseDownCapture={ editingStartHandler }
+				onPointerDownCapture={ editingStartHandler }
 			>
 				<BlockEdit { ...props } />
 			</div>
