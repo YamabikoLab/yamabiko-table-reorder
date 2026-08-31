@@ -85,6 +85,23 @@ describe( 'Reorder Mode integration', () => {
 	const Wrapped = withReorderMode( BlockEdit );
 
 	/**
+	 * 各テストで共有されるReorder Modeを通常編集へ戻し、テスト間の状態依存を残さない。
+	 *
+	 * 実運用と同じTable変更Lifecycleを利用し、テスト専用の状態変更APIは導入しない。
+	 */
+	afterEach( () => {
+		const resetTable = {
+			attributes: {},
+			clientId: 'test-reset-table',
+			isSelected: true,
+			name: 'core/table',
+			setAttributes: jest.fn(),
+		} as unknown as TableBlockEditProps;
+
+		renderIntegration( Wrapped, resetTable );
+	} );
+
+	/**
 	 * 行入口と列入口が同じTableで排他的に選択され、選択中だけ通常編集を抑止することを確認する。
 	 *
 	 * 事前条件:
