@@ -31,7 +31,6 @@ type ReorderModeEditProps = {
 
 /** Table内容への編集開始につながる入力イベント。 */
 type EditingStartEvent = {
-	currentTarget: HTMLElement;
 	preventDefault: () => void;
 };
 
@@ -63,11 +62,19 @@ const ReorderModeEdit = ( componentProps: ReorderModeEditProps ) => {
 
 	useEffect( () => {
 		/*
-		 * 現在操作しているTableが変わった場合だけReorder Modeへ通知する。
-		 * Toolbar componentの再生成そのものはモード終了条件にしない。
+		 * 選択中の対応Tableを現在操作しているTableとして通知する。
+		 * activeなTableが非選択になった場合は、操作対象がTable外へ移ったものとして通常編集へ戻す。
 		 */
 		if ( isSelected ) {
 			reorderModeIntegration.observeTable( clientId );
+			return;
+		}
+
+		/*
+		 * 並び替えモードの対象Tableだけを終了契機とし、他の非選択Tableは現在状態へ介入させない。
+		 */
+		if ( ! reorderModeIntegration.isEditingAllowed( clientId ) ) {
+			reorderModeIntegration.exit();
 		}
 	}, [ clientId, isSelected ] );
 
@@ -81,23 +88,16 @@ const ReorderModeEdit = ( componentProps: ReorderModeEditProps ) => {
 	};
 
 	/**
-	 * 並び替えモード中のTableで、通常の内容編集だけを開始させない。
-	 *
-	 * Tableが未選択の場合は内容へのfocusを抑止したうえで接続境界へfocusを移し、WordPress Editor標準のBlock選択LifecycleによってTable自体だけを再選択できるようにする。
+	 * 並び替えモード中の選択Tableで、通常の内容編集だけを開始させない。
 	 *
 	 * @param event Table内容への編集開始につながる入力イベント。
 	 */
 	const preventEditingStart = ( event: EditingStartEvent ) => {
 		event.preventDefault();
-
-		if ( ! isSelected ) {
-			event.currentTarget.focus();
-		}
 	};
 
 	const editingAllowed = reorderModeIntegration.isEditingAllowed( clientId );
-	const editingStartHandler = editingAllowed ? undefined : preventEditingStart;
-	const reselectionFocusEnabled = ! isSelected && ! editingAllowed;
+	const editingStartHandler = isSelected && ! editingAllowed ? preventEditingStart : undefined;
 	const rowSelected = reorderModeIntegration.isSelected( 'row', clientId );
 	const columnSelected = reorderModeIntegration.isSelected( 'column', clientId );
 
@@ -107,7 +107,6 @@ const ReorderModeEdit = ( componentProps: ReorderModeEditProps ) => {
 				onDoubleClickCapture={ editingStartHandler }
 				onMouseDownCapture={ editingStartHandler }
 				onPointerDownCapture={ editingStartHandler }
-				tabIndex={ reselectionFocusEnabled ? -1 : undefined }
 			>
 				<BlockEdit { ...props } />
 			</div>
