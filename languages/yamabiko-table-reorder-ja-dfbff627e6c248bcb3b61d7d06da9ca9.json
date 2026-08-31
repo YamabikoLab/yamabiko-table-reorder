@@ -1,5 +1,5 @@
 {
-	"translation-revision-date": "2026-08-20 06:05+0900",
+	"translation-revision-date": "2026-08-31 12:00+0900",
 	"generator": "WP-CLI/2.12.0",
 	"source": "build/index.js",
 	"domain": "messages",
@@ -7,8 +7,8 @@
 		"messages": {
 			"": { "domain": "messages", "lang": "ja", "plural-forms": "nplurals=1; plural=0;" },
 			"Yamabiko Table Reorder": [ "Yamabiko Table Reorder" ],
-			"Reorder rows": [ "" ],
-			"Reorder columns": [ "" ]
+			"Reorder rows": [ "行を並び替え" ],
+			"Reorder columns": [ "列を並び替え" ]
 		}
 	}
 }
