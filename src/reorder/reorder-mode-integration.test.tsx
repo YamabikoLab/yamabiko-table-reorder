@@ -241,20 +241,20 @@ describe( 'Reorder Mode integration', () => {
 
 	/**
 	 * 概要:
-	 * - 並び替えモード中のTableから別Blockへ操作対象を移すと、通常編集へ戻ることを確認する。
+	 * - 並び替えモード中のTableが一時的に非選択になっても、Reorder Modeを維持して同じTableへ復帰できることを確認する。
 	 *
 	 * 事前条件:
 	 * - Core Tableが選択され、行の並び替えモードが選択されている。
 	 *
 	 * 操作:
-	 * - 対象Tableを非選択状態として再描画する。
+	 * - 対象Tableを非選択状態として再描画した後、同じTableを再選択状態として再描画する。
 	 *
 	 * 期待結果:
-	 * - Toolbar入口が表示されなくなる。
-	 * - 行の並び替えモードが終了する。
-	 * - 対象Tableの通常編集が再び許可される。
+	 * - 非選択中はToolbar入口だけが表示されなくなる。
+	 * - 行の並び替えモードと編集抑止は維持される。
+	 * - 同じTableを再選択すると、行のToolbar入口が選択状態のまま復帰する。
 	 */
-	it( 'when the active reorder table loses selection, should return to edit mode', () => {
+	it( 'when the active reorder table is temporarily unselected, should keep reorder mode', () => {
 		const selectedTable = {
 			attributes: {},
 			clientId: 'table-a',
@@ -276,7 +276,63 @@ describe( 'Reorder Mode integration', () => {
 		renderTable( root, Wrapped, unselectedTable );
 
 		expect( container.querySelector( '[data-testid="block-controls"]' ) ).toBeNull();
+		expect( reorderModeIntegration.isSelected( 'row', 'table-a' ) ).toBe( true );
+		expect( reorderModeIntegration.isEditingAllowed( 'table-a' ) ).toBe( false );
+
+		renderTable( root, Wrapped, selectedTable );
+
+		expect( getToolbarButton( container, 'Reorder rows' ).getAttribute( 'aria-pressed' ) ).toBe(
+			'true'
+		);
+	} );
+
+	/**
+	 * 概要:
+	 * - 並び替えモード中のTableから別の対応Tableへ操作対象を移すと、通常編集へ戻ることを確認する。
+	 *
+	 * 事前条件:
+	 * - Core Table Aが選択され、行の並び替えモードが選択されている。
+	 *
+	 * 操作:
+	 * - Table Aを一時的に非選択にした後、別のCore Table Bを選択状態として描画する。
+	 *
+	 * 期待結果:
+	 * - Table Aの一時的な非選択だけではReorder Modeを終了しない。
+	 * - Table Bが観測された時点でReorder Modeを終了する。
+	 * - Table Aの通常編集が再び許可される。
+	 */
+	it( 'when another supported table is selected, should return the active reorder table to edit mode', () => {
+		const tableA = {
+			attributes: {},
+			clientId: 'table-a',
+			isSelected: true,
+			name: 'core/table',
+			setAttributes: jest.fn(),
+		} as unknown as TableBlockEditProps;
+		const unselectedTableA = {
+			...tableA,
+			isSelected: false,
+		};
+		const tableB = {
+			...tableA,
+			clientId: 'table-b',
+		};
+
+		renderTable( root, Wrapped, tableA );
+		act( () => {
+			getToolbarButton( container, 'Reorder rows' ).click();
+		} );
+		expect( reorderModeIntegration.isSelected( 'row', 'table-a' ) ).toBe( true );
+
+		renderTable( root, Wrapped, unselectedTableA );
+		expect( reorderModeIntegration.isSelected( 'row', 'table-a' ) ).toBe( true );
+
+		renderTable( root, Wrapped, tableB );
+
 		expect( reorderModeIntegration.isSelected( 'row', 'table-a' ) ).toBe( false );
 		expect( reorderModeIntegration.isEditingAllowed( 'table-a' ) ).toBe( true );
+		expect( getToolbarButton( container, 'Reorder rows' ).getAttribute( 'aria-pressed' ) ).toBe(
+			'false'
+		);
 	} );
 } );
