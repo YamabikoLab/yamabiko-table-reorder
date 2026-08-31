@@ -1,3 +1,9 @@
+/**
+ * Editor DOM Contextが現在の基準要素に属する表示環境だけを解決することを検証する。
+ *
+ * iframeと非iframeの両方で、古い表示環境を保持せず、利用できない表示環境を別の値で代用しないことを確認する。
+ */
+
 import { resolveEditorDomContext } from './editor-dom-context';
 
 describe( 'Editor DOM Context', () => {
