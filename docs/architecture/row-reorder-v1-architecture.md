@@ -177,7 +177,7 @@ complete時の現在構造への再照合が成立した後、Data Updateまた�
 | RESP_ROW_TABLE_INTEGRATION | EXT_SUPPORTED_TABLE_BLOCK | 対応Table Block固有の行構造取得と行順更新を行うために必要とする。 |
 | RESP_ROW_REORDER_TARGET_RESOLUTION | RESP_ROW_TABLE_INTEGRATION | 移動対象行の成立判定に現在の行構造とTable同一性を必要とする。 |
 | RESP_ROW_DROP_TARGET_RESOLUTION | RESP_ROW_TABLE_INTEGRATION | progress中の移動先判定とcomplete時の再照合に現在の行構造とTable同一性を必要とする。 |
-| RESP_ROW_DND_INTERACTION | RESP_REORDER_MODE | DnD終了後に現在のTableで行並び替えモードを安全に継続できるかという結果を外側のモード境界へ渡すために必要とする。 |
+| RESP_ROW_DND_INTERACTION | RESP_REORDER_MODE | DnD Interactionがモード状態を所有せず、DnD終了後のモードLifecycle判断をReorder Modeの責務として成立させるために必要とする。 |
 | RESP_ROW_DND_INTERACTION | RESP_ROW_REORDER_TARGET_RESOLUTION | Session開始前に移動可能な行を確定するために必要とする。 |
 | RESP_ROW_DND_INTERACTION | RESP_ROW_DROP_TARGET_RESOLUTION | active DnD中の移動先判定とcomplete時の現在構造への再照合を行うために必要とする。 |
 | RESP_ROW_DND_INTERACTION | RESP_ROW_TABLE_INTEGRATION | Sessionが参照するTable同一性と外部Tableの現在利用可否を確認するために必要とする。 |
