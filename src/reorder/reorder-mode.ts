@@ -42,11 +42,11 @@ export type RowReorderMode = {
 };
 
 /**
- * Reorder Mode接続境界が利用する状態遷移と購読境界を表す。
+ * Reorder Mode接続境界が利用する状態遷移と購読の内部仕様を表す。
  *
- * Table内容、行・列構造、DnD Sessionなどの方向固有情報は所有しない。
+ * Row Reorder向け内部仕様は含めず、WordPress / React接続が必要とする操作だけを公開する。
  */
-export type ReorderMode = {
+export type ReorderModeIntegration = {
 	/**
 	 * Tableツールバーで選択された並び替え入口を現在状態へ反映する。
 	 *
@@ -94,6 +94,14 @@ export type ReorderMode = {
 	 * @return Reorder Modeの状態が変化した回数を表す現在revision。
 	 */
 	getRevision: () => number;
+};
+
+/**
+ * Reorder Modeの状態を共有する接続境界とRow Reorder向け内部仕様を表す。
+ *
+ * Table内容、行・列構造、DnD Sessionなどの方向固有情報は所有しない。
+ */
+export type ReorderMode = ReorderModeIntegration & {
 	/** Row Reorderへ公開する最小内部仕様。 */
 	rowReorder: RowReorderMode;
 };
@@ -199,3 +207,32 @@ export const createReorderMode = (): ReorderMode => {
 		rowReorder,
 	};
 };
+
+/**
+ * Toolbar接続と後続のRow Reorderが共有するReorder Modeの正本を所有する。
+ *
+ * 各利用境界へは必要な内部仕様だけを渡し、Reorder Mode全体を共有しない。
+ */
+const sharedReorderMode = createReorderMode();
+
+/**
+ * WordPress / React接続へ提供する共有Reorder Mode内部仕様。
+ *
+ * Row Reorder向け内部仕様は公開せず、ToolbarとTable lifecycleが必要とする操作だけを提供する。
+ */
+export const reorderModeIntegration: ReorderModeIntegration = {
+	select: sharedReorderMode.select,
+	exit: sharedReorderMode.exit,
+	observeTable: sharedReorderMode.observeTable,
+	isSelected: sharedReorderMode.isSelected,
+	isEditingAllowed: sharedReorderMode.isEditingAllowed,
+	subscribe: sharedReorderMode.subscribe,
+	getRevision: sharedReorderMode.getRevision,
+};
+
+/**
+ * Row Reorderへ提供する共有Reorder Mode内部仕様。
+ *
+ * Toolbarと同じReorder Mode状態を参照しつつ、対象Tableで行並び替えが有効かだけを公開する。
+ */
+export const rowReorderMode: RowReorderMode = sharedReorderMode.rowReorder;
