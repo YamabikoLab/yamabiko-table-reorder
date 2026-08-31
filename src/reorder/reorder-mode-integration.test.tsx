@@ -141,6 +141,44 @@ describe( 'Reorder Mode integration', () => {
 	} );
 
 	/**
+	 * 並び替えモード中のTableから別Blockへ移動しても、同じTableを再選択できることを確認する。
+	 *
+	 * 事前条件:
+	 * - Table Aで行並び替えモードが選択されている。
+	 * - Table Aは現在選択されていない。
+	 *
+	 * 操作:
+	 * - Table Aの編集表示を未選択状態で描画する。
+	 *
+	 * 期待結果:
+	 * - Table A自体を再選択する入力は抑止されない。
+	 * - 再選択後は行並び替えモードが維持され、Toolbarへ再到達できる。
+	 */
+	it( 'when an active reorder table is temporarily unselected, should allow selecting that table again', () => {
+		const selectedTable = {
+			attributes: {},
+			clientId: 'table-a',
+			isSelected: true,
+			name: 'core/table',
+			setAttributes: jest.fn(),
+		} as unknown as TableBlockEditProps;
+		const unselectedTable = {
+			...selectedTable,
+			isSelected: false,
+		};
+
+		let rendered = renderIntegration( Wrapped, selectedTable );
+		getToolbarButtons( rendered ).rowButton.props.onClick?.();
+
+		rendered = renderIntegration( Wrapped, unselectedTable );
+		const editWrapper = ( rendered.props.children as ReactElement[] )[ 0 ] as ElementWithProps;
+		expect( editWrapper.props.onPointerDownCapture ).toBeUndefined();
+
+		rendered = renderIntegration( Wrapped, selectedTable );
+		expect( getToolbarButtons( rendered ).rowButton.props.isPressed ).toBe( true );
+	} );
+
+	/**
 	 * 別Tableへ操作対象が移った場合に、前のTableで選択していた並び替えモードを終了することを確認する。
 	 *
 	 * 事前条件:
