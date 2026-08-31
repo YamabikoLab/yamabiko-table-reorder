@@ -12,11 +12,19 @@ import { createRoot, type Root } from 'react-dom/client';
 import { reorderModeIntegration } from './reorder-mode';
 import { withReorderMode } from './reorder-mode-integration';
 
-jest.mock( '@wordpress/block-editor', () => ( {
-	BlockControls: ( { children }: { children: React.ReactNode } ) => (
-		<div data-testid="block-controls">{ children }</div>
-	),
-} ) );
+let mockBlockControlsPortalContainer: HTMLDivElement;
+
+jest.mock( '@wordpress/block-editor', () => {
+	const { createPortal } = jest.requireActual< typeof import( 'react-dom' ) >( 'react-dom' );
+
+	return {
+		BlockControls: ( { children }: { children: React.ReactNode } ) =>
+			createPortal(
+				<div data-testid="block-controls">{ children }</div>,
+				mockBlockControlsPortalContainer
+			),
+	};
+} );
 
 jest.mock( '@wordpress/components', () => ( {
 	ToolbarButton: ( {
@@ -71,7 +79,7 @@ const renderTable = (
 /**
  * 指定されたToolbar入口を取得する。
  *
- * @param container React rootの描画先。
+ * @param container ToolbarがPortal描画される先。
  * @param label     取得するToolbar入口の利用者向け名称。
  * @return 指定されたToolbar入口。
  */
@@ -106,7 +114,9 @@ describe( 'Reorder Mode integration', () => {
 
 	beforeEach( () => {
 		container = document.createElement( 'div' );
+		mockBlockControlsPortalContainer = document.createElement( 'div' );
 		document.body.appendChild( container );
+		document.body.appendChild( mockBlockControlsPortalContainer );
 		root = createRoot( container );
 	} );
 
@@ -116,6 +126,7 @@ describe( 'Reorder Mode integration', () => {
 			root.unmount();
 		} );
 		container.remove();
+		mockBlockControlsPortalContainer.remove();
 	} );
 
 	/**
@@ -144,8 +155,8 @@ describe( 'Reorder Mode integration', () => {
 
 		renderTable( root, Wrapped, props );
 
-		const rowButton = getToolbarButton( container, 'Reorder rows' );
-		const columnButton = getToolbarButton( container, 'Reorder columns' );
+		const rowButton = getToolbarButton( mockBlockControlsPortalContainer, 'Reorder rows' );
+		const columnButton = getToolbarButton( mockBlockControlsPortalContainer, 'Reorder columns' );
 		expect( rowButton.getAttribute( 'aria-pressed' ) ).toBe( 'false' );
 		expect( columnButton.getAttribute( 'aria-pressed' ) ).toBe( 'false' );
 
@@ -164,6 +175,62 @@ describe( 'Reorder Mode integration', () => {
 		const pointerDown = new Event( 'pointerdown', { bubbles: true, cancelable: true } );
 		editWrapper.dispatchEvent( pointerDown );
 		expect( pointerDown.defaultPrevented ).toBe( true );
+	} );
+
+	/**
+	 * Portal上のWordPress標準Toolbar操作が、Table内容編集の抑止対象にならないことを確認する。
+	 *
+	 * 事前条件:
+	 * - 対応Tableで行並び替えモードが選択されている。
+	 * - ToolbarはTable編集wrapperの外側へPortal描画され、React上ではReorder Mode接続境界の子である。
+	 *
+	 * 操作:
+	 * - Table編集領域内とPortal上のToolbar入口から`pointerdown` / `mousedown`を発生させる。
+	 * - Portal上の列入口を選択する。
+	 *
+	 * 期待結果:
+	 * - Table編集領域内の入力は引き続き抑止される。
+	 * - Portal上のToolbar入力はReactのcapture経路を通っても抑止されない。
+	 * - Toolbar操作が成立し、列並び替えモードへ切り替わる。
+	 */
+	it( 'when toolbar input comes from a Portal outside the Table edit region, should not prevent the Toolbar operation', () => {
+		const props = {
+			attributes: {},
+			clientId: 'table-a',
+			isSelected: true,
+			name: 'core/table',
+			setAttributes: jest.fn(),
+		} as unknown as TableBlockEditProps;
+
+		renderTable( root, Wrapped, props );
+		act( () => {
+			getToolbarButton( mockBlockControlsPortalContainer, 'Reorder rows' ).click();
+		} );
+
+		const editWrapper = container.querySelector( '[data-testid="table-edit"]' )?.parentElement;
+		if ( ! editWrapper ) {
+			throw new Error( 'Expected Table edit wrapper was not rendered.' );
+		}
+
+		for ( const eventType of [ 'pointerdown', 'mousedown' ] ) {
+			const editEvent = new Event( eventType, { bubbles: true, cancelable: true } );
+			editWrapper.dispatchEvent( editEvent );
+			expect( editEvent.defaultPrevented ).toBe( true );
+		}
+
+		const columnButton = getToolbarButton( mockBlockControlsPortalContainer, 'Reorder columns' );
+		for ( const eventType of [ 'pointerdown', 'mousedown' ] ) {
+			const toolbarEvent = new Event( eventType, { bubbles: true, cancelable: true } );
+			columnButton.dispatchEvent( toolbarEvent );
+			expect( toolbarEvent.defaultPrevented ).toBe( false );
+		}
+
+		act( () => {
+			columnButton.click();
+		} );
+
+		expect( reorderModeIntegration.isSelected( 'column', 'table-a' ) ).toBe( true );
+		expect( reorderModeIntegration.isSelected( 'row', 'table-a' ) ).toBe( false );
 	} );
 
 	/**
@@ -195,13 +262,13 @@ describe( 'Reorder Mode integration', () => {
 
 		renderTable( root, Wrapped, selectedTable );
 		act( () => {
-			getToolbarButton( container, 'Reorder rows' ).click();
+			getToolbarButton( mockBlockControlsPortalContainer, 'Reorder rows' ).click();
 		} );
 		expect( reorderModeIntegration.isSelected( 'row', 'table-a' ) ).toBe( true );
 
 		renderTable( root, Wrapped, unselectedTable );
 
-		expect( container.querySelector( '[data-testid="block-controls"]' ) ).toBeNull();
+		expect( mockBlockControlsPortalContainer.querySelector( '[data-testid="block-controls"]' ) ).toBeNull();
 		expect( reorderModeIntegration.isSelected( 'row', 'table-a' ) ).toBe( false );
 		expect( reorderModeIntegration.isEditingAllowed( 'table-a' ) ).toBe( true );
 
@@ -244,20 +311,26 @@ describe( 'Reorder Mode integration', () => {
 
 		renderTable( root, Wrapped, tableA );
 		act( () => {
-			getToolbarButton( container, 'Reorder rows' ).click();
+			getToolbarButton( mockBlockControlsPortalContainer, 'Reorder rows' ).click();
 		} );
-		expect( getToolbarButton( container, 'Reorder rows' ).getAttribute( 'aria-pressed' ) ).toBe(
-			'true'
-		);
+		expect(
+			getToolbarButton( mockBlockControlsPortalContainer, 'Reorder rows' ).getAttribute(
+				'aria-pressed'
+			)
+		).toBe( 'true' );
 
 		renderTable( root, Wrapped, tableB );
 
-		expect( getToolbarButton( container, 'Reorder rows' ).getAttribute( 'aria-pressed' ) ).toBe(
-			'false'
-		);
-		expect( getToolbarButton( container, 'Reorder columns' ).getAttribute( 'aria-pressed' ) ).toBe(
-			'false'
-		);
+		expect(
+			getToolbarButton( mockBlockControlsPortalContainer, 'Reorder rows' ).getAttribute(
+				'aria-pressed'
+			)
+		).toBe( 'false' );
+		expect(
+			getToolbarButton( mockBlockControlsPortalContainer, 'Reorder columns' ).getAttribute(
+				'aria-pressed'
+			)
+		).toBe( 'false' );
 
 		const editWrapper = container.querySelector( '[data-testid="table-edit"]' )?.parentElement;
 		if ( ! editWrapper ) {
