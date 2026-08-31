@@ -289,6 +289,14 @@ export const registerRawRowCommitPoCButton = (): void => {
 	button.style.color = 'CanvasText';
 	button.style.cursor = 'pointer';
 
+	/*
+	 * 固定PoCボタンへfocusを移さず、クリック直前までWordPress側のTable選択を維持する。
+	 * Raw commit開始後のclearSelectedBlock()だけを意図した選択解除として扱う。
+	 */
+	button.addEventListener( 'pointerdown', ( event ) => {
+		event.preventDefault();
+	} );
+
 	button.addEventListener( 'click', () => {
 		button.disabled = true;
 
