@@ -12,13 +12,10 @@ import { createRoot, type Root } from 'react-dom/client';
 import { reorderModeIntegration } from './reorder-mode';
 import { withReorderMode } from './reorder-mode-integration';
 
-const mockSelectBlock = jest.fn();
-
 jest.mock( '@wordpress/block-editor', () => ( {
 	BlockControls: ( { children }: { children: React.ReactNode } ) => (
 		<div data-testid="block-controls">{ children }</div>
 	),
-	store: 'core/block-editor',
 } ) );
 
 jest.mock( '@wordpress/components', () => ( {
@@ -38,12 +35,6 @@ jest.mock( '@wordpress/components', () => ( {
 	ToolbarGroup: ( { children }: { children: React.ReactNode } ) => (
 		<div data-testid="toolbar-group">{ children }</div>
 	),
-} ) );
-
-jest.mock( '@wordpress/data', () => ( {
-	useDispatch: () => ( {
-		selectBlock: mockSelectBlock,
-	} ),
 } ) );
 
 jest.mock( '@wordpress/icons', () => ( {
@@ -114,7 +105,6 @@ describe( 'Reorder Mode integration', () => {
 	} );
 
 	beforeEach( () => {
-		mockSelectBlock.mockClear();
 		container = document.createElement( 'div' );
 		document.body.appendChild( container );
 		root = createRoot( container );
@@ -185,10 +175,10 @@ describe( 'Reorder Mode integration', () => {
 	 *
 	 * 操作:
 	 * - 同じTable Aの内容へ戻る入力を行う。
-	 * - WordPressによるTable Aの再選択をReact描画へ反映する。
+	 * - WordPress Editor標準のfocusによるBlock再選択をReact描画へ反映する。
 	 *
 	 * 期待結果:
-	 * - 戻る最初の入力ではTable内容編集の開始が抑止され、Table A自体の選択だけが要求される。
+	 * - 戻る最初の入力ではTable内容編集の開始が抑止され、Table Aの接続境界だけへfocusが移る。
 	 * - Table Aの再選択後も行並び替えモードが維持され、Toolbar入口が選択状態で再表示される。
 	 */
 	it( 'when returning to the active reorder table, should reselect the table without starting content editing', () => {
@@ -213,7 +203,9 @@ describe( 'Reorder Mode integration', () => {
 		expect( container.querySelector( '[data-testid="block-controls"]' ) ).toBeNull();
 		expect( reorderModeIntegration.isSelected( 'row', 'table-a' ) ).toBe( true );
 
-		const editWrapper = container.querySelector( '[data-testid="table-edit"]' )?.parentElement;
+		const editWrapper = container.querySelector< HTMLElement >(
+			'[data-testid="table-edit"]'
+		)?.parentElement;
 		if ( ! editWrapper ) {
 			throw new Error( 'Expected Table edit wrapper was not rendered.' );
 		}
@@ -222,7 +214,8 @@ describe( 'Reorder Mode integration', () => {
 		editWrapper.dispatchEvent( pointerDown );
 
 		expect( pointerDown.defaultPrevented ).toBe( true );
-		expect( mockSelectBlock ).toHaveBeenCalledWith( 'table-a', null );
+		expect( document.activeElement ).toBe( editWrapper );
+		expect( reorderModeIntegration.isSelected( 'row', 'table-a' ) ).toBe( true );
 
 		renderTable( root, Wrapped, selectedTable );
 		expect( getToolbarButton( container, 'Reorder rows' ).getAttribute( 'aria-pressed' ) ).toBe(
