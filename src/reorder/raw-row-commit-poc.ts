@@ -1,3 +1,4 @@
+/* eslint-disable no-console */
 /**
  * #714で高速だったConsole実験をReorder Modeとは独立して再現するPoCを所有する。
  *
@@ -169,7 +170,12 @@ const waitTwoAnimationFrames = (): Promise< void > =>
  */
 const measurePostCommitBoundaries = (
 	startedAt: number
-): Promise< Pick< RawRowCommitPoCResult, 'eventLoopReturnMs' | 'firstAnimationFrameMs' | 'secondAnimationFrameMs' > > =>
+): Promise<
+	Pick<
+		RawRowCommitPoCResult,
+		'eventLoopReturnMs' | 'firstAnimationFrameMs' | 'secondAnimationFrameMs'
+	>
+> =>
 	new Promise( ( resolve ) => {
 		let eventLoopReturnMs: number | null = null;
 		let firstAnimationFrameMs: number | null = null;
