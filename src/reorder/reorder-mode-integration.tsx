@@ -34,10 +34,13 @@ type EditingStartEvent = {
 };
 
 /** Block wrapperへ追加できる編集開始入力handler。 */
+type EditingStartHandler = ( event: EditingStartEvent ) => void;
+
+/** Block wrapperへ追加できる編集開始入力props。 */
 type EditingStartWrapperProps = {
-	onDoubleClickCapture?: ( event: EditingStartEvent ) => void;
-	onMouseDownCapture?: ( event: EditingStartEvent ) => void;
-	onPointerDownCapture?: ( event: EditingStartEvent ) => void;
+	onDoubleClickCapture?: EditingStartHandler;
+	onMouseDownCapture?: EditingStartHandler;
+	onPointerDownCapture?: EditingStartHandler;
 	[ key: string ]: unknown;
 };
 
@@ -126,6 +129,22 @@ const useReorderModeRevision = () =>
 const preventEditingStart = ( event: EditingStartEvent ) => {
 	event.preventDefault();
 };
+
+/**
+ * Gutenberg既存の編集開始入力handlerを維持したまま、Reorder Modeの編集開始抑止を追加する。
+ *
+ * 既存handlerへ先に入力を通知することで他のEditor拡張の処理を維持し、その後に通常編集の開始だけを抑止する。
+ *
+ * @param existingHandler Gutenberg本体または他のfilterが設定した既存handler。
+ * @return 既存処理とReorder Modeの編集開始抑止を順に適用するhandler。
+ */
+const preserveEditingStartHandler = (
+	existingHandler?: EditingStartHandler
+): EditingStartHandler =>
+	( event ) => {
+		existingHandler?.( event );
+		preventEditingStart( event );
+	};
 
 /**
  * 対応TableのToolbar入口と編集可否をReorder Modeへ接続する。
@@ -246,13 +265,18 @@ export const withReorderModeBlockListBlock = (
 		const { clientId, name, wrapperProps } = props;
 		const editingAllowed = reorderModeIntegration.isEditingAllowed( clientId );
 		const shouldPreventEditing = SUPPORTED_TABLE_BLOCKS.has( name ) && ! editingAllowed;
-		const editingStartHandler = shouldPreventEditing ? preventEditingStart : undefined;
 		const reorderWrapperProps = shouldPreventEditing
 			? {
 					...wrapperProps,
-					onDoubleClickCapture: editingStartHandler,
-					onMouseDownCapture: editingStartHandler,
-					onPointerDownCapture: editingStartHandler,
+					onDoubleClickCapture: preserveEditingStartHandler(
+						wrapperProps?.onDoubleClickCapture
+					),
+					onMouseDownCapture: preserveEditingStartHandler(
+						wrapperProps?.onMouseDownCapture
+					),
+					onPointerDownCapture: preserveEditingStartHandler(
+						wrapperProps?.onPointerDownCapture
+					),
 			  }
 			: wrapperProps;
 
