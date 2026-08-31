@@ -129,7 +129,19 @@ describe( 'Reorder Mode integration', () => {
 	} );
 
 	/**
-	 * Toolbar操作によるReorder Modeの変更がReactの購読通知だけで再描画へ反映され、BlockEditへ独自wrapperを追加しないことを確認する。
+	 * 概要:
+	 * - Toolbar操作によるReorder Modeの変更がReactの購読通知だけで再描画へ反映され、BlockEditへ独自wrapperを追加しないことを確認する。
+	 *
+	 * 事前条件:
+	 * - Core Tableが選択され、行・列の並び替えモードはいずれも未選択である。
+	 *
+	 * 操作:
+	 * - 行を並び替えるToolbar入口を選択する。
+	 *
+	 * 期待結果:
+	 * - 行の並び替えモードだけが選択状態になる。
+	 * - 行・列のToolbar入口へ専用SVGアイコンが表示される。
+	 * - BlockEditの親要素として独自wrapperが追加されない。
 	 */
 	it( 'when row toolbar entry is selected, should rerender without adding a BlockEdit wrapper', () => {
 		const props = {
@@ -161,7 +173,20 @@ describe( 'Reorder Mode integration', () => {
 	} );
 
 	/**
-	 * 並び替えモード中はGutenberg既存のBlock wrapperへだけ編集開始抑止を追加し、通常編集へ戻ると解除することを確認する。
+	 * 概要:
+	 * - 並び替えモード中はGutenberg既存のBlock wrapperへ編集開始抑止を追加し、既存handlerを維持したまま通常編集だけを抑止することを確認する。
+	 *
+	 * 事前条件:
+	 * - Core Tableで行の並び替えモードが選択されている。
+	 * - Gutenberg既存のBlock wrapperにpointerdownのcapture handlerが設定されている。
+	 *
+	 * 操作:
+	 * - Block wrapperへpointerdownを送出した後、並び替えモードを終了して再度pointerdownを送出する。
+	 *
+	 * 期待結果:
+	 * - 並び替えモード中も既存capture handlerが呼ばれる。
+	 * - 並び替えモード中の入力だけ通常編集の開始が抑止される。
+	 * - 通常編集へ戻ると編集開始抑止が解除される。
 	 */
 	it( 'when reorder mode is active, should guard editing through existing Block wrapper props', () => {
 		const editProps = {
@@ -171,6 +196,7 @@ describe( 'Reorder Mode integration', () => {
 			name: 'core/table',
 			setAttributes: jest.fn(),
 		} as unknown as TableBlockEditProps;
+		const existingPointerDownCapture = jest.fn();
 
 		renderTable( root, Wrapped, editProps );
 		act( () => {
@@ -182,7 +208,10 @@ describe( 'Reorder Mode integration', () => {
 				<WrappedBlockListBlock
 					clientId="table-a"
 					name="core/table"
-					wrapperProps={ { title: 'table' } }
+					wrapperProps={ {
+						onPointerDownCapture: existingPointerDownCapture,
+						title: 'table',
+					} }
 				/>
 			);
 		} );
@@ -197,6 +226,7 @@ describe( 'Reorder Mode integration', () => {
 		expect( blockWrapper.getAttribute( 'title' ) ).toBe( 'table' );
 		const pointerDown = new Event( 'pointerdown', { bubbles: true, cancelable: true } );
 		blockWrapper.dispatchEvent( pointerDown );
+		expect( existingPointerDownCapture ).toHaveBeenCalledTimes( 1 );
 		expect( pointerDown.defaultPrevented ).toBe( true );
 
 		act( () => {
@@ -205,11 +235,24 @@ describe( 'Reorder Mode integration', () => {
 
 		const editablePointerDown = new Event( 'pointerdown', { bubbles: true, cancelable: true } );
 		blockWrapper.dispatchEvent( editablePointerDown );
+		expect( existingPointerDownCapture ).toHaveBeenCalledTimes( 2 );
 		expect( editablePointerDown.defaultPrevented ).toBe( false );
 	} );
 
 	/**
-	 * 並び替えモード中のTableから別Blockへ操作対象を移すと、通常編集へ戻ることを確認する。
+	 * 概要:
+	 * - 並び替えモード中のTableから別Blockへ操作対象を移すと、通常編集へ戻ることを確認する。
+	 *
+	 * 事前条件:
+	 * - Core Tableが選択され、行の並び替えモードが選択されている。
+	 *
+	 * 操作:
+	 * - 対象Tableを非選択状態として再描画する。
+	 *
+	 * 期待結果:
+	 * - Toolbar入口が表示されなくなる。
+	 * - 行の並び替えモードが終了する。
+	 * - 対象Tableの通常編集が再び許可される。
 	 */
 	it( 'when the active reorder table loses selection, should return to edit mode', () => {
 		const selectedTable = {
