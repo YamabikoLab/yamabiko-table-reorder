@@ -78,7 +78,8 @@ const ReorderModeEdit = ( componentProps: ReorderModeEditProps ) => {
 	 *
 	 * Table自体を再選択する操作は許可し、別Blockから同じTableへ戻ったときにToolbarへ再到達できるようにする。
 	 *
-	 * @param event Table内容への編集開始につながる入力イベント。
+	 * @param event                Table内容への編集開始につながる入力イベント。
+	 * @param event.preventDefault
 	 */
 	const preventEditingStart = ( event: { preventDefault: () => void } ) => {
 		event.preventDefault();
