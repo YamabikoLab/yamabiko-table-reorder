@@ -160,18 +160,11 @@ const ReorderModeEdit = ( componentProps: ReorderModeEditProps ) => {
 	useEffect( () => {
 		/*
 		 * 選択中の対応Tableを現在操作しているTableとして通知する。
-		 * activeなTableが非選択になった場合は、操作対象がTable外へ移ったものとして通常編集へ戻す。
+		 * 一時的に何も選択されていない状態ではReorder Modeを維持し、
+		 * 別の対応Tableが選択された場合はobserveTable()によって通常編集へ戻す。
 		 */
 		if ( isSelected ) {
 			reorderModeIntegration.observeTable( clientId );
-			return;
-		}
-
-		/*
-		 * 並び替えモードの対象Tableだけを終了契機とし、他の非選択Tableは現在状態へ介入させない。
-		 */
-		if ( ! reorderModeIntegration.isEditingAllowed( clientId ) ) {
-			reorderModeIntegration.exit();
 		}
 	}, [ clientId, isSelected ] );
 
