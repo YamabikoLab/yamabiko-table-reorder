@@ -46,6 +46,11 @@ type TableBlockEditProps = BlockEditProps< Record< string, unknown > > & {
 	name: string;
 };
 
+/** Reactの`act()`対象としてJest環境を明示できるglobal設定を表す。 */
+type ReactActGlobal = typeof globalThis & {
+	IS_REACT_ACT_ENVIRONMENT?: boolean;
+};
+
 /**
  * React rootへReorder Mode接続済みTableを描画する。
  *
@@ -83,8 +88,21 @@ const getToolbarButton = ( container: HTMLElement, label: string ) => {
 describe( 'Reorder Mode integration', () => {
 	const BlockEdit = () => <div data-testid="table-edit">Table</div>;
 	const Wrapped = withReorderMode( BlockEdit );
+	const reactActGlobal = globalThis as ReactActGlobal;
+	const previousReactActEnvironment = reactActGlobal.IS_REACT_ACT_ENVIRONMENT;
 	let container: HTMLDivElement;
 	let root: Root;
+
+	beforeAll( () => {
+		/*
+		 * 実React lifecycleを検証するテストとして、`act()`による更新管理を有効にする。
+		 */
+		reactActGlobal.IS_REACT_ACT_ENVIRONMENT = true;
+	} );
+
+	afterAll( () => {
+		reactActGlobal.IS_REACT_ACT_ENVIRONMENT = previousReactActEnvironment;
+	} );
 
 	beforeEach( () => {
 		container = document.createElement( 'div' );
