@@ -5,10 +5,9 @@
  * Reactは状態の正本を持たず、購読結果から表示と編集可否を導出する。
  */
 
-import { BlockControls, store as blockEditorStore } from '@wordpress/block-editor';
+import { BlockControls } from '@wordpress/block-editor';
 import type { BlockEditProps } from '@wordpress/blocks';
 import { ToolbarButton, ToolbarGroup } from '@wordpress/components';
-import { useDispatch } from '@wordpress/data';
 import { useEffect, useSyncExternalStore, type ComponentType } from '@wordpress/element';
 import { tableColumnAfter, tableRowAfter } from '@wordpress/icons';
 
@@ -28,6 +27,12 @@ type TableBlockEditProps = BlockEditProps< Record< string, unknown > > & {
 type ReorderModeEditProps = {
 	BlockEdit: ComponentType< TableBlockEditProps >;
 	props: TableBlockEditProps;
+};
+
+/** Table内容への編集開始につながる入力イベント。 */
+type EditingStartEvent = {
+	currentTarget: HTMLElement;
+	preventDefault: () => void;
 };
 
 /**
@@ -53,7 +58,6 @@ const useReorderModeRevision = () =>
 const ReorderModeEdit = ( componentProps: ReorderModeEditProps ) => {
 	const { BlockEdit, props } = componentProps;
 	const { clientId, isSelected } = props;
-	const { selectBlock } = useDispatch( blockEditorStore );
 
 	useReorderModeRevision();
 
@@ -79,21 +83,21 @@ const ReorderModeEdit = ( componentProps: ReorderModeEditProps ) => {
 	/**
 	 * 並び替えモード中のTableで、通常の内容編集だけを開始させない。
 	 *
-	 * Tableが未選択の場合は内容へfocusを移さずTable自体だけを再選択し、同じTableのReorder Modeを維持したままToolbarへ再到達できるようにする。
+	 * Tableが未選択の場合は内容へのfocusを抑止したうえで接続境界へfocusを移し、WordPress Editor標準のBlock選択LifecycleによってTable自体だけを再選択できるようにする。
 	 *
-	 * @param event                Table内容への編集開始につながる入力イベント。
-	 * @param event.preventDefault
+	 * @param event Table内容への編集開始につながる入力イベント。
 	 */
-	const preventEditingStart = ( event: { preventDefault: () => void } ) => {
+	const preventEditingStart = ( event: EditingStartEvent ) => {
 		event.preventDefault();
 
 		if ( ! isSelected ) {
-			selectBlock( clientId, null );
+			event.currentTarget.focus();
 		}
 	};
 
 	const editingAllowed = reorderModeIntegration.isEditingAllowed( clientId );
 	const editingStartHandler = editingAllowed ? undefined : preventEditingStart;
+	const reselectionFocusEnabled = ! isSelected && ! editingAllowed;
 	const rowSelected = reorderModeIntegration.isSelected( 'row', clientId );
 	const columnSelected = reorderModeIntegration.isSelected( 'column', clientId );
 
@@ -103,6 +107,7 @@ const ReorderModeEdit = ( componentProps: ReorderModeEditProps ) => {
 				onDoubleClickCapture={ editingStartHandler }
 				onMouseDownCapture={ editingStartHandler }
 				onPointerDownCapture={ editingStartHandler }
+				tabIndex={ reselectionFocusEnabled ? -1 : undefined }
 			>
 				<BlockEdit { ...props } />
 			</div>
