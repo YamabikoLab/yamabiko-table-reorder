@@ -5,9 +5,10 @@
  * Reactは状態の正本を持たず、購読結果から表示と編集可否を導出する。
  */
 
-import { BlockControls } from '@wordpress/block-editor';
+import { BlockControls, store as blockEditorStore } from '@wordpress/block-editor';
 import type { BlockEditProps } from '@wordpress/blocks';
 import { ToolbarButton, ToolbarGroup } from '@wordpress/components';
+import { useDispatch } from '@wordpress/data';
 import { useEffect, useSyncExternalStore, type ComponentType } from '@wordpress/element';
 import { tableColumnAfter, tableRowAfter } from '@wordpress/icons';
 
@@ -52,6 +53,7 @@ const useReorderModeRevision = () =>
 const ReorderModeEdit = ( componentProps: ReorderModeEditProps ) => {
 	const { BlockEdit, props } = componentProps;
 	const { clientId, isSelected } = props;
+	const { selectBlock } = useDispatch( blockEditorStore );
 
 	useReorderModeRevision();
 
@@ -75,20 +77,23 @@ const ReorderModeEdit = ( componentProps: ReorderModeEditProps ) => {
 	};
 
 	/**
-	 * 選択中のTableで、並び替えモードと競合する内容編集の開始だけを抑止する。
+	 * 並び替えモード中のTableで、通常の内容編集だけを開始させない。
 	 *
-	 * Table自体を再選択する操作は許可し、別Blockから同じTableへ戻ったときにToolbarへ再到達できるようにする。
+	 * Tableが未選択の場合は内容へfocusを移さずTable自体だけを再選択し、同じTableのReorder Modeを維持したままToolbarへ再到達できるようにする。
 	 *
 	 * @param event                Table内容への編集開始につながる入力イベント。
 	 * @param event.preventDefault
 	 */
 	const preventEditingStart = ( event: { preventDefault: () => void } ) => {
 		event.preventDefault();
+
+		if ( ! isSelected ) {
+			selectBlock( clientId, null );
+		}
 	};
 
 	const editingAllowed = reorderModeIntegration.isEditingAllowed( clientId );
-	const editingStartPrevented = isSelected && ! editingAllowed;
-	const editingStartHandler = editingStartPrevented ? preventEditingStart : undefined;
+	const editingStartHandler = editingAllowed ? undefined : preventEditingStart;
 	const rowSelected = reorderModeIntegration.isSelected( 'row', clientId );
 	const columnSelected = reorderModeIntegration.isSelected( 'column', clientId );
 
