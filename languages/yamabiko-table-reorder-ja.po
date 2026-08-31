@@ -15,7 +15,7 @@ msgstr ""
 "X-Domain: yamabiko-table-reorder\n"
 
 #. Plugin Name of the plugin
-#: src/messages.ts:3
+#: src/messages.ts:8
 #: yamabiko-table-reorder.php
 msgid "Yamabiko Table Reorder"
 msgstr "Yamabiko Table Reorder"
@@ -28,4 +28,12 @@ msgstr ""
 #. Description of the plugin
 #: yamabiko-table-reorder.php
 msgid "Table reordering for supported blocks in the WordPress block editor."
+msgstr ""
+
+#: src/messages.ts:11
+msgid "Reorder rows"
+msgstr ""
+
+#: src/messages.ts:14
+msgid "Reorder columns"
 msgstr ""

@@ -87,8 +87,8 @@ const ReorderModeEdit = ( componentProps: ReorderModeEditProps ) => {
 				<BlockEdit { ...props } />
 			</div>
 			{ /*
-				 * Toolbar入口は現在選択中の対応Tableだけに表示し、他のTableへ操作対象を広げない。
-				 */ }
+			 * Toolbar入口は現在選択中の対応Tableだけに表示し、他のTableへ操作対象を広げない。
+			 */ }
 			{ isSelected && (
 				<BlockControls>
 					<ToolbarGroup>
