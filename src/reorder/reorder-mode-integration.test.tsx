@@ -15,7 +15,7 @@ import { withReorderMode } from './reorder-mode-integration';
 let mockBlockControlsPortalContainer: HTMLDivElement;
 
 jest.mock( '@wordpress/block-editor', () => {
-	const { createPortal } = jest.requireActual< typeof import( 'react-dom' ) >( 'react-dom' );
+	const { createPortal } = jest.requireActual< typeof import('react-dom') >( 'react-dom' );
 
 	return {
 		BlockControls: ( { children }: { children: React.ReactNode } ) =>
@@ -268,7 +268,9 @@ describe( 'Reorder Mode integration', () => {
 
 		renderTable( root, Wrapped, unselectedTable );
 
-		expect( mockBlockControlsPortalContainer.querySelector( '[data-testid="block-controls"]' ) ).toBeNull();
+		expect(
+			mockBlockControlsPortalContainer.querySelector( '[data-testid="block-controls"]' )
+		).toBeNull();
 		expect( reorderModeIntegration.isSelected( 'row', 'table-a' ) ).toBe( false );
 		expect( reorderModeIntegration.isEditingAllowed( 'table-a' ) ).toBe( true );
 
