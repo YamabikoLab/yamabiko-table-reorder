@@ -47,7 +47,7 @@ type ElementWithProps = ReactElement< {
  * HOCが返した対応Table専用componentを実行し、現在のReorder Mode表示を取得する。
  *
  * @param Wrapped Reorder Modeへ接続済みのBlockEdit component。
- * @param props Gutenbergから渡されるTable Block props。
+ * @param props   Gutenbergから渡されるTable Block props。
  * @return 現在状態を反映したReorder Mode接続境界の要素。
  */
 const renderIntegration = (

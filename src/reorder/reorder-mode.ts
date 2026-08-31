@@ -45,7 +45,7 @@ export type ReorderMode = {
 	 *
 	 * 同じTableで選択中の入口を再選択した場合は通常編集へ戻し、別方向の入口を選択した場合はその方向へ切り替える。
 	 *
-	 * @param kind 選択された並び替え方向。
+	 * @param kind          選択された並び替え方向。
 	 * @param tableIdentity 入口を所有するTable Identity。
 	 */
 	select: ( kind: ReorderKind, tableIdentity: ReorderTableIdentity ) => void;
@@ -62,7 +62,7 @@ export type ReorderMode = {
 	/**
 	 * 対象Tableで指定方向の入口が選択状態か確認する。
 	 *
-	 * @param kind 確認する並び替え方向。
+	 * @param kind          確認する並び替え方向。
 	 * @param tableIdentity 確認するTable Identity。
 	 */
 	isSelected: ( kind: ReorderKind, tableIdentity: ReorderTableIdentity ) => boolean;
