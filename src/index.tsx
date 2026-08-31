@@ -6,6 +6,7 @@
 
 import { addFilter } from '@wordpress/hooks';
 
+import { registerReorderCommitLifecyclePoC } from '@/reorder/reorder-commit-lifecycle-poc';
 import { withReorderMode, withReorderModeBlockListBlock } from '@/reorder/reorder-mode-integration';
 
 addFilter( 'editor.BlockEdit', 'yamabiko-table-reorder/reorder-mode', withReorderMode );
@@ -14,3 +15,5 @@ addFilter(
 	'yamabiko-table-reorder/reorder-mode-editing-guard',
 	withReorderModeBlockListBlock
 );
+
+registerReorderCommitLifecyclePoC();
