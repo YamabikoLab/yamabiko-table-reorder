@@ -98,7 +98,7 @@ workspace "YTR Reorder v1 Architecture" {
 		DEP_015 = RESP_ROW_DROP_TARGET_RESOLUTION -> RESP_ROW_TABLE_INTEGRATION "progress中の移動先判定とcomplete時の再照合に現在の行構造とTable同一性を必要とする。" {
 			tags "Structural Dependency"
 		}
-		DEP_016 = RESP_ROW_DND_INTERACTION -> RESP_REORDER_MODE "DnD終了後に現在のTableで行並び替えモードを安全に継続できるかという結果を外側のモード境界へ渡すために必要とする。" {
+		DEP_016 = RESP_ROW_DND_INTERACTION -> RESP_REORDER_MODE "DnD Interactionがモード状態を所有せず、DnD終了後のモードLifecycle判断をReorder Modeの責務として成立させるために必要とする。" {
 			tags "Structural Dependency"
 		}
 		DEP_017 = RESP_ROW_DND_INTERACTION -> RESP_ROW_REORDER_TARGET_RESOLUTION "Session開始前に移動可能な行を確定するために必要とする。" {
