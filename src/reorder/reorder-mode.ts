@@ -120,14 +120,12 @@ export const createReorderMode = (): ReorderMode => {
 	};
 
 	const rowReorder: RowReorderMode = {
-		isActive: ( tableIdentity ) =>
-			state.kind === 'row' && state.tableIdentity === tableIdentity,
+		isActive: ( tableIdentity ) => state.kind === 'row' && state.tableIdentity === tableIdentity,
 	};
 
 	return {
 		select: ( kind, tableIdentity ) => {
-			const isSameSelectedMode =
-				state.kind === kind && state.tableIdentity === tableIdentity;
+			const isSameSelectedMode = state.kind === kind && state.tableIdentity === tableIdentity;
 
 			if ( isSameSelectedMode ) {
 				updateState( { kind: 'edit' } );

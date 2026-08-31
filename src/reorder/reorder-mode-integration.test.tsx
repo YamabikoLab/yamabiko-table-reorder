@@ -55,7 +55,9 @@ const renderIntegration = (
 	props: TableBlockEditProps
 ): ElementWithProps => {
 	const integrationElement = Wrapped( props ) as ReactElement;
-	const IntegrationComponent = integrationElement.type as ( componentProps: unknown ) => ReactElement;
+	const IntegrationComponent = integrationElement.type as (
+		componentProps: unknown
+	) => ReactElement;
 
 	return IntegrationComponent( integrationElement.props ) as ElementWithProps;
 };
@@ -96,50 +98,47 @@ describe( 'Reorder Mode integration', () => {
 	 * - 並び替えモード中だけTable内容への編集開始が抑止される。
 	 * - 選択中の入口を再選択すると通常編集へ戻る。
 	 */
-	it(
-		'when row and column toolbar entries are selected, should keep them exclusive and allow editing only in edit mode',
-		() => {
-			const props = {
-				attributes: {},
-				clientId: 'table-a',
-				isSelected: true,
-				name: 'core/table',
-				setAttributes: jest.fn(),
-			} as unknown as TableBlockEditProps;
+	it( 'when row and column toolbar entries are selected, should keep them exclusive and allow editing only in edit mode', () => {
+		const props = {
+			attributes: {},
+			clientId: 'table-a',
+			isSelected: true,
+			name: 'core/table',
+			setAttributes: jest.fn(),
+		} as unknown as TableBlockEditProps;
 
-			let rendered = renderIntegration( Wrapped, props );
-			let { rowButton, columnButton } = getToolbarButtons( rendered );
-			const editWrapper = ( rendered.props.children as ReactElement[] )[ 0 ] as ElementWithProps;
+		let rendered = renderIntegration( Wrapped, props );
+		let { rowButton, columnButton } = getToolbarButtons( rendered );
+		const editWrapper = ( rendered.props.children as ReactElement[] )[ 0 ] as ElementWithProps;
 
-			expect( rowButton.props.isPressed ).toBe( false );
-			expect( columnButton.props.isPressed ).toBe( false );
-			expect( editWrapper.props.onPointerDownCapture ).toBeUndefined();
+		expect( rowButton.props.isPressed ).toBe( false );
+		expect( columnButton.props.isPressed ).toBe( false );
+		expect( editWrapper.props.onPointerDownCapture ).toBeUndefined();
 
-			rowButton.props.onClick?.();
-			rendered = renderIntegration( Wrapped, props );
-			( { rowButton, columnButton } = getToolbarButtons( rendered ) );
-			expect( rowButton.props.isPressed ).toBe( true );
-			expect( columnButton.props.isPressed ).toBe( false );
-			expect(
-				( rendered.props.children as ReactElement[] )[ 0 ].props.onPointerDownCapture
-			).toEqual( expect.any( Function ) );
+		rowButton.props.onClick?.();
+		rendered = renderIntegration( Wrapped, props );
+		( { rowButton, columnButton } = getToolbarButtons( rendered ) );
+		expect( rowButton.props.isPressed ).toBe( true );
+		expect( columnButton.props.isPressed ).toBe( false );
+		expect( ( rendered.props.children as ReactElement[] )[ 0 ].props.onPointerDownCapture ).toEqual(
+			expect.any( Function )
+		);
 
-			columnButton.props.onClick?.();
-			rendered = renderIntegration( Wrapped, props );
-			( { rowButton, columnButton } = getToolbarButtons( rendered ) );
-			expect( rowButton.props.isPressed ).toBe( false );
-			expect( columnButton.props.isPressed ).toBe( true );
+		columnButton.props.onClick?.();
+		rendered = renderIntegration( Wrapped, props );
+		( { rowButton, columnButton } = getToolbarButtons( rendered ) );
+		expect( rowButton.props.isPressed ).toBe( false );
+		expect( columnButton.props.isPressed ).toBe( true );
 
-			columnButton.props.onClick?.();
-			rendered = renderIntegration( Wrapped, props );
-			( { rowButton, columnButton } = getToolbarButtons( rendered ) );
-			expect( rowButton.props.isPressed ).toBe( false );
-			expect( columnButton.props.isPressed ).toBe( false );
-			expect(
-				( rendered.props.children as ReactElement[] )[ 0 ].props.onPointerDownCapture
-			).toBeUndefined();
-		}
-	);
+		columnButton.props.onClick?.();
+		rendered = renderIntegration( Wrapped, props );
+		( { rowButton, columnButton } = getToolbarButtons( rendered ) );
+		expect( rowButton.props.isPressed ).toBe( false );
+		expect( columnButton.props.isPressed ).toBe( false );
+		expect(
+			( rendered.props.children as ReactElement[] )[ 0 ].props.onPointerDownCapture
+		).toBeUndefined();
+	} );
 
 	/**
 	 * 別Tableへ操作対象が移った場合に、前のTableで選択していた並び替えモードを終了することを確認する。
@@ -153,34 +152,31 @@ describe( 'Reorder Mode integration', () => {
 	 * 期待結果:
 	 * - Table Bは通常編集で開始し、Table Aの行並び替え選択は維持されない。
 	 */
-	it(
-		'when the selected table changes, should return reorder mode to edit for the new table',
-		() => {
-			const tableA = {
-				attributes: {},
-				clientId: 'table-a',
-				isSelected: true,
-				name: 'core/table',
-				setAttributes: jest.fn(),
-			} as unknown as TableBlockEditProps;
-			const tableB = {
-				...tableA,
-				clientId: 'table-b',
-			};
+	it( 'when the selected table changes, should return reorder mode to edit for the new table', () => {
+		const tableA = {
+			attributes: {},
+			clientId: 'table-a',
+			isSelected: true,
+			name: 'core/table',
+			setAttributes: jest.fn(),
+		} as unknown as TableBlockEditProps;
+		const tableB = {
+			...tableA,
+			clientId: 'table-b',
+		};
 
-			let rendered = renderIntegration( Wrapped, tableA );
-			getToolbarButtons( rendered ).rowButton.props.onClick?.();
-			rendered = renderIntegration( Wrapped, tableA );
-			expect( getToolbarButtons( rendered ).rowButton.props.isPressed ).toBe( true );
+		let rendered = renderIntegration( Wrapped, tableA );
+		getToolbarButtons( rendered ).rowButton.props.onClick?.();
+		rendered = renderIntegration( Wrapped, tableA );
+		expect( getToolbarButtons( rendered ).rowButton.props.isPressed ).toBe( true );
 
-			rendered = renderIntegration( Wrapped, tableB );
-			const { rowButton, columnButton } = getToolbarButtons( rendered );
+		rendered = renderIntegration( Wrapped, tableB );
+		const { rowButton, columnButton } = getToolbarButtons( rendered );
 
-			expect( rowButton.props.isPressed ).toBe( false );
-			expect( columnButton.props.isPressed ).toBe( false );
-			expect(
-				( rendered.props.children as ReactElement[] )[ 0 ].props.onPointerDownCapture
-			).toBeUndefined();
-		}
-	);
+		expect( rowButton.props.isPressed ).toBe( false );
+		expect( columnButton.props.isPressed ).toBe( false );
+		expect(
+			( rendered.props.children as ReactElement[] )[ 0 ].props.onPointerDownCapture
+		).toBeUndefined();
+	} );
 } );
