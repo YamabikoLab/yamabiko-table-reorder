@@ -31,6 +31,8 @@ type ReorderModeEditProps = {
 
 /** Table内容への編集開始につながる入力イベント。 */
 type EditingStartEvent = {
+	currentTarget: HTMLElement;
+	target: EventTarget | null;
 	preventDefault: () => void;
 };
 
@@ -93,6 +95,14 @@ const ReorderModeEdit = ( componentProps: ReorderModeEditProps ) => {
 	 * @param event Table内容への編集開始につながる入力イベント。
 	 */
 	const preventEditingStart = ( event: EditingStartEvent ) => {
+		/*
+		 * 実DOM上のTable編集領域外から届いたReactイベントには介入せず、
+		 * WordPress標準Toolbarなどの操作を通常どおり成立させる。
+		 */
+		if ( ! event.currentTarget.contains( event.target as Node | null ) ) {
+			return;
+		}
+
 		event.preventDefault();
 	};
 
