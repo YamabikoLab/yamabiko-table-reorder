@@ -6,7 +6,7 @@
  */
 
 import type { BlockEditProps } from '@wordpress/blocks';
-import type { ReactElement } from '@wordpress/element';
+import type { ReactElement } from 'react';
 
 import { withReorderMode } from './reorder-mode-integration';
 
