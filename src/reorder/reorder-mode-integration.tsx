@@ -138,9 +138,8 @@ const preventEditingStart = ( event: EditingStartEvent ) => {
  * @param existingHandler Gutenberg本体または他のfilterが設定した既存handler。
  * @return 既存処理とReorder Modeの編集開始抑止を順に適用するhandler。
  */
-const preserveEditingStartHandler = (
-	existingHandler?: EditingStartHandler
-): EditingStartHandler =>
+const preserveEditingStartHandler =
+	( existingHandler?: EditingStartHandler ): EditingStartHandler =>
 	( event ) => {
 		existingHandler?.( event );
 		preventEditingStart( event );
@@ -268,15 +267,9 @@ export const withReorderModeBlockListBlock = (
 		const reorderWrapperProps = shouldPreventEditing
 			? {
 					...wrapperProps,
-					onDoubleClickCapture: preserveEditingStartHandler(
-						wrapperProps?.onDoubleClickCapture
-					),
-					onMouseDownCapture: preserveEditingStartHandler(
-						wrapperProps?.onMouseDownCapture
-					),
-					onPointerDownCapture: preserveEditingStartHandler(
-						wrapperProps?.onPointerDownCapture
-					),
+					onDoubleClickCapture: preserveEditingStartHandler( wrapperProps?.onDoubleClickCapture ),
+					onMouseDownCapture: preserveEditingStartHandler( wrapperProps?.onMouseDownCapture ),
+					onPointerDownCapture: preserveEditingStartHandler( wrapperProps?.onPointerDownCapture ),
 			  }
 			: wrapperProps;
 
