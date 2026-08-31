@@ -1,27 +1,40 @@
 /**
- * Reorder ModeとWordPress Editor接続境界のfocused integrationを確認する。
+ * Reorder ModeとWordPress Editor接続境界のReact lifecycleを確認する。
  *
- * 実Editorの描画詳細には依存せず、対応TableへのToolbar入口、排他選択、通常編集との排他、
- * および別Tableへ操作対象が移った場合のLifecycleだけを検証する。
+ * 実Editorの描画詳細には依存せず、実際のReact購読とEffectを通して、Toolbar入口、通常編集との排他、
+ * および別Tableへ操作対象が移った場合のLifecycleが描画へ反映されることを検証する。
  */
 
 import type { BlockEditProps } from '@wordpress/blocks';
-import type { ReactElement } from 'react';
+import { act } from 'react';
+import { createRoot, type Root } from 'react-dom/client';
 
+import { reorderModeIntegration } from './reorder-mode';
 import { withReorderMode } from './reorder-mode-integration';
 
 jest.mock( '@wordpress/block-editor', () => ( {
-	BlockControls: 'block-controls',
+	BlockControls: ( { children }: { children: React.ReactNode } ) => (
+		<div data-testid="block-controls">{ children }</div>
+	),
 } ) );
 
 jest.mock( '@wordpress/components', () => ( {
-	ToolbarButton: 'toolbar-button',
-	ToolbarGroup: 'toolbar-group',
-} ) );
-
-jest.mock( '@wordpress/element', () => ( {
-	useEffect: ( effect: () => void ) => effect(),
-	useSyncExternalStore: ( _subscribe: unknown, getSnapshot: () => number ) => getSnapshot(),
+	ToolbarButton: ( {
+		isPressed,
+		label,
+		onClick,
+	}: {
+		isPressed: boolean;
+		label: string;
+		onClick: () => void;
+	} ) => (
+		<button aria-label={ label } aria-pressed={ isPressed } onClick={ onClick } type="button">
+			{ label }
+		</button>
+	),
+	ToolbarGroup: ( { children }: { children: React.ReactNode } ) => (
+		<div data-testid="toolbar-group">{ children }</div>
+	),
 } ) );
 
 jest.mock( '@wordpress/icons', () => ( {
@@ -33,89 +46,76 @@ type TableBlockEditProps = BlockEditProps< Record< string, unknown > > & {
 	name: string;
 };
 
-type ElementWithProps = ReactElement< {
-	children?: ReactElement | ReactElement[];
-	isPressed?: boolean;
-	onClick?: () => void;
-	onClickCapture?: unknown;
-	onDoubleClickCapture?: unknown;
-	onMouseDownCapture?: unknown;
-	onPointerDownCapture?: unknown;
-} >;
-
 /**
- * HOCが返した対応Table専用componentを実行し、現在のReorder Mode表示を取得する。
+ * React rootへReorder Mode接続済みTableを描画する。
  *
+ * @param root    テストで利用するReact root。
  * @param Wrapped Reorder Modeへ接続済みのBlockEdit component。
  * @param props   Gutenbergから渡されるTable Block props。
- * @return 現在状態を反映したReorder Mode接続境界の要素。
  */
-const renderIntegration = (
+const renderTable = (
+	root: Root,
 	Wrapped: ReturnType< typeof withReorderMode >,
 	props: TableBlockEditProps
-): ElementWithProps => {
-	const integrationElement = Wrapped( props ) as ReactElement;
-	const IntegrationComponent = integrationElement.type as (
-		componentProps: unknown
-	) => ReactElement;
-
-	return IntegrationComponent( integrationElement.props ) as ElementWithProps;
+) => {
+	act( () => {
+		root.render( <Wrapped { ...props } /> );
+	} );
 };
 
 /**
- * Reorder Mode接続境界から行・列ToolbarButtonを取得する。
+ * 指定されたToolbar入口を取得する。
  *
- * @param rendered Reorder Mode接続境界の描画結果。
- * @return 行入口と列入口のToolbarButton。
+ * @param container React rootの描画先。
+ * @param label     取得するToolbar入口の利用者向け名称。
+ * @return 指定されたToolbar入口。
  */
-const getToolbarButtons = ( rendered: ElementWithProps ) => {
-	const children = rendered.props.children as ReactElement[];
-	const blockControls = children[ 1 ] as ElementWithProps;
-	const toolbarGroup = blockControls.props.children as ElementWithProps;
-	const buttons = toolbarGroup.props.children as ElementWithProps[];
+const getToolbarButton = ( container: HTMLElement, label: string ) => {
+	const button = container.querySelector< HTMLButtonElement >( `button[aria-label="${ label }"]` );
 
-	return {
-		rowButton: buttons[ 0 ],
-		columnButton: buttons[ 1 ],
-	};
+	if ( ! button ) {
+		throw new Error( `Expected toolbar button was not rendered: ${ label }` );
+	}
+
+	return button;
 };
 
 describe( 'Reorder Mode integration', () => {
-	const BlockEdit = () => <div>Table</div>;
+	const BlockEdit = () => <div data-testid="table-edit">Table</div>;
 	const Wrapped = withReorderMode( BlockEdit );
+	let container: HTMLDivElement;
+	let root: Root;
 
-	/**
-	 * 各テストで共有されるReorder Modeを通常編集へ戻し、テスト間の状態依存を残さない。
-	 *
-	 * 実運用と同じTable変更Lifecycleを利用し、テスト専用の状態変更APIは導入しない。
-	 */
+	beforeEach( () => {
+		container = document.createElement( 'div' );
+		document.body.appendChild( container );
+		root = createRoot( container );
+	} );
+
 	afterEach( () => {
-		const resetTable = {
-			attributes: {},
-			clientId: 'test-reset-table',
-			isSelected: true,
-			name: 'core/table',
-			setAttributes: jest.fn(),
-		} as unknown as TableBlockEditProps;
-
-		renderIntegration( Wrapped, resetTable );
+		act( () => {
+			reorderModeIntegration.exit();
+			root.unmount();
+		} );
+		container.remove();
 	} );
 
 	/**
-	 * 行入口と列入口が同じTableで排他的に選択され、選択中だけ通常編集を抑止することを確認する。
+	 * Toolbar操作によるReorder Modeの変更が、Reactの購読通知だけで再描画へ反映されることを確認する。
 	 *
 	 * 事前条件:
 	 * - 対応Tableが選択され、Reorder Modeは通常編集で開始している。
+	 * - Reorder Mode接続境界は実際のReact rootへmountされている。
 	 *
 	 * 操作:
-	 * - 行入口、列入口、選択中の列入口の順に選択する。
+	 * - 行入口を選択する。
 	 *
 	 * 期待結果:
-	 * - 行と列は同時に選択状態にならない。
-	 * - 並び替えモード中だけTable内容への編集開始が抑止される。
-	 * - 選択中の入口を再選択すると通常編集へ戻る。
+	 * - componentを手動で再実行しなくても行入口が選択状態へ更新される。
+	 * - 列入口は非選択のまま維持される。
+	 * - 対象Tableの編集開始入力が抑止される。
 	 */
-	it( 'when row and column toolbar entries are selected, should keep them exclusive and allow editing only in edit mode', () => {
+	it( 'when row toolbar entry is selected, should rerender from the Reorder Mode subscription', () => {
 		const props = {
 			attributes: {},
 			clientId: 'table-a',
@@ -124,90 +124,45 @@ describe( 'Reorder Mode integration', () => {
 			setAttributes: jest.fn(),
 		} as unknown as TableBlockEditProps;
 
-		let rendered = renderIntegration( Wrapped, props );
-		let { rowButton, columnButton } = getToolbarButtons( rendered );
-		const editWrapper = ( rendered.props.children as ReactElement[] )[ 0 ] as ElementWithProps;
+		renderTable( root, Wrapped, props );
 
-		expect( rowButton.props.isPressed ).toBe( false );
-		expect( columnButton.props.isPressed ).toBe( false );
-		expect( editWrapper.props.onPointerDownCapture ).toBeUndefined();
+		const rowButton = getToolbarButton( container, 'Reorder rows' );
+		const columnButton = getToolbarButton( container, 'Reorder columns' );
+		expect( rowButton.getAttribute( 'aria-pressed' ) ).toBe( 'false' );
+		expect( columnButton.getAttribute( 'aria-pressed' ) ).toBe( 'false' );
 
-		rowButton.props.onClick?.();
-		rendered = renderIntegration( Wrapped, props );
-		( { rowButton, columnButton } = getToolbarButtons( rendered ) );
-		expect( rowButton.props.isPressed ).toBe( true );
-		expect( columnButton.props.isPressed ).toBe( false );
-		expect( ( rendered.props.children as ReactElement[] )[ 0 ].props.onPointerDownCapture ).toEqual(
-			expect.any( Function )
-		);
+		act( () => {
+			rowButton.click();
+		} );
 
-		columnButton.props.onClick?.();
-		rendered = renderIntegration( Wrapped, props );
-		( { rowButton, columnButton } = getToolbarButtons( rendered ) );
-		expect( rowButton.props.isPressed ).toBe( false );
-		expect( columnButton.props.isPressed ).toBe( true );
+		expect( rowButton.getAttribute( 'aria-pressed' ) ).toBe( 'true' );
+		expect( columnButton.getAttribute( 'aria-pressed' ) ).toBe( 'false' );
 
-		columnButton.props.onClick?.();
-		rendered = renderIntegration( Wrapped, props );
-		( { rowButton, columnButton } = getToolbarButtons( rendered ) );
-		expect( rowButton.props.isPressed ).toBe( false );
-		expect( columnButton.props.isPressed ).toBe( false );
-		expect(
-			( rendered.props.children as ReactElement[] )[ 0 ].props.onPointerDownCapture
-		).toBeUndefined();
+		const editWrapper = container.querySelector( '[data-testid="table-edit"]' )?.parentElement;
+		if ( ! editWrapper ) {
+			throw new Error( 'Expected Table edit wrapper was not rendered.' );
+		}
+
+		const pointerDown = new Event( 'pointerdown', { bubbles: true, cancelable: true } );
+		editWrapper.dispatchEvent( pointerDown );
+		expect( pointerDown.defaultPrevented ).toBe( true );
 	} );
 
 	/**
-	 * 並び替えモード中のTableから別Blockへ移動しても、同じTableを再選択できることを確認する。
+	 * React Effectへ渡されたTable選択変更によって、別Tableへ移動したReorder Modeが通常編集へ戻ることを確認する。
 	 *
 	 * 事前条件:
 	 * - Table Aで行並び替えモードが選択されている。
-	 * - Table Aは現在選択されていない。
+	 * - Reorder Mode接続境界は実際のReact rootへmountされている。
 	 *
 	 * 操作:
-	 * - Table Aの編集表示を未選択状態で描画する。
+	 * - 同じReact rootをTable Bの選択状態で更新する。
 	 *
 	 * 期待結果:
-	 * - Table A自体を再選択する入力は抑止されない。
-	 * - 再選択後は行並び替えモードが維持され、Toolbarへ再到達できる。
+	 * - EffectからTable BがReorder Modeへ通知される。
+	 * - Table Bでは行・列入口が非選択となり、通常編集を開始できる。
 	 */
-	it( 'when an active reorder table is temporarily unselected, should allow selecting that table again', () => {
-		const selectedTable = {
-			attributes: {},
-			clientId: 'table-a',
-			isSelected: true,
-			name: 'core/table',
-			setAttributes: jest.fn(),
-		} as unknown as TableBlockEditProps;
-		const unselectedTable = {
-			...selectedTable,
-			isSelected: false,
-		};
-
-		let rendered = renderIntegration( Wrapped, selectedTable );
-		getToolbarButtons( rendered ).rowButton.props.onClick?.();
-
-		rendered = renderIntegration( Wrapped, unselectedTable );
-		const editWrapper = ( rendered.props.children as ReactElement[] )[ 0 ] as ElementWithProps;
-		expect( editWrapper.props.onPointerDownCapture ).toBeUndefined();
-
-		rendered = renderIntegration( Wrapped, selectedTable );
-		expect( getToolbarButtons( rendered ).rowButton.props.isPressed ).toBe( true );
-	} );
-
-	/**
-	 * 別Tableへ操作対象が移った場合に、前のTableで選択していた並び替えモードを終了することを確認する。
-	 *
-	 * 事前条件:
-	 * - Table Aで行並び替えモードが選択されている。
-	 *
-	 * 操作:
-	 * - Table Bを選択状態としてReorder Mode接続境界へ通知する。
-	 *
-	 * 期待結果:
-	 * - Table Bは通常編集で開始し、Table Aの行並び替え選択は維持されない。
-	 */
-	it( 'when the selected table changes, should return reorder mode to edit for the new table', () => {
+	it( 'when the selected table changes, should return to edit mode through the React effect lifecycle', () => {
 		const tableA = {
 			attributes: {},
 			clientId: 'table-a',
@@ -220,18 +175,30 @@ describe( 'Reorder Mode integration', () => {
 			clientId: 'table-b',
 		};
 
-		let rendered = renderIntegration( Wrapped, tableA );
-		getToolbarButtons( rendered ).rowButton.props.onClick?.();
-		rendered = renderIntegration( Wrapped, tableA );
-		expect( getToolbarButtons( rendered ).rowButton.props.isPressed ).toBe( true );
+		renderTable( root, Wrapped, tableA );
+		act( () => {
+			getToolbarButton( container, 'Reorder rows' ).click();
+		} );
+		expect( getToolbarButton( container, 'Reorder rows' ).getAttribute( 'aria-pressed' ) ).toBe(
+			'true'
+		);
 
-		rendered = renderIntegration( Wrapped, tableB );
-		const { rowButton, columnButton } = getToolbarButtons( rendered );
+		renderTable( root, Wrapped, tableB );
 
-		expect( rowButton.props.isPressed ).toBe( false );
-		expect( columnButton.props.isPressed ).toBe( false );
-		expect(
-			( rendered.props.children as ReactElement[] )[ 0 ].props.onPointerDownCapture
-		).toBeUndefined();
+		expect( getToolbarButton( container, 'Reorder rows' ).getAttribute( 'aria-pressed' ) ).toBe(
+			'false'
+		);
+		expect( getToolbarButton( container, 'Reorder columns' ).getAttribute( 'aria-pressed' ) ).toBe(
+			'false'
+		);
+
+		const editWrapper = container.querySelector( '[data-testid="table-edit"]' )?.parentElement;
+		if ( ! editWrapper ) {
+			throw new Error( 'Expected Table edit wrapper was not rendered.' );
+		}
+
+		const pointerDown = new Event( 'pointerdown', { bubbles: true, cancelable: true } );
+		editWrapper.dispatchEvent( pointerDown );
+		expect( pointerDown.defaultPrevented ).toBe( false );
 	} );
 } );
