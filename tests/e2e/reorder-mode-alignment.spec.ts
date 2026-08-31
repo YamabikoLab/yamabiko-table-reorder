@@ -1,3 +1,4 @@
+import type { Locator } from '@playwright/test';
 import { expect, test } from '@wordpress/e2e-test-utils-playwright';
 
 import { getEditorContext } from './editor-context';
@@ -12,7 +13,7 @@ const TABLE_CONTENT = `<!-- wp:table -->
  * @param tableFigure Core Tableのfigure要素。
  * @return 現在の表示幅。
  */
-const getTableWidth = async ( tableFigure: ReturnType< Awaited< ReturnType< typeof getEditorContext > >[ 'locator' ] > ) =>
+const getTableWidth = async ( tableFigure: Locator ) =>
 	tableFigure.evaluate( ( element ) => element.getBoundingClientRect().width );
 
 test.describe( 'Reorder Mode Table alignment', () => {
