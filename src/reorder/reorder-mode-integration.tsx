@@ -13,13 +13,10 @@ import { tableColumnAfter, tableRowAfter } from '@wordpress/icons';
 
 import { getColumnReorderName, getRowReorderName } from '@/messages';
 
-import { createReorderMode, type ReorderKind } from './reorder-mode';
+import { reorderModeIntegration, type ReorderKind } from './reorder-mode';
 
 /** Reorder Modeへ接続するTable Block名。 */
 const SUPPORTED_TABLE_BLOCKS = new Set( [ 'core/table', 'flexible-table-block/table' ] );
-
-/** Toolbarの再生成から独立して保持するReorder Modeの正本。 */
-const reorderMode = createReorderMode();
 
 /** HOCが利用するTable向けBlockEdit props。 */
 type TableBlockEditProps = BlockEditProps< Record< string, unknown > > & {
@@ -40,7 +37,11 @@ type ReorderModeEditProps = {
  * @return 現在のReorder Mode revision。
  */
 const useReorderModeRevision = () =>
-	useSyncExternalStore( reorderMode.subscribe, reorderMode.getRevision, reorderMode.getRevision );
+	useSyncExternalStore(
+		reorderModeIntegration.subscribe,
+		reorderModeIntegration.getRevision,
+		reorderModeIntegration.getRevision
+	);
 
 /**
  * 対応TableのToolbar入口と編集可否をReorder Modeへ接続する。
@@ -60,7 +61,7 @@ const ReorderModeEdit = ( componentProps: ReorderModeEditProps ) => {
 		 * Toolbar componentの再生成そのものはモード終了条件にしない。
 		 */
 		if ( isSelected ) {
-			reorderMode.observeTable( clientId );
+			reorderModeIntegration.observeTable( clientId );
 		}
 	}, [ clientId, isSelected ] );
 
@@ -70,7 +71,7 @@ const ReorderModeEdit = ( componentProps: ReorderModeEditProps ) => {
 	 * @param kind 選択された並び替え方向。
 	 */
 	const selectReorderMode = ( kind: ReorderKind ) => {
-		reorderMode.select( kind, clientId );
+		reorderModeIntegration.select( kind, clientId );
 	};
 
 	/**
@@ -85,11 +86,11 @@ const ReorderModeEdit = ( componentProps: ReorderModeEditProps ) => {
 		event.preventDefault();
 	};
 
-	const editingAllowed = reorderMode.isEditingAllowed( clientId );
+	const editingAllowed = reorderModeIntegration.isEditingAllowed( clientId );
 	const editingStartPrevented = isSelected && ! editingAllowed;
 	const editingStartHandler = editingStartPrevented ? preventEditingStart : undefined;
-	const rowSelected = reorderMode.isSelected( 'row', clientId );
-	const columnSelected = reorderMode.isSelected( 'column', clientId );
+	const rowSelected = reorderModeIntegration.isSelected( 'row', clientId );
+	const columnSelected = reorderModeIntegration.isSelected( 'column', clientId );
 
 	return (
 		<>
