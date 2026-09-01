@@ -22,3 +22,31 @@ export const getRowReorderName = () => __( 'Reorder rows', 'yamabiko-table-reord
  * @return 現在の言語に対応した列並び替え入口の表示名。
  */
 export const getColumnReorderName = () => __( 'Reorder columns', 'yamabiko-table-reorder' );
+
+/**
+ * #718 FTB PoCの移動元入力名を取得する。
+ *
+ * @return 移動元Row indexの表示名。
+ */
+export const getFtbPreviewFromLabel = () => __( 'From', 'yamabiko-table-reorder' );
+
+/**
+ * #718 FTB PoCの移動先入力名を取得する。
+ *
+ * @return 移動先Row indexの表示名。
+ */
+export const getFtbPreviewToLabel = () => __( 'To', 'yamabiko-table-reorder' );
+
+/**
+ * #718 FTB PoCの表示上の行移動操作名を取得する。
+ *
+ * @return 複製表示だけを変更する操作名。
+ */
+export const getFtbPreviewMoveLabel = () => __( 'Move', 'yamabiko-table-reorder' );
+
+/**
+ * #718 FTB PoCの1回commit操作名を取得する。
+ *
+ * @return 最終Row順をFTBへ反映する操作名。
+ */
+export const getFtbPreviewCommitLabel = () => __( 'Commit once', 'yamabiko-table-reorder' );
