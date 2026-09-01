@@ -115,8 +115,7 @@ const reorderModeStore = createStore< ReorderModeStore >()(
 			mode: { kind: 'edit' },
 			select: ( kind, tableIdentity ) => {
 				const mode = get().mode;
-				const isSameSelectedMode =
-					mode.kind === kind && mode.tableIdentity === tableIdentity;
+				const isSameSelectedMode = mode.kind === kind && mode.tableIdentity === tableIdentity;
 
 				/*
 				 * 選択中の入口を同じTableでもう一度選択した場合は、並び替えモードを解除する。
@@ -126,11 +125,7 @@ const reorderModeStore = createStore< ReorderModeStore >()(
 					return;
 				}
 
-				set(
-					{ mode: { kind, tableIdentity } },
-					undefined,
-					'reorder-mode/select'
-				);
+				set( { mode: { kind, tableIdentity } }, undefined, 'reorder-mode/select' );
 			},
 			observeTable: ( tableIdentity ) => {
 				const mode = get().mode;
@@ -154,11 +149,7 @@ const reorderModeStore = createStore< ReorderModeStore >()(
 					return;
 				}
 
-				set(
-					{ mode: { kind: 'edit' } },
-					undefined,
-					'reorder-mode/notify-table-inactive'
-				);
+				set( { mode: { kind: 'edit' } }, undefined, 'reorder-mode/notify-table-inactive' );
 			},
 		} ),
 		{ name: 'Yamabiko Table Reorder / Reorder Mode' }
@@ -200,8 +191,7 @@ export const reorderMode: ReorderMode = {
 export const rowReorderMode: RowReorderMode = {
 	isActive: ( tableIdentity ) => {
 		const mode = reorderModeStore.getState().mode;
-		const rowReorderActiveForTable =
-			mode.kind === 'row' && mode.tableIdentity === tableIdentity;
+		const rowReorderActiveForTable = mode.kind === 'row' && mode.tableIdentity === tableIdentity;
 
 		return rowReorderActiveForTable;
 	},
