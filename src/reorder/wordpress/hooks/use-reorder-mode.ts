@@ -6,8 +6,7 @@
 
 import { useCallback, useSyncExternalStore } from '@wordpress/element';
 
-import type { ReorderKind } from '@/reorder/reorder-mode';
-import { reorderModeIntegration } from '@/reorder/wordpress/reorder-mode-integration';
+import { reorderMode, type ReorderKind } from '@/reorder/reorder-mode';
 
 /**
  * 対象Tableから見た現在のReorder Mode状態とToolbar操作をReactへ提供する。
@@ -16,17 +15,19 @@ import { reorderModeIntegration } from '@/reorder/wordpress/reorder-mode-integra
  * @return 対象Tableで選択中の並び替え方向と、Toolbar入口を選択する操作。
  */
 export const useReorderMode = ( tableIdentity: string ) => {
-	const getSelectedKind = useCallback(
-		() => reorderModeIntegration.getSelectedKind( tableIdentity ),
-		[ tableIdentity ]
-	);
+	const getSelectedKind = useCallback( () => {
+		const mode = reorderMode.getMode( tableIdentity );
+		const selectedKind = mode === 'edit' ? null : mode;
+
+		return selectedKind;
+	}, [ tableIdentity ] );
 	const selectedKind = useSyncExternalStore(
-		reorderModeIntegration.subscribe,
+		reorderMode.subscribe,
 		getSelectedKind,
 		getSelectedKind
 	);
 	const selectMode = useCallback(
-		( kind: ReorderKind ) => reorderModeIntegration.select( kind, tableIdentity ),
+		( kind: ReorderKind ) => reorderMode.select( kind, tableIdentity ),
 		[ tableIdentity ]
 	);
 
