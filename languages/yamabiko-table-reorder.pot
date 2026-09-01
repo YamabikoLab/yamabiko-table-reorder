@@ -28,6 +28,26 @@ msgstr ""
 msgid "Reorder columns"
 msgstr ""
 
+#: src/messages.ts:31
+msgid "From"
+msgstr ""
+
+#: src/messages.ts:38
+msgid "To"
+msgstr ""
+
+#: src/messages.ts:45
+msgid "Move"
+msgstr ""
+
+#: src/messages.ts:52
+msgid "Commit once"
+msgstr ""
+
+#: src/messages.ts:59
+msgid "Applying data..."
+msgstr ""
+
 #. Description of the plugin
 #: yamabiko-table-reorder.php
 msgid "Table reordering for supported blocks in the WordPress block editor."
