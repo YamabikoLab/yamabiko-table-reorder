@@ -1,5 +1,5 @@
 /**
- * 行専用Table Integrationが対応Table Block差を吸収し、現在の行構造と行更新境界を提供することを確認する。
+ * 行専用Table Integrationについて、対応Table Block差を外へ漏らさず、現在の行構造取得と確定済み行移動の反映を提供する内部仕様を確認する。
  */
 
 import { createRowTableIntegration } from './table-integration';
@@ -104,7 +104,7 @@ describe( 'Table Integration', () => {
 
 	/**
 	 * 概要:
-	 * - 下方向への確定済み行移動で境界indexを削除後の挿入indexへ補正して更新できることを確認する。
+	 * - 下方向への確定済み行移動で、移動前の境界位置を移動元行の削除後も同じ移動先を表す挿入位置へ変換できることを確認する。
 	 *
 	 * 事前条件:
 	 * - tbodyはA、B、C、Dの4行である。
@@ -114,7 +114,7 @@ describe( 'Table Integration', () => {
 	 * - applyRowMove()を実行する。
 	 *
 	 * 期待結果:
-	 * - 削除後の挿入indexは3へ補正される。
+	 * - 移動元行の削除後は挿入位置3として同じ移動先へ反映される。
 	 * - bodyはA、C、D、Bの順で1回更新される。
 	 */
 	it( 'when a confirmed row moves downward, should convert the boundary index after removing the source row', () => {
