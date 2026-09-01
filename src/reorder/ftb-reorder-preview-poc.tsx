@@ -9,6 +9,7 @@ import type { BlockEditProps } from '@wordpress/blocks';
 import { useEffect, useRef, useState, type ComponentType } from '@wordpress/element';
 
 import {
+	getFtbPreviewApplyingMessage,
 	getFtbPreviewCommitLabel,
 	getFtbPreviewFromLabel,
 	getFtbPreviewMoveLabel,
@@ -205,14 +206,14 @@ const movePreviewRow = ( previewFigure: HTMLElement, fromIndex: number, toIndex:
 };
 
 /**
- * commit後にEditorが更新済みFTBを描画へ反映できる境界まで待つ。
+ * Editorへ状態変更を描画できる境界まで待つ。
  *
- * 複製表示はこの境界を通過するまで維持し、commit直後に元の並び順が見える状態へ戻さない。
+ * commit前は反映中表示を利用者へ提示してから重いFTB更新へ入り、commit後は更新済みFTBの描画を待ってから複製表示を外す。
  *
  * @param editorWindow 対象FTBが描画されているEditor window。
  * @return 2回の描画境界を通過した時点で解決するPromise。
  */
-const waitForCommitDisplayBoundary = ( editorWindow: Window ): Promise< void > =>
+const waitForDisplayBoundary = ( editorWindow: Window ): Promise< void > =>
 	new Promise( ( resolve ) => {
 		editorWindow.requestAnimationFrame( () => {
 			editorWindow.requestAnimationFrame( () => resolve() );
@@ -236,21 +237,26 @@ const FtbReorderPreviewPoC = ( props: FlexibleTableBlockEditProps ) => {
 
 	useEffect( () => {
 		/*
-		 * 対象FTBが非選択またはunmountになった場合は一時表示を残さず、Editor本来の表示へ戻す。
+		 * commit前に対象FTBから選択が外れた場合は一時並び替えを終了する。
+		 * commit開始後は反映中Tableを維持し、別Blockの選択や操作を妨げない。
 		 */
-		if ( ! isSelected && previewDomRef.current ) {
+		if ( ! isSelected && state.phase === 'preview' && previewDomRef.current ) {
 			removePreviewDom( previewDomRef.current );
 			previewDomRef.current = null;
 			setState( { phase: 'idle' } );
 		}
+	}, [ isSelected, state.phase ] );
 
-		return () => {
+	useEffect(
+		() => () => {
+			/* PoCが破棄された場合は残存する複製表示を必ず除去する。 */
 			if ( previewDomRef.current ) {
 				removePreviewDom( previewDomRef.current );
 				previewDomRef.current = null;
 			}
-		};
-	}, [ isSelected ] );
+		},
+		[]
+	);
 
 	/** 現在入力された0-based位置で複製表示だけのRow移動を行う。 */
 	const move = () => {
@@ -310,9 +316,15 @@ const FtbReorderPreviewPoC = ( props: FlexibleTableBlockEditProps ) => {
 		} );
 
 		setState( { phase: 'committing', rowOrder: state.rowOrder } );
+
+		/*
+		 * 重いFTB更新へ入る前に反映中表示を実画面へ描画し、commit開始を利用者が認識できる状態にする。
+		 */
+		await waitForDisplayBoundary( editorWindow );
+
 		data.dispatch( BLOCK_EDITOR_STORE ).updateBlockAttributes( clientId, { body: finalBody } );
 
-		await waitForCommitDisplayBoundary( editorWindow );
+		await waitForDisplayBoundary( editorWindow );
 
 		if ( previewDomRef.current ) {
 			removePreviewDom( previewDomRef.current );
@@ -322,7 +334,9 @@ const FtbReorderPreviewPoC = ( props: FlexibleTableBlockEditProps ) => {
 		setState( { phase: 'idle' } );
 	};
 
-	if ( ! isSelected ) {
+	const keepsCommitDisplay = state.phase === 'committing';
+
+	if ( ! isSelected && ! keepsCommitDisplay ) {
 		return <span aria-hidden="true" ref={ anchorRef } style={ { display: 'none' } } />;
 	}
 
@@ -369,6 +383,11 @@ const FtbReorderPreviewPoC = ( props: FlexibleTableBlockEditProps ) => {
 				<button disabled={ commitDisabled } onClick={ commitOnce } type="button">
 					{ getFtbPreviewCommitLabel() }
 				</button>
+				{ state.phase === 'committing' && (
+					<span aria-live="polite" role="status">
+						{ getFtbPreviewApplyingMessage() }
+					</span>
+				) }
 			</div>
 			<div ref={ previewHostRef } style={ { display: 'contents' } } />
 		</>
