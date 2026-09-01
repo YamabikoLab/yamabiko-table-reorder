@@ -10,7 +10,7 @@ import { store as blockEditorStore } from '@wordpress/block-editor';
 import { dispatch, select } from '@wordpress/data';
 
 /** Row Reorderが現在のTableで移動可否を再照合するために利用する行構造。 */
-type RowTableStructure = {
+export type RowTableStructure = {
 	/** tbodyの現在行数。 */
 	rowCount: number;
 	/** rowspanを分断するため移動先にできない0-based挿入位置。重複なく昇順で提供する。 */
@@ -18,7 +18,7 @@ type RowTableStructure = {
 };
 
 /** Data UpdateからTable Integrationへ渡す、現在のTable構造へ再照合済みの確定済み行移動。 */
-type RowMove = {
+export type RowMove = {
 	/** 更新対象のTable個体を識別するclientId。 */
 	clientId: string;
 	/** 更新直前のtbodyを基準とする0-based移動元行位置。 */
@@ -198,13 +198,25 @@ const applyRowMove = ( move: RowMove ): boolean => {
 /**
  * Row Reorderと対応Table Blockの間を接続する、行専用Table Integrationの公開境界。
  *
- * `getStructure`は要求時点の対応Tableから現在行数とrowspanによる分断不可境界を取得し、Row Reorderによる移動先の再照合に必要な行構造だけを提供する。
- * `applyRowMove`は再照合済みの確定済み行移動を受け取り、要求時点の対応Tableへtbodyの行順だけを反映する。
- *
  * Core TableとFlexible Table Blockの表現差、およびWordPress Block Editor Storeとの接続はこの責務の内部で吸収する。
- * 個別の内部関数、Tableデータ、Block固有構造、Store差し替え口は公開せず、Tableデータや算出結果も保持しない。
+ * Tableデータや算出結果は保持せず、Block固有構造も外部へ公開しない。
  */
 export const rowTableIntegration = {
+	/**
+	 * 要求時点の対応Tableから、Row Reorderが移動先の再照合に利用する行構造を取得する。
+	 *
+	 * @param clientId 対象Table個体を識別するclientId。
+	 * @return 現在行数とrowspanによる分断不可境界。利用できない場合はnull。
+	 */
 	getStructure,
+
+	/**
+	 * 再照合済みの確定済み行移動を、要求時点の対応Tableへ反映する。
+	 *
+	 * tbodyの行内容は変更せず、行順だけを更新する。
+	 *
+	 * @param move 確定済みの行移動。
+	 * @return 更新できた場合はtrue、現在のTable状態へ安全に反映できない場合はfalse。
+	 */
 	applyRowMove,
 };
