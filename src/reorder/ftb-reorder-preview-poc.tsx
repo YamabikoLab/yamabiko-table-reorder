@@ -370,7 +370,7 @@ const FtbReorderPreviewPoC = ( props: FlexibleTableBlockEditProps ) => {
 					{ getFtbPreviewCommitLabel() }
 				</button>
 			</div>
-			<div ref={ previewHostRef } />
+			<div ref={ previewHostRef } style={ { display: 'contents' } } />
 		</>
 	);
 };
