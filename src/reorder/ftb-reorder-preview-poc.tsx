@@ -405,8 +405,9 @@ const FtbReorderPreviewPoC = ( props: FlexibleTableBlockEditProps ) => {
 				) }
 				{ commitTiming && state.phase !== 'committing' && (
 					<span>
-						{ getFtbPreviewApplyDurationLabel() }: { commitTiming.applyDurationMs.toFixed( 1 ) } ms /{' '}
-						{ getFtbPreviewUpdateDurationLabel() }: { commitTiming.updateDurationMs.toFixed( 1 ) } ms
+						{ getFtbPreviewApplyDurationLabel() }: { commitTiming.applyDurationMs.toFixed( 1 ) } ms
+						/ { getFtbPreviewUpdateDurationLabel() }: { commitTiming.updateDurationMs.toFixed( 1 ) }{ ' ' }
+						ms
 					</span>
 				) }
 			</div>
