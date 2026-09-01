@@ -15,6 +15,8 @@ import {
 	getFtbPreviewToLabel,
 } from '@/messages';
 
+import { resolveEditorDomContext } from './editor-dom-context';
+
 /** PoC対象のFlexible Table Block名。 */
 const FLEXIBLE_TABLE_BLOCK = 'flexible-table-block/table';
 
@@ -111,7 +113,7 @@ const moveItem = < T, >( items: T[], fromIndex: number, toIndex: number ): T[] =
  * 元FTBは複製表示が存在する間だけ非表示とし、複製側はセル編集を開始できない表示専用DOMにする。
  * 複製表示はPoC自身の表示領域が所有し、FTB本体の再描画に巻き込まれないようにする。
  *
- * @param anchor      対象FTBのBlockEdit内に描画された参照要素。
+ * @param anchor      現在のEditor表示環境を解決するPoC UIの基準要素。
  * @param previewHost PoC自身が所有する複製表示領域。
  * @param clientId    対象FTBのclientId。
  * @return 元FTBと複製表示のDOM対応。
@@ -121,9 +123,17 @@ const createPreviewDom = (
 	previewHost: HTMLElement,
 	clientId: string
 ): PreviewDomState => {
-	const blockElement = anchor.closest< HTMLElement >( '[data-block]' );
+	const editorContext = resolveEditorDomContext( anchor );
 
-	if ( ! blockElement || blockElement.dataset.block !== clientId ) {
+	if ( ! editorContext ) {
+		throw new Error( 'FTB reorder preview PoC could not resolve the current Editor DOM.' );
+	}
+
+	const blockElement = Array.from(
+		editorContext.document.querySelectorAll< HTMLElement >( '[data-block]' )
+	).find( ( element ) => element.dataset.block === clientId );
+
+	if ( ! blockElement ) {
 		throw new Error( 'FTB reorder preview PoC could not resolve the selected Block DOM.' );
 	}
 
