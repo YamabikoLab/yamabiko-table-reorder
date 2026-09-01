@@ -36,7 +36,7 @@ export type RowTableIntegrationStore = {
 	/**
 	 * 対応Tableへ確定済みの行順を属性更新として反映する。
 	 *
-	 * @param clientId 更新対象Table個体を識別するclientId。
+	 * @param clientId   更新対象Table個体を識別するclientId。
 	 * @param attributes Tableへ反映する属性差分。
 	 */
 	updateBlockAttributes: ( clientId: string, attributes: Record< string, unknown > ) => void;
@@ -98,7 +98,7 @@ const isRecord = ( value: unknown ): value is Record< string, unknown > =>
  *
  * 対象Blockの不在、非対応Block、または必要なtbody行構造を解釈できない状態は、外部状態による正常な利用不能としてnullを返す。
  *
- * @param store 現在のBlock取得を提供するBlock Editorストア境界。
+ * @param store    現在のBlock取得を提供するBlock Editorストア境界。
  * @param clientId 対象Table個体を識別するclientId。
  * @return 行構造の取得と行順反映に利用可能な現在Table。利用不能な場合はnull。
  */
@@ -141,7 +141,7 @@ const getCurrentTable = (
  * 対応Table Block固有の縦結合属性を、共通の縦結合行数として解釈する。
  *
  * @param tableName 縦結合属性名の解釈対象となる対応Table Block種別。
- * @param cell 対応Table Blockから取得した未検証のセル属性。
+ * @param cell      対応Table Blockから取得した未検証のセル属性。
  * @return セルが占有する行数。縦結合指定がない場合は1、行数として解釈できない場合はnull。
  */
 const getRowSpan = (
