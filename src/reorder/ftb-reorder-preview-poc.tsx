@@ -387,8 +387,8 @@ export const withFtbReorderPreviewPoC = (
 
 		return (
 			<>
-				<BlockEdit { ...props } />
 				<FtbReorderPreviewPoC { ...props } />
+				<BlockEdit { ...props } />
 			</>
 		);
 	};
