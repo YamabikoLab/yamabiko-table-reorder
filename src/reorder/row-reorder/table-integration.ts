@@ -204,9 +204,6 @@ const applyRowMove = ( move: RowMove ): boolean => {
 export const rowTableIntegration = {
 	/**
 	 * 要求時点の対応Tableから、Row Reorderが移動先の再照合に利用する行構造を取得する。
-	 *
-	 * @param clientId 対象Table個体を識別するclientId。
-	 * @return 現在行数とrowspanによる分断不可境界。利用できない場合はnull。
 	 */
 	getStructure,
 
@@ -214,9 +211,6 @@ export const rowTableIntegration = {
 	 * 再照合済みの確定済み行移動を、要求時点の対応Tableへ反映する。
 	 *
 	 * tbodyの行内容は変更せず、行順だけを更新する。
-	 *
-	 * @param move 確定済みの行移動。
-	 * @return 更新できた場合はtrue、現在のTable状態へ安全に反映できない場合はfalse。
 	 */
 	applyRowMove,
 };
