@@ -1,9 +1,12 @@
 /**
  * 通常編集、行並び替え、列並び替えの排他状態と、その並び替えモードが有効なTableを所有する。
  *
- * ReactやWordPressには依存せず、Tableツールバーの再生成とは独立した状態境界として、
+ * ReactやWordPressには依存せず、Zustandのvanilla storeを状態境界として、
  * モード選択、Table単位のライフサイクル、通常編集との排他、および状態変更の購読を提供する。
  */
+
+import { devtools } from 'zustand/middleware';
+import { createStore } from 'zustand/vanilla';
 
 /** 行または列の並び替えモードを表す。 */
 export type ReorderKind = 'row' | 'column';
@@ -23,27 +26,17 @@ type ReorderModeState =
 			tableIdentity: ReorderTableIdentity;
 	  };
 
-/**
- * Row Reorderへ提供するReorder Modeの最小内部仕様を表す。
- *
- * Row ReorderはReorder Mode全体の状態を参照せず、対象Tableで行並び替えが有効かだけを確認する。
- */
-type RowReorderMode = {
-	/**
-	 * 対象Tableで行並び替えが有効か確認する。
-	 *
-	 * @param tableIdentity 行並び替えの有効状態を確認するTable Identity。
-	 * @return 対象Tableで行並び替えが有効な場合はtrue。それ以外はfalse。
-	 */
-	isActive: ( tableIdentity: ReorderTableIdentity ) => boolean;
+/** Reorder Mode Storeが所有する状態を表す。 */
+type ReorderModeStoreState = {
+	mode: ReorderModeState;
 };
 
 /**
- * Reorder Mode本体が外部統合へ提供する最小内部仕様を表す。
+ * Reorder Mode Storeが状態変更のために提供する操作を表す。
  *
- * 表示や編集可否など利用側固有の表現は持たず、状態遷移、Table単位の現在モード参照、状態変更通知だけを提供する。
+ * Storeの利用者は状態を直接置き換えず、Reorder Modeが所有する状態遷移だけを要求する。
  */
-type ReorderMode = {
+type ReorderModeStoreActions = {
 	/**
 	 * 選択された並び替え入口を現在状態へ反映する。
 	 *
@@ -69,6 +62,31 @@ type ReorderMode = {
 	 * @param tableIdentity 操作対象から外れたTable Identity。
 	 */
 	notifyTableInactive: ( tableIdentity: ReorderTableIdentity ) => void;
+};
+
+type ReorderModeStore = ReorderModeStoreState & ReorderModeStoreActions;
+
+/**
+ * Row Reorderへ提供するReorder Modeの最小内部仕様を表す。
+ *
+ * Row ReorderはReorder Mode全体の状態を参照せず、対象Tableで行並び替えが有効かだけを確認する。
+ */
+type RowReorderMode = {
+	/**
+	 * 対象Tableで行並び替えが有効か確認する。
+	 *
+	 * @param tableIdentity 行並び替えの有効状態を確認するTable Identity。
+	 * @return 対象Tableで行並び替えが有効な場合はtrue。それ以外はfalse。
+	 */
+	isActive: ( tableIdentity: ReorderTableIdentity ) => boolean;
+};
+
+/**
+ * Reorder Mode本体が外部統合へ提供する最小内部仕様を表す。
+ *
+ * 表示や編集可否など利用側固有の表現は持たず、状態遷移、Table単位の現在モード参照、状態変更通知だけを提供する。
+ */
+type ReorderMode = ReorderModeStoreActions & {
 	/**
 	 * 対象Tableから見た現在のReorder Modeを取得する。
 	 *
@@ -86,95 +104,91 @@ type ReorderMode = {
 };
 
 /**
- * Reorder Mode本体と各利用境界が共有する状態の正本。
+ * Reorder Modeの状態と状態遷移を所有するStore。
  *
- * `edit`、または`row | column`とそのモードが有効なTable Identityの組だけを保持し、
- * 並び替えモード中にTable Identityが存在しない状態を作らない。
+ * Zustandのvanilla storeを使用し、ReactやWordPressのライフサイクルとは独立して状態を維持する。
+ * Redux DevToolsではReorder Modeの状態変更を操作単位で確認できる。
  */
-let state: ReorderModeState = { kind: 'edit' };
+const reorderModeStore = createStore< ReorderModeStore >()( 
+	devtools(
+		( set, get ) => ( {
+			mode: { kind: 'edit' },
+			select: ( kind, tableIdentity ) => {
+				const mode = get().mode;
+				const isSameSelectedMode =
+					mode.kind === kind && mode.tableIdentity === tableIdentity;
 
-/** Reorder Modeの意味のある状態変更を受け取る購読者を所有する。 */
-const listeners = new Set< () => void >();
+				/*
+				 * 選択中の入口を同じTableでもう一度選択した場合は、並び替えモードを解除する。
+				 */
+				if ( isSameSelectedMode ) {
+					set( { mode: { kind: 'edit' } }, undefined, 'reorder-mode/select' );
+					return;
+				}
 
-/**
- * Reorder Modeの意味が変わる状態変更だけを反映し、すべての購読者へ通知する。
- *
- * @param nextState 次に有効となるReorder Mode状態。
- */
-const updateState = ( nextState: ReorderModeState ) => {
-	const isSameEditState = state.kind === 'edit' && nextState.kind === 'edit';
-	const isSameReorderState =
-		state.kind !== 'edit' &&
-		nextState.kind !== 'edit' &&
-		state.kind === nextState.kind &&
-		state.tableIdentity === nextState.tableIdentity;
+				set(
+					{ mode: { kind, tableIdentity } },
+					undefined,
+					'reorder-mode/select'
+				);
+			},
+			observeTable: ( tableIdentity ) => {
+				const mode = get().mode;
 
-	/*
-	 * Reorder Modeの意味が変わらない更新では、再描画や購読通知を発生させない。
-	 */
-	if ( isSameEditState || isSameReorderState ) {
-		return;
-	}
+				/*
+				 * 通常編集、または同じTableの再観測では、現在のReorder Modeを維持する。
+				 */
+				if ( mode.kind === 'edit' || mode.tableIdentity === tableIdentity ) {
+					return;
+				}
 
-	state = nextState;
+				set( { mode: { kind: 'edit' } }, undefined, 'reorder-mode/observe-table' );
+			},
+			notifyTableInactive: ( tableIdentity ) => {
+				const mode = get().mode;
 
-	/*
-	 * 状態変更を購読するすべての境界へ、同じ状態変更を通知する。
-	 */
-	listeners.forEach( ( listener ) => listener() );
-};
+				/*
+				 * 操作対象から外れたTableが現在の並び替え対象Tableである場合だけ、Reorder Modeを終了する。
+				 */
+				if ( mode.kind === 'edit' || mode.tableIdentity !== tableIdentity ) {
+					return;
+				}
+
+				set(
+					{ mode: { kind: 'edit' } },
+					undefined,
+					'reorder-mode/notify-table-inactive'
+				);
+			},
+		} ),
+		{ name: 'Yamabiko Table Reorder / Reorder Mode' }
+	)
+);
 
 /**
  * 外部統合へ提供する共有Reorder Mode内部仕様。
  *
- * 状態遷移、Table単位の現在モード参照、状態変更通知だけを公開し、利用側固有の表示表現や編集可否は公開しない。
+ * 状態遷移、Table単位の現在モード参照、状態変更通知だけを公開し、Store自体や利用側固有の表示表現は公開しない。
  */
 export const reorderMode: ReorderMode = {
 	select: ( kind, tableIdentity ) => {
-		const isSameSelectedMode = state.kind === kind && state.tableIdentity === tableIdentity;
-
-		/*
-		 * 選択中の入口を同じTableでもう一度選択した場合は、並び替えモードを解除する。
-		 */
-		if ( isSameSelectedMode ) {
-			updateState( { kind: 'edit' } );
-			return;
-		}
-
-		updateState( { kind, tableIdentity } );
+		reorderModeStore.getState().select( kind, tableIdentity );
 	},
 	observeTable: ( tableIdentity ) => {
-		/*
-		 * 通常編集、または同じTableの再観測では、現在のReorder Modeを維持する。
-		 */
-		if ( state.kind === 'edit' || state.tableIdentity === tableIdentity ) {
-			return;
-		}
-
-		updateState( { kind: 'edit' } );
+		reorderModeStore.getState().observeTable( tableIdentity );
 	},
 	notifyTableInactive: ( tableIdentity ) => {
-		/*
-		 * 操作対象から外れたTableが現在の並び替え対象Tableである場合だけ、Reorder Modeを終了する。
-		 */
-		if ( state.kind === 'edit' || state.tableIdentity !== tableIdentity ) {
-			return;
-		}
-
-		updateState( { kind: 'edit' } );
+		reorderModeStore.getState().notifyTableInactive( tableIdentity );
 	},
 	getMode: ( tableIdentity ) => {
-		const mode =
-			state.kind !== 'edit' && state.tableIdentity === tableIdentity ? state.kind : 'edit';
+		const mode = reorderModeStore.getState().mode;
+		const tableMode =
+			mode.kind !== 'edit' && mode.tableIdentity === tableIdentity ? mode.kind : 'edit';
 
-		return mode;
+		return tableMode;
 	},
 	subscribe: ( listener ) => {
-		listeners.add( listener );
-
-		return () => {
-			listeners.delete( listener );
-		};
+		return reorderModeStore.subscribe( listener );
 	},
 };
 
@@ -185,7 +199,9 @@ export const reorderMode: ReorderMode = {
  */
 export const rowReorderMode: RowReorderMode = {
 	isActive: ( tableIdentity ) => {
-		const rowReorderActiveForTable = state.kind === 'row' && state.tableIdentity === tableIdentity;
+		const mode = reorderModeStore.getState().mode;
+		const rowReorderActiveForTable =
+			mode.kind === 'row' && mode.tableIdentity === tableIdentity;
 
 		return rowReorderActiveForTable;
 	},
