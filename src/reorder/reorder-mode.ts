@@ -86,123 +86,108 @@ type ReorderMode = {
 };
 
 /**
- * 通常編集から開始するReorder Modeを作成する。
+ * Reorder Mode本体と各利用境界が共有する状態の正本。
  *
- * `edit`、または`row | column`とそのモードが有効なTable Identityの組だけを状態として保持し、
+ * `edit`、または`row | column`とそのモードが有効なTable Identityの組だけを保持し、
  * 並び替えモード中にTable Identityが存在しない状態を作らない。
- *
- * @return 外部統合とRow Reorderへ必要最小限の内部仕様を提供するReorder Mode。
  */
-const createReorderMode = () => {
-	let state: ReorderModeState = { kind: 'edit' };
-	const listeners = new Set< () => void >();
+let state: ReorderModeState = { kind: 'edit' };
 
-	/**
-	 * 意味のある状態変更だけを反映し、購読者へ通知する。
-	 *
-	 * @param nextState 次に有効となるReorder Mode状態。
-	 */
-	const updateState = ( nextState: ReorderModeState ) => {
-		const isSameEditState = state.kind === 'edit' && nextState.kind === 'edit';
-		const isSameReorderState =
-			state.kind !== 'edit' &&
-			nextState.kind !== 'edit' &&
-			state.kind === nextState.kind &&
-			state.tableIdentity === nextState.tableIdentity;
-
-		/*
-		 * Reorder Modeの意味が変わらない更新では、再描画や購読通知を発生させない。
-		 */
-		if ( isSameEditState || isSameReorderState ) {
-			return;
-		}
-
-		state = nextState;
-
-		/*
-		 * 状態変更を購読するすべての境界へ、同じ状態変更を通知する。
-		 */
-		listeners.forEach( ( listener ) => listener() );
-	};
-
-	const rowReorder: RowReorderMode = {
-		isActive: ( tableIdentity ) => {
-			const rowReorderActiveForTable =
-				state.kind === 'row' && state.tableIdentity === tableIdentity;
-
-			return rowReorderActiveForTable;
-		},
-	};
-
-	const reorderMode: ReorderMode = {
-		select: ( kind, tableIdentity ) => {
-			const isSameSelectedMode = state.kind === kind && state.tableIdentity === tableIdentity;
-
-			/*
-			 * 選択中の入口を同じTableでもう一度選択した場合は、並び替えモードを解除する。
-			 */
-			if ( isSameSelectedMode ) {
-				updateState( { kind: 'edit' } );
-				return;
-			}
-
-			updateState( { kind, tableIdentity } );
-		},
-		observeTable: ( tableIdentity ) => {
-			/*
-			 * 通常編集、または同じTableの再観測では、現在のReorder Modeを維持する。
-			 */
-			if ( state.kind === 'edit' || state.tableIdentity === tableIdentity ) {
-				return;
-			}
-
-			updateState( { kind: 'edit' } );
-		},
-		notifyTableInactive: ( tableIdentity ) => {
-			/*
-			 * 操作対象から外れたTableが現在の並び替え対象Tableである場合だけ、Reorder Modeを終了する。
-			 */
-			if ( state.kind === 'edit' || state.tableIdentity !== tableIdentity ) {
-				return;
-			}
-
-			updateState( { kind: 'edit' } );
-		},
-		getMode: ( tableIdentity ) => {
-			const mode =
-				state.kind !== 'edit' && state.tableIdentity === tableIdentity ? state.kind : 'edit';
-
-			return mode;
-		},
-		subscribe: ( listener ) => {
-			listeners.add( listener );
-
-			return () => {
-				listeners.delete( listener );
-			};
-		},
-	};
-
-	return { reorderMode, rowReorder };
-};
+/** Reorder Modeの意味のある状態変更を受け取る購読者を所有する。 */
+const listeners = new Set< () => void >();
 
 /**
- * Reorder Mode本体と後続のRow Reorderが共有する状態の正本を所有する。
+ * Reorder Modeの意味が変わる状態変更だけを反映し、すべての購読者へ通知する。
  *
- * 各利用境界へは必要な内部仕様だけを渡し、Reorder Mode全体を共有しない。
+ * @param nextState 次に有効となるReorder Mode状態。
  */
-const sharedReorderMode = createReorderMode();
+const updateState = ( nextState: ReorderModeState ) => {
+	const isSameEditState = state.kind === 'edit' && nextState.kind === 'edit';
+	const isSameReorderState =
+		state.kind !== 'edit' &&
+		nextState.kind !== 'edit' &&
+		state.kind === nextState.kind &&
+		state.tableIdentity === nextState.tableIdentity;
+
+	/*
+	 * Reorder Modeの意味が変わらない更新では、再描画や購読通知を発生させない。
+	 */
+	if ( isSameEditState || isSameReorderState ) {
+		return;
+	}
+
+	state = nextState;
+
+	/*
+	 * 状態変更を購読するすべての境界へ、同じ状態変更を通知する。
+	 */
+	listeners.forEach( ( listener ) => listener() );
+};
 
 /**
  * 外部統合へ提供する共有Reorder Mode内部仕様。
  *
  * 状態遷移、Table単位の現在モード参照、状態変更通知だけを公開し、利用側固有の表示表現や編集可否は公開しない。
  */
-export const reorderMode = sharedReorderMode.reorderMode;
+export const reorderMode: ReorderMode = {
+	select: ( kind, tableIdentity ) => {
+		const isSameSelectedMode = state.kind === kind && state.tableIdentity === tableIdentity;
+
+		/*
+		 * 選択中の入口を同じTableでもう一度選択した場合は、並び替えモードを解除する。
+		 */
+		if ( isSameSelectedMode ) {
+			updateState( { kind: 'edit' } );
+			return;
+		}
+
+		updateState( { kind, tableIdentity } );
+	},
+	observeTable: ( tableIdentity ) => {
+		/*
+		 * 通常編集、または同じTableの再観測では、現在のReorder Modeを維持する。
+		 */
+		if ( state.kind === 'edit' || state.tableIdentity === tableIdentity ) {
+			return;
+		}
+
+		updateState( { kind: 'edit' } );
+	},
+	notifyTableInactive: ( tableIdentity ) => {
+		/*
+		 * 操作対象から外れたTableが現在の並び替え対象Tableである場合だけ、Reorder Modeを終了する。
+		 */
+		if ( state.kind === 'edit' || state.tableIdentity !== tableIdentity ) {
+			return;
+		}
+
+		updateState( { kind: 'edit' } );
+	},
+	getMode: ( tableIdentity ) => {
+		const mode =
+			state.kind !== 'edit' && state.tableIdentity === tableIdentity ? state.kind : 'edit';
+
+		return mode;
+	},
+	subscribe: ( listener ) => {
+		listeners.add( listener );
+
+		return () => {
+			listeners.delete( listener );
+		};
+	},
+};
 
 /**
  * Row Reorderへ提供する共有Reorder Mode内部仕様。
  *
  * Toolbarと同じReorder Mode状態を参照しつつ、対象Tableで行並び替えが有効かだけを公開する。
  */
-export const rowReorderMode = sharedReorderMode.rowReorder;
+export const rowReorderMode: RowReorderMode = {
+	isActive: ( tableIdentity ) => {
+		const rowReorderActiveForTable =
+			state.kind === 'row' && state.tableIdentity === tableIdentity;
+
+		return rowReorderActiveForTable;
+	},
+};
