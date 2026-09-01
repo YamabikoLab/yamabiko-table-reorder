@@ -50,3 +50,10 @@ export const getFtbPreviewMoveLabel = () => __( 'Move', 'yamabiko-table-reorder'
  * @return 最終Row順をFTBへ反映する操作名。
  */
 export const getFtbPreviewCommitLabel = () => __( 'Commit once', 'yamabiko-table-reorder' );
+
+/**
+ * #718 FTB PoCのデータ反映中メッセージを取得する。
+ *
+ * @return FTBへの最終Row順の反映中であることを示す文言。
+ */
+export const getFtbPreviewApplyingMessage = () => __( 'Applying data...', 'yamabiko-table-reorder' );
