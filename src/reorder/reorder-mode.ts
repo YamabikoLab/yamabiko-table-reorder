@@ -109,7 +109,7 @@ type ReorderMode = ReorderModeStoreActions & {
  * Zustandのvanilla storeを使用し、ReactやWordPressのライフサイクルとは独立して状態を維持する。
  * Redux DevToolsではReorder Modeの状態変更を操作単位で確認できる。
  */
-const reorderModeStore = createStore< ReorderModeStore >()( 
+const reorderModeStore = createStore< ReorderModeStore >()(
 	devtools(
 		( set, get ) => ( {
 			mode: { kind: 'edit' },
