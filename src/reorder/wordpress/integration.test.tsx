@@ -9,8 +9,8 @@ import type { BlockEditProps } from '@wordpress/blocks';
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 
+import { reorderMode } from '@/reorder/reorder-mode';
 import { withReorderMode, withReorderModeBlockListBlock } from '@/reorder/wordpress/integration';
-import { reorderModeIntegration } from '@/reorder/wordpress/reorder-mode-integration';
 
 let mockSelectedBlockClientId: string | null = null;
 const mockBlocks = new Map< string, { name: string } >();
@@ -108,7 +108,7 @@ describe( 'Reorder Mode WordPress integration', () => {
 
 	beforeEach( () => {
 		setSelectedBlock( null );
-		reorderModeIntegration.notifyTableInactive( 'table-a' );
+		reorderMode.notifyTableInactive( 'table-a' );
 		container = document.createElement( 'div' );
 		document.body.appendChild( container );
 		root = createRoot( container );
@@ -117,7 +117,7 @@ describe( 'Reorder Mode WordPress integration', () => {
 	afterEach( () => {
 		setSelectedBlock( null );
 		act( () => {
-			reorderModeIntegration.notifyTableInactive( 'table-a' );
+			reorderMode.notifyTableInactive( 'table-a' );
 			root.unmount();
 		} );
 		container.remove();
