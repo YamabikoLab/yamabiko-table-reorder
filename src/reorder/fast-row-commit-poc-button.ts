@@ -3,7 +3,7 @@
  * #714の高速Row commitを実WordPress Editor上の一時ボタンから確認するPoC UIを所有する。
  *
  * commit処理自体は所有せず、既存Lifecycle PoCの「Table選択を維持したままRow属性を更新する」経路だけを呼び出す。
- * 移動距離を切り替えて、リロード直後の初回commit性能と移動範囲の関係を比較できるようにする。
+ * 移動距離とcommit開始taskを切り替え、リロード直後の初回commit性能を比較できるようにする。
  */
 
 import { runRowReorderCommitWithoutClearByClientIdPoC } from './reorder-commit-lifecycle-poc';
@@ -11,8 +11,11 @@ import { runRowReorderCommitWithoutClearByClientIdPoC } from './reorder-commit-l
 /** WordPress Block Editorのdata store名。 */
 const BLOCK_EDITOR_STORE = 'core/block-editor';
 
-/** 高速Row commit PoCボタンのDOM id。 */
+/** 同期開始する高速Row commit PoCボタンのDOM id。 */
 const FAST_ROW_BUTTON_ID = 'ytr-fast-row-commit-poc';
+
+/** 次taskから開始する高速Row commit PoCボタンのDOM id。 */
+const FAST_ROW_NEXT_TASK_BUTTON_ID = 'ytr-fast-row-next-task-commit-poc';
 
 /** 高速Row commit PoCの移動距離入力のDOM id。 */
 const FAST_ROW_DISTANCE_INPUT_ID = 'ytr-fast-row-commit-poc-distance';
@@ -74,10 +77,28 @@ const getFastRowToIndex = ( input: HTMLInputElement ): number => {
 };
 
 /**
+ * Table選択を維持したRow commitを実行し、PoC計測結果を出力する。
+ *
+ * @param clientId 対象TableのclientId。
+ * @param toIndex Row 0の移動先。
+ * @param onComplete commit完了後にPoC UIを復帰する処理。
+ */
+const runFastRowCommit = ( clientId: string, toIndex: number, onComplete: () => void ): void => {
+	runRowReorderCommitWithoutClearByClientIdPoC( clientId, FAST_ROW_FROM_INDEX, toIndex )
+		.then( ( result ) => {
+			console.log( '✅ Fast Row commit PoC result', result );
+		} )
+		.catch( ( error: unknown ) => {
+			console.error( '❌ Fast Row commit PoC failed', error );
+		} )
+		.finally( onComplete );
+};
+
+/**
  * Table選択を維持した高速Row commitを実Editor上から実行する一時ボタンを登録する。
  *
- * Row Reorder ModeがONの対象Tableを選択した状態で、入力した移動距離だけRow 0を移動し、
- * 既存Lifecycle PoCと同じ計測結果をConsoleへ出力する。
+ * 同期開始と次task開始の2経路を同じ移動距離で比較し、入力イベントtaskとattribute commitを
+ * 分離した場合にリロード直後の初回遅延が変化するかを確認する。
  */
 export const registerFastRowCommitPoCButton = (): void => {
 	if ( document.getElementById( FAST_ROW_BUTTON_ID ) ) {
@@ -85,6 +106,7 @@ export const registerFastRowCommitPoCButton = (): void => {
 	}
 
 	let pendingClientId: string | null = null;
+	let pendingNextTaskClientId: string | null = null;
 	const distanceInput = document.createElement( 'input' );
 	distanceInput.id = FAST_ROW_DISTANCE_INPUT_ID;
 	distanceInput.type = 'number';
@@ -119,14 +141,36 @@ export const registerFastRowCommitPoCButton = (): void => {
 	button.style.color = 'CanvasText';
 	button.style.cursor = 'pointer';
 
+	const nextTaskButton = document.createElement( 'button' );
+	nextTaskButton.id = FAST_ROW_NEXT_TASK_BUTTON_ID;
+	nextTaskButton.type = 'button';
+	nextTaskButton.textContent = `PoC: Next Task 0→${ FAST_ROW_DEFAULT_DISTANCE }`;
+	nextTaskButton.style.position = 'fixed';
+	nextTaskButton.style.right = '16px';
+	nextTaskButton.style.bottom = '16px';
+	nextTaskButton.style.zIndex = '100000';
+	nextTaskButton.style.padding = '8px 12px';
+	nextTaskButton.style.border = '1px solid currentColor';
+	nextTaskButton.style.borderRadius = '4px';
+	nextTaskButton.style.background = 'Canvas';
+	nextTaskButton.style.color = 'CanvasText';
+	nextTaskButton.style.cursor = 'pointer';
+
 	distanceInput.addEventListener( 'input', () => {
 		button.textContent = `PoC: Fast Row 0→${ distanceInput.value }`;
+		nextTaskButton.textContent = `PoC: Next Task 0→${ distanceInput.value }`;
 	} );
 
 	button.addEventListener( 'pointerdown', ( event ) => {
 		event.preventDefault();
 		event.stopPropagation();
 		pendingClientId = getWordPressData().select( BLOCK_EDITOR_STORE ).getSelectedBlockClientId();
+	} );
+
+	nextTaskButton.addEventListener( 'pointerdown', ( event ) => {
+		event.preventDefault();
+		event.stopPropagation();
+		pendingNextTaskClientId = getWordPressData().select( BLOCK_EDITOR_STORE ).getSelectedBlockClientId();
 	} );
 
 	button.addEventListener( 'click', ( event ) => {
@@ -153,21 +197,53 @@ export const registerFastRowCommitPoCButton = (): void => {
 		}
 
 		button.disabled = true;
+		nextTaskButton.disabled = true;
 		distanceInput.disabled = true;
-		runRowReorderCommitWithoutClearByClientIdPoC( clientId, FAST_ROW_FROM_INDEX, toIndex )
-			.then( ( result ) => {
-				console.log( '✅ Fast Row commit PoC result', result );
-			} )
-			.catch( ( error: unknown ) => {
-				console.error( '❌ Fast Row commit PoC failed', error );
-			} )
-			.finally( () => {
+		runFastRowCommit( clientId, toIndex, () => {
+			button.disabled = false;
+			nextTaskButton.disabled = false;
+			distanceInput.disabled = false;
+		} );
+	} );
+
+	nextTaskButton.addEventListener( 'click', ( event ) => {
+		event.preventDefault();
+		event.stopPropagation();
+
+		const clientId = pendingNextTaskClientId;
+		pendingNextTaskClientId = null;
+
+		if ( clientId === null ) {
+			console.error(
+				'❌ Fast Row commit PoC failed',
+				new Error( 'Fast Row commit PoC requires a selected Table.' )
+			);
+			return;
+		}
+
+		let toIndex: number;
+		try {
+			toIndex = getFastRowToIndex( distanceInput );
+		} catch ( error: unknown ) {
+			console.error( '❌ Fast Row commit PoC failed', error );
+			return;
+		}
+
+		button.disabled = true;
+		nextTaskButton.disabled = true;
+		distanceInput.disabled = true;
+
+		setTimeout( () => {
+			runFastRowCommit( clientId, toIndex, () => {
 				button.disabled = false;
+				nextTaskButton.disabled = false;
 				distanceInput.disabled = false;
 			} );
+		}, 0 );
 	} );
 
 	document.body.appendChild( distanceInput );
 	document.body.appendChild( button );
-	console.log( '🧪 Fast Row commit PoC button registered' );
+	document.body.appendChild( nextTaskButton );
+	console.log( '🧪 Fast Row commit PoC buttons registered' );
 };
