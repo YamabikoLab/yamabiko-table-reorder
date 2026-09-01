@@ -251,9 +251,7 @@ const FtbReorderPreviewPoC = ( props: FlexibleTableBlockEditProps ) => {
 		const fromIndex = Number( fromValue );
 		const toIndex = Number( toValue );
 		const currentOrder =
-			state.phase === 'preview'
-				? state.rowOrder
-				: attributes.body.map( ( _row, index ) => index );
+			state.phase === 'preview' ? state.rowOrder : attributes.body.map( ( _row, index ) => index );
 		const nextOrder = moveItem( currentOrder, fromIndex, toIndex );
 		const anchor = anchorRef.current;
 		const previewHost = previewHostRef.current;
