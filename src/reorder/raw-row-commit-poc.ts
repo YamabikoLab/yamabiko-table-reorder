@@ -409,7 +409,9 @@ export const runRawRowCommitPoC = async (
 
 	if ( longTaskObservation.supported ) {
 		console.log(
-			`⑥ Long Task: ${ longTasks.length }件 / total ${ longTaskTotalDurationMs.toFixed( 1 ) } ms / max ${ longTaskMaxDurationMs.toFixed( 1 ) } ms`,
+			`⑥ Long Task: ${ longTasks.length }件 / total ${ longTaskTotalDurationMs.toFixed(
+				1
+			) } ms / max ${ longTaskMaxDurationMs.toFixed( 1 ) } ms`,
 			longTasks
 		);
 	} else {
