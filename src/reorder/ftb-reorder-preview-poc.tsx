@@ -23,6 +23,10 @@ const FLEXIBLE_TABLE_BLOCK = 'flexible-table-block/table';
 /** WordPress Block Editorのdata store名。 */
 const BLOCK_EDITOR_STORE = 'core/block-editor';
 
+/** PoC対象FTBの描画済みfigureを識別するselector。 */
+const FTB_FIGURE_SELECTOR =
+	'figure.wp-block-flexible-table-block-table:not([data-ytr-ftb-reorder-preview])';
+
 /** FTB CellのPoC向け最小表現。 */
 type TableCell = Record< string, unknown >;
 
@@ -137,9 +141,9 @@ const createPreviewDom = (
 		throw new Error( 'FTB reorder preview PoC could not resolve the selected Block DOM.' );
 	}
 
-	const originalFigure = blockElement.querySelector< HTMLElement >(
-		'figure.wp-block-flexible-table-block-table:not([data-ytr-ftb-reorder-preview])'
-	);
+	const originalFigure = blockElement.matches( FTB_FIGURE_SELECTOR )
+		? blockElement
+		: blockElement.querySelector< HTMLElement >( FTB_FIGURE_SELECTOR );
 
 	if ( ! originalFigure ) {
 		throw new Error( 'FTB reorder preview PoC requires the rendered FTB figure.' );
