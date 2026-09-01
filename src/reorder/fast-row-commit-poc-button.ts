@@ -102,11 +102,7 @@ export const registerFastRowCommitPoCButton = (): void => {
 		}
 
 		button.disabled = true;
-		runRowReorderCommitWithoutClearByClientIdPoC(
-			clientId,
-			FAST_ROW_FROM_INDEX,
-			FAST_ROW_TO_INDEX
-		)
+		runRowReorderCommitWithoutClearByClientIdPoC( clientId, FAST_ROW_FROM_INDEX, FAST_ROW_TO_INDEX )
 			.then( ( result ) => {
 				console.log( '✅ Fast Row commit PoC result', result );
 			} )
