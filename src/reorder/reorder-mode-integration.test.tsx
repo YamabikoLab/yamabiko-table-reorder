@@ -12,10 +12,21 @@ import { createRoot, type Root } from 'react-dom/client';
 import { reorderModeIntegration } from './reorder-mode';
 import { withReorderMode, withReorderModeBlockListBlock } from './reorder-mode-integration';
 
+let mockSelectedBlockClientId: string | null = null;
+const mockBlocks = new Map< string, { name: string } >();
+
 jest.mock( '@wordpress/block-editor', () => ( {
 	BlockControls: ( { children }: { children: React.ReactNode } ) => (
 		<div data-testid="block-controls">{ children }</div>
 	),
+	store: Symbol( 'block-editor-store' ),
+} ) );
+
+jest.mock( '@wordpress/data', () => ( {
+	select: () => ( {
+		getBlock: ( clientId: string ) => mockBlocks.get( clientId ) ?? null,
+		getSelectedBlockClientId: () => mockSelectedBlockClientId,
+	} ),
 } ) );
 
 jest.mock( '@wordpress/components', () => ( {
@@ -53,6 +64,21 @@ type BlockListBlockProps = {
 /** Reactの`act()`対象としてJest環境を明示できるglobal設定を表す。 */
 type ReactActGlobal = typeof globalThis & {
 	IS_REACT_ACT_ENVIRONMENT?: boolean;
+};
+
+/**
+ * Editor上の現在選択Blockをテスト条件として設定する。
+ *
+ * @param clientId 現在選択されているBlock Identity。選択がない場合はnull。
+ * @param name     選択BlockのBlock名。選択がない場合は指定しない。
+ */
+const setSelectedBlock = ( clientId: string | null, name?: string ) => {
+	mockSelectedBlockClientId = clientId;
+	mockBlocks.clear();
+
+	if ( clientId && name ) {
+		mockBlocks.set( clientId, { name } );
+	}
 };
 
 /**
@@ -115,6 +141,7 @@ describe( 'Reorder Mode integration', () => {
 	} );
 
 	beforeEach( () => {
+		setSelectedBlock( null );
 		reorderModeIntegration.notifyTableInactive( 'table-a' );
 		reorderModeIntegration.notifyTableInactive( 'table-b' );
 		container = document.createElement( 'div' );
@@ -123,6 +150,7 @@ describe( 'Reorder Mode integration', () => {
 	} );
 
 	afterEach( () => {
+		setSelectedBlock( null );
 		act( () => {
 			reorderModeIntegration.notifyTableInactive( 'table-a' );
 			reorderModeIntegration.notifyTableInactive( 'table-b' );
@@ -154,6 +182,7 @@ describe( 'Reorder Mode integration', () => {
 			name: 'core/table',
 			setAttributes: jest.fn(),
 		} as unknown as TableBlockEditProps;
+		setSelectedBlock( 'table-a', 'core/table' );
 
 		renderTable( root, Wrapped, props );
 
@@ -200,6 +229,7 @@ describe( 'Reorder Mode integration', () => {
 			setAttributes: jest.fn(),
 		} as unknown as TableBlockEditProps;
 		const existingPointerDownCapture = jest.fn();
+		setSelectedBlock( 'table-a', 'core/table' );
 
 		renderTable( root, Wrapped, editProps );
 		act( () => {
@@ -269,6 +299,7 @@ describe( 'Reorder Mode integration', () => {
 			...selectedTable,
 			isSelected: false,
 		};
+		setSelectedBlock( 'table-a', 'core/table' );
 
 		renderTable( root, Wrapped, selectedTable );
 		act( () => {
@@ -276,11 +307,90 @@ describe( 'Reorder Mode integration', () => {
 		} );
 		expect( reorderModeIntegration.getSelectedKind( 'table-a' ) ).toBe( 'row' );
 
+		setSelectedBlock( 'paragraph-a', 'core/paragraph' );
 		renderTable( root, Wrapped, unselectedTable );
 
 		expect( container.querySelector( '[data-testid="block-controls"]' ) ).toBeNull();
 		expect( reorderModeIntegration.getSelectedKind( 'table-a' ) ).toBeNull();
 		expect( reorderModeIntegration.isEditingAllowed( 'table-a' ) ).toBe( true );
+	} );
+
+	/**
+	 * 概要:
+	 * - 並び替え対象Tableが非選択状態を経由せず直接破棄された場合も、Editorの操作対象変更から通常編集へ戻ることを確認する。
+	 *
+	 * 事前条件:
+	 * - Core Tableが選択され、行の並び替えモードが選択されている。
+	 *
+	 * 操作:
+	 * - Editorの操作対象を非対応Blockへ移し、対象Table componentを直接unmountする。
+	 *
+	 * 期待結果:
+	 * - 対象Tableの行並び替えモードが残らない。
+	 * - 対象Tableの通常編集が再び許可される。
+	 */
+	it( 'when the active reorder table unmounts after selection moves away, should return to edit mode', () => {
+		const selectedTable = {
+			attributes: {},
+			clientId: 'table-a',
+			isSelected: true,
+			name: 'core/table',
+			setAttributes: jest.fn(),
+		} as unknown as TableBlockEditProps;
+		setSelectedBlock( 'table-a', 'core/table' );
+
+		renderTable( root, Wrapped, selectedTable );
+		act( () => {
+			getToolbarButton( container, 'Reorder rows' ).click();
+		} );
+		expect( reorderModeIntegration.getSelectedKind( 'table-a' ) ).toBe( 'row' );
+
+		setSelectedBlock( 'paragraph-a', 'core/paragraph' );
+		act( () => {
+			root.render( <div data-testid="paragraph-edit">Paragraph</div> );
+		} );
+
+		expect( reorderModeIntegration.getSelectedKind( 'table-a' ) ).toBeNull();
+		expect( reorderModeIntegration.isEditingAllowed( 'table-a' ) ).toBe( true );
+	} );
+
+	/**
+	 * 概要:
+	 * - 選択中Tableのcomponentだけが再生成された場合は、Reorder Modeを終了しないことを確認する。
+	 *
+	 * 事前条件:
+	 * - Core TableがEditor上の操作対象のまま、行の並び替えモードが選択されている。
+	 *
+	 * 操作:
+	 * - 同じTable Identityを選択したままcomponentを一度破棄し、再度描画する。
+	 *
+	 * 期待結果:
+	 * - componentの再生成だけでは行並び替えモードが終了しない。
+	 */
+	it( 'when the selected table component remounts, should preserve reorder mode', () => {
+		const selectedTable = {
+			attributes: {},
+			clientId: 'table-a',
+			isSelected: true,
+			name: 'core/table',
+			setAttributes: jest.fn(),
+		} as unknown as TableBlockEditProps;
+		setSelectedBlock( 'table-a', 'core/table' );
+
+		renderTable( root, Wrapped, selectedTable );
+		act( () => {
+			getToolbarButton( container, 'Reorder rows' ).click();
+		} );
+
+		act( () => {
+			root.render( <div data-testid="temporary-edit">Temporary</div> );
+		} );
+		expect( reorderModeIntegration.getSelectedKind( 'table-a' ) ).toBe( 'row' );
+
+		renderTable( root, Wrapped, selectedTable );
+		expect( getToolbarButton( container, 'Reorder rows' ).getAttribute( 'aria-pressed' ) ).toBe(
+			'true'
+		);
 	} );
 
 	/**
