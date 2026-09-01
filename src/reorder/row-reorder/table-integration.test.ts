@@ -2,8 +2,6 @@
  * 行専用Table Integrationについて、WordPress Store境界の外側から、対応Table Block差を漏らさず現在の行構造取得と確定済み行移動の反映を提供する内部仕様を確認する。
  */
 
-import { dispatch, select } from '@wordpress/data';
-
 import { rowTableIntegration } from './table-integration';
 
 jest.mock( '@wordpress/block-editor', () => ( {
@@ -15,8 +13,10 @@ jest.mock( '@wordpress/data', () => ( {
 	select: jest.fn(),
 } ) );
 
-const selectMock = select as jest.Mock;
-const dispatchMock = dispatch as jest.Mock;
+const { dispatch: dispatchMock, select: selectMock } = jest.requireMock( '@wordpress/data' ) as {
+	dispatch: jest.Mock;
+	select: jest.Mock;
+};
 
 describe( 'Table Integration', () => {
 	beforeEach( () => {
