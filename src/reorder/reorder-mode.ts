@@ -9,7 +9,7 @@
 export type ReorderKind = 'row' | 'column';
 
 /** 並び替えモードを現在のTableへ関連付ける最小限のTable Identityを表す。 */
-export type ReorderTableIdentity = string;
+type ReorderTableIdentity = string;
 
 /**
  * Reorder Modeが保持できる有効状態を表す。
@@ -23,15 +23,12 @@ type ReorderModeState =
 			tableIdentity: ReorderTableIdentity;
 	  };
 
-/** Reorder Modeの状態変更を受け取る購読者を表す。 */
-type ReorderModeListener = () => void;
-
 /**
  * Row Reorderへ提供するReorder Modeの最小内部仕様を表す。
  *
  * Row ReorderはReorder Mode全体の状態を参照せず、対象Tableで行並び替えが有効かだけを確認する。
  */
-export type RowReorderMode = {
+type RowReorderMode = {
 	/**
 	 * 対象Tableで行並び替えが有効か確認する。
 	 *
@@ -42,11 +39,11 @@ export type RowReorderMode = {
 };
 
 /**
- * Reorder Mode接続境界が利用する状態遷移と購読の内部仕様を表す。
+ * WordPress / React接続が利用するReorder Modeの最小内部仕様を表す。
  *
- * Row Reorder向け内部仕様は含めず、WordPress / React接続が必要とする操作だけを公開する。
+ * React側はReorder Modeの遷移条件を所有せず、Table操作対象の変化を通知し、表示に必要な状態だけを購読する。
  */
-export type ReorderModeIntegration = {
+type ReorderModeIntegration = {
 	/**
 	 * Tableツールバーで選択された並び替え入口を現在状態へ反映する。
 	 *
@@ -56,8 +53,6 @@ export type ReorderModeIntegration = {
 	 * @param tableIdentity 入口を所有するTable Identity。
 	 */
 	select: ( kind: ReorderKind, tableIdentity: ReorderTableIdentity ) => void;
-	/** Reorder Modeを終了して通常編集へ戻す。 */
-	exit: () => void;
 	/**
 	 * 現在操作しているTableをReorder Modeへ通知する。
 	 *
@@ -67,13 +62,20 @@ export type ReorderModeIntegration = {
 	 */
 	observeTable: ( tableIdentity: ReorderTableIdentity ) => void;
 	/**
-	 * 対象Tableで指定方向の入口が選択状態か確認する。
+	 * Tableが操作対象から外れたことをReorder Modeへ通知する。
 	 *
-	 * @param kind          確認する並び替え方向。
-	 * @param tableIdentity 確認するTable Identity。
-	 * @return 対象Tableで指定方向が選択状態の場合はtrue。それ以外はfalse。
+	 * 通知されたTableが現在の並び替え対象Tableである場合だけ通常編集へ戻し、他のTableからの通知は現在状態へ影響させない。
+	 *
+	 * @param tableIdentity 操作対象から外れたTable Identity。
 	 */
-	isSelected: ( kind: ReorderKind, tableIdentity: ReorderTableIdentity ) => boolean;
+	notifyTableInactive: ( tableIdentity: ReorderTableIdentity ) => void;
+	/**
+	 * 対象Tableで現在選択されている並び替え方向を取得する。
+	 *
+	 * @param tableIdentity 選択状態を確認するTable Identity。
+	 * @return 対象Tableで選択されている並び替え方向。通常編集または別Tableが対象の場合はnull。
+	 */
+	getSelectedKind: ( tableIdentity: ReorderTableIdentity ) => ReorderKind | null;
 	/**
 	 * 対象Tableで通常編集を開始できるか確認する。
 	 *
@@ -87,23 +89,7 @@ export type ReorderModeIntegration = {
 	 * @param listener Reorder Modeの状態変更後に呼び出す購読者。
 	 * @return 購読を解除する関数。
 	 */
-	subscribe: ( listener: ReorderModeListener ) => () => void;
-	/**
-	 * React側が状態変更を検知するための現在revisionを取得する。
-	 *
-	 * @return Reorder Modeの状態が変化した回数を表す現在revision。
-	 */
-	getRevision: () => number;
-};
-
-/**
- * Reorder Modeの状態を共有する接続境界とRow Reorder向け内部仕様を表す。
- *
- * Table内容、行・列構造、DnD Sessionなどの方向固有情報は所有しない。
- */
-export type ReorderMode = ReorderModeIntegration & {
-	/** Row Reorderへ公開する最小内部仕様。 */
-	rowReorder: RowReorderMode;
+	subscribe: ( listener: () => void ) => () => void;
 };
 
 /**
@@ -112,12 +98,11 @@ export type ReorderMode = ReorderModeIntegration & {
  * `edit`、または`row | column`とそのモードが有効なTable Identityの組だけを状態として保持し、
  * 並び替えモード中にTable Identityが存在しない状態を作らない。
  *
- * @return 独立した状態と購読境界を所有するReorder Mode。
+ * @return WordPress / React接続とRow Reorderへ必要最小限の内部仕様を提供するReorder Mode。
  */
-export const createReorderMode = (): ReorderMode => {
+const createReorderMode = () => {
 	let state: ReorderModeState = { kind: 'edit' };
-	let revision = 0;
-	const listeners = new Set< ReorderModeListener >();
+	const listeners = new Set< () => void >();
 
 	/**
 	 * 意味のある状態変更だけを反映し、購読者へ通知する。
@@ -140,7 +125,6 @@ export const createReorderMode = (): ReorderMode => {
 		}
 
 		state = nextState;
-		revision += 1;
 
 		/*
 		 * 状態変更を購読するすべての境界へ、同じ状態変更を通知する。
@@ -157,7 +141,7 @@ export const createReorderMode = (): ReorderMode => {
 		},
 	};
 
-	return {
+	const integration: ReorderModeIntegration = {
 		select: ( kind, tableIdentity ) => {
 			const isSameSelectedMode = state.kind === kind && state.tableIdentity === tableIdentity;
 
@@ -171,9 +155,6 @@ export const createReorderMode = (): ReorderMode => {
 
 			updateState( { kind, tableIdentity } );
 		},
-		exit: () => {
-			updateState( { kind: 'edit' } );
-		},
 		observeTable: ( tableIdentity ) => {
 			/*
 			 * 通常編集、または同じTableの再観測では、現在のReorder Modeを維持する。
@@ -184,10 +165,21 @@ export const createReorderMode = (): ReorderMode => {
 
 			updateState( { kind: 'edit' } );
 		},
-		isSelected: ( kind, tableIdentity ) => {
-			const selectedForTable = state.kind === kind && state.tableIdentity === tableIdentity;
+		notifyTableInactive: ( tableIdentity ) => {
+			/*
+			 * 操作対象から外れたTableが現在の並び替え対象Tableである場合だけ、Reorder Modeを終了する。
+			 */
+			if ( state.kind === 'edit' || state.tableIdentity !== tableIdentity ) {
+				return;
+			}
 
-			return selectedForTable;
+			updateState( { kind: 'edit' } );
+		},
+		getSelectedKind: ( tableIdentity ) => {
+			const selectedKind =
+				state.kind !== 'edit' && state.tableIdentity === tableIdentity ? state.kind : null;
+
+			return selectedKind;
 		},
 		isEditingAllowed: ( tableIdentity ) => {
 			const isReorderActiveForTable =
@@ -203,9 +195,9 @@ export const createReorderMode = (): ReorderMode => {
 				listeners.delete( listener );
 			};
 		},
-		getRevision: () => revision,
-		rowReorder,
 	};
+
+	return { integration, rowReorder };
 };
 
 /**
@@ -218,21 +210,13 @@ const sharedReorderMode = createReorderMode();
 /**
  * WordPress / React接続へ提供する共有Reorder Mode内部仕様。
  *
- * Row Reorder向け内部仕様は公開せず、ToolbarとTable lifecycleが必要とする操作だけを提供する。
+ * Toolbar、Table lifecycle、編集抑止が必要とする状態と操作だけを公開する。
  */
-export const reorderModeIntegration: ReorderModeIntegration = {
-	select: sharedReorderMode.select,
-	exit: sharedReorderMode.exit,
-	observeTable: sharedReorderMode.observeTable,
-	isSelected: sharedReorderMode.isSelected,
-	isEditingAllowed: sharedReorderMode.isEditingAllowed,
-	subscribe: sharedReorderMode.subscribe,
-	getRevision: sharedReorderMode.getRevision,
-};
+export const reorderModeIntegration = sharedReorderMode.integration;
 
 /**
  * Row Reorderへ提供する共有Reorder Mode内部仕様。
  *
  * Toolbarと同じReorder Mode状態を参照しつつ、対象Tableで行並び替えが有効かだけを公開する。
  */
-export const rowReorderMode: RowReorderMode = sharedReorderMode.rowReorder;
+export const rowReorderMode = sharedReorderMode.rowReorder;

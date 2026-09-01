@@ -115,6 +115,8 @@ describe( 'Reorder Mode integration', () => {
 	} );
 
 	beforeEach( () => {
+		reorderModeIntegration.notifyTableInactive( 'table-a' );
+		reorderModeIntegration.notifyTableInactive( 'table-b' );
 		container = document.createElement( 'div' );
 		document.body.appendChild( container );
 		root = createRoot( container );
@@ -122,7 +124,8 @@ describe( 'Reorder Mode integration', () => {
 
 	afterEach( () => {
 		act( () => {
-			reorderModeIntegration.exit();
+			reorderModeIntegration.notifyTableInactive( 'table-a' );
+			reorderModeIntegration.notifyTableInactive( 'table-b' );
 			root.unmount();
 		} );
 		container.remove();
@@ -130,7 +133,7 @@ describe( 'Reorder Mode integration', () => {
 
 	/**
 	 * 概要:
-	 * - Toolbar操作によるReorder Modeの変更がReactの購読通知だけで再描画へ反映され、BlockEditへ独自wrapperを追加しないことを確認する。
+	 * - Toolbar操作によるReorder Modeの変更がReactの意味のある状態購読だけで再描画へ反映され、BlockEditへ独自wrapperを追加しないことを確認する。
 	 *
 	 * 事前条件:
 	 * - Core Tableが選択され、行・列の並び替えモードはいずれも未選択である。
@@ -181,7 +184,7 @@ describe( 'Reorder Mode integration', () => {
 	 * - Gutenberg既存のBlock wrapperにpointerdownのcapture handlerが設定されている。
 	 *
 	 * 操作:
-	 * - Block wrapperへpointerdownを送出した後、並び替えモードを終了して再度pointerdownを送出する。
+	 * - Block wrapperへpointerdownを送出した後、対象Tableが操作対象から外れたことを通知して再度pointerdownを送出する。
 	 *
 	 * 期待結果:
 	 * - 並び替えモード中も既存capture handlerが呼ばれる。
@@ -230,7 +233,7 @@ describe( 'Reorder Mode integration', () => {
 		expect( pointerDown.defaultPrevented ).toBe( true );
 
 		act( () => {
-			reorderModeIntegration.exit();
+			reorderModeIntegration.notifyTableInactive( 'table-a' );
 		} );
 
 		const editablePointerDown = new Event( 'pointerdown', { bubbles: true, cancelable: true } );
@@ -271,12 +274,48 @@ describe( 'Reorder Mode integration', () => {
 		act( () => {
 			getToolbarButton( container, 'Reorder rows' ).click();
 		} );
-		expect( reorderModeIntegration.isSelected( 'row', 'table-a' ) ).toBe( true );
+		expect( reorderModeIntegration.getSelectedKind( 'table-a' ) ).toBe( 'row' );
 
 		renderTable( root, Wrapped, unselectedTable );
 
 		expect( container.querySelector( '[data-testid="block-controls"]' ) ).toBeNull();
-		expect( reorderModeIntegration.isSelected( 'row', 'table-a' ) ).toBe( false );
+		expect( reorderModeIntegration.getSelectedKind( 'table-a' ) ).toBeNull();
 		expect( reorderModeIntegration.isEditingAllowed( 'table-a' ) ).toBe( true );
+	} );
+
+	/**
+	 * 概要:
+	 * - 非対応BlockListBlockはReorder Modeの状態変更による再描画対象にならないことを確認する。
+	 *
+	 * 事前条件:
+	 * - 非対応BlockがBlockListBlock filterを通過する。
+	 *
+	 * 操作:
+	 * - 非対応Blockを描画した後、Table AのReorder Mode状態を変更する。
+	 *
+	 * 期待結果:
+	 * - 非対応Blockは初回描画だけで、Reorder Mode状態変更による再描画を行わない。
+	 */
+	it( 'when BlockListBlock is unsupported, should not subscribe to reorder mode changes', () => {
+		const renderCount = jest.fn();
+		const UnsupportedBlockListBlock = ( props: BlockListBlockProps ) => {
+			renderCount();
+			return <div { ...props.wrapperProps }>Paragraph</div>;
+		};
+		const WrappedUnsupportedBlockListBlock =
+			withReorderModeBlockListBlock( UnsupportedBlockListBlock );
+
+		act( () => {
+			root.render(
+				<WrappedUnsupportedBlockListBlock clientId="paragraph-a" name="core/paragraph" />
+			);
+		} );
+		expect( renderCount ).toHaveBeenCalledTimes( 1 );
+
+		act( () => {
+			reorderModeIntegration.select( 'row', 'table-a' );
+		} );
+
+		expect( renderCount ).toHaveBeenCalledTimes( 1 );
 	} );
 } );

@@ -1,36 +1,40 @@
 /**
- * Reorder Modeの状態、Table単位のライフサイクル、通常編集との排他、および購読境界を検証する。
+ * Reorder Modeの状態、Table単位のLifecycle、通常編集との排他、および購読境界を検証する。
  *
- * WordPressやReactには依存せず、Reorder Mode単体が所有する状態遷移と公開内部仕様だけを確認する。
+ * WordPressやReactには依存せず、実際に公開する内部仕様を通してReorder Mode単体の状態遷移を確認する。
  */
 
-import { createReorderMode } from './reorder-mode';
+import { reorderModeIntegration, rowReorderMode } from './reorder-mode';
 
 describe( 'Reorder Mode', () => {
+	beforeEach( () => {
+		reorderModeIntegration.notifyTableInactive( 'table-a' );
+		reorderModeIntegration.notifyTableInactive( 'table-b' );
+	} );
+
 	/**
-	 * Reorder Modeが通常編集から開始することを確認する。
+	 * 概要:
+	 * - Reorder Modeが通常編集から開始することを確認する。
 	 *
 	 * 事前条件:
-	 * - Reorder Modeはまだ作成されていない。
+	 * - 対象Tableでは並び替えモードが有効ではない。
 	 *
 	 * 操作:
-	 * - Reorder Modeを作成する。
+	 * - Table Aの現在状態を公開内部仕様から確認する。
 	 *
 	 * 期待結果:
 	 * - 対象Tableでは行・列の入口が選択されていない。
 	 * - 通常編集を開始できる。
 	 */
-	it( 'when reorder mode is created, should start in edit mode', () => {
-		const mode = createReorderMode();
-
-		expect( mode.isSelected( 'row', 'table-a' ) ).toBe( false );
-		expect( mode.isSelected( 'column', 'table-a' ) ).toBe( false );
-		expect( mode.isEditingAllowed( 'table-a' ) ).toBe( true );
-		expect( mode.rowReorder.isActive( 'table-a' ) ).toBe( false );
+	it( 'when reorder mode is idle, should expose edit mode for the table', () => {
+		expect( reorderModeIntegration.getSelectedKind( 'table-a' ) ).toBeNull();
+		expect( reorderModeIntegration.isEditingAllowed( 'table-a' ) ).toBe( true );
+		expect( rowReorderMode.isActive( 'table-a' ) ).toBe( false );
 	} );
 
 	/**
-	 * 行並び替え入口を選択すると、そのTableで行並び替えだけが有効になることを確認する。
+	 * 概要:
+	 * - 行並び替え入口を選択すると、そのTableで行並び替えだけが有効になることを確認する。
 	 *
 	 * 事前条件:
 	 * - Reorder Modeは通常編集である。
@@ -44,19 +48,17 @@ describe( 'Reorder Mode', () => {
 	 * - Row Reorder向け内部仕様ではTable Aだけが有効になる。
 	 */
 	it( 'when row reorder is selected, should activate row mode for that table', () => {
-		const mode = createReorderMode();
+		reorderModeIntegration.select( 'row', 'table-a' );
 
-		mode.select( 'row', 'table-a' );
-
-		expect( mode.isSelected( 'row', 'table-a' ) ).toBe( true );
-		expect( mode.isSelected( 'column', 'table-a' ) ).toBe( false );
-		expect( mode.isEditingAllowed( 'table-a' ) ).toBe( false );
-		expect( mode.rowReorder.isActive( 'table-a' ) ).toBe( true );
-		expect( mode.rowReorder.isActive( 'table-b' ) ).toBe( false );
+		expect( reorderModeIntegration.getSelectedKind( 'table-a' ) ).toBe( 'row' );
+		expect( reorderModeIntegration.isEditingAllowed( 'table-a' ) ).toBe( false );
+		expect( rowReorderMode.isActive( 'table-a' ) ).toBe( true );
+		expect( rowReorderMode.isActive( 'table-b' ) ).toBe( false );
 	} );
 
 	/**
-	 * 別方向の入口を選択すると、同じTableで選択方向だけが切り替わることを確認する。
+	 * 概要:
+	 * - 別方向の入口を選択すると、同じTableで選択方向だけが切り替わることを確認する。
 	 *
 	 * 事前条件:
 	 * - Table Aで行並び替えが有効である。
@@ -65,22 +67,21 @@ describe( 'Reorder Mode', () => {
 	 * - Table Aの列並び替え入口を選択する。
 	 *
 	 * 期待結果:
-	 * - 行入口は非選択となり、列入口だけが選択状態になる。
+	 * - 選択方向が列だけへ切り替わる。
 	 * - 行と列が同時に有効な状態を作らない。
 	 */
 	it( 'when another reorder kind is selected, should switch exclusively to that kind', () => {
-		const mode = createReorderMode();
-		mode.select( 'row', 'table-a' );
+		reorderModeIntegration.select( 'row', 'table-a' );
 
-		mode.select( 'column', 'table-a' );
+		reorderModeIntegration.select( 'column', 'table-a' );
 
-		expect( mode.isSelected( 'row', 'table-a' ) ).toBe( false );
-		expect( mode.isSelected( 'column', 'table-a' ) ).toBe( true );
-		expect( mode.rowReorder.isActive( 'table-a' ) ).toBe( false );
+		expect( reorderModeIntegration.getSelectedKind( 'table-a' ) ).toBe( 'column' );
+		expect( rowReorderMode.isActive( 'table-a' ) ).toBe( false );
 	} );
 
 	/**
-	 * 選択中の入口を再選択すると通常編集へ戻ることを確認する。
+	 * 概要:
+	 * - 選択中の入口を再選択すると通常編集へ戻ることを確認する。
 	 *
 	 * 事前条件:
 	 * - Table Aで行並び替えが有効である。
@@ -89,22 +90,22 @@ describe( 'Reorder Mode', () => {
 	 * - Table Aの行並び替え入口をもう一度選択する。
 	 *
 	 * 期待結果:
-	 * - 行入口は非選択になる。
+	 * - 並び替え入口は非選択になる。
 	 * - Table Aで通常編集を開始できる。
 	 */
 	it( 'when the active reorder entry is selected again, should return to edit mode', () => {
-		const mode = createReorderMode();
-		mode.select( 'row', 'table-a' );
+		reorderModeIntegration.select( 'row', 'table-a' );
 
-		mode.select( 'row', 'table-a' );
+		reorderModeIntegration.select( 'row', 'table-a' );
 
-		expect( mode.isSelected( 'row', 'table-a' ) ).toBe( false );
-		expect( mode.isEditingAllowed( 'table-a' ) ).toBe( true );
-		expect( mode.rowReorder.isActive( 'table-a' ) ).toBe( false );
+		expect( reorderModeIntegration.getSelectedKind( 'table-a' ) ).toBeNull();
+		expect( reorderModeIntegration.isEditingAllowed( 'table-a' ) ).toBe( true );
+		expect( rowReorderMode.isActive( 'table-a' ) ).toBe( false );
 	} );
 
 	/**
-	 * 別Tableへ操作対象が移った場合は並び替えモードを終了することを確認する。
+	 * 概要:
+	 * - 別Tableへ操作対象が移った場合は並び替えモードを終了することを確認する。
 	 *
 	 * 事前条件:
 	 * - Table Aで行並び替えが有効である。
@@ -117,18 +118,42 @@ describe( 'Reorder Mode', () => {
 	 * - Table AとTable Bのどちらも通常編集を開始できる。
 	 */
 	it( 'when operation moves to another table, should return to edit mode', () => {
-		const mode = createReorderMode();
-		mode.select( 'row', 'table-a' );
+		reorderModeIntegration.select( 'row', 'table-a' );
 
-		mode.observeTable( 'table-b' );
+		reorderModeIntegration.observeTable( 'table-b' );
 
-		expect( mode.rowReorder.isActive( 'table-a' ) ).toBe( false );
-		expect( mode.isEditingAllowed( 'table-a' ) ).toBe( true );
-		expect( mode.isEditingAllowed( 'table-b' ) ).toBe( true );
+		expect( rowReorderMode.isActive( 'table-a' ) ).toBe( false );
+		expect( reorderModeIntegration.isEditingAllowed( 'table-a' ) ).toBe( true );
+		expect( reorderModeIntegration.isEditingAllowed( 'table-b' ) ).toBe( true );
 	} );
 
 	/**
-	 * 同じTableのUI表現が再生成されても、Tableの操作対象が変わらない限りモードを維持できることを確認する。
+	 * 概要:
+	 * - 対象Tableが操作対象から外れた通知だけで、Reorder Mode側が終了判断を行うことを確認する。
+	 *
+	 * 事前条件:
+	 * - Table Aで行並び替えが有効である。
+	 *
+	 * 操作:
+	 * - Table Bが操作対象から外れたことを通知した後、Table Aが操作対象から外れたことを通知する。
+	 *
+	 * 期待結果:
+	 * - Table Bからの通知ではTable Aの並び替えモードを維持する。
+	 * - Table Aからの通知で通常編集へ戻る。
+	 */
+	it( 'when a table becomes inactive, should exit only when it is the active reorder table', () => {
+		reorderModeIntegration.select( 'row', 'table-a' );
+
+		reorderModeIntegration.notifyTableInactive( 'table-b' );
+		expect( rowReorderMode.isActive( 'table-a' ) ).toBe( true );
+
+		reorderModeIntegration.notifyTableInactive( 'table-a' );
+		expect( rowReorderMode.isActive( 'table-a' ) ).toBe( false );
+	} );
+
+	/**
+	 * 概要:
+	 * - 同じTableのUI表現が再生成されても、Tableの操作対象が変わらない限りモードを維持できることを確認する。
 	 *
 	 * 事前条件:
 	 * - Table Aで行並び替えが有効である。
@@ -140,61 +165,36 @@ describe( 'Reorder Mode', () => {
 	 * - Table Aの行並び替えは有効なまま維持される。
 	 */
 	it( 'when the same table is observed again, should preserve the active reorder mode', () => {
-		const mode = createReorderMode();
-		mode.select( 'row', 'table-a' );
+		reorderModeIntegration.select( 'row', 'table-a' );
 
-		mode.observeTable( 'table-a' );
+		reorderModeIntegration.observeTable( 'table-a' );
 
-		expect( mode.rowReorder.isActive( 'table-a' ) ).toBe( true );
+		expect( rowReorderMode.isActive( 'table-a' ) ).toBe( true );
 	} );
 
 	/**
-	 * Reorder Modeを明示的に終了すると通常編集へ戻ることを確認する。
-	 *
-	 * 事前条件:
-	 * - Table Aで行並び替えが有効である。
-	 *
-	 * 操作:
-	 * - Reorder Modeを終了する。
-	 *
-	 * 期待結果:
-	 * - Table Aの行並び替えは無効になる。
-	 * - Table Aで通常編集を開始できる。
-	 */
-	it( 'when reorder mode exits, should return to edit mode', () => {
-		const mode = createReorderMode();
-		mode.select( 'row', 'table-a' );
-
-		mode.exit();
-
-		expect( mode.rowReorder.isActive( 'table-a' ) ).toBe( false );
-		expect( mode.isEditingAllowed( 'table-a' ) ).toBe( true );
-	} );
-
-	/**
-	 * 状態が変化した場合だけ購読者へ通知されることを確認する。
+	 * 概要:
+	 * - 状態が変化した場合だけ購読者へ通知されることを確認する。
 	 *
 	 * 事前条件:
 	 * - Reorder Modeの状態変更を購読している。
 	 *
 	 * 操作:
-	 * - Table Aの行並び替えを選択し、同じTableを観測した後に購読を解除して終了する。
+	 * - Table Aの行並び替えを選択し、同じTableを観測した後に購読を解除してTable Aを非操作対象として通知する。
 	 *
 	 * 期待結果:
 	 * - 意味のある状態変更だけが通知される。
 	 * - 購読解除後は通知されない。
 	 */
 	it( 'when state changes, should notify subscribers only for meaningful changes', () => {
-		const mode = createReorderMode();
 		const listener = jest.fn();
-		const unsubscribe = mode.subscribe( listener );
+		const unsubscribe = reorderModeIntegration.subscribe( listener );
 
-		mode.select( 'row', 'table-a' );
-		mode.observeTable( 'table-a' );
+		reorderModeIntegration.select( 'row', 'table-a' );
+		reorderModeIntegration.observeTable( 'table-a' );
 		unsubscribe();
-		mode.exit();
+		reorderModeIntegration.notifyTableInactive( 'table-a' );
 
 		expect( listener ).toHaveBeenCalledTimes( 1 );
-		expect( mode.getRevision() ).toBe( 2 );
 	} );
 } );
