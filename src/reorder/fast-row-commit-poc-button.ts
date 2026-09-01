@@ -358,7 +358,10 @@ export const registerFastRowCommitPoCButton = (): void => {
 		const clientId = pendingClientId;
 		pendingClientId = null;
 		if ( clientId === null ) {
-			console.error( '❌ Fast Row commit PoC failed', new Error( 'Fast Row commit PoC requires a selected Table.' ) );
+			console.error(
+				'❌ Fast Row commit PoC failed',
+				new Error( 'Fast Row commit PoC requires a selected Table.' )
+			);
 			return;
 		}
 
@@ -383,7 +386,10 @@ export const registerFastRowCommitPoCButton = (): void => {
 		const clientId = pendingNextTaskClientId;
 		pendingNextTaskClientId = null;
 		if ( clientId === null ) {
-			console.error( '❌ Fast Row commit PoC failed', new Error( 'Fast Row commit PoC requires a selected Table.' ) );
+			console.error(
+				'❌ Fast Row commit PoC failed',
+				new Error( 'Fast Row commit PoC requires a selected Table.' )
+			);
 			return;
 		}
 
