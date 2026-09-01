@@ -8,7 +8,12 @@
 			"": { "domain": "messages", "lang": "ja", "plural-forms": "nplurals=1; plural=0;" },
 			"Yamabiko Table Reorder": [ "Yamabiko Table Reorder" ],
 			"Reorder rows": [ "行を並び替え" ],
-			"Reorder columns": [ "列を並び替え" ]
+			"Reorder columns": [ "列を並び替え" ],
+			"From": [ "移動元" ],
+			"To": [ "移動先" ],
+			"Move": [ "移動" ],
+			"Commit once": [ "1回だけ反映" ],
+			"Applying data...": [ "データ反映中です。" ]
 		}
 	}
 }
