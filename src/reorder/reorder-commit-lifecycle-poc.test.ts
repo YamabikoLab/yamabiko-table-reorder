@@ -7,6 +7,7 @@
 import { reorderModeIntegration } from './reorder-mode';
 import {
 	registerReorderCommitLifecyclePoC,
+	runRowReorderCommitByClientIdPoC,
 	runRowReorderCommitPoC,
 	runRowReorderCommitWithoutClearPoC,
 } from './reorder-commit-lifecycle-poc';
@@ -123,6 +124,7 @@ describe( 'Reorder commit lifecycle PoC', () => {
 		expect( selectBlock ).toHaveBeenCalledTimes( 1 );
 		expect( selectBlock ).toHaveBeenCalledWith( table.clientId, null );
 		expect( reorderModeIntegration.isSelected( 'row', table.clientId ) ).toBe( true );
+		expect( result.pocRevision ).toBe( 'lifecycle-r1' );
 		expect( result.selectionStrategy ).toBe( 'clear-before-commit' );
 		expect( result.selectionOutcome ).toBe( 'reselected-table' );
 	} );
@@ -218,6 +220,38 @@ describe( 'Reorder commit lifecycle PoC', () => {
 
 	/**
 	 * 概要:
+	 * - DevToolsへfocusが移ってBlock選択が失われても、clientIdを明示すれば同じRow commit lifecycleを実行できることを確認する。
+	 *
+	 * 事前条件:
+	 * - Table AのBlock選択は解除されているが、行並び替えモードはTable Aに対して有効である。
+	 *
+	 * 操作:
+	 * - Table AのclientIdを指定してRow `0 → 1`の選択解除ありPoC commitを実行する。
+	 *
+	 * 期待結果:
+	 * - Block選択状態を開始条件にせず、Table Aを1回だけ更新する。
+	 * - Reorder Modeを維持したままTable Aを再選択する。
+	 * - 結果からLifecycle PoCのリビジョンを確認できる。
+	 */
+	it( 'when block selection is absent, should run the lifecycle for an explicitly targeted reorder table', async () => {
+		selectedClientId = null;
+		reorderModeIntegration.select( 'row', table.clientId );
+
+		const result = await runRowReorderCommitByClientIdPoC( table.clientId, 0, 1 );
+
+		expect( clearSelectedBlock ).toHaveBeenCalledTimes( 1 );
+		expect( updateBlockAttributes ).toHaveBeenCalledTimes( 1 );
+		expect( updateBlockAttributes ).toHaveBeenCalledWith( table.clientId, {
+			body: [ table.attributes.body[ 1 ], table.attributes.body[ 0 ] ],
+		} );
+		expect( selectBlock ).toHaveBeenCalledWith( table.clientId, null );
+		expect( result.clientId ).toBe( table.clientId );
+		expect( result.pocRevision ).toBe( 'lifecycle-r1' );
+		expect( result.selectionOutcome ).toBe( 'reselected-table' );
+	} );
+
+	/**
+	 * 概要:
 	 * - 実Editorから第2段階PoCとA/B比較を実行する一時APIが登録されることを確認する。
 	 *
 	 * 事前条件:
@@ -227,9 +261,9 @@ describe( 'Reorder commit lifecycle PoC', () => {
 	 * - PoC APIを登録する。
 	 *
 	 * 期待結果:
-	 * - Row / Columnそれぞれに選択解除あり / なしのcommit入口が公開される。
+	 * - Lifecycle PoCのリビジョンと、RowのclientId指定経路を含む比較入口が公開される。
 	 */
-	it( 'when the PoC runner is registered, should expose clear and no-clear comparison entry points', () => {
+	it( 'when the PoC runner is registered, should expose revision and direct target comparison entry points', () => {
 		registerReorderCommitLifecyclePoC();
 
 		const testWindow = window as TestWindow;
@@ -237,8 +271,11 @@ describe( 'Reorder commit lifecycle PoC', () => {
 			column: expect.any( Function ),
 			columnWithoutClear: expect.any( Function ),
 			isCommitting: expect.any( Function ),
+			revision: 'lifecycle-r1',
 			row: expect.any( Function ),
+			rowByClientId: expect.any( Function ),
 			rowWithoutClear: expect.any( Function ),
+			rowWithoutClearByClientId: expect.any( Function ),
 		} );
 	} );
 } );
