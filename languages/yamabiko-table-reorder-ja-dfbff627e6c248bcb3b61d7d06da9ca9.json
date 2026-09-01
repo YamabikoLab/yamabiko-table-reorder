@@ -1,5 +1,5 @@
 {
-	"translation-revision-date": "2026-08-31 12:00+0900",
+	"translation-revision-date": "2026-09-01 16:30+0900",
 	"generator": "WP-CLI/2.12.0",
 	"source": "build/index.js",
 	"domain": "messages",
@@ -13,7 +13,9 @@
 			"To": [ "\u79fb\u52d5\u5148" ],
 			"Move": [ "\u79fb\u52d5" ],
 			"Commit once": [ "1\u56de\u3060\u3051\u53cd\u6620" ],
-			"Applying data\u2026": [ "" ]
+			"Applying data\u2026": [ "\u30c7\u30fc\u30bf\u53cd\u6620\u4e2d\u3067\u3059\u3002" ],
+			"Data application time": [ "\u30c7\u30fc\u30bf\u53cd\u6620\u6642\u9593" ],
+			"updateBlockAttributes time": [ "updateBlockAttributes\u6642\u9593" ]
 		}
 	}
 }
