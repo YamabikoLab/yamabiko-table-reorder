@@ -196,21 +196,12 @@ const applyRowMove = ( move: RowMove ): boolean => {
 };
 
 /**
- * Row Reorderと対応Table Blockの間を接続する、行専用Table Integrationの公開境界。
+ * Row Reorderと対応Table Blockの間を接続する、行専用Table Integrationのインタフェース。
  *
  * Core TableとFlexible Table Blockの表現差、およびWordPress Block Editor Storeとの接続はこの責務の内部で吸収する。
  * Tableデータや算出結果は保持せず、Block固有構造も外部へ公開しない。
  */
 export const rowTableIntegration = {
-	/**
-	 * 要求時点の対応Tableから、Row Reorderが移動先の再照合に利用する行構造を取得する。
-	 */
 	getStructure,
-
-	/**
-	 * 再照合済みの確定済み行移動を、要求時点の対応Tableへ反映する。
-	 *
-	 * tbodyの行内容は変更せず、行順だけを更新する。
-	 */
 	applyRowMove,
 };
