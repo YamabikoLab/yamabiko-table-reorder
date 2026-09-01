@@ -427,9 +427,7 @@ export const registerRawRowCommitPoCR6Button = (): void => {
 
 	button.addEventListener( 'pointerdown', ( event ) => {
 		event.preventDefault();
-		pendingClientId = getWordPressData()
-			.select( BLOCK_EDITOR_STORE )
-			.getSelectedBlockClientId();
+		pendingClientId = getWordPressData().select( BLOCK_EDITOR_STORE ).getSelectedBlockClientId();
 	} );
 
 	button.addEventListener( 'click', () => {
