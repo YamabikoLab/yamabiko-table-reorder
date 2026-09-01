@@ -6,9 +6,15 @@
 
 import { addFilter } from '@wordpress/hooks';
 
+import { withFtbReorderPreviewPoC } from '@/reorder/ftb-reorder-preview-poc';
 import { withReorderMode, withReorderModeBlockListBlock } from '@/reorder/reorder-mode-integration';
 
 addFilter( 'editor.BlockEdit', 'yamabiko-table-reorder/reorder-mode', withReorderMode );
+addFilter(
+	'editor.BlockEdit',
+	'yamabiko-table-reorder/ftb-reorder-preview-poc',
+	withFtbReorderPreviewPoC
+);
 addFilter(
 	'editor.BlockListBlock',
 	'yamabiko-table-reorder/reorder-mode-editing-guard',
