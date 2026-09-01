@@ -3,7 +3,7 @@
  * #714で高速だったConsole実験をReorder Modeとは独立して再現するPoCを所有する。
  *
  * Core TableのRow `0 → 50`について、次の順序だけを実行する。
- * `nextBody`生成 → Table選択解除 → 2回の描画境界待機 → 属性更新 → microtask / event loop / 1st RAF / 2nd RAF計測。
+ * `nextBody`生成 → Table選択解除 → 2回の描画境界待機 → 属性更新 → microtask / event loop / 1st RAF / 2nd RAF / Long Task計測。
  * Reorder Mode、DnD、編集抑止、commit後のTable再選択には依存しない。
  */
 
@@ -17,7 +17,7 @@ const CORE_TABLE_BLOCK = 'core/table';
 const RAW_ROW_BUTTON_ID = 'ytr-raw-row-commit-poc';
 
 /** ログと計測結果へ表示するRaw Row PoCのリビジョン。 */
-const RAW_ROW_POC_REVISION = 'r4';
+const RAW_ROW_POC_REVISION = 'r5';
 
 /** Console実験と同じ移動元Row。 */
 const RAW_ROW_FROM_INDEX = 0;
@@ -69,6 +69,21 @@ type RawRowPoCWindow = Window &
 		};
 	};
 
+/** commit計測区間と重なったLong Taskの記録。 */
+type RawRowLongTask = {
+	durationMs: number;
+	endOffsetMs: number;
+	name: string;
+	startOffsetMs: number;
+};
+
+/** Long Task観測中の一時状態。 */
+type LongTaskObservation = {
+	entries: PerformanceEntry[];
+	observer: PerformanceObserver | null;
+	supported: boolean;
+};
+
 /** Raw Console再現の計測結果。 */
 export type RawRowCommitPoCResult = {
 	clientId: string;
@@ -76,6 +91,10 @@ export type RawRowCommitPoCResult = {
 	eventLoopReturnMs: number;
 	firstAnimationFrameMs: number;
 	fromIndex: number;
+	longTaskMaxDurationMs: number;
+	longTaskSupported: boolean;
+	longTaskTotalDurationMs: number;
+	longTasks: RawRowLongTask[];
 	microtaskReturnMs: number;
 	pocRevision: string;
 	rowCount: number;
@@ -197,6 +216,85 @@ const waitTwoAnimationFrames = (): Promise< void > =>
 	} );
 
 /**
+ * PerformanceObserverの通知を受け取るため、次のevent loopまで待つ。
+ *
+ * @return 次のevent loopで解決するPromise。
+ */
+const waitOneEventLoopTurn = (): Promise< void > =>
+	new Promise( ( resolve ) => {
+		window.setTimeout( resolve, 0 );
+	} );
+
+/**
+ * commitを含む処理がメインスレッドを長時間占有しているか観測する。
+ *
+ * 過去のLong Taskも取得した上で、終了時に今回の計測区間と重なるTaskだけへ絞り込む。
+ * 対応していない環境では計測自体を無効化し、Raw commit計測は継続する。
+ *
+ * @return Long Task観測状態。
+ */
+const startLongTaskObservation = (): LongTaskObservation => {
+	const supported =
+		typeof PerformanceObserver !== 'undefined' &&
+		PerformanceObserver.supportedEntryTypes.includes( 'longtask' );
+
+	if ( ! supported ) {
+		return {
+			entries: [],
+			observer: null,
+			supported: false,
+		};
+	}
+
+	const entries: PerformanceEntry[] = [];
+	const observer = new PerformanceObserver( ( list ) => {
+		entries.push( ...list.getEntries() );
+	} );
+	observer.observe( { type: 'longtask', buffered: true } );
+
+	return {
+		entries,
+		observer,
+		supported: true,
+	};
+};
+
+/**
+ * Long Task観測を終了し、今回のcommit計測区間と重なるTaskを確定する。
+ *
+ * @param observation Long Task観測状態。
+ * @param startedAt   `updateBlockAttributes()`直前の計測開始時刻。
+ * @param endedAt     2回目の描画境界を通過した計測終了時刻。
+ * @return 今回の計測区間と重なったLong Task。
+ */
+const finishLongTaskObservation = async (
+	observation: LongTaskObservation,
+	startedAt: number,
+	endedAt: number
+): Promise< RawRowLongTask[] > => {
+	if ( ! observation.observer ) {
+		return [];
+	}
+
+	await waitOneEventLoopTurn();
+	observation.entries.push( ...observation.observer.takeRecords() );
+	observation.observer.disconnect();
+
+	const measuredEntries = observation.entries.filter( ( entry ) => {
+		const entryEnd = entry.startTime + entry.duration;
+		const overlapsMeasuredRange = entryEnd >= startedAt && entry.startTime <= endedAt;
+		return entry.entryType === 'longtask' && overlapsMeasuredRange;
+	} );
+
+	return measuredEntries.map( ( entry ) => ( {
+		durationMs: entry.duration,
+		endOffsetMs: entry.startTime + entry.duration - startedAt,
+		name: entry.name,
+		startOffsetMs: entry.startTime - startedAt,
+	} ) );
+};
+
+/**
  * 属性更新後のmicrotask / event loop / 1st RAF / 2nd RAF復帰を同じ起点から計測する。
  *
  * @param startedAt `updateBlockAttributes()`直前の計測開始時刻。
@@ -260,7 +358,7 @@ const measurePostCommitBoundaries = (
  *
  * @param fromIndex 移動元の0-based位置。
  * @param toIndex   移動先の0-based位置。
- * @return Console実験と同じ境界にmicrotask境界を加えた計測結果。
+ * @return Console実験の境界とLong Taskの計測結果。
  */
 export const runRawRowCommitPoC = async (
 	fromIndex = RAW_ROW_FROM_INDEX,
@@ -284,6 +382,7 @@ export const runRawRowCommitPoC = async (
 	actions.clearSelectedBlock();
 	await waitTwoAnimationFrames();
 
+	const longTaskObservation = startLongTaskObservation();
 	const startedAt = performance.now();
 	actions.updateBlockAttributes( block.clientId, { body: nextBody } );
 	const dispatchReturnMs = performance.now() - startedAt;
@@ -291,10 +390,31 @@ export const runRawRowCommitPoC = async (
 	console.log( `① dispatch復帰: ${ dispatchReturnMs.toFixed( 1 ) } ms` );
 
 	const boundaries = await boundariesPromise;
+	const observationEndedAt = performance.now();
+	const longTasks = await finishLongTaskObservation(
+		longTaskObservation,
+		startedAt,
+		observationEndedAt
+	);
+	const longTaskTotalDurationMs = longTasks.reduce( ( total, task ) => total + task.durationMs, 0 );
+	const longTaskMaxDurationMs = longTasks.reduce(
+		( maximum, task ) => Math.max( maximum, task.durationMs ),
+		0
+	);
+
 	console.log( `② microtask復帰: ${ boundaries.microtaskReturnMs.toFixed( 1 ) } ms` );
 	console.log( `③ event loop復帰: ${ boundaries.eventLoopReturnMs.toFixed( 1 ) } ms` );
 	console.log( `④ 1st RAF: ${ boundaries.firstAnimationFrameMs.toFixed( 1 ) } ms` );
 	console.log( `⑤ 2nd RAF: ${ boundaries.secondAnimationFrameMs.toFixed( 1 ) } ms` );
+
+	if ( longTaskObservation.supported ) {
+		console.log(
+			`⑥ Long Task: ${ longTasks.length }件 / total ${ longTaskTotalDurationMs.toFixed( 1 ) } ms / max ${ longTaskMaxDurationMs.toFixed( 1 ) } ms`,
+			longTasks
+		);
+	} else {
+		console.log( '⑥ Long Task: unsupported' );
+	}
 
 	return {
 		clientId: block.clientId,
@@ -302,6 +422,10 @@ export const runRawRowCommitPoC = async (
 		eventLoopReturnMs: boundaries.eventLoopReturnMs,
 		firstAnimationFrameMs: boundaries.firstAnimationFrameMs,
 		fromIndex,
+		longTaskMaxDurationMs,
+		longTaskSupported: longTaskObservation.supported,
+		longTaskTotalDurationMs,
+		longTasks,
 		microtaskReturnMs: boundaries.microtaskReturnMs,
 		pocRevision: RAW_ROW_POC_REVISION,
 		rowCount: body.length,
