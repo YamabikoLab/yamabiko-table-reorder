@@ -6,7 +6,7 @@
 
 import { addFilter } from '@wordpress/hooks';
 
-import { registerRawRowCommitPoCButton } from '@/reorder/raw-row-commit-poc';
+import { registerRawRowCommitPoCR6Button } from '@/reorder/raw-row-commit-poc-r6';
 import { registerReorderCommitLifecyclePoC } from '@/reorder/reorder-commit-lifecycle-poc';
 import { withReorderMode, withReorderModeBlockListBlock } from '@/reorder/reorder-mode-integration';
 
@@ -18,4 +18,4 @@ addFilter(
 );
 
 registerReorderCommitLifecyclePoC();
-registerRawRowCommitPoCButton();
+registerRawRowCommitPoCR6Button();
