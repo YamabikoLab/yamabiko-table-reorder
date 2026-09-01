@@ -6,7 +6,7 @@
 
 import { useCallback, useSyncExternalStore } from '@wordpress/element';
 
-import { reorderModeIntegration } from '@/reorder/wordpress/reorder-mode-integration';
+import { reorderMode } from '@/reorder/reorder-mode';
 
 /**
  * 対象Tableで通常編集を開始できるかをReactへ提供する。
@@ -15,12 +15,14 @@ import { reorderModeIntegration } from '@/reorder/wordpress/reorder-mode-integra
  * @return 対象Tableで通常編集を開始できる場合はtrue。それ以外はfalse。
  */
 export const useEditingAllowed = ( tableIdentity: string ) => {
-	const getEditingAllowed = useCallback(
-		() => reorderModeIntegration.isEditingAllowed( tableIdentity ),
-		[ tableIdentity ]
-	);
+	const getEditingAllowed = useCallback( () => {
+		const mode = reorderMode.getMode( tableIdentity );
+		const editingAllowed = mode === 'edit';
+
+		return editingAllowed;
+	}, [ tableIdentity ] );
 	const editingAllowed = useSyncExternalStore(
-		reorderModeIntegration.subscribe,
+		reorderMode.subscribe,
 		getEditingAllowed,
 		getEditingAllowed
 	);
