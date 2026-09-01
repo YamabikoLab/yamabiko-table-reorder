@@ -10,10 +10,12 @@ import { useEffect, useRef, useState, type ComponentType } from '@wordpress/elem
 
 import {
 	getFtbPreviewApplyingMessage,
+	getFtbPreviewApplyDurationLabel,
 	getFtbPreviewCommitLabel,
 	getFtbPreviewFromLabel,
 	getFtbPreviewMoveLabel,
 	getFtbPreviewToLabel,
+	getFtbPreviewUpdateDurationLabel,
 } from '@/messages';
 
 import { resolveEditorDomContext } from './editor-dom-context';
@@ -72,6 +74,12 @@ type PreviewState =
 	| { phase: 'idle' }
 	| { phase: 'preview'; rowOrder: number[] }
 	| { phase: 'committing'; rowOrder: number[] };
+
+/** commit処理の性能計測結果。 */
+type CommitTiming = {
+	applyDurationMs: number;
+	updateDurationMs: number;
+};
 
 /** 複製表示と元FTB表示の対応を保持するDOM状態。 */
 type PreviewDomState = {
@@ -234,6 +242,7 @@ const FtbReorderPreviewPoC = ( props: FlexibleTableBlockEditProps ) => {
 	const [ fromValue, setFromValue ] = useState( '0' );
 	const [ toValue, setToValue ] = useState( '0' );
 	const [ state, setState ] = useState< PreviewState >( { phase: 'idle' } );
+	const [ commitTiming, setCommitTiming ] = useState< CommitTiming | null >( null );
 
 	useEffect( () => {
 		/*
@@ -315,6 +324,8 @@ const FtbReorderPreviewPoC = ( props: FlexibleTableBlockEditProps ) => {
 			return row;
 		} );
 
+		const applyStartedAt = editorWindow.performance.now();
+		setCommitTiming( null );
 		setState( { phase: 'committing', rowOrder: state.rowOrder } );
 
 		/*
@@ -322,15 +333,19 @@ const FtbReorderPreviewPoC = ( props: FlexibleTableBlockEditProps ) => {
 		 */
 		await waitForDisplayBoundary( editorWindow );
 
+		const updateStartedAt = editorWindow.performance.now();
 		data.dispatch( BLOCK_EDITOR_STORE ).updateBlockAttributes( clientId, { body: finalBody } );
+		const updateDurationMs = editorWindow.performance.now() - updateStartedAt;
 
 		await waitForDisplayBoundary( editorWindow );
+		const applyDurationMs = editorWindow.performance.now() - applyStartedAt;
 
 		if ( previewDomRef.current ) {
 			removePreviewDom( previewDomRef.current );
 			previewDomRef.current = null;
 		}
 
+		setCommitTiming( { applyDurationMs, updateDurationMs } );
 		setState( { phase: 'idle' } );
 	};
 
@@ -386,6 +401,12 @@ const FtbReorderPreviewPoC = ( props: FlexibleTableBlockEditProps ) => {
 				{ state.phase === 'committing' && (
 					<span aria-live="polite" role="status">
 						{ getFtbPreviewApplyingMessage() }
+					</span>
+				) }
+				{ commitTiming && state.phase !== 'committing' && (
+					<span>
+						{ getFtbPreviewApplyDurationLabel() }: { commitTiming.applyDurationMs.toFixed( 1 ) } ms /{' '}
+						{ getFtbPreviewUpdateDurationLabel() }: { commitTiming.updateDurationMs.toFixed( 1 ) } ms
 					</span>
 				) }
 			</div>
