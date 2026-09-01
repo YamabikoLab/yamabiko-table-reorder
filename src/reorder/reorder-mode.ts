@@ -185,8 +185,7 @@ export const reorderMode: ReorderMode = {
  */
 export const rowReorderMode: RowReorderMode = {
 	isActive: ( tableIdentity ) => {
-		const rowReorderActiveForTable =
-			state.kind === 'row' && state.tableIdentity === tableIdentity;
+		const rowReorderActiveForTable = state.kind === 'row' && state.tableIdentity === tableIdentity;
 
 		return rowReorderActiveForTable;
 	},
