@@ -8,7 +8,7 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "POT-Creation-Date: 2026-08-23T07:05:15+09:00\n"
-"PO-Revision-Date: 2026-08-31 12:00+0900\n"
+"PO-Revision-Date: 2026-09-01 16:30+0900\n"
 "Language: ja\n"
 "Plural-Forms: nplurals=1; plural=0;\n"
 "X-Generator: WP-CLI 2.12.0\n"
@@ -56,4 +56,12 @@ msgstr "1回だけ反映"
 
 #: src/messages.ts:59
 msgid "Applying data…"
-msgstr ""
+msgstr "データ反映中です。"
+
+#: src/messages.ts:66
+msgid "Data application time"
+msgstr "データ反映時間"
+
+#: src/messages.ts:75
+msgid "updateBlockAttributes time"
+msgstr "updateBlockAttributes時間"
