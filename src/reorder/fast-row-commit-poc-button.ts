@@ -79,8 +79,8 @@ const getFastRowToIndex = ( input: HTMLInputElement ): number => {
 /**
  * Table選択を維持したRow commitを実行し、PoC計測結果を出力する。
  *
- * @param clientId 対象TableのclientId。
- * @param toIndex Row 0の移動先。
+ * @param clientId   対象TableのclientId。
+ * @param toIndex    Row 0の移動先。
  * @param onComplete commit完了後にPoC UIを復帰する処理。
  */
 const runFastRowCommit = ( clientId: string, toIndex: number, onComplete: () => void ): void => {
@@ -170,7 +170,9 @@ export const registerFastRowCommitPoCButton = (): void => {
 	nextTaskButton.addEventListener( 'pointerdown', ( event ) => {
 		event.preventDefault();
 		event.stopPropagation();
-		pendingNextTaskClientId = getWordPressData().select( BLOCK_EDITOR_STORE ).getSelectedBlockClientId();
+		pendingNextTaskClientId = getWordPressData()
+			.select( BLOCK_EDITOR_STORE )
+			.getSelectedBlockClientId();
 	} );
 
 	button.addEventListener( 'click', ( event ) => {
