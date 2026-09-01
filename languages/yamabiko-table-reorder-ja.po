@@ -55,5 +55,5 @@ msgid "Commit once"
 msgstr "1回だけ反映"
 
 #: src/messages.ts:59
-msgid "Applying data..."
-msgstr "データ反映中です。"
+msgid "Applying data…"
+msgstr ""

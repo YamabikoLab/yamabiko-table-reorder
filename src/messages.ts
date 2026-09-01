@@ -56,4 +56,4 @@ export const getFtbPreviewCommitLabel = () => __( 'Commit once', 'yamabiko-table
  *
  * @return FTBへの最終Row順の反映中であることを示す文言。
  */
-export const getFtbPreviewApplyingMessage = () => __( 'Applying data...', 'yamabiko-table-reorder' );
+export const getFtbPreviewApplyingMessage = () => __( 'Applying data…', 'yamabiko-table-reorder' );
