@@ -52,8 +52,8 @@ type WordPressData = {
 	dispatch: ( storeName: typeof BLOCK_EDITOR_STORE ) => BlockEditorDispatch;
 };
 
-/** WordPress Data APIを持つEditor window。 */
-type EditorWindow = Window &
+/** WordPress Data APIを持つプラグイン実行window。 */
+type PluginWindow = Window &
 	typeof globalThis & {
 		wp?: {
 			data?: WordPressData;
@@ -109,12 +109,18 @@ const moveItem = < T, >( items: T[], fromIndex: number, toIndex: number ): T[] =
  * 描画済みFTBと同じEditor内へ表示専用Tableを複製する。
  *
  * 元FTBは複製表示が存在する間だけ非表示とし、複製側はセル編集を開始できない表示専用DOMにする。
+ * 複製表示はPoC自身の表示領域が所有し、FTB本体の再描画に巻き込まれないようにする。
  *
- * @param anchor   対象FTBのBlockEdit内に描画された参照要素。
- * @param clientId 対象FTBのclientId。
+ * @param anchor      対象FTBのBlockEdit内に描画された参照要素。
+ * @param previewHost PoC自身が所有する複製表示領域。
+ * @param clientId    対象FTBのclientId。
  * @return 元FTBと複製表示のDOM対応。
  */
-const createPreviewDom = ( anchor: HTMLElement, clientId: string ): PreviewDomState => {
+const createPreviewDom = (
+	anchor: HTMLElement,
+	previewHost: HTMLElement,
+	clientId: string
+): PreviewDomState => {
 	const blockElement = anchor.closest< HTMLElement >( '[data-block]' );
 
 	if ( ! blockElement || blockElement.dataset.block !== clientId ) {
@@ -122,7 +128,7 @@ const createPreviewDom = ( anchor: HTMLElement, clientId: string ): PreviewDomSt
 	}
 
 	const originalFigure = blockElement.querySelector< HTMLElement >(
-		'figure.wp-block-flexible-table-block-table'
+		'figure.wp-block-flexible-table-block-table:not([data-ytr-ftb-reorder-preview])'
 	);
 
 	if ( ! originalFigure ) {
@@ -131,15 +137,13 @@ const createPreviewDom = ( anchor: HTMLElement, clientId: string ): PreviewDomSt
 
 	const previewFigure = originalFigure.cloneNode( true ) as HTMLElement;
 	previewFigure.dataset.ytrFtbReorderPreview = 'true';
-	previewFigure.setAttribute( 'aria-label', 'FTB reorder preview' );
-
 	previewFigure.querySelectorAll< HTMLElement >( '[contenteditable]' ).forEach( ( element ) => {
 		element.setAttribute( 'contenteditable', 'false' );
 	} );
 
 	const originalDisplay = originalFigure.style.display;
 	originalFigure.style.display = 'none';
-	originalFigure.insertAdjacentElement( 'afterend', previewFigure );
+	previewHost.append( previewFigure );
 
 	return { originalDisplay, originalFigure, previewFigure };
 };
@@ -210,6 +214,7 @@ const waitForCommitDisplayBoundary = ( editorWindow: Window ): Promise< void > =
 const FtbReorderPreviewPoC = ( props: FlexibleTableBlockEditProps ) => {
 	const { attributes, clientId, isSelected } = props;
 	const anchorRef = useRef< HTMLSpanElement >( null );
+	const previewHostRef = useRef< HTMLDivElement >( null );
 	const previewDomRef = useRef< PreviewDomState | null >( null );
 	const [ fromValue, setFromValue ] = useState( '0' );
 	const [ toValue, setToValue ] = useState( '0' );
@@ -233,9 +238,7 @@ const FtbReorderPreviewPoC = ( props: FlexibleTableBlockEditProps ) => {
 		};
 	}, [ isSelected ] );
 
-	/**
-	 * 現在入力された0-based位置で複製表示だけのRow移動を行う。
-	 */
+	/** 現在入力された0-based位置で複製表示だけのRow移動を行う。 */
 	const move = () => {
 		if ( state.phase === 'committing' ) {
 			return;
@@ -253,22 +256,21 @@ const FtbReorderPreviewPoC = ( props: FlexibleTableBlockEditProps ) => {
 				: attributes.body.map( ( _row, index ) => index );
 		const nextOrder = moveItem( currentOrder, fromIndex, toIndex );
 		const anchor = anchorRef.current;
+		const previewHost = previewHostRef.current;
 
-		if ( ! anchor ) {
-			throw new Error( 'FTB reorder preview PoC requires its Editor DOM anchor.' );
+		if ( ! anchor || ! previewHost ) {
+			throw new Error( 'FTB reorder preview PoC requires its Editor DOM anchors.' );
 		}
 
 		if ( ! previewDomRef.current ) {
-			previewDomRef.current = createPreviewDom( anchor, clientId );
+			previewDomRef.current = createPreviewDom( anchor, previewHost, clientId );
 		}
 
 		movePreviewRow( previewDomRef.current.previewFigure, fromIndex, toIndex );
 		setState( { phase: 'preview', rowOrder: nextOrder } );
 	};
 
-	/**
-	 * 複製表示の最終Row順をFTBの`body`へ1回だけ反映する。
-	 */
+	/** 複製表示の最終Row順をFTBの`body`へ1回だけ反映する。 */
 	const commitOnce = async () => {
 		if ( state.phase !== 'preview' || ! previewDomRef.current ) {
 			return;
@@ -278,8 +280,8 @@ const FtbReorderPreviewPoC = ( props: FlexibleTableBlockEditProps ) => {
 			throw new Error( 'FTB reorder preview PoC requires FTB body rows.' );
 		}
 
-		const editorWindow = previewDomRef.current.previewFigure.ownerDocument.defaultView as EditorWindow | null;
-		const data = editorWindow?.wp?.data;
+		const editorWindow = previewDomRef.current.previewFigure.ownerDocument.defaultView;
+		const data = ( window as PluginWindow ).wp?.data;
 
 		if ( ! editorWindow || ! data ) {
 			throw new Error( 'FTB reorder preview PoC requires the WordPress Data API.' );
@@ -316,45 +318,48 @@ const FtbReorderPreviewPoC = ( props: FlexibleTableBlockEditProps ) => {
 	const commitDisabled = state.phase !== 'preview';
 
 	return (
-		<div
-			style={ {
-				alignItems: 'end',
-				display: 'flex',
-				flexWrap: 'wrap',
-				gap: '8px',
-				marginBlock: '8px',
-			} }
-		>
-			<span aria-hidden="true" ref={ anchorRef } style={ { display: 'none' } } />
-			<label>
-				{ getFtbPreviewFromLabel() }
-				<input
-					disabled={ controlsDisabled }
-					min="0"
-					onChange={ ( event ) => setFromValue( event.currentTarget.value ) }
-					style={ { display: 'block', width: '88px' } }
-					type="number"
-					value={ fromValue }
-				/>
-			</label>
-			<label>
-				{ getFtbPreviewToLabel() }
-				<input
-					disabled={ controlsDisabled }
-					min="0"
-					onChange={ ( event ) => setToValue( event.currentTarget.value ) }
-					style={ { display: 'block', width: '88px' } }
-					type="number"
-					value={ toValue }
-				/>
-			</label>
-			<button disabled={ controlsDisabled } onClick={ move } type="button">
-				{ getFtbPreviewMoveLabel() }
-			</button>
-			<button disabled={ commitDisabled } onClick={ commitOnce } type="button">
-				{ getFtbPreviewCommitLabel() }
-			</button>
-		</div>
+		<>
+			<div
+				style={ {
+					alignItems: 'end',
+					display: 'flex',
+					flexWrap: 'wrap',
+					gap: '8px',
+					marginBlock: '8px',
+				} }
+			>
+				<span aria-hidden="true" ref={ anchorRef } style={ { display: 'none' } } />
+				<label>
+					{ getFtbPreviewFromLabel() }
+					<input
+						disabled={ controlsDisabled }
+						min="0"
+						onChange={ ( event ) => setFromValue( event.currentTarget.value ) }
+						style={ { display: 'block', width: '88px' } }
+						type="number"
+						value={ fromValue }
+					/>
+				</label>
+				<label>
+					{ getFtbPreviewToLabel() }
+					<input
+						disabled={ controlsDisabled }
+						min="0"
+						onChange={ ( event ) => setToValue( event.currentTarget.value ) }
+						style={ { display: 'block', width: '88px' } }
+						type="number"
+						value={ toValue }
+					/>
+				</label>
+				<button disabled={ controlsDisabled } onClick={ move } type="button">
+					{ getFtbPreviewMoveLabel() }
+				</button>
+				<button disabled={ commitDisabled } onClick={ commitOnce } type="button">
+					{ getFtbPreviewCommitLabel() }
+				</button>
+			</div>
+			<div ref={ previewHostRef } />
+		</>
 	);
 };
 
