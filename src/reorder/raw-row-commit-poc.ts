@@ -16,6 +16,9 @@ const CORE_TABLE_BLOCK = 'core/table';
 /** 固定PoCボタンのDOM id。 */
 const RAW_ROW_BUTTON_ID = 'ytr-raw-row-commit-poc';
 
+/** ログと計測結果へ表示するRaw Row PoCのリビジョン。 */
+const RAW_ROW_POC_REVISION = 'r3';
+
 /** Console実験と同じ移動元Row。 */
 const RAW_ROW_FROM_INDEX = 0;
 
@@ -55,6 +58,7 @@ type BlockEditorDispatch = {
 type WordPressData = {
 	dispatch: ( storeName: typeof BLOCK_EDITOR_STORE ) => BlockEditorDispatch;
 	select: ( storeName: typeof BLOCK_EDITOR_STORE ) => BlockEditorSelector;
+	subscribe: ( listener: () => void ) => () => void;
 };
 
 /** PoCが参照するEditor window。 */
@@ -72,10 +76,17 @@ export type RawRowCommitPoCResult = {
 	eventLoopReturnMs: number;
 	firstAnimationFrameMs: number;
 	fromIndex: number;
+	pocRevision: string;
 	rowCount: number;
 	secondAnimationFrameMs: number;
 	toIndex: number;
 };
+
+/** 一時的な非選択中もPoC対象を失わないため、最後に明示選択されたCore Tableを保持する。 */
+let trackedCoreTableClientId: string | null = null;
+
+/** 選択監視の重複登録を防ぐための解除関数。 */
+let unsubscribeSelectionTracking: ( () => void ) | null = null;
 
 /**
  * 現在のWordPress Data APIを取得する。
@@ -94,25 +105,47 @@ const getWordPressData = (): WordPressData => {
 };
 
 /**
- * 選択中Core Tableを取得する。
+ * WordPress Editorの明示的なBlock選択をRaw PoC対象へ反映する。
  *
- * Reorder Modeの状態は参照せず、WordPress Editorで現在選択されているBlockだけを基準にする。
- *
- * @return 現在選択中のCore Table。
+ * Core Tableが選択された場合は対象を更新し、別Blockが選択された場合は対象を解除する。
+ * 選択Blockがない状態はスクロールやfocus移動、PoC自身の選択解除でも発生するため、既存対象を維持する。
  */
-const getSelectedCoreTable = (): BlockRecord => {
+const synchronizeTrackedCoreTable = (): void => {
 	const data = getWordPressData();
 	const selector = data.select( BLOCK_EDITOR_STORE );
 	const selectedClientId = selector.getSelectedBlockClientId();
 
-	if ( ! selectedClientId ) {
-		throw new Error( 'Raw Row commit PoC requires a selected Core Table.' );
+	if ( selectedClientId === null ) {
+		return;
 	}
 
-	const block = selector.getBlock( selectedClientId );
+	const selectedBlock = selector.getBlock( selectedClientId );
+	const selectedCoreTable = selectedBlock?.name === CORE_TABLE_BLOCK;
+	trackedCoreTableClientId = selectedCoreTable ? selectedClientId : null;
+};
+
+/**
+ * Raw PoCの対象Core Tableを取得する。
+ *
+ * 現在の明示選択を先に反映し、一時的に選択Blockがない場合は最後に選択されたCore Tableを利用する。
+ * 対象Blockが削除済みまたはCore Tableではなくなった場合は保持情報を破棄する。
+ *
+ * @return Raw commit対象のCore Table。
+ */
+const getTrackedCoreTable = (): BlockRecord => {
+	synchronizeTrackedCoreTable();
+
+	if ( trackedCoreTableClientId === null ) {
+		throw new Error( 'Raw Row commit PoC requires a Core Table selected before running the PoC.' );
+	}
+
+	const data = getWordPressData();
+	const selector = data.select( BLOCK_EDITOR_STORE );
+	const block = selector.getBlock( trackedCoreTableClientId );
 
 	if ( ! block || block.name !== CORE_TABLE_BLOCK ) {
-		throw new Error( 'Raw Row commit PoC requires a selected Core Table.' );
+		trackedCoreTableClientId = null;
+		throw new Error( 'Raw Row commit PoC target Core Table is no longer available.' );
 	}
 
 	return block;
@@ -224,7 +257,7 @@ export const runRawRowCommitPoC = async (
 	fromIndex = RAW_ROW_FROM_INDEX,
 	toIndex = RAW_ROW_TO_INDEX
 ): Promise< RawRowCommitPoCResult > => {
-	const block = getSelectedCoreTable();
+	const block = getTrackedCoreTable();
 	const body = block.attributes.body;
 
 	if ( ! Array.isArray( body ) ) {
@@ -235,6 +268,7 @@ export const runRawRowCommitPoC = async (
 	const data = getWordPressData();
 	const actions = data.dispatch( BLOCK_EDITOR_STORE );
 
+	console.log( `🧪 Raw Row commit PoC ${ RAW_ROW_POC_REVISION }` );
 	console.log( `行数: ${ body.length }` );
 	console.log( `🚀 Raw選択解除後 commit: ${ fromIndex } → ${ toIndex }` );
 
@@ -257,6 +291,7 @@ export const runRawRowCommitPoC = async (
 		eventLoopReturnMs: boundaries.eventLoopReturnMs,
 		firstAnimationFrameMs: boundaries.firstAnimationFrameMs,
 		fromIndex,
+		pocRevision: RAW_ROW_POC_REVISION,
 		rowCount: body.length,
 		secondAnimationFrameMs: boundaries.secondAnimationFrameMs,
 		toIndex,
@@ -266,18 +301,25 @@ export const runRawRowCommitPoC = async (
 /**
  * 実Editor画面にRaw Console再現専用の固定ボタンを追加する。
  *
- * ButtonはReorder ModeのToolbarやReact接続境界には所属せず、クリック時にWordPress Data APIを直接利用する。
- * 既に登録済みの場合は重複して追加しない。
+ * ButtonはReorder ModeのToolbarやReact接続境界には所属せず、最後に明示選択されたCore Tableを対象にする。
+ * 一時的な非選択では対象を失わず、別Blockを明示選択した場合は対象を解除する。
  */
 export const registerRawRowCommitPoCButton = (): void => {
 	if ( document.getElementById( RAW_ROW_BUTTON_ID ) ) {
 		return;
 	}
 
+	const data = getWordPressData();
+	synchronizeTrackedCoreTable();
+
+	if ( unsubscribeSelectionTracking === null ) {
+		unsubscribeSelectionTracking = data.subscribe( synchronizeTrackedCoreTable );
+	}
+
 	const button = document.createElement( 'button' );
 	button.id = RAW_ROW_BUTTON_ID;
 	button.type = 'button';
-	button.textContent = 'PoC: Raw Row 0→50';
+	button.textContent = `PoC ${ RAW_ROW_POC_REVISION }: Raw Row 0→50`;
 	button.style.position = 'fixed';
 	button.style.right = '16px';
 	button.style.bottom = '16px';
@@ -290,7 +332,7 @@ export const registerRawRowCommitPoCButton = (): void => {
 	button.style.cursor = 'pointer';
 
 	/*
-	 * 固定PoCボタンへfocusを移さず、クリック直前までWordPress側のTable選択を維持する。
+	 * 固定PoCボタンへfocusを移さず、クリック直前までWordPress側の選択状態を変化させない。
 	 * Raw commit開始後のclearSelectedBlock()だけを意図した選択解除として扱う。
 	 */
 	button.addEventListener( 'pointerdown', ( event ) => {
@@ -302,10 +344,10 @@ export const registerRawRowCommitPoCButton = (): void => {
 
 		runRawRowCommitPoC()
 			.then( ( result ) => {
-				console.log( '✅ Raw Row commit PoC result', result );
+				console.log( `✅ Raw Row commit PoC ${ RAW_ROW_POC_REVISION } result`, result );
 			} )
 			.catch( ( error: unknown ) => {
-				console.error( '❌ Raw Row commit PoC failed', error );
+				console.error( `❌ Raw Row commit PoC ${ RAW_ROW_POC_REVISION } failed`, error );
 			} )
 			.finally( () => {
 				button.disabled = false;
@@ -313,4 +355,5 @@ export const registerRawRowCommitPoCButton = (): void => {
 	} );
 
 	document.body.appendChild( button );
+	console.log( `🧪 Raw Row commit PoC ${ RAW_ROW_POC_REVISION } registered` );
 };
