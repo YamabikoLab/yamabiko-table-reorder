@@ -10,6 +10,9 @@ import { reorderModeIntegration, type ReorderKind } from './reorder-mode';
 /** WordPress Block Editorのdata store名。 */
 const BLOCK_EDITOR_STORE = 'core/block-editor';
 
+/** Lifecycle PoCの計測結果とDevTools APIを識別するリビジョン。 */
+const REORDER_COMMIT_POC_REVISION = 'lifecycle-r1';
+
 /** PoCで直接更新対象とする対応Table Block名。 */
 const SUPPORTED_TABLE_BLOCKS = new Set( [ 'core/table', 'flexible-table-block/table' ] );
 
@@ -69,6 +72,7 @@ export type ReorderCommitPoCResult = {
 	clientId: string;
 	kind: ReorderKind;
 	observationBoundaryMs: number;
+	pocRevision: string;
 	reselectionDispatchMs: number | null;
 	selectionOutcome: ReorderCommitSelectionOutcome;
 	selectionStrategy: ReorderCommitSelectionStrategy;
@@ -77,10 +81,24 @@ export type ReorderCommitPoCResult = {
 
 /** DevToolsから第2段階PoCを実行するための一時API。 */
 export type ReorderCommitPoCApi = {
+	/** Lifecycle PoCのリビジョン。 */
+	revision: string;
 	/** 選択解除ありでRow commitを計測する。 */
 	row: ( fromIndex: number, toIndex: number ) => Promise< ReorderCommitPoCResult >;
+	/** clientIdを明示して選択解除ありのRow commitを計測する。 */
+	rowByClientId: (
+		clientId: string,
+		fromIndex: number,
+		toIndex: number
+	) => Promise< ReorderCommitPoCResult >;
 	/** 選択解除なしでRow commitを計測する。 */
 	rowWithoutClear: ( fromIndex: number, toIndex: number ) => Promise< ReorderCommitPoCResult >;
+	/** clientIdを明示して選択解除なしのRow commitを計測する。 */
+	rowWithoutClearByClientId: (
+		clientId: string,
+		fromIndex: number,
+		toIndex: number
+	) => Promise< ReorderCommitPoCResult >;
 	/** 選択解除ありでColumn commitを計測する。 */
 	column: ( fromIndex: number, toIndex: number ) => Promise< ReorderCommitPoCResult >;
 	/** 選択解除なしでColumn commitを計測する。 */
@@ -233,6 +251,32 @@ const waitForObservationBoundary = (): Promise< void > =>
 	} );
 
 /**
+ * 指定したclientIdの対応TableとReorder ModeをPoCのcommit開始条件として取得する。
+ *
+ * Block選択状態には依存せず、対象Tableが現在のReorder Mode対象であることだけを要求する。
+ *
+ * @param kind     実行する並び替え方向。
+ * @param clientId commit対象TableのclientId。
+ * @return commit対象Table。
+ */
+const getCommitTargetByClientId = ( kind: ReorderKind, clientId: string ): BlockRecord => {
+	const data = getWordPressData();
+	const selector = data.select( BLOCK_EDITOR_STORE );
+	const block = selector.getBlock( clientId );
+	const supportedTable = block !== null && SUPPORTED_TABLE_BLOCKS.has( block.name );
+
+	if ( ! supportedTable || ! block ) {
+		throw new Error( 'Reorder commit PoC requires a supported Table Block.' );
+	}
+
+	if ( ! reorderModeIntegration.isSelected( kind, clientId ) ) {
+		throw new Error( 'Reorder commit PoC requires the matching Reorder Mode.' );
+	}
+
+	return block;
+};
+
+/**
  * 選択中の対応Tableと指定Reorder ModeをPoCのcommit開始条件として取得する。
  *
  * @param kind 実行する並び替え方向。
@@ -247,18 +291,7 @@ const getCommitTarget = ( kind: ReorderKind ): BlockRecord => {
 		throw new Error( 'Reorder commit PoC requires a selected Table.' );
 	}
 
-	const block = selector.getBlock( selectedClientId );
-	const supportedTableSelected = block !== null && SUPPORTED_TABLE_BLOCKS.has( block.name );
-
-	if ( ! supportedTableSelected || ! block ) {
-		throw new Error( 'Reorder commit PoC requires a supported Table Block.' );
-	}
-
-	if ( ! reorderModeIntegration.isSelected( kind, selectedClientId ) ) {
-		throw new Error( 'Reorder commit PoC requires the matching Reorder Mode.' );
-	}
-
-	return block;
+	return getCommitTargetByClientId( kind, selectedClientId );
 };
 
 /**
@@ -321,6 +354,7 @@ const runCommitLifecycle = async (
 			clientId,
 			kind,
 			observationBoundaryMs,
+			pocRevision: REORDER_COMMIT_POC_REVISION,
 			reselectionDispatchMs,
 			selectionOutcome,
 			selectionStrategy,
@@ -359,6 +393,26 @@ export const runRowReorderCommitPoC = async (
 };
 
 /**
+ * clientIdを明示して、選択解除ありでRow commitを実行する。
+ *
+ * DevToolsへfocusが移ってBlock選択が失われても、Reorder Mode対象Tableを直接指定して同じLifecycleを計測する。
+ *
+ * @param clientId  commit対象TableのclientId。
+ * @param fromIndex 移動する行の0-based位置。
+ * @param toIndex   移動後の行の0-based位置。
+ * @return commitと再選択判断の計測結果。
+ */
+export const runRowReorderCommitByClientIdPoC = async (
+	clientId: string,
+	fromIndex: number,
+	toIndex: number
+): Promise< ReorderCommitPoCResult > => {
+	const block = getCommitTargetByClientId( 'row', clientId );
+	const update = createRowUpdate( block.attributes, fromIndex, toIndex );
+	return runCommitLifecycle( 'row', update, block.clientId, 'clear-before-commit' );
+};
+
+/**
  * 選択解除なしでRow commitを実行する比較経路。
  *
  * @param fromIndex 移動する行の0-based位置。
@@ -370,6 +424,24 @@ export const runRowReorderCommitWithoutClearPoC = async (
 	toIndex: number
 ): Promise< ReorderCommitPoCResult > => {
 	const block = getCommitTarget( 'row' );
+	const update = createRowUpdate( block.attributes, fromIndex, toIndex );
+	return runCommitLifecycle( 'row', update, block.clientId, 'keep-selected' );
+};
+
+/**
+ * clientIdを明示して、選択解除なしでRow commitを実行する比較経路。
+ *
+ * @param clientId  commit対象TableのclientId。
+ * @param fromIndex 移動する行の0-based位置。
+ * @param toIndex   移動後の行の0-based位置。
+ * @return commitと現在選択の判定結果。
+ */
+export const runRowReorderCommitWithoutClearByClientIdPoC = async (
+	clientId: string,
+	fromIndex: number,
+	toIndex: number
+): Promise< ReorderCommitPoCResult > => {
+	const block = getCommitTargetByClientId( 'row', clientId );
 	const update = createRowUpdate( block.attributes, fromIndex, toIndex );
 	return runCommitLifecycle( 'row', update, block.clientId, 'keep-selected' );
 };
@@ -413,8 +485,11 @@ export const registerReorderCommitLifecyclePoC = (): void => {
 	const editorWindow = window as ReorderCommitPoCWindow;
 
 	editorWindow.ytrReorderCommitPoC = {
+		revision: REORDER_COMMIT_POC_REVISION,
 		row: runRowReorderCommitPoC,
+		rowByClientId: runRowReorderCommitByClientIdPoC,
 		rowWithoutClear: runRowReorderCommitWithoutClearPoC,
+		rowWithoutClearByClientId: runRowReorderCommitWithoutClearByClientIdPoC,
 		column: runColumnReorderCommitPoC,
 		columnWithoutClear: runColumnReorderCommitWithoutClearPoC,
 		isCommitting: isReorderCommitInProgressPoC,
