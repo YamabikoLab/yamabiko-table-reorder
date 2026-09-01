@@ -314,6 +314,8 @@ const FtbReorderPreviewPoC = ( props: FlexibleTableBlockEditProps ) => {
 
 	const controlsDisabled = state.phase === 'committing';
 	const commitDisabled = state.phase !== 'preview';
+	const fromInputId = `ytr-ftb-reorder-preview-from-${ clientId }`;
+	const toInputId = `ytr-ftb-reorder-preview-to-${ clientId }`;
 
 	return (
 		<>
@@ -327,28 +329,26 @@ const FtbReorderPreviewPoC = ( props: FlexibleTableBlockEditProps ) => {
 				} }
 			>
 				<span aria-hidden="true" ref={ anchorRef } style={ { display: 'none' } } />
-				<label>
-					{ getFtbPreviewFromLabel() }
-					<input
-						disabled={ controlsDisabled }
-						min="0"
-						onChange={ ( event ) => setFromValue( event.currentTarget.value ) }
-						style={ { display: 'block', width: '88px' } }
-						type="number"
-						value={ fromValue }
-					/>
-				</label>
-				<label>
-					{ getFtbPreviewToLabel() }
-					<input
-						disabled={ controlsDisabled }
-						min="0"
-						onChange={ ( event ) => setToValue( event.currentTarget.value ) }
-						style={ { display: 'block', width: '88px' } }
-						type="number"
-						value={ toValue }
-					/>
-				</label>
+				<label htmlFor={ fromInputId }>{ getFtbPreviewFromLabel() }</label>
+				<input
+					disabled={ controlsDisabled }
+					id={ fromInputId }
+					min="0"
+					onChange={ ( event ) => setFromValue( event.currentTarget.value ) }
+					style={ { width: '88px' } }
+					type="number"
+					value={ fromValue }
+				/>
+				<label htmlFor={ toInputId }>{ getFtbPreviewToLabel() }</label>
+				<input
+					disabled={ controlsDisabled }
+					id={ toInputId }
+					min="0"
+					onChange={ ( event ) => setToValue( event.currentTarget.value ) }
+					style={ { width: '88px' } }
+					type="number"
+					value={ toValue }
+				/>
 				<button disabled={ controlsDisabled } onClick={ move } type="button">
 					{ getFtbPreviewMoveLabel() }
 				</button>
