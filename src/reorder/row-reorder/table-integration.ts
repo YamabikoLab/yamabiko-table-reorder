@@ -29,12 +29,9 @@ export type RowTableIntegrationStore = {
 	 * @param clientId 対象Table個体を識別するclientId。
 	 * @return 要求時点のBlock。存在しない場合はnullまたはundefined。
 	 */
-	getBlock: ( clientId: string ) =>
-		| { name: string; attributes: unknown }
-		| null
-		| undefined;
+	getBlock: ( clientId: string ) => { name: string; attributes: unknown } | null | undefined;
 	/**
-	 * @param clientId 更新対象Table個体を識別するclientId。
+	 * @param clientId   更新対象Table個体を識別するclientId。
 	 * @param attributes Tableへ反映する属性差分。
 	 */
 	updateBlockAttributes: ( clientId: string, attributes: Record< string, unknown > ) => void;
@@ -68,11 +65,18 @@ type CurrentTable = {
 
 const SUPPORTED_TABLES = new Set< string >( [ 'core/table', 'flexible-table-block/table' ] );
 
-/** 値を属性オブジェクトとして安全に参照できるか判定する。 */
+/**
+ * 値を属性オブジェクトとして安全に参照できるか判定する。
+ * @param value
+ */
 const isRecord = ( value: unknown ): value is Record< string, unknown > =>
 	value !== null && typeof value === 'object' && ! Array.isArray( value );
 
-/** 対応Tableの現在bodyを安全に取得する。 */
+/**
+ * 対応Tableの現在bodyを安全に取得する。
+ * @param store
+ * @param clientId
+ */
 const getCurrentTable = (
 	store: RowTableIntegrationStore,
 	clientId: string
@@ -102,8 +106,15 @@ const getCurrentTable = (
 	};
 };
 
-/** 対応Table固有セルから縦結合範囲を取得する。 */
-const getRowSpan = ( tableName: SupportedTable, cell: Record< string, unknown > ): number | null => {
+/**
+ * 対応Table固有セルから縦結合範囲を取得する。
+ * @param tableName
+ * @param cell
+ */
+const getRowSpan = (
+	tableName: SupportedTable,
+	cell: Record< string, unknown >
+): number | null => {
 	const rawRowSpan = tableName === 'core/table' ? cell.rowspan : cell.rowSpan;
 	if ( rawRowSpan === undefined ) {
 		return 1;
@@ -117,7 +128,10 @@ const getRowSpan = ( tableName: SupportedTable, cell: Record< string, unknown > 
 	return normalizedRowSpan;
 };
 
-/** 現在bodyからrowspanにより分断できない挿入位置を導出する。 */
+/**
+ * 現在bodyからrowspanにより分断できない挿入位置を導出する。
+ * @param table
+ */
 const buildStructure = ( table: CurrentTable ): RowTableStructure | null => {
 	const blockedBoundaries = new Set< number >();
 
