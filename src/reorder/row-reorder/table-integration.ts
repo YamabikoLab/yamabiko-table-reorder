@@ -27,27 +27,6 @@ type RowMove = {
 	destinationBoundaryIndex: number;
 };
 
-/** 行専用Table Integrationが外側へ提供する内部仕様。 */
-type RowTableIntegration = {
-	/**
-	 * 要求時点の対応TableからRow Reorderが利用する行構造を取得する。
-	 *
-	 * @param clientId 対象Table個体を識別するclientId。
-	 * @return 要求時点の行構造。対象不在、非対応、または行構造を解釈できない場合はnull。
-	 */
-	getStructure: ( clientId: string ) => RowTableStructure | null;
-	/**
-	 * 確定済み行移動を要求時点の同一Tableへ反映する。
-	 *
-	 * 移動先が行制約上有効であることはcomplete時の再照合済みであることを前提とし、ここでは更新要求時点の
-	 * 対応Table存在と行範囲を照合する。更新できる場合は行内容を変えず、tbodyの行順だけを反映する。
-	 *
-	 * @param move 更新直前のTable構造を基準とする確定済み行移動。
-	 * @return 現在も安全に更新できた場合はtrue、外部状態変化等で更新できない場合はfalse。
-	 */
-	applyRowMove: ( move: RowMove ) => boolean;
-};
-
 /** 行専用Table Integrationが表現差を吸収する対応Table Block種別。 */
 type SupportedTable = 'core/table' | 'flexible-table-block/table';
 
@@ -217,11 +196,15 @@ const applyRowMove = ( move: RowMove ): boolean => {
 };
 
 /**
- * Row Reorderが利用する行専用Table Integrationの公開境界。
+ * Row Reorderと対応Table Blockの間を接続する、行専用Table Integrationの公開境界。
  *
- * 個別関数やStore差し替え口は公開せず、要求時点のWordPress Blockへ直接適応する2つの機能だけを提供する。
+ * `getStructure`は要求時点の対応Tableから現在行数とrowspanによる分断不可境界を取得し、Row Reorderによる移動先の再照合に必要な行構造だけを提供する。
+ * `applyRowMove`は再照合済みの確定済み行移動を受け取り、要求時点の対応Tableへtbodyの行順だけを反映する。
+ *
+ * Core TableとFlexible Table Blockの表現差、およびWordPress Block Editor Storeとの接続はこの責務の内部で吸収する。
+ * 個別の内部関数、Tableデータ、Block固有構造、Store差し替え口は公開せず、Tableデータや算出結果も保持しない。
  */
-export const rowTableIntegration: RowTableIntegration = {
+export const rowTableIntegration = {
 	getStructure,
 	applyRowMove,
 };
