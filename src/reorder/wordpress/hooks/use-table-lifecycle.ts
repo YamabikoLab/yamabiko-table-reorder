@@ -6,7 +6,7 @@
 
 import { useEffect } from '@wordpress/element';
 
-import { reorderModeIntegration } from '@/reorder/reorder-mode';
+import { reorderModeIntegration } from '@/reorder/wordpress/reorder-mode-integration';
 
 /** 現在選択されている対応Table Identityを返すWordPress接続境界。 */
 export type GetSelectedTableIdentity = () => string | null;

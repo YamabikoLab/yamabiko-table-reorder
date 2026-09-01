@@ -39,13 +39,13 @@ type RowReorderMode = {
 };
 
 /**
- * WordPress / React接続が利用するReorder Modeの最小内部仕様を表す。
+ * Reorder Mode本体が外部統合へ提供する最小内部仕様を表す。
  *
- * React側はReorder Modeの遷移条件を所有せず、Table操作対象の変化を通知し、表示に必要な状態だけを購読する。
+ * 表示や編集可否など利用側固有の表現は持たず、状態遷移、Table単位の現在モード参照、状態変更通知だけを提供する。
  */
-type ReorderModeIntegration = {
+type ReorderMode = {
 	/**
-	 * Tableツールバーで選択された並び替え入口を現在状態へ反映する。
+	 * 選択された並び替え入口を現在状態へ反映する。
 	 *
 	 * 同じTableで選択中の入口を再選択した場合は通常編集へ戻し、別方向の入口を選択した場合はその方向へ切り替える。
 	 *
@@ -70,19 +70,12 @@ type ReorderModeIntegration = {
 	 */
 	notifyTableInactive: ( tableIdentity: ReorderTableIdentity ) => void;
 	/**
-	 * 対象Tableで現在選択されている並び替え方向を取得する。
+	 * 対象Tableから見た現在のReorder Modeを取得する。
 	 *
-	 * @param tableIdentity 選択状態を確認するTable Identity。
-	 * @return 対象Tableで選択されている並び替え方向。通常編集または別Tableが対象の場合はnull。
+	 * @param tableIdentity 現在モードを確認するTable Identity。
+	 * @return 対象Tableで有効なReorder Mode。別Tableが並び替え対象の場合は通常編集モード。
 	 */
-	getSelectedKind: ( tableIdentity: ReorderTableIdentity ) => ReorderKind | null;
-	/**
-	 * 対象Tableで通常編集を開始できるか確認する。
-	 *
-	 * @param tableIdentity 編集可否を確認するTable Identity。
-	 * @return 対象Tableが並び替えモード中でなければtrue。対象Tableが並び替えモード中ならfalse。
-	 */
-	isEditingAllowed: ( tableIdentity: ReorderTableIdentity ) => boolean;
+	getMode: ( tableIdentity: ReorderTableIdentity ) => ReorderKind | 'edit';
 	/**
 	 * 状態変更を購読する。
 	 *
@@ -98,7 +91,7 @@ type ReorderModeIntegration = {
  * `edit`、または`row | column`とそのモードが有効なTable Identityの組だけを状態として保持し、
  * 並び替えモード中にTable Identityが存在しない状態を作らない。
  *
- * @return WordPress / React接続とRow Reorderへ必要最小限の内部仕様を提供するReorder Mode。
+ * @return 外部統合とRow Reorderへ必要最小限の内部仕様を提供するReorder Mode。
  */
 const createReorderMode = () => {
 	let state: ReorderModeState = { kind: 'edit' };
@@ -141,7 +134,7 @@ const createReorderMode = () => {
 		},
 	};
 
-	const integration: ReorderModeIntegration = {
+	const reorderMode: ReorderMode = {
 		select: ( kind, tableIdentity ) => {
 			const isSameSelectedMode = state.kind === kind && state.tableIdentity === tableIdentity;
 
@@ -175,18 +168,11 @@ const createReorderMode = () => {
 
 			updateState( { kind: 'edit' } );
 		},
-		getSelectedKind: ( tableIdentity ) => {
-			const selectedKind =
-				state.kind !== 'edit' && state.tableIdentity === tableIdentity ? state.kind : null;
+		getMode: ( tableIdentity ) => {
+			const mode =
+				state.kind !== 'edit' && state.tableIdentity === tableIdentity ? state.kind : 'edit';
 
-			return selectedKind;
-		},
-		isEditingAllowed: ( tableIdentity ) => {
-			const isReorderActiveForTable =
-				state.kind !== 'edit' && state.tableIdentity === tableIdentity;
-			const editingAllowed = ! isReorderActiveForTable;
-
-			return editingAllowed;
+			return mode;
 		},
 		subscribe: ( listener ) => {
 			listeners.add( listener );
@@ -197,22 +183,22 @@ const createReorderMode = () => {
 		},
 	};
 
-	return { integration, rowReorder };
+	return { reorderMode, rowReorder };
 };
 
 /**
- * Toolbar接続と後続のRow Reorderが共有するReorder Modeの正本を所有する。
+ * Reorder Mode本体と後続のRow Reorderが共有する状態の正本を所有する。
  *
  * 各利用境界へは必要な内部仕様だけを渡し、Reorder Mode全体を共有しない。
  */
 const sharedReorderMode = createReorderMode();
 
 /**
- * WordPress / React接続へ提供する共有Reorder Mode内部仕様。
+ * 外部統合へ提供する共有Reorder Mode内部仕様。
  *
- * Toolbar、Table lifecycle、編集抑止が必要とする状態と操作だけを公開する。
+ * 状態遷移、Table単位の現在モード参照、状態変更通知だけを公開し、利用側固有の表示表現や編集可否は公開しない。
  */
-export const reorderModeIntegration = sharedReorderMode.integration;
+export const reorderMode = sharedReorderMode.reorderMode;
 
 /**
  * Row Reorderへ提供する共有Reorder Mode内部仕様。

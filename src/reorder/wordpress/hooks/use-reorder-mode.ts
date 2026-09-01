@@ -6,7 +6,8 @@
 
 import { useCallback, useSyncExternalStore } from '@wordpress/element';
 
-import { reorderModeIntegration, type ReorderKind } from '@/reorder/reorder-mode';
+import type { ReorderKind } from '@/reorder/reorder-mode';
+import { reorderModeIntegration } from '@/reorder/wordpress/reorder-mode-integration';
 
 /**
  * 対象Tableから見た現在のReorder Mode状態とToolbar操作をReactへ提供する。

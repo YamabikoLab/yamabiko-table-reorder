@@ -9,8 +9,8 @@ import type { BlockEditProps } from '@wordpress/blocks';
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 
-import { reorderModeIntegration } from '@/reorder/reorder-mode';
 import { withReorderMode, withReorderModeBlockListBlock } from '@/reorder/wordpress/integration';
+import { reorderModeIntegration } from '@/reorder/wordpress/reorder-mode-integration';
 
 let mockSelectedBlockClientId: string | null = null;
 const mockBlocks = new Map< string, { name: string } >();

@@ -6,7 +6,7 @@
 
 import { useCallback, useSyncExternalStore } from '@wordpress/element';
 
-import { reorderModeIntegration } from '@/reorder/reorder-mode';
+import { reorderModeIntegration } from '@/reorder/wordpress/reorder-mode-integration';
 
 /**
  * 対象Tableで通常編集を開始できるかをReactへ提供する。
