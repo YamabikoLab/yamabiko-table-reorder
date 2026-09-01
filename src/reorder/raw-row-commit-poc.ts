@@ -3,7 +3,7 @@
  * #714で高速だったConsole実験をReorder Modeとは独立して再現するPoCを所有する。
  *
  * Core TableのRow `0 → 50`について、次の順序だけを実行する。
- * `nextBody`生成 → Table選択解除 → 2回の描画境界待機 → 属性更新 → event loop / 1st RAF / 2nd RAF計測。
+ * `nextBody`生成 → Table選択解除 → 2回の描画境界待機 → 属性更新 → microtask / event loop / 1st RAF / 2nd RAF計測。
  * Reorder Mode、DnD、編集抑止、commit後のTable再選択には依存しない。
  */
 
@@ -17,7 +17,7 @@ const CORE_TABLE_BLOCK = 'core/table';
 const RAW_ROW_BUTTON_ID = 'ytr-raw-row-commit-poc';
 
 /** ログと計測結果へ表示するRaw Row PoCのリビジョン。 */
-const RAW_ROW_POC_REVISION = 'r3';
+const RAW_ROW_POC_REVISION = 'r4';
 
 /** Console実験と同じ移動元Row。 */
 const RAW_ROW_FROM_INDEX = 0;
@@ -76,6 +76,7 @@ export type RawRowCommitPoCResult = {
 	eventLoopReturnMs: number;
 	firstAnimationFrameMs: number;
 	fromIndex: number;
+	microtaskReturnMs: number;
 	pocRevision: string;
 	rowCount: number;
 	secondAnimationFrameMs: number;
@@ -196,7 +197,7 @@ const waitTwoAnimationFrames = (): Promise< void > =>
 	} );
 
 /**
- * 属性更新後のevent loop / 1st RAF / 2nd RAF復帰をConsole実験と同じ起点から計測する。
+ * 属性更新後のmicrotask / event loop / 1st RAF / 2nd RAF復帰を同じ起点から計測する。
  *
  * @param startedAt `updateBlockAttributes()`直前の計測開始時刻。
  * @return 各境界の経過時間。
@@ -206,27 +207,35 @@ const measurePostCommitBoundaries = (
 ): Promise<
 	Pick<
 		RawRowCommitPoCResult,
-		'eventLoopReturnMs' | 'firstAnimationFrameMs' | 'secondAnimationFrameMs'
+		'microtaskReturnMs' | 'eventLoopReturnMs' | 'firstAnimationFrameMs' | 'secondAnimationFrameMs'
 	>
 > =>
 	new Promise( ( resolve ) => {
+		let microtaskReturnMs: number | null = null;
 		let eventLoopReturnMs: number | null = null;
 		let firstAnimationFrameMs: number | null = null;
 		let secondAnimationFrameMs: number | null = null;
 
 		const finishIfComplete = () => {
 			if (
+				microtaskReturnMs !== null &&
 				eventLoopReturnMs !== null &&
 				firstAnimationFrameMs !== null &&
 				secondAnimationFrameMs !== null
 			) {
 				resolve( {
+					microtaskReturnMs,
 					eventLoopReturnMs,
 					firstAnimationFrameMs,
 					secondAnimationFrameMs,
 				} );
 			}
 		};
+
+		window.queueMicrotask( () => {
+			microtaskReturnMs = performance.now() - startedAt;
+			finishIfComplete();
+		} );
 
 		window.setTimeout( () => {
 			eventLoopReturnMs = performance.now() - startedAt;
@@ -251,7 +260,7 @@ const measurePostCommitBoundaries = (
  *
  * @param fromIndex 移動元の0-based位置。
  * @param toIndex   移動先の0-based位置。
- * @return Console実験と同じ境界の計測結果。
+ * @return Console実験と同じ境界にmicrotask境界を加えた計測結果。
  */
 export const runRawRowCommitPoC = async (
 	fromIndex = RAW_ROW_FROM_INDEX,
@@ -278,12 +287,14 @@ export const runRawRowCommitPoC = async (
 	const startedAt = performance.now();
 	actions.updateBlockAttributes( block.clientId, { body: nextBody } );
 	const dispatchReturnMs = performance.now() - startedAt;
+	const boundariesPromise = measurePostCommitBoundaries( startedAt );
 	console.log( `① dispatch復帰: ${ dispatchReturnMs.toFixed( 1 ) } ms` );
 
-	const boundaries = await measurePostCommitBoundaries( startedAt );
-	console.log( `② event loop復帰: ${ boundaries.eventLoopReturnMs.toFixed( 1 ) } ms` );
-	console.log( `③ 1st RAF: ${ boundaries.firstAnimationFrameMs.toFixed( 1 ) } ms` );
-	console.log( `④ 2nd RAF: ${ boundaries.secondAnimationFrameMs.toFixed( 1 ) } ms` );
+	const boundaries = await boundariesPromise;
+	console.log( `② microtask復帰: ${ boundaries.microtaskReturnMs.toFixed( 1 ) } ms` );
+	console.log( `③ event loop復帰: ${ boundaries.eventLoopReturnMs.toFixed( 1 ) } ms` );
+	console.log( `④ 1st RAF: ${ boundaries.firstAnimationFrameMs.toFixed( 1 ) } ms` );
+	console.log( `⑤ 2nd RAF: ${ boundaries.secondAnimationFrameMs.toFixed( 1 ) } ms` );
 
 	return {
 		clientId: block.clientId,
@@ -291,6 +302,7 @@ export const runRawRowCommitPoC = async (
 		eventLoopReturnMs: boundaries.eventLoopReturnMs,
 		firstAnimationFrameMs: boundaries.firstAnimationFrameMs,
 		fromIndex,
+		microtaskReturnMs: boundaries.microtaskReturnMs,
 		pocRevision: RAW_ROW_POC_REVISION,
 		rowCount: body.length,
 		secondAnimationFrameMs: boundaries.secondAnimationFrameMs,
