@@ -37,9 +37,8 @@ const preventEditingStart = ( event: EditingStartEvent ) => {
  * @param existingHandler Gutenberg本体または他のfilterが設定した既存handler。
  * @return 既存処理とReorder Modeの編集開始抑止を順に適用するhandler。
  */
-export const preserveEditingStartHandler = (
-	existingHandler?: EditingStartHandler
-): EditingStartHandler =>
+export const preserveEditingStartHandler =
+	( existingHandler?: EditingStartHandler ): EditingStartHandler =>
 	( event ) => {
 		existingHandler?.( event );
 		preventEditingStart( event );

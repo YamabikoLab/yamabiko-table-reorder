@@ -23,7 +23,9 @@ export type ReorderModeBlockListBlockProps = {
 /**
  * 対応Tableの既存Block wrapperへReorder Modeの編集可否を反映する。
  *
- * @param props Gutenbergから渡されるBlockListBlock propsと元のcomponent。
+ * @param props                Gutenbergから渡されるBlockListBlock propsと元のcomponent。
+ * @param props.BlockListBlock
+ * @param props.blockProps
  * @return Gutenberg本来のBlock wrapper構造を維持したBlockListBlock。
  */
 export const ReorderModeBlockListBlock = ( props: {

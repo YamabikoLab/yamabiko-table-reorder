@@ -12,10 +12,7 @@ import {
 	ReorderModeBlockListBlock,
 	type ReorderModeBlockListBlockProps,
 } from '@/reorder/wordpress/components/block-list-block';
-import {
-	ReorderModeEdit,
-	type TableBlockEditProps,
-} from '@/reorder/wordpress/components/edit';
+import { ReorderModeEdit, type TableBlockEditProps } from '@/reorder/wordpress/components/edit';
 
 /** Reorder Modeへ接続するTable Block名。 */
 const SUPPORTED_TABLE_BLOCKS = new Set( [ 'core/table', 'flexible-table-block/table' ] );
@@ -30,7 +27,9 @@ const SUPPORTED_TABLE_BLOCKS = new Set( [ 'core/table', 'flexible-table-block/ta
 const getSelectedTableIdentity = () => {
 	const blockEditor = select( blockEditorStore );
 	const selectedBlockClientId = blockEditor.getSelectedBlockClientId();
-	const selectedBlock = selectedBlockClientId ? blockEditor.getBlock( selectedBlockClientId ) : null;
+	const selectedBlock = selectedBlockClientId
+		? blockEditor.getBlock( selectedBlockClientId )
+		: null;
 	const selectedTableIdentity =
 		selectedBlockClientId && selectedBlock && SUPPORTED_TABLE_BLOCKS.has( selectedBlock.name )
 			? selectedBlockClientId
