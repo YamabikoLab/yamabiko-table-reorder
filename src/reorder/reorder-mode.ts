@@ -82,28 +82,6 @@ type RowReorderMode = {
 };
 
 /**
- * Reorder Mode本体が外部統合へ提供する最小内部仕様を表す。
- *
- * 表示や編集可否など利用側固有の表現は持たず、状態遷移、Table単位の現在モード参照、状態変更通知だけを提供する。
- */
-type ReorderMode = ReorderModeStoreActions & {
-	/**
-	 * 対象Tableから見た現在のReorder Modeを取得する。
-	 *
-	 * @param tableIdentity 現在モードを確認するTable Identity。
-	 * @return 対象Tableで有効なReorder Mode。別Tableが並び替え対象の場合は通常編集モード。
-	 */
-	getMode: ( tableIdentity: ReorderTableIdentity ) => ReorderKind | 'edit';
-	/**
-	 * 状態変更を購読する。
-	 *
-	 * @param listener Reorder Modeの状態変更後に呼び出す購読者。
-	 * @return 購読を解除する関数。
-	 */
-	subscribe: ( listener: () => void ) => () => void;
-};
-
-/**
  * Reorder Modeの状態と状態遷移を所有するStore。
  *
  * Zustandのvanilla storeを使用し、ReactやWordPressのライフサイクルとは独立して状態を維持する。
@@ -157,6 +135,23 @@ const reorderModeStore = createStore< ReorderModeStore >()(
 );
 
 /**
+ * Reorder Mode本体が外部統合へ提供する最小内部仕様を表す。
+ *
+ * 表示や編集可否など利用側固有の表現は持たず、状態遷移、Table単位の現在モード参照、状態変更通知だけを提供する。
+ * 状態変更の購読にはZustand Storeが提供する購読内部仕様をそのまま使用する。
+ */
+type ReorderMode = ReorderModeStoreActions &
+	Pick< typeof reorderModeStore, 'subscribe' > & {
+		/**
+		 * 対象Tableから見た現在のReorder Modeを取得する。
+		 *
+		 * @param tableIdentity 現在モードを確認するTable Identity。
+		 * @return 対象Tableで有効なReorder Mode。別Tableが並び替え対象の場合は通常編集モード。
+		 */
+		getMode: ( tableIdentity: ReorderTableIdentity ) => ReorderKind | 'edit';
+	};
+
+/**
  * 外部統合へ提供する共有Reorder Mode内部仕様。
  *
  * 状態遷移、Table単位の現在モード参照、状態変更通知だけを公開し、Store自体や利用側固有の表示表現は公開しない。
@@ -178,9 +173,7 @@ export const reorderMode: ReorderMode = {
 
 		return tableMode;
 	},
-	subscribe: ( listener ) => {
-		return reorderModeStore.subscribe( listener );
-	},
+	subscribe: reorderModeStore.subscribe,
 };
 
 /**
