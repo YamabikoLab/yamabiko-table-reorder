@@ -2,7 +2,7 @@
 /**
  * Raw Row commitの性能計測で、WordPress Dataの常時購読を持たない比較用PoCを所有する。
  *
- * Core TableのRow `0 → 50`について、実行時に選択中Tableを1回だけ確定し、
+ * 対象Core TableのclientIdを実行時に明示的に受け取り、Row `0 → 50`について
  * `nextBody`生成 → Table選択解除 → 2回の描画境界待機 → 属性更新 → 各実行境界とLong Task計測を行う。
  * Reorder Mode、DnD、編集抑止、commit後のTable再選択、WordPress Dataの常時購読には依存しない。
  */
@@ -60,14 +60,6 @@ type WordPressData = {
 	select: ( storeName: typeof BLOCK_EDITOR_STORE ) => BlockEditorSelector;
 };
 
-/** PoCが参照するEditor window。 */
-type RawRowPoCWindow = Window &
-	typeof globalThis & {
-		wp?: {
-			data?: WordPressData;
-		};
-	};
-
 /** commit計測区間と重なったLong Taskの記録。 */
 type RawRowLongTask = {
 	durationMs: number;
@@ -101,6 +93,24 @@ export type RawRowCommitPoCR6Result = {
 	toIndex: number;
 };
 
+/** DevToolsからr6を実行する一時API。 */
+type RawRowCommitPoCR6Api = {
+	run: (
+		clientId: string,
+		fromIndex?: number,
+		toIndex?: number
+	) => Promise< RawRowCommitPoCR6Result >;
+};
+
+/** PoCが参照するEditor window。 */
+type RawRowPoCWindow = Window &
+	typeof globalThis & {
+		wp?: {
+			data?: WordPressData;
+		};
+		ytrRawRowCommitPoCR6?: RawRowCommitPoCR6Api;
+	};
+
 /**
  * 現在のWordPress Data APIを取得する。
  *
@@ -118,25 +128,19 @@ const getWordPressData = (): WordPressData => {
 };
 
 /**
- * PoC実行時に選択中のCore Tableを1回だけ確定する。
+ * 明示指定されたclientIdからPoC対象のCore Tableを確定する。
  *
- * 実行前の選択状態だけを対象決定に利用し、WordPress Dataの変更通知は購読しない。
+ * Block選択状態には依存せず、WordPress Dataの変更通知も購読しない。
  *
- * @return 現在選択中のCore Table。
+ * @param clientId PoC対象として明示指定されたBlockのclientId。
+ * @return 指定されたCore Table。
  */
-const getSelectedCoreTable = (): BlockRecord => {
+const getCoreTable = ( clientId: string ): BlockRecord => {
 	const data = getWordPressData();
-	const selector = data.select( BLOCK_EDITOR_STORE );
-	const selectedClientId = selector.getSelectedBlockClientId();
-
-	if ( selectedClientId === null ) {
-		throw new Error( 'Raw Row commit PoC r6 requires a selected Core Table.' );
-	}
-
-	const block = selector.getBlock( selectedClientId );
+	const block = data.select( BLOCK_EDITOR_STORE ).getBlock( clientId );
 
 	if ( ! block || block.name !== CORE_TABLE_BLOCK ) {
-		throw new Error( 'Raw Row commit PoC r6 requires a selected Core Table.' );
+		throw new Error( 'Raw Row commit PoC r6 requires a Core Table clientId.' );
 	}
 
 	return block;
@@ -174,11 +178,7 @@ const moveRow = ( body: TableRow[], fromIndex: number, toIndex: number ): TableR
 	return nextBody;
 };
 
-/**
- * Table選択解除による描画をr5と同じく2フレーム待つ。
- *
- * @return 2回目の描画境界を通過した時点で解決するPromise。
- */
+/** 2回の描画境界を待つ。 */
 const waitTwoAnimationFrames = (): Promise< void > =>
 	new Promise( ( resolve ) => {
 		window.requestAnimationFrame( () => {
@@ -186,32 +186,20 @@ const waitTwoAnimationFrames = (): Promise< void > =>
 		} );
 	} );
 
-/**
- * PerformanceObserverの通知を受け取るため、次のevent loopまで待つ。
- *
- * @return 次のevent loopで解決するPromise。
- */
+/** 次のevent loopまで待つ。 */
 const waitOneEventLoopTurn = (): Promise< void > =>
 	new Promise( ( resolve ) => {
 		window.setTimeout( resolve, 0 );
 	} );
 
-/**
- * commitを含む処理がメインスレッドを長時間占有しているか観測する。
- *
- * @return Long Task観測状態。
- */
+/** commitを含む処理がメインスレッドを長時間占有しているか観測する。 */
 const startLongTaskObservation = (): LongTaskObservation => {
 	const supported =
 		typeof PerformanceObserver !== 'undefined' &&
 		PerformanceObserver.supportedEntryTypes.includes( 'longtask' );
 
 	if ( ! supported ) {
-		return {
-			entries: [],
-			observer: null,
-			supported: false,
-		};
+		return { entries: [], observer: null, supported: false };
 	}
 
 	const entries: PerformanceEntry[] = [];
@@ -220,11 +208,7 @@ const startLongTaskObservation = (): LongTaskObservation => {
 	} );
 	observer.observe( { type: 'longtask', buffered: true } );
 
-	return {
-		entries,
-		observer,
-		supported: true,
-	};
+	return { entries, observer, supported: true };
 };
 
 /**
@@ -248,18 +232,17 @@ const finishLongTaskObservation = async (
 	observation.entries.push( ...observation.observer.takeRecords() );
 	observation.observer.disconnect();
 
-	const measuredEntries = observation.entries.filter( ( entry ) => {
-		const entryEnd = entry.startTime + entry.duration;
-		const overlapsMeasuredRange = entryEnd >= startedAt && entry.startTime <= endedAt;
-		return entry.entryType === 'longtask' && overlapsMeasuredRange;
-	} );
-
-	return measuredEntries.map( ( entry ) => ( {
-		durationMs: entry.duration,
-		endOffsetMs: entry.startTime + entry.duration - startedAt,
-		name: entry.name,
-		startOffsetMs: entry.startTime - startedAt,
-	} ) );
+	return observation.entries
+		.filter( ( entry ) => {
+			const entryEnd = entry.startTime + entry.duration;
+			return entry.entryType === 'longtask' && entryEnd >= startedAt && entry.startTime <= endedAt;
+		} )
+		.map( ( entry ) => ( {
+			durationMs: entry.duration,
+			endOffsetMs: entry.startTime + entry.duration - startedAt,
+			name: entry.name,
+			startOffsetMs: entry.startTime - startedAt,
+		} ) );
 };
 
 /**
@@ -310,7 +293,6 @@ const measurePostCommitBoundaries = (
 
 		window.requestAnimationFrame( () => {
 			firstAnimationFrameMs = performance.now() - startedAt;
-
 			window.requestAnimationFrame( () => {
 				secondAnimationFrameMs = performance.now() - startedAt;
 				finishIfComplete();
@@ -319,17 +301,19 @@ const measurePostCommitBoundaries = (
 	} );
 
 /**
- * WordPress Dataの常時購読を持たず、r5と同じcommit計測を実行する。
+ * WordPress Dataの常時購読を持たず、明示されたCore Tableへr5と同じcommit計測を実行する。
  *
+ * @param clientId  対象Core TableのclientId。
  * @param fromIndex 移動元の0-based位置。
  * @param toIndex   移動先の0-based位置。
  * @return 各実行境界とLong Taskの計測結果。
  */
 export const runRawRowCommitPoCR6 = async (
+	clientId: string,
 	fromIndex = RAW_ROW_FROM_INDEX,
 	toIndex = RAW_ROW_TO_INDEX
 ): Promise< RawRowCommitPoCR6Result > => {
-	const block = getSelectedCoreTable();
+	const block = getCoreTable( clientId );
 	const body = block.attributes.body;
 
 	if ( ! Array.isArray( body ) ) {
@@ -337,11 +321,11 @@ export const runRawRowCommitPoCR6 = async (
 	}
 
 	const nextBody = moveRow( body, fromIndex, toIndex );
-	const data = getWordPressData();
-	const actions = data.dispatch( BLOCK_EDITOR_STORE );
+	const actions = getWordPressData().dispatch( BLOCK_EDITOR_STORE );
 
 	console.log( `🧪 Raw Row commit PoC ${ RAW_ROW_POC_REVISION }` );
 	console.log( `行数: ${ body.length }` );
+	console.log( `clientId: ${ block.clientId }` );
 	console.log( `🚀 Raw選択解除後 commit: ${ fromIndex } → ${ toIndex }` );
 	console.log( '📌 WordPress Data常時購読: なし' );
 
@@ -403,15 +387,29 @@ export const runRawRowCommitPoCR6 = async (
 };
 
 /**
+ * DevToolsからclientIdを明示指定してr6を実行できる一時APIを登録する。
+ */
+const registerRawRowCommitPoCR6Api = (): void => {
+	const editorWindow = window as RawRowPoCWindow;
+	editorWindow.ytrRawRowCommitPoCR6 = {
+		run: runRawRowCommitPoCR6,
+	};
+};
+
+/**
  * 実Editor画面にr6の固定ボタンを追加する。
  *
- * ButtonはWordPress Dataを常時購読せず、クリック時に選択中のCore Tableだけを対象にする。
+ * ButtonはWordPress Dataを常時購読せず、pointerdown時点で選択中Core TableのclientIdだけを一度取得する。
+ * DevToolsでは`window.ytrRawRowCommitPoCR6.run(clientId)`を利用し、Block選択状態に依存せず対象を明示できる。
  */
 export const registerRawRowCommitPoCR6Button = (): void => {
+	registerRawRowCommitPoCR6Api();
+
 	if ( document.getElementById( RAW_ROW_BUTTON_ID ) ) {
 		return;
 	}
 
+	let pendingClientId: string | null = null;
 	const button = document.createElement( 'button' );
 	button.id = RAW_ROW_BUTTON_ID;
 	button.type = 'button';
@@ -427,18 +425,27 @@ export const registerRawRowCommitPoCR6Button = (): void => {
 	button.style.color = 'CanvasText';
 	button.style.cursor = 'pointer';
 
-	/*
-	 * 固定PoCボタンへfocusを移さず、クリック時までWordPress側のTable選択を維持する。
-	 * r6では選択追跡を購読しないため、実行対象はクリック時の選択だけで確定する。
-	 */
 	button.addEventListener( 'pointerdown', ( event ) => {
 		event.preventDefault();
+		pendingClientId = getWordPressData()
+			.select( BLOCK_EDITOR_STORE )
+			.getSelectedBlockClientId();
 	} );
 
 	button.addEventListener( 'click', () => {
-		button.disabled = true;
+		const clientId = pendingClientId;
+		pendingClientId = null;
 
-		runRawRowCommitPoCR6()
+		if ( clientId === null ) {
+			console.error(
+				`❌ Raw Row commit PoC ${ RAW_ROW_POC_REVISION } failed`,
+				new Error( 'Raw Row commit PoC r6 requires a Core Table clientId.' )
+			);
+			return;
+		}
+
+		button.disabled = true;
+		runRawRowCommitPoCR6( clientId )
 			.then( ( result ) => {
 				console.log( `✅ Raw Row commit PoC ${ RAW_ROW_POC_REVISION } result`, result );
 			} )
@@ -452,4 +459,5 @@ export const registerRawRowCommitPoCR6Button = (): void => {
 
 	document.body.appendChild( button );
 	console.log( `🧪 Raw Row commit PoC ${ RAW_ROW_POC_REVISION } registered` );
+	console.log( '🧪 Console API: window.ytrRawRowCommitPoCR6.run( clientId )' );
 };
