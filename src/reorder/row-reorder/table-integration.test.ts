@@ -1,10 +1,28 @@
 /**
- * 行専用Table Integrationについて、対応Table Block差を外へ漏らさず、現在の行構造取得と確定済み行移動の反映を提供する内部仕様を確認する。
+ * 行専用Table Integrationについて、WordPress Store境界の外側から、対応Table Block差を漏らさず現在の行構造取得と確定済み行移動の反映を提供する内部仕様を確認する。
  */
 
-import { createRowTableIntegration } from './table-integration';
+import { dispatch, select } from '@wordpress/data';
+
+import { rowTableIntegration } from './table-integration';
+
+jest.mock( '@wordpress/block-editor', () => ( {
+	store: Symbol( 'block-editor-store' ),
+} ) );
+
+jest.mock( '@wordpress/data', () => ( {
+	dispatch: jest.fn(),
+	select: jest.fn(),
+} ) );
+
+const selectMock = select as jest.Mock;
+const dispatchMock = dispatch as jest.Mock;
 
 describe( 'Table Integration', () => {
+	beforeEach( () => {
+		jest.clearAllMocks();
+	} );
+
 	/**
 	 * 概要:
 	 * - Core Tableの現在行数とrowspanによる分断不可境界を取得できることを確認する。
@@ -14,7 +32,7 @@ describe( 'Table Integration', () => {
 	 * - colspanだけを持つセルも存在する。
 	 *
 	 * 操作:
-	 * - getStructure()を実行する。
+	 * - 公開されたTable IntegrationからgetStructure()を実行する。
 	 *
 	 * 期待結果:
 	 * - rowCountは4になる。
@@ -22,7 +40,7 @@ describe( 'Table Integration', () => {
 	 * - colspanは行方向の制約を生成しない。
 	 */
 	it( 'when Core Table structure is requested, should return row count and blocked row boundaries', () => {
-		const integration = createRowTableIntegration( {
+		selectMock.mockReturnValue( {
 			getBlock: jest.fn().mockReturnValue( {
 				name: 'core/table',
 				attributes: {
@@ -34,10 +52,9 @@ describe( 'Table Integration', () => {
 					],
 				},
 			} ),
-			updateBlockAttributes: jest.fn(),
 		} );
 
-		expect( integration.getStructure( 'table-a' ) ).toEqual( {
+		expect( rowTableIntegration.getStructure( 'table-a' ) ).toEqual( {
 			rowCount: 4,
 			blockedBoundaries: [ 2, 3 ],
 		} );
@@ -51,23 +68,22 @@ describe( 'Table Integration', () => {
 	 * - tbodyは3行で、先頭行に3行を占有するセルが存在する。
 	 *
 	 * 操作:
-	 * - getStructure()を実行する。
+	 * - 公開されたTable IntegrationからgetStructure()を実行する。
 	 *
 	 * 期待結果:
 	 * - Flexible Table Block固有のrowSpanが解釈され、境界1、2が返る。
 	 */
 	it( 'when Flexible Table Block structure is requested, should adapt rowSpan to the same row structure', () => {
-		const integration = createRowTableIntegration( {
+		selectMock.mockReturnValue( {
 			getBlock: jest.fn().mockReturnValue( {
 				name: 'flexible-table-block/table',
 				attributes: {
 					body: [ { cells: [ { rowSpan: 3 } ] }, { cells: [] }, { cells: [] } ],
 				},
 			} ),
-			updateBlockAttributes: jest.fn(),
 		} );
 
-		expect( integration.getStructure( 'table-b' ) ).toEqual( {
+		expect( rowTableIntegration.getStructure( 'table-b' ) ).toEqual( {
 			rowCount: 3,
 			blockedBoundaries: [ 1, 2 ],
 		} );
@@ -81,7 +97,7 @@ describe( 'Table Integration', () => {
 	 * - 要求ごとに非対応Block、null、body欠落のCore Tableが返る。
 	 *
 	 * 操作:
-	 * - 各clientIdについてgetStructure()を実行する。
+	 * - 各clientIdについて公開されたTable IntegrationからgetStructure()を実行する。
 	 *
 	 * 期待結果:
 	 * - いずれも正常な不在としてnullが返る。
@@ -92,46 +108,42 @@ describe( 'Table Integration', () => {
 			.mockReturnValueOnce( { name: 'core/paragraph', attributes: {} } )
 			.mockReturnValueOnce( null )
 			.mockReturnValueOnce( { name: 'core/table', attributes: {} } );
-		const integration = createRowTableIntegration( {
-			getBlock,
-			updateBlockAttributes: jest.fn(),
-		} );
+		selectMock.mockReturnValue( { getBlock } );
 
-		expect( integration.getStructure( 'unsupported' ) ).toBeNull();
-		expect( integration.getStructure( 'removed' ) ).toBeNull();
-		expect( integration.getStructure( 'invalid' ) ).toBeNull();
+		expect( rowTableIntegration.getStructure( 'unsupported' ) ).toBeNull();
+		expect( rowTableIntegration.getStructure( 'removed' ) ).toBeNull();
+		expect( rowTableIntegration.getStructure( 'invalid' ) ).toBeNull();
 	} );
 
 	/**
 	 * 概要:
-	 * - 下方向への確定済み行移動で、移動前の境界位置を移動元行の削除後も同じ移動先を表す挿入位置へ変換できることを確認する。
+	 * - 下方向への確定済み行移動で、移動前の境界位置を移動元行の削除後も同じ移動先を表す位置へ変換できることを確認する。
 	 *
 	 * 事前条件:
 	 * - tbodyはA、B、C、Dの4行である。
-	 * - BをDの後ろの境界4へ移動する確定済みRowMoveを受け取る。
+	 * - BをDの後ろへ移動する確定済みRowMoveを受け取る。
 	 *
 	 * 操作:
-	 * - applyRowMove()を実行する。
+	 * - 公開されたTable IntegrationからapplyRowMove()を実行する。
 	 *
 	 * 期待結果:
-	 * - 移動元行の削除後は挿入位置3として同じ移動先へ反映される。
 	 * - bodyはA、C、D、Bの順で1回更新される。
 	 */
-	it( 'when a confirmed row moves downward, should convert the boundary index after removing the source row', () => {
+	it( 'when a confirmed row moves downward, should preserve the requested destination after removing the source row', () => {
 		const updateBlockAttributes = jest.fn();
 		const rows = [ 'A', 'B', 'C', 'D' ].map( ( content ) => ( {
 			cells: [ { content } ],
 		} ) );
-		const integration = createRowTableIntegration( {
+		selectMock.mockReturnValue( {
 			getBlock: jest.fn().mockReturnValue( {
 				name: 'core/table',
 				attributes: { body: rows },
 			} ),
-			updateBlockAttributes,
 		} );
+		dispatchMock.mockReturnValue( { updateBlockAttributes } );
 
 		expect(
-			integration.applyRowMove( {
+			rowTableIntegration.applyRowMove( {
 				clientId: 'table-a',
 				sourceRowIndex: 1,
 				destinationBoundaryIndex: 4,
@@ -144,30 +156,30 @@ describe( 'Table Integration', () => {
 
 	/**
 	 * 概要:
-	 * - 更新要求時点でTableが消失または行範囲が変化した場合に更新しないことを確認する。
+	 * - 更新要求時点で行範囲が変化した場合に更新しないことを確認する。
 	 *
 	 * 事前条件:
 	 * - Tableは2行だけ存在する。
-	 * - sourceRowIndexが現在範囲外のRowMoveを受け取る。
+	 * - 移動元が現在の行範囲外となったRowMoveを受け取る。
 	 *
 	 * 操作:
-	 * - applyRowMove()を実行する。
+	 * - 公開されたTable IntegrationからapplyRowMove()を実行する。
 	 *
 	 * 期待結果:
 	 * - falseが返り、属性更新は行われない。
 	 */
 	it( 'when the current Table no longer matches the confirmed row range, should not update it', () => {
 		const updateBlockAttributes = jest.fn();
-		const integration = createRowTableIntegration( {
+		selectMock.mockReturnValue( {
 			getBlock: jest.fn().mockReturnValue( {
 				name: 'core/table',
 				attributes: { body: [ { cells: [] }, { cells: [] } ] },
 			} ),
-			updateBlockAttributes,
 		} );
+		dispatchMock.mockReturnValue( { updateBlockAttributes } );
 
 		expect(
-			integration.applyRowMove( {
+			rowTableIntegration.applyRowMove( {
 				clientId: 'table-a',
 				sourceRowIndex: 2,
 				destinationBoundaryIndex: 0,
