@@ -156,7 +156,7 @@ const copyTableRow = ( row: TableRow ): TableRow => ( {
 /**
  * 挿入段階で使用する空Rowを移動元Rowと同じCell構造から生成する。
  *
- * @param row 移動元Row。
+ * @param row 複製元Row。
  * @return Cell内容だけを空にした新しいRow。
  */
 const createBlankTableRow = ( row: TableRow ): TableRow => ( {
@@ -167,25 +167,31 @@ const createBlankTableRow = ( row: TableRow ): TableRow => ( {
 /**
  * 1回のbody属性更新と、その後の描画境界までの時間を計測する。
  *
+ * @param stage    計測ログで識別する更新段階。
  * @param clientId 対象TableのclientId。
  * @param body     更新後のbody。
  * @return dispatch復帰時間と2回目の描画境界までの時間。
  */
 const updateBodyAndObserve = async (
+	stage: 'INSERT' | 'COPY' | 'DELETE',
 	clientId: string,
 	body: TableRow[]
 ): Promise< BodyUpdateMeasurement > => {
 	const actions = getWordPressData().dispatch( BLOCK_EDITOR_STORE );
 	const startedAt = performance.now();
+	console.log( `🧪 Insert/Copy/Delete ${ stage } dispatch start`, { rows: body.length } );
 	actions.updateBlockAttributes( clientId, { body } );
 	const dispatchMs = performance.now() - startedAt;
+	console.log( `🧪 Insert/Copy/Delete ${ stage } dispatch returned`, { dispatchMs } );
 
 	await waitForObservationBoundary();
-
-	return {
+	const observationBoundaryMs = performance.now() - startedAt;
+	console.log( `🧪 Insert/Copy/Delete ${ stage } observation boundary`, {
 		dispatchMs,
-		observationBoundaryMs: performance.now() - startedAt,
-	};
+		observationBoundaryMs,
+	} );
+
+	return { dispatchMs, observationBoundaryMs };
 };
 
 /**
@@ -216,19 +222,26 @@ const runInsertCopyDeleteRowPoC = async ( clientId: string, toIndex: number ) =>
 		throw new Error( 'Insert/copy/delete Row PoC could not resolve Row 0.' );
 	}
 
+	console.log( '🧪 Insert/Copy/Delete START', {
+		clientId,
+		fromIndex: FAST_ROW_FROM_INDEX,
+		toIndex,
+		rows: body.length,
+	} );
+
 	const totalStartedAt = performance.now();
 	const insertionIndex = toIndex + 1;
 	const insertedBody = [ ...body ];
 	insertedBody.splice( insertionIndex, 0, createBlankTableRow( sourceRow ) );
-	const insert = await updateBodyAndObserve( clientId, insertedBody );
+	const insert = await updateBodyAndObserve( 'INSERT', clientId, insertedBody );
 
 	const copiedBody = [ ...insertedBody ];
 	copiedBody[ insertionIndex ] = copyTableRow( sourceRow );
-	const copy = await updateBodyAndObserve( clientId, copiedBody );
+	const copy = await updateBodyAndObserve( 'COPY', clientId, copiedBody );
 
 	const deletedSourceBody = [ ...copiedBody ];
 	deletedSourceBody.splice( FAST_ROW_FROM_INDEX, 1 );
-	const removeSource = await updateBodyAndObserve( clientId, deletedSourceBody );
+	const removeSource = await updateBodyAndObserve( 'DELETE', clientId, deletedSourceBody );
 
 	return {
 		clientId,
@@ -239,6 +252,25 @@ const runInsertCopyDeleteRowPoC = async ( clientId: string, toIndex: number ) =>
 		removeSource,
 		totalMs: performance.now() - totalStartedAt,
 	};
+};
+
+/**
+ * PoC用buttonへ共通の固定表示を適用する。
+ *
+ * @param button 表示対象button。
+ * @param bottom 画面下端からの距離。
+ */
+const stylePoCButton = ( button: HTMLButtonElement, bottom: number ): void => {
+	button.style.position = 'fixed';
+	button.style.right = '16px';
+	button.style.bottom = `${ bottom }px`;
+	button.style.zIndex = '100000';
+	button.style.padding = '8px 12px';
+	button.style.border = '1px solid currentColor';
+	button.style.borderRadius = '4px';
+	button.style.background = 'Canvas';
+	button.style.color = 'CanvasText';
+	button.style.cursor = 'pointer';
 };
 
 /**
@@ -277,53 +309,19 @@ export const registerFastRowCommitPoCButton = (): void => {
 	button.id = FAST_ROW_BUTTON_ID;
 	button.type = 'button';
 	button.textContent = `PoC: Fast Row 0→${ FAST_ROW_DEFAULT_DISTANCE }`;
-	button.style.position = 'fixed';
-	button.style.right = '16px';
-	button.style.bottom = '56px';
-	button.style.zIndex = '100000';
-	button.style.padding = '8px 12px';
-	button.style.border = '1px solid currentColor';
-	button.style.borderRadius = '4px';
-	button.style.background = 'Canvas';
-	button.style.color = 'CanvasText';
-	button.style.cursor = 'pointer';
+	stylePoCButton( button, 56 );
 
 	const nextTaskButton = document.createElement( 'button' );
 	nextTaskButton.id = FAST_ROW_NEXT_TASK_BUTTON_ID;
 	nextTaskButton.type = 'button';
 	nextTaskButton.textContent = `PoC: Next Task 0→${ FAST_ROW_DEFAULT_DISTANCE }`;
-	nextTaskButton.style.position = 'fixed';
-	nextTaskButton.style.right = '16px';
-	nextTaskButton.style.bottom = '16px';
-	nextTaskButton.style.zIndex = '100000';
-	nextTaskButton.style.padding = '8px 12px';
-	nextTaskButton.style.border = '1px solid currentColor';
-	nextTaskButton.style.borderRadius = '4px';
-	nextTaskButton.style.background = 'Canvas';
-	nextTaskButton.style.color = 'CanvasText';
-	nextTaskButton.style.cursor = 'pointer';
+	stylePoCButton( nextTaskButton, 16 );
 
 	const insertCopyDeleteButton = document.createElement( 'button' );
 	insertCopyDeleteButton.id = INSERT_COPY_DELETE_BUTTON_ID;
 	insertCopyDeleteButton.type = 'button';
 	insertCopyDeleteButton.textContent = `PoC: Insert/Copy/Delete 0→${ FAST_ROW_DEFAULT_DISTANCE }`;
-	insertCopyDeleteButton.style.position = 'fixed';
-	insertCopyDeleteButton.style.right = '16px';
-	insertCopyDeleteButton.style.bottom = '136px';
-	insertCopyDeleteButton.style.zIndex = '100000';
-	insertCopyDeleteButton.style.padding = '8px 12px';
-	insertCopyDeleteButton.style.border = '1px solid currentColor';
-	insertCopyDeleteButton.style.borderRadius = '4px';
-	insertCopyDeleteButton.style.background = 'Canvas';
-	insertCopyDeleteButton.style.color = 'CanvasText';
-	insertCopyDeleteButton.style.cursor = 'pointer';
-
-	const setControlsDisabled = ( disabled: boolean ): void => {
-		button.disabled = disabled;
-		nextTaskButton.disabled = disabled;
-		insertCopyDeleteButton.disabled = disabled;
-		distanceInput.disabled = disabled;
-	};
+	stylePoCButton( insertCopyDeleteButton, 136 );
 
 	distanceInput.addEventListener( 'input', () => {
 		button.textContent = `PoC: Fast Row 0→${ distanceInput.value }`;
@@ -359,12 +357,8 @@ export const registerFastRowCommitPoCButton = (): void => {
 
 		const clientId = pendingClientId;
 		pendingClientId = null;
-
 		if ( clientId === null ) {
-			console.error(
-				'❌ Fast Row commit PoC failed',
-				new Error( 'Fast Row commit PoC requires a selected Table.' )
-			);
+			console.error( '❌ Fast Row commit PoC failed', new Error( 'Fast Row commit PoC requires a selected Table.' ) );
 			return;
 		}
 
@@ -376,8 +370,10 @@ export const registerFastRowCommitPoCButton = (): void => {
 			return;
 		}
 
-		setControlsDisabled( true );
-		runFastRowCommit( clientId, toIndex, () => setControlsDisabled( false ) );
+		button.disabled = true;
+		runFastRowCommit( clientId, toIndex, () => {
+			button.disabled = false;
+		} );
 	} );
 
 	nextTaskButton.addEventListener( 'click', ( event ) => {
@@ -386,12 +382,8 @@ export const registerFastRowCommitPoCButton = (): void => {
 
 		const clientId = pendingNextTaskClientId;
 		pendingNextTaskClientId = null;
-
 		if ( clientId === null ) {
-			console.error(
-				'❌ Fast Row commit PoC failed',
-				new Error( 'Fast Row commit PoC requires a selected Table.' )
-			);
+			console.error( '❌ Fast Row commit PoC failed', new Error( 'Fast Row commit PoC requires a selected Table.' ) );
 			return;
 		}
 
@@ -403,10 +395,11 @@ export const registerFastRowCommitPoCButton = (): void => {
 			return;
 		}
 
-		setControlsDisabled( true );
-
+		nextTaskButton.disabled = true;
 		setTimeout( () => {
-			runFastRowCommit( clientId, toIndex, () => setControlsDisabled( false ) );
+			runFastRowCommit( clientId, toIndex, () => {
+				nextTaskButton.disabled = false;
+			} );
 		}, 0 );
 	} );
 
@@ -416,7 +409,6 @@ export const registerFastRowCommitPoCButton = (): void => {
 
 		const clientId = pendingInsertCopyDeleteClientId;
 		pendingInsertCopyDeleteClientId = null;
-
 		if ( clientId === null ) {
 			console.error(
 				'❌ Insert/copy/delete Row PoC failed',
@@ -433,7 +425,7 @@ export const registerFastRowCommitPoCButton = (): void => {
 			return;
 		}
 
-		setControlsDisabled( true );
+		insertCopyDeleteButton.disabled = true;
 		runInsertCopyDeleteRowPoC( clientId, toIndex )
 			.then( ( result ) => {
 				console.log( '✅ Insert/copy/delete Row PoC result', result );
@@ -441,7 +433,9 @@ export const registerFastRowCommitPoCButton = (): void => {
 			.catch( ( error: unknown ) => {
 				console.error( '❌ Insert/copy/delete Row PoC failed', error );
 			} )
-			.finally( () => setControlsDisabled( false ) );
+			.finally( () => {
+				insertCopyDeleteButton.disabled = false;
+			} );
 	} );
 
 	document.body.appendChild( distanceInput );
