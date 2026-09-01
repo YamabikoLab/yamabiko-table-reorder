@@ -1,3 +1,4 @@
+/* eslint-disable no-console */
 /**
  * #714の高速Row commitを実WordPress Editor上の一時ボタンから確認するPoC UIを所有する。
  *
