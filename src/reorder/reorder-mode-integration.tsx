@@ -5,9 +5,10 @@
  * Reactは状態の正本を持たず、表示・Lifecycle・編集可否ごとのカスタムフックから必要な状態だけを購読する。
  */
 
-import { BlockControls } from '@wordpress/block-editor';
+import { BlockControls, store as blockEditorStore } from '@wordpress/block-editor';
 import type { BlockEditProps } from '@wordpress/blocks';
 import { ToolbarButton, ToolbarGroup } from '@wordpress/components';
+import { select } from '@wordpress/data';
 import {
 	useCallback,
 	useEffect,
@@ -118,6 +119,25 @@ const columnReorderIcon = (
 );
 
 /**
+ * 現在の操作対象として選択されている対応Table Identityを取得する。
+ *
+ * React componentの生成状態ではなくEditorの選択状態を正本とし、Table componentの再生成と操作対象の離脱を区別する。
+ *
+ * @return 現在選択されている対応Table Identity。対応Tableが操作対象でなければnull。
+ */
+const getSelectedTableIdentity = () => {
+	const blockEditor = select( blockEditorStore );
+	const selectedBlockClientId = blockEditor.getSelectedBlockClientId();
+	const selectedBlock = selectedBlockClientId ? blockEditor.getBlock( selectedBlockClientId ) : null;
+	const selectedTableIdentity =
+		selectedBlockClientId && selectedBlock && SUPPORTED_TABLE_BLOCKS.has( selectedBlock.name )
+			? selectedBlockClientId
+			: null;
+
+	return selectedTableIdentity;
+};
+
+/**
  * 対象Tableから見た現在のReorder Mode状態とToolbar操作をReactへ提供する。
  *
  * @param tableIdentity Reorder Mode状態を参照・操作するTable Identity。
@@ -133,18 +153,19 @@ const useReorderMode = ( tableIdentity: string ) => {
 		getSelectedKind,
 		getSelectedKind
 	);
-	const select = useCallback(
+	const selectMode = useCallback(
 		( kind: ReorderKind ) => reorderModeIntegration.select( kind, tableIdentity ),
 		[ tableIdentity ]
 	);
 
-	return { selectedKind, select };
+	return { selectedKind, select: selectMode };
 };
 
 /**
  * 対応Tableの選択状態とReorder ModeのLifecycle同期を所有する。
  *
- * React側では対象Tableかどうかや終了条件を判定せず、現在操作しているTable、または操作対象から外れたTableの事実だけを通知する。
+ * React側ではReorder Modeの終了条件を判定せず、現在操作しているTable、または操作対象から外れたTableの事実だけを通知する。
+ * componentが破棄される場合もEditorの現在選択を確認し、同じTableが操作対象のままなら再生成としてReorder Modeを維持する。
  *
  * @param tableIdentity Lifecycleを同期するTable Identity。
  * @param isSelected    Tableが現在の操作対象として選択されているか。
@@ -153,10 +174,22 @@ const useReorderModeTableLifecycle = ( tableIdentity: string, isSelected: boolea
 	useEffect( () => {
 		if ( isSelected ) {
 			reorderModeIntegration.observeTable( tableIdentity );
-			return;
+		} else {
+			reorderModeIntegration.notifyTableInactive( tableIdentity );
 		}
 
-		reorderModeIntegration.notifyTableInactive( tableIdentity );
+		return () => {
+			const selectedTableIdentity = getSelectedTableIdentity();
+
+			/*
+			 * Table componentの再生成だけでは操作対象から外れたことにならないため、Editor上の操作対象が別のBlockへ変わった場合だけ離脱を通知する。
+			 */
+			if ( selectedTableIdentity === tableIdentity ) {
+				return;
+			}
+
+			reorderModeIntegration.notifyTableInactive( tableIdentity );
+		};
 	}, [ isSelected, tableIdentity ] );
 };
 
@@ -212,7 +245,7 @@ const preserveEditingStartHandler =
  */
 const ReorderModeToolbar = ( props: ReorderModeToolbarProps ) => {
 	const { tableIdentity } = props;
-	const { selectedKind, select } = useReorderMode( tableIdentity );
+	const { selectedKind, select: selectMode } = useReorderMode( tableIdentity );
 
 	return (
 		<BlockControls>
@@ -221,13 +254,13 @@ const ReorderModeToolbar = ( props: ReorderModeToolbarProps ) => {
 					icon={ rowReorderIcon }
 					isPressed={ selectedKind === 'row' }
 					label={ getRowReorderName() }
-					onClick={ () => select( 'row' ) }
+					onClick={ () => selectMode( 'row' ) }
 				/>
 				<ToolbarButton
 					icon={ columnReorderIcon }
 					isPressed={ selectedKind === 'column' }
 					label={ getColumnReorderName() }
-					onClick={ () => select( 'column' ) }
+					onClick={ () => selectMode( 'column' ) }
 				/>
 			</ToolbarGroup>
 		</BlockControls>
