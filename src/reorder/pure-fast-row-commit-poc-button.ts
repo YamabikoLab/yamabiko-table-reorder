@@ -98,9 +98,10 @@ export const registerPureFastRowCommitPoCButton = (): void => {
 	button.addEventListener( 'pointerdown', ( event ) => {
 		event.preventDefault();
 		event.stopPropagation();
-		pendingClientId = ( window as PureFastRowCommitPoCWindow ).wp?.data
-			?.select( BLOCK_EDITOR_STORE )
-			.getSelectedBlockClientId() ?? null;
+		pendingClientId =
+			( window as PureFastRowCommitPoCWindow ).wp?.data
+				?.select( BLOCK_EDITOR_STORE )
+				.getSelectedBlockClientId() ?? null;
 	} );
 
 	button.addEventListener( 'click', ( event ) => {
