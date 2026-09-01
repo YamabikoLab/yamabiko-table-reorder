@@ -37,3 +37,23 @@ msgstr "行を並び替え"
 #: src/messages.ts:24
 msgid "Reorder columns"
 msgstr "列を並び替え"
+
+#: src/messages.ts:31
+msgid "From"
+msgstr "移動元"
+
+#: src/messages.ts:38
+msgid "To"
+msgstr "移動先"
+
+#: src/messages.ts:45
+msgid "Move"
+msgstr "移動"
+
+#: src/messages.ts:52
+msgid "Commit once"
+msgstr "1回だけ反映"
+
+#: src/messages.ts:59
+msgid "Applying data..."
+msgstr "データ反映中です。"
