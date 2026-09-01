@@ -57,3 +57,19 @@ export const getFtbPreviewCommitLabel = () => __( 'Commit once', 'yamabiko-table
  * @return FTBへの最終Row順の反映中であることを示す文言。
  */
 export const getFtbPreviewApplyingMessage = () => __( 'Applying data…', 'yamabiko-table-reorder' );
+
+/**
+ * #718 FTB PoCのデータ反映時間の表示名を取得する。
+ *
+ * @return commit開始から更新済みFTB表示までの所要時間を示す表示名。
+ */
+export const getFtbPreviewApplyDurationLabel = () =>
+	__( 'Data application time', 'yamabiko-table-reorder' );
+
+/**
+ * #718 FTB PoCの属性更新呼び出し時間の表示名を取得する。
+ *
+ * @return updateBlockAttributes呼び出し自体の所要時間を示す表示名。
+ */
+export const getFtbPreviewUpdateDurationLabel = () =>
+	__( 'updateBlockAttributes time', 'yamabiko-table-reorder' );
