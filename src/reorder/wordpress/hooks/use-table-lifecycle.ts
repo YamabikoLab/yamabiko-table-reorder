@@ -6,7 +6,7 @@
 
 import { useEffect } from '@wordpress/element';
 
-import { reorderModeIntegration } from '@/reorder/wordpress/reorder-mode-integration';
+import { reorderMode } from '@/reorder/reorder-mode';
 
 /** 現在選択されている対応Table Identityを返すWordPress接続境界。 */
 export type GetSelectedTableIdentity = () => string | null;
@@ -27,9 +27,9 @@ export const useTableLifecycle = (
 ) => {
 	useEffect( () => {
 		if ( isSelected ) {
-			reorderModeIntegration.observeTable( tableIdentity );
+			reorderMode.observeTable( tableIdentity );
 		} else {
-			reorderModeIntegration.notifyTableInactive( tableIdentity );
+			reorderMode.notifyTableInactive( tableIdentity );
 		}
 
 		return () => {
@@ -42,7 +42,7 @@ export const useTableLifecycle = (
 				return;
 			}
 
-			reorderModeIntegration.notifyTableInactive( tableIdentity );
+			reorderMode.notifyTableInactive( tableIdentity );
 		};
 	}, [ getSelectedTableIdentity, isSelected, tableIdentity ] );
 };
