@@ -1,5 +1,5 @@
 /**
- * 対応Tableの既存Block wrapperへReorder Mode中の通常編集抑止を接続するReact componentを所有する。
+ * 現在操作中の対応Tableの既存Block wrapperへReorder Mode中の通常編集抑止を接続するReact componentを所有する。
  *
  * 新しいDOM階層は追加せず、Gutenberg既存のwrapper propsへ必要な入力抑止だけを合成する。
  */
@@ -15,13 +15,16 @@ import { useEditingAllowed } from '@/reorder/wordpress/hooks/use-editing-allowed
 /** BlockListBlock HOCが利用するprops。 */
 export type ReorderModeBlockListBlockProps = {
 	clientId: string;
+	isSelected: boolean;
 	name: string;
 	wrapperProps?: EditingStartWrapperProps;
 	[ key: string ]: unknown;
 };
 
 /**
- * 対応Tableの既存Block wrapperへReorder Modeの編集可否を反映する。
+ * 現在操作中の対応Tableの既存Block wrapperへReorder Modeの編集可否を反映する。
+ *
+ * このcomponentは現在選択中の対応Tableに対してだけ生成され、Reorder Modeの購読を所有する。
  *
  * @param props                Gutenbergから渡されるBlockListBlock propsと元のcomponent。
  * @param props.BlockListBlock

@@ -14,7 +14,8 @@ export type GetSelectedTableIdentity = () => string | null;
 /**
  * 対応Tableの選択状態とReorder ModeのLifecycleを同期する。
  *
- * componentが破棄される場合もEditorの現在選択を確認し、同じTableが操作対象のままなら再生成としてReorder Modeを維持する。
+ * 選択状態の変化はEffect本体で同期し、component破棄時の離脱確認は破棄専用Effectのcleanupで扱う。
+ * 同じTableが操作対象のままcomponentだけ再生成された場合はReorder Modeを維持する。
  *
  * @param tableIdentity            Lifecycleを同期するTable Identity。
  * @param isSelected               Tableが現在の操作対象として選択されているか。
@@ -28,10 +29,13 @@ export const useTableLifecycle = (
 	useEffect( () => {
 		if ( isSelected ) {
 			reorderMode.observeTable( tableIdentity );
-		} else {
-			reorderMode.notifyTableInactive( tableIdentity );
+			return;
 		}
 
+		reorderMode.notifyTableInactive( tableIdentity );
+	}, [ isSelected, tableIdentity ] );
+
+	useEffect( () => {
 		return () => {
 			const selectedTableIdentity = getSelectedTableIdentity();
 
@@ -44,5 +48,5 @@ export const useTableLifecycle = (
 
 			reorderMode.notifyTableInactive( tableIdentity );
 		};
-	}, [ getSelectedTableIdentity, isSelected, tableIdentity ] );
+	}, [ getSelectedTableIdentity, tableIdentity ] );
 };

@@ -66,17 +66,19 @@ export const withReorderMode = ( BlockEdit: ComponentType< TableBlockEditProps >
  * Gutenberg既存のBlock wrapperへ、並び替えモード中の内容編集抑止だけを追加するHOC。
  *
  * 新しいDOM階層を追加せず、Block Toolbarや配置操作を既存のEditor構造のまま利用可能にする。
- * 非対応BlockはReorder Modeを購読せず、元のBlockListBlockをそのまま返す。
+ * Reorder Modeの購読componentは現在選択中の対応Tableだけに生成し、非対応Blockと非選択Tableは購読しない。
  *
  * @param BlockListBlock Gutenbergが提供する元のBlockListBlock component。
- * @return 対応Tableの既存Block wrapperだけへ編集開始抑止を追加するcomponent。
+ * @return 現在選択中の対応Tableの既存Block wrapperだけへ編集開始抑止を追加するcomponent。
  */
 export const withReorderModeBlockListBlock = (
 	BlockListBlock: ComponentType< ReorderModeBlockListBlockProps >
 ) =>
 	function WithReorderModeBlockListBlock( props: ReorderModeBlockListBlockProps ) {
-		/* 全Blockへ適用されるWordPress filterから、Reorder Modeの購読を対応Tableだけへ限定する。 */
-		if ( ! SUPPORTED_TABLE_BLOCKS.has( props.name ) ) {
+		/*
+		 * Reorder Modeは現在操作中のTableだけに関係するため、全Blockへ適用されるWordPress filterから購読componentの生成範囲を限定する。
+		 */
+		if ( ! SUPPORTED_TABLE_BLOCKS.has( props.name ) || ! props.isSelected ) {
 			return <BlockListBlock { ...props } />;
 		}
 

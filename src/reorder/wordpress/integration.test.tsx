@@ -57,6 +57,7 @@ type TableBlockEditProps = BlockEditProps< Record< string, unknown > > & {
 
 type BlockListBlockProps = {
 	clientId: string;
+	isSelected: boolean;
 	name: string;
 	wrapperProps?: React.HTMLAttributes< HTMLDivElement >;
 };
@@ -172,7 +173,7 @@ describe( 'Reorder Mode WordPress integration', () => {
 	 * - Core Tableで行の並び替えモードが選択されている。
 	 *
 	 * 操作:
-	 * - Block wrapperへpointerdownを送出する。
+	 * - 選択中TableのBlock wrapperへpointerdownを送出する。
 	 *
 	 * 期待結果:
 	 * - Gutenberg既存handlerは呼ばれ、入力の既定動作だけが抑止される。
@@ -198,6 +199,7 @@ describe( 'Reorder Mode WordPress integration', () => {
 			root.render(
 				<WrappedBlockListBlock
 					clientId="table-a"
+					isSelected={ true }
 					name="core/table"
 					wrapperProps={ { onPointerDownCapture: existingPointerDownCapture } }
 				/>
@@ -215,6 +217,48 @@ describe( 'Reorder Mode WordPress integration', () => {
 
 		expect( existingPointerDownCapture ).toHaveBeenCalledTimes( 1 );
 		expect( pointerDown.defaultPrevented ).toBe( true );
+	} );
+
+	/**
+	 * 概要:
+	 * - 非選択TableにはReorder Modeの編集抑止を接続しないことを確認する。
+	 *
+	 * 事前条件:
+	 * - 別のCore Tableで行の並び替えモードが選択されている。
+	 * - 表示対象のCore Tableは選択されていない。
+	 *
+	 * 操作:
+	 * - 非選択TableのBlock wrapperへpointerdownを送出する。
+	 *
+	 * 期待結果:
+	 * - Gutenberg既存handlerは呼ばれるが、Reorder Modeによる既定動作の抑止は追加されない。
+	 */
+	it( 'when a supported table is not selected, should leave its Block wrapper outside reorder editing guard', () => {
+		const existingPointerDownCapture = jest.fn();
+		reorderMode.select( 'row', 'table-a' );
+
+		act( () => {
+			root.render(
+				<WrappedBlockListBlock
+					clientId="table-b"
+					isSelected={ false }
+					name="core/table"
+					wrapperProps={ { onPointerDownCapture: existingPointerDownCapture } }
+				/>
+			);
+		} );
+
+		const blockWrapper = container.querySelector< HTMLDivElement >(
+			'[data-testid="block-wrapper"]'
+		);
+		if ( ! blockWrapper ) {
+			throw new Error( 'Expected Gutenberg Block wrapper was not rendered.' );
+		}
+		const pointerDown = new Event( 'pointerdown', { bubbles: true, cancelable: true } );
+		blockWrapper.dispatchEvent( pointerDown );
+
+		expect( existingPointerDownCapture ).toHaveBeenCalledTimes( 1 );
+		expect( pointerDown.defaultPrevented ).toBe( false );
 	} );
 
 	/**
