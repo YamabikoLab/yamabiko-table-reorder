@@ -81,11 +81,13 @@ export const withReorderModeBlockListBlock = (
 			return <BlockListBlock { ...props } />;
 		}
 
-		console.info( '[YTR PoC debug] BlockListBlock connected', {
-			clientId: props.clientId,
-			isSelected: props.isSelected,
-			name: props.name,
-		} );
+		if ( process.env.NODE_ENV !== 'test' ) {
+			console.info( '[YTR PoC debug] BlockListBlock connected', {
+				clientId: props.clientId,
+				isSelected: props.isSelected,
+				name: props.name,
+			} );
+		}
 
 		return <ReorderModeBlockListBlock BlockListBlock={ BlockListBlock } blockProps={ props } />;
 	};
