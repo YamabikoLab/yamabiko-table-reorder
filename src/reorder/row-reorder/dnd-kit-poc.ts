@@ -160,9 +160,7 @@ export const connectDndKitRowPoc = (
 		}
 
 		const pendingRecords = observation.observer.takeRecords();
-		const pendingChildListChange = pendingRecords.some(
-			( record ) => record.type === 'childList'
-		);
+		const pendingChildListChange = pendingRecords.some( ( record ) => record.type === 'childList' );
 		observation.domOrderChanged ||= pendingChildListChange;
 		observation.observer.disconnect();
 
