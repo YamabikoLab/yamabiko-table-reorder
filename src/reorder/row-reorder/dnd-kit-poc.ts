@@ -6,7 +6,13 @@
  * DnD Lifecycle、Auto Scroll、およびDnD中の`tbody`子要素変更有無だけを観測する。
  */
 
-import { Draggable, DragDropManager, Droppable, Feedback } from '@dnd-kit/dom';
+import {
+	Draggable,
+	DragDropManager,
+	Droppable,
+	Feedback,
+	PointerSensor,
+} from '@dnd-kit/dom';
 
 /** dnd-kit上でYTRの行PoCだけを相互に受け入れる識別種別。 */
 const ROW_DND_TYPE = 'ytr-row-dnd-kit-poc';
@@ -111,7 +117,14 @@ export const connectDndKitRowPoc = ( tableIdentity: string ): ( () => void ) | n
 		return null;
 	}
 
-	const manager = new DragDropManager();
+	const manager = new DragDropManager( {
+		sensors: [
+			PointerSensor.configure( {
+				/* PoCではTableセル内部もドラッグ開始対象として扱い、interactive要素判定の影響を除外する。 */
+				preventActivation: () => false,
+			} ),
+		],
+	} );
 
 	/*
 	 * 実Tableの行をそのままDnD対象として登録し、別の表示用DOMや並び替え用DOMを生成しない。
