@@ -8,6 +8,7 @@ module.exports = {
 		'!src/**/*.test-utils.ts',
 		'!src/types/**',
 		'!src/index.tsx',
+		'!src/reorder/row-reorder/dnd-kit-poc.ts',
 	],
 	coverageThreshold: {
 		global: {
@@ -26,4 +27,5 @@ module.exports = {
 		'<rootDir>/scripts/architecture/',
 		'<rootDir>/.architecture-build/',
 	],
+	transformIgnorePatterns: [ '/node_modules/(?!@preact/signals-core/)' ],
 };
