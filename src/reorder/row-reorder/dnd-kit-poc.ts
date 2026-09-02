@@ -20,6 +20,35 @@ type ActiveDragObservation = {
 };
 
 /**
+ * PoC対象Tableの現在Block wrapperをTable Identityから直接解決する。
+ *
+ * PoCでdnd-kitの成立性を確認するための暫定解決であり、正式なEditor DOM境界としては利用しない。
+ *
+ * @param tableIdentity PoC対象TableのIdentity。
+ * @return 現在のBlock wrapper。解決できなければnull。
+ */
+const resolveCurrentBlockWrapper = ( tableIdentity: string ): HTMLElement | null => {
+	const selector = `[data-block="${ CSS.escape( tableIdentity ) }"]`;
+	const topDocument = window.document;
+	const topMatch = topDocument.querySelector< HTMLElement >( selector );
+
+	if ( topMatch ) {
+		return topMatch;
+	}
+
+	for ( const frame of Array.from( topDocument.querySelectorAll( 'iframe' ) ) ) {
+		const frameDocument = frame.contentDocument;
+		const frameMatch = frameDocument?.querySelector< HTMLElement >( selector ) ?? null;
+
+		if ( frameMatch ) {
+			return frameMatch;
+		}
+	}
+
+	return null;
+};
+
+/**
  * 基準要素が所有する現在Tableの`tbody`を解決する。
  *
  * @param referenceElement 対応Table Blockの現在の基準要素。
@@ -52,21 +81,22 @@ const getDirectRows = ( tableBody: HTMLTableSectionElement ) => {
  * `Sortable`は使用せず、既存の各`tr`をDraggableとDroppableへ登録する。
  * Feedbackは無効化し、DnD中にTable DOMの行順を変更しない状態でLifecycleとAuto Scrollを検証する。
  *
- * @param tableIdentity    PoC対象TableのIdentity。
- * @param referenceElement PoC対象Tableを所有する現在のBlock wrapper。
+ * @param tableIdentity PoC対象TableのIdentity。
  * @return PoCを終了してdnd-kitの登録と監視を破棄する関数。現在DOMから検証対象を解決できなければnull。
  */
-export const connectDndKitRowPoc = (
-	tableIdentity: string,
-	referenceElement: HTMLElement
-): ( () => void ) | null => {
-	const editorWindow = referenceElement.ownerDocument.defaultView;
+export const connectDndKitRowPoc = ( tableIdentity: string ): ( () => void ) | null => {
+	const referenceElement = resolveCurrentBlockWrapper( tableIdentity );
 
 	console.info( '[YTR PoC debug] connect', {
 		referenceElement,
 		tableIdentity,
 	} );
 
+	if ( ! referenceElement ) {
+		return null;
+	}
+
+	const editorWindow = referenceElement.ownerDocument.defaultView;
 	const tableBody = resolveTableBody( referenceElement );
 
 	/* 現在のEditor DOM上でTable行を安全に扱えない場合はPoCを開始しない。 */
