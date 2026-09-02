@@ -3,7 +3,7 @@
  * dnd-kitを既存Table行へ接続し、実DOM順序を変更しないDnDが成立するか検証するPoCを所有する。
  *
  * 行順の確定やTableデータ更新は行わず、既存の`tr`をDnD対象として利用できること、
- * DnD Lifecycle、Auto Scroll、およびDnD中の`tbody`子要素変更有無だけを観測する。
+ * DnD Lifecycle、Auto Scroll、初期登録コスト、およびDnD中の`tbody`子要素変更有無だけを観測する。
  */
 
 import { Draggable, DragDropManager, Droppable, Feedback, PointerSensor } from '@dnd-kit/dom';
@@ -79,7 +79,7 @@ const getDirectRows = ( tableBody: HTMLTableSectionElement ) => {
  * dnd-kitによる行DnD PoCを現在のTableへ接続する。
  *
  * `Sortable`は使用せず、既存の各`tr`をDraggableとDroppableへ登録する。
- * Feedbackは無効化し、DnD中にTable DOMの行順を変更しない状態でLifecycleとAuto Scrollを検証する。
+ * Feedbackは無効化し、DnD中にTable DOMの行順を変更しない状態でLifecycle、Auto Scroll、初期登録コストを検証する。
  *
  * @param tableIdentity PoC対象TableのIdentity。
  * @return PoCを終了してdnd-kitの登録と監視を破棄する関数。現在DOMから検証対象を解決できなければnull。
@@ -119,6 +119,7 @@ export const connectDndKitRowPoc = ( tableIdentity: string ): ( () => void ) | n
 			} ),
 		],
 	} );
+	const registrationStartedAt = editorWindow.performance.now();
 
 	/*
 	 * 実Tableの行をそのままDnD対象として登録し、別の表示用DOMや並び替え用DOMを生成しない。
@@ -146,6 +147,7 @@ export const connectDndKitRowPoc = ( tableIdentity: string ): ( () => void ) | n
 			manager
 		);
 	} );
+	const registrationMs = editorWindow.performance.now() - registrationStartedAt;
 
 	let activeObservation: ActiveDragObservation | null = null;
 	let lastTargetId: string | number | null = null;
@@ -223,6 +225,7 @@ export const connectDndKitRowPoc = ( tableIdentity: string ): ( () => void ) | n
 	} );
 
 	editorWindow.console.info( '[YTR dnd-kit PoC] ready', {
+		registrationMs,
 		rowCount: rows.length,
 		tableIdentity,
 	} );
