@@ -510,7 +510,7 @@ describe( 'Reorder Mode WordPress integration state transitions', () => {
 			const existingHandler = jest.fn();
 			const wrapperProps = {
 				[ handlerName ]: existingHandler,
-			} as React.HTMLAttributes< HTMLDivElement >;
+			};
 			reorderMode.select( 'row', 'table-a' );
 
 			act( () => {
