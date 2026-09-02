@@ -15,6 +15,14 @@ Jest tests should be structured so that their purpose and expected behavior can 
 - The `when` part should describe the condition or action being tested.
 - The `should` part should describe the externally observable expected result.
 
+## Production export boundaries
+
+- Do not add or widen an export in production code solely to make an implementation detail directly accessible from Jest tests.
+- Decide production exports from architectural responsibility and actual production usage, not from test convenience.
+- Verify non-public functions, values, and implementation details through externally observable behavior exposed by the responsibility being tested.
+- When behavior is difficult to test without exposing implementation details, reconsider the test boundary, test approach, or responsibility decomposition before widening the production API.
+- When test isolation requires resetting Zustand state, prefer test-side setup or mocking rather than adding a production reset API solely for tests.
+
 ## Test case documentation
 
 - Add a Japanese comment immediately before each test case so that the purpose of the test can be understood without reading the implementation.

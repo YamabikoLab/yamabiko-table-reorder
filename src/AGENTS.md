@@ -24,6 +24,15 @@ These instructions apply to source files under `src/`.
 - Make the current UI or interaction state understandable without requiring readers to mentally combine several independent state values. Prefer state representations that make valid conceptual states explicit instead of splitting one meaningful state across unrelated React state values.
 - Keep control flow and lifecycle behavior easy to trace. Use effects and custom hooks when they make synchronization, lifecycle, or a coherent responsibility clearer. Do not use them merely to shorten components, hide control flow, or create indirect chains of internal state transitions.
 
+## Zustand state management
+
+- Use Zustand when a responsibility owns shared observable state that must remain independent of a single React component lifecycle, including state that must survive mount, unmount, and remount cycles. Do not introduce Zustand merely because multiple consumers exist.
+- Do not move component-local transient UI state into Zustand without a concrete shared ownership need.
+- Treat the Zustand store as the source of truth. Do not duplicate the same conceptual state in React state or another store.
+- Perform state transitions through store-owned actions. Do not let consumers arbitrarily replace store state.
+- Do not expose the Zustand store, `getState()`, `setState()`, or other store internals merely because Zustand is used. Public boundaries must be determined by architectural responsibility and actual production usage.
+- Expose and consume only the state required by each consumer. Avoid rerenders or downstream updates caused by unrelated store changes.
+
 ## React code review guidelines
 
 When reviewing React code, focus on React-specific correctness, lifecycle behavior, maintainability, and meaningful performance issues rather than style preferences.
@@ -69,6 +78,7 @@ When reviewing React code, focus on React-specific correctness, lifecycle behavi
 
 - When creating or changing Jest tests under `src/`, follow `../docs/development/jest-test-guidelines.md`.
 - Keep test files adjacent to the implementation they verify as `*.test.ts` or `*.test.tsx`; this issue does not change test placement.
+- Do not add exports to production code solely for tests.
 
 ## Dependencies and generated files
 
