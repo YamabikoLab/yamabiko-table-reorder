@@ -60,6 +60,12 @@ export const connectDndKitRowPoc = (
 	referenceElement: HTMLElement
 ): ( () => void ) | null => {
 	const editorWindow = referenceElement.ownerDocument.defaultView;
+
+	console.info( '[YTR PoC debug] connect', {
+		referenceElement,
+		tableIdentity,
+	} );
+
 	const tableBody = resolveTableBody( referenceElement );
 
 	/* 現在のEditor DOM上でTable行を安全に扱えない場合はPoCを開始しない。 */
