@@ -442,12 +442,11 @@ Sessionが保持する移動対象とdrop時点の最終有効移動先を現在
 | 3 | RESP_ROW_TABLE_INTEGRATION | EXT_SUPPORTED_TABLE_BLOCK | 現在の対応Table Blockから行構造を取得する。 |
 | 4 | RESP_ROW_DND_INTERACTION | RESP_ROW_TABLE_INTEGRATION | 現在構造でも成立することを確認できた場合だけ確定済み行移動の反映を要求する。 |
 | 5 | RESP_ROW_TABLE_INTEGRATION | EXT_SUPPORTED_TABLE_BLOCK | `tbody`の行順だけを確定結果として更新する。 |
-| 6 | RESP_ROW_TABLE_INTEGRATION | EXT_WORDPRESS_UNDO | 成立した行並び替えを1回のUndoで戻せる更新単位として維持する。 |
-| 7 | RESP_ROW_DND_INTERACTION | RESP_ROW_PRESENTATION | DnD中だけの表示を終了する。 |
-| 8 | RESP_ROW_DND_INTERACTION | RESP_ROW_AUTO_SCROLL | 行DnDの自動スクロール状態を終了する。 |
-| 9 | RESP_ROW_DND_INTERACTION | RESP_REORDER_MODE | complete終了後も現在のTableで行並び替えモードを維持できるかという結果を渡す。 |
+| 6 | RESP_ROW_DND_INTERACTION | RESP_ROW_PRESENTATION | DnD中だけの表示を終了する。 |
+| 7 | RESP_ROW_DND_INTERACTION | RESP_ROW_AUTO_SCROLL | 行DnDの自動スクロール状態を終了する。 |
+| 8 | RESP_ROW_DND_INTERACTION | RESP_REORDER_MODE | complete終了後も現在のTableで行並び替えモードを維持できるかという結果を渡す。 |
 
-現在のTable構造に対して移動対象または最終移動先が成立しない場合はStep 4以降の更新へ進まず、安全な中止へ合流する。
+成立した行並び替えを1回のUndoで戻せる更新単位として維持する責務はTable Integrationが所有し、WordPress UndoへのStructural Dependencyで表現する。現在のTable構造に対して移動対象または最終移動先が成立しない場合はStep 4以降の更新へ進まず、安全な中止へ合流する。
 
 ### Row DnD external change abort {#RV_ROW_DND_EXTERNAL_ABORT}
 
