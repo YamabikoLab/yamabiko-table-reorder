@@ -1,8 +1,8 @@
 /**
  * dnd-kitを既存Table列へ適用し、実DOM順序を変更しない列DnDが成立するか検証するPoCを所有する。
  *
- * 列順の確定やTableデータ更新、結合セルの論理解決は行わず、既存セルを列DnDの入力・移動先として利用できること、
- * DnD Lifecycle、Auto Scroll、初期登録コスト、およびDnD中のTable子要素変更有無だけを観測する。
+ * 列順の確定やTableデータ更新、結合セルの論理解決は行わず、pointerdownされた既存セルだけを列DnD開始対象として利用できること、
+ * DnD Lifecycle、Auto Scroll、遅延登録コスト、およびDnD中のTable子要素変更有無だけを観測する。
  */
 
 import { Draggable, DragDropManager, Droppable, Feedback, PointerSensor } from '@dnd-kit/dom';
@@ -15,6 +15,7 @@ type ActiveDragObservation = {
 	domOrderChanged: boolean;
 	moveCount: number;
 	observer: MutationObserver;
+	sourceRegistrationMs: number;
 	startedAt: number;
 	targetCount: number;
 	targetRegistrationMs: number;
@@ -50,26 +51,32 @@ const resolveCurrentBlockWrapper = ( tableIdentity: string ): HTMLElement | null
 };
 
 /**
- * PoC対象Tableの通常セルを列DnD開始対象として取得する。
+ * pointer入力が開始された通常セルをColumn ReorderのPoC対象として解決する。
  *
  * 結合セルの論理列解決はColumn Reorder本実装の責務として扱い、このPoCでは`colSpan === 1`のセルだけを対象とする。
+ * 対象Table内部の入れ子Tableに属するセルは対象に含めない。
  *
+ * @param event PoC対象Tableで発生したpointerdown。
  * @param table PoC対象Table。
- * @return 列DnD開始へ登録する通常セル。
+ * @return 列DnD開始対象の通常セル。対象外の場合はnull。
  */
-const getColumnCells = ( table: HTMLTableElement ) => {
-	const cells = Array.from( table.rows ).flatMap( ( row ) => Array.from( row.cells ) );
-	const columnCells = cells.filter( ( cell ) => cell.colSpan === 1 );
+const resolvePointerCell = (
+	event: PointerEvent,
+	table: HTMLTableElement
+): HTMLTableCellElement | null => {
+	const target = event.target as Element | null;
+	const cell = target?.closest?.( 'th, td' ) as HTMLTableCellElement | null;
+	const pointerCell = cell?.closest( 'table' ) === table && cell.colSpan === 1 ? cell : null;
 
-	return columnCells;
+	return pointerCell;
 };
 
 /**
  * dnd-kitによる列DnD PoCを現在のTableへ接続する。
  *
- * `Sortable`は使用せず、既存の各通常セルをDraggableへ登録する。
- * DroppableはDnD開始後に開始セルと同じ行だけへ限定し、移動先候補数をTable行数から切り離す。
- * Feedbackは無効化し、DnD中にTable DOMの列順を変更しない状態でLifecycle、Auto Scroll、初期登録コストを検証する。
+ * 列モード開始時にはDraggable / Droppableを登録せず、Tableのpointerdown captureだけを監視する。
+ * pointerdownされた通常セルだけをDraggableへ遅延登録し、DnD開始後に同じ行の通常セルだけをDroppableへ登録する。
+ * Feedbackは無効化し、DnD中にTable DOMの列順を変更しない状態でLifecycle、Auto Scroll、遅延登録コストを検証する。
  *
  * @param tableIdentity PoC対象TableのIdentity。
  * @return PoCを終了してdnd-kitの登録と監視を破棄する関数。現在DOMから検証対象を解決できなければnull。
@@ -89,13 +96,7 @@ export const connectDndKitColumnPoc = ( tableIdentity: string ): ( () => void ) 
 		return null;
 	}
 
-	const cells = getColumnCells( table );
-
-	/* 列間DnDを観測できるTableだけをPoC対象とする。 */
-	if ( cells.length < 2 ) {
-		return null;
-	}
-
+	const setupStartedAt = editorWindow.performance.now();
 	const manager = new DragDropManager( {
 		sensors: [
 			PointerSensor.configure( {
@@ -104,36 +105,21 @@ export const connectDndKitColumnPoc = ( tableIdentity: string ): ( () => void ) 
 			} ),
 		],
 	} );
-	const sourceRows = new Map< string | number, HTMLTableRowElement >();
-	const registrationStartedAt = editorWindow.performance.now();
 
-	/*
-	 * どの通常セルからでも列DnDを開始できる状態だけを初期接続し、移動先はDnD開始後に必要な列数へ限定する。
-	 */
-	cells.forEach( ( cell, registrationIndex ) => {
-		const row = cell.parentElement as HTMLTableRowElement;
-		const rowIndex = row.rowIndex;
-		const columnIndex = cell.cellIndex;
-		const data = { columnIndex, rowIndex, tableIdentity };
-		const id = `ytr-column-source:${ tableIdentity }:${ rowIndex }:${ columnIndex }:${ registrationIndex }`;
-
-		new Draggable(
-			{
-				data,
-				element: cell,
-				id,
-				plugins: [ Feedback.configure( { feedback: 'none' } ) ],
-				type: COLUMN_DND_TYPE,
-			},
-			manager
-		);
-		sourceRows.set( id, row );
-	} );
-	const registrationMs = editorWindow.performance.now() - registrationStartedAt;
-
+	let activeDraggable: Draggable | null = null;
 	let activeDroppables: Droppable[] = [];
 	let activeObservation: ActiveDragObservation | null = null;
+	let activeSourceRegistrationMs = 0;
+	let activeSourceRow: HTMLTableRowElement | null = null;
 	let lastTargetId: string | number | null = null;
+
+	/** activeな入力だけが所有する列開始対象を破棄する。 */
+	const destroyActiveDraggable = () => {
+		activeDraggable?.destroy();
+		activeDraggable = null;
+		activeSourceRegistrationMs = 0;
+		activeSourceRow = null;
+	};
 
 	/** activeなDnDだけが所有する列移動先を破棄する。 */
 	const destroyActiveDroppables = () => {
@@ -141,9 +127,51 @@ export const connectDndKitColumnPoc = ( tableIdentity: string ): ( () => void ) 
 		activeDroppables = [];
 	};
 
+	/**
+	 * pointerdownされた通常セルだけを、同じpointer入力で開始できるDraggableとして準備する。
+	 *
+	 * Tableのcapture段階で登録することで、dnd-kitのPointerSensorが対象セルで同じpointerdownを受け取れる状態にする。
+	 *
+	 * @param event PoC対象Tableで発生したpointerdown。
+	 */
+	const preparePointerSource = ( event: PointerEvent ) => {
+		if ( ! event.isPrimary || event.button !== 0 || ! manager.dragOperation.status.idle ) {
+			return;
+		}
+
+		const cell = resolvePointerCell( event, table );
+		const row = cell?.parentElement;
+
+		/* 通常セルから開始できる列DnDだけをPoC対象とする。 */
+		if ( ! cell || ! row || row.tagName !== 'TR' ) {
+			return;
+		}
+
+		destroyActiveDraggable();
+		destroyActiveDroppables();
+
+		const sourceRow = row as HTMLTableRowElement;
+		const sourceRegistrationStartedAt = editorWindow.performance.now();
+		const columnIndex = cell.cellIndex;
+		const rowIndex = sourceRow.rowIndex;
+		const data = { columnIndex, rowIndex, tableIdentity };
+
+		activeDraggable = new Draggable(
+			{
+				data,
+				element: cell,
+				id: `ytr-column-source:${ tableIdentity }:${ rowIndex }:${ columnIndex }`,
+				plugins: [ Feedback.configure( { feedback: 'none' } ) ],
+				type: COLUMN_DND_TYPE,
+			},
+			manager
+		);
+		activeSourceRegistrationMs = editorWindow.performance.now() - sourceRegistrationStartedAt;
+		activeSourceRow = sourceRow;
+	};
+
 	manager.monitor.addEventListener( 'dragstart', ( event ) => {
-		const sourceId = event.operation.source?.id ?? null;
-		const sourceRow = sourceId === null ? null : sourceRows.get( sourceId ) ?? null;
+		const sourceRow = activeSourceRow;
 		const observer = new editorWindow.MutationObserver( ( records ) => {
 			const childListChanged = records.some( ( record ) => record.type === 'childList' );
 
@@ -183,6 +211,7 @@ export const connectDndKitColumnPoc = ( tableIdentity: string ): ( () => void ) 
 			domOrderChanged: false,
 			moveCount: 0,
 			observer,
+			sourceRegistrationMs: activeSourceRegistrationMs,
 			startedAt: editorWindow.performance.now(),
 			targetCount: activeDroppables.length,
 			targetRegistrationMs: editorWindow.performance.now() - targetRegistrationStartedAt,
@@ -191,8 +220,8 @@ export const connectDndKitColumnPoc = ( tableIdentity: string ): ( () => void ) 
 		observer.observe( table, { childList: true, subtree: true } );
 
 		editorWindow.console.info( '[YTR dnd-kit Column PoC] dragstart', {
-			draggableCount: cells.length,
-			sourceId,
+			sourceId: event.operation.source?.id ?? null,
+			sourceRegistrationMs: activeObservation.sourceRegistrationMs,
 			tableIdentity,
 			targetCount: activeDroppables.length,
 			targetRegistrationMs: activeObservation.targetRegistrationMs,
@@ -225,6 +254,7 @@ export const connectDndKitColumnPoc = ( tableIdentity: string ): ( () => void ) 
 
 		if ( ! observation ) {
 			destroyActiveDroppables();
+			destroyActiveDraggable();
 			return;
 		}
 
@@ -239,6 +269,7 @@ export const connectDndKitColumnPoc = ( tableIdentity: string ): ( () => void ) 
 			durationMs: editorWindow.performance.now() - observation.startedAt,
 			moveCount: observation.moveCount,
 			sourceId: event.operation.source?.id ?? null,
+			sourceRegistrationMs: observation.sourceRegistrationMs,
 			tableIdentity,
 			targetCount: observation.targetCount,
 			targetId: event.operation.target?.id ?? null,
@@ -246,19 +277,38 @@ export const connectDndKitColumnPoc = ( tableIdentity: string ): ( () => void ) 
 		} );
 
 		destroyActiveDroppables();
+		destroyActiveDraggable();
 		activeObservation = null;
 		lastTargetId = null;
 	} );
 
+	/*
+	 * 列モード開始時にはTable全体を走査せず、pointerdownされたセルだけを遅延登録する。
+	 */
+	table.addEventListener( 'pointerdown', preparePointerSource, { capture: true } );
+
+	/* DnDへ発展しなかったpointer入力では、PointerSensorの処理完了後に一時Draggableを破棄する。 */
+	const cleanupInactivePointerSource = () => {
+		editorWindow.queueMicrotask( () => {
+			if ( manager.dragOperation.status.idle && ! activeObservation ) {
+				destroyActiveDraggable();
+			}
+		} );
+	};
+	editorWindow.addEventListener( 'pointerup', cleanupInactivePointerSource, { capture: true } );
+
 	editorWindow.console.info( '[YTR dnd-kit Column PoC] ready', {
-		draggableCount: cells.length,
-		registrationMs,
+		initialDraggableCount: 0,
+		setupMs: editorWindow.performance.now() - setupStartedAt,
 		tableIdentity,
 	} );
 
 	return () => {
 		activeObservation?.observer.disconnect();
+		table.removeEventListener( 'pointerdown', preparePointerSource, { capture: true } );
+		editorWindow.removeEventListener( 'pointerup', cleanupInactivePointerSource, { capture: true } );
 		destroyActiveDroppables();
+		destroyActiveDraggable();
 		activeObservation = null;
 		manager.destroy();
 		editorWindow.console.info( '[YTR dnd-kit Column PoC] disposed', { tableIdentity } );
