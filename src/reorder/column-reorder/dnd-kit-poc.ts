@@ -1,4 +1,3 @@
-/* eslint-disable no-console */
 /**
  * dnd-kitを既存Table列へ適用し、実DOM順序を変更しない列DnDが成立するか検証するPoCを所有する。
  *
