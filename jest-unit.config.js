@@ -20,6 +20,8 @@ module.exports = {
 	},
 	moduleNameMapper: {
 		...( defaultConfig.moduleNameMapper ?? {} ),
+		'^@/reorder/row-reorder/dnd-kit-poc$':
+			'<rootDir>/src/reorder/row-reorder/dnd-kit-poc.test-utils.ts',
 		'^@/(.*)$': '<rootDir>/src/$1',
 	},
 	testPathIgnorePatterns: [
@@ -27,5 +29,4 @@ module.exports = {
 		'<rootDir>/scripts/architecture/',
 		'<rootDir>/.architecture-build/',
 	],
-	transformIgnorePatterns: [ '/node_modules/(?!@preact/signals-core/)' ],
 };
