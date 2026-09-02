@@ -16,6 +16,8 @@ type ActiveDragObservation = {
 	moveCount: number;
 	observer: MutationObserver;
 	startedAt: number;
+	targetCount: number;
+	targetRegistrationMs: number;
 };
 
 /**
@@ -48,12 +50,12 @@ const resolveCurrentBlockWrapper = ( tableIdentity: string ): HTMLElement | null
 };
 
 /**
- * PoC対象Tableの通常セルを列DnD対象として取得する。
+ * PoC対象Tableの通常セルを列DnD開始対象として取得する。
  *
  * 結合セルの論理列解決はColumn Reorder本実装の責務として扱い、このPoCでは`colSpan === 1`のセルだけを対象とする。
  *
  * @param table PoC対象Table。
- * @return 列DnDへ登録する通常セル。
+ * @return 列DnD開始へ登録する通常セル。
  */
 const getColumnCells = ( table: HTMLTableElement ) => {
 	const cells = Array.from( table.rows ).flatMap( ( row ) => Array.from( row.cells ) );
@@ -65,7 +67,8 @@ const getColumnCells = ( table: HTMLTableElement ) => {
 /**
  * dnd-kitによる列DnD PoCを現在のTableへ接続する。
  *
- * `Sortable`は使用せず、既存の各通常セルをDraggableとDroppableへ登録する。
+ * `Sortable`は使用せず、既存の各通常セルをDraggableへ登録する。
+ * DroppableはDnD開始後に開始セルと同じ行だけへ限定し、移動先候補数をTable行数から切り離す。
  * Feedbackは無効化し、DnD中にTable DOMの列順を変更しない状態でLifecycle、Auto Scroll、初期登録コストを検証する。
  *
  * @param tableIdentity PoC対象TableのIdentity。
@@ -101,43 +104,46 @@ export const connectDndKitColumnPoc = ( tableIdentity: string ): ( () => void ) 
 			} ),
 		],
 	} );
+	const sourceRows = new Map< string | number, HTMLTableRowElement >();
 	const registrationStartedAt = editorWindow.performance.now();
 
 	/*
-	 * 列を構成する既存セルをDnD対象として登録し、列表示用の代理DOMや並び替え用DOMを生成しない。
+	 * どの通常セルからでも列DnDを開始できる状態だけを初期接続し、移動先はDnD開始後に必要な列数へ限定する。
 	 */
 	cells.forEach( ( cell, registrationIndex ) => {
 		const row = cell.parentElement as HTMLTableRowElement;
 		const rowIndex = row.rowIndex;
 		const columnIndex = cell.cellIndex;
 		const data = { columnIndex, rowIndex, tableIdentity };
+		const id = `ytr-column-source:${ tableIdentity }:${ rowIndex }:${ columnIndex }:${ registrationIndex }`;
 
 		new Draggable(
 			{
 				data,
 				element: cell,
-				id: `ytr-column-source:${ tableIdentity }:${ rowIndex }:${ columnIndex }:${ registrationIndex }`,
+				id,
 				plugins: [ Feedback.configure( { feedback: 'none' } ) ],
 				type: COLUMN_DND_TYPE,
 			},
 			manager
 		);
-		new Droppable(
-			{
-				accept: COLUMN_DND_TYPE,
-				data,
-				element: cell,
-				id: `ytr-column-target:${ tableIdentity }:${ rowIndex }:${ columnIndex }:${ registrationIndex }`,
-			},
-			manager
-		);
+		sourceRows.set( id, row );
 	} );
 	const registrationMs = editorWindow.performance.now() - registrationStartedAt;
 
+	let activeDroppables: Droppable[] = [];
 	let activeObservation: ActiveDragObservation | null = null;
 	let lastTargetId: string | number | null = null;
 
+	/** activeなDnDだけが所有する列移動先を破棄する。 */
+	const destroyActiveDroppables = () => {
+		activeDroppables.forEach( ( droppable ) => droppable.destroy() );
+		activeDroppables = [];
+	};
+
 	manager.monitor.addEventListener( 'dragstart', ( event ) => {
+		const sourceId = event.operation.source?.id ?? null;
+		const sourceRow = sourceId === null ? null : sourceRows.get( sourceId ) ?? null;
 		const observer = new editorWindow.MutationObserver( ( records ) => {
 			const childListChanged = records.some( ( record ) => record.type === 'childList' );
 
@@ -145,20 +151,51 @@ export const connectDndKitColumnPoc = ( tableIdentity: string ): ( () => void ) 
 				activeObservation.domOrderChanged = true;
 			}
 		} );
+		const targetRegistrationStartedAt = editorWindow.performance.now();
+
+		destroyActiveDroppables();
+
+		/*
+		 * 列DnDの移動先は開始セルと同じ行の列だけで代表し、Table行数に比例する移動先登録を行わない。
+		 */
+		if ( sourceRow ) {
+			Array.from( sourceRow.cells )
+				.filter( ( cell ) => cell.colSpan === 1 )
+				.forEach( ( cell ) => {
+					const columnIndex = cell.cellIndex;
+					const data = { columnIndex, rowIndex: sourceRow.rowIndex, tableIdentity };
+
+					activeDroppables.push(
+						new Droppable(
+							{
+								accept: COLUMN_DND_TYPE,
+								data,
+								element: cell,
+								id: `ytr-column-target:${ tableIdentity }:${ sourceRow.rowIndex }:${ columnIndex }`,
+							},
+							manager
+						)
+					);
+				} );
+		}
 
 		activeObservation = {
 			domOrderChanged: false,
 			moveCount: 0,
 			observer,
 			startedAt: editorWindow.performance.now(),
+			targetCount: activeDroppables.length,
+			targetRegistrationMs: editorWindow.performance.now() - targetRegistrationStartedAt,
 		};
 		lastTargetId = null;
 		observer.observe( table, { childList: true, subtree: true } );
 
 		editorWindow.console.info( '[YTR dnd-kit Column PoC] dragstart', {
-			cellCount: cells.length,
-			sourceId: event.operation.source?.id ?? null,
+			draggableCount: cells.length,
+			sourceId,
 			tableIdentity,
+			targetCount: activeDroppables.length,
+			targetRegistrationMs: activeObservation.targetRegistrationMs,
 		} );
 	} );
 
@@ -187,6 +224,7 @@ export const connectDndKitColumnPoc = ( tableIdentity: string ): ( () => void ) 
 		const observation = activeObservation;
 
 		if ( ! observation ) {
+			destroyActiveDroppables();
 			return;
 		}
 
@@ -202,21 +240,25 @@ export const connectDndKitColumnPoc = ( tableIdentity: string ): ( () => void ) 
 			moveCount: observation.moveCount,
 			sourceId: event.operation.source?.id ?? null,
 			tableIdentity,
+			targetCount: observation.targetCount,
 			targetId: event.operation.target?.id ?? null,
+			targetRegistrationMs: observation.targetRegistrationMs,
 		} );
 
+		destroyActiveDroppables();
 		activeObservation = null;
 		lastTargetId = null;
 	} );
 
 	editorWindow.console.info( '[YTR dnd-kit Column PoC] ready', {
-		cellCount: cells.length,
+		draggableCount: cells.length,
 		registrationMs,
 		tableIdentity,
 	} );
 
 	return () => {
 		activeObservation?.observer.disconnect();
+		destroyActiveDroppables();
 		activeObservation = null;
 		manager.destroy();
 		editorWindow.console.info( '[YTR dnd-kit Column PoC] disposed', { tableIdentity } );
