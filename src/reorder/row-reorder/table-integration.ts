@@ -140,6 +140,19 @@ const getStructure = ( clientId: string ): RowTableStructure | null => {
 };
 
 /**
+ * 対象Tableが要求時点でもRow Reorderから利用可能かを確認する。
+ *
+ * 対応Blockの存在だけでなく、現在のtbody構造をTable Integrationが安全に提供できることまでを利用可能条件とする。
+ *
+ * @param tableIdentity 対象Table個体を識別する値。
+ * @return 現在の行構造を安全に提供できる場合はtrue。
+ */
+const isAvailable = ( tableIdentity: string ): boolean => {
+	const structure = getStructure( tableIdentity );
+	return structure !== null;
+};
+
+/**
  * 確定済み行移動を、要求時点の対応Tableへ反映する。
  *
  * 対象Blockの不在、非対応、tbodyの利用不能、または確定後の行範囲変化は外部状態変化として更新しない。
@@ -203,5 +216,6 @@ const applyRowMove = ( move: RowMove ): boolean => {
  */
 export const rowTableIntegration = {
 	getStructure,
+	isAvailable,
 	applyRowMove,
 };
