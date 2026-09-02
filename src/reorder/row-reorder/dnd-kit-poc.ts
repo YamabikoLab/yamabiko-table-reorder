@@ -6,13 +6,7 @@
  * DnD Lifecycle、Auto Scroll、およびDnD中の`tbody`子要素変更有無だけを観測する。
  */
 
-import {
-	Draggable,
-	DragDropManager,
-	Droppable,
-	Feedback,
-	PointerSensor,
-} from '@dnd-kit/dom';
+import { Draggable, DragDropManager, Droppable, Feedback, PointerSensor } from '@dnd-kit/dom';
 
 /** dnd-kit上でYTRの行PoCだけを相互に受け入れる識別種別。 */
 const ROW_DND_TYPE = 'ytr-row-dnd-kit-poc';
