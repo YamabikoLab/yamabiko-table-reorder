@@ -70,7 +70,6 @@ WordPress Editorの入力から行DnDを開始し、complete時にも現在のTa
 | RESP_ROW_INPUT_INTERACTION | RESP_ROW_DND_INTERACTION | normal | 入力方式固有の解釈から行DnDのstart、progress、complete、cancelへ進む。 |
 | RESP_ROW_DND_INTERACTION | RESP_ROW_TABLE_INTEGRATION | normal | start時の行構造取得、complete時の現在構造再照合、および成立した行移動の更新へ進む。 |
 | RESP_ROW_TABLE_INTEGRATION | EXT_SUPPORTED_TABLE_BLOCK | normal | 対応Table Blockから行構造を取得し、確定時には`tbody`の行順だけを反映する。 |
-| RESP_ROW_TABLE_INTEGRATION | EXT_WORDPRESS_UNDO | normal | 成立した行並び替えを1回のUndoで戻せる更新単位として維持する。 |
 
 このViewは主要な処理進行だけを示す。Reorder Guidance、Rediscovery Detection、Presentation、Auto Scrollなどの補助責務やRuntime Interactionの往復はRuntime ViewとDependenciesで表現する。
 
