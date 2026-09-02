@@ -96,6 +96,7 @@ Reorder Mode / Toolbar integrationを最初に成立させ、その後にRow Reo
 
 14. **Phase 14開始前: 横断validation matrix**
     - Requirements / Design / Architecture / Quality Requirementsを、focused test、Playwright、計測のどこで確認するか確定する。
+    - PerformanceはTable全体の更新時間を合否基準にせず、対応Table Block本体の更新コストとYTR自身の追加コストを区別して確認できる計測方法を定める。
 
 ### Validate during implementation
 
@@ -133,6 +134,7 @@ Reorder Mode / Toolbar integrationを最初に成立させ、その後にRow Reo
 
 9. **Phase 14: Quality Requirements**
    - Quality Requirementsで定義された保証範囲を、Phase 14開始前に確定したvalidation matrixに従って確認する。
+   - Performanceは代表的な大規模Tableをストレステストとして使用し、対応Table Block本体の属性更新・再描画時間をYTRの合否基準から除外したうえで、並び替え計算、状態更新、表示更新などYTR自身が追加する処理が新たな長時間停止を生んでいないことを確認する。
 
 ## Implementation phases
 
@@ -246,11 +248,13 @@ Reorder Mode / Toolbar integrationを最初に成立させ、その後にRow Reo
 
 ### Phase 14: Cross-cutting validation
 
-- Outcome: Row Reorder v1全体の上位文書への適合を確認できる。
+- Outcome: Row Reorder v1全体の上位文書への適合と、YTR自身のPerformance責任を確認できる。
 - Tasks:
   - Phase 14開始前に確定したvalidation matrixに従って横断validationを実施する。
+  - 代表的な大規模Tableをストレステストとして使用し、Table Block本体の更新時間とYTR自身の追加コストを区別して計測する。
 - Validation:
   - 適用するfocused test、Node.js / build checks、Playwright E2E、repository checkは`docs/development/testing.md`に従う。
+  - PerformanceはTable全体のcommit時間そのものではなく、YTR自身が追加する処理に新たな長時間停止がないことを確認する。
 
 ## Issue breakdown
 
@@ -277,7 +281,7 @@ Planレビュー後、次の単位で実装Issueを作成する。各Issueはこ
 
 - 各実装Issueでは、そのPhaseの実装結果が該当する上位文書に適合することをfocused test / integration testで確認する。
 - Phase 13でproduct compositionを成立させ、実entry pointを通る最小Playwright scenarioを実行する。
-- Phase 14でvalidation matrixに従って横断確認する。
+- Phase 14でvalidation matrixに従って横断確認し、代表的な大規模TableではYTR自身の追加コストをストレステストする。
 - 具体的なコマンドと適用範囲は`docs/development/testing.md`を正本とする。
 
 ## Completion criteria

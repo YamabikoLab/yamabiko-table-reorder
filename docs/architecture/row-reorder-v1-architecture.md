@@ -31,6 +31,7 @@
 - 通常のoperation boundaryへErrorを伝播できない非同期callback等のexecution boundaryだけはErrorを受け止めてよい。その境界は独自の記録や回復を行わず、元のoperation情報とErrorをDnD Interactionの同じ行専用共通中止経路へ渡す。
 - 操作境界またはexecution boundaryから共通中止経路へ合流した内部エラーは、DnD Interactionで一度だけ記録し、Sessionと一時状態を破棄して安全なidleへ戻す。同じエラーを複数箇所で記録しない。
 - 外部環境変化による継続不能は内部エラーとして記録せず、必要な一時状態だけを破棄して安全に操作を終了する。
+- Performanceの責任境界は、対応Table Block本体の属性更新・再描画性能ではなく、Row Reorder自身が追加する並び替え処理のコストとする。
 
 ## 3. Context and Scope
 
@@ -668,7 +669,9 @@ Core TableとFlexible Table Blockの表現差はTable Integrationが吸収する
 
 ### Performance
 
-想定最大1,000行、20列、20,000セルのTableでも操作応答性を損なわないことを前提とする。
+Row Reorderは、対応Table Block本体の属性更新や再描画に要する時間そのものを性能保証せず、その前後に自身が追加する並び替え計算、状態更新、表示更新などのコストを抑える。
+
+代表的な大規模Tableは最大保証規模ではなく、Row Reorder自身が原因となる新たな長時間停止を追加していないことを確認するストレステストとして扱う。
 
 - DnD中にTableデータの行順を更新しない。
 - 移動先変更時の表示更新は、実際に表示位置が変わる行を中心に扱う。
@@ -712,7 +715,7 @@ progress時に成立した最終移動先を確定時まで有効とみなさず
 
 ## 10. Quality Requirements
 
-- **Performance**: 想定最大1,000行、20列、20,000セルまで、行DnD中の視覚フィードバックと操作応答性を維持する責務分離とLifecycleを採用する。
+- **Performance**: 対応Table Block本体の属性更新・再描画性能は保証対象とせず、Row Reorder自身が追加する並び替え計算、状態更新、表示更新などによって対象Table本来の更新コストを大きく悪化させない責務分離とLifecycleを採用する。代表的な大規模Tableでは、Row Reorder自身が新たな長時間停止を追加していないことをストレステストで確認する。
 - **Compatibility**: WordPress 6.8以上のBlock Editorにおけるiframe / non-iframe差と、Core Table / Flexible Table Block差を、利用者向け行並び替えの正しさへ漏らさない。
 - **Reliability / Robustness**: 外部環境変化またはRow Reorder内部Errorが発生しても、TableやWordPress Editorを不正な状態にせず、行DnD一時状態を破棄して安全なidleへ戻る。現在のTableでReorder Modeを安全に継続できる場合は選択中モードを維持し、継続できない場合だけ通常編集へ戻る。complete時は現在のTable構造で成立する移動だけを確定し、成立済み更新は終了処理で自動的に巻き戻さない。
 

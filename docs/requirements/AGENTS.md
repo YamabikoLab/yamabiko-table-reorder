@@ -46,7 +46,7 @@ Use the following prefixes unless another category is explicitly defined in this
 Examples:
 
 - `FR-01`: A supported table row can be reordered.
-- `QR-01`: Reordering remains practically usable for large tables.
+- `QR-01`: YTR does not substantially increase the update cost of the supported table it reorders.
 
 Do not introduce a new requirement prefix only to make a document look more structured. Add another prefix only when a distinct requirement category is actually needed, and define its meaning and intended use here before using it in requirements documents.
 

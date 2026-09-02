@@ -14,46 +14,50 @@ Accessibility Requirements は本書とは別の要件定義書で管理する�
 
 | ID | 項目 | 要件 |
 | --- | --- | --- |
-| QR-01 | Performance | Reorder v1 で想定する最大規模までの Table においても、視覚フィードバックやアニメーションを含む行・列 DnD を、利用者の操作を妨げない応答性で利用できる。 |
+| QR-01 | Performance | 対応する Table Block 本来の更新性能を YTR の性能保証対象とせず、YTR 自身が追加する並び替え処理によって対象 Table 本来の更新コストを大きく悪化させない。 |
 | QR-02 | Compatibility | 対応する Table Block および Editor 環境の違いによって、Reorder v1 で定義された並び替え機能の正しさや利用可能性が損なわれない。 |
 | QR-03 | Reliability / Robustness | Reorder 操作を継続できない状態または内部エラーが発生した場合でも、Table や Editor を不正な状態にせず、Reorder 操作を安全に終了し、その後も Table 編集を継続できる。 |
 
 ## 3. QR-01 Performance
 
-### 3.1 大規模 Table の対象範囲
+### 3.1 性能責任の境界
 
-次のいずれかを満たし、かつ後述の想定最大規模以下である Table を大規模 Table として扱う。
+対応する Core Table / Flexible Table Block 本体の属性更新や再描画に要する時間は、QR-01 の性能保証対象には含めない。
+
+YTR が並び替えのために追加する処理については、対象 Table 本来の更新コストを大きく悪化させないことを QR-01 の保証対象とする。
+
+大規模 Table では、YTR が原因となる新たな長時間停止を追加していないことを確認する。
+
+### 3.2 大規模 Table とストレステスト
+
+次のいずれかを満たす Table を大規模 Table として扱う。
 
 - 400 行以上
 - 12 列以上
 - 2,000 セル以上
 
-### 3.2 想定する最大規模
-
-Reorder v1 で想定する現実的な最大規模は次とする。
+正式 v1 では、次の規模を YTR 自身の追加コストを確認する代表的なストレステスト規模とする。
 
 - 1,000 行
 - 20 列
 - 20,000 セル
 
-QR-01 の性能保証対象は、行数、列数、セル数の各指標が上記の最大規模以内に収まる Table までとする。
-
-上記を超える Table は QR-01 の性能保証対象には含めない。
+この規模は正式 v1 の最大保証規模を示すものではない。これを超える Table を一律に保証対象外とする上限も定義しない。
 
 ### 3.3 規模基準の根拠
 
-大規模 Table の規模を定める際は、次の Issue を根拠とする。
+大規模 Table と代表的なストレステスト規模を定める際は、次の Issue を根拠とする。
 
 - WordPress/gutenberg#30091 `Table block performance with large number of rows`: Core Table について、800 行超 × 2〜4 列の実利用例と、約 400 行 × 3〜5 列で入力遅延を再現する手順が報告されている。
 - #478 `Large table で Row / Column Reorder の controller 再生成コストを削減する`: YTR のプロトタイプで 1,000 行程度の Table における並び替え後の長時間停止を確認し、300 行の Core Table でも性能計測を行っている。
 
-400 行という大規模 Table の行数基準と、1,000 行という正式 v1 の想定最大規模は、これらの実利用例・検証結果を踏まえて設定する。
+400 行という大規模 Table の行数基準と、1,000 行という代表的なストレステスト規模は、これらの実利用例・検証結果を踏まえて設定する。
 
 12 列、20 列、2,000 セル、20,000 セルは WordPress の仕様上限を示す値ではなく、横長の Table と総セル数による規模も含めて扱うために YTR v1 で定める基準とする。
 
 ### 3.4 設計との境界
 
-本書では、利用者の操作を妨げない応答性と、その品質保証の対象規模を定義する。
+本書では、対応する Table Block 本体の更新性能と、YTR 自身が追加する処理の性能責任を区別して定義する。
 
 性能を実現するための内部処理上の制約や構造は Architecture で管理する。
 
@@ -134,4 +138,5 @@ Keyboard、ドラッグを必要としない操作、focus、announcement、支�
 - #582 大規模 Table の performance 要件を整理する
 - #605 Reorder の例外処理・異常状態の扱いを整理する
 - #606 Reorder v1 の Quality Requirements 専用要件定義書を作成する
+- #720 大規模Tableの性能要件をYTR自身の追加コスト基準へ見直す
 - WordPress/gutenberg#30091 Table block performance with large number of rows
