@@ -1,3 +1,4 @@
+/* eslint-disable no-console */
 /**
  * dnd-kitを既存Table行へ接続し、実DOM順序を変更しないDnDが成立するか検証するPoCを所有する。
  *

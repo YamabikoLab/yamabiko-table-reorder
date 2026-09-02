@@ -1,3 +1,4 @@
+/* eslint-disable no-console */
 /**
  * Reorder機能をWordPress Editorの拡張ポイントへ接続する配線を所有する。
  *
