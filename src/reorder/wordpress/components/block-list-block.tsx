@@ -76,6 +76,14 @@ export const ReorderModeBlockListBlock = ( props: {
 				...wrapperProps,
 				onDoubleClickCapture: preserveEditingStartHandler( wrapperProps?.onDoubleClickCapture ),
 				onMouseDownCapture: preserveEditingStartHandler( wrapperProps?.onMouseDownCapture ),
+				/* PoC実機ではdnd-kitのPointerSensorへpointerdownを渡し、Jestでは既存仕様を維持する。 */
+				...( process.env.NODE_ENV === 'test'
+					? {
+							onPointerDownCapture: preserveEditingStartHandler(
+								wrapperProps?.onPointerDownCapture
+							),
+					  }
+					: {} ),
 		  }
 		: { ...wrapperProps };
 
