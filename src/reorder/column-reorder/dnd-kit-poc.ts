@@ -306,7 +306,9 @@ export const connectDndKitColumnPoc = ( tableIdentity: string ): ( () => void ) 
 	return () => {
 		activeObservation?.observer.disconnect();
 		table.removeEventListener( 'pointerdown', preparePointerSource, { capture: true } );
-		editorWindow.removeEventListener( 'pointerup', cleanupInactivePointerSource, { capture: true } );
+		editorWindow.removeEventListener( 'pointerup', cleanupInactivePointerSource, {
+			capture: true,
+		} );
 		destroyActiveDroppables();
 		destroyActiveDraggable();
 		activeObservation = null;
