@@ -15,8 +15,12 @@ const ROW_DND_TYPE = 'ytr-row-dnd-kit-poc';
 type ActiveDragObservation = {
 	domOrderChanged: boolean;
 	moveCount: number;
+	moveCountAtFirstScroll: number | null;
 	observer: MutationObserver;
+	scrollEventCount: number;
 	startedAt: number;
+	targetChangeCount: number;
+	targetChangeCountAtFirstScroll: number | null;
 };
 
 /**
@@ -96,7 +100,8 @@ export const connectDndKitRowPoc = ( tableIdentity: string ): ( () => void ) | n
 		return null;
 	}
 
-	const editorWindow = referenceElement.ownerDocument.defaultView;
+	const editorDocument = referenceElement.ownerDocument;
+	const editorWindow = editorDocument.defaultView;
 	const tableBody = resolveTableBody( referenceElement );
 
 	/* 現在のEditor DOM上でTable行を安全に扱えない場合はPoCを開始しない。 */
@@ -152,6 +157,20 @@ export const connectDndKitRowPoc = ( tableIdentity: string ): ( () => void ) | n
 	let activeObservation: ActiveDragObservation | null = null;
 	let lastTargetId: string | number | null = null;
 
+	/** DnD中にEditor内で発生したスクロールと、その後もDnDが継続したかを観測する。 */
+	const handleScroll = () => {
+		if ( ! activeObservation ) {
+			return;
+		}
+
+		if ( activeObservation.scrollEventCount === 0 ) {
+			activeObservation.moveCountAtFirstScroll = activeObservation.moveCount;
+			activeObservation.targetChangeCountAtFirstScroll = activeObservation.targetChangeCount;
+		}
+
+		activeObservation.scrollEventCount += 1;
+	};
+
 	manager.monitor.addEventListener( 'dragstart', ( event ) => {
 		const observer = new editorWindow.MutationObserver( ( records ) => {
 			const childListChanged = records.some( ( record ) => record.type === 'childList' );
@@ -164,11 +183,16 @@ export const connectDndKitRowPoc = ( tableIdentity: string ): ( () => void ) | n
 		activeObservation = {
 			domOrderChanged: false,
 			moveCount: 0,
+			moveCountAtFirstScroll: null,
 			observer,
+			scrollEventCount: 0,
 			startedAt: editorWindow.performance.now(),
+			targetChangeCount: 0,
+			targetChangeCountAtFirstScroll: null,
 		};
 		lastTargetId = null;
 		observer.observe( tableBody, { childList: true } );
+		editorDocument.addEventListener( 'scroll', handleScroll, true );
 
 		editorWindow.console.info( '[YTR dnd-kit PoC] dragstart', {
 			rowCount: rows.length,
@@ -192,6 +216,11 @@ export const connectDndKitRowPoc = ( tableIdentity: string ): ( () => void ) | n
 		}
 
 		lastTargetId = targetId;
+
+		if ( activeObservation ) {
+			activeObservation.targetChangeCount += 1;
+		}
+
 		editorWindow.console.info( '[YTR dnd-kit PoC] dragover', {
 			targetId,
 			tableIdentity,
@@ -209,14 +238,28 @@ export const connectDndKitRowPoc = ( tableIdentity: string ): ( () => void ) | n
 		const pendingChildListChange = pendingRecords.some( ( record ) => record.type === 'childList' );
 		observation.domOrderChanged ||= pendingChildListChange;
 		observation.observer.disconnect();
+		editorDocument.removeEventListener( 'scroll', handleScroll, true );
+
+		const dragMovesAfterScroll =
+			observation.moveCountAtFirstScroll === null
+				? 0
+				: observation.moveCount - observation.moveCountAtFirstScroll;
+		const targetChangesAfterScroll =
+			observation.targetChangeCountAtFirstScroll === null
+				? 0
+				: observation.targetChangeCount - observation.targetChangeCountAtFirstScroll;
 
 		editorWindow.console.info( '[YTR dnd-kit PoC] dragend', {
+			autoScrollObserved: observation.scrollEventCount > 0,
 			canceled: event.canceled,
 			domOrderChanged: observation.domOrderChanged,
+			dragMovesAfterScroll,
 			durationMs: editorWindow.performance.now() - observation.startedAt,
 			moveCount: observation.moveCount,
+			scrollEventCount: observation.scrollEventCount,
 			sourceId: event.operation.source?.id ?? null,
 			tableIdentity,
+			targetChangesAfterScroll,
 			targetId: event.operation.target?.id ?? null,
 		} );
 
@@ -233,6 +276,7 @@ export const connectDndKitRowPoc = ( tableIdentity: string ): ( () => void ) | n
 	return () => {
 		activeObservation?.observer.disconnect();
 		activeObservation = null;
+		editorDocument.removeEventListener( 'scroll', handleScroll, true );
 		manager.destroy();
 		editorWindow.console.info( '[YTR dnd-kit PoC] disposed', { tableIdentity } );
 	};
