@@ -8,7 +8,8 @@
 import { useEffect, useRef } from '@wordpress/element';
 import type { ComponentType } from '@wordpress/element';
 
-import { rowReorderMode } from '@/reorder/reorder-mode';
+import { connectDndKitColumnPoc } from '@/reorder/column-reorder/dnd-kit-poc';
+import { reorderMode } from '@/reorder/reorder-mode';
 import { connectDndKitRowPoc } from '@/reorder/row-reorder/dnd-kit-poc';
 import {
 	preserveEditingStartHandler,
@@ -28,7 +29,7 @@ export type ReorderModeBlockListBlockProps = {
 /**
  * 対応Tableの既存Block wrapperへReorder Modeの編集可否とDnD PoCを反映する。
  *
- * Reorder Modeの購読とPoC接続を所有し、PoC対象DOMの解決はTable IdentityからPoC境界で行う。
+ * Reorder Modeの購読とPoC接続を所有し、PoC対象DOMの解決はTable Identityから各PoC境界で行う。
  *
  * @param props                Gutenbergから渡されるBlockListBlock propsと元のcomponent。
  * @param props.BlockListBlock
@@ -48,22 +49,24 @@ export const ReorderModeBlockListBlock = ( props: {
 		cleanupPocRef.current?.();
 		cleanupPocRef.current = null;
 
-		const rowReorderActive = rowReorderMode.isActive( clientId );
+		const currentMode = reorderMode.getMode( clientId );
 
 		if ( process.env.NODE_ENV !== 'test' ) {
 			console.info( '[YTR PoC debug] effect', {
 				clientId,
+				currentMode,
 				editingAllowed,
-				rowReorderActive,
 			} );
 		}
 
-		/* PoCは対象Tableで行並び替えモードが有効な間だけ現在DOMへ接続する。 */
-		if ( ! rowReorderActive ) {
+		/* PoCは対象Tableで行または列の並び替えモードが有効な間だけ現在DOMへ接続する。 */
+		if ( currentMode === 'row' ) {
+			cleanupPocRef.current = connectDndKitRowPoc( clientId );
+		} else if ( currentMode === 'column' ) {
+			cleanupPocRef.current = connectDndKitColumnPoc( clientId );
+		} else {
 			return;
 		}
-
-		cleanupPocRef.current = connectDndKitRowPoc( clientId );
 
 		return () => {
 			cleanupPocRef.current?.();
