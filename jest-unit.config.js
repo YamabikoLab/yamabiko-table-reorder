@@ -9,6 +9,7 @@ module.exports = {
 		'!src/types/**',
 		'!src/index.tsx',
 		'!src/reorder/row-reorder/dnd-kit-poc.ts',
+		'!src/reorder/column-reorder/dnd-kit-poc.ts',
 	],
 	coverageThreshold: {
 		global: {
@@ -22,6 +23,8 @@ module.exports = {
 		...( defaultConfig.moduleNameMapper ?? {} ),
 		'^@/reorder/row-reorder/dnd-kit-poc$':
 			'<rootDir>/src/reorder/row-reorder/dnd-kit-poc.test-utils.ts',
+		'^@/reorder/column-reorder/dnd-kit-poc$':
+			'<rootDir>/src/reorder/column-reorder/dnd-kit-poc.test-utils.ts',
 		'^@/(.*)$': '<rootDir>/src/$1',
 	},
 	testPathIgnorePatterns: [
