@@ -76,7 +76,6 @@ export const ReorderModeBlockListBlock = ( props: {
 				...wrapperProps,
 				onDoubleClickCapture: preserveEditingStartHandler( wrapperProps?.onDoubleClickCapture ),
 				onMouseDownCapture: preserveEditingStartHandler( wrapperProps?.onMouseDownCapture ),
-				onPointerDownCapture: preserveEditingStartHandler( wrapperProps?.onPointerDownCapture ),
 		  }
 		: { ...wrapperProps };
 
