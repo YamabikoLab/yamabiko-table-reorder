@@ -84,7 +84,7 @@ EditorまたはTableの外部状態変化によってactiveな行DnDを継続ま
 | From | To | Kind | Meaning |
 | --- | --- | --- | --- |
 | RESP_ROW_INPUT_INTERACTION | RESP_ROW_DND_INTERACTION | failure | 現在のEditor contextを利用できないなど、外部環境変化による継続不能をoperation boundaryへ合流させる。 |
-| RESP_ROW_TABLE_INTEGRATION | RESP_ROW_DND_INTERACTION | failure | 対象Tableが現在利用できない、complete時の現在構造では移動を確定できない、または更新開始前に現在更新できないなど、外部Table状態の変化による継続不能・確定不能をoperation boundaryへ合流させる。 |
+| RESP_ROW_TABLE_INTEGRATION | RESP_ROW_DND_INTERACTION | failure | 対象Tableが現在利用できない、または更新開始前に現在更新できないなど、外部Table状態の変化による継続不能・確定不能をoperation boundaryへ合流させる。 |
 | RESP_ROW_DND_INTERACTION | RESP_ROW_PRESENTATION | recovery | DnD中だけの表示状態を解除し、安全な操作継続不能による終了ではDesignで定義された通知を要求する。 |
 | RESP_ROW_DND_INTERACTION | RESP_ROW_AUTO_SCROLL | recovery | 行DnDの自動スクロール一時状態を終了する。 |
 | RESP_ROW_DND_INTERACTION | RESP_ROW_INPUT_INTERACTION | recovery | 入力方式固有のDnD一時状態を終了する。 |
@@ -457,46 +457,43 @@ active Session中だけ活動し、complete、cancel、継続不能、内部Erro
 
 ### Row DnD start attempt {#RV_ROW_DND_START}
 
-行並び替えが有効な状態で、開始位置から移動可能な行を確定してSessionを開始するか、正常に開始を拒否するまでを示す。
+行並び替えが有効な状態で、開始位置から移動可能な行を確定してSessionを開始するか、正常に開始を拒否するまでを示す。移動対象の解決と移動可否判定はDnD Interaction内部で行う。
 
 | Step | Source | Target | Interaction |
 | ---: | --- | --- | --- |
 | 1 | RESP_ROW_INPUT_INTERACTION | RESP_ROW_DND_INTERACTION | 行DnDのstart operationと開始位置を渡す。 |
 | 2 | RESP_ROW_DND_INTERACTION | RESP_ROW_TABLE_INTEGRATION | 現在の対象Table情報を要求する。 |
 | 3 | RESP_ROW_TABLE_INTEGRATION | EXT_SUPPORTED_TABLE_BLOCK | 現在の対応Table Blockから行構造とTable同一性を取得する。 |
-| 4 | RESP_ROW_DND_INTERACTION | RESP_ROW_DND_INTERACTION | 開始位置から移動対象行を解決し、現在の行構造で移動可能かを判定する。成立した場合は開始時Table構造とともにSessionを開始する。 |
-| 5 | RESP_ROW_DND_INTERACTION | RESP_ROW_PRESENTATION | Session開始時は移動対象行のDnD表示を開始し、開始拒否時は必要な理由表示を要求する。 |
+| 4 | RESP_ROW_DND_INTERACTION | RESP_ROW_PRESENTATION | Session開始時は移動対象行のDnD表示を開始し、開始拒否時は必要な理由表示を要求する。 |
 
 ### Row DnD progress {#RV_ROW_DND_PROGRESS}
 
-activeな行Session中に、Session開始時のTable構造を利用して現在位置から有効な移動先と必要な表示・自動スクロールを更新する。
+activeな行Session中に、Session開始時のTable構造を利用して現在位置から有効な移動先と必要な表示・自動スクロールを更新する。移動先判定はDnD Interaction内部で行い、progressではTable Integrationから現在構造を取得し直さない。
 
 | Step | Source | Target | Interaction |
 | ---: | --- | --- | --- |
 | 1 | RESP_ROW_INPUT_INTERACTION | RESP_ROW_DND_INTERACTION | 行DnDのprogress operationと現在位置を渡す。 |
-| 2 | RESP_ROW_DND_INTERACTION | RESP_ROW_DND_INTERACTION | Session開始時のTable構造に対して現在位置に対応する有効な行間を判定し、有効な移動先だけをSessionへ保持する。 |
-| 3 | RESP_ROW_DND_INTERACTION | RESP_ROW_PRESENTATION | 現在の移動先と周囲行の一時表示を更新する。 |
-| 4 | RESP_ROW_DND_INTERACTION | RESP_ROW_AUTO_SCROLL | 現在位置に応じた縦方向自動スクロールの更新を要求する。 |
-| 5 | RESP_ROW_AUTO_SCROLL | EXT_SCROLL_AREA | 必要な場合だけ現在のEditor Scroll Areaを縦方向へスクロールする。 |
+| 2 | RESP_ROW_DND_INTERACTION | RESP_ROW_PRESENTATION | 現在の移動先と周囲行の一時表示を更新する。 |
+| 3 | RESP_ROW_DND_INTERACTION | RESP_ROW_AUTO_SCROLL | 現在位置に応じた縦方向自動スクロールの更新を要求する。 |
+| 4 | RESP_ROW_AUTO_SCROLL | EXT_SCROLL_AREA | 必要な場合だけ現在のEditor Scroll Areaを縦方向へスクロールする。 |
 
 ### Row DnD complete {#RV_ROW_DND_COMPLETE}
 
-Sessionが保持する最終有効移動先を現在のTable構造へ再照合し、その移動が現在も成立する場合だけ行順を確定する。その後SessionとDnD中だけの一時状態を終了し、現在の行並び替えモードを維持する。
+Sessionが保持する最終有効移動先を現在のTable構造へ再照合し、その移動が現在も成立する場合だけ行順を確定する。その後SessionとDnD中だけの一時状態を終了し、現在の行並び替えモードを維持する。移動対象と最終移動先の再照合はDnD Interaction内部で行う。
 
 | Step | Source | Target | Interaction |
 | ---: | --- | --- | --- |
 | 1 | RESP_ROW_INPUT_INTERACTION | RESP_ROW_DND_INTERACTION | 行DnDのcomplete operationを渡す。 |
 | 2 | RESP_ROW_DND_INTERACTION | RESP_ROW_TABLE_INTEGRATION | 現在のTable同一性と行構造を要求する。 |
 | 3 | RESP_ROW_TABLE_INTEGRATION | EXT_SUPPORTED_TABLE_BLOCK | 現在の対応Table Blockから行構造とTable同一性を取得する。 |
-| 4 | RESP_ROW_DND_INTERACTION | RESP_ROW_DND_INTERACTION | Sessionの移動対象と最終有効移動先が現在のTable構造でも成立するか再照合する。 |
-| 5 | RESP_ROW_DND_INTERACTION | RESP_ROW_TABLE_INTEGRATION | 現在も成立することを確認できた場合だけ確定済み行移動の反映を要求する。 |
-| 6 | RESP_ROW_TABLE_INTEGRATION | EXT_SUPPORTED_TABLE_BLOCK | `tbody`の行順だけを確定結果として更新する。 |
-| 7 | RESP_ROW_TABLE_INTEGRATION | EXT_WORDPRESS_UNDO | 成立した行並び替えを1回のUndoで戻せる更新単位として維持する。 |
-| 8 | RESP_ROW_DND_INTERACTION | RESP_ROW_PRESENTATION | DnD中だけの表示を終了する。 |
-| 9 | RESP_ROW_DND_INTERACTION | RESP_ROW_AUTO_SCROLL | 行DnDの自動スクロール状態を終了する。 |
-| 10 | RESP_ROW_DND_INTERACTION | RESP_REORDER_MODE | complete終了後も現在のTableで行並び替えモードを維持できる結果を渡す。 |
+| 4 | RESP_ROW_DND_INTERACTION | RESP_ROW_TABLE_INTEGRATION | 現在も成立することを確認できた場合だけ確定済み行移動の反映を要求する。 |
+| 5 | RESP_ROW_TABLE_INTEGRATION | EXT_SUPPORTED_TABLE_BLOCK | `tbody`の行順だけを確定結果として更新する。 |
+| 6 | RESP_ROW_TABLE_INTEGRATION | EXT_WORDPRESS_UNDO | 成立した行並び替えを1回のUndoで戻せる更新単位として維持する。 |
+| 7 | RESP_ROW_DND_INTERACTION | RESP_ROW_PRESENTATION | DnD中だけの表示を終了する。 |
+| 8 | RESP_ROW_DND_INTERACTION | RESP_ROW_AUTO_SCROLL | 行DnDの自動スクロール状態を終了する。 |
+| 9 | RESP_ROW_DND_INTERACTION | RESP_REORDER_MODE | complete終了後も現在のTableで行並び替えモードを維持できる結果を渡す。 |
 
-Step 4で現在のTable構造に対して移動が成立しない場合はStep 5以降の更新へ進まず、`RV_ROW_DND_EXTERNAL_ABORT`と同じ安全な中止へ合流する。
+現在のTable構造に対して移動が成立しない場合はStep 4以降の更新へ進まず、`RV_ROW_DND_EXTERNAL_ABORT`と同じ安全な中止へ合流する。
 
 ### Row DnD external change abort {#RV_ROW_DND_EXTERNAL_ABORT}
 
@@ -506,13 +503,12 @@ EditorやTableの外部状態変化によって継続できなくなった場合
 | ---: | --- | --- | --- |
 | 1 | RESP_ROW_DND_INTERACTION | RESP_ROW_TABLE_INTEGRATION | complete時は現在の対象Table情報を要求する。 |
 | 2 | RESP_ROW_TABLE_INTEGRATION | RESP_ROW_DND_INTERACTION | 現在のTable情報、または対象Tableが利用できない正常な不在を返す。 |
-| 3 | RESP_ROW_DND_INTERACTION | RESP_ROW_DND_INTERACTION | 現在構造では移動を確定できない場合、正常な確定不能結果として共通中止経路へ合流する。 |
-| 4 | RESP_ROW_DND_INTERACTION | RESP_ROW_PRESENTATION | DnD中だけの表示を解除し、安全な操作継続不能による終了としてDesignで定義された通知を要求する。 |
-| 5 | RESP_ROW_DND_INTERACTION | RESP_ROW_AUTO_SCROLL | 自動スクロール状態を終了する。 |
-| 6 | RESP_ROW_DND_INTERACTION | RESP_ROW_INPUT_INTERACTION | 入力方式固有のDnD一時状態を終了する。 |
-| 7 | RESP_ROW_DND_INTERACTION | RESP_REORDER_MODE | 現在のTableで行並び替えモードを安全に継続できるかという結果を渡す。 |
+| 3 | RESP_ROW_DND_INTERACTION | RESP_ROW_PRESENTATION | DnD中だけの表示を解除し、安全な操作継続不能による終了としてDesignで定義された通知を要求する。 |
+| 4 | RESP_ROW_DND_INTERACTION | RESP_ROW_AUTO_SCROLL | 自動スクロール状態を終了する。 |
+| 5 | RESP_ROW_DND_INTERACTION | RESP_ROW_INPUT_INTERACTION | 入力方式固有のDnD一時状態を終了する。 |
+| 6 | RESP_ROW_DND_INTERACTION | RESP_REORDER_MODE | 現在のTableで行並び替えモードを安全に継続できるかという結果を渡す。 |
 
-Editor contextの消失など、Table Integrationを経由しない外部環境変化でも、更新を開始せずStep 4以降と同じ安全な中止へ合流する。Reorder ModeはStep 7の結果が継続可能なら`row`を維持し、現在のTableに対するモード自体を継続できない場合だけ`edit`へ戻る。
+Editor contextの消失など、Table Integrationを経由しない外部環境変化でも、更新を開始せずStep 3以降と同じ安全な中止へ合流する。Reorder ModeはStep 6の結果が継続可能なら`row`を維持し、現在のTableに対するモード自体を継続できない場合だけ`edit`へ戻る。
 
 ### Row DnD internal failure recovery {#RV_ROW_DND_FAILURE_RECOVERY}
 
