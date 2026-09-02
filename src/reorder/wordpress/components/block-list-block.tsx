@@ -61,12 +61,14 @@ export const ReorderModeBlockListBlock = ( props: {
 		const wrapperElement = wrapperElementRef.current;
 		const rowReorderActive = rowReorderMode.isActive( clientId );
 
-		console.info( '[YTR PoC debug] effect', {
-			clientId,
-			editingAllowed,
-			rowReorderActive,
-			wrapperElement,
-		} );
+		if ( process.env.NODE_ENV !== 'test' ) {
+			console.info( '[YTR PoC debug] effect', {
+				clientId,
+				editingAllowed,
+				rowReorderActive,
+				wrapperElement,
+			} );
+		}
 
 		/* PoCは対象Tableで行並び替えモードが有効な間だけ現在DOMへ接続する。 */
 		if ( ! rowReorderActive || ! wrapperElement ) {
