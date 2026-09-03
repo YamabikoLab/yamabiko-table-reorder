@@ -5,12 +5,13 @@
  * 新しいDOM階層は追加せず、Gutenberg既存のwrapper propsへ必要な入力抑止だけを合成する。
  */
 
-import { useEffect, useRef } from '@wordpress/element';
+import { useEffect, useRef, useSyncExternalStore } from '@wordpress/element';
 import type { ComponentType } from '@wordpress/element';
 
 import { connectDndKitColumnPoc } from '@/reorder/column-reorder/dnd-kit-poc';
 import { reorderMode } from '@/reorder/reorder-mode';
 import { connectDndKitRowPoc } from '@/reorder/row-reorder/dnd-kit-poc';
+import { dndKitPocSettings } from '@/reorder/wordpress/dnd-kit-poc-settings';
 import {
 	preserveEditingStartHandler,
 	type EditingStartWrapperProps,
@@ -29,7 +30,7 @@ export type ReorderModeBlockListBlockProps = {
 /**
  * 対応Tableの既存Block wrapperへReorder Modeの編集可否とDnD PoCを反映する。
  *
- * Reorder Modeの購読とPoC接続を所有し、PoC対象DOMの解決はTable Identityから各PoC境界で行う。
+ * Reorder ModeとPoC設定の購読およびPoC接続を所有し、PoC対象DOMの解決はTable Identityから各PoC境界で行う。
  *
  * @param props                Gutenbergから渡されるBlockListBlock propsと元のcomponent。
  * @param props.BlockListBlock
@@ -43,6 +44,11 @@ export const ReorderModeBlockListBlock = ( props: {
 	const { BlockListBlock, blockProps } = props;
 	const { clientId, wrapperProps } = blockProps;
 	const editingAllowed = useEditingAllowed( clientId );
+	const visualFeedbackEnabled = useSyncExternalStore(
+		dndKitPocSettings.subscribe,
+		dndKitPocSettings.isVisualFeedbackEnabled,
+		dndKitPocSettings.isVisualFeedbackEnabled
+	);
 	const cleanupPocRef = useRef< ( () => void ) | null >( null );
 
 	useEffect( () => {
@@ -56,14 +62,15 @@ export const ReorderModeBlockListBlock = ( props: {
 				clientId,
 				currentMode,
 				editingAllowed,
+				visualFeedbackEnabled,
 			} );
 		}
 
 		/* PoCは対象Tableで行または列の並び替えモードが有効な間だけ現在DOMへ接続する。 */
 		if ( currentMode === 'row' ) {
-			cleanupPocRef.current = connectDndKitRowPoc( clientId );
+			cleanupPocRef.current = connectDndKitRowPoc( clientId, visualFeedbackEnabled );
 		} else if ( currentMode === 'column' ) {
-			cleanupPocRef.current = connectDndKitColumnPoc( clientId );
+			cleanupPocRef.current = connectDndKitColumnPoc( clientId, visualFeedbackEnabled );
 		} else {
 			return;
 		}
@@ -72,7 +79,7 @@ export const ReorderModeBlockListBlock = ( props: {
 			cleanupPocRef.current?.();
 			cleanupPocRef.current = null;
 		};
-	}, [ clientId, editingAllowed ] );
+	}, [ clientId, editingAllowed, visualFeedbackEnabled ] );
 
 	const reorderWrapperProps = ! editingAllowed
 		? {
