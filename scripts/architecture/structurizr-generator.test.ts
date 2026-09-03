@@ -12,6 +12,7 @@ const model: ArchitectureModel = {
 		{ id: 'RESP_INPUT', name: 'Input Interaction', summary: '入力を扱う。' },
 		{ id: 'RESP_DND', name: 'DnD Interaction', summary: 'DnDを扱う。' },
 	],
+	boundaries: [],
 	dependencies: [
 		{ dependent: 'RESP_INPUT', dependsOn: 'EXT_EDITOR', reason: '編集環境を必要とする。' },
 		{ dependent: 'RESP_DND', dependsOn: 'RESP_INPUT', reason: '入力境界を必要とする。' },
