@@ -158,8 +158,7 @@ const reorderModeStore = createStore< ReorderModeStore >()(
 			},
 			resolveAfterRowDnd: ( tableIdentity, canContinue ) => {
 				const mode = get().mode;
-				const sameRowModeStillActive =
-					mode.kind === 'row' && mode.tableIdentity === tableIdentity;
+				const sameRowModeStillActive = mode.kind === 'row' && mode.tableIdentity === tableIdentity;
 
 				/*
 				 * DnD終了後に利用者がすでに別状態へ遷移している場合は、終了済みDnDの結果で現在状態を上書きしない。

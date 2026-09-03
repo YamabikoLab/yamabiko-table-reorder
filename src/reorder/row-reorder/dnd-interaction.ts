@@ -488,7 +488,8 @@ export const subscribeRowDndStartRejectionNotice = (
  *
  * Store自体や状態置換手段は公開せず、開始判定で確認した行制約の受け渡しとSession Lifecycleの操作だけを公開する。
  * DnD EngineやPresentationは、この境界を通してもSession全体またはStore内部を直接所有しない。
- * completeとcancelでは終了対象Sessionを保持したままStore操作を完了し、その後に現在Tableの継続可否だけをReorder Modeへ通知する。
+ * completeとcancelでは、終了対象SessionのTable IdentityをStore操作前に退避する。
+ * StoreでSessionを終了してidleへ戻した後、そのTableの現在の継続可否をReorder Modeへ通知する。
  */
 export const rowDndInteraction: RowDndStoreActions = {
 	prepareStart: ( source ) => rowDndStore.getState().prepareStart( source ),
