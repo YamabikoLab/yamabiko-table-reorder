@@ -87,12 +87,22 @@ type RowDndStore = RowDndStoreState & RowDndStoreActions;
 /** Reorder PresentationがDnD異常終了通知を受け取るための購読listener。 */
 type RowDndTerminationNoticeListener = () => void;
 
+/** Reorder PresentationがDnD開始拒否通知を受け取るための購読listener。 */
+type RowDndStartRejectionNoticeListener = () => void;
+
 /**
  * DnD Interactionが発行する一回性の異常終了通知を現在購読しているReorder Presentationを保持する。
  *
  * 通知はRow DnD Sessionの状態ではないため、Zustand storeへ複製しない。
  */
 const rowDndTerminationNoticeListeners = new Set< RowDndTerminationNoticeListener >();
+
+/**
+ * DnD Interactionが発行する一回性の開始拒否通知を現在購読しているReorder Presentationを保持する。
+ *
+ * 通知はRow DnD Sessionの状態ではないため、Zustand storeへ複製しない。
+ */
+const rowDndStartRejectionNoticeListeners = new Set< RowDndStartRejectionNoticeListener >();
 
 /**
  * activeな行DnDを安全に継続または確定できず終了したことをReorder Presentationへ通知する。
@@ -105,6 +115,51 @@ const emitRowDndTerminationNotice = (): void => {
 };
 
 /**
+ * Designで定義された移動不可理由により行DnD開始を拒否したことをReorder Presentationへ通知する。
+ */
+const emitRowDndStartRejectionNotice = (): void => {
+	/* 通知対象の開始拒否を現在購読中のPresentationへ同じ一回性イベントとして伝える。 */
+	rowDndStartRejectionNoticeListeners.forEach( ( listener ) => {
+		listener();
+	} );
+};
+
+/**
+ * 移動対象行が指定された行制約のtbody内に実在するか判定する。
+ *
+ * @param sourceRowIndex 移動対象の0-based行位置。
+ * @param constraints    判定基準とする行制約。
+ * @return tbody内の実在行として扱える場合はtrue。
+ */
+const isSourceInRange = (
+	sourceRowIndex: number,
+	constraints: RowReorderConstraints
+): boolean => {
+	const sourceInRange =
+		Number.isInteger( sourceRowIndex ) &&
+		sourceRowIndex >= 0 &&
+		sourceRowIndex < constraints.rowCount;
+	return sourceInRange;
+};
+
+/**
+ * 移動対象行がrowspan等による結合範囲のため行単位で移動できないか判定する。
+ *
+ * @param sourceRowIndex 移動対象の0-based行位置。
+ * @param constraints    判定基準とする行制約。
+ * @return 移動対象行の直前または直後が分断不可境界の場合はtrue。
+ */
+const isSourceBlockedByMergedRange = (
+	sourceRowIndex: number,
+	constraints: RowReorderConstraints
+): boolean => {
+	const sourceBlockedByMergedRange =
+		constraints.blockedBoundaries.includes( sourceRowIndex ) ||
+		constraints.blockedBoundaries.includes( sourceRowIndex + 1 );
+	return sourceBlockedByMergedRange;
+};
+
+/**
  * 移動対象行が指定された行制約に対して行単位で移動可能か判定する。
  *
  * 移動対象行の直前または直後がrowspan等による分断不可境界の場合、その行だけを独立して移動するとTable構造を保持できないため開始対象にしない。
@@ -114,20 +169,18 @@ const emitRowDndTerminationNotice = (): void => {
  * @return 行単位の移動でTable構造を保持できる場合はtrue。
  */
 const isSourceMovable = ( sourceRowIndex: number, constraints: RowReorderConstraints ): boolean => {
-	const sourceInRange =
-		Number.isInteger( sourceRowIndex ) &&
-		sourceRowIndex >= 0 &&
-		sourceRowIndex < constraints.rowCount;
+	const sourceInRange = isSourceInRange( sourceRowIndex, constraints );
 
 	/* tbody内の実在行として扱えない位置は、行DnDの移動対象として成立させない。 */
 	if ( ! sourceInRange ) {
 		return false;
 	}
 
-	const sourceCrossesBlockedBoundary =
-		constraints.blockedBoundaries.includes( sourceRowIndex ) ||
-		constraints.blockedBoundaries.includes( sourceRowIndex + 1 );
-	const sourceMovable = ! sourceCrossesBlockedBoundary;
+	const sourceBlockedByMergedRange = isSourceBlockedByMergedRange(
+		sourceRowIndex,
+		constraints
+	);
+	const sourceMovable = ! sourceBlockedByMergedRange;
 	return sourceMovable;
 };
 
@@ -194,11 +247,26 @@ const rowDndStore = createStore< RowDndStore >()(
 
 				const initialConstraints = rowTableIntegration.getConstraints( source.tableIdentity );
 
-				/* 現在のTable構造を取得できない場合、または行単位で安全に移動できない場合は、通常の開始不能結果とする。 */
-				if (
-					initialConstraints === null ||
-					! isSourceMovable( source.sourceRowIndex, initialConstraints )
-				) {
+				/* 現在のTable構造を取得できない場合は、利用者向けの移動不可理由を伴わない通常の開始不能結果とする。 */
+				if ( initialConstraints === null ) {
+					return null;
+				}
+
+				const sourceInRange = isSourceInRange( source.sourceRowIndex, initialConstraints );
+
+				/* tbody内の実在行として扱えない開始候補は、Design上の移動不可理由とは区別して開始不能とする。 */
+				if ( ! sourceInRange ) {
+					return null;
+				}
+
+				const sourceBlockedByMergedRange = isSourceBlockedByMergedRange(
+					source.sourceRowIndex,
+					initialConstraints
+				);
+
+				/* 結合範囲のため行単位で移動できない開始候補だけを、Designで定義された開始拒否通知の対象とする。 */
+				if ( sourceBlockedByMergedRange ) {
+					emitRowDndStartRejectionNotice();
 					return null;
 				}
 
@@ -378,6 +446,26 @@ export const subscribeRowDndTerminationNotice = (
 
 	const unsubscribe = (): void => {
 		rowDndTerminationNoticeListeners.delete( listener );
+	};
+
+	return unsubscribe;
+};
+
+/**
+ * Reorder PresentationがDnD開始拒否通知を一回性イベントとして受け取るために利用する。
+ *
+ * 通知表示そのものの状態や開始不能理由の内部分類は公開せず、Designで定義された移動不可理由による開始拒否だけを伝える。
+ *
+ * @param listener 通知対象のDnD開始拒否時に呼び出す購読listener。
+ * @return 購読を解除する関数。
+ */
+export const subscribeRowDndStartRejectionNotice = (
+	listener: RowDndStartRejectionNoticeListener
+): ( () => void ) => {
+	rowDndStartRejectionNoticeListeners.add( listener );
+
+	const unsubscribe = (): void => {
+		rowDndStartRejectionNoticeListeners.delete( listener );
 	};
 
 	return unsubscribe;
