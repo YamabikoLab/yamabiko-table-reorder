@@ -2,10 +2,13 @@
  * 行専用DnD Interactionの開始、移動先更新、確定、cancelのLifecycleを確認する。
  *
  * Store内部を直接参照せず、公開されたDnD Interaction境界とTable Integrationへの更新要求を通して、
- * Session開始時制約の保持、complete時の現在構造への再照合、正常終了、およびLifecycle違反を検証する。
+ * Session開始時制約の保持、complete時の現在構造への再照合、正常終了、異常終了通知、およびLifecycle違反を検証する。
  */
 
-import { rowDndInteraction } from './dnd-interaction';
+import {
+	rowDndInteraction,
+	subscribeRowDndTerminationNotice,
+} from './dnd-interaction';
 import { rowTableIntegration } from './table-integration';
 
 jest.mock( './table-integration', () => ( {
@@ -55,14 +58,25 @@ const prepareActiveSession = () => {
 };
 
 describe( 'Row DnD Interaction lifecycle', () => {
+	let terminationNoticeListener: jest.Mock;
+	let unsubscribeTerminationNotice: () => void;
+
 	beforeEach( () => {
 		jest.clearAllMocks();
 		rowDndInteraction.cancel();
+		terminationNoticeListener = jest.fn();
+		unsubscribeTerminationNotice = subscribeRowDndTerminationNotice(
+			terminationNoticeListener
+		);
+	} );
+
+	afterEach( () => {
+		unsubscribeTerminationNotice();
 	} );
 
 	/**
 	 * 概要:
-	 * - 開始可能な行では、開始可否判定時に確認した行制約が返ることを確認する。
+	 * - 開始可能な行では、DnD開始可否判定時に確認した行制約が返ることを確認する。
 	 *
 	 * 事前条件:
 	 * - 対象Tableは取得可能で、移動元行の前後に分断不可境界がない。
@@ -83,7 +97,7 @@ describe( 'Row DnD Interaction lifecycle', () => {
 
 	/**
 	 * 概要:
-	 * - 行単位で構造を保持できない移動元行では、DnD開始を成立させないことを確認する。
+	 * - 行単位で構造を保持できない移動元行では、DnD開始を成立させず異常終了通知も行わないことを確認する。
 	 *
 	 * 事前条件:
 	 * - 移動元行の直後がrowspan等による分断不可境界である。
@@ -92,7 +106,7 @@ describe( 'Row DnD Interaction lifecycle', () => {
 	 * - prepareStart()を実行する。
 	 *
 	 * 期待結果:
-	 * - nullを返し、Session開始に渡す行制約を生成しない。
+	 * - nullを返し、Session開始に渡す行制約を生成せず、異常終了通知を発行しない。
 	 */
 	it( 'when source row crosses a blocked boundary, should reject the start preparation', () => {
 		getConstraintsMock.mockReturnValueOnce( blockedSourceConstraints );
@@ -100,6 +114,7 @@ describe( 'Row DnD Interaction lifecycle', () => {
 		const initialConstraints = rowDndInteraction.prepareStart( source );
 
 		expect( initialConstraints ).toBeNull();
+		expect( terminationNoticeListener ).not.toHaveBeenCalled();
 	} );
 
 	/**
@@ -130,7 +145,7 @@ describe( 'Row DnD Interaction lifecycle', () => {
 
 	/**
 	 * 概要:
-	 * - Session開始時の行制約に対して無効な移動先は、確定可能な移動先として保持しないことを確認する。
+	 * - Session開始時の行制約に対して無効な移動先は、確定可能な移動先として保持せず異常終了通知も行わないことを確認する。
 	 *
 	 * 事前条件:
 	 * - active Sessionが成立している。
@@ -140,7 +155,7 @@ describe( 'Row DnD Interaction lifecycle', () => {
 	 * - 無効な境界へupdateDestination()し、complete()する。
 	 *
 	 * 期待結果:
-	 * - Table更新を要求せず、complete()時の現在構造取得も行わず正常終了する。
+	 * - Table更新と異常終了通知を要求せず、complete()時の現在構造取得も行わず正常終了する。
 	 */
 	it( 'when destination is blocked by initial constraints, should complete without updating the table', () => {
 		const blockedDestinationConstraints = {
@@ -164,6 +179,7 @@ describe( 'Row DnD Interaction lifecycle', () => {
 
 		expect( getConstraintsMock ).toHaveBeenCalledTimes( 1 );
 		expect( applyRowMoveMock ).not.toHaveBeenCalled();
+		expect( terminationNoticeListener ).not.toHaveBeenCalled();
 	} );
 
 	/**
@@ -193,11 +209,12 @@ describe( 'Row DnD Interaction lifecycle', () => {
 			sourceRowIndex: 1,
 			destinationBoundaryIndex: 4,
 		} );
+		expect( terminationNoticeListener ).not.toHaveBeenCalled();
 	} );
 
 	/**
 	 * 概要:
-	 * - complete()時点で外部Table構造が変化し、最終移動先が成立しなくなった場合は更新しないことを確認する。
+	 * - complete()時点で外部Table構造が変化し、最終移動先を安全に確定できなくなった場合は異常終了通知を行うことを確認する。
 	 *
 	 * 事前条件:
 	 * - Session開始時には移動先境界4が有効である。
@@ -207,9 +224,9 @@ describe( 'Row DnD Interaction lifecycle', () => {
 	 * - 移動先を更新してcomplete()する。
 	 *
 	 * 期待結果:
-	 * - Table更新を要求せずSessionを終了する。
+	 * - Table更新を要求せずSessionを終了し、異常終了通知を1回発行する。
 	 */
-	it( 'when complete revalidation no longer accepts the destination, should not update the table', () => {
+	it( 'when complete revalidation no longer accepts the destination, should notify the termination once', () => {
 		prepareActiveSession();
 		getConstraintsMock.mockReturnValueOnce( {
 			rowCount: 5,
@@ -220,11 +237,12 @@ describe( 'Row DnD Interaction lifecycle', () => {
 		rowDndInteraction.complete();
 
 		expect( applyRowMoveMock ).not.toHaveBeenCalled();
+		expect( terminationNoticeListener ).toHaveBeenCalledTimes( 1 );
 	} );
 
 	/**
 	 * 概要:
-	 * - 移動元行の直前または直後へのdropでは、実際の行順が変わらないため更新を発生させないことを確認する。
+	 * - 移動元行の直前または直後へのdropでは、実際の行順が変わらないため更新も異常終了通知も発生させないことを確認する。
 	 *
 	 * 事前条件:
 	 * - active Sessionが成立している。
@@ -234,7 +252,7 @@ describe( 'Row DnD Interaction lifecycle', () => {
 	 * - 境界2を有効移動先としてcomplete()する。
 	 *
 	 * 期待結果:
-	 * - 現在構造への再照合は行うが、Table更新は要求しない。
+	 * - 現在構造への再照合は行うが、Table更新および異常終了通知は要求しない。
 	 */
 	it( 'when destination keeps the source row in the same order, should not update the table', () => {
 		prepareActiveSession();
@@ -245,11 +263,12 @@ describe( 'Row DnD Interaction lifecycle', () => {
 
 		expect( getConstraintsMock ).toHaveBeenCalledTimes( 2 );
 		expect( applyRowMoveMock ).not.toHaveBeenCalled();
+		expect( terminationNoticeListener ).not.toHaveBeenCalled();
 	} );
 
 	/**
 	 * 概要:
-	 * - cancel()ではTableを更新せずSessionを終了し、その後に新しいDnDを開始できることを確認する。
+	 * - cancel()ではTableを更新せずSessionを終了し、異常終了通知を行わず次のDnDを開始できることを確認する。
 	 *
 	 * 事前条件:
 	 * - active Sessionが成立している。
@@ -258,7 +277,7 @@ describe( 'Row DnD Interaction lifecycle', () => {
 	 * - cancel()した後、新しいprepareStart()を実行する。
 	 *
 	 * 期待結果:
-	 * - Table更新は行われず、新しい開始判定の行制約が正常に返る。
+	 * - Table更新と異常終了通知は行われず、新しい開始判定の行制約が正常に返る。
 	 */
 	it( 'when active session is cancelled, should end without update and allow the next start', () => {
 		prepareActiveSession();
@@ -271,7 +290,35 @@ describe( 'Row DnD Interaction lifecycle', () => {
 		} );
 
 		expect( applyRowMoveMock ).not.toHaveBeenCalled();
+		expect( terminationNoticeListener ).not.toHaveBeenCalled();
 		expect( nextConstraints ).toBe( availableConstraints );
+	} );
+
+	/**
+	 * 概要:
+	 * - 異常終了通知の購読を解除したPresentationには、その後の通知対象終了を伝えないことを確認する。
+	 *
+	 * 事前条件:
+	 * - active Sessionが成立し、異常終了通知listenerが購読済みである。
+	 *
+	 * 操作:
+	 * - 購読を解除した後、complete()時の現在構造で最終移動先を成立不能にする。
+	 *
+	 * 期待結果:
+	 * - 通知対象の終了は成立するが、解除済みlistenerは呼び出されない。
+	 */
+	it( 'when termination notice subscription is removed, should stop delivering notices', () => {
+		prepareActiveSession();
+		unsubscribeTerminationNotice();
+		getConstraintsMock.mockReturnValueOnce( {
+			rowCount: 5,
+			blockedBoundaries: [ 4 ],
+		} );
+
+		rowDndInteraction.updateDestination( 4 );
+		rowDndInteraction.complete();
+
+		expect( terminationNoticeListener ).not.toHaveBeenCalled();
 	} );
 
 	/**

@@ -4,7 +4,7 @@
  * DnD開始前の開始可否判定、activeな行DnD Session、移動先更新、確定、cancelのLifecycleを所有する。
  * 開始可否判定で確認した行制約はprepareStartの戻り値としてstartへ引き継ぎ、Session開始時に外部Table構造を取得し直さない。
  * active Sessionだけを共有状態として保持し、DnD Engine固有の物理状態やSession開始前の候補を状態として複製しない。
- * Reorder PresentationへはStoreを公開せず、表示に必要な意味状態だけを用途別のHookで公開する。
+ * Reorder PresentationへはStoreを公開せず、表示に必要な意味状態を用途別のHookと一回性イベントで公開する。
  */
 
 import { useStore } from 'zustand';
@@ -82,6 +82,26 @@ type RowDndStoreActions = {
 	complete: () => void;
 	/** Tableを更新せずactive Sessionを終了する。 */
 	cancel: () => void;
+};
+
+/** Reorder PresentationがDnD異常終了通知を受け取るための購読listener。 */
+type RowDndTerminationNoticeListener = () => void;
+
+/**
+ * DnD Interactionが発行する一回性の異常終了通知を現在購読しているReorder Presentationを保持する。
+ *
+ * 通知はRow DnD Sessionの状態ではないため、Zustand storeへ複製しない。
+ */
+const rowDndTerminationNoticeListeners = new Set< RowDndTerminationNoticeListener >();
+
+/**
+ * activeな行DnDを安全に継続または確定できず終了したことをReorder Presentationへ通知する。
+ */
+const emitRowDndTerminationNotice = (): void => {
+	/* 通知対象の終了を現在購読中のPresentationへ同じ一回性イベントとして伝える。 */
+	rowDndTerminationNoticeListeners.forEach( ( listener ) => {
+		listener();
+	} );
 };
 
 /**
@@ -250,6 +270,7 @@ const rowDndStore = createStore< RowDndStore >()(
 				}
 
 				const { session } = state;
+				let shouldNotifyTermination = false;
 
 				try {
 					/* 有効な最終移動先が成立していないdropでは、Tableを更新せず正常終了する。 */
@@ -259,12 +280,13 @@ const rowDndStore = createStore< RowDndStore >()(
 
 					const currentConstraints = rowTableIntegration.getConstraints( session.tableIdentity );
 
-					/* complete時点の現在構造で移動元または移動先が成立しない場合は、外部状態変化として更新せず終了する。 */
+					/* complete時点の現在構造で移動元または移動先が成立しない場合は、安全に確定できない終了として利用者へ通知する。 */
 					if (
 						currentConstraints === null ||
 						! isSourceMovable( session.sourceRowIndex, currentConstraints ) ||
 						! isDestinationValid( session.destinationBoundaryIndex, currentConstraints )
 					) {
+						shouldNotifyTermination = true;
 						return;
 					}
 
@@ -287,6 +309,11 @@ const rowDndStore = createStore< RowDndStore >()(
 						undefined,
 						'row-dnd/complete'
 					);
+
+					/* 異常終了通知はSessionを破棄して安全なidleへ戻した後に一度だけ発行する。 */
+					if ( shouldNotifyTermination ) {
+						emitRowDndTerminationNotice();
+					}
 				}
 			},
 
@@ -335,6 +362,26 @@ export const useRowDndDestinationBoundaryIndex = (): number | null =>
 
 		return destinationBoundaryIndex;
 	} );
+
+/**
+ * Reorder PresentationがDnD異常終了通知を一回性イベントとして受け取るために利用する。
+ *
+ * 通知表示そのものの状態や終了理由は公開せず、通知対象となる終了が発生したことだけを伝える。
+ *
+ * @param listener 通知対象のDnD終了時に呼び出す購読listener。
+ * @return 購読を解除する関数。
+ */
+export const subscribeRowDndTerminationNotice = (
+	listener: RowDndTerminationNoticeListener
+): ( () => void ) => {
+	rowDndTerminationNoticeListeners.add( listener );
+
+	const unsubscribe = (): void => {
+		rowDndTerminationNoticeListeners.delete( listener );
+	};
+
+	return unsubscribe;
+};
 
 /**
  * DnD Engine Lifecycleから利用する行専用DnD Interactionの内部仕様。
