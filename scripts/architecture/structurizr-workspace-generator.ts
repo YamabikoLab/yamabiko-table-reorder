@@ -57,7 +57,7 @@ const applyOwnershipBoundaries = ( dsl: string, model: ArchitectureModel ): stri
  * @return Structurizrで所有境界を表示可能なWorkspace DSL。
  */
 export const generateStructurizrWorkspaceDsl = ( model: ArchitectureModel ): string => {
-	const dsl = generateStructurizrDsl( { ...model, boundaries: [] } );
+	const dsl = generateStructurizrDsl( model );
 	const groupedDsl = applyOwnershipBoundaries( dsl, model );
 
 	return groupedDsl.replace(

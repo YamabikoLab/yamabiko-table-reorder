@@ -3,6 +3,7 @@ import test from 'node:test';
 
 import { parseArchitectureMarkdown, type ArchitectureModel } from './architecture-model';
 import { validateArchitectureModel } from './architecture-validation';
+import { generateStructurizrDsl } from './structurizr-generator';
 import { generateStructurizrWorkspaceDsl } from './structurizr-workspace-generator';
 
 const validModel = (): ArchitectureModel => ( {
@@ -78,6 +79,16 @@ test( '同じ要素を複数の所有境界へ所属させない', () => {
 		() => validateArchitectureModel( model ),
 		/may belong to at most one Ownership Boundary/u
 	);
+} );
+
+test( '基礎DSL生成ではOwnership Boundaryをgroupブロックへ変換しない', () => {
+	const model = validModel();
+	validateArchitectureModel( model );
+	const dsl = generateStructurizrDsl( model );
+
+	assert.doesNotMatch( dsl, /^\s*group "/gmu );
+	assert.match( dsl, /\t\tEXT_EDITOR = element "Editor"/u );
+	assert.match( dsl, /\t\tRESP_INPUT = element "Input"/u );
 } );
 
 test( 'custom elementをモデル直下に維持して所有境界をgroup属性へ反映する', () => {
