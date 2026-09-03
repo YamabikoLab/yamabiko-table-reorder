@@ -53,9 +53,6 @@ type RowDndStoreState =
 			session: RowDndSession;
 	  };
 
-/** DnD Interactionが所有する意味状態とLifecycle操作をまとめたStore境界。 */
-type RowDndStore = RowDndStoreState & RowDndStoreActions;
-
 /** DnD Interaction Storeが状態遷移のために提供する操作を表す。 */
 type RowDndStoreActions = {
 	/**
@@ -83,6 +80,9 @@ type RowDndStoreActions = {
 	/** Tableを更新せずactive Sessionを終了する。 */
 	cancel: () => void;
 };
+
+/** DnD Interactionが所有する意味状態とLifecycle操作をまとめたStore境界。 */
+type RowDndStore = RowDndStoreState & RowDndStoreActions;
 
 /** Reorder PresentationがDnD異常終了通知を受け取るための購読listener。 */
 type RowDndTerminationNoticeListener = () => void;
