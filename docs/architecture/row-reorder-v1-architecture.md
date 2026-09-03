@@ -155,6 +155,17 @@ complete時の現在構造への再照合が成立した後、Table Integration�
 | RESP_ROW_PRESENTATION | Reorder Presentation | Row Reorderの意味状態と必要な物理的DnD情報から、行DnD中の独立した視覚フィードバックとDesignで定義された通知を表現する。 |
 | RESP_ROW_AUTO_SCROLL | Auto Scroll | 行DnD中に許可する縦方向と対象Tableに必要なスクロール範囲を決定し、物理的な実行をDnD Engineへ委ねる。 |
 
+### Ownership Boundaries
+
+| ID | Name | Includes |
+| --- | --- | --- |
+| BOUNDARY_REORDER_COMMON | Reorder Common | RESP_REORDER_MODE RESP_REORDER_GUIDANCE |
+| BOUNDARY_EDITOR_INTEGRATION | Editor Integration | RESP_EDITOR_DOM_CONTEXT |
+| BOUNDARY_ROW_REORDER | Row Reorder | RESP_ROW_REDISCOVERY_DETECTION RESP_ROW_INPUT_INTERACTION RESP_ROW_TABLE_INTEGRATION RESP_ROW_DND_INTERACTION RESP_ROW_PRESENTATION RESP_ROW_AUTO_SCROLL |
+| BOUNDARY_WORDPRESS_INTEGRATION | WordPress Integration | EXT_WORDPRESS_EDITOR EXT_SUPPORTED_TABLE_BLOCK EXT_WORDPRESS_UNDO EXT_SCROLL_AREA |
+
+Reorder ModeとReorder Guidanceは行・列に共通するReorder Common境界に含める。Editor DOM Contextは現在のWordPress Editorとの共有接点を担うEditor Integration境界に含める。Row Reorder境界には行専用責務だけを含め、DnD Engineは独立した外部ライブラリ境界として含めない。WordPress Integration境界はWordPress Editorとその編集・更新環境に属する外部接点をまとめ、内部責務とは混在させない。
+
 ### Dependencies
 
 | Dependent | Depends on | Reason |

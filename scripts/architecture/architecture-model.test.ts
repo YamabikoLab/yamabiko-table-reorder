@@ -34,6 +34,13 @@ const markdown = `
 | RESP_INPUT | Input Interaction | 入力を扱う。 |
 | RESP_DND | DnD Interaction | DnDを扱う。 |
 
+### Ownership Boundaries
+
+| ID | Name | Includes |
+| --- | --- | --- |
+| BOUNDARY_EXTERNAL | External | EXT_EDITOR |
+| BOUNDARY_REORDER | Reorder | RESP_INPUT RESP_DND |
+
 ### Dependencies
 
 | Dependent | Depends on | Reason |
@@ -100,6 +107,10 @@ test( '固定見出しと表だけから Architecture Model を構築する', ()
 		model.responsibilities.map( ( item ) => item.id ),
 		[ 'RESP_INPUT', 'RESP_DND' ]
 	);
+	assert.deepEqual( model.boundaries, [
+		{ id: 'BOUNDARY_EXTERNAL', name: 'External', includes: [ 'EXT_EDITOR' ] },
+		{ id: 'BOUNDARY_REORDER', name: 'Reorder', includes: [ 'RESP_INPUT', 'RESP_DND' ] },
+	] );
 	assert.deepEqual( model.dependencies, [
 		{ dependent: 'RESP_INPUT', dependsOn: 'EXT_EDITOR', reason: '編集環境を必要とする。' },
 		{ dependent: 'RESP_DND', dependsOn: 'RESP_INPUT', reason: '入力境界を必要とする。' },
@@ -125,4 +136,5 @@ test( '説明文から Process Flow や Dependency を補完しない', () => {
 
 	assert.equal( model.processFlowViews[ 0 ].edges.length, 2 );
 	assert.equal( model.dependencies.length, 2 );
+	assert.equal( model.boundaries.length, 2 );
 } );

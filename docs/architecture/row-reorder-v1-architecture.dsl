@@ -5,15 +5,27 @@ workspace "YTR Reorder v1 Architecture" {
 	model {
 		EXT_WORDPRESS_EDITOR = element "WordPress Editor" "External System" "QR-02で保証対象とする編集環境を提供し、Row Reorderの入力と表示が存在する。" {
 			tags "External Context,External System"
+			!script groovy {
+				element.setGroup("WordPress Integration")
+			}
 		}
 		EXT_SUPPORTED_TABLE_BLOCK = element "Supported Table Block" "External Block" "FR-13で定義されるCore TableまたはFlexible Table Blockであり、Table Integrationを介して行構造の取得と行順更新を行う対象。" {
 			tags "External Context,External Block"
+			!script groovy {
+				element.setGroup("WordPress Integration")
+			}
 		}
 		EXT_WORDPRESS_UNDO = element "WordPress Undo" "External Capability" "成立した1回の行並び替えを1回のUndoで戻せる更新単位を提供する。" {
 			tags "External Context,External Capability"
+			!script groovy {
+				element.setGroup("WordPress Integration")
+			}
 		}
 		EXT_SCROLL_AREA = element "Editor Scroll Area" "External Environment" "行DnD中に縦方向へ自動スクロールする対象領域を提供する。" {
 			tags "External Context,External Environment"
+			!script groovy {
+				element.setGroup("WordPress Integration")
+			}
 		}
 		EXT_DND_ENGINE = element "DnD Engine" "External Library" "物理入力の継続、物理的なDnD状態、移動先候補の検出、および自動スクロール実行を提供する。" {
 			tags "External Context,External Library"
@@ -21,30 +33,57 @@ workspace "YTR Reorder v1 Architecture" {
 
 		RESP_REORDER_MODE = element "Reorder Mode" "Responsibility" "Tableツールバーの行・列入口、`edit" {
 			tags "Responsibility"
+			!script groovy {
+				element.setGroup("Reorder Common")
+			}
 		}
 		RESP_REORDER_GUIDANCE = element "Reorder Guidance" "Responsibility" "PC / タッチごとの初回案内表示済み状態と、Reorder Modeが所有する行・列入口をまとめて提示する共通案内状態を所有する外側の境界。" {
 			tags "Responsibility"
+			!script groovy {
+				element.setGroup("Reorder Common")
+			}
 		}
 		RESP_EDITOR_DOM_CONTEXT = element "Editor DOM Context" "Responsibility" "現在のWordPress Editorに属するDOM / Web API contextを必要な時点で解決する。" {
 			tags "Responsibility"
+			!script groovy {
+				element.setGroup("Editor Integration")
+			}
 		}
 		RESP_ROW_REDISCOVERY_DETECTION = element "Rediscovery Detection" "Responsibility" "通常編集時の反復操作から行を移動しようとする意図が成立したことだけを検出し、外側の案内境界へ通知する。" {
 			tags "Responsibility"
+			!script groovy {
+				element.setGroup("Row Reorder")
+			}
 		}
 		RESP_ROW_INPUT_INTERACTION = element "Input Interaction" "Responsibility" "PCとタッチ端末の開始条件を解釈し、DnD開始候補と入力方式固有の一時状態を所有してDnD Engineへ接続する。" {
 			tags "Responsibility"
+			!script groovy {
+				element.setGroup("Row Reorder")
+			}
 		}
 		RESP_ROW_TABLE_INTEGRATION = element "Table Integration" "Responsibility" "対応Table Blockとの差を吸収し、行並び替えに必要なTable同一性、現在構造、行更新境界、およびWordPress Undoとの境界を提供する。" {
 			tags "Responsibility"
+			!script groovy {
+				element.setGroup("Row Reorder")
+			}
 		}
 		RESP_ROW_DND_INTERACTION = element "DnD Interaction" "Responsibility" "DnD Engineの物理的なDnD進行をRow Reorderの意味状態へ変換し、行DnD Session、開始可否判定、移動先判定、確定、中止、回復Lifecycleを所有する。" {
 			tags "Responsibility"
+			!script groovy {
+				element.setGroup("Row Reorder")
+			}
 		}
 		RESP_ROW_PRESENTATION = element "Reorder Presentation" "Responsibility" "Row Reorderの意味状態と必要な物理的DnD情報から、行DnD中の独立した視覚フィードバックとDesignで定義された通知を表現する。" {
 			tags "Responsibility"
+			!script groovy {
+				element.setGroup("Row Reorder")
+			}
 		}
 		RESP_ROW_AUTO_SCROLL = element "Auto Scroll" "Responsibility" "行DnD中に許可する縦方向と対象Tableに必要なスクロール範囲を決定し、物理的な実行をDnD Engineへ委ねる。" {
 			tags "Responsibility"
+			!script groovy {
+				element.setGroup("Row Reorder")
+			}
 		}
 
 		DEP_001 = RESP_REORDER_MODE -> EXT_WORDPRESS_EDITOR "WordPress Editor上のTableツールバー入口、通常編集と行・列並び替えの排他、および対象Table単位のモードLifecycleを扱うために必要とする。" {
@@ -362,35 +401,35 @@ workspace "YTR Reorder v1 Architecture" {
 	}
 
 	views {
-		custom "DV_ROW_RESPONSIBILITY" {
+		systemLandscape "DV_ROW_RESPONSIBILITY" {
 			title "Structural Dependencies - Responsibility View"
 			include EXT_WORDPRESS_EDITOR EXT_SUPPORTED_TABLE_BLOCK EXT_WORDPRESS_UNDO EXT_SCROLL_AREA EXT_DND_ENGINE RESP_REORDER_MODE RESP_REORDER_GUIDANCE RESP_EDITOR_DOM_CONTEXT RESP_ROW_REDISCOVERY_DETECTION RESP_ROW_INPUT_INTERACTION RESP_ROW_TABLE_INTEGRATION RESP_ROW_DND_INTERACTION RESP_ROW_PRESENTATION RESP_ROW_AUTO_SCROLL
 			exclude "relationship.tag!=Structural Dependency"
 			autoLayout lr
 		}
 
-		custom "DV_ROW_EDITOR_INTERACTION" {
+		systemLandscape "DV_ROW_EDITOR_INTERACTION" {
 			title "Structural Dependencies - Editor Interaction"
 			include EXT_WORDPRESS_EDITOR EXT_DND_ENGINE RESP_REORDER_MODE RESP_REORDER_GUIDANCE RESP_EDITOR_DOM_CONTEXT RESP_ROW_REDISCOVERY_DETECTION RESP_ROW_INPUT_INTERACTION
 			exclude "relationship.tag!=Structural Dependency"
 			autoLayout lr
 		}
 
-		custom "DV_ROW_DND_CORE" {
+		systemLandscape "DV_ROW_DND_CORE" {
 			title "Structural Dependencies - DnD Core"
 			include EXT_SUPPORTED_TABLE_BLOCK EXT_DND_ENGINE RESP_REORDER_MODE RESP_ROW_INPUT_INTERACTION RESP_ROW_TABLE_INTEGRATION RESP_ROW_DND_INTERACTION
 			exclude "relationship.tag!=Structural Dependency"
 			autoLayout lr
 		}
 
-		custom "DV_ROW_FEEDBACK" {
+		systemLandscape "DV_ROW_FEEDBACK" {
 			title "Structural Dependencies - DnD Feedback"
 			include EXT_SCROLL_AREA EXT_DND_ENGINE RESP_EDITOR_DOM_CONTEXT RESP_ROW_DND_INTERACTION RESP_ROW_PRESENTATION RESP_ROW_AUTO_SCROLL
 			exclude "relationship.tag!=Structural Dependency"
 			autoLayout lr
 		}
 
-		custom "DV_ROW_DATA_UPDATE" {
+		systemLandscape "DV_ROW_DATA_UPDATE" {
 			title "Structural Dependencies - Table Update"
 			include EXT_SUPPORTED_TABLE_BLOCK EXT_WORDPRESS_UNDO RESP_ROW_DND_INTERACTION RESP_ROW_TABLE_INTEGRATION
 			exclude "relationship.tag!=Structural Dependency"
