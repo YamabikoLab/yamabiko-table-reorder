@@ -514,9 +514,9 @@ workspace "YTR Reorder v1 Architecture" {
 			}
 			element "External Library" {
 				shape Box
-				background #f2f4f7
+				background #fff7ed
 				color #344054
-				stroke #98a2b3
+				stroke #f79009
 				border dashed
 			}
 			relationship "Structural Dependency" {
