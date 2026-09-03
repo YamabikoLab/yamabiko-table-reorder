@@ -31,6 +31,7 @@ const validateUniqueIds = ( model: ArchitectureModel ): void => {
 	const ids = [
 		...model.externalContexts.map( ( item ) => item.id ),
 		...model.responsibilities.map( ( item ) => item.id ),
+		...model.boundaries.map( ( item ) => item.id ),
 		...model.dependencyViews.map( ( item ) => item.id ),
 		...model.processFlowViews.map( ( item ) => item.id ),
 		...model.runtimeViews.map( ( item ) => item.id ),
@@ -53,6 +54,11 @@ const validateRequiredRows = ( model: ArchitectureModel ): void => {
 	if ( model.responsibilities.length === 0 ) {
 		throw new Error(
 			'Architecture validation failed: Responsibility Inventory requires at least one row.'
+		);
+	}
+	if ( model.boundaries.length === 0 ) {
+		throw new Error(
+			'Architecture validation failed: Ownership Boundaries requires at least one row.'
 		);
 	}
 	if ( model.dependencies.length === 0 ) {
@@ -88,6 +94,46 @@ const validateElements = ( model: ArchitectureModel ): Set< string > => {
 		...model.externalContexts.map( ( item ) => item.id ),
 		...model.responsibilities.map( ( item ) => item.id ),
 	] );
+};
+
+const validateBoundaries = ( model: ArchitectureModel, elementIds: Set< string > ): void => {
+	const externalIds = new Set( model.externalContexts.map( ( item ) => item.id ) );
+	const responsibilityIds = new Set( model.responsibilities.map( ( item ) => item.id ) );
+	const assigned = new Set< string >();
+
+	model.boundaries.forEach( ( boundary ) => {
+		validateStableId( boundary.id, 'BOUNDARY_', 'Ownership Boundary' );
+		requireValue( boundary.name, `Ownership Boundary ${ boundary.id } Name` );
+		if ( boundary.includes.length === 0 ) {
+			throw new Error(
+				`Architecture validation failed: Ownership Boundary ${ boundary.id } Includes requires at least one element.`
+			);
+		}
+
+		let includesExternal = false;
+		let includesResponsibility = false;
+		boundary.includes.forEach( ( id ) => {
+			if ( ! elementIds.has( id ) ) {
+				throw new Error(
+					`Architecture validation failed: Ownership Boundary ${ boundary.id } Includes "${ id }" does not reference an External Context or Responsibility ID.`
+				);
+			}
+			if ( assigned.has( id ) ) {
+				throw new Error(
+					`Architecture validation failed: architecture element "${ id }" may belong to at most one Ownership Boundary.`
+				);
+			}
+			assigned.add( id );
+			includesExternal ||= externalIds.has( id );
+			includesResponsibility ||= responsibilityIds.has( id );
+		} );
+
+		if ( includesExternal && includesResponsibility ) {
+			throw new Error(
+				`Architecture validation failed: Ownership Boundary ${ boundary.id } must not mix External Context and Responsibility elements.`
+			);
+		}
+	} );
 };
 
 const validateResponsibilityDetails = ( model: ArchitectureModel ): void => {
@@ -268,7 +314,7 @@ const validateRuntimeViews = ( model: ArchitectureModel, elementIds: Set< string
 
 /**
  * Architecture Model がアーキテクチャ設計書の機械可読規則を満たすことを検証する。
- * ID、一意性、責務詳細との対応、依存・View・Runtime の参照整合性、Runtime View の Step 順序を検証し、
+ * ID、一意性、責務詳細との対応、所有境界、依存・View・Runtime の参照整合性、Runtime View の Step 順序を検証し、
  * 不整合がある場合は問題のある ID または項目を示して生成処理を停止させる。
  *
  * @param model Markdown から構築した Architecture Model。
@@ -277,6 +323,7 @@ export const validateArchitectureModel = ( model: ArchitectureModel ): void => {
 	validateRequiredRows( model );
 	validateUniqueIds( model );
 	const elementIds = validateElements( model );
+	validateBoundaries( model, elementIds );
 	validateResponsibilityDetails( model );
 	validateDependencies( model, elementIds );
 	validateDependencyViews( model, elementIds );
