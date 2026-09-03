@@ -2,7 +2,7 @@
  * dnd-kitを既存Table列へ適用し、実DOM順序を変更しない列DnDが成立するか検証するPoCを所有する。
  *
  * 列順の確定やTableデータ更新、結合セルの論理解決は行わず、pointerdownされた既存セルだけを列DnD開始対象として利用できること、
- * DnD Lifecycle、Auto Scroll、遅延登録コスト、およびDnD中のTable子要素変更有無だけを観測する。
+ * DnD Lifecycle、Visual Feedback、Auto Scroll、遅延登録コスト、およびDnD中のTable子要素変更有無だけを観測する。
  */
 
 import { Draggable, DragDropManager, Droppable, Feedback, PointerSensor } from '@dnd-kit/dom';
@@ -76,12 +76,17 @@ const resolvePointerCell = (
  *
  * 列モード開始時にはDraggable / Droppableを登録せず、Tableのpointerdown captureだけを監視する。
  * pointerdownされた通常セルだけをDraggableへ遅延登録し、DnD開始後に同じ行の通常セルだけをDroppableへ登録する。
- * Feedbackは無効化し、DnD中にTable DOMの列順を変更しない状態でLifecycle、Auto Scroll、遅延登録コストを検証する。
+ * Visual FeedbackはPoC設定に応じてdnd-kit標準表示または無表示を選択し、Table DOMの列順を変更しない状態で
+ * Lifecycle、Auto Scroll、遅延登録コストを検証する。
  *
- * @param tableIdentity PoC対象TableのIdentity。
+ * @param tableIdentity          PoC対象TableのIdentity。
+ * @param visualFeedbackEnabled dnd-kit標準Visual Feedbackを使用する場合はtrue。
  * @return PoCを終了してdnd-kitの登録と監視を破棄する関数。現在DOMから検証対象を解決できなければnull。
  */
-export const connectDndKitColumnPoc = ( tableIdentity: string ): ( () => void ) | null => {
+export const connectDndKitColumnPoc = (
+	tableIdentity: string,
+	visualFeedbackEnabled: boolean
+): ( () => void ) | null => {
 	const referenceElement = resolveCurrentBlockWrapper( tableIdentity );
 
 	if ( ! referenceElement ) {
@@ -155,13 +160,14 @@ export const connectDndKitColumnPoc = ( tableIdentity: string ): ( () => void ) 
 		const columnIndex = cell.cellIndex;
 		const rowIndex = sourceRow.rowIndex;
 		const data = { columnIndex, rowIndex, tableIdentity };
+		const feedback = visualFeedbackEnabled ? 'default' : 'none';
 
 		activeDraggable = new Draggable(
 			{
 				data,
 				element: cell,
 				id: `ytr-column-source:${ tableIdentity }:${ rowIndex }:${ columnIndex }`,
-				plugins: [ Feedback.configure( { feedback: 'none' } ) ],
+				plugins: [ Feedback.configure( { feedback } ) ],
 				type: COLUMN_DND_TYPE,
 			},
 			manager
@@ -225,6 +231,7 @@ export const connectDndKitColumnPoc = ( tableIdentity: string ): ( () => void ) 
 			tableIdentity,
 			targetCount: activeDroppables.length,
 			targetRegistrationMs: activeObservation.targetRegistrationMs,
+			visualFeedbackEnabled,
 		} );
 	} );
 
@@ -274,6 +281,7 @@ export const connectDndKitColumnPoc = ( tableIdentity: string ): ( () => void ) 
 			targetCount: observation.targetCount,
 			targetId: event.operation.target?.id ?? null,
 			targetRegistrationMs: observation.targetRegistrationMs,
+			visualFeedbackEnabled,
 		} );
 
 		destroyActiveDroppables();
@@ -301,6 +309,7 @@ export const connectDndKitColumnPoc = ( tableIdentity: string ): ( () => void ) 
 		initialDraggableCount: 0,
 		setupMs: editorWindow.performance.now() - setupStartedAt,
 		tableIdentity,
+		visualFeedbackEnabled,
 	} );
 
 	return () => {
