@@ -80,15 +80,22 @@ test( '同じ要素を複数の所有境界へ所属させない', () => {
 	);
 } );
 
-test( '明示された所有境界をGroup表示可能なDependency Viewへ生成する', () => {
+test( 'custom elementをモデル直下に維持して所有境界をgroup属性へ反映する', () => {
 	const model = validModel();
 	validateArchitectureModel( model );
 	const dsl = generateStructurizrWorkspaceDsl( model );
 
-	assert.match( dsl, /group "External" \{/u );
-	assert.match( dsl, /group "Row Reorder" \{/u );
-	assert.match( dsl, /\t\t\tEXT_EDITOR = element "Editor"/u );
-	assert.match( dsl, /\t\t\tRESP_INPUT = element "Input"/u );
+	assert.doesNotMatch( dsl, /^\s*group "/gmu );
+	assert.match( dsl, /\t\tEXT_EDITOR = element "Editor"/u );
+	assert.match( dsl, /\t\tRESP_INPUT = element "Input"/u );
+	assert.match(
+		dsl,
+		/EXT_EDITOR = element "Editor"[\s\S]*?!script groovy \{\s*element\.setGroup\("External"\)/u
+	);
+	assert.match(
+		dsl,
+		/RESP_INPUT = element "Input"[\s\S]*?!script groovy \{\s*element\.setGroup\("Row Reorder"\)/u
+	);
 	assert.match( dsl, /systemLandscape "DV_BOUNDARIES" \{/u );
 	assert.doesNotMatch( dsl, /custom "DV_BOUNDARIES" \{/u );
 } );
