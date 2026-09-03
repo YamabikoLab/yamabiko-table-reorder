@@ -2,10 +2,14 @@
  * 行専用DnD Interactionの開始、移動先更新、確定、cancelのLifecycleを確認する。
  *
  * Store内部を直接参照せず、公開されたDnD Interaction境界とTable Integrationへの更新要求を通して、
- * Session開始時制約の保持、complete時の現在構造への再照合、正常終了、異常終了通知、およびLifecycle違反を検証する。
+ * Session開始時制約の保持、開始拒否通知、complete時の現在構造への再照合、正常終了、異常終了通知、およびLifecycle違反を検証する。
  */
 
-import { rowDndInteraction, subscribeRowDndTerminationNotice } from './dnd-interaction';
+import {
+	rowDndInteraction,
+	subscribeRowDndStartRejectionNotice,
+	subscribeRowDndTerminationNotice,
+} from './dnd-interaction';
 import { rowTableIntegration } from './table-integration';
 
 jest.mock( './table-integration', () => ( {
@@ -57,21 +61,28 @@ const prepareActiveSession = () => {
 describe( 'Row DnD Interaction lifecycle', () => {
 	let terminationNoticeListener: jest.Mock;
 	let unsubscribeTerminationNotice: () => void;
+	let startRejectionNoticeListener: jest.Mock;
+	let unsubscribeStartRejectionNotice: () => void;
 
 	beforeEach( () => {
 		jest.clearAllMocks();
 		rowDndInteraction.cancel();
 		terminationNoticeListener = jest.fn();
 		unsubscribeTerminationNotice = subscribeRowDndTerminationNotice( terminationNoticeListener );
+		startRejectionNoticeListener = jest.fn();
+		unsubscribeStartRejectionNotice = subscribeRowDndStartRejectionNotice(
+			startRejectionNoticeListener
+		);
 	} );
 
 	afterEach( () => {
 		unsubscribeTerminationNotice();
+		unsubscribeStartRejectionNotice();
 	} );
 
 	/**
 	 * 概要:
-	 * - 開始可能な行では、DnD開始可否判定時に確認した行制約が返ることを確認する。
+	 * - 開始可能な行では、DnD開始可否判定時に確認した行制約が返り、開始拒否通知を行わないことを確認する。
 	 *
 	 * 事前条件:
 	 * - 対象Tableは取得可能で、移動元行の前後に分断不可境界がない。
@@ -80,7 +91,7 @@ describe( 'Row DnD Interaction lifecycle', () => {
 	 * - prepareStart()を実行する。
 	 *
 	 * 期待結果:
-	 * - Table Integrationから取得した行制約がそのまま返る。
+	 * - Table Integrationから取得した行制約がそのまま返り、開始拒否通知は発行されない。
 	 */
 	it( 'when source row is movable, should return the checked initial constraints', () => {
 		getConstraintsMock.mockReturnValueOnce( availableConstraints );
@@ -88,28 +99,102 @@ describe( 'Row DnD Interaction lifecycle', () => {
 		const initialConstraints = rowDndInteraction.prepareStart( source );
 
 		expect( initialConstraints ).toBe( availableConstraints );
+		expect( startRejectionNoticeListener ).not.toHaveBeenCalled();
 	} );
 
 	/**
 	 * 概要:
-	 * - 行単位で構造を保持できない移動元行では、DnD開始を成立させず異常終了通知も行わないことを確認する。
+	 * - rowspan等の結合範囲に含まれる移動元行では、DnD開始を拒否して移動不可理由の通知を1回発行することを確認する。
 	 *
 	 * 事前条件:
-	 * - 移動元行の直後がrowspan等による分断不可境界である。
+	 * - 移動元行の直後が分断不可境界である。
 	 *
 	 * 操作:
 	 * - prepareStart()を実行する。
 	 *
 	 * 期待結果:
-	 * - nullを返し、Session開始に渡す行制約を生成せず、異常終了通知を発行しない。
+	 * - nullを返し、開始拒否通知を1回発行し、異常終了通知は発行しない。
 	 */
-	it( 'when source row crosses a blocked boundary, should reject the start preparation', () => {
+	it( 'when source row crosses a blocked boundary, should notify the start rejection once', () => {
 		getConstraintsMock.mockReturnValueOnce( blockedSourceConstraints );
 
 		const initialConstraints = rowDndInteraction.prepareStart( source );
 
 		expect( initialConstraints ).toBeNull();
+		expect( startRejectionNoticeListener ).toHaveBeenCalledTimes( 1 );
 		expect( terminationNoticeListener ).not.toHaveBeenCalled();
+	} );
+
+	/**
+	 * 概要:
+	 * - Designで定義された移動不可理由によらない開始不能では、開始拒否通知を発行しないことを確認する。
+	 *
+	 * 事前条件:
+	 * - 対象Tableの行制約を取得できない。
+	 *
+	 * 操作:
+	 * - prepareStart()を実行する。
+	 *
+	 * 期待結果:
+	 * - nullを返すが、開始拒否通知は発行されない。
+	 */
+	it( 'when table constraints are unavailable, should reject without a start rejection notice', () => {
+		getConstraintsMock.mockReturnValueOnce( null );
+
+		const initialConstraints = rowDndInteraction.prepareStart( source );
+
+		expect( initialConstraints ).toBeNull();
+		expect( startRejectionNoticeListener ).not.toHaveBeenCalled();
+	} );
+
+	/**
+	 * 概要:
+	 * - tbody内の実在行ではない開始候補を、結合セルによる移動不可理由として通知しないことを確認する。
+	 *
+	 * 事前条件:
+	 * - 対象Tableの行制約は取得可能である。
+	 * - 開始候補の行位置はtbodyの範囲外である。
+	 *
+	 * 操作:
+	 * - prepareStart()を実行する。
+	 *
+	 * 期待結果:
+	 * - nullを返すが、開始拒否通知は発行されない。
+	 */
+	it( 'when source row is outside tbody, should reject without a start rejection notice', () => {
+		getConstraintsMock.mockReturnValueOnce( availableConstraints );
+
+		const initialConstraints = rowDndInteraction.prepareStart( {
+			tableIdentity: 'table-a',
+			sourceRowIndex: 5,
+		} );
+
+		expect( initialConstraints ).toBeNull();
+		expect( startRejectionNoticeListener ).not.toHaveBeenCalled();
+	} );
+
+	/**
+	 * 概要:
+	 * - 開始拒否通知の購読を解除したPresentationには、その後の通知対象となる開始拒否を伝えないことを確認する。
+	 *
+	 * 事前条件:
+	 * - 開始拒否通知listenerが購読済みである。
+	 * - 移動元行の直後が分断不可境界である。
+	 *
+	 * 操作:
+	 * - 購読を解除した後、prepareStart()を実行する。
+	 *
+	 * 期待結果:
+	 * - 開始拒否自体は成立するが、解除済みlistenerは呼び出されない。
+	 */
+	it( 'when start rejection notice subscription is removed, should stop delivering notices', () => {
+		unsubscribeStartRejectionNotice();
+		getConstraintsMock.mockReturnValueOnce( blockedSourceConstraints );
+
+		const initialConstraints = rowDndInteraction.prepareStart( source );
+
+		expect( initialConstraints ).toBeNull();
+		expect( startRejectionNoticeListener ).not.toHaveBeenCalled();
 	} );
 
 	/**
