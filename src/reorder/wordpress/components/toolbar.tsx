@@ -1,13 +1,19 @@
 /**
  * WordPress EditorのTable ToolbarへReorder Mode入口を表示するReact componentを所有する。
  *
- * 行・列の入口を排他的なReorder Mode状態へ接続し、現在の選択状態をToolbarへ反映する。
+ * 行・列の入口を排他的なReorder Mode状態へ接続し、dnd-kit PoCのVisual Feedback切替も同じToolbarへ表示する。
  */
 
 import { BlockControls } from '@wordpress/block-editor';
 import { ToolbarButton, ToolbarGroup } from '@wordpress/components';
+import { useSyncExternalStore } from '@wordpress/element';
 
-import { getColumnReorderName, getRowReorderName } from '@/messages';
+import {
+	getColumnReorderName,
+	getRowReorderName,
+	getVisualFeedbackName,
+} from '@/messages';
+import { dndKitPocSettings } from '@/reorder/wordpress/dnd-kit-poc-settings';
 import { useReorderMode } from '@/reorder/wordpress/hooks/use-reorder-mode';
 
 /** Reorder Mode Toolbarへ渡すprops。 */
@@ -67,14 +73,19 @@ const columnReorderIcon = (
 );
 
 /**
- * 対応Tableの行・列並び替え入口を表示し、排他的なReorder Mode状態へ接続する。
+ * 対応Tableの行・列並び替え入口とdnd-kit PoCのVisual Feedback切替を表示する。
  *
  * @param props Toolbarを表示するTable Identity。
- * @return 現在のReorder Mode選択状態を反映したToolbar入口。
+ * @return 現在のReorder Mode選択状態とVisual Feedback設定を反映したToolbar入口。
  */
 export const ReorderModeToolbar = ( props: ReorderModeToolbarProps ) => {
 	const { tableIdentity } = props;
 	const { selectedKind, select: selectMode } = useReorderMode( tableIdentity );
+	const visualFeedbackEnabled = useSyncExternalStore(
+		dndKitPocSettings.subscribe,
+		dndKitPocSettings.isVisualFeedbackEnabled,
+		dndKitPocSettings.isVisualFeedbackEnabled
+	);
 
 	return (
 		<BlockControls>
@@ -91,6 +102,13 @@ export const ReorderModeToolbar = ( props: ReorderModeToolbarProps ) => {
 					label={ getColumnReorderName() }
 					onClick={ () => selectMode( 'column' ) }
 				/>
+				<ToolbarButton
+					isPressed={ visualFeedbackEnabled }
+					label={ getVisualFeedbackName() }
+					onClick={ dndKitPocSettings.toggleVisualFeedback }
+				>
+					{ getVisualFeedbackName() }
+				</ToolbarButton>
 			</ToolbarGroup>
 		</BlockControls>
 	);
