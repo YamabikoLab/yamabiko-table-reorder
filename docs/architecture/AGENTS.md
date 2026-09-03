@@ -44,7 +44,7 @@ Use the sections as follows:
 - **Architecture Constraints**: Record architecture-wide constraints that materially limit the solution space.
 - **Context and Scope**: Define the YTR system boundary and the external systems, platforms, blocks, or environments that interact with it.
 - **Solution Strategy**: Summarize the principal architecture choices that shape the responsibility model without describing implementation steps. Use Process Flow Views here when a major end-to-end flow is needed to explain how processing progresses across architecture elements.
-- **Building Block View**: Define YTR architectural responsibilities, their stable IDs, structural dependencies, optional dependency views, state ownership, contracts, lifecycle, and invariants.
+- **Building Block View**: Define YTR architectural responsibilities, their stable IDs, ownership boundaries, structural dependencies, optional dependency views, state ownership, contracts, lifecycle, and invariants.
 - **Runtime View**: Describe important runtime scenarios as ordered interactions between identified architecture elements.
 - **Deployment View**: Describe deployment structure only when deployment topology is architecturally relevant.
 - **Crosscutting Concepts**: Describe architecture concepts and rules that affect multiple responsibilities, such as context resolution, state boundaries, or common interaction rules.
@@ -59,7 +59,7 @@ Do not force existing architecture information into an arc42 section if doing so
 
 Architecture documents contain both human-readable design information and machine-readable architecture data.
 
-The machine-readable source is limited to the fixed headings and tables defined in this file. A parser or generator must not infer architecture elements, structural dependencies, dependency views, process flows, runtime interactions, IDs, or references from explanatory prose.
+The machine-readable source is limited to the fixed headings and tables defined in this file. A parser or generator must not infer architecture elements, ownership boundaries, structural dependencies, dependency views, process flows, runtime interactions, IDs, or references from explanatory prose.
 
 The following structures are machine-readable:
 
@@ -67,6 +67,7 @@ The following structures are machine-readable:
 - Process Flow View headings under `## 4. Solution Strategy`; the view name, embedded Process Flow View ID, and View `kind` are machine-readable.
 - Process Flow View tables under `## 4. Solution Strategy`; `From`, `To`, Edge `Kind`, and `Meaning` are machine-readable.
 - Responsibility Inventory table under `## 5. Building Block View`.
+- Ownership Boundaries table under `## 5. Building Block View`.
 - Dependencies table under `## 5. Building Block View`.
 - Dependency Views table under `## 5. Building Block View`, when present.
 - Responsibility detail headings under `### Responsibility Details`; only the responsibility name and embedded responsibility ID in each heading are machine-readable.
@@ -90,6 +91,7 @@ IDs are required for:
 
 - External context elements.
 - Architectural responsibilities.
+- Ownership Boundaries.
 - Dependency Views.
 - Process Flow Views.
 - Runtime scenarios.
@@ -106,6 +108,7 @@ Use these prefixes:
 
 - External context: `EXT_`
 - Responsibility: `RESP_`
+- Ownership Boundary: `BOUNDARY_`
 - Dependency View: `DV_`
 - Process Flow View: `PV_`
 - Runtime scenario: `RV_`
@@ -116,6 +119,7 @@ Examples:
 - `EXT_TABLE_BLOCK`
 - `RESP_DND_INTERACTION`
 - `RESP_DATA_UPDATE`
+- `BOUNDARY_ROW_REORDER`
 - `DV_DND_CORE`
 - `PV_REORDER_END_TO_END`
 - `RV_DND_START`
@@ -231,9 +235,33 @@ Rules:
 - Every responsibility detail section must correspond to exactly one row in this table.
 - Do not list source files, classes, functions, hooks, components, or other implementation units.
 
+### Ownership Boundaries
+
+After the Responsibility Inventory, define a child heading exactly named `### Ownership Boundaries` followed immediately by this table structure:
+
+| ID | Name | Includes |
+| --- | --- | --- |
+| BOUNDARY_ROW_REORDER | Row Reorder | RESP_INPUT_INTERACTION RESP_DND_INTERACTION RESP_TABLE_INTEGRATION |
+| BOUNDARY_WORDPRESS | WordPress Integration | EXT_WORDPRESS_EDITOR EXT_TABLE_BLOCK |
+
+An Ownership Boundary is an architecture-level ownership, subsystem, or external integration boundary that is useful when reading the Markdown architecture and when viewing generated diagrams. It is not a presentation-only grouping instruction.
+
+Rules:
+
+- `ID` is the stable Ownership Boundary ID and must use the `BOUNDARY_` prefix.
+- `Name` is the human-readable boundary name shown in generated representations.
+- `Includes` is a whitespace-separated list of stable External Context or Responsibility IDs explicitly owned or contained by the boundary.
+- Every ID in `Includes` must be defined in the External Context or Responsibility Inventory tables.
+- One architecture element may belong to at most one Ownership Boundary.
+- One Ownership Boundary must not mix External Context elements and Responsibility elements. Keep internal ownership and external integration boundaries visually distinct.
+- An architecture element may remain ungrouped when no meaningful ownership or subsystem boundary applies.
+- Define a boundary only when it has architecture meaning for ownership, subsystem separation, or an external integration area. Do not create a boundary merely to improve diagram layout or reduce line crossings.
+- A parser or generator must not infer boundary membership from names, prefixes other than the explicit stable IDs, dependencies, views, runtime flows, source directories, or explanatory prose.
+- A generator must translate only these explicitly defined boundaries into Structurizr `group` declarations.
+
 ### Dependencies
 
-After the Responsibility Inventory, define a child heading exactly named `### Dependencies` followed immediately by this table structure:
+After the Ownership Boundaries, define a child heading exactly named `### Dependencies` followed immediately by this table structure:
 
 | Dependent | Depends on | Reason |
 | --- | --- | --- |
@@ -408,6 +436,8 @@ Any parser, validator, or generator that consumes architecture Markdown must fol
 - Resolve references only by stable ID.
 - Reject missing, duplicate, malformed, or unresolved IDs rather than guessing their intended target.
 - Reject malformed required table structures rather than recovering architecture information from surrounding prose.
+- Require `### Ownership Boundaries` under `## 5. Building Block View`, parse only its fixed `ID | Name | Includes` table, require `BOUNDARY_` IDs, reject duplicate membership, and reject a boundary that mixes External Context and Responsibility elements.
+- Do not infer Ownership Boundary membership from names, Dependencies, Dependency Views, Process Flow Views, Runtime View, prose, source directories, or layout needs.
 - Reject duplicate `Dependent + Depends on` pairs in the Dependencies table.
 - If `### Process Flow Views` is present, allow the heading at most once under `## 4. Solution Strategy`, parse Process Flow Views only from `#### <name> {#PV_* kind=<kind>}` headings and their fixed `From | To | Kind | Meaning` tables, require View `kind` to be `normal` or `failure-recovery`, require Edge `Kind` to be `normal`, `failure`, or `recovery`, and require every `From` and `To` ID to resolve to an External Context or Responsibility Inventory entry.
 - Require Process Flow View IDs to be unique and reject duplicate `From + To` pairs within a Process Flow View.
@@ -419,7 +449,7 @@ Any parser, validator, or generator that consumes architecture Markdown must fol
 - Do not infer Process Flow edges from Dependencies, Dependency Views, Runtime View, Responsibility Details, prose, or names.
 - Do not infer Runtime Interaction from Dependencies or Process Flow Views.
 - Do not infer Dependency View membership from Dependencies, Process Flow Views, Runtime View, prose, or names.
-- Given the same valid Markdown input, parsing must produce the same architecture elements, Structural Dependencies, Dependency Views, Process Flow Views, and Runtime Interactions.
+- Given the same valid Markdown input, parsing must produce the same architecture elements, Ownership Boundaries, Structural Dependencies, Dependency Views, Process Flow Views, and Runtime Interactions.
 
 ## Example
 
@@ -467,6 +497,13 @@ Show failure propagation and the recovery path back to a stable reorder state.
 | RESP_REORDER_TARGET_RESOLUTION | Reorder Target Resolution | Determines whether the attempted start target can become the moving row or column. |
 | RESP_DATA_UPDATE | Data Update | Applies a committed reorder request to Table data. |
 | RESP_REORDER_PRESENTATION | Reorder Presentation | Represents reorder interaction state to the user without owning Table data. |
+
+### Ownership Boundaries
+
+| ID | Name | Includes |
+| --- | --- | --- |
+| BOUNDARY_REORDER | Reorder | RESP_DND_INTERACTION RESP_REORDER_MODE RESP_REORDER_TARGET_RESOLUTION RESP_DATA_UPDATE RESP_REORDER_PRESENTATION |
+| BOUNDARY_WORDPRESS | WordPress Integration | EXT_WORDPRESS_EDITOR |
 
 ### Dependencies
 
