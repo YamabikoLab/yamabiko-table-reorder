@@ -4,12 +4,15 @@
  * DnD開始前の開始可否判定、activeな行DnD Session、移動先更新、確定、cancelのLifecycleを所有する。
  * 開始可否判定で確認した行制約はprepareStartの戻り値としてstartへ引き継ぎ、Session開始時に外部Table構造を取得し直さない。
  * active Sessionだけを共有状態として保持し、DnD Engine固有の物理状態やSession開始前の候補を状態として複製しない。
+ * DnD終了後はSessionと一時状態を破棄してから対象Tableの現在行制約を取得し直し、Reorder Modeへ継続可否だけを通知する。
  * Reorder PresentationへはStoreを公開せず、表示に必要な意味状態を用途別のHookと一回性イベントで公開する。
  */
 
 import { useStore } from 'zustand';
 import { devtools } from 'zustand/middleware';
 import { createStore } from 'zustand/vanilla';
+
+import { rowReorderMode } from '@/reorder/reorder-mode';
 
 import { rowTableIntegration } from './table-integration';
 import type { RowReorderConstraints } from './table-integration';
@@ -122,6 +125,21 @@ const emitRowDndStartRejectionNotice = (): void => {
 	rowDndStartRejectionNoticeListeners.forEach( ( listener ) => {
 		listener();
 	} );
+};
+
+/**
+ * DnD終了後のSession対象Tableが、次の行並び替え操作を安全に受けられるかReorder Modeへ通知する。
+ *
+ * complete途中で取得した行制約やSession開始時制約は流用せず、DnD Interactionの一時状態を終了した後に
+ * Table Integrationから現在の行制約を取得し直す。今回の移動元・移動先・終了種別ではなく、対象Table自体の継続可否だけを判定する。
+ *
+ * @param tableIdentity 終了した行DnD Sessionの対象Table Identity。
+ */
+const resolveReorderModeAfterDnd = ( tableIdentity: string ): void => {
+	const currentConstraints = rowTableIntegration.getConstraints( tableIdentity );
+	const canContinue = currentConstraints !== null;
+
+	rowReorderMode.resolveAfterDnd( tableIdentity, canContinue );
 };
 
 /**
@@ -470,6 +488,7 @@ export const subscribeRowDndStartRejectionNotice = (
  *
  * Store自体や状態置換手段は公開せず、開始判定で確認した行制約の受け渡しとSession Lifecycleの操作だけを公開する。
  * DnD EngineやPresentationは、この境界を通してもSession全体またはStore内部を直接所有しない。
+ * completeとcancelでは終了対象Sessionを保持したままStore操作を完了し、その後に現在Tableの継続可否だけをReorder Modeへ通知する。
  */
 export const rowDndInteraction: RowDndStoreActions = {
 	prepareStart: ( source ) => rowDndStore.getState().prepareStart( source ),
@@ -477,6 +496,30 @@ export const rowDndInteraction: RowDndStoreActions = {
 		rowDndStore.getState().start( source, initialConstraints ),
 	updateDestination: ( destinationBoundaryIndex ) =>
 		rowDndStore.getState().updateDestination( destinationBoundaryIndex ),
-	complete: () => rowDndStore.getState().complete(),
-	cancel: () => rowDndStore.getState().cancel(),
+	complete: () => {
+		const state = rowDndStore.getState();
+
+		/* completeのLifecycle違反はStore所有の境界で判定させ、終了後解決に存在しないSessionを使用しない。 */
+		if ( state.phase !== 'active' ) {
+			rowDndStore.getState().complete();
+			return;
+		}
+
+		const tableIdentity = state.session.tableIdentity;
+		rowDndStore.getState().complete();
+		resolveReorderModeAfterDnd( tableIdentity );
+	},
+	cancel: () => {
+		const state = rowDndStore.getState();
+
+		/* active DnDの終了経路だけをReorder ModeのDnD終了後Lifecycleへ接続する。 */
+		if ( state.phase !== 'active' ) {
+			rowDndStore.getState().cancel();
+			return;
+		}
+
+		const tableIdentity = state.session.tableIdentity;
+		rowDndStore.getState().cancel();
+		resolveReorderModeAfterDnd( tableIdentity );
+	},
 };
