@@ -3,7 +3,7 @@
  * dnd-kitを既存Table行へ接続し、実DOM順序を変更しないDnDが成立するか検証するPoCを所有する。
  *
  * 行順の確定やTableデータ更新は行わず、pointerdownされた既存`tr`だけをDnD開始対象として利用できること、
- * DnD Lifecycle、Auto Scroll、遅延登録コスト、およびDnD中の`tbody`子要素変更有無だけを観測する。
+ * DnD Lifecycle、Visual Feedback、Auto Scroll、遅延登録コスト、およびDnD中の`tbody`子要素変更有無だけを観測する。
  */
 
 import { Draggable, DragDropManager, Droppable, Feedback, PointerSensor } from '@dnd-kit/dom';
@@ -107,12 +107,17 @@ const resolvePointerRow = (
  *
  * 行モード開始時にはDraggable / Droppableを登録せず、`tbody`のpointerdown captureだけを監視する。
  * pointerdownされた行だけをDraggableへ遅延登録し、DnD開始後に現在の全行をDroppableへ登録する。
- * Feedbackは無効化し、DnD中にTable DOMの行順を変更しない状態でLifecycle、Auto Scroll、遅延登録コストを検証する。
+ * Visual FeedbackはPoC設定に応じてdnd-kit標準表示または無表示を選択し、Table DOMの行順を変更しない状態で
+ * Lifecycle、Auto Scroll、遅延登録コストを検証する。
  *
- * @param tableIdentity PoC対象TableのIdentity。
+ * @param tableIdentity          PoC対象TableのIdentity。
+ * @param visualFeedbackEnabled dnd-kit標準Visual Feedbackを使用する場合はtrue。
  * @return PoCを終了してdnd-kitの登録と監視を破棄する関数。現在DOMから検証対象を解決できなければnull。
  */
-export const connectDndKitRowPoc = ( tableIdentity: string ): ( () => void ) | null => {
+export const connectDndKitRowPoc = (
+	tableIdentity: string,
+	visualFeedbackEnabled: boolean
+): ( () => void ) | null => {
 	const referenceElement = resolveCurrentBlockWrapper( tableIdentity );
 
 	console.info( '[YTR PoC debug] connect', {
@@ -205,13 +210,14 @@ export const connectDndKitRowPoc = ( tableIdentity: string ): ( () => void ) | n
 		const sourceRegistrationStartedAt = editorWindow.performance.now();
 		const rowIndex = row.sectionRowIndex;
 		const data = { rowIndex, tableIdentity };
+		const feedback = visualFeedbackEnabled ? 'default' : 'none';
 
 		activeDraggable = new Draggable(
 			{
 				data,
 				element: row,
 				id: `ytr-row-source:${ tableIdentity }:${ rowIndex }`,
-				plugins: [ Feedback.configure( { feedback: 'none' } ) ],
+				plugins: [ Feedback.configure( { feedback } ) ],
 				type: ROW_DND_TYPE,
 			},
 			manager
@@ -274,6 +280,7 @@ export const connectDndKitRowPoc = ( tableIdentity: string ): ( () => void ) | n
 			tableIdentity,
 			targetCount: activeObservation.targetCount,
 			targetRegistrationMs: activeObservation.targetRegistrationMs,
+			visualFeedbackEnabled,
 		} );
 	} );
 
@@ -342,6 +349,7 @@ export const connectDndKitRowPoc = ( tableIdentity: string ): ( () => void ) | n
 			targetCount: observation.targetCount,
 			targetId: event.operation.target?.id ?? null,
 			targetRegistrationMs: observation.targetRegistrationMs,
+			visualFeedbackEnabled,
 		} );
 
 		destroyActiveDroppables();
@@ -370,6 +378,7 @@ export const connectDndKitRowPoc = ( tableIdentity: string ): ( () => void ) | n
 		initialDroppableCount: 0,
 		setupMs: editorWindow.performance.now() - setupStartedAt,
 		tableIdentity,
+		visualFeedbackEnabled,
 	} );
 
 	return () => {
