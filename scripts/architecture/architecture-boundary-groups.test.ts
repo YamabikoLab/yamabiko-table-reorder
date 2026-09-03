@@ -3,7 +3,7 @@ import test from 'node:test';
 
 import { parseArchitectureMarkdown, type ArchitectureModel } from './architecture-model';
 import { validateArchitectureModel } from './architecture-validation';
-import { generateStructurizrDsl } from './structurizr-generator';
+import { generateStructurizrWorkspaceDsl } from './structurizr-workspace-generator';
 
 const validModel = (): ArchitectureModel => ( {
 	externalContexts: [
@@ -83,7 +83,7 @@ test( '同じ要素を複数の所有境界へ所属させない', () => {
 test( '明示された所有境界をGroup表示可能なDependency Viewへ生成する', () => {
 	const model = validModel();
 	validateArchitectureModel( model );
-	const dsl = generateStructurizrDsl( model );
+	const dsl = generateStructurizrWorkspaceDsl( model );
 
 	assert.match( dsl, /group "External" \{/u );
 	assert.match( dsl, /group "Row Reorder" \{/u );
