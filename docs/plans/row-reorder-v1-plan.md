@@ -43,7 +43,7 @@ Reorder Mode / Toolbar integrationを最初に成立させ、次にTable Integra
 
 DnD Interactionの接続を成立させた後、PC / Touch Input InteractionをDnD Engineへ接続し、入力からDnD Interactionへ到達する実装経路を成立させる。DnD EngineにはArchitectureで採用済みのdnd-kitを用いる。
 
-入力経路の成立後にReorder Presentationを接続し、その後Auto Scroll、Guidance、Rediscovery Detectionを接続する。物理的なDnD進行、collision detection、自動スクロール実行はDnD Engineへ委ね、DnD Engine標準のVisual Feedbackは利用せず、Presentationを独立して接続する。最後にproduct compositionと横断validationを行う。
+入力経路の成立後にReorder Presentationを接続し、その後Auto Scroll、Guidance、Rediscovery Detectionを接続する。Reorder Presentation / Auto ScrollはArchitectureで定義された境界に従ってDnD Engineへ接続し、最後にproduct compositionと横断validationを行う。
 
 各Phaseでは、その段階で必要な実装レベルの選択だけを確定し、focused test / integration testでArchitectureへの適合を確認する。実WordPress Editorの製品経路を通るPlaywrightはproduct composition成立後に行う。
 
@@ -81,11 +81,11 @@ DnD Interactionの接続を成立させた後、PC / Touch Input InteractionをD
 
 6. **Phase 6開始前: Reorder Presentationの描画方式**
 
-   - React / DOM / CSSの分担、DnD Engineから利用する物理情報の取得方法、独自Visual Feedbackとcleanup方式を確定する。
+   - React / DOM / CSSの分担と、DnD Engineから利用する物理情報の取得方法を確定する。
 
 7. **Phase 7開始前: Auto ScrollのDnD Engine設定方式**
 
-   - 行方向だけを許可する設定、対象Tableに必要な許可範囲の表現、DnD Interactionへのfailure接続方法を確定する。
+   - Architectureで定義されたAuto Scroll境界をdnd-kit設定へ対応付ける方式と、failure接続の実装方法を確定する。
 
 8. **Phase 8開始前: Reorder Guidanceの状態実装位置**
 
@@ -137,12 +137,12 @@ DnD Interactionの接続を成立させた後、PC / Touch Input InteractionをD
 
 7. **Phase 6、Phase 11で最終確認: Presentation / notification / cleanup**
 
-   - dnd-kit標準Visual Feedbackへ依存せず、DnD表示、cleanup、利用者向け通知がDesign / Architectureどおり成立することを確認する。
+   - Reorder PresentationがDesign / Architectureに適合することを確認する。
    - Evidence: Presentation focused testと主要E2E。
 
 8. **Phase 7、Phase 11で最終確認: Auto Scroll**
 
-   - Row Reorderが縦方向と対象Tableに必要な許可範囲だけを決定し、物理的なスクロール実行をDnD Engineへ委ねることを確認する。
+   - Auto ScrollとDnD Engineの接続がArchitectureに適合することを確認する。
    - Evidence: Auto Scroll focused testと主要E2E。
 
 9. **Phase 4 / 5、Phase 10 / 11で最終確認: Editor lifecycle / input**
@@ -209,21 +209,19 @@ DnD Interactionの接続を成立させた後、PC / Touch Input InteractionをD
 
 ### Phase 6: Reorder Presentation
 
-- Outcome: Row Reorderの意味状態とDnD Engineの必要な物理情報を、独立した利用者向け表示へ接続できる。
+- Outcome: Reorder PresentationをArchitectureで定義された境界に従ってDnD Engineへ接続できる。
 - Tasks:
-  - Reorder Presentationを実装し、DnD Interaction、DnD Engine、Editor DOM Contextへ接続する。
-  - dnd-kit標準Visual Feedbackを無効化し、実Table DOM順序を変更しない独自表示を成立させる。
+  - Reorder Presentationを実装し、必要な実装境界へ接続する。
 - Validation:
-  - Design / Architectureへの適合、表示範囲、通知、cleanupをfocused testで確認する。
+  - Design / Architectureへの適合をfocused testで確認する。
 
 ### Phase 7: Auto Scroll
 
-- Outcome: 行DnD中の縦方向Auto ScrollをDnD Engineの実行境界へ接続できる。
+- Outcome: Auto ScrollをArchitectureで定義された境界に従ってDnD Engineへ接続できる。
 - Tasks:
-  - Auto Scrollを実装し、DnD Interaction、Editor DOM Context、Editor Scroll Area、DnD Engineへ接続する。
-  - Row Reorderが縦方向と対象Tableに必要な許可範囲だけを決定し、物理的な検出・速度制御・実行はDnD Engineへ委ねる。
+  - Auto Scrollを実装し、必要な実装境界へ接続する。
 - Validation:
-  - Architectureへの適合、許可方向・範囲、終了時cleanup、failure接続をfocused testで確認する。
+  - Architectureへの適合とDnD Engine接続をfocused testで確認する。
 
 ### Phase 8: Reorder Guidance
 
@@ -294,7 +292,7 @@ Planレビュー後、次の単位で実装Issueを作成する。各Issueはこ
 - Reorder Target Resolution / Drop Target Resolution / Data Updateが独立責務、独立Phase、Issue単位として残っていない。
 - 開始可否判定と移動先判定がDnD Interaction / Session Lifecycleへ、確定済み行移動の反映がTable Integrationへ統合されている。
 - DnD Interaction、Input Interaction、Reorder Presentationの順に主要なDnD実装経路を成立させ、その後Auto Scrollを接続する実装順になっている。
-- DnD Engine、Draggable / Droppableの遅延接続、独立Presentation、Auto Scroll、Input Interactionの実装方向・順序・Validationが最新Architectureと矛盾しない。
+- DnD Engineを利用する各Phaseの実装方向・順序・Validationが最新Architectureと矛盾しない。
 - 各Phase開始前に、そのPhaseに必要な実装レベルの`Decide before implementation`が解決される構成になっている。
 - `Validate during implementation`が、検証対象の上位文書、該当Phase、evidenceへ結び付いている。
 - Requirements / Design / Architectureの決定をPlanで再定義していない。
