@@ -19,7 +19,9 @@ const validModel = (): ArchitectureModel => ( {
 	dependencies: [
 		{ dependent: 'RESP_INPUT', dependsOn: 'EXT_EDITOR', reason: 'Needs editor input.' },
 	],
-	dependencyViews: [],
+	dependencyViews: [
+		{ id: 'DV_BOUNDARIES', name: 'Boundaries', includes: [ 'EXT_EDITOR', 'RESP_INPUT' ] },
+	],
 	processFlowViews: [],
 	responsibilityDetails: [ { id: 'RESP_INPUT', name: 'Input' } ],
 	runtimeViews: [
@@ -78,7 +80,7 @@ test( '同じ要素を複数の所有境界へ所属させない', () => {
 	);
 } );
 
-test( '明示された所有境界だけをStructurizr groupとして生成する', () => {
+test( '明示された所有境界をGroup表示可能なDependency Viewへ生成する', () => {
 	const model = validModel();
 	validateArchitectureModel( model );
 	const dsl = generateStructurizrDsl( model );
@@ -87,4 +89,6 @@ test( '明示された所有境界だけをStructurizr groupとして生成す�
 	assert.match( dsl, /group "Row Reorder" \{/u );
 	assert.match( dsl, /\t\t\tEXT_EDITOR = element "Editor"/u );
 	assert.match( dsl, /\t\t\tRESP_INPUT = element "Input"/u );
+	assert.match( dsl, /systemLandscape "DV_BOUNDARIES" \{/u );
+	assert.doesNotMatch( dsl, /custom "DV_BOUNDARIES" \{/u );
 } );
