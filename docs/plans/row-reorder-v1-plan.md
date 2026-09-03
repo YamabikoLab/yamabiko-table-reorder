@@ -60,33 +60,43 @@ DnD Interactionの境界を成立させた後、PC / Touch Input Interactionか�
 以下は、記載したPhaseを開始する前に実装レベルで確定する。上位文書の決定を変更する必要が生じた場合は、そのPhaseでは決定しない。
 
 1. **Phase 1開始前: Reorder Mode / Toolbar integrationの実装境界**
+
    - 状態表現とReact / WordPressへの接続位置を確定する。
 
 2. **Phase 2開始前: Row Reorderのsource配置とTable Integrationの型表現**
+
    - Architecture責務を`src/reorder/row-reorder/`内のmoduleへ対応付け、対応Table差を吸収するType / Result表現と、確定済み行移動の更新方式を確定する。
 
 3. **Phase 3開始前: DnD Interaction / Session Lifecycleの実装表現**
+
    - dnd-kitのLifecycleをDnD Interactionへ接続する位置、Session state model、開始可否結果、正常結果とErrorの表現、Droppableの遅延接続とcleanup、共通中止経路を確定する。
 
 4. **Phase 4開始前: PC Input InteractionのDnD Engine接続方式**
+
    - browser event、listener lifecycle、開始候補Draggableの遅延接続、Sensor activationへの接続方式を確定する。
 
 5. **Phase 5開始前: Touch Input InteractionのDnD Engine接続方式**
+
    - touch / pointer系event、listener lifecycle、開始候補Draggableの遅延接続、Sensor activationへの接続方式を確定する。
 
 6. **Phase 6開始前: Reorder Presentationの描画方式**
+
    - React / DOM / CSSの分担、DnD Engineから利用する物理情報の取得方法、独自Visual Feedbackとcleanup方式を確定する。
 
 7. **Phase 7開始前: Auto ScrollのDnD Engine設定方式**
+
    - 行方向だけを許可する設定、対象Tableに必要な許可範囲の表現、DnD Interactionへのfailure接続方法を確定する。
 
 8. **Phase 8開始前: Reorder Guidanceの状態実装位置**
+
    - Architectureで定義された状態をWordPress / React側のどこで保持するか確定する。
 
 9. **Phase 9開始前: Rediscovery Detectionの判定方式**
+
    - Designの意味を変えない範囲で必要な観測入力と実装値を確定する。
 
 10. **Phase 10開始前: Product composition boundary**
+
     - `src/index.tsx`をthin entry pointとして保つ生成・接続・cleanup位置とDnD Engine providerの配置を確定する。
 
 11. **Phase 11開始前: 横断validation matrix**
@@ -96,42 +106,52 @@ DnD Interactionの境界を成立させた後、PC / Touch Input Interactionか�
 ### Validate during implementation
 
 1. **Phase 1、Phase 11で最終確認: Reorder Mode / Toolbar integration**
+
    - Architectureで定義されたReorder ModeのLifecycle、Table scope、Toolbar integration、通常編集との関係が成立することを確認する。
    - Evidence: focused state / React integration testと主要E2E。
 
 2. **Phase 2、Phase 11で最終確認: Table Integration**
+
    - 対応Table Blockへの適応、現在構造の取得、確定済み行移動の反映、WordPress Undoとの境界がArchitectureおよびRequirementsどおり成立することを確認する。
    - Evidence: focused integration testと主要E2E。
 
 3. **Phase 3、Phase 11で最終確認: DnD Interaction / Session Lifecycle**
+
    - active DnD成立前の開始可否判定、startでのSession成立、Session開始時制約によるprogress判定、complete時の現在構造への再照合、確定・cancel・正常中止・failure recoveryが一つのLifecycleとして成立することを確認する。
    - Evidence: focused normal / failure-recovery testと主要E2E。
 
 4. **Phase 3 / 4 / 5、Phase 11で最終確認: Draggable / Droppableの遅延接続とcleanup**
+
    - 開始候補DraggableをInput Interactionが、Session成立後のDroppableをDnD Interactionが所有し、不要になった時点でそれぞれ安全に破棄することを確認する。
    - Evidence: focused lifecycle / integration test。
 
 5. **Phase 3 / 1、Phase 11で最終確認: DnD終了後Lifecycle**
+
    - DnD終了後のReorder Modeとの接続がArchitectureどおり成立することを確認する。
    - Evidence: DnD InteractionとReorder Modeのfocused integration test、主要E2E。
 
 6. **Phase 3 / 7、Phase 11で最終確認: failure recovery**
+
    - operation boundary / execution boundaryからのfailure recoveryがArchitectureどおり成立することを確認する。
    - Evidence: failure / recovery focused test。
 
 7. **Phase 6、Phase 11で最終確認: Presentation / notification / cleanup**
+
    - dnd-kit標準Visual Feedbackへ依存せず、DnD表示、cleanup、利用者向け通知がDesign / Architectureどおり成立することを確認する。
    - Evidence: Presentation focused testと主要E2E。
 
 8. **Phase 7、Phase 11で最終確認: Auto Scroll**
+
    - Row Reorderが縦方向と対象Tableに必要な許可範囲だけを決定し、物理的なスクロール実行をDnD Engineへ委ねることを確認する。
    - Evidence: Auto Scroll focused testと主要E2E。
 
 9. **Phase 4 / 5、Phase 10 / 11で最終確認: Editor lifecycle / input**
+
    - Editor lifecycleへの追従とPC / Touch入力の製品経路がArchitecture / Designどおり成立することを確認する。
    - Evidence: lifecycle focused test、input focused test、composition test、主要E2E。
 
 10. **Phase 8 / 9、Phase 10 / 11で最終確認: Guidance / Rediscovery**
+
     - 初回案内と再案内の製品経路がDesign / Architectureどおり成立することを確認する。
     - Evidence: focused testと主要E2E。
 
@@ -255,8 +275,8 @@ DnD Interactionの境界を成立させた後、PC / Touch Input Interactionか�
 
 Planレビュー後、次の単位で実装Issueを作成する。各IssueはこのPlanと該当Architecture責務を参照し、上位文書の内容を複製しない。
 
-- [ ] Reorder Mode foundation / Toolbar integration
-- [ ] Table Integration
+- [x] Reorder Mode foundation / Toolbar integration
+- [x] Table Integration
 - [ ] DnD Interaction and Session Lifecycle / DnD Engine integration
 - [ ] PC Input Interaction
 - [ ] Touch Input Interaction
