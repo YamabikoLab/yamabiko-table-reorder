@@ -3,38 +3,57 @@
  *
  * DnD開始前の開始可否判定、activeな行DnD Session、移動先更新、確定、cancelのLifecycleを所有する。
  * 開始可否判定で確認した行制約は開始候補の値としてstartへ引き継ぎ、Session開始時に外部Table構造を取得し直さない。
+ * active Sessionだけを共有状態として保持し、DnD Engine固有の物理状態やSession開始前の候補を状態として複製しない。
  */
 
 import { devtools } from 'zustand/middleware';
 import { createStore } from 'zustand/vanilla';
 
-import { RowReorderConstraints, rowTableIntegration } from './table-integration';
+import { rowTableIntegration } from './table-integration';
+import type { RowReorderConstraints } from './table-integration';
 
-/** activeな行DnD中にDnD Interactionが所有する意味状態。 */
+/**
+ * activeな行DnD中にDnD Interactionが所有する意味状態を表す。
+ *
+ * Session開始時に成立した移動対象、対象Table、行制約、および現在の有効移動先だけを保持する。
+ */
 type RowDndSession = {
+	/** 行DnDの対象となるTable個体を識別する値。 */
 	tableIdentity: string;
+	/** Session開始時に確定したtbody内の0-based移動元行位置。 */
 	sourceRowIndex: number;
+	/** Session開始時の行制約に対して現在有効な0-based移動先境界。有効な移動先がない場合はnull。 */
 	destinationBoundaryIndex: number | null;
+	/** 開始可否判定時に確認し、Session開始時の判定基準として固定した行制約。 */
 	initialConstraints: RowReorderConstraints;
 };
 
 /** DnD開始可否判定の対象となる行を表す。 */
 export type RowDndSource = {
+	/** 行DnDを開始しようとしているTable個体を識別する値。 */
 	tableIdentity: string;
+	/** DnD開始候補となるtbody内の0-based行位置。 */
 	sourceRowIndex: number;
 };
 
 /**
  * 1回の開始可否判定で成立した開始候補を表す。
  *
- * 物理的なDnDが成立した場合だけstartへ渡し、成立しなかった場合は保持せず破棄する。
+ * 物理的なDnDが成立した場合だけstartへ渡し、成立しなかった場合は共有状態へ保持せず破棄する。
+ * 開始可否判定時に確認した行制約をSessionへそのまま引き継ぐことで、判定とSession開始の基準を一致させる。
  */
 export type RowDndStartCandidate = {
+	/** 開始可能と判定されたTableと移動対象行。 */
 	source: RowDndSource;
+	/** 開始可否判定時に確認した行制約。 */
 	initialConstraints: RowReorderConstraints;
 };
 
-/** DnD Interactionが保持できる有効状態を表す。 */
+/**
+ * DnD Interactionが保持できる有効状態を表す。
+ *
+ * idleではSessionを持たず、activeでは必ず1つのSessionを持つことで、Lifecycle上成立しない状態を作らない。
+ */
 type RowDndStoreState =
 	| {
 			phase: 'idle';
@@ -47,20 +66,45 @@ type RowDndStoreState =
 
 /** DnD Interaction Storeが状態遷移のために提供する操作を表す。 */
 type RowDndStoreActions = {
+	/**
+	 * 物理的なDnD開始前に、現在のTable構造で移動対象が開始可能か判定する。
+	 *
+	 * @param source 開始を試行するTableと移動対象行。
+	 * @return 開始可能な場合は開始時行制約を含む候補。開始不能な場合はnull。
+	 */
 	prepareStart: ( source: RowDndSource ) => RowDndStartCandidate | null;
+	/**
+	 * 物理的なDnD開始成立後に、開始候補を引き継いでactive Sessionを開始する。
+	 *
+	 * @param candidate prepareStartで成立した開始候補。
+	 */
 	start: ( candidate: RowDndStartCandidate ) => void;
+	/**
+	 * DnD Engine側で解決済みの移動先境界を、Session開始時の行制約へ照合して現在の有効移動先へ反映する。
+	 *
+	 * @param destinationBoundaryIndex 現在の0-based移動先境界。有効な候補がない場合はnull。
+	 */
 	updateDestination: ( destinationBoundaryIndex: number | null ) => void;
+	/**
+	 * active Sessionの最終移動先を現在のTable構造へ再照合し、成立する行移動だけを確定してSessionを終了する。
+	 */
 	complete: () => void;
+	/**
+	 * Tableを更新せずactive Sessionを終了する。
+	 */
 	cancel: () => void;
 };
 
+/** DnD Interactionが所有する意味状態とLifecycle操作をまとめたStore境界。 */
 type RowDndStore = RowDndStoreState & RowDndStoreActions;
 
 /**
- * 移動対象行が現在の行制約に対して行単位で移動可能か判定する。
+ * 移動対象行が指定された行制約に対して行単位で移動可能か判定する。
+ *
+ * 移動対象行の直前または直後がrowspan等による分断不可境界の場合、その行だけを独立して移動するとTable構造を保持できないため開始対象にしない。
  *
  * @param sourceRowIndex 移動対象の0-based行位置。
- * @param constraints    判定基準とする行制約。
+ * @param constraints 判定基準とする行制約。
  * @return 行単位の移動でTable構造を保持できる場合はtrue。
  */
 const isSourceMovable = ( sourceRowIndex: number, constraints: RowReorderConstraints ): boolean => {
@@ -69,6 +113,7 @@ const isSourceMovable = ( sourceRowIndex: number, constraints: RowReorderConstra
 		sourceRowIndex >= 0 &&
 		sourceRowIndex < constraints.rowCount;
 
+	/* tbody内の実在行として扱えない位置は、行DnDの移動対象として成立させない。 */
 	if ( ! sourceInRange ) {
 		return false;
 	}
@@ -76,15 +121,15 @@ const isSourceMovable = ( sourceRowIndex: number, constraints: RowReorderConstra
 	const sourceCrossesBlockedBoundary =
 		constraints.blockedBoundaries.includes( sourceRowIndex ) ||
 		constraints.blockedBoundaries.includes( sourceRowIndex + 1 );
-
-	return ! sourceCrossesBlockedBoundary;
+	const sourceMovable = ! sourceCrossesBlockedBoundary;
+	return sourceMovable;
 };
 
 /**
- * 移動先境界が判定基準の行制約に対して有効か判定する。
+ * 移動先境界が指定された行制約に対して有効か判定する。
  *
  * @param destinationBoundaryIndex 移動先の0-based挿入位置。
- * @param constraints              判定基準とする行制約。
+ * @param constraints 判定基準とする行制約。
  * @return 行を挿入してTable構造を保持できる場合はtrue。
  */
 const isDestinationValid = (
@@ -96,6 +141,7 @@ const isDestinationValid = (
 		destinationBoundaryIndex >= 0 &&
 		destinationBoundaryIndex <= constraints.rowCount;
 
+	/* tbodyの先頭から末尾直後までの挿入位置として成立しない値は、移動先として保持しない。 */
 	if ( ! destinationInRange ) {
 		return false;
 	}
@@ -105,9 +151,26 @@ const isDestinationValid = (
 };
 
 /**
+ * 移動元行と移動先境界の組み合わせで実際に行順が変化するか判定する。
+ *
+ * 移動元行自身の直前または直後への挿入は、削除後の挿入位置が元の位置と一致するため更新対象にしない。
+ *
+ * @param sourceRowIndex 移動元の0-based行位置。
+ * @param destinationBoundaryIndex 移動前のtbodyを基準とする0-based移動先境界。
+ * @return 行順が変化する場合はtrue。
+ */
+const changesRowOrder = ( sourceRowIndex: number, destinationBoundaryIndex: number ): boolean => {
+	const destinationBeforeSource = destinationBoundaryIndex === sourceRowIndex;
+	const destinationAfterSource = destinationBoundaryIndex === sourceRowIndex + 1;
+	const rowOrderChanges = ! destinationBeforeSource && ! destinationAfterSource;
+	return rowOrderChanges;
+};
+
+/**
  * 行DnD SessionとLifecycleを所有するStore。
  *
  * active Sessionだけを共有状態として保持し、物理的なDnD成立前の開始候補はStoreへ保存しない。
+ * 状態変更はStore所有の操作だけから行い、DnD Interaction外部へ状態置換手段を公開しない。
  */
 const rowDndStore = createStore< RowDndStore >()(
 	devtools(
@@ -116,8 +179,16 @@ const rowDndStore = createStore< RowDndStore >()(
 			session: null,
 
 			prepareStart: ( source ) => {
+				const state = get();
+
+				/* active Session中に別の開始試行を受理すると、一度に1つだけのSessionというLifecycleを壊すため禁止する。 */
+				if ( state.phase === 'active' ) {
+					throw new Error( 'Row DnD start preparation requires an idle session.' );
+				}
+
 				const initialConstraints = rowTableIntegration.getConstraints( source.tableIdentity );
 
+				/* 現在のTable構造を取得できない場合、または行単位で安全に移動できない場合は、通常の開始不能結果とする。 */
 				if (
 					initialConstraints === null ||
 					! isSourceMovable( source.sourceRowIndex, initialConstraints )
@@ -132,6 +203,13 @@ const rowDndStore = createStore< RowDndStore >()(
 			},
 
 			start: ( candidate ) => {
+				const state = get();
+
+				/* active Sessionを新しいSessionで置き換えることは禁止し、1回の物理DnDと1つのSessionを対応させる。 */
+				if ( state.phase === 'active' ) {
+					throw new Error( 'Row DnD start requires an idle session.' );
+				}
+
 				const session: RowDndSession = {
 					tableIdentity: candidate.source.tableIdentity,
 					sourceRowIndex: candidate.source.sourceRowIndex,
@@ -152,15 +230,20 @@ const rowDndStore = createStore< RowDndStore >()(
 			updateDestination: ( destinationBoundaryIndex ) => {
 				const state = get();
 
+				/* 移動先はactive Sessionにだけ属する意味状態であり、idle時の更新要求はLifecycle違反として扱う。 */
 				if ( state.phase !== 'active' ) {
 					throw new Error( 'Row DnD destination can only be updated during an active session.' );
 				}
 
-				const validDestination =
+				let validDestination: number | null = null;
+
+				/* Session開始時の行制約に対して現在も利用できる候補だけを有効移動先として保持する。 */
+				if (
 					destinationBoundaryIndex !== null &&
 					isDestinationValid( destinationBoundaryIndex, state.session.initialConstraints )
-						? destinationBoundaryIndex
-						: null;
+				) {
+					validDestination = destinationBoundaryIndex;
+				}
 
 				set(
 					{
@@ -178,6 +261,7 @@ const rowDndStore = createStore< RowDndStore >()(
 			complete: () => {
 				const state = get();
 
+				/* completeはactive Sessionの終了境界であり、対象Sessionがない呼び出しはLifecycle違反として扱う。 */
 				if ( state.phase !== 'active' ) {
 					throw new Error( 'Row DnD complete requires an active session.' );
 				}
@@ -185,17 +269,24 @@ const rowDndStore = createStore< RowDndStore >()(
 				const { session } = state;
 
 				try {
+					/* 有効な最終移動先が成立していないdropでは、Tableを更新せず正常終了する。 */
 					if ( session.destinationBoundaryIndex === null ) {
 						return;
 					}
 
 					const currentConstraints = rowTableIntegration.getConstraints( session.tableIdentity );
 
+					/* complete時点の現在構造で移動元または移動先が成立しない場合は、外部状態変化として更新せず終了する。 */
 					if (
 						currentConstraints === null ||
 						! isSourceMovable( session.sourceRowIndex, currentConstraints ) ||
 						! isDestinationValid( session.destinationBoundaryIndex, currentConstraints )
 					) {
+						return;
+					}
+
+					/* 移動元の直前または直後へのdropは行順を変えないため、Table更新を発生させない。 */
+					if ( ! changesRowOrder( session.sourceRowIndex, session.destinationBoundaryIndex ) ) {
 						return;
 					}
 
@@ -237,6 +328,7 @@ const rowDndStore = createStore< RowDndStore >()(
  * DnD Engine Lifecycleから利用する行専用DnD Interactionの内部仕様。
  *
  * Store自体や状態置換手段は公開せず、開始候補の準備とSession Lifecycleの操作だけを公開する。
+ * DnD EngineやPresentationは、この境界を通してもSession全体またはStore内部を直接所有しない。
  */
 export const rowDndInteraction: RowDndStoreActions = {
 	prepareStart: ( source ) => rowDndStore.getState().prepareStart( source ),
