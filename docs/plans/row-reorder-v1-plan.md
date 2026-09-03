@@ -3,7 +3,7 @@
 ## References
 
 - Parent issue: #682
-- Plan update issue: #700
+- Plan update issues: #700, #752
 - Requirements:
   - `docs/requirements/reorder-v1-requirements.md`
   - `docs/requirements/reorder-v1-quality-requirements.md`
@@ -26,7 +26,7 @@
 ### Included
 
 - Row Reorder v1 Architectureを実装するための実装順序とIssue単位
-- Row Reorderが利用するReorder Mode、Reorder Guidance、Editor DOM Contextとの接続
+- Row Reorderが利用するReorder Mode、Reorder Guidance、Editor DOM Context、DnD Engineとの接続
 - 各Phaseで必要な実装前決定と実装中validation
 - Product compositionと横断validation
 
@@ -39,7 +39,11 @@
 
 ## Approach
 
-Reorder Mode / Toolbar integrationを最初に成立させ、その後にRow Reorder内部をTable IntegrationからDnD Interactionまで依存順に実装する。続いてPresentation、Auto Scroll、PC / Touch Input、Guidance、Rediscovery Detectionを接続し、最後にproduct compositionと横断validationを行う。
+Reorder Mode / Toolbar integrationを最初に成立させ、次にTable Integrationで対応Table Blockの構造取得と確定済み行移動の反映境界を成立させる。その後、DnD Engineとの接続を含むDnD Interaction / Session Lifecycleを実装し、開始可否判定、Session開始、移動先判定、complete時の現在構造への再照合、確定・中止・回復を一つのLifecycleとして成立させる。
+
+DnD EngineにはArchitectureで採用済みのdnd-kitを用い、Input Interactionが開始候補のDraggableを、DnD InteractionがSession成立後のDroppableを必要な期間だけ接続する。物理的なDnD進行、collision detection、自動スクロール実行はDnD Engineへ委ね、Row Reorderは意味状態への変換と許可範囲の決定に集中する。
+
+続いてReorder Presentation、Auto Scroll、PC / Touch Input Interaction、Guidance、Rediscovery Detectionを接続し、最後にproduct compositionと横断validationを行う。DnD Engine標準のVisual Feedbackは利用せず、Presentationを独立して接続する。
 
 各Phaseでは、その段階で必要な実装レベルの選択だけを確定し、focused test / integration testでArchitectureへの適合を確認する。実WordPress Editorの製品経路を通るPlaywrightはproduct composition成立後に行う。
 
@@ -59,82 +63,81 @@ Reorder Mode / Toolbar integrationを最初に成立させ、その後にRow Reo
    - 状態表現とReact / WordPressへの接続位置を確定する。
 
 2. **Phase 2開始前: Row Reorderのsource配置とTable Integrationの型表現**
-   - Architecture責務を`src/reorder/row-reorder/`内のmoduleへ対応付け、対応Table差を吸収するType / Result表現を確定する。
+   - Architecture責務を`src/reorder/row-reorder/`内のmoduleへ対応付け、対応Table差を吸収するType / Result表現と、確定済み行移動の更新方式を確定する。
 
-3. **Phase 3開始前: Reorder Target Resolutionの結果表現**
-   - ArchitectureのContractを実装できるType / Result表現を確定する。
+3. **Phase 3開始前: DnD Engine接続とDnD operation / Sessionの実装表現**
+   - dnd-kitのLifecycleをRow Reorderのoperationへ接続する位置、Session state model、開始可否結果、正常結果とErrorの表現、Droppableの遅延接続とcleanup、共通中止経路を確定する。
 
-4. **Phase 4開始前: Drop Target Resolutionの結果表現**
-   - progressとcomplete再照合を実装できるinput / result表現を確定する。
+4. **Phase 4開始前: Reorder Presentationの描画方式**
+   - React / DOM / CSSの分担、DnD Engineから利用する物理情報の取得方法、独自Visual Feedbackとcleanup方式を確定する。
 
-5. **Phase 5開始前: Data UpdateのWordPress更新方式**
-   - ArchitectureとUndo要件を満たす更新経路を確定する。
+5. **Phase 5開始前: Auto ScrollのDnD Engine設定方式**
+   - 行方向だけを許可する設定、対象Tableに必要な許可範囲の表現、DnD Interactionへのfailure接続方法を確定する。
 
-6. **Phase 6開始前: DnD operation / Session / 終了結果の実装表現**
-   - operation API、Session state model、正常結果とErrorの表現、共通中止経路への接続方法を確定する。
+6. **Phase 6開始前: PC Input InteractionのDnD Engine接続方式**
+   - browser event、listener lifecycle、開始候補Draggableの遅延接続、Sensor activationへの接続方式を確定する。
 
-7. **Phase 7開始前: Reorder Presentationの描画方式**
-   - React / DOM / CSSの分担とcleanup方式を確定する。
+7. **Phase 7開始前: Touch Input InteractionのDnD Engine接続方式**
+   - touch / pointer系event、listener lifecycle、開始候補Draggableの遅延接続、Sensor activationへの接続方式を確定する。
 
-8. **Phase 8開始前: Auto Scrollの実行方式**
-   - 更新方式とDnD Interactionへのfailure接続方法を確定する。
+8. **Phase 8開始前: Reorder Guidanceの状態実装位置**
+   - Architectureで定義された状態をWordPress / React側のどこで保持するか確定する。
 
-9. **Phase 9開始前: PC Input Interactionのevent接続方式**
-   - browser event、listener lifecycle、DnD operationへの変換方式を確定する。
+9. **Phase 9開始前: Rediscovery Detectionの判定方式**
+   - Designの意味を変えない範囲で必要な観測入力と実装値を確定する。
 
-10. **Phase 10開始前: Touch Input Interactionのevent接続方式**
-    - touch / pointer系event、listener lifecycle、DnD operationへの変換方式を確定する。
+10. **Phase 10開始前: Product composition boundary**
+    - `src/index.tsx`をthin entry pointとして保つ生成・接続・cleanup位置とDnD Engine providerの配置を確定する。
 
-11. **Phase 11開始前: Reorder Guidanceの状態実装位置**
-    - Architectureで定義された状態をWordPress / React側のどこで保持するか確定する。
-
-12. **Phase 12開始前: Rediscovery Detectionの判定方式**
-    - Designの意味を変えない範囲で必要な観測入力と実装値を確定する。
-
-13. **Phase 13開始前: Product composition boundary**
-    - `src/index.tsx`をthin entry pointとして保つ生成・接続・cleanup位置を確定する。
-
-14. **Phase 14開始前: 横断validation matrix**
+11. **Phase 11開始前: 横断validation matrix**
     - Requirements / Design / Architecture / Quality Requirementsを、focused test、Playwright、計測のどこで確認するか確定する。
     - PerformanceはTable全体の更新時間を合否基準にせず、対応Table Block本体の更新コストとYTR自身の追加コストを区別して確認できる計測方法を定める。
 
 ### Validate during implementation
 
-1. **Phase 1、Phase 14で最終確認: Reorder Mode / Toolbar integration**
+1. **Phase 1、Phase 11で最終確認: Reorder Mode / Toolbar integration**
    - Architectureで定義されたReorder ModeのLifecycle、Table scope、Toolbar integration、通常編集との関係が成立することを確認する。
    - Evidence: focused state / React integration testと主要E2E。
 
-2. **Phase 2 / 5、Phase 14で最終確認: Table Integration / Data Update**
-   - 対応Table Blockへの適応と更新がArchitectureおよびRequirementsどおり成立することを確認する。
+2. **Phase 2、Phase 11で最終確認: Table Integration**
+   - 対応Table Blockへの適応、現在構造の取得、確定済み行移動の反映、WordPress Undoとの境界がArchitectureおよびRequirementsどおり成立することを確認する。
    - Evidence: focused integration testと主要E2E。
 
-3. **Phase 4 / 6、Phase 14で最終確認: complete再照合**
-   - complete再照合がArchitectureどおり現在構造での移動成立可否を判定し、その結果に応じた経路へ進むことを確認する。
+3. **Phase 3、Phase 11で最終確認: DnD Interaction / Session Lifecycle**
+   - active DnD成立前の開始可否判定、startでのSession成立、Session開始時制約によるprogress判定、complete時の現在構造への再照合、確定・cancel・正常中止・failure recoveryが一つのLifecycleとして成立することを確認する。
    - Evidence: focused normal / failure-recovery testと主要E2E。
 
-4. **Phase 6 / 1、Phase 14で最終確認: DnD終了後Lifecycle**
+4. **Phase 3 / 6 / 7、Phase 11で最終確認: Draggable / Droppableの遅延接続とcleanup**
+   - 開始候補DraggableをInput Interactionが、Session成立後のDroppableをDnD Interactionが所有し、不要になった時点でそれぞれ安全に破棄することを確認する。
+   - Evidence: focused lifecycle / integration test。
+
+5. **Phase 3 / 1、Phase 11で最終確認: DnD終了後Lifecycle**
    - DnD終了後のReorder Modeとの接続がArchitectureどおり成立することを確認する。
    - Evidence: DnD InteractionとReorder Modeのfocused integration test、主要E2E。
 
-5. **Phase 6 / 8、Phase 14で最終確認: failure recovery**
+6. **Phase 3 / 5、Phase 11で最終確認: failure recovery**
    - operation boundary / execution boundaryからのfailure recoveryがArchitectureどおり成立することを確認する。
    - Evidence: failure / recovery focused test。
 
-6. **Phase 7、Phase 14で最終確認: Presentation / notification / cleanup**
-   - DnD表示、cleanup、利用者向け通知がDesign / Architectureどおり成立することを確認する。
+7. **Phase 4、Phase 11で最終確認: Presentation / notification / cleanup**
+   - dnd-kit標準Visual Feedbackへ依存せず、DnD表示、cleanup、利用者向け通知がDesign / Architectureどおり成立することを確認する。
    - Evidence: Presentation focused testと主要E2E。
 
-7. **Phase 7〜10、Phase 13 / 14で最終確認: Editor lifecycle / input**
+8. **Phase 5、Phase 11で最終確認: Auto Scroll**
+   - Row Reorderが縦方向と対象Tableに必要な許可範囲だけを決定し、物理的なスクロール実行をDnD Engineへ委ねることを確認する。
+   - Evidence: Auto Scroll focused testと主要E2E。
+
+9. **Phase 4〜7、Phase 10 / 11で最終確認: Editor lifecycle / input**
    - Editor lifecycleへの追従とPC / Touch入力の製品経路がArchitecture / Designどおり成立することを確認する。
    - Evidence: lifecycle focused test、input focused test、composition test、主要E2E。
 
-8. **Phase 11 / 12、Phase 13 / 14で最終確認: Guidance / Rediscovery**
-   - 初回案内と再案内の製品経路がDesign / Architectureどおり成立することを確認する。
-   - Evidence: focused testと主要E2E。
+10. **Phase 8 / 9、Phase 10 / 11で最終確認: Guidance / Rediscovery**
+    - 初回案内と再案内の製品経路がDesign / Architectureどおり成立することを確認する。
+    - Evidence: focused testと主要E2E。
 
-9. **Phase 14: Quality Requirements**
-   - Quality Requirementsで定義された保証範囲を、Phase 14開始前に確定したvalidation matrixに従って確認する。
-   - Performanceは代表的な大規模Tableをストレステストとして使用し、対応Table Block本体の属性更新・再描画時間をYTRの合否基準から除外したうえで、並び替え計算、状態更新、表示更新などYTR自身が追加する処理が新たな長時間停止を生んでいないことを確認する。
+11. **Phase 11: Quality Requirements**
+    - Quality Requirementsで定義された保証範囲を、Phase 11開始前に確定したvalidation matrixに従って確認する。
+    - Performanceは代表的な大規模Tableをストレステストとして使用し、対応Table Block本体の属性更新・再描画時間をYTRの合否基準から除外したうえで、並び替え計算、状態更新、表示更新、DnD Engineとの接続管理などYTR自身が追加する処理が新たな長時間停止を生んでいないことを確認する。
 
 ## Implementation phases
 
@@ -150,78 +153,69 @@ Reorder Mode / Toolbar integrationを最初に成立させ、その後にRow Reo
 
 ### Phase 2: Table Integration
 
-- Outcome: 後続Phaseが対応Table Blockへ依存せずに必要なTable境界を利用できる。
+- Outcome: 後続Phaseが対応Table Blockへ依存せずに現在構造の取得と確定済み行移動の反映を利用できる。
 - Tasks:
   - Row Reorder用Table Integrationを実装する。
+  - 対応Table Block差を吸収し、確定済み行移動を1回のUndo単位として反映する更新境界を成立させる。
 - Validation:
-  - ArchitectureのContractと対応Table Blockへの適応をfocused testで確認する。
+  - ArchitectureのContract、対応Table Blockへの適応、更新結果、Undo境界をfocused testで確認する。
 
-### Phase 3: Reorder Target Resolution
+### Phase 3: DnD Interaction and Session Lifecycle
 
-- Outcome: DnD開始試行に必要な解決境界が利用できる。
+- Outcome: DnD EngineのLifecycleをRow Reorderの意味へ変換し、開始から終了までの行DnD Lifecycleが成立する。
 - Tasks:
-  - Reorder Target Resolutionを実装し、Table Integrationへ接続する。
+  - dnd-kitをDnD EngineとしてRow Reorderへ接続する。
+  - active DnD成立前にTable Integrationの現在構造を利用して開始可否を判定する。
+  - startでSessionを開始し、開始可否判定時に確認した行制約を保持する。
+  - Session成立後に必要なDroppable候補だけを遅延接続する。
+  - progressでDnD Engineの現在targetと位置関係を挿入位置へ変換し、Session開始時制約で有効性を判定する。
+  - completeでTable Integrationから現在構造を取得し直し、移動対象と最終有効移動先を再照合して、成立する場合だけ行更新境界を利用する。
+  - cancel、成立しないdrop、外部環境変化、内部Errorの終了経路とDroppable cleanupを成立させる。
+  - DnD終了後のReorder Mode継続可否を外側の境界へ接続する。
 - Validation:
-  - ArchitectureのContractをfocused testで確認する。
+  - Architectureで定義されたstart attempt、Session Lifecycle、progress、complete再照合、cancel、failure recoveryをfocused integration testで確認する。
+  - progressでTable Integrationから現在構造を取得し直さないことを確認する。
+  - DnD Engine固有の物理状態をSessionへ保持しないことを確認する。
 
-### Phase 4: Drop Target Resolution
+### Phase 4: Reorder Presentation
 
-- Outcome: progressとcompleteに必要な移動先解決境界が利用できる。
+- Outcome: Row Reorderの意味状態とDnD Engineの必要な物理情報を、独立した利用者向け表示へ接続できる。
 - Tasks:
-  - Drop Target Resolutionを実装し、Table Integrationへ接続する。
+  - Reorder Presentationを実装し、DnD Interaction、DnD Engine、Editor DOM Contextへ接続する。
+  - dnd-kit標準Visual Feedbackを無効化し、実Table DOM順序を変更しない独自表示を成立させる。
 - Validation:
-  - progressとcomplete再照合がArchitectureどおり成立することをfocused testで確認する。
+  - Design / Architectureへの適合、表示範囲、通知、cleanupをfocused testで確認する。
 
-### Phase 5: Data Update
+### Phase 5: Auto Scroll
 
-- Outcome: 確定済みの行移動を対応Table Blockへ反映する境界が利用できる。
+- Outcome: 行DnD中の縦方向Auto ScrollをDnD Engineの実行境界へ接続できる。
 - Tasks:
-  - Data Updateを実装し、Table Integrationへ接続する。
+  - Auto Scrollを実装し、DnD Interaction、Editor DOM Context、Editor Scroll Area、DnD Engineへ接続する。
+  - Row Reorderが縦方向と対象Tableに必要な許可範囲だけを決定し、物理的な検出・速度制御・実行はDnD Engineへ委ねる。
 - Validation:
-  - ArchitectureとUndo要件への適合をfocused testで確認する。
+  - Architectureへの適合、許可方向・範囲、終了時cleanup、failure接続をfocused testで確認する。
 
-### Phase 6: DnD Interaction
+### Phase 6: PC Input Interaction
 
-- Outcome: Phase 3〜5をDnD operation / Session Lifecycleとして統合できる。
+- Outcome: PC入力から必要な開始候補だけをDnD Engineへ接続し、Row ReorderのDnD開始試行へ到達できる。
 - Tasks:
-  - DnD InteractionとSessionを実装する。
-  - Phase 3 / 4 / 5とPhase 1へ接続する。
+  - PC Input Interactionを実装する。
+  - 開始条件成立時に開始候補行だけをDraggableとして遅延接続し、同じ入力をDnD EngineのSensorへ接続する。
+  - 開始不成立、DnD終了、cancel、モード終了、外部環境変化、failure recoveryでInput Interaction所有の一時状態をcleanupする。
 - Validation:
-  - Architectureで定義されたLifecycleとfailure recoveryをfocused integration testで確認する。
+  - 入力開始条件、Draggable lifecycle、DnD Engine接続、cleanupをfocused testで確認する。
 
-### Phase 7: Reorder Presentation
+### Phase 7: Touch Input Interaction
 
-- Outcome: DnD Interactionの状態を利用者向け表示へ接続できる。
+- Outcome: Touch入力から必要な開始候補だけをDnD Engineへ接続し、Row ReorderのDnD開始試行へ到達できる。
 - Tasks:
-  - Reorder Presentationを実装し、DnD InteractionとEditor DOM Contextへ接続する。
+  - Touch Input Interactionを実装する。
+  - 開始条件成立時に開始候補行だけをDraggableとして遅延接続し、同じ入力をDnD EngineのSensorへ接続する。
+  - 開始不成立、DnD終了、cancel、モード終了、外部環境変化、failure recoveryでInput Interaction所有の一時状態をcleanupする。
 - Validation:
-  - Design / Architectureへの適合とcleanupをfocused testで確認する。
+  - 入力開始条件、Draggable lifecycle、DnD Engine接続、cleanupをfocused testで確認する。
 
-### Phase 8: Auto Scroll
-
-- Outcome: 行DnD中のAuto Scrollを製品経路へ接続できる。
-- Tasks:
-  - Auto Scrollを実装し、DnD InteractionとEditor DOM Contextへ接続する。
-- Validation:
-  - Architectureへの適合とfailure接続をfocused testで確認する。
-
-### Phase 9: PC Input Interaction
-
-- Outcome: PC入力をRow ReorderのDnD operationへ接続できる。
-- Tasks:
-  - PC Input Interactionを実装し、必要な外側境界とDnD Interactionへ接続する。
-- Validation:
-  - 入力変換とlistener lifecycleをfocused testで確認する。
-
-### Phase 10: Touch Input Interaction
-
-- Outcome: Touch入力をRow ReorderのDnD operationへ接続できる。
-- Tasks:
-  - Touch Input Interactionを実装し、必要な外側境界とDnD Interactionへ接続する。
-- Validation:
-  - 入力変換とlistener lifecycleをfocused testで確認する。
-
-### Phase 11: Reorder Guidance
+### Phase 8: Reorder Guidance
 
 - Outcome: Row Reorderが利用する共通案内境界を製品経路へ接続できる。
 - Tasks:
@@ -229,7 +223,7 @@ Reorder Mode / Toolbar integrationを最初に成立させ、その後にRow Reo
 - Validation:
   - Design / Architectureへの適合をfocused testで確認する。
 
-### Phase 12: Rediscovery Detection
+### Phase 9: Rediscovery Detection
 
 - Outcome: 行側の再案内候補検出をReorder Guidanceへ接続できる。
 - Tasks:
@@ -237,20 +231,21 @@ Reorder Mode / Toolbar integrationを最初に成立させ、その後にRow Reo
 - Validation:
   - Design / Architectureへの適合をfocused testで確認する。
 
-### Phase 13: Product composition
+### Phase 10: Product composition
 
-- Outcome: Phase 1〜12がplugin-wide entry pointからWordPress Editorの実利用経路へ接続される。
+- Outcome: Phase 1〜9がplugin-wide entry pointからWordPress Editorの実利用経路へ接続される。
 - Tasks:
   - composition boundaryを実装する。
+  - DnD Engine providerを含むRow Reorderの生成・接続境界を成立させる。
   - Editor lifecycleに応じたcleanupと再接続を成立させる。
 - Validation:
   - focused integration testと、実entry pointを通る最小Playwright scenarioで製品経路を確認する。
 
-### Phase 14: Cross-cutting validation
+### Phase 11: Cross-cutting validation
 
 - Outcome: Row Reorder v1全体の上位文書への適合と、YTR自身のPerformance責任を確認できる。
 - Tasks:
-  - Phase 14開始前に確定したvalidation matrixに従って横断validationを実施する。
+  - Phase 11開始前に確定したvalidation matrixに従って横断validationを実施する。
   - 代表的な大規模Tableをストレステストとして使用し、Table Block本体の更新時間とYTR自身の追加コストを区別して計測する。
 - Validation:
   - 適用するfocused test、Node.js / build checks、Playwright E2E、repository checkは`docs/development/testing.md`に従う。
@@ -262,10 +257,7 @@ Planレビュー後、次の単位で実装Issueを作成する。各Issueはこ
 
 - [ ] Reorder Mode foundation / Toolbar integration
 - [ ] Table Integration
-- [ ] Reorder Target Resolution
-- [ ] Drop Target Resolution
-- [ ] Data Update
-- [ ] DnD Interaction and Session Lifecycle
+- [ ] DnD Interaction and Session Lifecycle / DnD Engine integration
 - [ ] Reorder Presentation
 - [ ] Auto Scroll
 - [ ] PC Input Interaction
@@ -275,19 +267,22 @@ Planレビュー後、次の単位で実装Issueを作成する。各Issueはこ
 - [ ] Row Reorder product composition
 - [ ] Row Reorder cross-cutting validation and E2E
 
-実装順は上記Phase順を基本とする。Editor DOM Contextにsource変更が必要な場合はPhase 1 Issueに含めるか、変更量が独立レビューを必要とする場合だけ別Issueへ分ける。Phase 9〜12は製品composition前に実行可能なfocused validationまでを完了条件とし、実WordPress Editorの製品経路を通るPlaywrightはPhase 13 / 14で扱う。
+実装順は上記Phase順を基本とする。Editor DOM Contextにsource変更が必要な場合はPhase 1 Issueに含めるか、変更量が独立レビューを必要とする場合だけ別Issueへ分ける。Phase 4〜9は製品composition前に実行可能なfocused validationまでを完了条件とし、実WordPress Editorの製品経路を通るPlaywrightはPhase 10 / 11で扱う。
 
 ## Validation
 
 - 各実装Issueでは、そのPhaseの実装結果が該当する上位文書に適合することをfocused test / integration testで確認する。
-- Phase 13でproduct compositionを成立させ、実entry pointを通る最小Playwright scenarioを実行する。
-- Phase 14でvalidation matrixに従って横断確認し、代表的な大規模TableではYTR自身の追加コストをストレステストする。
+- Phase 3では、開始可否判定、Draggable / Droppableの遅延接続、Session開始時制約、progress、complete再照合、確定・中止・回復をDnD Engineとの実接続を含めて確認する。
+- Phase 10でproduct compositionを成立させ、実entry pointを通る最小Playwright scenarioを実行する。
+- Phase 11でvalidation matrixに従って横断確認し、代表的な大規模TableではYTR自身の追加コストをストレステストする。
 - 具体的なコマンドと適用範囲は`docs/development/testing.md`を正本とする。
 
 ## Completion criteria
 
 - 最新Row Reorder v1 Architectureの実装対象が、依存関係に沿ったレビュー可能なIssue単位へ分割されている。
-- Reorder Mode / Toolbar integrationが最初の実装Phaseとして反映されている。
+- Reorder Target Resolution / Drop Target Resolution / Data Updateが独立責務、独立Phase、Issue単位として残っていない。
+- 開始可否判定と移動先判定がDnD Interaction / Session Lifecycleへ、確定済み行移動の反映がTable Integrationへ統合されている。
+- DnD Engine、Draggable / Droppableの遅延接続、独立Presentation、Auto Scroll、Input Interactionの実装方向・順序・Validationが最新Architectureと矛盾しない。
 - 各Phase開始前に、そのPhaseに必要な実装レベルの`Decide before implementation`が解決される構成になっている。
 - `Validate during implementation`が、検証対象の上位文書、該当Phase、evidenceへ結び付いている。
 - Requirements / Design / Architectureの決定をPlanで再定義していない。
