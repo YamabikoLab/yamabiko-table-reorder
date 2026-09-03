@@ -22,3 +22,10 @@ export const getRowReorderName = () => __( 'Reorder rows', 'yamabiko-table-reord
  * @return 現在の言語に対応した列並び替え入口の表示名。
  */
 export const getColumnReorderName = () => __( 'Reorder columns', 'yamabiko-table-reorder' );
+
+/**
+ * dnd-kit PoCのVisual Feedback切替入口に表示する文言を取得する。
+ *
+ * @return 現在の言語に対応したVisual Feedbackの表示名。
+ */
+export const getVisualFeedbackName = () => __( 'Visual Feedback', 'yamabiko-table-reorder' );
