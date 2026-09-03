@@ -197,6 +197,7 @@ complete時の現在構造への再照合が成立した後、Table Integration�
 ### Responsibility Details
 
 #### Reorder Mode {#RESP_REORDER_MODE}
+
 ##### Responsibility
 
 Tableツールバーの「行を並び替え」「列を並び替え」の入口、入口選択、および`edit | row | column`の排他状態を所有する。`row | column`では対象Tableの内容編集を開始させず、通常編集と並び替えモードを排他的に成立させる。Row Reorderへは行並び替えが有効であることだけを提供する。
@@ -296,6 +297,7 @@ DOM / Web APIを必要とする時点で現在のeditor contextを解決する�
 ##### Lifecycle
 
 通常編集状態でだけ判定を行い、行並び替えまたは列並び替えが有効になった場合、通常編集として成立する操作へ移行した場合、または判定系列が終了した場合は短期状態を破棄する。
+
 ##### Invariants
 
 - 一度だけの短いドラッグや通常の編集操作を行移動意図の成立として扱わない。
