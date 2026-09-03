@@ -39,9 +39,9 @@
 
 ## Approach
 
-Reorder Mode / Toolbar integrationを最初に成立させ、次にTable Integrationで対応Table Blockの構造取得と確定済み行移動の反映境界を成立させる。その後、DnD Engineとの接続を含むDnD Interaction / Session Lifecycleを実装し、開始可否判定、Session開始、移動先判定、complete時の現在構造への再照合、確定・中止・回復を一つのLifecycleとして成立させる。
+Reorder Mode / Toolbar integrationを最初に成立させ、次にTable Integrationを実装する。その後、DnD Interaction / Session LifecycleをDnD EngineとTable Integrationへ接続し、Architectureで定義されたLifecycleを実装する。
 
-DnD Interactionの境界を成立させた後、PC / Touch Input Interactionから開始候補をDnD Engineへ接続し、入力からDnD Interactionへ到達する実装経路を成立させる。DnD EngineにはArchitectureで採用済みのdnd-kitを用い、Input Interactionが開始候補のDraggableを、DnD InteractionがSession成立後のDroppableを必要な期間だけ接続する。
+DnD Interactionの接続を成立させた後、PC / Touch Input InteractionをDnD Engineへ接続し、入力からDnD Interactionへ到達する実装経路を成立させる。DnD EngineにはArchitectureで採用済みのdnd-kitを用いる。
 
 入力経路の成立後にReorder Presentationを接続し、その後Auto Scroll、Guidance、Rediscovery Detectionを接続する。物理的なDnD進行、collision detection、自動スクロール実行はDnD Engineへ委ね、DnD Engine標準のVisual Feedbackは利用せず、Presentationを独立して接続する。最後にproduct compositionと横断validationを行う。
 
@@ -69,15 +69,15 @@ DnD Interactionの境界を成立させた後、PC / Touch Input Interactionか�
 
 3. **Phase 3開始前: DnD Interaction / Session Lifecycleの実装表現**
 
-   - dnd-kitのLifecycleをDnD Interactionへ接続する位置、Session state model、開始可否結果、正常結果とErrorの表現、Droppableの遅延接続とcleanup、共通中止経路を確定する。
+   - dnd-kitへのadapter構成、Architectureで定義されたSession stateのType表現、結果 / Error表現、focused testの境界を確定する。
 
 4. **Phase 4開始前: PC Input InteractionのDnD Engine接続方式**
 
-   - browser event、listener lifecycle、開始候補Draggableの遅延接続、Sensor activationへの接続方式を確定する。
+   - PC入力をdnd-kitのSensor / activatorへ接続するevent adapterの構成を確定する。
 
 5. **Phase 5開始前: Touch Input InteractionのDnD Engine接続方式**
 
-   - touch / pointer系event、listener lifecycle、開始候補Draggableの遅延接続、Sensor activationへの接続方式を確定する。
+   - Touch入力をdnd-kitのSensor / activatorへ接続するevent adapterの構成を確定する。
 
 6. **Phase 6開始前: Reorder Presentationの描画方式**
 
@@ -117,22 +117,22 @@ DnD Interactionの境界を成立させた後、PC / Touch Input Interactionか�
 
 3. **Phase 3、Phase 11で最終確認: DnD Interaction / Session Lifecycle**
 
-   - active DnD成立前の開始可否判定、startでのSession成立、Session開始時制約によるprogress判定、complete時の現在構造への再照合、確定・cancel・正常中止・failure recoveryが一つのLifecycleとして成立することを確認する。
-   - Evidence: focused normal / failure-recovery testと主要E2E。
+   - DnD EngineとTable Integrationへの接続上で、Architectureで定義されたDnD Interaction / Session Lifecycleが成立することを確認する。
+   - Evidence: focused normal / failure-recovery integration testと主要E2E。
 
-4. **Phase 3 / 4 / 5、Phase 11で最終確認: Draggable / Droppableの遅延接続とcleanup**
+4. **Phase 3 / 4 / 5、Phase 11で最終確認: DnD Engine integration**
 
-   - 開始候補DraggableをInput Interactionが、Session成立後のDroppableをDnD Interactionが所有し、不要になった時点でそれぞれ安全に破棄することを確認する。
+   - PC / Touch Input InteractionとDnD Interactionが、Architectureで定義された接続境界を保ってDnD Engineへ接続されることを確認する。
    - Evidence: focused lifecycle / integration test。
 
 5. **Phase 3 / 1、Phase 11で最終確認: DnD終了後Lifecycle**
 
-   - DnD終了後のReorder Modeとの接続がArchitectureどおり成立することを確認する。
+   - DnD InteractionとReorder Modeの接続結果がArchitectureに適合することを確認する。
    - Evidence: DnD InteractionとReorder Modeのfocused integration test、主要E2E。
 
 6. **Phase 3 / 7、Phase 11で最終確認: failure recovery**
 
-   - operation boundary / execution boundaryからのfailure recoveryがArchitectureどおり成立することを確認する。
+   - failure recovery経路がArchitectureに適合することを確認する。
    - Evidence: failure / recovery focused test。
 
 7. **Phase 6、Phase 11で最終確認: Presentation / notification / cleanup**
@@ -182,40 +182,30 @@ DnD Interactionの境界を成立させた後、PC / Touch Input Interactionか�
 
 ### Phase 3: DnD Interaction and Session Lifecycle
 
-- Outcome: DnD EngineのLifecycleをRow Reorderの意味へ変換し、開始から終了までの行DnD Lifecycleが成立する。
+- Outcome: Architectureで定義されたDnD Interaction / Session LifecycleをDnD EngineとTable Integrationへ接続できる。
 - Tasks:
-  - dnd-kitをDnD EngineとしてDnD Interactionへ接続する。
-  - active DnD成立前にTable Integrationの現在構造を利用して開始可否を判定する。
-  - startでSessionを開始し、開始可否判定時に確認した行制約を保持する。
-  - Session成立後に必要なDroppable候補だけを遅延接続する。
-  - progressでDnD Engineの現在targetと位置関係を挿入位置へ変換し、Session開始時制約で有効性を判定する。
-  - completeでTable Integrationから現在構造を取得し直し、移動対象と最終有効移動先を再照合して、成立する場合だけ行更新境界を利用する。
-  - cancel、成立しないdrop、外部環境変化、内部Errorの終了経路とDroppable cleanupを成立させる。
-  - DnD終了後のReorder Mode継続可否を外側の境界へ接続する。
+  - DnD Interaction / Session Lifecycleを実装する。
+  - dnd-kitとTable Integrationへの実装接続を成立させる。
 - Validation:
-  - Architectureで定義されたstart attempt、Session Lifecycle、progress、complete再照合、cancel、failure recoveryをfocused integration testで確認する。
-  - progressでTable Integrationから現在構造を取得し直さないことを確認する。
-  - DnD Engine固有の物理状態をSessionへ保持しないことを確認する。
+  - Architectureで定義されたLifecycleへの適合をfocused normal / failure-recovery integration testで確認する。
 
 ### Phase 4: PC Input Interaction
 
-- Outcome: PC入力から必要な開始候補だけをDnD Engineへ接続し、Row ReorderのDnD開始試行へ到達できる。
+- Outcome: PC入力からDnD Engineを経由してDnD Interactionへ到達する実装経路が成立する。
 - Tasks:
   - PC Input Interactionを実装する。
-  - 開始条件成立時に開始候補行だけをDraggableとして遅延接続し、同じ入力をDnD EngineのSensorへ接続する。
-  - 開始不成立、DnD終了、cancel、モード終了、外部環境変化、failure recoveryでInput Interaction所有の一時状態をcleanupする。
+  - PC入力をDnD Engineへ接続する。
 - Validation:
-  - 入力開始条件、Draggable lifecycle、DnD Engine接続、cleanupをfocused testで確認する。
+  - Architecture / Designへの適合とDnD Engine接続をfocused input / integration testで確認する。
 
 ### Phase 5: Touch Input Interaction
 
-- Outcome: Touch入力から必要な開始候補だけをDnD Engineへ接続し、Row ReorderのDnD開始試行へ到達できる。
+- Outcome: Touch入力からDnD Engineを経由してDnD Interactionへ到達する実装経路が成立する。
 - Tasks:
   - Touch Input Interactionを実装する。
-  - 開始条件成立時に開始候補行だけをDraggableとして遅延接続し、同じ入力をDnD EngineのSensorへ接続する。
-  - 開始不成立、DnD終了、cancel、モード終了、外部環境変化、failure recoveryでInput Interaction所有の一時状態をcleanupする。
+  - Touch入力をDnD Engineへ接続する。
 - Validation:
-  - 入力開始条件、Draggable lifecycle、DnD Engine接続、cleanupをfocused testで確認する。
+  - Architecture / Designへの適合とDnD Engine接続をfocused input / integration testで確認する。
 
 ### Phase 6: Reorder Presentation
 
@@ -292,8 +282,8 @@ Planレビュー後、次の単位で実装Issueを作成する。各Issueはこ
 ## Validation
 
 - 各実装Issueでは、そのPhaseの実装結果が該当する上位文書に適合することをfocused test / integration testで確認する。
-- Phase 3では、開始可否判定、Droppableの遅延接続、Session開始時制約、progress、complete再照合、確定・中止・回復をDnD Engineとの実接続を含めて確認する。
-- Phase 4 / 5では、PC / Touch Input InteractionによるDraggableの遅延接続とcleanup、および入力からDnD Interactionへ到達する経路を確認する。
+- Phase 3では、DnD Interaction / Session LifecycleとDnD Engine / Table Integrationの接続がArchitectureに適合することをfocused integration testで確認する。
+- Phase 4 / 5では、PC / Touch Input InteractionからDnD Engineを経由してDnD Interactionへ到達する実装経路をfocused input / integration testで確認する。
 - Phase 10でproduct compositionを成立させ、実entry pointを通る最小Playwright scenarioを実行する。
 - Phase 11でvalidation matrixに従って横断確認し、代表的な大規模TableではYTR自身の追加コストをストレステストする。
 - 具体的なコマンドと適用範囲は`docs/development/testing.md`を正本とする。
