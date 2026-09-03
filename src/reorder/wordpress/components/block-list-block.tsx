@@ -45,11 +45,7 @@ export const ReorderModeBlockListBlock = ( props: {
 	const { clientId, wrapperProps } = blockProps;
 	const editingAllowed = useEditingAllowed( clientId );
 	const getCurrentMode = useCallback( () => reorderMode.getMode( clientId ), [ clientId ] );
-	const currentMode = useSyncExternalStore(
-		reorderMode.subscribe,
-		getCurrentMode,
-		getCurrentMode
-	);
+	const currentMode = useSyncExternalStore( reorderMode.subscribe, getCurrentMode, getCurrentMode );
 	const visualFeedbackEnabled = useSyncExternalStore(
 		dndKitPocSettings.subscribe,
 		dndKitPocSettings.isVisualFeedbackEnabled,
