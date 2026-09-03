@@ -20,6 +20,10 @@ const validModel = (): ArchitectureModel => ( {
 			summary: '入力を扱う。',
 		},
 	],
+	boundaries: [
+		{ id: 'BOUNDARY_EXTERNAL', name: 'External', includes: [ 'EXT_EDITOR' ] },
+		{ id: 'BOUNDARY_REORDER', name: 'Reorder', includes: [ 'RESP_INPUT' ] },
+	],
 	dependencies: [
 		{
 			dependent: 'RESP_INPUT',

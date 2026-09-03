@@ -3,6 +3,14 @@ import test from 'node:test';
 
 import { validateArchitectureMarkdownStructure } from './architecture-markdown-validation';
 
+const ownershipBoundaries = `### Ownership Boundaries
+
+| ID | Name | Includes |
+| --- | --- | --- |
+| BOUNDARY_ROW | Row Reorder | RESP_INPUT |
+
+`;
+
 const validMarkdown = `
 ## 3. Context and Scope
 
@@ -30,7 +38,7 @@ const validMarkdown = `
 | --- | --- | --- |
 | RESP_INPUT | Input Interaction | 入力を扱う。 |
 
-### Dependencies
+${ ownershipBoundaries }### Dependencies
 
 | Dependent | Depends on | Reason |
 | --- | --- | --- |
@@ -68,6 +76,27 @@ test( 'Dependency Views がない文書も受理する', () => {
 	);
 
 	assert.doesNotThrow( () => validateArchitectureMarkdownStructure( markdown ) );
+} );
+
+test( 'Ownership Boundaries の欠落を拒否する', () => {
+	const markdown = validMarkdown.replace( ownershipBoundaries, '' );
+
+	assert.throws(
+		() => validateArchitectureMarkdownStructure( markdown ),
+		/Ownership Boundaries table is missing/u
+	);
+} );
+
+test( 'Ownership Boundaries 表の列違いを拒否する', () => {
+	const markdown = validMarkdown.replace(
+		ownershipBoundaries,
+		'### Ownership Boundaries\n\n| ID | Name | Members |\n| --- | --- | --- |\n| BOUNDARY_ROW | Row Reorder | RESP_INPUT |\n\n'
+	);
+
+	assert.throws(
+		() => validateArchitectureMarkdownStructure( markdown ),
+		/Ownership Boundaries table columns must be exactly: ID, Name, Includes/u
+	);
 } );
 
 test( '必須見出しの欠落を拒否する', () => {
@@ -116,7 +145,12 @@ test( 'Dependencies 表の列違いを拒否する', () => {
 } );
 
 test( 'Dependency Views 表の列違いを拒否する', () => {
-	const markdown = validMarkdown.replace( '| ID | Name | Includes |', '| ID | Name | Members |' );
+	const dependencyViews =
+		'### Dependency Views\n\n| ID | Name | Includes |\n| --- | --- | --- |\n| DV_INPUT | Input | EXT_EDITOR RESP_INPUT |';
+	const markdown = validMarkdown.replace(
+		dependencyViews,
+		'### Dependency Views\n\n| ID | Name | Members |\n| --- | --- | --- |\n| DV_INPUT | Input | EXT_EDITOR RESP_INPUT |'
+	);
 
 	assert.throws(
 		() => validateArchitectureMarkdownStructure( markdown ),

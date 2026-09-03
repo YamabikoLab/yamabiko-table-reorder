@@ -4,8 +4,8 @@ import { extname } from 'node:path';
 import { validateArchitectureMarkdownStructure } from './architecture-markdown-validation';
 import { parseArchitectureMarkdown } from './architecture-model';
 import { validateArchitectureModel } from './architecture-validation';
-import { generateStructurizrDsl } from './structurizr-generator';
 import { validateStructurizrWorkspace } from './validate-structurizr';
+import { generateStructurizrWorkspaceDsl } from './structurizr-workspace-generator';
 
 const resolveOutputPath = ( inputPath: string, outputPath?: string ): string => {
 	if ( outputPath !== undefined ) {
@@ -31,7 +31,7 @@ const generate = async (): Promise< void > => {
 	validateArchitectureMarkdownStructure( source );
 	const model = parseArchitectureMarkdown( source );
 	validateArchitectureModel( model );
-	const dsl = generateStructurizrDsl( model );
+	const dsl = generateStructurizrWorkspaceDsl( model );
 
 	await writeFile( validationOutputPath, dsl, 'utf8' );
 	try {

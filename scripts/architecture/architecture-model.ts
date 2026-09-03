@@ -13,6 +13,12 @@ export type Responsibility = {
 	summary: string;
 };
 
+export type ArchitectureBoundary = {
+	id: string;
+	name: string;
+	includes: string[];
+};
+
 export type ArchitectureDependency = {
 	dependent: string;
 	dependsOn: string;
@@ -63,6 +69,7 @@ export type RuntimeView = {
 export type ArchitectureModel = {
 	externalContexts: ExternalContext[];
 	responsibilities: Responsibility[];
+	boundaries: ArchitectureBoundary[];
 	dependencies: ArchitectureDependency[];
 	dependencyViews: DependencyView[];
 	processFlowViews: ProcessFlowView[];
@@ -91,6 +98,7 @@ const machineReadableTables = {
 	externalContext: [ 'ID', 'Name', 'Type', 'Summary' ],
 	processFlow: [ 'From', 'To', 'Kind', 'Meaning' ],
 	responsibilityInventory: [ 'ID', 'Responsibility', 'Summary' ],
+	ownershipBoundaries: [ 'ID', 'Name', 'Includes' ],
 	dependencies: [ 'Dependent', 'Depends on', 'Reason' ],
 	dependencyViews: [ 'ID', 'Name', 'Includes' ],
 	runtime: [ 'Step', 'Source', 'Target', 'Interaction' ],
@@ -209,6 +217,7 @@ export const parseArchitectureMarkdown = ( source: string ): ArchitectureModel =
 	const model: ArchitectureModel = {
 		externalContexts: [],
 		responsibilities: [],
+		boundaries: [],
 		dependencies: [],
 		dependencyViews: [],
 		processFlowViews: [],
@@ -297,6 +306,19 @@ export const parseArchitectureMarkdown = ( source: string ): ArchitectureModel =
 				id: row.ID,
 				name: row.Responsibility,
 				summary: row.Summary,
+			} ) );
+			continue;
+		}
+
+		if (
+			level2 === '5. Building Block View' &&
+			level3?.title === 'Ownership Boundaries' &&
+			hasExactHeader( table, machineReadableTables.ownershipBoundaries )
+		) {
+			model.boundaries = rowsAsRecords( table ).map( ( row ) => ( {
+				id: row.ID,
+				name: row.Name,
+				includes: row.Includes.split( /\s+/u ).filter( ( id ) => id.length > 0 ),
 			} ) );
 			continue;
 		}
