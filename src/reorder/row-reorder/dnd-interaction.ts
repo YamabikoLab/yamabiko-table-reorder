@@ -131,10 +131,7 @@ const emitRowDndStartRejectionNotice = (): void => {
  * @param constraints    判定基準とする行制約。
  * @return tbody内の実在行として扱える場合はtrue。
  */
-const isSourceInRange = (
-	sourceRowIndex: number,
-	constraints: RowReorderConstraints
-): boolean => {
+const isSourceInRange = ( sourceRowIndex: number, constraints: RowReorderConstraints ): boolean => {
 	const sourceInRange =
 		Number.isInteger( sourceRowIndex ) &&
 		sourceRowIndex >= 0 &&
@@ -176,10 +173,7 @@ const isSourceMovable = ( sourceRowIndex: number, constraints: RowReorderConstra
 		return false;
 	}
 
-	const sourceBlockedByMergedRange = isSourceBlockedByMergedRange(
-		sourceRowIndex,
-		constraints
-	);
+	const sourceBlockedByMergedRange = isSourceBlockedByMergedRange( sourceRowIndex, constraints );
 	const sourceMovable = ! sourceBlockedByMergedRange;
 	return sourceMovable;
 };
