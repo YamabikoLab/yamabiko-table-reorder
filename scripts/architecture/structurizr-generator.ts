@@ -1,6 +1,7 @@
 import type {
 	ArchitectureDependency,
 	ArchitectureModel,
+	ArchitectureBoundary,
 	DependencyView,
 	ExternalContext,
 	ProcessFlowEdgeKind,
@@ -151,14 +152,38 @@ const buildRuntimeRelationships = ( runtimeViews: RuntimeView[] ): RuntimeRelati
 const generateElement = (
 	element: ArchitectureElement,
 	metadata: string,
-	tags: string[]
+	tags: string[],
+	indent = '\t\t'
 ): string[] => [
-	`\t\t${ element.id } = element ${ quoted( element.name ) } ${ quoted( metadata ) } ${ quoted(
+	`${ indent }${ element.id } = element ${ quoted( element.name ) } ${ quoted( metadata ) } ${ quoted(
 		element.summary
 	) } {`,
-	`\t\t\ttags ${ quoted( tags.join( ',' ) ) }`,
-	'\t\t}',
+	`${ indent }\ttags ${ quoted( tags.join( ',' ) ) }`,
+	`${ indent }}`,
 ];
+
+const elementLines = ( element: ArchitectureElement, indent = '\t\t' ): string[] => {
+	if ( 'type' in element ) {
+		return generateElement( element, element.type, [ 'External Context', element.type ], indent );
+	}
+	return generateElement( element, 'Responsibility', [ 'Responsibility' ], indent );
+};
+
+const generateBoundary = (
+	boundary: ArchitectureBoundary,
+	elementsById: Map< string, ArchitectureElement >
+): string[] => {
+	const lines = [ `\t\tgroup ${ quoted( boundary.name ) } {` ];
+	boundary.includes.forEach( ( id ) => {
+		const element = elementsById.get( id );
+		if ( element === undefined ) {
+			throw new Error( `Ownership Boundary ${ boundary.id} contains unknown element ${ id }.` );
+		}
+		lines.push( ...elementLines( element, '\t\t\t' ) );
+	} );
+	lines.push( '\t\t}' );
+	return lines;
+};
 
 const generateDependency = ( dependency: ArchitectureDependency, index: number ): string[] => [
 	`\t\t${ dependencyIdentifier( index ) } = ${ dependency.dependent } -> ${
@@ -376,6 +401,7 @@ const generateRuntimeView = (
 
 /**
  * Architecture Model に含まれる明示的な設計情報だけから Structurizr DSL を生成する。
+ * 所有境界はArchitecture Modelに明示された要素だけをStructurizr groupとして生成し、所属を推論しない。
  * Structural Dependency、Process Flow、Runtime Interaction は独立した Relationship として生成する。
  * Dependency View と Process Flow View は、それぞれの View に対応する Relationship だけを表示する。
  * 同一の Process Flow Relationship または Runtime Interaction が複数 View で使われる場合は、
@@ -387,6 +413,9 @@ const generateRuntimeView = (
 export const generateStructurizrDsl = ( model: ArchitectureModel ): string => {
 	const processFlowRelationships = buildProcessFlowRelationships( model.processFlowViews );
 	const runtimeRelationships = buildRuntimeRelationships( model.runtimeViews );
+	const elements = [ ...model.externalContexts, ...model.responsibilities ];
+	const elementsById = new Map( elements.map( ( element ) => [ element.id, element ] ) );
+	const groupedElementIds = new Set( model.boundaries.flatMap( ( boundary ) => boundary.includes ) );
 	const lines = [
 		'// Generated from docs/architecture/reorder-v1-architecture.md. Do not edit manually.',
 		'workspace "YTR Reorder v1 Architecture" {',
@@ -395,21 +424,19 @@ export const generateStructurizrDsl = ( model: ArchitectureModel ): string => {
 		'\tmodel {',
 	];
 
-	model.externalContexts.forEach( ( externalContext ) => {
-		lines.push(
-			...generateElement( externalContext, externalContext.type, [
-				'External Context',
-				externalContext.type,
-			] )
-		);
+	model.boundaries.forEach( ( boundary, index ) => {
+		if ( index > 0 ) {
+			lines.push( '' );
+		}
+		lines.push( ...generateBoundary( boundary, elementsById ) );
 	} );
 
-	if ( model.externalContexts.length > 0 && model.responsibilities.length > 0 ) {
+	const ungroupedElements = elements.filter( ( element ) => ! groupedElementIds.has( element.id ) );
+	if ( model.boundaries.length > 0 && ungroupedElements.length > 0 ) {
 		lines.push( '' );
 	}
-
-	model.responsibilities.forEach( ( responsibility ) => {
-		lines.push( ...generateElement( responsibility, 'Responsibility', [ 'Responsibility' ] ) );
+	ungroupedElements.forEach( ( element ) => {
+		lines.push( ...elementLines( element ) );
 	} );
 
 	if ( model.dependencies.length > 0 ) {
