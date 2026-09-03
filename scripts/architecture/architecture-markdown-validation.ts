@@ -10,6 +10,7 @@ const expectedHeaders = {
 	externalContext: [ 'ID', 'Name', 'Type', 'Summary' ],
 	processFlow: [ 'From', 'To', 'Kind', 'Meaning' ],
 	responsibilityInventory: [ 'ID', 'Responsibility', 'Summary' ],
+	ownershipBoundaries: [ 'ID', 'Name', 'Includes' ],
 	dependencies: [ 'Dependent', 'Depends on', 'Reason' ],
 	dependencyViews: [ 'ID', 'Name', 'Includes' ],
 	runtime: [ 'Step', 'Source', 'Target', 'Interaction' ],
@@ -144,6 +145,7 @@ export const validateArchitectureMarkdownStructure = ( source: string ): void =>
 	const requiredHeadings = new Set< string >();
 	let externalContextTable = false;
 	let responsibilityInventoryTable = false;
+	let ownershipBoundariesTable = false;
 	let dependenciesTable = false;
 	let dependencyViewsHeadingCount = 0;
 	let dependencyViewsTableCount = 0;
@@ -256,6 +258,11 @@ export const validateArchitectureMarkdownStructure = ( source: string ): void =>
 			responsibilityInventoryTable = true;
 			continue;
 		}
+		if ( level2 === '5. Building Block View' && level3 === 'Ownership Boundaries' ) {
+			requireExactHeader( header, expectedHeaders.ownershipBoundaries, 'Ownership Boundaries' );
+			ownershipBoundariesTable = true;
+			continue;
+		}
 		if ( level2 === '5. Building Block View' && level3 === 'Dependencies' ) {
 			requireExactHeader( header, expectedHeaders.dependencies, 'Dependencies' );
 			dependenciesTable = true;
@@ -288,6 +295,9 @@ export const validateArchitectureMarkdownStructure = ( source: string ): void =>
 	}
 	if ( ! responsibilityInventoryTable ) {
 		throw new Error( 'Architecture validation failed: Responsibility Inventory table is missing.' );
+	}
+	if ( ! ownershipBoundariesTable ) {
+		throw new Error( 'Architecture validation failed: Ownership Boundaries table is missing.' );
 	}
 	if ( ! dependenciesTable ) {
 		throw new Error( 'Architecture validation failed: Dependencies table is missing.' );
