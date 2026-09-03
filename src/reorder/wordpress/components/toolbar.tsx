@@ -8,11 +8,7 @@ import { BlockControls } from '@wordpress/block-editor';
 import { ToolbarButton, ToolbarGroup } from '@wordpress/components';
 import { useSyncExternalStore } from '@wordpress/element';
 
-import {
-	getColumnReorderName,
-	getRowReorderName,
-	getVisualFeedbackName,
-} from '@/messages';
+import { getColumnReorderName, getRowReorderName, getVisualFeedbackName } from '@/messages';
 import { dndKitPocSettings } from '@/reorder/wordpress/dnd-kit-poc-settings';
 import { useReorderMode } from '@/reorder/wordpress/hooks/use-reorder-mode';
 

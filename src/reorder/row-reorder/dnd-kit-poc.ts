@@ -110,7 +110,7 @@ const resolvePointerRow = (
  * Visual FeedbackはPoC設定に応じてdnd-kit標準表示または無表示を選択し、Table DOMの行順を変更しない状態で
  * Lifecycle、Auto Scroll、遅延登録コストを検証する。
  *
- * @param tableIdentity          PoC対象TableのIdentity。
+ * @param tableIdentity         PoC対象TableのIdentity。
  * @param visualFeedbackEnabled dnd-kit標準Visual Feedbackを使用する場合はtrue。
  * @return PoCを終了してdnd-kitの登録と監視を破棄する関数。現在DOMから検証対象を解決できなければnull。
  */
