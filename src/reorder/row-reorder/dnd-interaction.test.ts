@@ -5,10 +5,7 @@
  * Session開始時制約の保持、complete時の現在構造への再照合、正常終了、異常終了通知、およびLifecycle違反を検証する。
  */
 
-import {
-	rowDndInteraction,
-	subscribeRowDndTerminationNotice,
-} from './dnd-interaction';
+import { rowDndInteraction, subscribeRowDndTerminationNotice } from './dnd-interaction';
 import { rowTableIntegration } from './table-integration';
 
 jest.mock( './table-integration', () => ( {
@@ -65,9 +62,7 @@ describe( 'Row DnD Interaction lifecycle', () => {
 		jest.clearAllMocks();
 		rowDndInteraction.cancel();
 		terminationNoticeListener = jest.fn();
-		unsubscribeTerminationNotice = subscribeRowDndTerminationNotice(
-			terminationNoticeListener
-		);
+		unsubscribeTerminationNotice = subscribeRowDndTerminationNotice( terminationNoticeListener );
 	} );
 
 	afterEach( () => {
