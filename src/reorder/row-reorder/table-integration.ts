@@ -9,8 +9,8 @@
 import { store as blockEditorStore } from '@wordpress/block-editor';
 import { dispatch, select } from '@wordpress/data';
 
-/** Row Reorderが現在のTableで移動可否を再照合するために利用する行構造。 */
-export type RowTableStructure = {
+/** Row Reorderが現在のTableで移動可否を再照合するために利用する制約情報。 */
+export type RowReorderConstraints = {
 	/** tbodyの現在行数。 */
 	rowCount: number;
 	/** rowspanを分断するため移動先にできない0-based挿入位置。重複なく昇順で提供する。 */
@@ -82,7 +82,7 @@ const getRowSpan = (
 };
 
 /**
- * 要求時点の対応Tableから、Row Reorderが移動先の再照合に利用する行構造を取得する。
+ * 要求時点の対応Tableから、Row Reorderが移動可否の再照合に利用する制約情報を取得する。
  *
  * 対象Blockの不在、非対応、またはtbodyを安全に解釈できない状態は外部状態による正常な利用不能として扱い、
  * 独自の中間Tableモデルへ変換せずnullを返す。
@@ -90,7 +90,7 @@ const getRowSpan = (
  * @param clientId 対象Table個体を識別するclientId。
  * @return 現在行数と分断不可境界。現在のTableを安全に解釈できない場合はnull。
  */
-const getStructure = ( clientId: string ): RowTableStructure | null => {
+const getConstraints = ( clientId: string ): RowReorderConstraints | null => {
 	const block = select( blockEditorStore ).getBlock( clientId );
 	/* 対象Blockが存在しない、非対応、または属性を解釈できない状態では、Table Integrationの提供対象外として正常な不在にする。 */
 	if ( ! block || ! isSupportedTable( block.name ) || ! isRecord( block.attributes ) ) {
@@ -202,6 +202,6 @@ const applyRowMove = ( move: RowMove ): boolean => {
  * Tableデータや算出結果は保持せず、Block固有構造も外部へ公開しない。
  */
 export const rowTableIntegration = {
-	getStructure,
+	getConstraints,
 	applyRowMove,
 };

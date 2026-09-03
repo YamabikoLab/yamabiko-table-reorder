@@ -1,5 +1,5 @@
 /**
- * 行専用Table Integrationについて、WordPress Store境界の外側から、対応Table Block差を漏らさず現在の行構造取得と確定済み行移動の反映を提供する内部仕様を確認する。
+ * 行専用Table Integrationについて、WordPress Store境界の外側から、対応Table Block差を漏らさず現在の行制約取得と確定済み行移動の反映を提供する内部仕様を確認する。
  */
 
 import { rowTableIntegration } from './table-integration';
@@ -32,14 +32,14 @@ describe( 'Table Integration', () => {
 	 * - colspanだけを持つセルも存在する。
 	 *
 	 * 操作:
-	 * - 公開されたTable IntegrationからgetStructure()を実行する。
+	 * - 公開されたTable IntegrationからgetConstraints()を実行する。
 	 *
 	 * 期待結果:
 	 * - rowCountは4になる。
 	 * - rowspan内部の境界2、3だけが重複なく昇順で返る。
 	 * - colspanは行方向の制約を生成しない。
 	 */
-	it( 'when Core Table structure is requested, should return row count and blocked row boundaries', () => {
+	it( 'when Core Table constraints are requested, should return row count and blocked row boundaries', () => {
 		selectMock.mockReturnValue( {
 			getBlock: jest.fn().mockReturnValue( {
 				name: 'core/table',
@@ -54,7 +54,7 @@ describe( 'Table Integration', () => {
 			} ),
 		} );
 
-		expect( rowTableIntegration.getStructure( 'table-a' ) ).toEqual( {
+		expect( rowTableIntegration.getConstraints( 'table-a' ) ).toEqual( {
 			rowCount: 4,
 			blockedBoundaries: [ 2, 3 ],
 		} );
@@ -68,12 +68,12 @@ describe( 'Table Integration', () => {
 	 * - tbodyは3行で、先頭行に3行を占有するセルが存在する。
 	 *
 	 * 操作:
-	 * - 公開されたTable IntegrationからgetStructure()を実行する。
+	 * - 公開されたTable IntegrationからgetConstraints()を実行する。
 	 *
 	 * 期待結果:
 	 * - Flexible Table Block固有のrowSpanが解釈され、境界1、2が返る。
 	 */
-	it( 'when Flexible Table Block structure is requested, should adapt rowSpan to the same row structure', () => {
+	it( 'when Flexible Table Block constraints are requested, should adapt rowSpan to the same row constraints', () => {
 		selectMock.mockReturnValue( {
 			getBlock: jest.fn().mockReturnValue( {
 				name: 'flexible-table-block/table',
@@ -83,7 +83,7 @@ describe( 'Table Integration', () => {
 			} ),
 		} );
 
-		expect( rowTableIntegration.getStructure( 'table-b' ) ).toEqual( {
+		expect( rowTableIntegration.getConstraints( 'table-b' ) ).toEqual( {
 			rowCount: 3,
 			blockedBoundaries: [ 1, 2 ],
 		} );
@@ -91,13 +91,13 @@ describe( 'Table Integration', () => {
 
 	/**
 	 * 概要:
-	 * - 対応外Block、消失したBlock、不完全なTable構造では行構造を提供しないことを確認する。
+	 * - 対応外Block、消失したBlock、不完全なTable構造では行制約を提供しないことを確認する。
 	 *
 	 * 事前条件:
 	 * - 要求ごとに非対応Block、null、body欠落のCore Tableが返る。
 	 *
 	 * 操作:
-	 * - 各clientIdについて公開されたTable IntegrationからgetStructure()を実行する。
+	 * - 各clientIdについて公開されたTable IntegrationからgetConstraints()を実行する。
 	 *
 	 * 期待結果:
 	 * - いずれも正常な不在としてnullが返る。
@@ -110,9 +110,9 @@ describe( 'Table Integration', () => {
 			.mockReturnValueOnce( { name: 'core/table', attributes: {} } );
 		selectMock.mockReturnValue( { getBlock } );
 
-		expect( rowTableIntegration.getStructure( 'unsupported' ) ).toBeNull();
-		expect( rowTableIntegration.getStructure( 'removed' ) ).toBeNull();
-		expect( rowTableIntegration.getStructure( 'invalid' ) ).toBeNull();
+		expect( rowTableIntegration.getConstraints( 'unsupported' ) ).toBeNull();
+		expect( rowTableIntegration.getConstraints( 'removed' ) ).toBeNull();
+		expect( rowTableIntegration.getConstraints( 'invalid' ) ).toBeNull();
 	} );
 
 	/**
