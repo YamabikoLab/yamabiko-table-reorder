@@ -38,6 +38,7 @@ const model: ArchitectureModel = {
 			summary: '入力を扱う。',
 		},
 	],
+	boundaries: [],
 	dependencies: [],
 	dependencyViews: [],
 	processFlowViews: [],
