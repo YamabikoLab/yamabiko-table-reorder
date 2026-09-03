@@ -104,7 +104,7 @@ type RowDndStore = RowDndStoreState & RowDndStoreActions;
  * 移動対象行の直前または直後がrowspan等による分断不可境界の場合、その行だけを独立して移動するとTable構造を保持できないため開始対象にしない。
  *
  * @param sourceRowIndex 移動対象の0-based行位置。
- * @param constraints 判定基準とする行制約。
+ * @param constraints    判定基準とする行制約。
  * @return 行単位の移動でTable構造を保持できる場合はtrue。
  */
 const isSourceMovable = ( sourceRowIndex: number, constraints: RowReorderConstraints ): boolean => {
@@ -129,7 +129,7 @@ const isSourceMovable = ( sourceRowIndex: number, constraints: RowReorderConstra
  * 移動先境界が指定された行制約に対して有効か判定する。
  *
  * @param destinationBoundaryIndex 移動先の0-based挿入位置。
- * @param constraints 判定基準とする行制約。
+ * @param constraints              判定基準とする行制約。
  * @return 行を挿入してTable構造を保持できる場合はtrue。
  */
 const isDestinationValid = (
@@ -155,7 +155,7 @@ const isDestinationValid = (
  *
  * 移動元行自身の直前または直後への挿入は、削除後の挿入位置が元の位置と一致するため更新対象にしない。
  *
- * @param sourceRowIndex 移動元の0-based行位置。
+ * @param sourceRowIndex           移動元の0-based行位置。
  * @param destinationBoundaryIndex 移動前のtbodyを基準とする0-based移動先境界。
  * @return 行順が変化する場合はtrue。
  */
