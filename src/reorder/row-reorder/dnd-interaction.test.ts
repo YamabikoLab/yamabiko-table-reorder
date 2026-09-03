@@ -32,34 +32,37 @@ const blockedSourceConstraints = {
 	blockedBoundaries: [ 2 ] as readonly number[],
 };
 
+const source = {
+	tableIdentity: 'table-a',
+	sourceRowIndex: 1,
+};
+
+/**
+ * 通常系のactive Sessionを準備する。
+ *
+ * prepareStartで確認した行制約をstartへ渡し、テスト対象のLifecycleをactiveまで進める。
+ */
 const prepareActiveSession = () => {
 	getConstraintsMock.mockReturnValueOnce( availableConstraints );
-	const candidate = rowDndInteraction.prepareStart( {
-		tableIdentity: 'table-a',
-		sourceRowIndex: 1,
-	} );
+	const initialConstraints = rowDndInteraction.prepareStart( source );
 
-	if ( candidate === null ) {
-		throw new Error( 'Test precondition failed: expected start candidate.' );
+	if ( initialConstraints === null ) {
+		throw new Error( 'Test precondition failed: expected initial constraints.' );
 	}
 
-	rowDndInteraction.start( candidate );
-	return candidate;
+	rowDndInteraction.start( source, initialConstraints );
+	return initialConstraints;
 };
 
 describe( 'Row DnD Interaction lifecycle', () => {
 	beforeEach( () => {
 		jest.clearAllMocks();
-		try {
-			rowDndInteraction.cancel();
-		} catch {
-			// 前テストがidleで終了している場合も、その状態をそのままテスト開始状態として利用する。
-		}
+		rowDndInteraction.cancel();
 	} );
 
 	/**
 	 * 概要:
-	 * - 開始可能な行では、開始可否判定時の行制約を含む開始候補が返ることを確認する。
+	 * - 開始可能な行では、開始可否判定時に確認した行制約が返ることを確認する。
 	 *
 	 * 事前条件:
 	 * - 対象Tableは取得可能で、移動元行の前後に分断不可境界がない。
@@ -68,28 +71,19 @@ describe( 'Row DnD Interaction lifecycle', () => {
 	 * - prepareStart()を実行する。
 	 *
 	 * 期待結果:
-	 * - 対象Tableと移動元行、および取得した行制約を含む開始候補が返る。
+	 * - Table Integrationから取得した行制約がそのまま返る。
 	 */
-	it( 'when source row is movable, should return a start candidate with the checked constraints', () => {
+	it( 'when source row is movable, should return the checked initial constraints', () => {
 		getConstraintsMock.mockReturnValueOnce( availableConstraints );
 
-		const candidate = rowDndInteraction.prepareStart( {
-			tableIdentity: 'table-a',
-			sourceRowIndex: 1,
-		} );
+		const initialConstraints = rowDndInteraction.prepareStart( source );
 
-		expect( candidate ).toEqual( {
-			source: {
-				tableIdentity: 'table-a',
-				sourceRowIndex: 1,
-			},
-			initialConstraints: availableConstraints,
-		} );
+		expect( initialConstraints ).toBe( availableConstraints );
 	} );
 
 	/**
 	 * 概要:
-	 * - 行単位で構造を保持できない移動元行では、DnD開始候補を成立させないことを確認する。
+	 * - 行単位で構造を保持できない移動元行では、DnD開始を成立させないことを確認する。
 	 *
 	 * 事前条件:
 	 * - 移動元行の直後がrowspan等による分断不可境界である。
@@ -98,17 +92,14 @@ describe( 'Row DnD Interaction lifecycle', () => {
 	 * - prepareStart()を実行する。
 	 *
 	 * 期待結果:
-	 * - nullを返し、Sessionを開始しない。
+	 * - nullを返し、Session開始に渡す行制約を生成しない。
 	 */
-	it( 'when source row crosses a blocked boundary, should reject the start candidate', () => {
+	it( 'when source row crosses a blocked boundary, should reject the start preparation', () => {
 		getConstraintsMock.mockReturnValueOnce( blockedSourceConstraints );
 
-		const candidate = rowDndInteraction.prepareStart( {
-			tableIdentity: 'table-a',
-			sourceRowIndex: 1,
-		} );
+		const initialConstraints = rowDndInteraction.prepareStart( source );
 
-		expect( candidate ).toBeNull();
+		expect( initialConstraints ).toBeNull();
 	} );
 
 	/**
@@ -116,7 +107,7 @@ describe( 'Row DnD Interaction lifecycle', () => {
 	 * - start()がprepareStart()で確認した行制約をそのままSessionへ引き継ぎ、Table構造を取得し直さないことを確認する。
 	 *
 	 * 事前条件:
-	 * - prepareStart()で開始候補が成立している。
+	 * - prepareStart()で開始可能な行制約が返っている。
 	 *
 	 * 操作:
 	 * - start()でSessionを開始し、その後の有効移動先を更新してcomplete()する。
@@ -124,14 +115,14 @@ describe( 'Row DnD Interaction lifecycle', () => {
 	 * 期待結果:
 	 * - complete()までの間、prepareStart()後にTable構造を追加取得せず、最終確定時だけ現在構造を1回取得する。
 	 */
-	it( 'when a prepared candidate starts, should keep its initial constraints until complete revalidation', () => {
-		const candidate = prepareActiveSession();
+	it( 'when checked constraints start a session, should keep them until complete revalidation', () => {
+		const initialConstraints = prepareActiveSession();
 		getConstraintsMock.mockReturnValueOnce( availableConstraints );
 
 		rowDndInteraction.updateDestination( 4 );
 		rowDndInteraction.complete();
 
-		expect( candidate.initialConstraints ).toBe( availableConstraints );
+		expect( initialConstraints ).toBe( availableConstraints );
 		expect( getConstraintsMock ).toHaveBeenCalledTimes( 2 );
 		expect( getConstraintsMock ).toHaveBeenNthCalledWith( 1, 'table-a' );
 		expect( getConstraintsMock ).toHaveBeenNthCalledWith( 2, 'table-a' );
@@ -152,20 +143,22 @@ describe( 'Row DnD Interaction lifecycle', () => {
 	 * - Table更新を要求せず、complete()時の現在構造取得も行わず正常終了する。
 	 */
 	it( 'when destination is blocked by initial constraints, should complete without updating the table', () => {
-		getConstraintsMock.mockReturnValueOnce( {
+		const blockedDestinationConstraints = {
 			rowCount: 5,
-			blockedBoundaries: [ 2 ],
-		} );
-		const candidate = rowDndInteraction.prepareStart( {
+			blockedBoundaries: [ 2 ] as readonly number[],
+		};
+		getConstraintsMock.mockReturnValueOnce( blockedDestinationConstraints );
+		const destinationSource = {
 			tableIdentity: 'table-a',
 			sourceRowIndex: 3,
-		} );
+		};
+		const initialConstraints = rowDndInteraction.prepareStart( destinationSource );
 
-		if ( candidate === null ) {
-			throw new Error( 'Test precondition failed: expected start candidate.' );
+		if ( initialConstraints === null ) {
+			throw new Error( 'Test precondition failed: expected initial constraints.' );
 		}
 
-		rowDndInteraction.start( candidate );
+		rowDndInteraction.start( destinationSource, initialConstraints );
 		rowDndInteraction.updateDestination( 2 );
 		rowDndInteraction.complete();
 
@@ -265,20 +258,20 @@ describe( 'Row DnD Interaction lifecycle', () => {
 	 * - cancel()した後、新しいprepareStart()を実行する。
 	 *
 	 * 期待結果:
-	 * - Table更新は行われず、新しい開始候補が正常に返る。
+	 * - Table更新は行われず、新しい開始判定の行制約が正常に返る。
 	 */
 	it( 'when active session is cancelled, should end without update and allow the next start', () => {
 		prepareActiveSession();
 
 		rowDndInteraction.cancel();
 		getConstraintsMock.mockReturnValueOnce( availableConstraints );
-		const nextCandidate = rowDndInteraction.prepareStart( {
+		const nextConstraints = rowDndInteraction.prepareStart( {
 			tableIdentity: 'table-b',
 			sourceRowIndex: 2,
 		} );
 
 		expect( applyRowMoveMock ).not.toHaveBeenCalled();
-		expect( nextCandidate ).not.toBeNull();
+		expect( nextConstraints ).toBe( availableConstraints );
 	} );
 
 	/**
