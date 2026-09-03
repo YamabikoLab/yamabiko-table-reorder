@@ -4,8 +4,10 @@
  * DnD開始前の開始可否判定、activeな行DnD Session、移動先更新、確定、cancelのLifecycleを所有する。
  * 開始可否判定で確認した行制約はprepareStartの戻り値としてstartへ引き継ぎ、Session開始時に外部Table構造を取得し直さない。
  * active Sessionだけを共有状態として保持し、DnD Engine固有の物理状態やSession開始前の候補を状態として複製しない。
+ * Reorder PresentationへはStoreを公開せず、表示に必要な意味状態だけを用途別のHookで公開する。
  */
 
+import { useStore } from 'zustand';
 import { devtools } from 'zustand/middleware';
 import { createStore } from 'zustand/vanilla';
 
@@ -304,6 +306,35 @@ const rowDndStore = createStore< RowDndStore >()(
 		}
 	)
 );
+
+/**
+ * Reorder Presentationが行DnD中の表示開始・終了を追従するために利用する。
+ *
+ * DnD Interactionが所有する状態のうちphaseだけを購読し、Session内部状態やActionは公開しない。
+ *
+ * @return 現在の行DnD Lifecycle状態。
+ */
+export const useRowDndPhase = (): RowDndStoreState[ 'phase' ] =>
+	useStore( rowDndStore, ( state ) => state.phase );
+
+/**
+ * Reorder Presentationが現在の有効な挿入位置を追従するために利用する。
+ *
+ * active SessionのdestinationBoundaryIndexだけを購読し、idleまたは有効な移動先がない場合はnullを返す。
+ * Session全体を公開せず、移動先変更と無関係な内部状態の変化でPresentationを更新しない。
+ *
+ * @return 現在の有効な0-based移動先境界。有効な移動先がない場合はnull。
+ */
+export const useRowDndDestinationBoundaryIndex = (): number | null =>
+	useStore( rowDndStore, ( state ) => {
+		let destinationBoundaryIndex: number | null = null;
+
+		if ( state.phase === 'active' ) {
+			destinationBoundaryIndex = state.session.destinationBoundaryIndex;
+		}
+
+		return destinationBoundaryIndex;
+	} );
 
 /**
  * DnD Engine Lifecycleから利用する行専用DnD Interactionの内部仕様。
