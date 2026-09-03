@@ -5,7 +5,7 @@
  * 新しいDOM階層は追加せず、Gutenberg既存のwrapper propsへ必要な入力抑止だけを合成する。
  */
 
-import { useEffect, useRef, useSyncExternalStore } from '@wordpress/element';
+import { useCallback, useEffect, useRef, useSyncExternalStore } from '@wordpress/element';
 import type { ComponentType } from '@wordpress/element';
 
 import { connectDndKitColumnPoc } from '@/reorder/column-reorder/dnd-kit-poc';
@@ -44,6 +44,12 @@ export const ReorderModeBlockListBlock = ( props: {
 	const { BlockListBlock, blockProps } = props;
 	const { clientId, wrapperProps } = blockProps;
 	const editingAllowed = useEditingAllowed( clientId );
+	const getCurrentMode = useCallback( () => reorderMode.getMode( clientId ), [ clientId ] );
+	const currentMode = useSyncExternalStore(
+		reorderMode.subscribe,
+		getCurrentMode,
+		getCurrentMode
+	);
 	const visualFeedbackEnabled = useSyncExternalStore(
 		dndKitPocSettings.subscribe,
 		dndKitPocSettings.isVisualFeedbackEnabled,
@@ -54,8 +60,6 @@ export const ReorderModeBlockListBlock = ( props: {
 	useEffect( () => {
 		cleanupPocRef.current?.();
 		cleanupPocRef.current = null;
-
-		const currentMode = reorderMode.getMode( clientId );
 
 		if ( process.env.NODE_ENV !== 'test' ) {
 			console.info( '[YTR PoC debug] effect', {
@@ -79,7 +83,7 @@ export const ReorderModeBlockListBlock = ( props: {
 			cleanupPocRef.current?.();
 			cleanupPocRef.current = null;
 		};
-	}, [ clientId, editingAllowed, visualFeedbackEnabled ] );
+	}, [ clientId, currentMode, editingAllowed, visualFeedbackEnabled ] );
 
 	const reorderWrapperProps = ! editingAllowed
 		? {
