@@ -30,6 +30,7 @@ workspace "YTR Reorder v1 Architecture" {
 		EXT_DND_ENGINE = element "DnD Engine" "External Library" "物理入力の継続、物理的なDnD状態、移動先候補の検出、および自動スクロール実行を提供する。" {
 			tags "External Context,External Library"
 		}
+
 		RESP_REORDER_MODE = element "Reorder Mode" "Responsibility" "Tableツールバーの行・列入口、`edit" {
 			tags "Responsibility"
 			!script groovy {
