@@ -3,22 +3,45 @@ workspace "YTR Reorder v1 Architecture" {
 	!impliedRelationships false
 
 	model {
-		EXT_WORDPRESS_EDITOR = element "WordPress Editor" "External System" "QR-02で保証対象とする編集環境を提供し、Row Reorderの入力と表示が存在する。" {
-			tags "External Context,External System"
+		group "Row Reorder" {
+			RESP_ROW_REDISCOVERY_DETECTION = element "Rediscovery Detection" "Responsibility" "通常編集時の反復操作から行を移動しようとする意図が成立したことだけを検出し、外側の案内境界へ通知する。" {
+				tags "Responsibility"
+			}
+			RESP_ROW_INPUT_INTERACTION = element "Input Interaction" "Responsibility" "PCとタッチ端末の開始条件を解釈し、DnD開始候補と入力方式固有の一時状態を所有してDnD Engineへ接続する。" {
+				tags "Responsibility"
+			}
+			RESP_ROW_TABLE_INTEGRATION = element "Table Integration" "Responsibility" "対応Table Blockとの差を吸収し、行並び替えに必要なTable同一性、現在構造、行更新境界、およびWordPress Undoとの境界を提供する。" {
+				tags "Responsibility"
+			}
+			RESP_ROW_DND_INTERACTION = element "DnD Interaction" "Responsibility" "DnD Engineの物理的なDnD進行をRow Reorderの意味状態へ変換し、行DnD Session、開始可否判定、移動先判定、確定、中止、回復Lifecycleを所有する。" {
+				tags "Responsibility"
+			}
+			RESP_ROW_PRESENTATION = element "Reorder Presentation" "Responsibility" "Row Reorderの意味状態と必要な物理的DnD情報から、行DnD中の独立した視覚フィードバックとDesignで定義された通知を表現する。" {
+				tags "Responsibility"
+			}
+			RESP_ROW_AUTO_SCROLL = element "Auto Scroll" "Responsibility" "行DnD中に許可する縦方向と対象Tableに必要なスクロール範囲を決定し、物理的な実行をDnD Engineへ委ねる。" {
+				tags "Responsibility"
+			}
 		}
-		EXT_SUPPORTED_TABLE_BLOCK = element "Supported Table Block" "External Block" "FR-13で定義されるCore TableまたはFlexible Table Blockであり、Table Integrationを介して行構造の取得と行順更新を行う対象。" {
-			tags "External Context,External Block"
+
+		group "WordPress Integration" {
+			EXT_WORDPRESS_EDITOR = element "WordPress Editor" "External System" "QR-02で保証対象とする編集環境を提供し、Row Reorderの入力と表示が存在する。" {
+				tags "External Context,External System"
+			}
+			EXT_SUPPORTED_TABLE_BLOCK = element "Supported Table Block" "External Block" "FR-13で定義されるCore TableまたはFlexible Table Blockであり、Table Integrationを介して行構造の取得と行順更新を行う対象。" {
+				tags "External Context,External Block"
+			}
+			EXT_WORDPRESS_UNDO = element "WordPress Undo" "External Capability" "成立した1回の行並び替えを1回のUndoで戻せる更新単位を提供する。" {
+				tags "External Context,External Capability"
+			}
+			EXT_SCROLL_AREA = element "Editor Scroll Area" "External Environment" "行DnD中に縦方向へ自動スクロールする対象領域を提供する。" {
+				tags "External Context,External Environment"
+			}
 		}
-		EXT_WORDPRESS_UNDO = element "WordPress Undo" "External Capability" "成立した1回の行並び替えを1回のUndoで戻せる更新単位を提供する。" {
-			tags "External Context,External Capability"
-		}
-		EXT_SCROLL_AREA = element "Editor Scroll Area" "External Environment" "行DnD中に縦方向へ自動スクロールする対象領域を提供する。" {
-			tags "External Context,External Environment"
-		}
+
 		EXT_DND_ENGINE = element "DnD Engine" "External Library" "物理入力の継続、物理的なDnD状態、移動先候補の検出、および自動スクロール実行を提供する。" {
 			tags "External Context,External Library"
 		}
-
 		RESP_REORDER_MODE = element "Reorder Mode" "Responsibility" "Tableツールバーの行・列入口、`edit" {
 			tags "Responsibility"
 		}
@@ -26,24 +49,6 @@ workspace "YTR Reorder v1 Architecture" {
 			tags "Responsibility"
 		}
 		RESP_EDITOR_DOM_CONTEXT = element "Editor DOM Context" "Responsibility" "現在のWordPress Editorに属するDOM / Web API contextを必要な時点で解決する。" {
-			tags "Responsibility"
-		}
-		RESP_ROW_REDISCOVERY_DETECTION = element "Rediscovery Detection" "Responsibility" "通常編集時の反復操作から行を移動しようとする意図が成立したことだけを検出し、外側の案内境界へ通知する。" {
-			tags "Responsibility"
-		}
-		RESP_ROW_INPUT_INTERACTION = element "Input Interaction" "Responsibility" "PCとタッチ端末の開始条件を解釈し、DnD開始候補と入力方式固有の一時状態を所有してDnD Engineへ接続する。" {
-			tags "Responsibility"
-		}
-		RESP_ROW_TABLE_INTEGRATION = element "Table Integration" "Responsibility" "対応Table Blockとの差を吸収し、行並び替えに必要なTable同一性、現在構造、行更新境界、およびWordPress Undoとの境界を提供する。" {
-			tags "Responsibility"
-		}
-		RESP_ROW_DND_INTERACTION = element "DnD Interaction" "Responsibility" "DnD Engineの物理的なDnD進行をRow Reorderの意味状態へ変換し、行DnD Session、開始可否判定、移動先判定、確定、中止、回復Lifecycleを所有する。" {
-			tags "Responsibility"
-		}
-		RESP_ROW_PRESENTATION = element "Reorder Presentation" "Responsibility" "Row Reorderの意味状態と必要な物理的DnD情報から、行DnD中の独立した視覚フィードバックとDesignで定義された通知を表現する。" {
-			tags "Responsibility"
-		}
-		RESP_ROW_AUTO_SCROLL = element "Auto Scroll" "Responsibility" "行DnD中に許可する縦方向と対象Tableに必要なスクロール範囲を決定し、物理的な実行をDnD Engineへ委ねる。" {
 			tags "Responsibility"
 		}
 
