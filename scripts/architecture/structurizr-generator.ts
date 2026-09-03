@@ -1,7 +1,7 @@
 import type {
+	ArchitectureBoundary,
 	ArchitectureDependency,
 	ArchitectureModel,
-	ArchitectureBoundary,
 	DependencyView,
 	ExternalContext,
 	ProcessFlowEdgeKind,
@@ -177,7 +177,7 @@ const generateBoundary = (
 	boundary.includes.forEach( ( id ) => {
 		const element = elementsById.get( id );
 		if ( element === undefined ) {
-			throw new Error( `Ownership Boundary ${ boundary.id} contains unknown element ${ id }.` );
+			throw new Error( `Ownership Boundary ${ boundary.id } contains unknown element ${ id }.` );
 		}
 		lines.push( ...elementLines( element, '\t\t\t' ) );
 	} );
