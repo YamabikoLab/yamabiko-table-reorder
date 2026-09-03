@@ -2,8 +2,11 @@
  * 行専用DnD Interactionの開始、移動先更新、確定、cancelのLifecycleを確認する。
  *
  * Store内部を直接参照せず、公開されたDnD Interaction境界とTable Integrationへの更新要求を通して、
- * Session開始時制約の保持、開始拒否通知、complete時の現在構造への再照合、正常終了、異常終了通知、およびLifecycle違反を検証する。
+ * Session開始時制約の保持、開始拒否通知、complete時の現在構造への再照合、正常終了、異常終了通知、
+ * DnD終了後のReorder Mode解決、およびLifecycle違反を検証する。
  */
+
+import { reorderMode, rowReorderMode } from '@/reorder/reorder-mode';
 
 import {
 	rowDndInteraction,
@@ -41,6 +44,13 @@ const source = {
 	sourceRowIndex: 1,
 };
 
+const RESET_TABLE_IDENTITY = '__row-dnd-test-reset__';
+
+const resetReorderMode = () => {
+	reorderMode.observeTable( RESET_TABLE_IDENTITY );
+	reorderMode.notifyTableInactive( RESET_TABLE_IDENTITY );
+};
+
 /**
  * 通常系のactive Sessionを準備する。
  *
@@ -66,7 +76,11 @@ describe( 'Row DnD Interaction lifecycle', () => {
 
 	beforeEach( () => {
 		jest.clearAllMocks();
+		getConstraintsMock.mockReset();
+		applyRowMoveMock.mockReset();
+		getConstraintsMock.mockReturnValue( availableConstraints );
 		rowDndInteraction.cancel();
+		resetReorderMode();
 		terminationNoticeListener = jest.fn();
 		unsubscribeTerminationNotice = subscribeRowDndTerminationNotice( terminationNoticeListener );
 		startRejectionNoticeListener = jest.fn();
@@ -78,6 +92,8 @@ describe( 'Row DnD Interaction lifecycle', () => {
 	afterEach( () => {
 		unsubscribeTerminationNotice();
 		unsubscribeStartRejectionNotice();
+		rowDndInteraction.cancel();
+		resetReorderMode();
 	} );
 
 	/**
@@ -199,7 +215,7 @@ describe( 'Row DnD Interaction lifecycle', () => {
 
 	/**
 	 * 概要:
-	 * - start()がprepareStart()で確認した行制約をそのままSessionへ引き継ぎ、Table構造を取得し直さないことを確認する。
+	 * - start()がprepareStart()で確認した行制約をそのままSessionへ引き継ぎ、DnD終了後のLifecycle判定とは分離されることを確認する。
 	 *
 	 * 事前条件:
 	 * - prepareStart()で開始可能な行制約が返っている。
@@ -208,7 +224,7 @@ describe( 'Row DnD Interaction lifecycle', () => {
 	 * - start()でSessionを開始し、その後の有効移動先を更新してcomplete()する。
 	 *
 	 * 期待結果:
-	 * - complete()までの間、prepareStart()後にTable構造を追加取得せず、最終確定時だけ現在構造を1回取得する。
+	 * - Session中の確定再照合までは開始時制約を保持し、Session終了後にReorder Mode用の現在行制約を別途取得する。
 	 */
 	it( 'when checked constraints start a session, should keep them until complete revalidation', () => {
 		const initialConstraints = prepareActiveSession();
@@ -218,9 +234,10 @@ describe( 'Row DnD Interaction lifecycle', () => {
 		rowDndInteraction.complete();
 
 		expect( initialConstraints ).toBe( availableConstraints );
-		expect( getConstraintsMock ).toHaveBeenCalledTimes( 2 );
+		expect( getConstraintsMock ).toHaveBeenCalledTimes( 3 );
 		expect( getConstraintsMock ).toHaveBeenNthCalledWith( 1, 'table-a' );
 		expect( getConstraintsMock ).toHaveBeenNthCalledWith( 2, 'table-a' );
+		expect( getConstraintsMock ).toHaveBeenNthCalledWith( 3, 'table-a' );
 	} );
 
 	/**
@@ -235,7 +252,7 @@ describe( 'Row DnD Interaction lifecycle', () => {
 	 * - 無効な境界へupdateDestination()し、complete()する。
 	 *
 	 * 期待結果:
-	 * - Table更新と異常終了通知を要求せず、complete()時の現在構造取得も行わず正常終了する。
+	 * - Table更新と異常終了通知を要求せず、確定用再照合は行わないが、終了後Lifecycle用の現在行制約は取得する。
 	 */
 	it( 'when destination is blocked by initial constraints, should complete without updating the table', () => {
 		const blockedDestinationConstraints = {
@@ -257,7 +274,7 @@ describe( 'Row DnD Interaction lifecycle', () => {
 		rowDndInteraction.updateDestination( 2 );
 		rowDndInteraction.complete();
 
-		expect( getConstraintsMock ).toHaveBeenCalledTimes( 1 );
+		expect( getConstraintsMock ).toHaveBeenCalledTimes( 2 );
 		expect( applyRowMoveMock ).not.toHaveBeenCalled();
 		expect( terminationNoticeListener ).not.toHaveBeenCalled();
 	} );
@@ -290,6 +307,39 @@ describe( 'Row DnD Interaction lifecycle', () => {
 			destinationBoundaryIndex: 4,
 		} );
 		expect( terminationNoticeListener ).not.toHaveBeenCalled();
+	} );
+
+	/**
+	 * 概要:
+	 * - complete()時点で今回の移動先だけが成立しなくなっても、対象Table自体が行並び替え可能ならReorder Modeを維持することを確認する。
+	 *
+	 * 事前条件:
+	 * - Table Aで行並び替えが有効である。
+	 * - Session開始時には移動先境界4が有効だが、complete()時の再照合では境界4だけが分断不可になっている。
+	 * - DnD終了後に取得し直すTable Aの行制約は利用可能である。
+	 *
+	 * 操作:
+	 * - 移動先を更新してcomplete()する。
+	 *
+	 * 期待結果:
+	 * - 今回のDnDは異常終了通知対象となるが、Table Aの行並び替えモードは維持される。
+	 */
+	it( 'when the completed move becomes invalid but the table remains supported, should keep row mode active', () => {
+		reorderMode.select( 'row', 'table-a' );
+		prepareActiveSession();
+		getConstraintsMock
+			.mockReturnValueOnce( {
+				rowCount: 5,
+				blockedBoundaries: [ 4 ],
+			} )
+			.mockReturnValueOnce( availableConstraints );
+
+		rowDndInteraction.updateDestination( 4 );
+		rowDndInteraction.complete();
+
+		expect( applyRowMoveMock ).not.toHaveBeenCalled();
+		expect( terminationNoticeListener ).toHaveBeenCalledTimes( 1 );
+		expect( rowReorderMode.isActive( 'table-a' ) ).toBe( true );
 	} );
 
 	/**
@@ -341,7 +391,7 @@ describe( 'Row DnD Interaction lifecycle', () => {
 		rowDndInteraction.updateDestination( 2 );
 		rowDndInteraction.complete();
 
-		expect( getConstraintsMock ).toHaveBeenCalledTimes( 2 );
+		expect( getConstraintsMock ).toHaveBeenCalledTimes( 3 );
 		expect( applyRowMoveMock ).not.toHaveBeenCalled();
 		expect( terminationNoticeListener ).not.toHaveBeenCalled();
 	} );
@@ -372,6 +422,32 @@ describe( 'Row DnD Interaction lifecycle', () => {
 		expect( applyRowMoveMock ).not.toHaveBeenCalled();
 		expect( terminationNoticeListener ).not.toHaveBeenCalled();
 		expect( nextConstraints ).toBe( availableConstraints );
+	} );
+
+	/**
+	 * 概要:
+	 * - cancel後にSession対象Tableの現在行制約を取得できない場合は、Reorder Modeを通常編集へ戻すことを確認する。
+	 *
+	 * 事前条件:
+	 * - Table Aで行並び替えが有効で、active Sessionが成立している。
+	 * - DnD終了後にはTable Aの現在行制約を安全に取得できない。
+	 *
+	 * 操作:
+	 * - cancel()する。
+	 *
+	 * 期待結果:
+	 * - Session終了後にTable Aの現在行制約を取得し直し、行並び替えを終了して通常編集へ戻る。
+	 */
+	it( 'when cancelled DnD table can no longer continue row reorder, should return reorder mode to edit', () => {
+		reorderMode.select( 'row', 'table-a' );
+		prepareActiveSession();
+		getConstraintsMock.mockReturnValueOnce( null );
+
+		rowDndInteraction.cancel();
+
+		expect( getConstraintsMock ).toHaveBeenCalledTimes( 2 );
+		expect( getConstraintsMock ).toHaveBeenNthCalledWith( 2, 'table-a' );
+		expect( reorderMode.getMode( 'table-a' ) ).toBe( 'edit' );
 	} );
 
 	/**
