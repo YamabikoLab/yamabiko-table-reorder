@@ -197,7 +197,6 @@ complete時の現在構造への再照合が成立した後、Table Integration�
 ### Responsibility Details
 
 #### Reorder Mode {#RESP_REORDER_MODE}
-
 ##### Responsibility
 
 Tableツールバーの「行を並び替え」「列を並び替え」の入口、入口選択、および`edit | row | column`の排他状態を所有する。`row | column`では対象Tableの内容編集を開始させず、通常編集と並び替えモードを排他的に成立させる。Row Reorderへは行並び替えが有効であることだけを提供する。
@@ -297,7 +296,6 @@ DOM / Web APIを必要とする時点で現在のeditor contextを解決する�
 ##### Lifecycle
 
 通常編集状態でだけ判定を行い、行並び替えまたは列並び替えが有効になった場合、通常編集として成立する操作へ移行した場合、または判定系列が終了した場合は短期状態を破棄する。
-
 ##### Invariants
 
 - 一度だけの短いドラッグや通常の編集操作を行移動意図の成立として扱わない。
@@ -489,9 +487,10 @@ active Session中だけ活動し、complete、cancel、継続不能、内部Erro
 | 3 | RESP_ROW_DND_INTERACTION | RESP_ROW_TABLE_INTEGRATION | 現在の対象Table情報を要求する。 |
 | 4 | RESP_ROW_TABLE_INTEGRATION | EXT_SUPPORTED_TABLE_BLOCK | 現在の対応Table Blockから行構造とTable同一性を取得する。 |
 | 5 | RESP_ROW_DND_INTERACTION | EXT_DND_ENGINE | 開始可否結果を返し、開始不能な場合は物理的なDnDを成立させない。 |
-| 6 | EXT_DND_ENGINE | RESP_ROW_DND_INTERACTION | 開始可能な場合だけ物理的なDnD開始成立をstart境界へ渡す。 |
-| 7 | RESP_ROW_DND_INTERACTION | EXT_DND_ENGINE | Session成立後、そのSessionの移動先解決に必要な候補だけを一時的に接続する。 |
-| 8 | RESP_ROW_DND_INTERACTION | RESP_ROW_PRESENTATION | Session開始時は移動対象行のDnD表示を開始し、開始拒否時は必要な理由表示を要求する。 |
+| 6 | RESP_ROW_DND_INTERACTION | RESP_ROW_PRESENTATION | 開始不能な場合は、必要な理由表示を要求する。 |
+| 7 | EXT_DND_ENGINE | RESP_ROW_DND_INTERACTION | 開始可能な場合だけ物理的なDnD開始成立をstart境界へ渡す。 |
+| 8 | RESP_ROW_DND_INTERACTION | EXT_DND_ENGINE | Session成立後、そのSessionの移動先解決に必要な候補だけを一時的に接続する。 |
+| 9 | RESP_ROW_DND_INTERACTION | RESP_ROW_PRESENTATION | Session開始時は移動対象行のDnD表示を開始する。 |
 
 ### Row DnD progress {#RV_ROW_DND_PROGRESS}
 
