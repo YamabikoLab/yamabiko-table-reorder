@@ -3,6 +3,21 @@ workspace "YTR Reorder v1 Architecture" {
 	!impliedRelationships false
 
 	model {
+		group "Reorder Common" {
+			RESP_REORDER_MODE = element "Reorder Mode" "Responsibility" "Tableツールバーの行・列入口、`edit" {
+				tags "Responsibility"
+			}
+			RESP_REORDER_GUIDANCE = element "Reorder Guidance" "Responsibility" "PC / タッチごとの初回案内表示済み状態と、Reorder Modeが所有する行・列入口をまとめて提示する共通案内状態を所有する外側の境界。" {
+				tags "Responsibility"
+			}
+		}
+
+		group "Editor Integration" {
+			RESP_EDITOR_DOM_CONTEXT = element "Editor DOM Context" "Responsibility" "現在のWordPress Editorに属するDOM / Web API contextを必要な時点で解決する。" {
+				tags "Responsibility"
+			}
+		}
+
 		group "Row Reorder" {
 			RESP_ROW_REDISCOVERY_DETECTION = element "Rediscovery Detection" "Responsibility" "通常編集時の反復操作から行を移動しようとする意図が成立したことだけを検出し、外側の案内境界へ通知する。" {
 				tags "Responsibility"
@@ -41,15 +56,6 @@ workspace "YTR Reorder v1 Architecture" {
 
 		EXT_DND_ENGINE = element "DnD Engine" "External Library" "物理入力の継続、物理的なDnD状態、移動先候補の検出、および自動スクロール実行を提供する。" {
 			tags "External Context,External Library"
-		}
-		RESP_REORDER_MODE = element "Reorder Mode" "Responsibility" "Tableツールバーの行・列入口、`edit" {
-			tags "Responsibility"
-		}
-		RESP_REORDER_GUIDANCE = element "Reorder Guidance" "Responsibility" "PC / タッチごとの初回案内表示済み状態と、Reorder Modeが所有する行・列入口をまとめて提示する共通案内状態を所有する外側の境界。" {
-			tags "Responsibility"
-		}
-		RESP_EDITOR_DOM_CONTEXT = element "Editor DOM Context" "Responsibility" "現在のWordPress Editorに属するDOM / Web API contextを必要な時点で解決する。" {
-			tags "Responsibility"
 		}
 
 		DEP_001 = RESP_REORDER_MODE -> EXT_WORDPRESS_EDITOR "WordPress Editor上のTableツールバー入口、通常編集と行・列並び替えの排他、および対象Table単位のモードLifecycleを扱うために必要とする。" {
@@ -367,35 +373,35 @@ workspace "YTR Reorder v1 Architecture" {
 	}
 
 	views {
-		custom "DV_ROW_RESPONSIBILITY" {
+		systemLandscape "DV_ROW_RESPONSIBILITY" {
 			title "Structural Dependencies - Responsibility View"
 			include EXT_WORDPRESS_EDITOR EXT_SUPPORTED_TABLE_BLOCK EXT_WORDPRESS_UNDO EXT_SCROLL_AREA EXT_DND_ENGINE RESP_REORDER_MODE RESP_REORDER_GUIDANCE RESP_EDITOR_DOM_CONTEXT RESP_ROW_REDISCOVERY_DETECTION RESP_ROW_INPUT_INTERACTION RESP_ROW_TABLE_INTEGRATION RESP_ROW_DND_INTERACTION RESP_ROW_PRESENTATION RESP_ROW_AUTO_SCROLL
 			exclude "relationship.tag!=Structural Dependency"
 			autoLayout lr
 		}
 
-		custom "DV_ROW_EDITOR_INTERACTION" {
+		systemLandscape "DV_ROW_EDITOR_INTERACTION" {
 			title "Structural Dependencies - Editor Interaction"
 			include EXT_WORDPRESS_EDITOR EXT_DND_ENGINE RESP_REORDER_MODE RESP_REORDER_GUIDANCE RESP_EDITOR_DOM_CONTEXT RESP_ROW_REDISCOVERY_DETECTION RESP_ROW_INPUT_INTERACTION
 			exclude "relationship.tag!=Structural Dependency"
 			autoLayout lr
 		}
 
-		custom "DV_ROW_DND_CORE" {
+		systemLandscape "DV_ROW_DND_CORE" {
 			title "Structural Dependencies - DnD Core"
 			include EXT_SUPPORTED_TABLE_BLOCK EXT_DND_ENGINE RESP_REORDER_MODE RESP_ROW_INPUT_INTERACTION RESP_ROW_TABLE_INTEGRATION RESP_ROW_DND_INTERACTION
 			exclude "relationship.tag!=Structural Dependency"
 			autoLayout lr
 		}
 
-		custom "DV_ROW_FEEDBACK" {
+		systemLandscape "DV_ROW_FEEDBACK" {
 			title "Structural Dependencies - DnD Feedback"
 			include EXT_SCROLL_AREA EXT_DND_ENGINE RESP_EDITOR_DOM_CONTEXT RESP_ROW_DND_INTERACTION RESP_ROW_PRESENTATION RESP_ROW_AUTO_SCROLL
 			exclude "relationship.tag!=Structural Dependency"
 			autoLayout lr
 		}
 
-		custom "DV_ROW_DATA_UPDATE" {
+		systemLandscape "DV_ROW_DATA_UPDATE" {
 			title "Structural Dependencies - Table Update"
 			include EXT_SUPPORTED_TABLE_BLOCK EXT_WORDPRESS_UNDO RESP_ROW_DND_INTERACTION RESP_ROW_TABLE_INTEGRATION
 			exclude "relationship.tag!=Structural Dependency"
