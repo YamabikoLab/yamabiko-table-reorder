@@ -51,6 +51,9 @@ type RowDndStoreState =
 			session: RowDndSession;
 	  };
 
+/** DnD Interactionが所有する意味状態とLifecycle操作をまとめたStore境界。 */
+type RowDndStore = RowDndStoreState & RowDndStoreActions;
+
 /** DnD Interaction Storeが状態遷移のために提供する操作を表す。 */
 type RowDndStoreActions = {
 	/**
@@ -78,9 +81,6 @@ type RowDndStoreActions = {
 	/** Tableを更新せずactive Sessionを終了する。 */
 	cancel: () => void;
 };
-
-/** DnD Interactionが所有する意味状態とLifecycle操作をまとめたStore境界。 */
-type RowDndStore = RowDndStoreState & RowDndStoreActions;
 
 /**
  * 移動対象行が指定された行制約に対して行単位で移動可能か判定する。
