@@ -155,6 +155,15 @@ complete時の現在構造への再照合が成立した後、Table Integration�
 | RESP_ROW_PRESENTATION | Reorder Presentation | Row Reorderの意味状態と必要な物理的DnD情報から、行DnD中の独立した視覚フィードバックとDesignで定義された通知を表現する。 |
 | RESP_ROW_AUTO_SCROLL | Auto Scroll | 行DnD中に許可する縦方向と対象Tableに必要なスクロール範囲を決定し、物理的な実行をDnD Engineへ委ねる。 |
 
+### Ownership Boundaries
+
+| ID | Name | Includes |
+| --- | --- | --- |
+| BOUNDARY_ROW_REORDER | Row Reorder | RESP_ROW_REDISCOVERY_DETECTION RESP_ROW_INPUT_INTERACTION RESP_ROW_TABLE_INTEGRATION RESP_ROW_DND_INTERACTION RESP_ROW_PRESENTATION RESP_ROW_AUTO_SCROLL |
+| BOUNDARY_WORDPRESS_INTEGRATION | WordPress Integration | EXT_WORDPRESS_EDITOR EXT_SUPPORTED_TABLE_BLOCK EXT_WORDPRESS_UNDO EXT_SCROLL_AREA |
+
+Row Reorder境界には行専用責務だけを含める。Reorder Mode、Reorder Guidance、Editor DOM ContextはRow Reorderの外側にあるためこの境界へ含めず、DnD Engineも独立した外部ライブラリ境界として含めない。WordPress Integration境界はWordPress Editorとその編集・更新環境に属する外部接点をまとめ、内部責務とは混在させない。
+
 ### Dependencies
 
 | Dependent | Depends on | Reason |
@@ -406,7 +415,7 @@ complete成功、cancel、成立しないdropでは現在の行並び替えモ�
 - `tbody`外を移動先として成立させない。
 - 行移動後にSession開始時のTable構造を壊す位置を有効な移動先として成立させない。
 - Sessionが保持する最終有効移動先だけを根拠にcompleteを確定しない。
-- completeは移動対象、最終移動先、Table同一性が現在のTable構造でも成立し、実際に行順が変化することを確認できた場合だけ新しい行順を確定する。
+- completeは移動対象、最終有効移動先、Table同一性が現在のTable構造でも成立し、実際に行順が変化することを確認できた場合だけ新しい行順を確定する。
 - complete時の再照合が成立しない場合は外部環境変化による正常な中止として扱い、新しい行順を確定しない。
 - cancel、開始拒否、成立しないdrop、外部環境変化による終了は新しい行順を確定しない。
 - 自身が所有する移動先候補接続だけを直接破棄し、Input Interactionが所有する開始候補接続と入力一時状態のLifecycleに関与しない。
