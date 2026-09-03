@@ -257,7 +257,7 @@ Rules:
 - An architecture element may remain ungrouped when no meaningful ownership or subsystem boundary applies.
 - Define a boundary only when it has architecture meaning for ownership, subsystem separation, or an external integration area. Do not create a boundary merely to improve diagram layout or reduce line crossings.
 - A parser or generator must not infer boundary membership from names, prefixes other than the explicit stable IDs, dependencies, views, runtime flows, source directories, or explanatory prose.
-- A generator must translate only these explicitly defined boundaries into Structurizr `group` declarations.
+- A generator must represent only these explicitly defined boundaries as Structurizr groups. The concrete DSL form must be compatible with the generated element types and must not require a `group { ... }` declaration when that form is invalid for them.
 
 ### Dependencies
 
