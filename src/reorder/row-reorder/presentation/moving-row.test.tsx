@@ -69,12 +69,8 @@ const createSourceTable = () => {
 			height: 40,
 		} )
 	);
-	jest.spyOn( firstCell, 'getBoundingClientRect' ).mockReturnValue(
-		rectangle( { width: 220 } )
-	);
-	jest.spyOn( secondCell, 'getBoundingClientRect' ).mockReturnValue(
-		rectangle( { width: 180 } )
-	);
+	jest.spyOn( firstCell, 'getBoundingClientRect' ).mockReturnValue( rectangle( { width: 220 } ) );
+	jest.spyOn( secondCell, 'getBoundingClientRect' ).mockReturnValue( rectangle( { width: 180 } ) );
 
 	return { table, row };
 };

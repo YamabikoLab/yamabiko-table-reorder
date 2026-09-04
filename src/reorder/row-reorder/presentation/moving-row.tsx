@@ -180,11 +180,7 @@ const RowMovingOverlay = ( props: { layout: RowMovingDisplayLayout; top: number 
 
 	return createPortal(
 		<div aria-hidden="true" style={ viewportStyle }>
-			<table
-				className={ layout.sourceTable.className }
-				style={ tableStyle }
-				aria-hidden="true"
-			>
+			<table className={ layout.sourceTable.className } style={ tableStyle } aria-hidden="true">
 				<tbody ref={ tableBodyRef } />
 			</table>
 		</div>,
