@@ -1,13 +1,14 @@
 /**
- * 現在操作中の対応Tableの既存Block wrapperへReorder Mode中の通常編集抑止を接続するReact componentを所有する。
+ * 現在操作中の対応Tableの既存Block wrapperへReorder Mode中の通常編集抑止と行DnD接続を反映するReact componentを所有する。
  *
- * 新しいDOM階層は追加せず、Gutenberg既存のwrapper propsへ必要な入力抑止だけを合成する。
- * DnD開始に必要なpointer入力は変更せず、通常編集の開始だけを成立させない。
+ * 新しいDOM階層は追加せず、Gutenberg既存のwrapper propsへ必要な入力抑止とRow DnD開始入力だけを合成する。
+ * dnd-kitの物理LifecycleとRow DnD Sessionの接続はRow Reorder側へ委譲する。
  */
 
 import type { ComponentType } from '@wordpress/element';
 
-import { useEditingAllowed } from '@/reorder/reorder-mode-react';
+import { RowDnd, type RowDndPointerDownHandler } from '@/reorder/row-reorder/dnd';
+import { useReorderMode } from '@/reorder/reorder-mode-react';
 import {
 	preserveEditingStartHandler,
 	type EditingStartWrapperProps,
@@ -23,10 +24,28 @@ export type ReorderModeBlockListBlockProps = {
 };
 
 /**
- * 現在操作中の対応Tableの既存Block wrapperへReorder Modeの編集可否を反映する。
+ * Gutenberg既存のpointerdown処理を維持したまま、Row DnD開始入力を追加する。
+ *
+ * @param existingHandler Gutenberg本体または他のfilterが設定した既存handler。
+ * @param rowDndHandler   Row DnDが提供する開始入力handler。
+ * @return 既存処理の後にRow DnD開始入力を通知するhandler。
+ */
+const preservePointerDownHandler = (
+	existingHandler: EditingStartWrapperProps[ 'onPointerDownCapture' ],
+	rowDndHandler: RowDndPointerDownHandler
+): RowDndPointerDownHandler => {
+	const handler: RowDndPointerDownHandler = ( event ) => {
+		existingHandler?.( event );
+		rowDndHandler( event );
+	};
+	return handler;
+};
+
+/**
+ * 現在操作中の対応Tableの既存Block wrapperへReorder Modeの編集可否とRow DnD接続を反映する。
  *
  * このcomponentは現在選択中の対応Tableに対してだけ生成され、Reorder Modeの購読を所有する。
- * Reorder Mode中もpointerdownは既存propsのままDnD開始へ渡し、通常編集開始につながる入力だけを抑止する。
+ * Row DnD境界はモード切替でBlockListBlockを再mountしないよう常に同じ位置に維持し、行並び替えモード中だけ開始入力を有効化する。
  *
  * @param props                Gutenbergから渡されるBlockListBlock propsと元のcomponent。
  * @param props.BlockListBlock
@@ -39,7 +58,8 @@ export const ReorderModeBlockListBlock = ( props: {
 } ) => {
 	const { BlockListBlock, blockProps } = props;
 	const { clientId, wrapperProps } = blockProps;
-	const editingAllowed = useEditingAllowed( clientId );
+	const { selectedKind } = useReorderMode( clientId );
+	const editingAllowed = selectedKind === null;
 	const reorderWrapperProps = ! editingAllowed
 		? {
 				...wrapperProps,
@@ -48,5 +68,20 @@ export const ReorderModeBlockListBlock = ( props: {
 		  }
 		: wrapperProps;
 
-	return <BlockListBlock { ...blockProps } wrapperProps={ reorderWrapperProps } />;
+	return (
+		<RowDnd enabled={ selectedKind === 'row' } tableIdentity={ clientId }>
+			{ ( rowDndPointerDownCapture ) => (
+				<BlockListBlock
+					{ ...blockProps }
+					wrapperProps={ {
+						...reorderWrapperProps,
+						onPointerDownCapture: preservePointerDownHandler(
+							wrapperProps?.onPointerDownCapture,
+							rowDndPointerDownCapture
+						),
+					} }
+				/>
+			) }
+		</RowDnd>
+	);
 };

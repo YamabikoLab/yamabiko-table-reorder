@@ -5,6 +5,8 @@
  * DnD開始に必要なpointerdownはこの抑止境界で既定動作を取り消さない。
  */
 
+import type { PointerEvent } from 'react';
+
 /** Table内容への編集開始につながる入力イベント。 */
 type EditingStartEvent = {
 	preventDefault: () => void;
@@ -17,7 +19,7 @@ export type EditingStartHandler = ( event: EditingStartEvent ) => void;
 export type EditingStartWrapperProps = {
 	onDoubleClickCapture?: EditingStartHandler;
 	onMouseDownCapture?: EditingStartHandler;
-	onPointerDownCapture?: EditingStartHandler;
+	onPointerDownCapture?: ( event: PointerEvent< Element > ) => void;
 	[ key: string ]: unknown;
 };
 

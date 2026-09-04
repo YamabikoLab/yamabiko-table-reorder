@@ -51,6 +51,14 @@ jest.mock( '@wordpress/components', () => ( {
 	),
 } ) );
 
+jest.mock( '@/reorder/row-reorder/dnd', () => ( {
+	RowDnd: ( {
+		children,
+	}: {
+		children: ( handler: React.PointerEventHandler< Element > ) => React.ReactNode;
+	} ) => children( () => undefined ),
+} ) );
+
 type TableBlockEditProps = BlockEditProps< Record< string, unknown > > & {
 	name: string;
 };
