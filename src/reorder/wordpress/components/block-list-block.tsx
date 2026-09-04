@@ -6,11 +6,11 @@
 
 import type { ComponentType } from '@wordpress/element';
 
+import { useEditingAllowed } from '@/reorder/reorder-mode-react';
 import {
 	preserveEditingStartHandler,
 	type EditingStartWrapperProps,
 } from '@/reorder/wordpress/editing-start';
-import { useEditingAllowed } from '@/reorder/wordpress/hooks/use-editing-allowed';
 
 /** BlockListBlock HOCが利用するprops。 */
 export type ReorderModeBlockListBlockProps = {
