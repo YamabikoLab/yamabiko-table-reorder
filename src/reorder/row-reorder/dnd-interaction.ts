@@ -2,7 +2,7 @@
  * 行専用DnD Interactionとして、DnD Engineの物理的なDnD進行をRow Reorderの意味状態へ変換する。
  *
  * DnD開始前の開始可否判定、activeな行DnD Session、移動先更新、確定、cancelのLifecycleを所有する。
- * 開始可否判定で確認した行制約はprepareStartの戻り値としてstartへ引き継ぎ、Session開始時に外部Table構造を取得し直さない。
+ * 開始可否判定で確認した開始対象と行制約は一回限りの開始準備値としてstartへ引き継ぎ、Session開始時に外部Table構造を取得し直さない。
  * active Sessionだけを共有状態として保持し、DnD Engine固有の物理状態やSession開始前の候補を状態として複製しない。
  * Row Reorder内部のErrorはoperation boundaryで共通failure recoveryへ合流させ、SessionとDnD Interaction所有の一時状態を安全に破棄してidleへ戻す。
  * DnD終了後はSessionと一時状態を破棄してから対象Tableの現在行制約を取得し直し、Reorder Modeへ継続可否だけを通知する。
@@ -42,6 +42,18 @@ export type RowDndSource = {
 };
 
 /**
+ * 物理DnD開始成立まで一回限りで引き継ぐ、開始可否判定済みの行DnD開始準備値を表す。
+ *
+ * 開始対象と、その対象について同じprepareStartで確認した行制約を同じ値として扱い、別試行の値が組み合わさらないようにする。
+ */
+export type RowDndStartPreparation = Readonly< {
+	/** 開始可否判定済みのTableと移動対象行。 */
+	source: RowDndSource;
+	/** sourceと同じ開始試行で確認した開始時行制約。 */
+	initialConstraints: RowReorderConstraints;
+} >;
+
+/**
  * DnD Interactionが保持できる有効状態を表す。
  *
  * idleではSessionを持たず、activeでは必ず1つのSessionを持つことで、Lifecycle上成立しない状態を作らない。
@@ -68,16 +80,15 @@ type RowDndStoreActions = {
 	 * 物理的なDnD開始前に、現在のTable構造で移動対象が開始可能か判定する。
 	 *
 	 * @param source 開始を試行するTableと移動対象行。
-	 * @return 開始可能な場合は開始可否判定時に確認した行制約。開始不能な場合はnull。
+	 * @return 開始可能な場合は開始対象と確認済み行制約を組にした開始準備値。開始不能な場合はnull。
 	 */
-	prepareStart: ( source: RowDndSource ) => RowReorderConstraints | null;
+	prepareStart: ( source: RowDndSource ) => RowDndStartPreparation | null;
 	/**
-	 * 物理的なDnD開始成立後に、開始対象とprepareStartで確認済みの行制約を引き継いでactive Sessionを開始する。
+	 * 物理的なDnD開始成立後に、prepareStartで確定した開始準備値を引き継いでactive Sessionを開始する。
 	 *
-	 * @param source             prepareStartで開始可能と判定されたTableと移動対象行。
-	 * @param initialConstraints prepareStartで確認した行制約。
+	 * @param preparation prepareStartで開始可能と判定された一回限りの開始準備値。
 	 */
-	start: ( source: RowDndSource, initialConstraints: RowReorderConstraints ) => void;
+	start: ( preparation: RowDndStartPreparation ) => void;
 	/**
 	 * DnD Engine側で解決済みの移動先境界を、Session開始時の行制約へ照合して現在の有効移動先へ反映する。
 	 *
@@ -143,16 +154,15 @@ export type RowDndInteraction = {
 	 * 物理DnD開始成立前に開始可否を判定する。
 	 *
 	 * @param source 開始を試行するTableと移動対象行。
-	 * @return 開始可能な場合は開始時制約。開始不能または内部Errorから回復した場合はnull。
+	 * @return 開始可能な場合は開始対象と開始時制約を組にした準備値。開始不能または内部Errorから回復した場合はnull。
 	 */
-	prepareStart: ( source: RowDndSource ) => RowReorderConstraints | null;
+	prepareStart: ( source: RowDndSource ) => RowDndStartPreparation | null;
 	/**
 	 * 物理DnD開始成立後にactive Sessionを開始する。
 	 *
-	 * @param source             開始対象Tableと移動対象行。
-	 * @param initialConstraints prepareStartで確認した開始時制約。
+	 * @param preparation prepareStartで開始可能と判定された一回限りの開始準備値。
 	 */
-	start: ( source: RowDndSource, initialConstraints: RowReorderConstraints ) => void;
+	start: ( preparation: RowDndStartPreparation ) => void;
 	/**
 	 * 現在の移動先境界をactive Sessionへ反映する。
 	 *
@@ -170,7 +180,16 @@ export type RowDndInteraction = {
  *
  * recovery中の一時状態はこの境界を生成した接続インスタンスのクロージャだけで保持し、Zustand StateやRow DnD Sessionへ追加しない。
  */
-export type RowDndOperationBoundary = RowDndInteraction & {
+export type RowDndOperationBoundary = Omit< RowDndInteraction, 'start' > & {
+	/**
+	 * active Session開始をoperation boundaryで実行し、DnD Engine callbackが後続一時登録へ進めるかを返す。
+	 *
+	 * RowDndInteraction本体のstartはvoidのままとし、failure recoveryへ入った事実だけを接続境界向けの戻り値として追加する。
+	 *
+	 * @param preparation prepareStartで開始可能と判定された一回限りの開始準備値。
+	 * @return startが正常に完了した場合はtrue。共通failure recoveryへ入った場合はfalse。
+	 */
+	start: ( preparation: RowDndStartPreparation ) => boolean;
 	/**
 	 * operation boundaryへErrorを伝播できないexecution boundaryから、同じ共通failure recoveryへ合流させる。
 	 *
@@ -409,10 +428,13 @@ const rowDndStore = createStore< RowDndStore >()(
 					return null;
 				}
 
-				return initialConstraints;
+				return {
+					source,
+					initialConstraints,
+				};
 			},
 
-			start: ( source, initialConstraints ) => {
+			start: ( preparation ) => {
 				const state = get();
 
 				/* active Sessionを新しいSessionで置き換えることは禁止し、1回の物理DnDと1つのSessionを対応させる。 */
@@ -420,6 +442,7 @@ const rowDndStore = createStore< RowDndStore >()(
 					throw new Error( 'Row DnD start requires an idle session.' );
 				}
 
+				const { source, initialConstraints } = preparation;
 				const session: RowDndSession = {
 					tableIdentity: source.tableIdentity,
 					sourceRowIndex: source.sourceRowIndex,
@@ -657,19 +680,21 @@ export const createRowDndOperationBoundary = (
 				return null;
 			}
 		},
-		start: ( source, initialConstraints ) => {
+		start: ( preparation ) => {
 			/* recoveryから発生したDnD Engine callbackでは、新しいSession操作を実行しない。 */
 			if ( recovering ) {
-				return;
+				return false;
 			}
 
 			let tableIdentity: string | undefined;
 
 			try {
-				tableIdentity = source.tableIdentity;
-				rowDndStore.getState().start( source, initialConstraints );
+				tableIdentity = preparation.source.tableIdentity;
+				rowDndStore.getState().start( preparation );
+				return true;
 			} catch ( error ) {
 				recoverFailure( 'start', error, { tableIdentity } );
+				return false;
 			}
 		},
 		updateDestination: ( destinationBoundaryIndex ) => {
