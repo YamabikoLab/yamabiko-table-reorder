@@ -14,6 +14,8 @@ import {
 	type EditingStartWrapperProps,
 } from '@/reorder/wordpress/editing-start';
 
+const ROW_REORDER_MODE_CLASS = 'yamabiko-table-reorder-row-mode';
+
 /** BlockListBlock HOCが利用するprops。 */
 export type ReorderModeBlockListBlockProps = {
 	clientId: string;
@@ -42,10 +44,23 @@ const preservePointerDownHandler = (
 };
 
 /**
+ * Gutenberg既存のwrapper classを維持したまま、行並び替えモード中の表示対象を識別できるclassを追加する。
+ *
+ * @param existingClassName Gutenberg本体または他のfilterが設定した既存className。
+ * @return 既存classと行並び替えモード用classを併記したclassName。
+ */
+const createRowReorderModeClassName = ( existingClassName: unknown ): string => {
+	const existing = typeof existingClassName === 'string' ? existingClassName : '';
+	const className = `${ existing } ${ ROW_REORDER_MODE_CLASS }`.trim();
+	return className;
+};
+
+/**
  * 現在操作中の対応Tableの既存Block wrapperへReorder Modeの編集可否とRow DnD接続を反映する。
  *
  * このcomponentは現在選択中の対応Tableに対してだけ生成され、Reorder Modeの購読を所有する。
  * Row DnD境界はモード切替でBlockListBlockを再mountしないよう常に同じ位置に維持し、行並び替えモード中だけ開始入力を有効化する。
+ * 行並び替えモード中は既存Block wrapperへ表示識別用classを付与し、Presentationが行単位の操作可能表示を提供できるようにする。
  *
  * @param props                Gutenbergから渡されるBlockListBlock propsと元のcomponent。
  * @param props.BlockListBlock
@@ -59,17 +74,24 @@ export const ReorderModeBlockListBlock = ( props: {
 	const { BlockListBlock, blockProps } = props;
 	const { clientId, wrapperProps } = blockProps;
 	const { selectedKind } = useReorderMode( clientId );
+	const rowReorderEnabled = selectedKind === 'row';
 	const editingAllowed = selectedKind === null;
-	const reorderWrapperProps = ! editingAllowed
+	const rowReorderWrapperProps = rowReorderEnabled
 		? {
 				...wrapperProps,
+				className: createRowReorderModeClassName( wrapperProps?.className ),
+		  }
+		: wrapperProps;
+	const reorderWrapperProps = ! editingAllowed
+		? {
+				...rowReorderWrapperProps,
 				onDoubleClickCapture: preserveEditingStartHandler( wrapperProps?.onDoubleClickCapture ),
 				onMouseDownCapture: preserveEditingStartHandler( wrapperProps?.onMouseDownCapture ),
 		  }
-		: wrapperProps;
+		: rowReorderWrapperProps;
 
 	return (
-		<RowDnd enabled={ selectedKind === 'row' } tableIdentity={ clientId }>
+		<RowDnd enabled={ rowReorderEnabled } tableIdentity={ clientId }>
 			{ ( rowDndPointerDownCapture ) => (
 				<BlockListBlock
 					{ ...blockProps }
