@@ -827,5 +827,6 @@ export const subscribeRowDndStartRejectionNotice = (
  * #765のDnD Engine接続ではcreateRowDndOperationBoundary()から接続インスタンス専用のboundaryを生成し、
  * preparedStart、物理DnD、Droppableのcleanupを同じ共通failure recoveryへ接続する。
  */
-export const rowDndInteraction: RowDndInteraction =
-	createRowDndOperationBoundary( defaultFailureRecoveryHooks );
+export const rowDndInteraction: RowDndInteraction = createRowDndOperationBoundary(
+	defaultFailureRecoveryHooks
+);
