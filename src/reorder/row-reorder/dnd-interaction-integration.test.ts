@@ -198,11 +198,9 @@ describe( 'Row DnD Interaction DnD Engine integration', () => {
 		expect( boundary.start ).toHaveBeenCalledTimes( 1 );
 		expect( boundary.start ).toHaveBeenCalledWith( preparation );
 		expect( droppableMock ).toHaveBeenCalledTimes( 3 );
-		expect( boundary.recoverFailure ).toHaveBeenCalledWith(
-			'start',
-			expect.any( Error ),
-			{ tableIdentity: 'table-a' }
-		);
+		expect( boundary.recoverFailure ).toHaveBeenCalledWith( 'start', expect.any( Error ), {
+			tableIdentity: 'table-a',
+		} );
 	} );
 
 	/**
@@ -269,11 +267,9 @@ describe( 'Row DnD Interaction DnD Engine integration', () => {
 
 		expect( boundary.start ).not.toHaveBeenCalled();
 		expect( droppableMock ).not.toHaveBeenCalled();
-		expect( boundary.recoverFailure ).toHaveBeenCalledWith(
-			'start',
-			expect.any( Error ),
-			{ tableIdentity: 'table-a' }
-		);
+		expect( boundary.recoverFailure ).toHaveBeenCalledWith( 'start', expect.any( Error ), {
+			tableIdentity: 'table-a',
+		} );
 	} );
 
 	/**

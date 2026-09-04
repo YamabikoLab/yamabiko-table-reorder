@@ -47,7 +47,10 @@ type RowDndTargetData = Readonly< {
 	rowIndex: number;
 } >;
 
-/** 未検証値をキー参照可能なdataとして扱えるか判定する。 */
+/**
+ * 未検証値をキー参照可能なdataとして扱えるか判定する。
+ * @param value
+ */
 const isRecord = ( value: unknown ): value is Record< string, unknown > => {
 	const record = value !== null && typeof value === 'object' && ! Array.isArray( value );
 	return record;
@@ -344,7 +347,10 @@ export const connectRowDndInteraction = ( manager: RowDndEngineManager ): ( () =
 		} );
 	};
 
-	/** 物理DnD開始前に開始可否を判定し、成立した準備値だけをこの接続インスタンスへ保持する。 */
+	/**
+	 * 物理DnD開始前に開始可否を判定し、成立した準備値だけをこの接続インスタンスへ保持する。
+	 * @param event
+	 */
 	const handleBeforeDragStart = ( event: BeforeDragStartEvent ): void => {
 		discardPreparedStart();
 
@@ -361,11 +367,18 @@ export const connectRowDndInteraction = ( manager: RowDndEngineManager ): ( () =
 			preparedStart = preparation;
 		} catch ( error ) {
 			event.preventDefault();
-			boundary.recoverFailure( 'prepareStart', error, createRecoveryContext( event.operation.source ) );
+			boundary.recoverFailure(
+				'prepareStart',
+				error,
+				createRecoveryContext( event.operation.source )
+			);
 		}
 	};
 
-	/** 物理DnD開始成立後に一回限りの開始準備値を消費し、Sessionと移動先登録を開始する。 */
+	/**
+	 * 物理DnD開始成立後に一回限りの開始準備値を消費し、Sessionと移動先登録を開始する。
+	 * @param event
+	 */
 	const handleDragStart = ( event: DragStartEvent ): void => {
 		/* failure recoveryによる物理DnD cancelから再入したcallbackでは通常Lifecycleを進めない。 */
 		if ( boundary.isRecovering() ) {
