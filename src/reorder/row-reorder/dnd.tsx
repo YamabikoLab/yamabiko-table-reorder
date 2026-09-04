@@ -20,11 +20,7 @@ import { useRef } from '@wordpress/element';
 import type { ReactNode } from 'react';
 
 import { rowDndInteraction, type RowDndSource } from './dnd-interaction';
-import {
-	ROW_DND_TYPE,
-	RowPcInput,
-	type RowDndPointerDownHandler,
-} from './pc-input';
+import { ROW_DND_TYPE, RowPcInput, type RowDndPointerDownHandler } from './pc-input';
 import type { RowReorderConstraints } from './table-integration';
 
 export type { RowDndPointerDownHandler } from './pc-input';
