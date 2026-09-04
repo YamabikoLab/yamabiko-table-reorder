@@ -1,7 +1,7 @@
 /**
  * 行並び替えで利用するdnd-kitの物理DnD接続を所有する。
  *
- * 行並び替えが有効なTableに対して、移動先候補を必要な期間だけdnd-kitへ接続する。
+ * Row DnD境界はTable描画Lifecycleに対して安定して存在し、行並び替えが有効な期間だけ開始入力を受け付ける。
  * PC固有の開始入力はPC Inputへ委ね、dnd-kitの物理LifecycleをDnD Interactionの開始、移動先更新、確定、取消へ変換する。
  */
 
@@ -49,21 +49,23 @@ const resolveDestinationBoundaryIndex = ( event: DragMoveEvent | DragOverEvent )
 };
 
 /**
- * 行並び替えが有効なTableへdnd-kitの物理DnD Lifecycleを接続する。
+ * 対象Tableへdnd-kitの物理DnD Lifecycleを接続する。
  *
- * PC Inputが登録した開始対象を開始可否判定へ接続し、DnD開始後に現在のtbody直下行を移動先候補として登録する。
- * DnD Interactionが開始可能と判断した操作だけをSessionへ進め、物理移動先を行境界へ変換して確定または取消まで接続する。
+ * Provider自体はTable描画Lifecycleに対して安定して維持し、行並び替えが有効な期間だけPC Inputから開始対象を登録する。
+ * DnD開始後に現在のtbody直下行を移動先候補として登録し、物理移動先を行境界へ変換して確定または取消まで接続する。
  *
  * @param props               行DnD接続に必要な値。
+ * @param props.enabled       現在のTableで行並び替え開始入力を受け付ける場合はtrue。
  * @param props.tableIdentity 行並び替え対象のTable Identity。
  * @param props.children      既存DOMへpointer handlerを接続する描画処理。
  * @return dnd-kitのRow DnD Lifecycleへ接続された子要素。
  */
 export const RowDnd = ( props: {
+	enabled: boolean;
 	tableIdentity: string;
 	children: ( onPointerDownCapture: RowDndPointerDownHandler ) => ReactNode;
 } ) => {
-	const { tableIdentity, children } = props;
+	const { enabled, tableIdentity, children } = props;
 	const activeDraggable = useRef< Draggable | null >( null );
 	const activeDroppables = useRef< Droppable[] >( [] );
 	const preparedStart = useRef< {
@@ -173,7 +175,11 @@ export const RowDnd = ( props: {
 			onDragOver={ onDragOver }
 			onDragEnd={ onDragEnd }
 		>
-			<RowPcInput tableIdentity={ tableIdentity } activeDraggable={ activeDraggable }>
+			<RowPcInput
+				enabled={ enabled }
+				tableIdentity={ tableIdentity }
+				activeDraggable={ activeDraggable }
+			>
 				{ children }
 			</RowPcInput>
 		</DragDropProvider>
