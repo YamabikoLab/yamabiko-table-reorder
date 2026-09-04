@@ -217,7 +217,15 @@ export const RowReorderPresentation = () => {
 		setLayout( null );
 	};
 
-	useEffect( () => clearPresentation, [] );
+	useEffect( () => {
+		return () => {
+			const currentLayout = activeLayout.current;
+			if ( currentLayout !== null ) {
+				currentLayout.sourceRow.style.opacity = currentLayout.sourceOpacity;
+			}
+			activeLayout.current = null;
+		};
+	}, [] );
 
 	useDragDropMonitor( {
 		onDragStart: ( event ) => {
