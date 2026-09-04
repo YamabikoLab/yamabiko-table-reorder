@@ -33,6 +33,7 @@
 - 内部エラーはRow Reorder内部で局所的に握り潰さず、DnDの開始可否判定、start、progress、complete、cancelの操作境界まで伝播させる。
 - 通常のoperation boundaryへErrorを伝播できない非同期callback等のexecution boundaryだけはErrorを受け止めてよい。その境界は独自の記録や回復を行わず、元のoperation情報とErrorをDnD Interactionの同じ行専用共通中止経路へ渡す。
 - 操作境界またはexecution boundaryから共通中止経路へ合流した内部エラーは、DnD Interactionで一度だけ記録し、Sessionと一時状態を破棄して安全なidleへ戻す。同じエラーを複数箇所で記録しない。
+- 共通中止経路そのものと、物理的なDnD開始成立後だけ必要となる異常終了通知およびReorder ModeのDnD終了後Lifecycle判断を分離する。開始可否判定中の内部Errorでは物理的なDnDを成立させず、異常終了通知もReorder ModeへのDnD終了後結果通知も行わない。
 - 外部環境変化による継続不能は内部エラーとして記録せず、必要な一時状態だけを破棄して安全に操作を終了する。
 - Performanceの責任境界は、対応Table Block本体の属性更新・再描画性能ではなく、Row Reorder自身が追加する並び替え処理のコストとする。
 
@@ -64,13 +65,13 @@ Rediscovery Detectionは通常編集時に行を移動しようとする反復�
 
 Input Interactionは行並び替えが有効な期間に入力方式固有の開始条件を判断し、開始候補だけを必要な時点でDnD Engineへ接続する。開始後の物理入力の継続、移動、終了、cancelの検出はDnD Engineへ委ねる。Input Interactionが所有する開始候補と入力方式固有の一時状態はInput Interaction自身が破棄し、DnD終了またはcancelはDnD EngineのLifecycleから検知してcleanupする。
 
-DnD InteractionはDnD Engineが提供するDnD進行をRow Reorderの意味へ変換し、行DnDのoperation boundaryとSession Lifecycleを所有する。active DnD成立前の開始試行境界では現在のTable構造を取得して移動対象の開始可否を判定し、開始可能な場合だけ物理的なDnD成立へ進ませる。物理的なDnD開始成立後のstartでRow DnD Sessionを開始し、開始可否判定時に確認したTable構造をSession開始時の行制約として保持する。Session成立後は、そのSessionに必要な移動先候補だけをDnD Engineへ一時的に接続する。progressではDnD Engineが示す現在の物理的な移動先候補と位置関係をRow Reorderの挿入位置へ変換し、Session開始時のTable構造を利用して有効な移動先を判定する。Table Integrationから現在構造を取得し直さない。Sessionは移動対象行、対象Table同一性、開始時に成立した行制約、現在の有効移動先だけを意味状態として保持し、DnD Engine固有の物理状態、入力位置、表示位置、外部参照、計測結果を保持しない。completeでは現在のTable構造を取得し直し、Sessionの移動対象と最終有効移動先を現在構造へ再照合してから、成立する場合だけTable Integrationの行更新境界を直接利用して確定する。DnD終了時はSession側の移動先候補接続をDnD Interactionが破棄し、Input Interactionが所有する開始候補と入力一時状態の終了には関与しない。DnD終了後は、現在のTableで行並び替えモードを安全に継続できるかという結果だけをReorder Modeへ渡し、Reorder Modeが`row`維持または`edit`復帰を決定する。
+DnD InteractionはDnD Engineが提供するDnD進行をRow Reorderの意味へ変換し、行DnDのoperation boundaryとSession Lifecycleを所有する。active DnD成立前の開始試行境界では現在のTable構造を取得して移動対象の開始可否を判定し、開始可能な場合だけ物理的なDnD成立へ進ませる。物理的なDnD開始成立後のstartでRow DnD Sessionを開始し、開始可否判定時に確認したTable構造をSession開始時の行制約として保持する。Session成立後は、そのSessionに必要な移動先候補だけをDnD Engineへ一時的に接続する。progressではDnD Engineが示す現在の物理的な移動先候補と位置関係をRow Reorderの挿入位置へ変換し、Session開始時のTable構造を利用して有効な移動先を判定する。Table Integrationから現在構造を取得し直さない。Sessionは移動対象行、対象Table同一性、開始時に成立した行制約、現在の有効移動先だけを意味状態として保持し、DnD Engine固有の物理状態、入力位置、表示位置、外部参照、計測結果を保持しない。completeでは現在のTable構造を取得し直し、Sessionの移動対象と最終有効移動先を現在構造へ再照合してから、成立する場合だけTable Integrationの行更新境界を直接利用して確定する。DnD終了時はSession側の移動先候補接続をDnD Interactionが破棄し、Input Interactionが所有する開始候補と入力一時状態の終了には関与しない。物理的なDnD開始成立後の終了では、現在のTableで行並び替えモードを安全に継続できるかという結果だけをReorder Modeへ渡し、Reorder Modeが`row`維持または`edit`復帰を決定する。開始可否判定中の内部Errorでは共通中止経路でidleへ戻るだけとし、このDnD終了後Lifecycleへ進まない。
 
 Reorder PresentationはDnD InteractionからRow Reorderの意味状態だけを受け取り、DnD Engineの物理状態が表示に必要な場合はDnD InteractionのSessionへ取り込まず直接その境界を利用する。DnD Engine標準の移動表示には依存せず、実Tableの行順をDnD中に変更しない独自の一時表示として表現する。
 
 Auto Scrollはactiveな行DnDに対して縦方向と対象Tableに必要な許可範囲を決定し、物理的なスクロール検出、速度制御、実行はDnD Engineへ委ねる。
 
-正常な処理進行と異常時の回復は別のProcess Flow Viewで表現する。異常系は発生責務の一覧ではなく、回復意味が異なるパターンとして、外部環境変化、Session開始前の内部failure、active DnD中の内部failure、Table更新failureに分ける。内部の終了分類とは別に、安全な操作継続ができずDnDを終了したかをDesign上の利用者向け通知要否へ接続する。
+正常な処理進行と異常時の回復は別のProcess Flow Viewで表現する。異常系は発生責務の一覧ではなく、回復意味が異なるパターンとして、外部環境変化、物理的なDnD成立前の開始可否判定failure、物理的なDnD成立後の内部failure、Table更新failureに分ける。内部の終了分類とは別に、安全な操作継続ができずDnDを終了したかをDesign上の利用者向け通知要否へ接続する。
 
 ### Process Flow Views
 
@@ -104,17 +105,17 @@ EditorまたはTableの外部状態変化によってactiveな行DnDを継続ま
 
 #### Start Failure and Recovery {#PV_ROW_START_FAILURE_RECOVERY kind=failure-recovery}
 
-Session開始前の開始可否判定でRow Reorder内部のContractまたはInvariant違反が検出された場合に、Errorを開始可否判定のoperation boundaryへ伝播し、物理的なDnDとSessionを成立させずidleへ戻る処理方向を示す。
+物理的なDnD開始成立前の開始可否判定でRow Reorder内部のContractまたはInvariant違反が検出された場合に、Errorを開始可否判定のoperation boundaryへ伝播し、共通中止経路で物理的なDnDとSessionを成立させずidleへ戻る処理方向を示す。
 
 | From | To | Kind | Meaning |
 | --- | --- | --- | --- |
 | RESP_ROW_TABLE_INTEGRATION | RESP_ROW_DND_INTERACTION | failure | 開始可否判定中に検出されたRow Reorder所有のContractまたはInvariant違反をoperation boundaryへ伝播する。 |
 
-operation boundaryは元のErrorと失敗した操作を一度だけ記録する。移動対象が成立しない通常結果はこのViewのfailureに含めない。Input InteractionはDnD Engineで物理的なDnDが成立しなかったことを検知し、自身が所有する開始候補と入力一時状態を破棄する。
+operation boundaryは元のErrorと失敗した操作を一度だけ記録する。移動対象が成立しない通常結果はこのViewのfailureに含めない。開始可否判定中の内部Errorでは物理的なDnDが成立していないため、異常終了通知とReorder ModeのDnD終了後Lifecycle判断は行わない。Input InteractionはDnD Engineで物理的なDnDが成立しなかったことを検知し、自身が所有する開始候補と入力一時状態を破棄する。
 
 #### Active DnD Failure and Recovery {#PV_ROW_ACTIVE_DND_FAILURE_RECOVERY kind=failure-recovery}
 
-active Session中のprogress、complete、cancel処理、または通常のoperation boundaryへ伝播できないexecution boundaryで内部Errorが発生した場合に、行専用の共通中止経路へ合流し、DnD一時状態を終了する処理方向を示す。
+物理的なDnD開始成立後のstart、active Session中のprogress、complete、cancel処理、または通常のoperation boundaryへ伝播できないexecution boundaryで内部Errorが発生した場合に、行専用の共通中止経路へ合流し、DnD一時状態を終了する処理方向を示す。startでSession成立前に失敗した場合も、物理的なDnD成立後のfailureとして扱う。
 
 | From | To | Kind | Meaning |
 | --- | --- | --- | --- |
@@ -124,7 +125,7 @@ active Session中のprogress、complete、cancel処理、または通常のopera
 | RESP_ROW_DND_INTERACTION | RESP_ROW_AUTO_SCROLL | recovery | 自動スクロール一時状態を終了する。 |
 | RESP_ROW_DND_INTERACTION | RESP_REORDER_MODE | recovery | DnD終了後に現在のTableで行並び替えモードを安全に継続できるかを外側のモード境界へ渡す。 |
 
-通常のoperation boundaryへErrorを伝播できる場合はそこで捕捉する。非同期callback等のexecution boundaryでしか捕捉できない場合は、独自のlogやrecoveryを所有せず、元のoperation情報とErrorを同じ共通中止経路へ渡す。DnD InteractionはErrorを一度だけ記録し、Sessionを破棄してidleへ戻る。
+通常のoperation boundaryへErrorを伝播できる場合はそこで捕捉する。非同期callback等のexecution boundaryでしか捕捉できない場合は、独自のlogやrecoveryを所有せず、元のoperation情報とErrorを同じ共通中止経路へ渡す。DnD InteractionはErrorを一度だけ記録し、Sessionと自身の一時状態を破棄してidleへ戻る。物理的なDnD開始成立後のfailureでは、その後にDesign上の異常終了通知とReorder ModeのDnD終了後Lifecycle判断を行う。
 
 #### Table Update Failure and Recovery {#PV_ROW_DATA_UPDATE_FAILURE_RECOVERY kind=failure-recovery}
 
@@ -387,6 +388,8 @@ DnD Engineが提供する物理的なDnD進行をRow Reorderの意味へ変換�
 
 activeな行DnD Sessionを所有する。Sessionは移動対象行、対象Table同一性、開始可否判定時に確認してSession開始時に確定した行制約、現在の有効移動先だけをRow Reorderの意味状態として保持する。列方向やColumn Reorderの状態は保持しない。DnD Engineが所有する入力位置、物理的な移動先候補、物理的なDnD状態、自動スクロール状態、表示位置、外部参照、計測結果は保持しない。Sessionが保持する開始時行制約または移動先を外部Tableの現在構造そのものとして扱わない。Reorder Modeの`edit | row | column`状態または対象Table Identityは所有しない。
 
+物理的なDnD開始成立後からSession成立までのstart failureでは、終了後判断に必要な開始対象Table同一性だけを短命な回復情報として保持できる。この情報をactive SessionやReorder Mode状態へ昇格させない。
+
 ##### Contract
 
 DnD Engineのactive DnD成立前の開始試行では、開始候補とTable Integrationから取得した現在のTable情報を用いて`tbody`の移動対象行を解決し、その行が行単位で移動可能かを判定する。`tbody`外、または`rowspan`等により行単位の移動で構造を保てない行では開始不能という正常な結果をDnD Engineへ返し、物理的なDnDもSessionも開始しない。開始可能な場合だけ物理的なDnD成立へ進み、DnD Engineから物理的なDnD開始成立を受けたstartでRow DnD Sessionを開始する。開始可否判定時に確認したTable構造をSession開始時の行制約として保持する。Session成立後は、そのSessionの移動先解決に必要な候補だけをDnD Engineへ一時的に接続する。
@@ -395,15 +398,19 @@ progressではDnD Engineが示す現在の物理的な移動先候補と位置�
 
 completeでは有効な最終移動先がある場合でも、Table Integrationから現在のTable情報を取得し直し、Sessionの移動対象、最終有効移動先、Table同一性が現在のTable構造でも成立することを再照合する。成立を確認でき、実際に行順が変化する場合だけTable Integrationの行更新境界へ確定済み行移動の反映を直接要求する。再照合できない、現在は成立しない、有効な最終移動先がない、または行順が変化しない場合はTableを更新せず終了する。cancelまたはその他の継続不能でもTableデータを新たに確定しない。
 
-内部責務から伝播したErrorはoperation boundaryで捕捉し、対象operationと元のErrorをDnD Interactionで一度だけ記録した後、Row Reorder内の共通中止経路へ合流する。通常のoperation boundaryへ伝播できない非同期callback等のexecution boundaryだけはErrorを受け止めてよいが、独自の記録や回復を行わず、元のoperation情報とErrorを同じ共通中止経路へ渡す。外部環境変化による継続不能は記録しない。
+内部責務から伝播したErrorはoperation boundaryで捕捉し、対象operationと元のErrorをDnD Interactionで一度だけ記録した後、Row Reorder内の共通中止経路へ合流する。通常のoperation boundaryへ伝播できない非同期callback等のexecution boundaryだけはErrorを受け止めてよいが、独自の記録や回復を行わず、元のoperation情報とErrorを同じ共通中止経路へ渡す。外部環境変化による継続不能は記録しない。開始可否判定中の内部Errorでは、共通中止経路で自身の一時状態を破棄してidleへ戻るが、物理的なDnDが成立していないため異常終了通知とReorder ModeのDnD終了後Lifecycle判断は行わない。
 
-DnD終了時は、自身が一時的に成立させた移動先候補接続を破棄する。Input Interactionが所有する開始候補接続と入力方式固有の一時状態には関与せず、それらの終了はInput InteractionがDnD EngineのLifecycleを検知して自身で行う。終了理由の内部分類とは別に利用者向け通知要否を決定し、安全な操作継続ができずDnDを終了した場合はReorder PresentationへDesignで定義された通知を要求する。cancelまたは成立しないdropでは通知を要求しない。Sessionと自身の一時状態の終了後、現在のTableで行並び替えモードを安全に継続できるかという結果だけをReorder Modeへ渡す。
+物理的なDnD開始成立後の内部Errorでは、Session成立前のstart failureを含め、共通中止経路で自身が所有する一時状態と成立済みSessionを破棄してidleへ戻した後、Designで定義された異常終了通知を要求する。終了対象Tableの現在状態をTable Integrationから取得し直し、現在も行並び替えモードを安全に継続できるかという結果だけをReorder Modeへ渡す。回復前に取得した制約やSession開始時制約をこの終了後判断へ流用しない。現在状態を安全に取得できない場合は継続不能として扱う。
+
+DnD終了時は、自身が一時的に成立させた移動先候補接続を破棄する。Input Interactionが所有する開始候補接続と入力方式固有の一時状態には関与せず、それらの終了はInput InteractionがDnD EngineのLifecycleを検知して自身で行う。終了理由の内部分類とは別に利用者向け通知要否を決定し、安全な操作継続ができず物理的なDnDを終了した場合はReorder PresentationへDesignで定義された通知を要求する。cancelまたは成立しないdropでは通知を要求しない。
 
 ##### Lifecycle
 
 idleでactive DnD成立前の開始試行を受け、開始不能な場合は物理的なDnDとSessionを成立させずidleを維持する。開始可能な場合だけ物理的なDnD成立へ進み、開始成立後のstartでactiveとなる。開始可否判定時に確認したTable構造をSession開始時の行制約として保持し、そのSessionに必要な移動先候補だけをDnD Engineへ一時的に接続する。progressはactive Sessionだけを更新し、DnD Engineの物理状態を意味状態へ変換したうえで、Session開始時の行制約に対して有効な移動先だけを保持する。completeでは現在のTable構造を取得し直して移動対象と最終移動先を再照合し、成立して行順が変化する場合だけ更新へ進む。再照合が成立しない場合は正常に中止し、有効な移動先がない場合または行順が変化しない場合は正常終了する。complete成功、cancel、成立しないdrop、外部環境変化による正常終了、内部Error recoveryのいずれでもSessionと自身が所有するDnD中だけの一時状態を破棄してidleへ戻る。
 
-complete成功、cancel、成立しないdropでは現在の行並び替えモードを維持できる結果をReorder Modeへ渡す。安全な操作継続ができずDnDを終了した場合は、終了後の現在Tableで行並び替えモード自体を安全に継続できるかを判定した結果をReorder Modeへ渡す。Table更新がすでに成立した後で継続不能になった場合は、回復処理によって成立済み更新を自動的に巻き戻さず、その時点のTable状態を後続判断の基準とする。
+開始可否判定中の内部Error recoveryは物理的なDnD開始成立前にidleへ復帰して終了し、異常終了通知またはReorder ModeのDnD終了後Lifecycle判断へ進まない。物理的なDnD開始成立後の内部Error recoveryでは、Session成立前のstart failureも含めて異常終了通知を行い、cleanup後の現在Table状態からReorder Mode継続可否を判断する。
+
+complete成功、cancel、成立しないdropでは現在の行並び替えモードを維持できる結果をReorder Modeへ渡す。安全な操作継続ができず物理的なDnDを終了した場合は、終了後の現在Tableで行並び替えモード自体を安全に継続できるかを判定した結果をReorder Modeへ渡す。Table更新がすでに成立した後で継続不能になった場合は、回復処理によって成立済み更新を自動的に巻き戻さず、その時点のTable状態を後続判断の基準とする。
 
 ##### Invariants
 
@@ -423,6 +430,8 @@ complete成功、cancel、成立しないdropでは現在の行並び替えモ�
 - 自身が所有する移動先候補接続だけを直接破棄し、Input Interactionが所有する開始候補接続と入力一時状態のLifecycleに関与しない。
 - DnD終了理由の内部Error / 外部環境変化という分類だけで利用者向け通知要否を決めない。
 - cancelまたは成立しないdropを異常終了通知の対象にしない。
+- 開始可否判定中の内部Errorを異常終了通知またはReorder ModeのDnD終了後Lifecycle判断の対象にしない。
+- 物理的なDnD開始成立後の内部Errorでは、Session成立前のstart failureも含めて異常終了後処理へ接続する。
 - Reorder Modeの排他状態または対象Table IdentityをSession状態として所有しない。
 - 通常のoperation boundaryへ伝播できないexecution boundaryは独自のlogやrecoveryを所有せず、元のoperation情報とErrorを同じ共通中止経路へ渡す。
 - 共通中止経路で回復を所有した内部ErrorをWordPress Editor全体へ再throwしない。
@@ -553,17 +562,21 @@ Editor contextの消失など、Table Integrationを経由しない外部環境�
 
 ### Row DnD internal failure recovery {#RV_ROW_DND_FAILURE_RECOVERY}
 
-Row Reorder内部のErrorが開始可否判定、start、progress、complete、cancelのoperation boundaryへ伝播した場合、または通常のoperation boundaryへ伝播できないexecution boundaryで受け止められた場合に、同じ行専用共通中止経路でidleへ復帰する。内部Errorという分類とは別にDesign上の異常終了通知を行い、その後のReorder Mode継続可否を判断する。
+Row Reorder内部のErrorが開始可否判定、start、progress、complete、cancelのoperation boundaryへ伝播した場合、または通常のoperation boundaryへ伝播できないexecution boundaryで受け止められた場合に、同じ行専用共通中止経路でErrorを一度だけ記録し、DnD Interactionが所有するSessionと一時状態を破棄してidleへ復帰する。ここまでを全operationに共通するfailure recoveryとする。
+
+物理的なDnD開始成立前の開始可否判定中にfailureした場合は、物理的なDnDとSessionを成立させず共通failure recoveryだけで終了する。物理的なDnD開始成立後にfailureした場合だけ、下表の異常終了後処理へ進む。startでSession成立前にfailureした場合も、開始可否判定で確定した対象Table同一性を終了後判断に引き継ぎ、物理的なDnD成立後のfailureとして扱う。
 
 | Step | Source | Target | Interaction |
 | ---: | --- | --- | --- |
 | 1 | RESP_ROW_AUTO_SCROLL | RESP_ROW_DND_INTERACTION | 通常のoperation boundaryへ伝播できないexecution boundaryで捕捉したErrorを、元のoperation情報とともに同じ共通中止経路へ渡す。 |
-| 2 | RESP_ROW_DND_INTERACTION | RESP_ROW_PRESENTATION | 共通中止経路としてDnD中だけの表示を解除し、Designで定義された異常終了通知を要求する。 |
-| 3 | RESP_ROW_DND_INTERACTION | RESP_ROW_AUTO_SCROLL | 共通中止経路として自動スクロール許可状態を終了する。 |
-| 4 | EXT_DND_ENGINE | RESP_ROW_INPUT_INTERACTION | DnD終了またはcancelのLifecycleを通知し、Input Interactionが自身の開始候補と入力一時状態を破棄する。 |
-| 5 | RESP_ROW_DND_INTERACTION | RESP_REORDER_MODE | 現在のTableで行並び替えモードを安全に継続できるかという結果を渡す。 |
+| 2 | RESP_ROW_DND_INTERACTION | RESP_ROW_PRESENTATION | 物理的なDnD開始成立後のfailureでは、成立しているDnD中表示を解除し、Designで定義された異常終了通知を要求する。 |
+| 3 | RESP_ROW_DND_INTERACTION | RESP_ROW_AUTO_SCROLL | 物理的なDnD開始成立後のfailureでは、成立している自動スクロール許可状態を終了する。 |
+| 4 | EXT_DND_ENGINE | RESP_ROW_INPUT_INTERACTION | 物理的なDnD開始成立後はDnD終了Lifecycleを通知し、Input Interactionが自身の開始候補と入力一時状態を破棄する。 |
+| 5 | RESP_ROW_DND_INTERACTION | RESP_ROW_TABLE_INTEGRATION | cleanup後、終了対象Tableの現在状態から行並び替えモード継続可否を判断するために現在のTable情報を要求する。 |
+| 6 | RESP_ROW_TABLE_INTEGRATION | EXT_SUPPORTED_TABLE_BLOCK | 終了対象Tableが現在も行並び替え対象として利用可能かを現在の対応Table Blockから解決する。 |
+| 7 | RESP_ROW_DND_INTERACTION | RESP_REORDER_MODE | 現在のTableで行並び替えモードを安全に継続できるかという結果だけを渡す。 |
 
-通常のoperation boundaryへ直接伝播できるErrorもStep 2以降と同じ共通中止経路へ合流する。DnD Interactionは対象operationと元のErrorを一度だけ記録し、Sessionと自身が所有する一時状態を破棄してidleへ戻る。Input InteractionはDnD Engineの終了またはcancel Lifecycleを検知して自身が所有する一時状態を破棄する。execution boundaryや発生責務は独自の記録または回復を行わない。Reorder ModeはStep 5の結果が継続可能なら`row`を維持し、現在のTableに対するモード自体を継続できない場合だけ`edit`へ戻る。
+通常のoperation boundaryへ直接伝播できるErrorも同じ共通中止経路へ合流する。execution boundaryや発生責務は独自の記録または回復を行わない。物理的なDnD開始成立後のfailureでは、Session開始時制約やfailure前に取得した制約を終了後判断へ流用せず、cleanup後に現在のTable状態を取得し直す。現在状態を安全に取得できない場合は継続不能としてReorder Modeへ渡し、回復処理自体の追加Errorを同じfailureに対する重複記録またはEditor全体への再throwへ発展させない。
 
 ## 8. Crosscutting Concepts
 
@@ -615,15 +628,17 @@ Editor DOM Contextを解決できない、対象Tableが外部状態変化で存
 
 非同期callback等、通常の開始可否判定、start、progress、complete、cancelのoperation boundaryへErrorを伝播できないexecution boundaryだけは、その場でErrorを受け止めてよい。
 
-execution boundaryは独自のlog、retry、fallback、Session破棄、表示解除などを所有せず、元のoperation情報と元のErrorをDnD Interactionの同じ行専用共通中止経路へ渡す。DnD Interactionが一度だけ記録し、Sessionと自身が所有する一時状態を破棄してidleへ戻す。Input Interactionが所有する一時状態は、DnD終了またはcancelをDnD EngineのLifecycleから検知したInput Interaction自身が破棄する。
+execution boundaryは独自のlog、retry、fallback、Session破棄、表示解除などを所有せず、元のoperation情報と元のErrorをDnD Interactionの同じ行専用共通中止経路へ渡す。DnD Interactionが一度だけ記録し、Sessionと自身が所有する一時状態を破棄してidleへ戻す。開始可否判定中のfailureでは物理的なDnDを成立させず、この共通failure recoveryだけで終了する。
+
+物理的なDnD開始成立後のfailureでは、Input InteractionがDnD Engineの終了Lifecycleを検知して自身が所有する一時状態を破棄する。DnD Interactionは共通failure recoveryの後に異常終了通知へ接続し、終了対象Tableの現在状態を取得し直してReorder Mode継続可否を判断する。startでSession成立前にfailureした場合も、開始可否判定で確定した対象Table同一性を短命な回復情報として終了後判断へ引き継ぐ。
 
 ### 安全な終了
 
 正常cancel、成立しないdrop、外部環境変化による継続不能または確定不能、内部Error recoveryはいずれも、Row Reorder内の同じ中止処理原則に従ってSessionとDnD中だけの一時状態を破棄し、安全なidleへ戻す。
 
-終了理由の内部分類と利用者向け通知要否は分離する。cancelまたは成立しないdropでは異常終了通知を行わず、安全な操作継続ができずDnDを終了した場合はDesignで定義された通知を行う。内部Errorだけがエラー記録の対象であり、外部環境変化を内部Errorとして記録しない。
+終了理由の内部分類と利用者向け通知要否は分離する。cancelまたは成立しないdropでは異常終了通知を行わず、安全な操作継続ができず物理的なDnDを終了した場合はDesignで定義された通知を行う。物理的なDnD開始成立前の開始可否判定中failureでは通知を行わない。内部Errorだけがエラー記録の対象であり、外部環境変化を内部Errorとして記録しない。
 
-DnD終了後、現在のTableで選択中のReorder Modeを安全に継続できる場合はそのモードを維持する。現在のTableに対するReorder Mode自体を安全に継続できない場合だけ`edit`へ戻る。Table更新がすでに成立している場合は終了処理で自動的に巻き戻さず、その時点のTable状態を後続操作の基準とする。
+物理的なDnD終了後、現在のTableで選択中のReorder Modeを安全に継続できる場合はそのモードを維持する。現在のTableに対するReorder Mode自体を安全に継続できない場合だけ`edit`へ戻る。開始可否判定中failureではDnD終了後LifecycleとしてReorder Modeへ結果を渡さない。Table更新がすでに成立している場合は終了処理で自動的に巻き戻さず、その時点のTable状態を後続操作の基準とする。
 
 ### Compatibility
 
@@ -664,6 +679,8 @@ Row Reorderは、対応Table Block本体の属性更新や再描画に要する�
 
 行DnD SessionのLifecycleを所有する責務が、開始可否判定、start、progress、complete、cancelのoperation boundaryで内部Errorを捕捉し、共通中止経路、エラー記録、idle復帰を所有する。通常のoperation boundaryへ伝播できないexecution boundaryはErrorを同じ共通中止経路へ渡すだけとし、独自のlogやrecoveryを所有しない。これにより各内部責務に回復責務を分散させない。
 
+共通failure recoveryと異常終了後処理は分離する。開始可否判定中のfailureでは物理的なDnDを成立させず共通failure recoveryだけで終了する。物理的なDnD開始成立後のfailureでは、Session成立前のstart failureも含めて共通failure recovery後にDesign上の異常終了通知とReorder ModeのDnD終了後Lifecycle判断へ接続する。
+
 ### AD-06 外部環境変化を内部Invariant違反として扱わない
 
 Editor lifecycle、DOM availability、Supported Table Block availability、外部TableデータはRow Reorderの所有外で正当に変化し得るため、正常な不在または継続不能として扱う。progress後にTable構造が変化し、complete時に最終移動先が成立しなくなった場合も正常な確定不能として扱う。runtime assertionはRow Reorderが所有する値レベルのInvariantに限定する。
@@ -674,7 +691,7 @@ progress時にSession開始時のTable構造に対して成立した最終移動
 
 ### AD-08 Failure / Recoveryを回復パターンごとに分離する
 
-異常系Process Flowを一つの大きなViewへ集約せず、外部環境変化、Session開始前の内部failure、active DnD中の内部failure、Table更新failureに分ける。これにより、エラー記録の有無、Sessionの有無、更新後のrollback禁止など、回復意味の違いを図から判別できるようにする。利用者向け通知要否はこの内部分類とは別に扱う。
+異常系Process Flowを一つの大きなViewへ集約せず、外部環境変化、物理的なDnD成立前の開始可否判定failure、物理的なDnD成立後の内部failure、Table更新failureに分ける。これにより、エラー記録の有無、物理的なDnDとSessionの成立状況、異常終了後処理の要否、更新後のrollback禁止など、回復意味の違いを図から判別できるようにする。利用者向け通知要否はこの内部分類とは別に扱う。
 
 ### AD-09 dnd-kitをDnD Engine境界として採用する
 
@@ -686,7 +703,7 @@ Architecture上はdnd-kit固有のLifecycle名、DnD対象の具体的な登録�
 
 - **Performance**: 対応Table Block本体の属性更新・再描画性能は保証対象とせず、Row Reorder自身が追加する並び替え計算、状態更新、表示更新などによって対象Table本来の更新コストを大きく悪化させない責務分離とLifecycleを採用する。代表的な大規模Tableでは、行並び替えモード開始時にTable全体のDnD候補を固定的に準備せず、Row Reorder自身が新たな長時間停止を追加していないことをストレステストで確認する。
 - **Compatibility**: WordPress 6.8以上のBlock Editorにおけるiframe / non-iframe差と、Core Table / Flexible Table Block差を、利用者向け行並び替えの正しさへ漏らさない。
-- **Reliability / Robustness**: 外部環境変化またはRow Reorder内部Errorが発生しても、TableやWordPress Editorを不正な状態にせず、行DnD一時状態を各所有責務で破棄して安全なidleへ戻る。現在のTableでReorder Modeを安全に継続できる場合は選択中モードを維持し、継続できない場合だけ通常編集へ戻る。complete時は現在のTable構造で成立する移動だけを確定し、成立済み更新は終了処理で自動的に巻き戻さない。
+- **Reliability / Robustness**: 外部環境変化またはRow Reorder内部Errorが発生しても、TableやWordPress Editorを不正な状態にせず、行DnD一時状態を各所有責務で破棄して安全なidleへ戻る。物理的なDnD開始成立後は、現在のTableでReorder Modeを安全に継続できる場合は選択中モードを維持し、継続できない場合だけ通常編集へ戻る。開始可否判定中のfailureではDnD終了後LifecycleとしてReorder Modeへ結果を渡さない。complete時は現在のTable構造で成立する移動だけを確定し、成立済み更新は終了処理で自動的に巻き戻さない。
 
 ## 11. Risks and Technical Debt
 
@@ -708,4 +725,4 @@ Architecture上はdnd-kit固有のLifecycle名、DnD対象の具体的な登録�
 - **正常な不在**: 外部環境変化や利用者操作上、正当に発生し得る「現在利用できない」「対象が成立しない」「現在は確定できない」という結果。
 - **runtime invariant**: 型だけでは保証できず、かつRow Reorder自身が所有する値レベルの成立条件。
 - **execution boundary**: 非同期callback等により通常のoperation boundaryへErrorを伝播できない実行境界。独自のlogやrecoveryを所有せず、元のoperation情報とErrorを共通中止経路へ渡す。
-- **共通中止経路**: Row Reorder内の開始可否判定、start、progress、complete、cancelの各operation boundaryと、必要なexecution boundaryが合流し、DnD InteractionがSessionと自身の一時状態を破棄してsafe idleへ戻す行専用の回復経路。Input Interactionが所有する開始候補と入力一時状態は、DnD終了またはcancelをDnD EngineのLifecycleから検知したInput Interaction自身が破棄する。Row / Column間の共通実装を意味しない。
+- **共通中止経路**: Row Reorder内の開始可否判定、start、progress、complete、cancelの各operation boundaryと、必要なexecution boundaryが合流し、DnD InteractionがErrorを一度だけ記録してSessionと自身の一時状態を破棄し、safe idleへ戻す行専用の回復経路。開始可否判定中のfailureではこの回復だけで終了し、物理的なDnD開始成立後のfailureだけが異常終了通知とReorder ModeのDnD終了後Lifecycle判断へ進む。Input Interactionが所有する開始候補と入力一時状態は、DnD終了またはcancelをDnD EngineのLifecycleから検知したInput Interaction自身が破棄する。Row / Column間の共通実装を意味しない。
