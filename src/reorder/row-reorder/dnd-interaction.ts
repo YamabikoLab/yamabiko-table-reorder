@@ -86,6 +86,12 @@ type RowDndStoreActions = {
 /** DnD Interactionが所有する意味状態とLifecycle操作をまとめたStore境界。 */
 type RowDndStore = RowDndStoreState & RowDndStoreActions;
 
+/** completeが正常経路で終了したとき、利用者向け異常終了通知が必要かを表す。 */
+type RowDndCompleteResult = Readonly< {
+	/** 外部環境変化等により今回のDnDを安全に確定できず終了した場合はtrue。 */
+	shouldNotifyTermination: boolean;
+} >;
+
 /** DnD Interactionの共有状態変更をReact非依存で受け取る購読listener。 */
 type RowDndStateListener = () => void;
 
@@ -357,7 +363,7 @@ const rowDndStore = createStore< RowDndStore >()(
 				try {
 					/* 有効な最終移動先が成立していないdropでは、Tableを更新せず正常終了する。 */
 					if ( session.destinationBoundaryIndex === null ) {
-						return;
+						return { shouldNotifyTermination };
 					}
 
 					const currentConstraints = rowTableIntegration.getConstraints( session.tableIdentity );
@@ -369,19 +375,26 @@ const rowDndStore = createStore< RowDndStore >()(
 						! isDestinationValid( session.destinationBoundaryIndex, currentConstraints )
 					) {
 						shouldNotifyTermination = true;
-						return;
+						return { shouldNotifyTermination };
 					}
 
 					/* 移動元の直前または直後へのdropは行順を変えないため、Table更新を発生させない。 */
 					if ( ! changesRowOrder( session.sourceRowIndex, session.destinationBoundaryIndex ) ) {
-						return;
+						return { shouldNotifyTermination };
 					}
 
-					rowTableIntegration.applyRowMove( {
+					const rowMoveApplied = rowTableIntegration.applyRowMove( {
 						clientId: session.tableIdentity,
 						sourceRowIndex: session.sourceRowIndex,
 						destinationBoundaryIndex: session.destinationBoundaryIndex,
 					} );
+
+					/* 再照合後でも更新要求時点の外部Table状態により行移動を確定できない場合は、安全に確定できない終了として利用者へ通知する。 */
+					if ( rowMoveApplied === false ) {
+						shouldNotifyTermination = true;
+					}
+
+					return { shouldNotifyTermination };
 				} finally {
 					set(
 						{
