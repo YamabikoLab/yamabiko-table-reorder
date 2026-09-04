@@ -2,7 +2,7 @@
  * 行並び替えのPC入力開始条件とDnD開始対象の接続を所有する。
  *
  * PCの主pointer入力から現在Tableのtbody直下行を開始候補として解決し、
- * その行だけをdnd-kitのDraggableへ遅延登録する。
+ * 行並び替えが有効な間だけ、その行をdnd-kitのDraggableへ遅延登録する。
  * DnD開始後のLifecycle、移動先候補、確定、取消はDnD境界へ委ねる。
  */
 
@@ -21,9 +21,10 @@ export type RowDndPointerDownHandler = ( event: unknown ) => void;
 /**
  * PC入力から行DnD開始候補を解決し、現在のpointer入力で必要な行だけをDraggableへ登録する。
  *
- * タッチ入力は対象外とし、PC入力で成立した開始候補だけを共通のRow DnD Lifecycleへ接続する。
+ * タッチ入力は対象外とし、行並び替えが有効なPC入力で成立した開始候補だけを共通のRow DnD Lifecycleへ接続する。
  *
  * @param props                         PC入力接続に必要な値。
+ * @param props.enabled                 現在のTableで行並び替え開始入力を受け付ける場合はtrue。
  * @param props.tableIdentity           行並び替え対象のTable Identity。
  * @param props.activeDraggable         現在のpointer入力で登録したDraggable。
  * @param props.activeDraggable.current 現在のpointer入力で登録したDraggable。
@@ -31,17 +32,19 @@ export type RowDndPointerDownHandler = ( event: unknown ) => void;
  * @return PC入力によるRow DnD開始へ接続された子要素。
  */
 export const RowPcInput = ( props: {
+	enabled: boolean;
 	tableIdentity: string;
 	activeDraggable: {
 		current: Draggable | null;
 	};
 	children: ( onPointerDownCapture: RowDndPointerDownHandler ) => ReactNode;
 } ) => {
-	const { tableIdentity, activeDraggable, children } = props;
+	const { enabled, tableIdentity, activeDraggable, children } = props;
 	const manager = useDragDropManager();
 
 	const onPointerDownCapture: RowDndPointerDownHandler = ( event ) => {
-		if ( ! manager ) {
+		/* 行並び替えが無効な間はPC入力をDnD開始へ接続しない。 */
+		if ( ! enabled || ! manager ) {
 			return;
 		}
 
