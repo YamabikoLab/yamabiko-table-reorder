@@ -2,7 +2,7 @@
  * Row Reorderの移動対象表示が、DnD Interactionの意味状態とDnD Engineの物理情報を責務どおり組み合わせることを確認する。
  *
  * DnD Interaction本体やDnD Engine本体の実装は重複して検証せず、active Session中だけの表示、
- * 元行の半透明表示、縦方向追従、Session終了時の表示解除を検証する。
+ * 元行の半透明表示、overlayの通常濃度、縦方向追従、Session終了時の表示解除を検証する。
  */
 
 import { act, render } from '@testing-library/react';
@@ -108,7 +108,7 @@ describe( 'Row moving display', () => {
 	 * - 物理DnD開始を通知した後、Row DnD Sessionをactiveへ変更する。
 	 *
 	 * 期待結果:
-	 * - idle中は表示せず、active後に元行を半透明として残しoverlayを表示する。
+	 * - idle中は表示せず、active後に元行を半透明として残し、overlayには半透明状態を持ち込まず表示する。
 	 */
 	it( 'when physical drag information exists and the row DnD session becomes active, should show the moving row only for the active session', () => {
 		const { table, row } = createSourceTable();
@@ -125,7 +125,9 @@ describe( 'Row moving display', () => {
 		expect( table.getBoundingClientRect().width ).toBe( 400 );
 		expect( document.body.querySelectorAll( 'table' ) ).toHaveLength( 2 );
 		const overlayTable = document.body.querySelectorAll( 'table' ).item( 1 );
+		const overlayRow = overlayTable.querySelector( 'tr' );
 		const overlayCells = overlayTable.querySelectorAll( 'td' );
+		expect( overlayRow?.classList ).not.toContain( 'yamabiko-table-reorder-moving-row-source' );
 		expect( overlayCells.item( 0 ).style.width ).toBe( '220px' );
 		expect( overlayCells.item( 1 ).style.width ).toBe( '180px' );
 		expect( overlayTable.classList ).toContain( 'yamabiko-table-reorder-moving-row-table' );
