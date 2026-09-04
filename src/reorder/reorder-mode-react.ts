@@ -1,8 +1,8 @@
 /**
- * Reorder ModeのZustand storeをReactへ接続する境界を所有する。
+ * Reorder Modeの状態をReactへ接続する境界を所有する。
  *
- * React側はReorder Mode状態の正本を持たず、対象Tableに必要な状態だけをselectorで購読する。
- * WordPress固有componentはZustand storeへ直接依存せず、この境界が提供するHookだけを利用する。
+ * React側はReorder Mode状態の正本を持たず、対象Tableに必要な状態だけを購読する。
+ * WordPress固有コンポーネントはZustandの状態ストアへ直接依存せず、この境界が提供するカスタムフックだけを利用する。
  */
 
 import { useCallback } from '@wordpress/element';
@@ -12,6 +12,9 @@ import { reorderMode, reorderModeStore, type ReorderKind } from '@/reorder/reord
 
 /**
  * 対象Tableから見た現在の並び替え方向をReactへ提供する。
+ *
+ * Reorder Mode全体の変更から対象Tableに属する選択状態だけを公開し、
+ * 別Tableの並び替え状態は通常編集として扱う。
  *
  * @param tableIdentity Reorder Mode状態を購読するTable Identity。
  * @return 対象Tableで選択中の並び替え方向。通常編集の場合はnull。
