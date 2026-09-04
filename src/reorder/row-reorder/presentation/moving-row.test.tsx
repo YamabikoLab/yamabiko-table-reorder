@@ -2,7 +2,7 @@
  * Row Reorderの移動対象表示が、DnD Interactionの意味状態とDnD Engineの物理情報を責務どおり組み合わせることを確認する。
  *
  * DnD Interaction本体やDnD Engine本体の実装は重複して検証せず、active Session中だけの表示、
- * 元行のレイアウトを変えない視覚的区別、縦方向追従、Session終了時の表示解除を検証する。
+ * 元行を変更しない表示、縦方向追従、Session終了時の表示解除を検証する。
  */
 
 import { act, render } from '@testing-library/react';
@@ -108,7 +108,7 @@ describe( 'Row moving display', () => {
 	 * - 物理DnD開始を通知した後、Row DnD Sessionをactiveへ変更する。
 	 *
 	 * 期待結果:
-	 * - idle中は元行の表示を変更せず、active後に元行をレイアウト不変の状態で視覚的に区別してoverlayを表示する。
+	 * - idle中は表示せず、active後に元行自体の視覚状態を変えずoverlayを表示する。
 	 */
 	it( 'when physical drag information exists and the row DnD session becomes active, should show the moving row only for the active session', () => {
 		const { table, row } = createSourceTable();
@@ -121,13 +121,14 @@ describe( 'Row moving display', () => {
 		mockRowDndPhase = 'active';
 		rerender( <RowMovingDisplay /> );
 
-		expect( row.style.opacity ).toBe( '0.35' );
+		expect( row.style.opacity ).toBe( '' );
 		expect( table.getBoundingClientRect().width ).toBe( 400 );
 		expect( document.body.querySelectorAll( 'table' ) ).toHaveLength( 2 );
 		const overlayTable = document.body.querySelectorAll( 'table' ).item( 1 );
 		const overlayCells = overlayTable.querySelectorAll( 'td' );
 		expect( overlayCells.item( 0 ).style.width ).toBe( '220px' );
 		expect( overlayCells.item( 1 ).style.width ).toBe( '180px' );
+		expect( overlayTable.classList ).toContain( 'yamabiko-table-reorder-moving-row-table' );
 	} );
 
 	/**
@@ -159,9 +160,9 @@ describe( 'Row moving display', () => {
 			} );
 		} );
 
-		const overlayViewport = Array.from( document.body.children ).find(
-			( element ) => ( element as HTMLElement ).style.position === 'fixed'
-		) as HTMLElement | undefined;
+		const overlayViewport = document.body.querySelector(
+			'.yamabiko-table-reorder-moving-row'
+		) as HTMLElement | null;
 		expect( overlayViewport?.style.top ).toBe( '110px' );
 		expect( overlayViewport?.style.left ).toBe( '100px' );
 	} );
@@ -171,20 +172,20 @@ describe( 'Row moving display', () => {
 	 * - Row DnD Session終了を移動表示の終了条件として扱うことを確認する。
 	 *
 	 * 事前条件:
-	 * - active Session中に元行とoverlayの移動表示が成立している。
+	 * - active Session中にoverlayの移動表示が成立している。
 	 *
 	 * 操作:
 	 * - DnD Interactionの意味状態をidleへ変更する。
 	 *
 	 * 期待結果:
-	 * - overlayを解除し、元行の視覚状態をDnD開始前へ戻す。
+	 * - overlayを解除し、元行はDnD前と同じ視覚状態を維持する。
 	 */
-	it( 'when the row DnD session becomes idle, should remove the moving display and restore the source row', () => {
+	it( 'when the row DnD session becomes idle, should remove the moving display and keep the source row unchanged', () => {
 		const { row } = createSourceTable();
 		mockRowDndPhase = 'active';
 		const { rerender } = render( <RowMovingDisplay /> );
 		startPhysicalDrag( row );
-		expect( row.style.opacity ).toBe( '0.35' );
+		expect( row.style.opacity ).toBe( '' );
 
 		mockRowDndPhase = 'idle';
 		rerender( <RowMovingDisplay /> );
