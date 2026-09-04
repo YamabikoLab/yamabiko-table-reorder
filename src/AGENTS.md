@@ -56,6 +56,15 @@ When reviewing React code, focus on React-specific correctness, lifecycle behavi
 - Do not use parent-relative imports at any depth, such as `../`, `../../`, or deeper paths. Use the `@/` alias instead. Relative imports within the same directory may use `./`.
 - In Japanese comments and explanatory text in product source and tests, do not insert spaces between Japanese text and adjacent English terms or identifiers unless the space is semantically necessary.
 
+## Error handling
+
+- Treat expected inability to perform an operation, user cancellation, no-op results, and changes in external state that can be handled safely as normal outcomes, not as internal errors. Do not emit error logs for these cases unless a separate specification explicitly requires diagnostic recording.
+- When an unexpected internal Error prevents an operation from continuing, restore the owned state and temporary resources to a safe state before allowing subsequent operations to continue.
+- Record unexpected internal Errors for defect discovery and diagnosis. Preserve the original Error information and enough operation context to identify the failed responsibility or operation.
+- Record one diagnostic error for one failure chain at the boundary that owns failure recovery. Do not log the same Error again at nested layers or during recovery re-entry.
+- Do not show a user-facing notification merely because an unexpected internal Error occurred. Internal error logging and user-visible messaging are separate responsibilities; add a user-facing message only when the requirements or design explicitly define one for a user-actionable condition.
+- Do not let an Error that occurs while cleaning up or recovering prevent the remaining recovery steps from restoring a safe state. Avoid replacing or obscuring the original failure with secondary recovery Errors.
+
 ## Source documentation
 
 - Write comments and documentation at a basic-design level of abstraction so that readers who understand the specification but cannot read the implementation can understand the specification, responsibility, purpose, behavior, and rationale. Documentation should remain understandable when read without the implementation beside it.
