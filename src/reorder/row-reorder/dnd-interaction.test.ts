@@ -281,6 +281,30 @@ describe( 'Row DnD Interaction lifecycle', () => {
 
 	/**
 	 * 概要:
+	 * - 一度有効になった移動先候補がDnD中に失われた場合、過去の移動先を確定に使用しないことを確認する。
+	 *
+	 * 事前条件:
+	 * - active Sessionが成立し、移動先境界4が有効である。
+	 *
+	 * 操作:
+	 * - 境界4を設定した後、現在の移動先候補なしとしてnullへ更新し、complete()する。
+	 *
+	 * 期待結果:
+	 * - 過去の境界4を使用してTableを更新せず、異常終了通知も発行しない。
+	 */
+	it( 'when the current destination is cleared before completion, should not apply the previous destination', () => {
+		prepareActiveSession();
+
+		rowDndInteraction.updateDestination( 4 );
+		rowDndInteraction.updateDestination( null );
+		rowDndInteraction.complete();
+
+		expect( applyRowMoveMock ).not.toHaveBeenCalled();
+		expect( terminationNoticeListener ).not.toHaveBeenCalled();
+	} );
+
+	/**
+	 * 概要:
 	 * - complete()時点の現在構造でも移動元と移動先が成立する場合だけ、Table Integrationへ確定済み行移動を渡すことを確認する。
 	 *
 	 * 事前条件:
@@ -340,6 +364,33 @@ describe( 'Row DnD Interaction lifecycle', () => {
 		expect( applyRowMoveMock ).not.toHaveBeenCalled();
 		expect( terminationNoticeListener ).toHaveBeenCalledTimes( 1 );
 		expect( rowReorderMode.isActive( 'table-a' ) ).toBe( true );
+	} );
+
+	/**
+	 * 概要:
+	 * - complete()時点で対象Table自体を安全に扱えなくなった場合は、DnDを異常終了として通知し、行並び替えモードも終了することを確認する。
+	 *
+	 * 事前条件:
+	 * - Table Aで行並び替えが有効で、active Sessionが成立している。
+	 * - complete()時の再照合とDnD終了後の継続可否確認のどちらでもTable Aの行制約を取得できない。
+	 *
+	 * 操作:
+	 * - 有効な移動先を設定してcomplete()する。
+	 *
+	 * 期待結果:
+	 * - Table更新を要求せず異常終了通知を1回発行し、Table Aの行並び替えを終了して通常編集へ戻る。
+	 */
+	it( 'when completed DnD table can no longer continue row reorder, should terminate and return reorder mode to edit', () => {
+		reorderMode.select( 'row', 'table-a' );
+		prepareActiveSession();
+		getConstraintsMock.mockReturnValueOnce( null ).mockReturnValueOnce( null );
+
+		rowDndInteraction.updateDestination( 4 );
+		rowDndInteraction.complete();
+
+		expect( applyRowMoveMock ).not.toHaveBeenCalled();
+		expect( terminationNoticeListener ).toHaveBeenCalledTimes( 1 );
+		expect( reorderMode.getMode( 'table-a' ) ).toBe( 'edit' );
 	} );
 
 	/**
