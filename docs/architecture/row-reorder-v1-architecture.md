@@ -32,6 +32,7 @@
 - 型で表現できる状態相関は型と状態モデルで保証し、runtime assertionへ戻さない。runtime assertionはRow Reorderが所有し、型だけでは保証できない値レベルのInvariantに限定する。
 - 実装の単純さと保守性を、想定外のError発生後にRow Reorder全体を完全復旧することより優先する。
 - Row Reorder内部のContractまたはruntime invariant違反はErrorとして扱う。
+- 内部Errorは原則として握りつぶさず、正常な結果へ変換しない。
 - Error処理のために通常処理の状態、戻り値、公開境界、Lifecycleを複雑化しない。
 - 想定外のError発生後に、DnD Engine接続、一時表示、自動スクロール、Reorder Modeその他のRow Reorder全体の完全な状態復旧は保証しない。
 - 外部環境変化による継続不能は内部Errorとして扱わず、通常の終了結果として扱う。
