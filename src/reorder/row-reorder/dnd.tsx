@@ -79,7 +79,7 @@ export const RowDnd = ( props: {
 	const onBeforeDragStart = ( event: BeforeDragStartEvent, manager: DragDropManager ) => {
 		void manager;
 
-		const source = event.operation.source.data as RowDndSource;
+		const source = event?.operation?.source?.data as RowDndSource;
 		const constraints = rowDndInteraction.prepareStart( source );
 
 		if ( constraints === null ) {
@@ -105,7 +105,7 @@ export const RowDnd = ( props: {
 		preparedStart.current = null;
 		rowDndInteraction.start( preparation.source, preparation.constraints );
 
-		const sourceRow = event.operation.source.element as HTMLTableRowElement | undefined;
+		const sourceRow = event?.operation?.source?.element as HTMLTableRowElement | undefined;
 		const tableBody = sourceRow?.parentElement as HTMLTableSectionElement | null;
 
 		if ( ! sourceRow || ! tableBody || tableBody.tagName !== 'TBODY' ) {
