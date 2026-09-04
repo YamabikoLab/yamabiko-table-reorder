@@ -409,6 +409,11 @@ describe( 'Row DnD Interaction lifecycle and failure recovery', () => {
 			} );
 		};
 
+		/* 最初のfailure recoveryを開始する。 */
+		boundary.recoverFailure( 'complete', new Error( 'original failure' ), {
+			tableIdentity: 'table-a',
+		} );
+
 		expect( discardPreparedStart ).toHaveBeenCalledTimes( 1 );
 		expect( cancelActiveDnd ).toHaveBeenCalledTimes( 1 );
 		expect( discardTemporaryDndState ).toHaveBeenCalledTimes( 1 );
