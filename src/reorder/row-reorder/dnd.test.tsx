@@ -23,6 +23,10 @@ jest.mock( './dnd-interaction', () => ( {
 	},
 } ) );
 
+jest.mock( './presentation', () => ( {
+	RowReorderPresentation: () => null,
+} ) );
+
 let activeDraggableRef: { current: Draggable | null } | null = null;
 
 jest.mock( './pc-input', () => ( {
