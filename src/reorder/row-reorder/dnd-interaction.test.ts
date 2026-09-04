@@ -391,21 +391,23 @@ describe( 'Row DnD Interaction lifecycle and failure recovery', () => {
 	it( 'when engine cancellation re-enters recovery, should suppress duplicate cleanup logging and notification', () => {
 		const discardPreparedStart = jest.fn();
 		const discardTemporaryDndState = jest.fn();
-		let boundary: ReturnType< typeof createRowDndOperationBoundary >;
+		let reenterRecovery = (): void => undefined;
+
 		const cancelActiveDnd = jest.fn( () => {
-			boundary.recoverFailure( 'cancel', new Error( 're-entered callback' ), {
-				tableIdentity: 'table-a',
-			} );
+			reenterRecovery();
 		} );
-		boundary = createRowDndOperationBoundary( {
+
+		const boundary = createRowDndOperationBoundary( {
 			discardPreparedStart,
 			cancelActiveDnd,
 			discardTemporaryDndState,
 		} );
 
-		boundary.recoverFailure( 'complete', new Error( 'original failure' ), {
-			tableIdentity: 'table-a',
-		} );
+		reenterRecovery = () => {
+			boundary.recoverFailure( 'cancel', new Error( 're-entered callback' ), {
+				tableIdentity: 'table-a',
+			} );
+		};
 
 		expect( discardPreparedStart ).toHaveBeenCalledTimes( 1 );
 		expect( cancelActiveDnd ).toHaveBeenCalledTimes( 1 );

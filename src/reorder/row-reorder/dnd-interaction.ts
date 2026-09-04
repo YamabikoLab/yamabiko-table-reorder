@@ -615,6 +615,7 @@ export const createRowDndOperationBoundary = (
 		try {
 			/* Error記録は共通failure recoveryだけが所有し、元のoperationとError情報を1回のlogへまとめる。 */
 			attemptRecoveryStep( () => {
+				// eslint-disable-next-line no-console
 				console.error( `[Yamabiko Table Reorder] Row DnD ${ operation } failed.`, error );
 			} );
 
