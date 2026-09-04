@@ -75,7 +75,11 @@ describe( 'Row DnD engine connection', () => {
 	 */
 	it( 'when prepareStart rejects the source, should prevent the physical drag from starting', () => {
 		interactionMock.prepareStart.mockReturnValue( null );
-		render( <RowDnd enabled tableIdentity="table-1">{ () => <div /> }</RowDnd> );
+		render(
+			<RowDnd enabled tableIdentity="table-1">
+				{ () => <div /> }
+			</RowDnd>
+		);
 		const props = getProviderProps();
 		const preventDefault = jest.fn();
 		const source = { tableIdentity: 'table-1', sourceRowIndex: 1 };
@@ -107,7 +111,11 @@ describe( 'Row DnD engine connection', () => {
 	it( 'when physical drag starts after an accepted preparation, should start the row DnD session with the prepared constraints', () => {
 		const constraints = { rowCount: 3, blockedBoundaries: [ 2 ] };
 		interactionMock.prepareStart.mockReturnValue( constraints );
-		render( <RowDnd enabled tableIdentity="table-1">{ () => <div /> }</RowDnd> );
+		render(
+			<RowDnd enabled tableIdentity="table-1">
+				{ () => <div /> }
+			</RowDnd>
+		);
 		const props = getProviderProps();
 		const source = { tableIdentity: 'table-1', sourceRowIndex: 1 };
 
@@ -151,7 +159,11 @@ describe( 'Row DnD engine connection', () => {
 			y: 100,
 			toJSON: () => ( {} ),
 		} );
-		render( <RowDnd enabled tableIdentity="table-1">{ () => <div /> }</RowDnd> );
+		render(
+			<RowDnd enabled tableIdentity="table-1">
+				{ () => <div /> }
+			</RowDnd>
+		);
 		const props = getProviderProps();
 
 		props.onDragMove( {
@@ -176,7 +188,11 @@ describe( 'Row DnD engine connection', () => {
 	 * - cancelではcancelだけ、通常終了ではcompleteだけが呼ばれる。
 	 */
 	it( 'when physical drag ends, should cancel a canceled drag and complete a normal drag', () => {
-		render( <RowDnd enabled tableIdentity="table-1">{ () => <div /> }</RowDnd> );
+		render(
+			<RowDnd enabled tableIdentity="table-1">
+				{ () => <div /> }
+			</RowDnd>
+		);
 		const props = getProviderProps();
 
 		props.onDragEnd( { canceled: true } as DragEndEvent );

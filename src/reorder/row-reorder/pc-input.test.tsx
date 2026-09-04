@@ -37,7 +37,10 @@ const useDragDropManagerMock = useDragDropManager as jest.MockedFunction<
 	typeof useDragDropManager
 >;
 
-/** PC入力境界へ渡す最小限のDnD Engine状態を生成する。 */
+/**
+ * PC入力境界へ渡す最小限のDnD Engine状態を生成する。
+ * @param idle
+ */
 const createManager = ( idle = true ) =>
 	( {
 		dragOperation: {
@@ -103,7 +106,15 @@ const createNestedRowTarget = () => {
 	};
 };
 
-/** PC入力開始処理へ渡すReactポインターイベントを生成する。 */
+/**
+ * PC入力開始処理へ渡すReactポインターイベントを生成する。
+ * @param options
+ * @param options.target
+ * @param options.currentTarget
+ * @param options.isPrimary
+ * @param options.button
+ * @param options.pointerType
+ */
 const createPointerEvent = ( options: {
 	target: Element;
 	currentTarget: Element;
@@ -119,7 +130,13 @@ const createPointerEvent = ( options: {
 		pointerType: options.pointerType ?? 'mouse',
 	} ) as unknown as ReactPointerEvent< Element >;
 
-/** RowPcInputが子要素へ公開する現在のポインター開始処理を取得する。 */
+/**
+ * RowPcInputが子要素へ公開する現在のポインター開始処理を取得する。
+ * @param options
+ * @param options.enabled
+ * @param options.activeDraggable
+ * @param options.activeDraggable.current
+ */
 const renderRowPcInput = ( options?: {
 	enabled?: boolean;
 	activeDraggable?: { current: Draggable | null };
