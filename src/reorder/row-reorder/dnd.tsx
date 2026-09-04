@@ -1,8 +1,9 @@
 /**
- * 行並び替えで利用するdnd-kitの物理DnD接続を所有する。
+ * 行並び替えにおけるdnd-kitとの物理DnD接続を所有する。
  *
- * Row DnD境界はTable描画Lifecycleに対して安定して存在し、行並び替えが有効な期間だけ開始入力を受け付ける。
- * PC固有の開始入力はPC Inputへ委ね、dnd-kitの物理Lifecycleとpointer位置をDnD Interactionの開始、移動先更新、確定、取消へ変換する。
+ * 行DnD境界はTableの描画中に安定して存在し、行並び替えが有効な期間だけ開始入力を受け付ける。
+ * PC固有の開始条件判定はPC入力境界へ委ね、dnd-kitが通知する物理DnDの進行と現在位置を、
+ * DnD Interactionが扱う開始、移動先更新、確定、取消へ接続する。
  */
 
 import {
@@ -22,17 +23,18 @@ import type { RowReorderConstraints } from './table-integration';
 export type { RowDndPointerDownHandler } from './pc-input';
 
 /**
- * 現在のpointer位置から、Row Reorderの0-based移動先境界を解決する。
+ * 現在のポインター位置から、行並び替えの0-based移動先境界を解決する。
  *
- * 対象Tableのeditor contextと同じviewport座標を利用し、tbody直下行だけを移動先行として扱う。
+ * 対象Tableと同じ表示環境の座標を利用し、tbody直下行だけを移動先候補として扱う。
  * 行の上半分ではその行の直前、下半分ではその行の直後を移動先とする。
  *
- * @param event 現在のdragmoveイベント。
+ * @param event 現在の物理DnD位置を示す移動イベント。
  * @return 現在の移動先境界。対象Table内の移動先行がない場合はnull。
  */
 const resolveDestinationBoundaryIndex = ( event: DragMoveEvent ): number | null => {
 	const sourceElement = event.operation.source?.element;
 
+	/* 行DnDの並び替え対象を確認できない場合は、移動先判定を成立させない。 */
 	if ( ! sourceElement || sourceElement.tagName !== 'TR' ) {
 		return null;
 	}
@@ -40,13 +42,14 @@ const resolveDestinationBoundaryIndex = ( event: DragMoveEvent ): number | null 
 	const sourceRow = sourceElement as HTMLTableRowElement;
 	const tableBody = sourceRow.parentElement;
 
+	/* 行DnDの対象範囲であるtbodyを確認できない場合は、移動先判定を成立させない。 */
 	if ( ! tableBody || tableBody.tagName !== 'TBODY' ) {
 		return null;
 	}
 
 	const nativeEvent = event.nativeEvent;
 
-	/* 移動先判定は現在のpointer入力にだけ成立し、別入力方式の座標を推測して補完しない。 */
+	/* 移動先判定は現在のポインター入力にだけ成立し、別入力方式の座標を推測して補完しない。 */
 	if ( ! nativeEvent || ! ( 'clientX' in nativeEvent ) || ! ( 'clientY' in nativeEvent ) ) {
 		return null;
 	}
@@ -54,6 +57,8 @@ const resolveDestinationBoundaryIndex = ( event: DragMoveEvent ): number | null 
 	const pointerEvent = nativeEvent as PointerEvent;
 	const x = pointerEvent.clientX;
 	const y = pointerEvent.clientY;
+
+	/* ポインター位置に重なる要素から対象Tableのtbody直下行を解決し、入れ子Tableなどの行を候補から除外する。 */
 	const targetRow = sourceRow.ownerDocument
 		.elementsFromPoint( x, y )
 		.map( ( element ) => element.closest( 'tr' ) as HTMLTableRowElement | null )
@@ -66,6 +71,8 @@ const resolveDestinationBoundaryIndex = ( event: DragMoveEvent ): number | null 
 
 	const rectangle = targetRow.getBoundingClientRect();
 	const middleY = rectangle.top + rectangle.height / 2;
+
+	/* 指している行の中央を境界とし、上側は直前、下側は直後の挿入位置として扱う。 */
 	const destinationBoundaryIndex =
 		y < middleY ? targetRow.sectionRowIndex : targetRow.sectionRowIndex + 1;
 
@@ -73,16 +80,16 @@ const resolveDestinationBoundaryIndex = ( event: DragMoveEvent ): number | null 
 };
 
 /**
- * 対象Tableへdnd-kitの物理DnD Lifecycleを接続する。
+ * 対象Tableへdnd-kitの物理DnD進行を接続する。
  *
- * Provider自体はTable描画Lifecycleに対して安定して維持し、行並び替えが有効な期間だけPC Inputから開始対象を登録する。
- * DnD開始後はpointer位置から対象Table内の移動先境界を解決し、確定または取消まで共通のRow DnD Lifecycleへ接続する。
+ * 接続自体はTableの描画中に安定して維持し、行並び替えが有効な期間だけPC入力境界から開始対象を登録する。
+ * DnD開始後はポインター位置から対象Table内の移動先境界を解決し、確定または取消までDnD Interactionへ接続する。
  *
  * @param props               行DnD接続に必要な値。
  * @param props.enabled       現在のTableで行並び替え開始入力を受け付ける場合はtrue。
  * @param props.tableIdentity 行並び替え対象のTable Identity。
- * @param props.children      既存DOMへpointer handlerを接続する描画処理。
- * @return dnd-kitのRow DnD Lifecycleへ接続された子要素。
+ * @param props.children      既存DOMへポインター開始処理を接続する描画処理。
+ * @return dnd-kitの行DnD進行へ接続された子要素。
  */
 export const RowDnd = ( props: {
 	enabled: boolean;
@@ -100,6 +107,7 @@ export const RowDnd = ( props: {
 		const source = event?.operation?.source?.data as RowDndSource;
 		const constraints = rowDndInteraction.prepareStart( source );
 
+		/* 開始時点のTable構造で並び替え対象が成立しない場合は、物理DnDを開始しない。 */
 		if ( constraints === null ) {
 			event.preventDefault();
 			activeDraggable.current?.destroy();
@@ -116,6 +124,7 @@ export const RowDnd = ( props: {
 	const onDragStart = () => {
 		const preparation = preparedStart.current;
 
+		/* 開始可否確認が成立していない物理DnD通知からは、行DnD Sessionを開始しない。 */
 		if ( preparation === null ) {
 			return;
 		}
@@ -129,10 +138,12 @@ export const RowDnd = ( props: {
 	};
 
 	const onDragEnd = ( event: DragEndEvent ) => {
+		/* 物理DnD終了時は、次回入力へ持ち越してはならない開始準備と一時登録を破棄する。 */
 		preparedStart.current = null;
 		activeDraggable.current?.destroy();
 		activeDraggable.current = null;
 
+		/* 物理DnDが取消で終了した場合は、行並び替えを確定せずSessionを取消する。 */
 		if ( event.canceled ) {
 			rowDndInteraction.cancel();
 			return;
