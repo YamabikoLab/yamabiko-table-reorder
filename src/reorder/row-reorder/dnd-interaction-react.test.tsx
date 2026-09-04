@@ -45,13 +45,13 @@ const useRowDndPublicState = () => ( {
 
 /** 開始可能な行DnD Sessionを成立させる。 */
 const startSession = (): void => {
-	const initialConstraints = rowDndInteraction.prepareStart( source );
+	const preparation = rowDndInteraction.prepareStart( source );
 
-	if ( initialConstraints === null ) {
-		throw new Error( 'Test precondition failed: expected initial constraints.' );
+	if ( preparation === null ) {
+		throw new Error( 'Test precondition failed: expected start preparation.' );
 	}
 
-	rowDndInteraction.start( source, initialConstraints );
+	rowDndInteraction.start( preparation );
 };
 
 describe( 'Row DnD React state interface', () => {
