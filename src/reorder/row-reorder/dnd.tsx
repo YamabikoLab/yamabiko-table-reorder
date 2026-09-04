@@ -27,6 +27,8 @@ import {
 } from './pc-input';
 import type { RowReorderConstraints } from './table-integration';
 
+export type { RowDndPointerDownHandler } from './pc-input';
+
 /**
  * 現在の物理移動先行とpointer位置から、Row Reorderの0-based移動先境界を解決する。
  *
