@@ -8,12 +8,7 @@
 import { useCallback } from '@wordpress/element';
 import { useStore } from 'zustand';
 
-import {
-	reorderMode,
-	reorderModeStore,
-	type ReorderKind,
-	type ReorderModeStore,
-} from '@/reorder/reorder-mode';
+import { reorderMode, reorderModeStore, type ReorderKind } from '@/reorder/reorder-mode';
 
 /**
  * 対象Tableから見た現在の並び替え方向をReactへ提供する。
@@ -22,7 +17,7 @@ import {
  * @return 対象Tableで選択中の並び替え方向。通常編集の場合はnull。
  */
 const useSelectedReorderKind = ( tableIdentity: string ) => {
-	const selectedKind = useStore( reorderModeStore, ( state: ReorderModeStore ) => {
+	const selectedKind = useStore( reorderModeStore, ( state ) => {
 		const mode = state.mode;
 		const selectedForTable =
 			mode.kind !== 'edit' && mode.tableIdentity === tableIdentity ? mode.kind : null;
