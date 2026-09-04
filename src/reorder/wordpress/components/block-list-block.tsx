@@ -2,12 +2,13 @@
  * 現在操作中の対応Tableの既存Block wrapperへReorder Mode中の通常編集抑止と行DnDを接続するReact componentを所有する。
  *
  * 新しいDOM階層は追加せず、Gutenberg既存のwrapper propsへ必要な入力抑止とRow DnD開始入力を合成する。
- * 行DnDではpointerdownされたtbody直下行だけをDraggableとして遅延登録し、dnd-kitの物理Lifecycleを
- * DnD Interactionへ接続する。
+ * 行DnDではpointerdownされたtbody直下行だけをDraggableとして遅延登録し、DnD開始後に現在行をDroppableとして登録する。
+ * dnd-kitの物理LifecycleをDnD Interactionの開始、移動先更新、確定、取消へ接続する。
  */
 
 import {
 	Draggable,
+	Droppable,
 	Feedback,
 	PointerSensor,
 	type BeforeDragStartEvent,
@@ -28,7 +29,7 @@ import {
 	type EditingStartWrapperProps,
 } from '@/reorder/wordpress/editing-start';
 
-/** 行DnDのDraggable種別。 */
+/** 行DnDのDraggable / Droppable種別。 */
 const ROW_DND_TYPE = 'ytr-row';
 
 /** BlockListBlock HOCが利用するprops。 */
@@ -91,10 +92,7 @@ const RowDndBlockListBlock = ( props: {
 		const tableBody = table?.tBodies.item( 0 ) ?? null;
 		const row = target.closest( 'tr' ) as HTMLTableRowElement | null;
 
-		/*
-		 * 現在Blockのtbody直下行だけを開始対象とする。
-		 * 入れ子Tableの行は対象にしない。
-		 */
+		/* 現在Blockのtbody直下行だけを開始対象とし、入れ子Tableの行は対象にしない。 */
 		if ( ! tableBody || ! row || row.parentElement !== tableBody ) {
 			return;
 		}
@@ -112,23 +110,15 @@ const RowDndBlockListBlock = ( props: {
 				element: row,
 				data: source,
 				type: ROW_DND_TYPE,
-
-				/*
-				 * まずドラッグ成立を目視確認するため、標準Feedbackを一時的に有効にする。
-				 * 製品実装では最終的にnoneへ戻す。
-				 */
+				/* ドラッグ成立と確定を目視確認する間だけ標準Feedbackを利用する。 */
 				plugins: [
 					Feedback.configure( {
 						feedback: 'default',
 					} ),
 				],
-
 				sensors: [
 					PointerSensor.configure( {
-						/*
-						 * Tableセル内部からのpointer入力も
-						 * DnD開始対象として扱う。
-						 */
+						/* Tableセル内部からのpointer入力もDnD開始対象として扱う。 */
 						preventActivation: () => false,
 					} ),
 				],
@@ -149,10 +139,36 @@ const RowDndBlockListBlock = ( props: {
 };
 
 /**
+ * 現在の物理移動先行とpointer位置から、Row Reorderの0-based移動先境界を解決する。
+ *
+ * 行の上半分ではその行の直前、下半分ではその行の直後を移動先とする。
+ *
+ * @param event 現在のdragmoveまたはdragoverイベント。
+ * @return 現在の移動先境界。移動先行がない場合はnull。
+ */
+const resolveDestinationBoundaryIndex = (
+	event: DragMoveEvent | DragOverEvent
+): number | null => {
+	const targetElement = event.operation.target?.element;
+
+	if ( ! targetElement || targetElement.tagName !== 'TR' ) {
+		return null;
+	}
+
+	const row = targetElement as HTMLTableRowElement;
+	const rectangle = row.getBoundingClientRect();
+	const pointerY = event.operation.position.current.y;
+	const middleY = rectangle.top + rectangle.height / 2;
+
+	return pointerY < middleY ? row.sectionRowIndex : row.sectionRowIndex + 1;
+};
+
+/**
  * 現在操作中の対応Tableの既存Block wrapperへReorder Modeの編集可否とRow DnDを反映する。
  *
  * このcomponentは現在選択中の対応Tableに対してだけ生成され、Reorder Modeの購読を所有する。
  * 行並び替えモードではDragDropProviderを接続し、pointerdownされたtbody直下行だけをDnD開始対象とする。
+ * DnD開始後は現在のtbody直下行を移動先として登録し、最終移動先をDnD Interactionへ渡して行移動を確定する。
  *
  * @param props                Gutenbergから渡されるBlockListBlock propsと元のcomponent。
  * @param props.BlockListBlock
@@ -170,6 +186,7 @@ export const ReorderModeBlockListBlock = ( props: {
 	const editingAllowed = selectedKind === null;
 
 	const activeDraggable = useRef< Draggable | null >( null );
+	const activeDroppables = useRef< Droppable[] >( [] );
 
 	const preparedStart = useRef< {
 		source: RowDndSource;
@@ -183,6 +200,11 @@ export const ReorderModeBlockListBlock = ( props: {
 				onMouseDownCapture: preserveEditingStartHandler( wrapperProps?.onMouseDownCapture ),
 		  }
 		: wrapperProps;
+
+	const destroyDroppables = () => {
+		activeDroppables.current.forEach( ( droppable ) => droppable.destroy() );
+		activeDroppables.current = [];
+	};
 
 	const onBeforeDragStart = ( event: BeforeDragStartEvent, manager: DragDropManager ) => {
 		void manager;
@@ -204,9 +226,6 @@ export const ReorderModeBlockListBlock = ( props: {
 	};
 
 	const onDragStart = ( event: DragStartEvent, manager: DragDropManager ) => {
-		void event;
-		void manager;
-
 		const preparation = preparedStart.current;
 
 		if ( preparation === null ) {
@@ -214,25 +233,57 @@ export const ReorderModeBlockListBlock = ( props: {
 		}
 
 		preparedStart.current = null;
-
 		rowDndInteraction.start( preparation.source, preparation.constraints );
+
+		const sourceRow = event.operation.source.element as HTMLTableRowElement | undefined;
+		const tableBody = sourceRow?.parentElement as HTMLTableSectionElement | null;
+
+		if ( ! sourceRow || ! tableBody || tableBody.tagName !== 'TBODY' ) {
+			return;
+		}
+
+		destroyDroppables();
+
+		/* DnD開始後だけ現在のtbody直下行を移動先候補として登録する。 */
+		Array.from( tableBody.rows )
+			.filter( ( row ) => row.parentElement === tableBody )
+			.forEach( ( row, rowIndex ) => {
+				activeDroppables.current.push(
+					new Droppable(
+						{
+							id: `ytr-row-target:${ clientId }:${ rowIndex }`,
+							element: row,
+							data: {
+								rowIndex,
+								tableIdentity: clientId,
+							},
+							accept: ROW_DND_TYPE,
+						},
+						manager
+					)
+				);
+			} );
+	};
+
+	const updateDestination = ( event: DragMoveEvent | DragOverEvent ) => {
+		rowDndInteraction.updateDestination( resolveDestinationBoundaryIndex( event ) );
 	};
 
 	const onDragMove = ( event: DragMoveEvent, manager: DragDropManager ) => {
-		void event;
 		void manager;
+		updateDestination( event );
 	};
 
 	const onDragOver = ( event: DragOverEvent, manager: DragDropManager ) => {
-		void event;
 		void manager;
+		updateDestination( event );
 	};
 
 	const onDragEnd = ( event: DragEndEvent, manager: DragDropManager ) => {
 		void manager;
 
 		preparedStart.current = null;
-
+		destroyDroppables();
 		activeDraggable.current?.destroy();
 		activeDraggable.current = null;
 
@@ -244,10 +295,7 @@ export const ReorderModeBlockListBlock = ( props: {
 		rowDndInteraction.complete();
 	};
 
-	/*
-	 * 行並び替えモード以外ではRow DnD Providerを生成しない。
-	 * 列モードでは編集抑止だけを維持する。
-	 */
+	/* 行並び替えモード以外ではRow DnD Providerを生成せず、列モードでは編集抑止だけを維持する。 */
 	if ( selectedKind !== 'row' ) {
 		return <BlockListBlock { ...blockProps } wrapperProps={ reorderWrapperProps } />;
 	}
