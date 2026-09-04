@@ -336,11 +336,10 @@ workspace "YTR Reorder v1 Architecture" {
 			}
 		}
 		RT_022 = EXT_DND_ENGINE -> RESP_ROW_INPUT_INTERACTION "DnD終了またはcancelのLifecycleを通知し、Input Interactionが自身の開始候補と入力一時状態を破棄する。" {
-			tags "Runtime Interaction,Runtime_RV_ROW_DND_COMPLETE,Runtime_RV_ROW_DND_EXTERNAL_ABORT,Runtime_RV_ROW_DND_FAILURE_RECOVERY"
+			tags "Runtime Interaction,Runtime_RV_ROW_DND_COMPLETE,Runtime_RV_ROW_DND_EXTERNAL_ABORT"
 			properties {
 				"runtime.RV_ROW_DND_COMPLETE.step.9" "DnD終了またはcancelのLifecycleを通知し、Input Interactionが自身の開始候補と入力一時状態を破棄する。"
 				"runtime.RV_ROW_DND_EXTERNAL_ABORT.step.5" "DnD終了またはcancelのLifecycleを通知し、Input Interactionが自身の開始候補と入力一時状態を破棄する。"
-				"runtime.RV_ROW_DND_FAILURE_RECOVERY.step.4" "DnD終了またはcancelのLifecycleを通知し、Input Interactionが自身の開始候補と入力一時状態を破棄する。"
 			}
 		}
 		RT_023 = RESP_ROW_DND_INTERACTION -> RESP_REORDER_MODE "complete終了後も現在のTableで行並び替えモードを維持できる結果を渡す。" {
@@ -374,10 +373,9 @@ workspace "YTR Reorder v1 Architecture" {
 			}
 		}
 		RT_028 = RESP_ROW_DND_INTERACTION -> RESP_REORDER_MODE "現在のTableで行並び替えモードを安全に継続できるかという結果を渡す。" {
-			tags "Runtime Interaction,Runtime_RV_ROW_DND_EXTERNAL_ABORT,Runtime_RV_ROW_DND_FAILURE_RECOVERY"
+			tags "Runtime Interaction,Runtime_RV_ROW_DND_EXTERNAL_ABORT"
 			properties {
 				"runtime.RV_ROW_DND_EXTERNAL_ABORT.step.6" "現在のTableで行並び替えモードを安全に継続できるかという結果を渡す。"
-				"runtime.RV_ROW_DND_FAILURE_RECOVERY.step.5" "現在のTableで行並び替えモードを安全に継続できるかという結果を渡す。"
 			}
 		}
 		RT_029 = RESP_ROW_AUTO_SCROLL -> RESP_ROW_DND_INTERACTION "通常のoperation boundaryへ伝播できないexecution boundaryで捕捉したErrorを、元のoperation情報とともに同じ共通中止経路へ渡す。" {
@@ -386,16 +384,40 @@ workspace "YTR Reorder v1 Architecture" {
 				"runtime.RV_ROW_DND_FAILURE_RECOVERY.step.1" "通常のoperation boundaryへ伝播できないexecution boundaryで捕捉したErrorを、元のoperation情報とともに同じ共通中止経路へ渡す。"
 			}
 		}
-		RT_030 = RESP_ROW_DND_INTERACTION -> RESP_ROW_PRESENTATION "共通中止経路としてDnD中だけの表示を解除し、Designで定義された異常終了通知を要求する。" {
+		RT_030 = RESP_ROW_DND_INTERACTION -> RESP_ROW_PRESENTATION "物理的なDnD開始成立後のfailureでは、成立しているDnD中表示を解除し、Designで定義された異常終了通知を要求する。" {
 			tags "Runtime Interaction,Runtime_RV_ROW_DND_FAILURE_RECOVERY"
 			properties {
-				"runtime.RV_ROW_DND_FAILURE_RECOVERY.step.2" "共通中止経路としてDnD中だけの表示を解除し、Designで定義された異常終了通知を要求する。"
+				"runtime.RV_ROW_DND_FAILURE_RECOVERY.step.2" "物理的なDnD開始成立後のfailureでは、成立しているDnD中表示を解除し、Designで定義された異常終了通知を要求する。"
 			}
 		}
-		RT_031 = RESP_ROW_DND_INTERACTION -> RESP_ROW_AUTO_SCROLL "共通中止経路として自動スクロール許可状態を終了する。" {
+		RT_031 = RESP_ROW_DND_INTERACTION -> RESP_ROW_AUTO_SCROLL "物理的なDnD開始成立後のfailureでは、成立している自動スクロール許可状態を終了する。" {
 			tags "Runtime Interaction,Runtime_RV_ROW_DND_FAILURE_RECOVERY"
 			properties {
-				"runtime.RV_ROW_DND_FAILURE_RECOVERY.step.3" "共通中止経路として自動スクロール許可状態を終了する。"
+				"runtime.RV_ROW_DND_FAILURE_RECOVERY.step.3" "物理的なDnD開始成立後のfailureでは、成立している自動スクロール許可状態を終了する。"
+			}
+		}
+		RT_032 = EXT_DND_ENGINE -> RESP_ROW_INPUT_INTERACTION "物理的なDnD開始成立後はDnD終了Lifecycleを通知し、Input Interactionが自身の開始候補と入力一時状態を破棄する。" {
+			tags "Runtime Interaction,Runtime_RV_ROW_DND_FAILURE_RECOVERY"
+			properties {
+				"runtime.RV_ROW_DND_FAILURE_RECOVERY.step.4" "物理的なDnD開始成立後はDnD終了Lifecycleを通知し、Input Interactionが自身の開始候補と入力一時状態を破棄する。"
+			}
+		}
+		RT_033 = RESP_ROW_DND_INTERACTION -> RESP_ROW_TABLE_INTEGRATION "cleanup後、終了対象Tableの現在状態から行並び替えモード継続可否を判断するために現在のTable情報を要求する。" {
+			tags "Runtime Interaction,Runtime_RV_ROW_DND_FAILURE_RECOVERY"
+			properties {
+				"runtime.RV_ROW_DND_FAILURE_RECOVERY.step.5" "cleanup後、終了対象Tableの現在状態から行並び替えモード継続可否を判断するために現在のTable情報を要求する。"
+			}
+		}
+		RT_034 = RESP_ROW_TABLE_INTEGRATION -> EXT_SUPPORTED_TABLE_BLOCK "終了対象Tableが現在も行並び替え対象として利用可能かを現在の対応Table Blockから解決する。" {
+			tags "Runtime Interaction,Runtime_RV_ROW_DND_FAILURE_RECOVERY"
+			properties {
+				"runtime.RV_ROW_DND_FAILURE_RECOVERY.step.6" "終了対象Tableが現在も行並び替え対象として利用可能かを現在の対応Table Blockから解決する。"
+			}
+		}
+		RT_035 = RESP_ROW_DND_INTERACTION -> RESP_REORDER_MODE "現在のTableで行並び替えモードを安全に継続できるかという結果だけを渡す。" {
+			tags "Runtime Interaction,Runtime_RV_ROW_DND_FAILURE_RECOVERY"
+			properties {
+				"runtime.RV_ROW_DND_FAILURE_RECOVERY.step.7" "現在のTableで行並び替えモードを安全に継続できるかという結果だけを渡す。"
 			}
 		}
 	}
@@ -513,10 +535,10 @@ workspace "YTR Reorder v1 Architecture" {
 
 		custom "RV_ROW_DND_FAILURE_RECOVERY" {
 			title "Runtime - Row DnD internal failure recovery"
-			include RESP_ROW_AUTO_SCROLL RESP_ROW_DND_INTERACTION RESP_ROW_PRESENTATION EXT_DND_ENGINE RESP_ROW_INPUT_INTERACTION RESP_REORDER_MODE
+			include RESP_ROW_AUTO_SCROLL RESP_ROW_DND_INTERACTION RESP_ROW_PRESENTATION EXT_DND_ENGINE RESP_ROW_INPUT_INTERACTION RESP_ROW_TABLE_INTEGRATION EXT_SUPPORTED_TABLE_BLOCK RESP_REORDER_MODE
 			exclude "relationship.tag!=Runtime_RV_ROW_DND_FAILURE_RECOVERY"
 			properties {
-				"runtime.steps" "1=RT_029;2=RT_030;3=RT_031;4=RT_022;5=RT_028"
+				"runtime.steps" "1=RT_029;2=RT_030;3=RT_031;4=RT_032;5=RT_033;6=RT_034;7=RT_035"
 			}
 			autoLayout lr
 		}
