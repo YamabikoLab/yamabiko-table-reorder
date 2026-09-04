@@ -5,13 +5,24 @@
  * DnD開始に必要なpointer入力は変更せず、通常編集の開始だけを成立させない。
  */
 
-import type { ComponentType } from '@wordpress/element';
+import { useRef, type ComponentType } from '@wordpress/element';
 
 import { useEditingAllowed } from '@/reorder/reorder-mode-react';
 import {
 	preserveEditingStartHandler,
 	type EditingStartWrapperProps,
 } from '@/reorder/wordpress/editing-start';
+import { DragDropProvider } from '@dnd-kit/react';
+import type {
+	BeforeDragStartEvent,
+	DragDropManager,
+	DragEndEvent,
+	DragMoveEvent,
+	DragOverEvent,
+	DragStartEvent,
+} from '@dnd-kit/dom';
+import { rowDndInteraction, type RowDndSource } from '@/reorder/row-reorder/dnd-interaction';
+import type { RowReorderConstraints } from '@/reorder/row-reorder/table-integration';
 
 /** BlockListBlock HOCが利用するprops。 */
 export type ReorderModeBlockListBlockProps = {
@@ -48,5 +59,65 @@ export const ReorderModeBlockListBlock = ( props: {
 		  }
 		: wrapperProps;
 
-	return <BlockListBlock { ...blockProps } wrapperProps={ reorderWrapperProps } />;
+	const preparedStart = useRef< {
+		source: RowDndSource;
+		constraints: RowReorderConstraints;
+	} | null >( null );
+
+	const onBeforeDragStart = ( event: BeforeDragStartEvent, manager: DragDropManager ) => {
+		void manager;
+
+		const source = event.operation?.source?.data as RowDndSource;
+		const constraints = rowDndInteraction.prepareStart( source );
+
+		if ( constraints === null ) {
+			event.preventDefault();
+			return;
+		}
+
+		preparedStart.current = {
+			source,
+			constraints,
+		};
+	};
+
+	const onDragStart = ( event: DragStartEvent, manager: DragDropManager ) => {
+		void event;
+		void manager;
+
+		const preparation = preparedStart.current;
+
+		if ( preparation === null ) {
+			return;
+		}
+
+		preparedStart.current = null;
+
+		rowDndInteraction.start( preparation.source, preparation.constraints );
+	};
+
+	const onDragMove = ( event: DragMoveEvent, manager: DragDropManager ) => {
+		// dragmove fires frequently, so keep the UI quiet and just expose it in DevTools.
+	};
+
+	const onDragOver = ( event: DragOverEvent, manager: DragDropManager ) => {
+		void manager;
+	};
+
+	const onDragEnd = ( event: DragEndEvent, manager: DragDropManager ) => {
+		void manager;
+	};
+	return (
+		<>
+			<DragDropProvider
+				onBeforeDragStart={ onBeforeDragStart }
+				onDragStart={ onDragStart }
+				onDragMove={ onDragMove }
+				onDragOver={ onDragOver }
+				onDragEnd={ onDragEnd }
+			>
+				<BlockListBlock { ...blockProps } wrapperProps={ reorderWrapperProps } />
+			</DragDropProvider>
+		</>
+	);
 };
