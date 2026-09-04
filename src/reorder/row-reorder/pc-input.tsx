@@ -12,9 +12,6 @@ import type { PointerEvent, ReactNode } from 'react';
 
 import type { RowDndSource } from './dnd-interaction';
 
-/** 行DnDのDraggable / Droppable種別。 */
-export const ROW_DND_TYPE = 'ytr-row';
-
 /** Row DnDが既存DOMのpointer入力へ接続するhandler。 */
 export type RowDndPointerDownHandler = ( event: PointerEvent< Element > ) => void;
 
@@ -86,11 +83,10 @@ export const RowPcInput = ( props: {
 				id: `ytr-row:${ tableIdentity }:${ row.sectionRowIndex }`,
 				element: row,
 				data: source,
-				type: ROW_DND_TYPE,
-				/* ドラッグ成立と確定を目視確認する間だけ標準Feedbackを利用する。 */
+				/* 行DnD中の視覚表現はReorder Presentationが所有するため、dnd-kit標準表示は利用しない。 */
 				plugins: [
 					Feedback.configure( {
-						feedback: 'default',
+						feedback: 'none',
 					} ),
 				],
 				sensors: [

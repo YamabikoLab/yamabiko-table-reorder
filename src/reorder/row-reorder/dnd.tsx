@@ -2,57 +2,71 @@
  * 行並び替えで利用するdnd-kitの物理DnD接続を所有する。
  *
  * Row DnD境界はTable描画Lifecycleに対して安定して存在し、行並び替えが有効な期間だけ開始入力を受け付ける。
- * PC固有の開始入力はPC Inputへ委ね、dnd-kitの物理LifecycleをDnD Interactionの開始、移動先更新、確定、取消へ変換する。
+ * PC固有の開始入力はPC Inputへ委ね、dnd-kitの物理Lifecycleとpointer位置をDnD Interactionの開始、移動先更新、確定、取消へ変換する。
  */
 
 import {
 	Draggable,
-	Droppable,
 	type BeforeDragStartEvent,
-	type DragDropManager,
 	type DragEndEvent,
 	type DragMoveEvent,
-	type DragOverEvent,
-	type DragStartEvent,
 } from '@dnd-kit/dom';
 import { DragDropProvider } from '@dnd-kit/react';
 import { useRef } from '@wordpress/element';
 import type { ReactNode } from 'react';
 
 import { rowDndInteraction, type RowDndSource } from './dnd-interaction';
-import { ROW_DND_TYPE, RowPcInput, type RowDndPointerDownHandler } from './pc-input';
+import { RowPcInput, type RowDndPointerDownHandler } from './pc-input';
 import type { RowReorderConstraints } from './table-integration';
 
 export type { RowDndPointerDownHandler } from './pc-input';
 
 /**
- * 現在の物理移動先行とpointer位置から、Row Reorderの0-based移動先境界を解決する。
+ * 現在のpointer位置から、Row Reorderの0-based移動先境界を解決する。
  *
- * 行の上半分ではその行の直前、下半分ではその行の直後を移動先とする。
+ * 対象Tableのtbody直下行だけを移動先行として扱い、行の上半分ではその行の直前、下半分ではその行の直後を移動先とする。
  *
- * @param event 現在のdragmoveまたはdragoverイベント。
- * @return 現在の移動先境界。移動先行がない場合はnull。
+ * @param event 現在のdragmoveイベント。
+ * @return 現在の移動先境界。対象Table内の移動先行がない場合はnull。
  */
-const resolveDestinationBoundaryIndex = ( event: DragMoveEvent | DragOverEvent ): number | null => {
-	const targetElement = event.operation.target?.element;
+const resolveDestinationBoundaryIndex = ( event: DragMoveEvent ): number | null => {
+	const sourceElement = event.operation.source?.element;
 
-	if ( ! targetElement || targetElement.tagName !== 'TR' ) {
+	if ( ! sourceElement || sourceElement.tagName !== 'TR' ) {
 		return null;
 	}
 
-	const row = targetElement as HTMLTableRowElement;
-	const rectangle = row.getBoundingClientRect();
-	const pointerY = event.operation.position.current.y;
-	const middleY = rectangle.top + rectangle.height / 2;
+	const sourceRow = sourceElement as HTMLTableRowElement;
+	const tableBody = sourceRow.parentElement;
 
-	return pointerY < middleY ? row.sectionRowIndex : row.sectionRowIndex + 1;
+	if ( ! tableBody || tableBody.tagName !== 'TBODY' ) {
+		return null;
+	}
+
+	const { x, y } = event.operation.position.current;
+	const targetRow = sourceRow.ownerDocument
+		.elementsFromPoint( x, y )
+		.map( ( element ) => element.closest( 'tr' ) as HTMLTableRowElement | null )
+		.find( ( row ) => row?.parentElement === tableBody );
+
+	/* 対象Tableのtbody直下行を指していない位置は、有効な移動先として扱わない。 */
+	if ( ! targetRow ) {
+		return null;
+	}
+
+	const rectangle = targetRow.getBoundingClientRect();
+	const middleY = rectangle.top + rectangle.height / 2;
+	const destinationBoundaryIndex =
+		y < middleY ? targetRow.sectionRowIndex : targetRow.sectionRowIndex + 1;
+
+	return destinationBoundaryIndex;
 };
 
 /**
  * 対象Tableへdnd-kitの物理DnD Lifecycleを接続する。
  *
  * Provider自体はTable描画Lifecycleに対して安定して維持し、行並び替えが有効な期間だけPC Inputから開始対象を登録する。
- * DnD開始後に現在のtbody直下行を移動先候補として登録し、物理移動先を行境界へ変換して確定または取消まで接続する。
+ * DnD開始後はpointer位置から対象Table内の移動先境界を解決し、確定または取消まで共通のRow DnD Lifecycleへ接続する。
  *
  * @param props               行DnD接続に必要な値。
  * @param props.enabled       現在のTableで行並び替え開始入力を受け付ける場合はtrue。
@@ -67,20 +81,12 @@ export const RowDnd = ( props: {
 } ) => {
 	const { enabled, tableIdentity, children } = props;
 	const activeDraggable = useRef< Draggable | null >( null );
-	const activeDroppables = useRef< Droppable[] >( [] );
 	const preparedStart = useRef< {
 		source: RowDndSource;
 		constraints: RowReorderConstraints;
 	} | null >( null );
 
-	const destroyDroppables = () => {
-		activeDroppables.current.forEach( ( droppable ) => droppable.destroy() );
-		activeDroppables.current = [];
-	};
-
-	const onBeforeDragStart = ( event: BeforeDragStartEvent, manager: DragDropManager ) => {
-		void manager;
-
+	const onBeforeDragStart = ( event: BeforeDragStartEvent ) => {
 		const source = event?.operation?.source?.data as RowDndSource;
 		const constraints = rowDndInteraction.prepareStart( source );
 
@@ -97,7 +103,7 @@ export const RowDnd = ( props: {
 		};
 	};
 
-	const onDragStart = ( event: DragStartEvent, manager: DragDropManager ) => {
+	const onDragStart = () => {
 		const preparation = preparedStart.current;
 
 		if ( preparation === null ) {
@@ -106,56 +112,14 @@ export const RowDnd = ( props: {
 
 		preparedStart.current = null;
 		rowDndInteraction.start( preparation.source, preparation.constraints );
-
-		const sourceRow = event?.operation?.source?.element as HTMLTableRowElement | undefined;
-		const tableBody = sourceRow?.parentElement as HTMLTableSectionElement | null;
-
-		if ( ! sourceRow || ! tableBody || tableBody.tagName !== 'TBODY' ) {
-			return;
-		}
-
-		destroyDroppables();
-
-		/* DnD開始後だけ現在のtbody直下行を移動先候補として登録する。 */
-		Array.from( tableBody.rows )
-			.filter( ( row ) => row.parentElement === tableBody )
-			.forEach( ( row, rowIndex ) => {
-				activeDroppables.current.push(
-					new Droppable(
-						{
-							id: `ytr-row-target:${ tableIdentity }:${ rowIndex }`,
-							element: row,
-							data: {
-								rowIndex,
-								tableIdentity,
-							},
-							accept: ROW_DND_TYPE,
-						},
-						manager
-					)
-				);
-			} );
 	};
 
-	const updateDestination = ( event: DragMoveEvent | DragOverEvent ) => {
+	const onDragMove = ( event: DragMoveEvent ) => {
 		rowDndInteraction.updateDestination( resolveDestinationBoundaryIndex( event ) );
 	};
 
-	const onDragMove = ( event: DragMoveEvent, manager: DragDropManager ) => {
-		void manager;
-		updateDestination( event );
-	};
-
-	const onDragOver = ( event: DragOverEvent, manager: DragDropManager ) => {
-		void manager;
-		updateDestination( event );
-	};
-
-	const onDragEnd = ( event: DragEndEvent, manager: DragDropManager ) => {
-		void manager;
-
+	const onDragEnd = ( event: DragEndEvent ) => {
 		preparedStart.current = null;
-		destroyDroppables();
 		activeDraggable.current?.destroy();
 		activeDraggable.current = null;
 
@@ -172,7 +136,6 @@ export const RowDnd = ( props: {
 			onBeforeDragStart={ onBeforeDragStart }
 			onDragStart={ onDragStart }
 			onDragMove={ onDragMove }
-			onDragOver={ onDragOver }
 			onDragEnd={ onDragEnd }
 		>
 			<RowPcInput
