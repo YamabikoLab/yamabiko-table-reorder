@@ -67,7 +67,7 @@ workspace "YTR Reorder v1 Architecture" {
 				element.setGroup("Row Reorder")
 			}
 		}
-		RESP_ROW_DND_INTERACTION = element "DnD Interaction" "Responsibility" "DnD Engineの物理的なDnD進行をRow Reorderの意味状態へ変換し、行DnD Session、開始可否判定、移動先判定、確定、中止、回復Lifecycleを所有する。" {
+		RESP_ROW_DND_INTERACTION = element "DnD Interaction" "Responsibility" "DnD Engineの物理的なDnD進行をRow Reorderの意味状態へ変換し、行DnD Session、開始可否判定、移動先判定、確定、中止のLifecycleを所有する。" {
 			tags "Responsibility"
 			!script groovy {
 				element.setGroup("Row Reorder")
@@ -174,10 +174,10 @@ workspace "YTR Reorder v1 Architecture" {
 		PF_005 = RESP_ROW_TABLE_INTEGRATION -> EXT_SUPPORTED_TABLE_BLOCK "対応Table Blockから行構造を取得し、確定時はtbodyの行順だけを反映する。" {
 			tags "Process Flow,ProcessFlow_PV_ROW_REORDER_END_TO_END,normal"
 		}
-		PF_006 = RESP_ROW_INPUT_INTERACTION -> RESP_ROW_DND_INTERACTION "[failure] 現在のEditor contextを利用できないなど、外部環境変化による継続不能をoperation boundaryへ合流させる。" {
+		PF_006 = RESP_ROW_INPUT_INTERACTION -> RESP_ROW_DND_INTERACTION "[failure] 現在のEditor contextを利用できないなど、外部環境変化による継続不能を通常の終了結果として渡す。" {
 			tags "Process Flow,ProcessFlow_PV_ROW_EXTERNAL_CHANGE_RECOVERY,failure"
 		}
-		PF_007 = RESP_ROW_TABLE_INTEGRATION -> RESP_ROW_DND_INTERACTION "[failure] 対象Tableが現在利用できない、または更新開始前に現在更新できないなど、外部Table状態の変化による継続不能・確定不能をoperation boundaryへ合流させる。" {
+		PF_007 = RESP_ROW_TABLE_INTEGRATION -> RESP_ROW_DND_INTERACTION "[failure] 対象Tableが現在利用できない、または更新開始前に現在更新できないなど、外部Table状態の変化による継続不能・確定不能を通常の結果として返す。" {
 			tags "Process Flow,ProcessFlow_PV_ROW_EXTERNAL_CHANGE_RECOVERY,failure"
 		}
 		PF_008 = RESP_ROW_DND_INTERACTION -> RESP_ROW_PRESENTATION "[recovery] DnD中だけの表示状態を解除し、安全な操作継続不能による終了ではDesignで定義された通知を要求する。" {
@@ -187,25 +187,7 @@ workspace "YTR Reorder v1 Architecture" {
 			tags "Process Flow,ProcessFlow_PV_ROW_EXTERNAL_CHANGE_RECOVERY,recovery"
 		}
 		PF_010 = RESP_ROW_DND_INTERACTION -> RESP_REORDER_MODE "[recovery] DnD終了後に現在のTableで行並び替えモードを安全に継続できるかを外側のモード境界へ渡す。" {
-			tags "Process Flow,ProcessFlow_PV_ROW_EXTERNAL_CHANGE_RECOVERY,ProcessFlow_PV_ROW_ACTIVE_DND_FAILURE_RECOVERY,ProcessFlow_PV_ROW_DATA_UPDATE_FAILURE_RECOVERY,recovery"
-		}
-		PF_011 = RESP_ROW_TABLE_INTEGRATION -> RESP_ROW_DND_INTERACTION "[failure] 開始可否判定中に検出されたRow Reorder所有のContractまたはInvariant違反をoperation boundaryへ伝播する。" {
-			tags "Process Flow,ProcessFlow_PV_ROW_START_FAILURE_RECOVERY,failure"
-		}
-		PF_012 = RESP_ROW_PRESENTATION -> RESP_ROW_DND_INTERACTION "[failure] active DnD中の表示責務で検出された内部Errorをoperation boundaryまたは必要なexecution boundaryから共通中止経路へ渡す。" {
-			tags "Process Flow,ProcessFlow_PV_ROW_ACTIVE_DND_FAILURE_RECOVERY,failure"
-		}
-		PF_013 = RESP_ROW_AUTO_SCROLL -> RESP_ROW_DND_INTERACTION "[failure] active DnD中の自動スクロール責務で検出された内部Errorをoperation boundaryまたは必要なexecution boundaryから共通中止経路へ渡す。" {
-			tags "Process Flow,ProcessFlow_PV_ROW_ACTIVE_DND_FAILURE_RECOVERY,failure"
-		}
-		PF_014 = RESP_ROW_DND_INTERACTION -> RESP_ROW_PRESENTATION "[recovery] DnD中だけの表示状態を解除し、異常終了としてDesignで定義された通知を要求する。" {
-			tags "Process Flow,ProcessFlow_PV_ROW_ACTIVE_DND_FAILURE_RECOVERY,ProcessFlow_PV_ROW_DATA_UPDATE_FAILURE_RECOVERY,recovery"
-		}
-		PF_015 = RESP_ROW_DND_INTERACTION -> RESP_ROW_AUTO_SCROLL "[recovery] 自動スクロール一時状態を終了する。" {
-			tags "Process Flow,ProcessFlow_PV_ROW_ACTIVE_DND_FAILURE_RECOVERY,ProcessFlow_PV_ROW_DATA_UPDATE_FAILURE_RECOVERY,recovery"
-		}
-		PF_016 = RESP_ROW_TABLE_INTEGRATION -> RESP_ROW_DND_INTERACTION "[failure] 更新処理中に検出された内部Errorをcomplete operation boundaryへ伝播する。" {
-			tags "Process Flow,ProcessFlow_PV_ROW_DATA_UPDATE_FAILURE_RECOVERY,failure"
+			tags "Process Flow,ProcessFlow_PV_ROW_EXTERNAL_CHANGE_RECOVERY,recovery"
 		}
 
 		RT_001 = RESP_ROW_INPUT_INTERACTION -> EXT_DND_ENGINE "開始条件が成立した行だけをDnD開始候補として一時的に接続する。" {
@@ -378,48 +360,6 @@ workspace "YTR Reorder v1 Architecture" {
 				"runtime.RV_ROW_DND_EXTERNAL_ABORT.step.6" "現在のTableで行並び替えモードを安全に継続できるかという結果を渡す。"
 			}
 		}
-		RT_029 = RESP_ROW_AUTO_SCROLL -> RESP_ROW_DND_INTERACTION "通常のoperation boundaryへ伝播できないexecution boundaryで捕捉したErrorを、元のoperation情報とともに同じ共通中止経路へ渡す。" {
-			tags "Runtime Interaction,Runtime_RV_ROW_DND_FAILURE_RECOVERY"
-			properties {
-				"runtime.RV_ROW_DND_FAILURE_RECOVERY.step.1" "通常のoperation boundaryへ伝播できないexecution boundaryで捕捉したErrorを、元のoperation情報とともに同じ共通中止経路へ渡す。"
-			}
-		}
-		RT_030 = RESP_ROW_DND_INTERACTION -> RESP_ROW_PRESENTATION "物理的なDnD開始成立後のfailureでは、成立しているDnD中表示を解除し、Designで定義された異常終了通知を要求する。" {
-			tags "Runtime Interaction,Runtime_RV_ROW_DND_FAILURE_RECOVERY"
-			properties {
-				"runtime.RV_ROW_DND_FAILURE_RECOVERY.step.2" "物理的なDnD開始成立後のfailureでは、成立しているDnD中表示を解除し、Designで定義された異常終了通知を要求する。"
-			}
-		}
-		RT_031 = RESP_ROW_DND_INTERACTION -> RESP_ROW_AUTO_SCROLL "物理的なDnD開始成立後のfailureでは、成立している自動スクロール許可状態を終了する。" {
-			tags "Runtime Interaction,Runtime_RV_ROW_DND_FAILURE_RECOVERY"
-			properties {
-				"runtime.RV_ROW_DND_FAILURE_RECOVERY.step.3" "物理的なDnD開始成立後のfailureでは、成立している自動スクロール許可状態を終了する。"
-			}
-		}
-		RT_032 = EXT_DND_ENGINE -> RESP_ROW_INPUT_INTERACTION "物理的なDnD開始成立後はDnD終了Lifecycleを通知し、Input Interactionが自身の開始候補と入力一時状態を破棄する。" {
-			tags "Runtime Interaction,Runtime_RV_ROW_DND_FAILURE_RECOVERY"
-			properties {
-				"runtime.RV_ROW_DND_FAILURE_RECOVERY.step.4" "物理的なDnD開始成立後はDnD終了Lifecycleを通知し、Input Interactionが自身の開始候補と入力一時状態を破棄する。"
-			}
-		}
-		RT_033 = RESP_ROW_DND_INTERACTION -> RESP_ROW_TABLE_INTEGRATION "cleanup後、終了対象Tableの現在状態から行並び替えモード継続可否を判断するために現在のTable情報を要求する。" {
-			tags "Runtime Interaction,Runtime_RV_ROW_DND_FAILURE_RECOVERY"
-			properties {
-				"runtime.RV_ROW_DND_FAILURE_RECOVERY.step.5" "cleanup後、終了対象Tableの現在状態から行並び替えモード継続可否を判断するために現在のTable情報を要求する。"
-			}
-		}
-		RT_034 = RESP_ROW_TABLE_INTEGRATION -> EXT_SUPPORTED_TABLE_BLOCK "終了対象Tableが現在も行並び替え対象として利用可能かを現在の対応Table Blockから解決する。" {
-			tags "Runtime Interaction,Runtime_RV_ROW_DND_FAILURE_RECOVERY"
-			properties {
-				"runtime.RV_ROW_DND_FAILURE_RECOVERY.step.6" "終了対象Tableが現在も行並び替え対象として利用可能かを現在の対応Table Blockから解決する。"
-			}
-		}
-		RT_035 = RESP_ROW_DND_INTERACTION -> RESP_REORDER_MODE "現在のTableで行並び替えモードを安全に継続できるかという結果だけを渡す。" {
-			tags "Runtime Interaction,Runtime_RV_ROW_DND_FAILURE_RECOVERY"
-			properties {
-				"runtime.RV_ROW_DND_FAILURE_RECOVERY.step.7" "現在のTableで行並び替えモードを安全に継続できるかという結果だけを渡す。"
-			}
-		}
 	}
 
 	views {
@@ -472,27 +412,6 @@ workspace "YTR Reorder v1 Architecture" {
 			autoLayout lr
 		}
 
-		custom "PV_ROW_START_FAILURE_RECOVERY" {
-			title "Process Flow [Failure / Recovery] - Start Failure and Recovery"
-			include RESP_ROW_TABLE_INTEGRATION RESP_ROW_DND_INTERACTION
-			exclude "relationship.tag!=ProcessFlow_PV_ROW_START_FAILURE_RECOVERY"
-			autoLayout lr
-		}
-
-		custom "PV_ROW_ACTIVE_DND_FAILURE_RECOVERY" {
-			title "Process Flow [Failure / Recovery] - Active DnD Failure and Recovery"
-			include RESP_ROW_PRESENTATION RESP_ROW_DND_INTERACTION RESP_ROW_AUTO_SCROLL RESP_REORDER_MODE
-			exclude "relationship.tag!=ProcessFlow_PV_ROW_ACTIVE_DND_FAILURE_RECOVERY"
-			autoLayout lr
-		}
-
-		custom "PV_ROW_DATA_UPDATE_FAILURE_RECOVERY" {
-			title "Process Flow [Failure / Recovery] - Table Update Failure and Recovery"
-			include RESP_ROW_TABLE_INTEGRATION RESP_ROW_DND_INTERACTION RESP_ROW_PRESENTATION RESP_ROW_AUTO_SCROLL RESP_REORDER_MODE
-			exclude "relationship.tag!=ProcessFlow_PV_ROW_DATA_UPDATE_FAILURE_RECOVERY"
-			autoLayout lr
-		}
-
 		custom "RV_ROW_DND_START" {
 			title "Runtime - Row DnD start attempt"
 			include RESP_ROW_INPUT_INTERACTION EXT_DND_ENGINE RESP_ROW_DND_INTERACTION RESP_ROW_TABLE_INTEGRATION EXT_SUPPORTED_TABLE_BLOCK RESP_ROW_PRESENTATION
@@ -529,16 +448,6 @@ workspace "YTR Reorder v1 Architecture" {
 			exclude "relationship.tag!=Runtime_RV_ROW_DND_EXTERNAL_ABORT"
 			properties {
 				"runtime.steps" "1=RT_024;2=RT_025;3=RT_026;4=RT_027;5=RT_022;6=RT_028"
-			}
-			autoLayout lr
-		}
-
-		custom "RV_ROW_DND_FAILURE_RECOVERY" {
-			title "Runtime - Row DnD internal failure recovery"
-			include RESP_ROW_AUTO_SCROLL RESP_ROW_DND_INTERACTION RESP_ROW_PRESENTATION EXT_DND_ENGINE RESP_ROW_INPUT_INTERACTION RESP_ROW_TABLE_INTEGRATION EXT_SUPPORTED_TABLE_BLOCK RESP_REORDER_MODE
-			exclude "relationship.tag!=Runtime_RV_ROW_DND_FAILURE_RECOVERY"
-			properties {
-				"runtime.steps" "1=RT_029;2=RT_030;3=RT_031;4=RT_032;5=RT_033;6=RT_034;7=RT_035"
 			}
 			autoLayout lr
 		}
