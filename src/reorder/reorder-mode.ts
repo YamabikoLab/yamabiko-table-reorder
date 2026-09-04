@@ -78,7 +78,7 @@ type ReorderModeStoreInternalActions = {
 	resolveAfterRowDnd: ( tableIdentity: ReorderTableIdentity, canContinue: boolean ) => void;
 };
 
-export type ReorderModeStore = ReorderModeStoreState &
+type ReorderModeStore = ReorderModeStoreState &
 	ReorderModeStoreActions &
 	ReorderModeStoreInternalActions;
 
