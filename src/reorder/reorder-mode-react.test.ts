@@ -13,8 +13,10 @@ import { reorderMode, rowReorderMode } from '@/reorder/reorder-mode';
 const RESET_TABLE_IDENTITY = '__reorder-mode-react-test-reset__';
 
 const resetReorderMode = () => {
-	reorderMode.observeTable( RESET_TABLE_IDENTITY );
-	reorderMode.notifyTableInactive( RESET_TABLE_IDENTITY );
+	act( () => {
+		reorderMode.observeTable( RESET_TABLE_IDENTITY );
+		reorderMode.notifyTableInactive( RESET_TABLE_IDENTITY );
+	} );
 };
 
 describe( 'Reorder Mode React connection', () => {
