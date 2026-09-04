@@ -525,11 +525,17 @@ const rowDndStore = createStore< RowDndStore >()(
 						return { shouldNotifyTermination };
 					}
 
-					rowTableIntegration.applyRowMove( {
+					const rowMoveApplied = rowTableIntegration.applyRowMove( {
 						clientId: session.tableIdentity,
 						sourceRowIndex: session.sourceRowIndex,
 						destinationBoundaryIndex: session.destinationBoundaryIndex,
 					} );
+
+					/* 再照合後でも更新要求時点の外部Table状態により行移動を確定できない場合は、安全に確定できない終了として利用者へ通知する。 */
+					if ( rowMoveApplied === false ) {
+						shouldNotifyTermination = true;
+					}
+
 					return { shouldNotifyTermination };
 				} finally {
 					set(
