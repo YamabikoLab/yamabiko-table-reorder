@@ -119,6 +119,9 @@ const renderMovingRow = (
 ): void => {
 	const clonedRow = layout.sourceRow.cloneNode( true ) as HTMLTableRowElement;
 	removeDuplicatedIds( clonedRow );
+
+	/* 元行だけに適用する半透明表示をcloneへ持ち込まず、overlayの内容は通常濃度で表示する。 */
+	clonedRow.classList.remove( SOURCE_ROW_CLASS );
 	clonedRow.style.height = `${ layout.rowHeight }px`;
 
 	/* 空セルを含む場合も元行のセル幅を維持し、内容量による列位置の変化を発生させない。 */
