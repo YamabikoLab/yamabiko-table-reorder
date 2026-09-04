@@ -2,7 +2,7 @@
  * 通常編集、行並び替え、列並び替えの排他状態と、その並び替えモードが有効なTableを所有する。
  *
  * ReactやWordPressには依存せず、Zustandのvanilla storeを状態境界として、
- * モード選択、Table単位のライフサイクル、通常編集との排他、および状態変更の購読を提供する。
+ * モード選択、Table単位のライフサイクル、および通常編集との排他を提供する。
  */
 
 import { devtools } from 'zustand/middleware';
@@ -78,7 +78,7 @@ type ReorderModeStoreInternalActions = {
 	resolveAfterRowDnd: ( tableIdentity: ReorderTableIdentity, canContinue: boolean ) => void;
 };
 
-type ReorderModeStore = ReorderModeStoreState &
+export type ReorderModeStore = ReorderModeStoreState &
 	ReorderModeStoreActions &
 	ReorderModeStoreInternalActions;
 
@@ -113,8 +113,9 @@ type RowReorderMode = {
  *
  * Zustandのvanilla storeを使用し、ReactやWordPressのライフサイクルとは独立して状態を維持する。
  * Redux DevToolsではReorder Modeの状態変更を操作単位で確認できる。
+ * Reactからの直接参照は`reorder-mode-react.ts`だけに限定する。
  */
-const reorderModeStore = createStore< ReorderModeStore >()(
+export const reorderModeStore = createStore< ReorderModeStore >()(
 	devtools(
 		( set, get ) => ( {
 			mode: { kind: 'edit' },
@@ -182,24 +183,22 @@ const reorderModeStore = createStore< ReorderModeStore >()(
 /**
  * Reorder Mode本体が外部統合へ提供する最小内部仕様を表す。
  *
- * 表示や編集可否など利用側固有の表現は持たず、状態遷移、Table単位の現在モード参照、状態変更通知だけを提供する。
- * 状態変更の購読にはZustand Storeが提供する購読内部仕様をそのまま使用する。
+ * 表示や編集可否など利用側固有の表現は持たず、状態遷移とTable単位の現在モード参照だけを提供する。
  */
-type ReorderMode = ReorderModeStoreActions &
-	Pick< typeof reorderModeStore, 'subscribe' > & {
-		/**
-		 * 対象Tableから見た現在のReorder Modeを取得する。
-		 *
-		 * @param tableIdentity 現在モードを確認するTable Identity。
-		 * @return 対象Tableで有効なReorder Mode。別Tableが並び替え対象の場合は通常編集モード。
-		 */
-		getMode: ( tableIdentity: ReorderTableIdentity ) => ReorderKind | 'edit';
-	};
+type ReorderMode = ReorderModeStoreActions & {
+	/**
+	 * 対象Tableから見た現在のReorder Modeを取得する。
+	 *
+	 * @param tableIdentity 現在モードを確認するTable Identity。
+	 * @return 対象Tableで有効なReorder Mode。別Tableが並び替え対象の場合は通常編集モード。
+	 */
+	getMode: ( tableIdentity: ReorderTableIdentity ) => ReorderKind | 'edit';
+};
 
 /**
  * 外部統合へ提供する共有Reorder Mode内部仕様。
  *
- * 状態遷移、Table単位の現在モード参照、状態変更通知だけを公開し、Store自体や利用側固有の表示表現は公開しない。
+ * 状態遷移とTable単位の現在モード参照だけを公開し、Zustandの購読内部仕様や利用側固有の表示表現は公開しない。
  */
 export const reorderMode: ReorderMode = {
 	select: ( kind, tableIdentity ) => {
@@ -218,7 +217,6 @@ export const reorderMode: ReorderMode = {
 
 		return tableMode;
 	},
-	subscribe: reorderModeStore.subscribe,
 };
 
 /**
