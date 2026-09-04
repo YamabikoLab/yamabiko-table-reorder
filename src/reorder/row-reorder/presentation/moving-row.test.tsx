@@ -2,7 +2,7 @@
  * Row Reorderの移動対象表示が、DnD Interactionの意味状態とDnD Engineの物理情報を責務どおり組み合わせることを確認する。
  *
  * DnD Interaction本体やDnD Engine本体の実装は重複して検証せず、active Session中だけの表示、
- * 元行を変更しない表示、縦方向追従、Session終了時の表示解除を検証する。
+ * 元行の半透明表示、縦方向追従、Session終了時の表示解除を検証する。
  */
 
 import { act, render } from '@testing-library/react';
@@ -108,20 +108,20 @@ describe( 'Row moving display', () => {
 	 * - 物理DnD開始を通知した後、Row DnD Sessionをactiveへ変更する。
 	 *
 	 * 期待結果:
-	 * - idle中は表示せず、active後に元行自体の視覚状態を変えずoverlayを表示する。
+	 * - idle中は表示せず、active後に元行を半透明として残しoverlayを表示する。
 	 */
 	it( 'when physical drag information exists and the row DnD session becomes active, should show the moving row only for the active session', () => {
 		const { table, row } = createSourceTable();
 		const { rerender } = render( <RowMovingDisplay /> );
 
 		startPhysicalDrag( row );
-		expect( row.style.opacity ).toBe( '' );
+		expect( row.classList ).not.toContain( 'yamabiko-table-reorder-moving-row-source' );
 		expect( document.body.querySelectorAll( 'table' ) ).toHaveLength( 1 );
 
 		mockRowDndPhase = 'active';
 		rerender( <RowMovingDisplay /> );
 
-		expect( row.style.opacity ).toBe( '' );
+		expect( row.classList ).toContain( 'yamabiko-table-reorder-moving-row-source' );
 		expect( table.getBoundingClientRect().width ).toBe( 400 );
 		expect( document.body.querySelectorAll( 'table' ) ).toHaveLength( 2 );
 		const overlayTable = document.body.querySelectorAll( 'table' ).item( 1 );
@@ -172,25 +172,25 @@ describe( 'Row moving display', () => {
 	 * - Row DnD Session終了を移動表示の終了条件として扱うことを確認する。
 	 *
 	 * 事前条件:
-	 * - active Session中にoverlayの移動表示が成立している。
+	 * - active Session中に元行の半透明表示とoverlayが成立している。
 	 *
 	 * 操作:
 	 * - DnD Interactionの意味状態をidleへ変更する。
 	 *
 	 * 期待結果:
-	 * - overlayを解除し、元行はDnD前と同じ視覚状態を維持する。
+	 * - overlayと元行の半透明表示を解除する。
 	 */
-	it( 'when the row DnD session becomes idle, should remove the moving display and keep the source row unchanged', () => {
+	it( 'when the row DnD session becomes idle, should remove the moving display and restore the source row', () => {
 		const { row } = createSourceTable();
 		mockRowDndPhase = 'active';
 		const { rerender } = render( <RowMovingDisplay /> );
 		startPhysicalDrag( row );
-		expect( row.style.opacity ).toBe( '' );
+		expect( row.classList ).toContain( 'yamabiko-table-reorder-moving-row-source' );
 
 		mockRowDndPhase = 'idle';
 		rerender( <RowMovingDisplay /> );
 
-		expect( row.style.opacity ).toBe( '' );
+		expect( row.classList ).not.toContain( 'yamabiko-table-reorder-moving-row-source' );
 		expect( document.body.querySelectorAll( 'table' ) ).toHaveLength( 1 );
 	} );
 } );
