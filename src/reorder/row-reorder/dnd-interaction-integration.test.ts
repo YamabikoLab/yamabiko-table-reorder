@@ -25,12 +25,11 @@ jest.mock( './dnd-interaction', () => ( {
 	createRowDndOperationBoundary: jest.fn(),
 } ) );
 
-type EngineCallback = ( event: any ) => void;
+type EngineCallback = ( event: unknown ) => void;
 
 type EngineHarness = {
 	manager: DragDropManager;
 	listeners: Map< string, EngineCallback >;
-	stop: jest.Mock;
 };
 
 const createBoundary = (): jest.Mocked< RowDndOperationBoundary > => ( {
@@ -45,10 +44,9 @@ const createBoundary = (): jest.Mocked< RowDndOperationBoundary > => ( {
 
 const createEngineHarness = (): EngineHarness => {
 	const listeners = new Map< string, EngineCallback >();
-	const stop = jest.fn();
 	const manager = {
 		actions: {
-			stop,
+			stop: jest.fn(),
 		},
 		dragOperation: {
 			status: {
@@ -68,7 +66,6 @@ const createEngineHarness = (): EngineHarness => {
 	return {
 		manager,
 		listeners,
-		stop,
 	};
 };
 
