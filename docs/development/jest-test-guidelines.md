@@ -23,6 +23,16 @@ Jest tests should be structured so that their purpose and expected behavior can 
 - When behavior is difficult to test without exposing implementation details, reconsider the test boundary, test approach, or responsibility decomposition before widening the production API.
 - When test isolation requires resetting Zustand state, prefer test-side setup or mocking rather than adding a production reset API solely for tests.
 
+## React Testing Library
+
+- Prefer React Testing Library for tests that verify React components, custom Hooks, or other React integration boundaries.
+- Use `renderHook()` for custom Hooks and `render()` for components when those APIs can express the behavior being verified. Avoid manual `createRoot()`, container management, or React test-environment setup unless React Testing Library cannot represent the required scenario clearly.
+- Test behavior that is observable through the React consumer boundary. Avoid asserting internal React state, private implementation details, CSS class names, or incidental DOM structure unless they are part of the responsibility's public behavior.
+- Keep React integration tests scoped to the behavior owned by the React boundary. Do not duplicate the specification of React-independent responsibilities that are already verified by their own Jest tests.
+- When a React boundary subscribes to shared state such as a Zustand store, verify the contract between the store and React, such as observable updates, mount/unmount behavior, remount behavior, and subscription cleanup when those behaviors are important to the responsibility.
+- Prefer user-observable queries for rendered UI. Use implementation-oriented queries such as test IDs only when no meaningful user-facing query exists for the behavior under test.
+- Keep test setup focused on the scenario being verified. Do not reproduce production component trees, providers, or DOM structure that are unrelated to the responsibility under test.
+
 ## Test case documentation
 
 - Add a Japanese comment immediately before each test case so that the purpose of the test can be understood without reading the implementation.
