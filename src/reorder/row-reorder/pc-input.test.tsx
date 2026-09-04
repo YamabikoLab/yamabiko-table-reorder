@@ -249,10 +249,7 @@ describe( 'Row PC DnD input boundary', () => {
 
 		const pointerSensorOptions = pointerSensorConfigureMock.mock.calls[ 0 ]?.[ 0 ];
 		expect(
-			pointerSensorOptions?.preventActivation?.(
-				{} as globalThis.PointerEvent,
-				{} as Draggable
-			)
+			pointerSensorOptions?.preventActivation?.( {} as globalThis.PointerEvent, {} as Draggable )
 		).toBe( false );
 	} );
 
