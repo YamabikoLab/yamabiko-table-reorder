@@ -50,13 +50,13 @@ const resetReorderMode = (): void => {
 /** 通常系のactive Sessionを準備する。 */
 const prepareActiveSession = (): void => {
 	getConstraintsMock.mockReturnValueOnce( availableConstraints );
-	const initialConstraints = rowDndInteraction.prepareStart( source );
+	const preparation = rowDndInteraction.prepareStart( source );
 
-	if ( initialConstraints === null ) {
-		throw new Error( 'Test precondition failed: expected initial constraints.' );
+	if ( preparation === null ) {
+		throw new Error( 'Test precondition failed: expected start preparation.' );
 	}
 
-	rowDndInteraction.start( source, initialConstraints );
+	rowDndInteraction.start( preparation );
 };
 
 describe( 'Row DnD Interaction lifecycle and failure recovery', () => {
@@ -92,7 +92,7 @@ describe( 'Row DnD Interaction lifecycle and failure recovery', () => {
 
 	/**
 	 * 概要:
-	 * - 開始可能な行では、開始可否判定時に確認した行制約を返し、開始拒否通知を行わないことを確認する。
+	 * - 開始可能な行では、開始対象と開始可否判定時に確認した行制約を同じ開始準備値として返すことを確認する。
 	 *
 	 * 事前条件:
 	 * - 対象Tableは取得可能で、移動元行の前後に分断不可境界がない。
@@ -101,14 +101,17 @@ describe( 'Row DnD Interaction lifecycle and failure recovery', () => {
 	 * - prepareStart()を実行する。
 	 *
 	 * 期待結果:
-	 * - Table Integrationから取得した行制約が返り、開始拒否通知とError記録は発生しない。
+	 * - 開始対象とTable Integrationから取得した行制約が組で返り、開始拒否通知とError記録は発生しない。
 	 */
-	it( 'when source row is movable, should return the checked initial constraints', () => {
+	it( 'when source row is movable, should return the source with the checked initial constraints', () => {
 		getConstraintsMock.mockReturnValueOnce( availableConstraints );
 
-		const initialConstraints = rowDndInteraction.prepareStart( source );
+		const preparation = rowDndInteraction.prepareStart( source );
 
-		expect( initialConstraints ).toBe( availableConstraints );
+		expect( preparation ).toEqual( {
+			source,
+			initialConstraints: availableConstraints,
+		} );
 		expect( startRejectionNoticeListener ).not.toHaveBeenCalled();
 		expect( consoleErrorSpy ).not.toHaveBeenCalled();
 	} );
@@ -132,9 +135,9 @@ describe( 'Row DnD Interaction lifecycle and failure recovery', () => {
 			blockedBoundaries: [ 2 ],
 		} );
 
-		const initialConstraints = rowDndInteraction.prepareStart( source );
+		const preparation = rowDndInteraction.prepareStart( source );
 
-		expect( initialConstraints ).toBeNull();
+		expect( preparation ).toBeNull();
 		expect( startRejectionNoticeListener ).toHaveBeenCalledTimes( 1 );
 		expect( terminationNoticeListener ).not.toHaveBeenCalled();
 		expect( consoleErrorSpy ).not.toHaveBeenCalled();
@@ -219,9 +222,9 @@ describe( 'Row DnD Interaction lifecycle and failure recovery', () => {
 		} );
 		reorderMode.select( 'row', 'table-a' );
 
-		const initialConstraints = rowDndInteraction.prepareStart( source );
+		const preparation = rowDndInteraction.prepareStart( source );
 
-		expect( initialConstraints ).toBeNull();
+		expect( preparation ).toBeNull();
 		expect( getRowDndPhase() ).toBe( 'idle' );
 		expect( consoleErrorSpy ).toHaveBeenCalledTimes( 1 );
 		expect( consoleErrorSpy ).toHaveBeenCalledWith(
@@ -249,13 +252,13 @@ describe( 'Row DnD Interaction lifecycle and failure recovery', () => {
 		prepareActiveSession();
 
 		expect( () =>
-			rowDndInteraction.start(
-				{
+			rowDndInteraction.start( {
+				source: {
 					tableIdentity: 'table-b',
 					sourceRowIndex: 0,
 				},
-				availableConstraints
-			)
+				initialConstraints: availableConstraints,
+			} )
 		).not.toThrow();
 
 		expect( getRowDndPhase() ).toBe( 'idle' );
