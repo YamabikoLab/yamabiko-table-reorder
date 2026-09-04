@@ -24,7 +24,8 @@ export type { RowDndPointerDownHandler } from './pc-input';
 /**
  * 現在のpointer位置から、Row Reorderの0-based移動先境界を解決する。
  *
- * 対象Tableのtbody直下行だけを移動先行として扱い、行の上半分ではその行の直前、下半分ではその行の直後を移動先とする。
+ * 対象Tableのeditor contextと同じviewport座標を利用し、tbody直下行だけを移動先行として扱う。
+ * 行の上半分ではその行の直前、下半分ではその行の直後を移動先とする。
  *
  * @param event 現在のdragmoveイベント。
  * @return 現在の移動先境界。対象Table内の移動先行がない場合はnull。
@@ -43,7 +44,16 @@ const resolveDestinationBoundaryIndex = ( event: DragMoveEvent ): number | null 
 		return null;
 	}
 
-	const { x, y } = event.operation.position.current;
+	const nativeEvent = event.nativeEvent;
+
+	/* 移動先判定は現在のpointer入力にだけ成立し、別入力方式の座標を推測して補完しない。 */
+	if ( ! nativeEvent || ! ( 'clientX' in nativeEvent ) || ! ( 'clientY' in nativeEvent ) ) {
+		return null;
+	}
+
+	const pointerEvent = nativeEvent as PointerEvent;
+	const x = pointerEvent.clientX;
+	const y = pointerEvent.clientY;
 	const targetRow = sourceRow.ownerDocument
 		.elementsFromPoint( x, y )
 		.map( ( element ) => element.closest( 'tr' ) as HTMLTableRowElement | null )
