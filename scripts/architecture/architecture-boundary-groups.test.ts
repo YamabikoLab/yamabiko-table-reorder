@@ -10,9 +10,7 @@ const validModel = (): ArchitectureModel => ( {
 	externalContexts: [
 		{ id: 'EXT_EDITOR', name: 'Editor', type: 'External System', summary: 'Editor.' },
 	],
-	responsibilities: [
-		{ id: 'RESP_INPUT', name: 'Input', summary: 'Input.' },
-	],
+	responsibilities: [ { id: 'RESP_INPUT', name: 'Input', summary: 'Input.' } ],
 	boundaries: [
 		{ id: 'BOUNDARY_EXTERNAL', name: 'External', includes: [ 'EXT_EDITOR' ] },
 		{ id: 'BOUNDARY_INTERNAL', name: 'Row Reorder', includes: [ 'RESP_INPUT' ] },

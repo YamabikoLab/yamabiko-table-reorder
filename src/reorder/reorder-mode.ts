@@ -32,7 +32,7 @@ type ReorderModeStoreState = {
 };
 
 /**
- * Reorder Mode Storeが状態変更のために提供する操作を表す。
+ * Reorder Mode Storeが外部統合へ提供する状態変更操作を表す。
  *
  * Storeの利用者は状態を直接置き換えず、Reorder Modeが所有する状態遷移だけを要求する。
  */
@@ -64,12 +64,29 @@ type ReorderModeStoreActions = {
 	notifyTableInactive: ( tableIdentity: ReorderTableIdentity ) => void;
 };
 
-type ReorderModeStore = ReorderModeStoreState & ReorderModeStoreActions;
+/** Reorder Mode Store内部で方向固有Lifecycleを解決する操作を表す。 */
+type ReorderModeStoreInternalActions = {
+	/**
+	 * 行DnD終了後の対象Table継続可否を、現在のReorder Modeへ反映する。
+	 *
+	 * 終了したDnDと現在も同一Tableの行並び替えモードが一致する場合だけ結果を反映し、
+	 * 継続不能なら通常編集へ戻す。すでに別状態へ遷移している場合は過去のDnD結果で上書きしない。
+	 *
+	 * @param tableIdentity 終了した行DnD Sessionの対象Table Identity。
+	 * @param canContinue   DnD終了後も対象Tableで行並び替えを安全に継続できる場合はtrue。
+	 */
+	resolveAfterRowDnd: ( tableIdentity: ReorderTableIdentity, canContinue: boolean ) => void;
+};
+
+type ReorderModeStore = ReorderModeStoreState &
+	ReorderModeStoreActions &
+	ReorderModeStoreInternalActions;
 
 /**
  * Row Reorderへ提供するReorder Modeの最小内部仕様を表す。
  *
- * Row ReorderはReorder Mode全体の状態を参照せず、対象Tableで行並び替えが有効かだけを確認する。
+ * Row ReorderはReorder Mode全体の状態を参照せず、対象Tableで行並び替えが有効かの確認と、
+ * DnD終了後に対象Tableで安全に継続できるかという結果の通知だけを行う。
  */
 type RowReorderMode = {
 	/**
@@ -79,6 +96,16 @@ type RowReorderMode = {
 	 * @return 対象Tableで行並び替えが有効な場合はtrue。それ以外はfalse。
 	 */
 	isActive: ( tableIdentity: ReorderTableIdentity ) => boolean;
+	/**
+	 * 行DnD終了後に、Session対象Tableで行並び替えを安全に継続できるかという結果を通知する。
+	 *
+	 * 現在も同一Tableの行並び替えモードである場合だけ継続可否を反映し、
+	 * すでに通常編集、列並び替え、または別Tableへ遷移している場合は現在状態を維持する。
+	 *
+	 * @param tableIdentity 終了した行DnD Sessionの対象Table Identity。
+	 * @param canContinue   DnD終了後も対象Tableで行並び替えを安全に継続できる場合はtrue。
+	 */
+	resolveAfterDnd: ( tableIdentity: ReorderTableIdentity, canContinue: boolean ) => void;
 };
 
 /**
@@ -128,6 +155,24 @@ const reorderModeStore = createStore< ReorderModeStore >()(
 				}
 
 				set( { mode: { kind: 'edit' } }, undefined, 'reorder-mode/notify-table-inactive' );
+			},
+			resolveAfterRowDnd: ( tableIdentity, canContinue ) => {
+				const mode = get().mode;
+				const sameRowModeStillActive = mode.kind === 'row' && mode.tableIdentity === tableIdentity;
+
+				/*
+				 * DnD終了後に利用者がすでに別状態へ遷移している場合は、終了済みDnDの結果で現在状態を上書きしない。
+				 */
+				if ( ! sameRowModeStillActive ) {
+					return;
+				}
+
+				/* 継続可能な場合は現在の行並び替え状態を維持し、過去状態を再設定しない。 */
+				if ( canContinue ) {
+					return;
+				}
+
+				set( { mode: { kind: 'edit' } }, undefined, 'reorder-mode/resolve-after-row-dnd' );
 			},
 		} ),
 		{ name: 'Yamabiko Table Reorder / Reorder Mode' }
@@ -179,7 +224,8 @@ export const reorderMode: ReorderMode = {
 /**
  * Row Reorderへ提供する共有Reorder Mode内部仕様。
  *
- * Toolbarと同じReorder Mode状態を参照しつつ、対象Tableで行並び替えが有効かだけを公開する。
+ * Toolbarと同じReorder Mode状態を参照しつつ、対象Tableで行並び替えが有効かの確認と、
+ * DnD終了後の継続可否によるLifecycle解決だけを公開する。
  */
 export const rowReorderMode: RowReorderMode = {
 	isActive: ( tableIdentity ) => {
@@ -187,5 +233,8 @@ export const rowReorderMode: RowReorderMode = {
 		const rowReorderActiveForTable = mode.kind === 'row' && mode.tableIdentity === tableIdentity;
 
 		return rowReorderActiveForTable;
+	},
+	resolveAfterDnd: ( tableIdentity, canContinue ) => {
+		reorderModeStore.getState().resolveAfterRowDnd( tableIdentity, canContinue );
 	},
 };
