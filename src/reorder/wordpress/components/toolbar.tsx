@@ -8,7 +8,7 @@ import { BlockControls } from '@wordpress/block-editor';
 import { ToolbarButton, ToolbarGroup } from '@wordpress/components';
 
 import { getColumnReorderName, getRowReorderName } from '@/messages';
-import { useReorderMode } from '@/reorder/wordpress/hooks/use-reorder-mode';
+import { useReorderMode } from '@/reorder/reorder-mode-react';
 
 /** Reorder Mode Toolbarへ渡すprops。 */
 type ReorderModeToolbarProps = {
