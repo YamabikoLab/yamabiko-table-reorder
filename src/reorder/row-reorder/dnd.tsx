@@ -1,15 +1,13 @@
 /**
  * 行並び替えで利用するdnd-kitの物理DnD接続を所有する。
  *
- * 行並び替えが有効なTableに対して、開始対象行と移動先候補を必要な期間だけdnd-kitへ接続する。
- * dnd-kitの物理LifecycleをDnD Interactionの開始、移動先更新、確定、取消へ変換し、WordPress固有の描画構造は所有しない。
+ * 行並び替えが有効なTableに対して、移動先候補を必要な期間だけdnd-kitへ接続する。
+ * PC固有の開始入力はPC Inputへ委ね、dnd-kitの物理LifecycleをDnD Interactionの開始、移動先更新、確定、取消へ変換する。
  */
 
 import {
 	Draggable,
 	Droppable,
-	Feedback,
-	PointerSensor,
 	type BeforeDragStartEvent,
 	type DragDropManager,
 	type DragEndEvent,
@@ -17,18 +15,17 @@ import {
 	type DragOverEvent,
 	type DragStartEvent,
 } from '@dnd-kit/dom';
-import { DragDropProvider, useDragDropManager } from '@dnd-kit/react';
+import { DragDropProvider } from '@dnd-kit/react';
 import { useRef } from '@wordpress/element';
 import type { ReactNode } from 'react';
 
 import { rowDndInteraction, type RowDndSource } from './dnd-interaction';
+import {
+	ROW_DND_TYPE,
+	RowPcInput,
+	type RowDndPointerDownHandler,
+} from './pc-input';
 import type { RowReorderConstraints } from './table-integration';
-
-/** 行DnDのDraggable / Droppable種別。 */
-const ROW_DND_TYPE = 'ytr-row';
-
-/** Row DnDが既存DOMのpointer入力へ接続するhandler。 */
-export type RowDndPointerDownHandler = ( event: unknown ) => void;
 
 /**
  * 現在の物理移動先行とpointer位置から、Row Reorderの0-based移動先境界を解決する。
@@ -54,94 +51,9 @@ const resolveDestinationBoundaryIndex = ( event: DragMoveEvent | DragOverEvent )
 };
 
 /**
- * DragDropProviderが所有するManagerを使い、pointerdownされた行だけをDraggableへ登録する。
- *
- * @param props                         行DnD開始対象を接続するための値。
- * @param props.tableIdentity           行並び替え対象のTable Identity。
- * @param props.activeDraggable         現在のpointer入力で登録したDraggable。
- * @param props.activeDraggable.current 現在のpointer入力で登録したDraggable。
- * @param props.children                既存DOMへpointer handlerを接続する描画処理。
- * @return Row DnD開始入力へ接続された子要素。
- */
-const RowDndPointerSource = ( props: {
-	tableIdentity: string;
-	activeDraggable: {
-		current: Draggable | null;
-	};
-	children: ( onPointerDownCapture: RowDndPointerDownHandler ) => ReactNode;
-} ) => {
-	const { tableIdentity, activeDraggable, children } = props;
-	const manager = useDragDropManager();
-
-	const onPointerDownCapture: RowDndPointerDownHandler = ( event ) => {
-		if ( ! manager ) {
-			return;
-		}
-
-		const pointerEvent = event as PointerEvent;
-
-		if (
-			! pointerEvent.isPrimary ||
-			pointerEvent.button !== 0 ||
-			pointerEvent.pointerType === 'touch' ||
-			! manager.dragOperation.status.idle
-		) {
-			return;
-		}
-
-		const target = pointerEvent.target as Element | null;
-		const currentTarget = pointerEvent.currentTarget as Element | null;
-
-		if ( ! target || ! currentTarget ) {
-			return;
-		}
-
-		const table = currentTarget.querySelector( 'table' );
-		const tableBody = table?.tBodies.item( 0 ) ?? null;
-		const row = target.closest( 'tr' ) as HTMLTableRowElement | null;
-
-		/* 現在Tableのtbody直下行だけを開始対象とし、入れ子Tableの行は対象にしない。 */
-		if ( ! tableBody || ! row || row.parentElement !== tableBody ) {
-			return;
-		}
-
-		activeDraggable.current?.destroy();
-
-		const source: RowDndSource = {
-			tableIdentity,
-			sourceRowIndex: row.sectionRowIndex,
-		};
-
-		activeDraggable.current = new Draggable(
-			{
-				id: `ytr-row:${ tableIdentity }:${ row.sectionRowIndex }`,
-				element: row,
-				data: source,
-				type: ROW_DND_TYPE,
-				/* ドラッグ成立と確定を目視確認する間だけ標準Feedbackを利用する。 */
-				plugins: [
-					Feedback.configure( {
-						feedback: 'default',
-					} ),
-				],
-				sensors: [
-					PointerSensor.configure( {
-						/* Tableセル内部からのpointer入力もDnD開始対象として扱う。 */
-						preventActivation: () => false,
-					} ),
-				],
-			},
-			manager
-		);
-	};
-
-	return children( onPointerDownCapture );
-};
-
-/**
  * 行並び替えが有効なTableへdnd-kitの物理DnD Lifecycleを接続する。
  *
- * pointerdownされたtbody直下行だけを開始対象として登録し、DnD開始後に現在のtbody直下行を移動先候補として登録する。
+ * PC Inputが登録した開始対象を開始可否判定へ接続し、DnD開始後に現在のtbody直下行を移動先候補として登録する。
  * DnD Interactionが開始可能と判断した操作だけをSessionへ進め、物理移動先を行境界へ変換して確定または取消まで接続する。
  *
  * @param props               行DnD接続に必要な値。
@@ -263,9 +175,9 @@ export const RowDnd = ( props: {
 			onDragOver={ onDragOver }
 			onDragEnd={ onDragEnd }
 		>
-			<RowDndPointerSource tableIdentity={ tableIdentity } activeDraggable={ activeDraggable }>
+			<RowPcInput tableIdentity={ tableIdentity } activeDraggable={ activeDraggable }>
 				{ children }
-			</RowDndPointerSource>
+			</RowPcInput>
 		</DragDropProvider>
 	);
 };
