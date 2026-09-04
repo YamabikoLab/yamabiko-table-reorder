@@ -189,6 +189,33 @@ describe( 'Row DnD Interaction normal lifecycle contracts', () => {
 
 	/**
 	 * 概要:
+	 * - complete時の再照合後にTable更新だけが外部状態変化で成立しなくなった場合、内部Errorではなく安全な確定不能として終了することを確認する。
+	 *
+	 * 事前条件:
+	 * - complete時の現在行制約では移動元と移動先が有効である。
+	 * - Table Integrationは更新要求時点の外部状態変化により行移動を適用できずfalseを返す。
+	 *
+	 * 操作:
+	 * - 行順が変化する移動先でcomplete()する。
+	 *
+	 * 期待結果:
+	 * - Sessionはidleへ戻り、異常終了通知を1回発行するが、Error記録は行わない。
+	 */
+	it( 'when row move becomes unavailable after complete revalidation, should terminate without logging an error', () => {
+		prepareActiveSession();
+		rowDndInteraction.updateDestination( 4 );
+		applyRowMoveMock.mockReturnValueOnce( false );
+
+		rowDndInteraction.complete();
+
+		expect( applyRowMoveMock ).toHaveBeenCalledTimes( 1 );
+		expect( getRowDndPhase() ).toBe( 'idle' );
+		expect( terminationNoticeListener ).toHaveBeenCalledTimes( 1 );
+		expect( consoleErrorSpy ).not.toHaveBeenCalled();
+	} );
+
+	/**
+	 * 概要:
 	 * - 通常cancel後は終了対象Tableの現在状態だけでReorder Mode継続可否を解決することを確認する。
 	 *
 	 * 事前条件:
