@@ -3,7 +3,7 @@
  *
  * Row DnDの意味上のLifecycleはDnD InteractionのReact境界から受け取り、表示に必要な移動対象DOMと物理位置だけをDnD Engineから直接利用する。
  * 移動表示は縦方向だけ現在位置へ追従し、横方向は対象Tableと現在のeditor表示領域が重なる範囲へ制限する。
- * 元行は実DOM上の位置と大きさを維持し、移動表示側の独立した視覚表現によって元行と区別する。
+ * 元行は実DOM上の位置と大きさを維持したまま半透明で残し、移動表示側の独立した視覚表現によって現在の移動対象を識別できるようにする。
  */
 
 import { useDragDropMonitor } from '@dnd-kit/react';
@@ -15,6 +15,8 @@ import { resolveEditorDomContext } from '@/reorder/editor-dom-context';
 import { useRowDndPhase } from '../dnd-interaction-react';
 
 import './moving-row.scss';
+
+const SOURCE_ROW_CLASS = 'yamabiko-table-reorder-moving-row-source';
 
 /** Row DnD開始時に確定し、そのDnD中の移動表示で維持する配置情報。 */
 type RowMovingDisplayLayout = {
@@ -184,7 +186,7 @@ const RowMovingOverlay = ( props: { layout: RowMovingDisplayLayout; top: number 
  * Row DnDの意味上のLifecycleとDnD Engineの物理情報を組み合わせ、移動対象行の表示だけを管理する。
  *
  * DnD Interactionからはactive / idleだけを受け取り、物理座標やDOM参照をSessionへ複製しない。
- * 元行はactive Session中も実Tableに残し、移動表示側だけに視覚表現を与えることでTableレイアウトと内容の視認性を維持する。
+ * 元行はactive Session中も実Tableに残し、レイアウトを変えない半透明表示だけで移動元として区別する。
  *
  * @return activeなRow DnD中は移動対象行overlay。それ以外はnull。
  */
@@ -235,6 +237,17 @@ export const RowMovingDisplay = () => {
 
 		sessionBecameActive.current = true;
 	}, [ phase ] );
+
+	useEffect( () => {
+		if ( phase !== 'active' || layout === null ) {
+			return;
+		}
+
+		layout.sourceRow.classList.add( SOURCE_ROW_CLASS );
+		return () => {
+			layout.sourceRow.classList.remove( SOURCE_ROW_CLASS );
+		};
+	}, [ phase, layout ] );
 
 	const visible = phase === 'active' && layout !== null;
 	if ( ! visible ) {
