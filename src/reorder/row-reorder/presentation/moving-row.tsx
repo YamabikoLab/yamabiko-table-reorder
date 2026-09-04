@@ -3,7 +3,7 @@
  *
  * Row DnDの意味上のLifecycleはDnD InteractionのReact境界から受け取り、表示に必要な移動対象DOMと物理位置だけをDnD Engineから直接利用する。
  * 移動表示は縦方向だけ現在位置へ追従し、横方向は対象Tableと現在のeditor表示領域が重なる範囲へ制限する。
- * 元行は実DOM上の位置と大きさを維持したまま視覚的に区別し、Row DnD Session終了時に表示変更を解除する。
+ * 元行は実DOM上の位置と大きさを維持し、移動表示側の独立した視覚表現によって元行と区別する。
  */
 
 import { useDragDropMonitor } from '@dnd-kit/react';
@@ -14,11 +14,12 @@ import { resolveEditorDomContext } from '@/reorder/editor-dom-context';
 
 import { useRowDndPhase } from '../dnd-interaction-react';
 
+import './moving-row.scss';
+
 /** Row DnD開始時に確定し、そのDnD中の移動表示で維持する配置情報。 */
 type RowMovingDisplayLayout = {
 	sourceRow: HTMLTableRowElement;
 	sourceTable: HTMLTableElement;
-	sourceOpacity: string;
 	rowHeight: number;
 	tableWidth: number;
 	visibleLeft: number;
@@ -78,7 +79,6 @@ const resolveMovingDisplayLayout = (
 	return {
 		sourceRow,
 		sourceTable,
-		sourceOpacity: sourceRow.style.opacity,
 		rowHeight: rowRectangle.height,
 		tableWidth: tableRectangle.width,
 		visibleLeft,
@@ -157,30 +157,25 @@ const RowMovingOverlay = ( props: { layout: RowMovingDisplayLayout; top: number 
 	}, [ layout ] );
 
 	const viewportStyle: CSSProperties = {
-		position: 'fixed',
-		zIndex: 100000,
 		top,
 		left: layout.visibleLeft,
 		width: layout.visibleWidth,
 		height: layout.rowHeight,
-		overflow: 'hidden',
-		pointerEvents: 'none',
-		boxSizing: 'border-box',
-		outline: '2px solid currentColor',
-		boxShadow: '0 4px 12px rgb(0 0 0 / 20%)',
 	};
 	const tableStyle: CSSProperties = {
-		position: 'absolute',
-		top: 0,
 		left: layout.tableOffsetLeft,
 		width: layout.tableWidth,
-		tableLayout: 'fixed',
-		margin: 0,
 	};
+	const sourceTableClasses = layout.sourceTable.className;
+	const movingTableClasses = `${ sourceTableClasses } yamabiko-table-reorder-moving-row-table`.trim();
 
 	return createPortal(
-		<div aria-hidden="true" style={ viewportStyle }>
-			<table className={ layout.sourceTable.className } style={ tableStyle } aria-hidden="true">
+		<div
+			aria-hidden="true"
+			className="yamabiko-table-reorder-moving-row"
+			style={ viewportStyle }
+		>
+			<table className={ movingTableClasses } style={ tableStyle } aria-hidden="true">
 				<tbody ref={ tableBodyRef } />
 			</table>
 		</div>,
@@ -192,7 +187,7 @@ const RowMovingOverlay = ( props: { layout: RowMovingDisplayLayout; top: number 
  * Row DnDの意味上のLifecycleとDnD Engineの物理情報を組み合わせ、移動対象行の表示だけを管理する。
  *
  * DnD Interactionからはactive / idleだけを受け取り、物理座標やDOM参照をSessionへ複製しない。
- * 元行はactive Session中も実Tableに残し、レイアウトへ影響しない透明度変更だけで移動表示と区別する。
+ * 元行はactive Session中も実Tableに残し、移動表示側だけに視覚表現を与えることでTableレイアウトと内容の視認性を維持する。
  *
  * @return activeなRow DnD中は移動対象行overlay。それ以外はnull。
  */
@@ -231,8 +226,6 @@ export const RowMovingDisplay = () => {
 	} );
 
 	useEffect( () => {
-		const currentLayout = activeLayout.current;
-
 		/* 物理DnD開始直後のidleはSession開始前の一時状態であり、一度activeになったSessionがidleへ戻った場合だけ終了として扱う。 */
 		if ( phase === 'idle' ) {
 			if ( sessionBecameActive.current ) {
@@ -244,18 +237,7 @@ export const RowMovingDisplay = () => {
 		}
 
 		sessionBecameActive.current = true;
-
-		/* Row DnD Sessionがactiveでも表示対象を解決できない場合は、元行の視覚変更を行わない。 */
-		if ( currentLayout === null ) {
-			return;
-		}
-
-		currentLayout.sourceRow.style.opacity = '0.35';
-
-		return () => {
-			currentLayout.sourceRow.style.opacity = currentLayout.sourceOpacity;
-		};
-	}, [ phase, layout ] );
+	}, [ phase ] );
 
 	const visible = phase === 'active' && layout !== null;
 	if ( ! visible ) {
