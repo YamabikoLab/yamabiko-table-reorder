@@ -2,10 +2,15 @@
  * 行並び替えのDnD境界が、物理DnDのLifecycleと現在位置をDnD Interactionへ正しく接続することを確認する。
  *
  * DnD Interaction本体の状態遷移は重複して検証せず、開始可否、開始成立、移動先境界の解決、
- * 終了種別、および物理DnD終了時の一時登録破棄だけを検証する。
+ * 終了種別、および行並び替え無効化時を含む一時登録破棄だけを検証する。
  */
 
-import type { BeforeDragStartEvent, DragEndEvent, DragMoveEvent } from '@dnd-kit/dom';
+import type {
+	BeforeDragStartEvent,
+	DragEndEvent,
+	DragMoveEvent,
+	Draggable,
+} from '@dnd-kit/dom';
 import { DragDropProvider } from '@dnd-kit/react';
 import { render } from '@testing-library/react';
 import type { ReactNode } from 'react';
@@ -23,9 +28,16 @@ jest.mock( './dnd-interaction', () => ( {
 	},
 } ) );
 
+let activeDraggableRef: { current: Draggable | null } | null = null;
+
 jest.mock( './pc-input', () => ( {
-	RowPcInput: ( props: { children: ( handler: () => void ) => ReactNode } ) =>
-		props.children( () => undefined ),
+	RowPcInput: ( props: {
+		activeDraggable: { current: Draggable | null };
+		children: ( handler: () => void ) => ReactNode;
+	} ) => {
+		activeDraggableRef = props.activeDraggable;
+		return props.children( () => undefined );
+	},
 } ) );
 
 jest.mock( '@dnd-kit/react', () => ( {
@@ -58,6 +70,7 @@ const createTableRows = () => {
 describe( 'Row DnD engine connection', () => {
 	beforeEach( () => {
 		jest.clearAllMocks();
+		activeDraggableRef = null;
 	} );
 
 	/**
@@ -127,6 +140,54 @@ describe( 'Row DnD engine connection', () => {
 
 		expect( interactionMock.start ).toHaveBeenCalledTimes( 1 );
 		expect( interactionMock.start ).toHaveBeenCalledWith( source, constraints );
+	} );
+
+	/**
+	 * 概要:
+	 * - 行並び替えを無効化した時点で、未完了の開始準備とDraggable登録を破棄することを確認する。
+	 *
+	 * 事前条件:
+	 * - 行並び替えが有効で、開始可否確認済みの開始準備とDraggable登録が存在する。
+	 *
+	 * 操作:
+	 * - 同じRowDndをenabled=falseへ切り替えた後、物理DnD開始通知を受ける。
+	 *
+	 * 期待結果:
+	 * - Draggableが破棄され、無効化前の開始準備ではDnD Interactionのstartが呼ばれない。
+	 */
+	it( 'when row reordering becomes disabled, should discard the pending preparation and active draggable', () => {
+		const constraints = { rowCount: 3, blockedBoundaries: [ 2 ] };
+		interactionMock.prepareStart.mockReturnValue( constraints );
+		const { rerender } = render(
+			<RowDnd enabled tableIdentity="table-1">
+				{ () => <div /> }
+			</RowDnd>
+		);
+		const props = getProviderProps();
+		const source = { tableIdentity: 'table-1', sourceRowIndex: 1 };
+		const destroy = jest.fn();
+
+		props.onBeforeDragStart( {
+			operation: { source: { data: source } },
+			preventDefault: jest.fn(),
+		} as unknown as BeforeDragStartEvent );
+
+		if ( activeDraggableRef === null ) {
+			throw new Error( 'RowPcInput activeDraggable ref was not captured.' );
+		}
+		activeDraggableRef.current = { destroy } as unknown as Draggable;
+
+		rerender(
+			<RowDnd enabled={ false } tableIdentity="table-1">
+				{ () => <div /> }
+			</RowDnd>
+		);
+		const disabledProps = getProviderProps();
+		disabledProps.onDragStart();
+
+		expect( destroy ).toHaveBeenCalledTimes( 1 );
+		expect( activeDraggableRef.current ).toBeNull();
+		expect( interactionMock.start ).not.toHaveBeenCalled();
 	} );
 
 	/**
