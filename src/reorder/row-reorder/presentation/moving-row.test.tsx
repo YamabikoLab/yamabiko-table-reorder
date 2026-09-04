@@ -9,19 +9,19 @@ import { act, render } from '@testing-library/react';
 
 import { RowMovingDisplay } from './moving-row';
 
-let rowDndPhase: 'idle' | 'active' = 'idle';
-let dragDropMonitor: {
+let mockRowDndPhase: 'idle' | 'active' = 'idle';
+let mockDragDropMonitor: {
 	onDragStart?: ( event: any ) => void;
 	onDragMove?: ( event: any ) => void;
 } = {};
 
 jest.mock( '../dnd-interaction-react', () => ( {
-	useRowDndPhase: () => rowDndPhase,
+	useRowDndPhase: () => mockRowDndPhase,
 } ) );
 
 jest.mock( '@dnd-kit/react', () => ( {
-	useDragDropMonitor: ( monitor: typeof dragDropMonitor ) => {
-		dragDropMonitor = monitor;
+	useDragDropMonitor: ( monitor: typeof mockDragDropMonitor ) => {
+		mockDragDropMonitor = monitor;
 	},
 } ) );
 
@@ -77,7 +77,7 @@ const createSourceTable = () => {
 
 const startPhysicalDrag = ( row: HTMLTableRowElement ) => {
 	act( () => {
-		dragDropMonitor.onDragStart?.( {
+		mockDragDropMonitor.onDragStart?.( {
 			operation: {
 				source: { element: row },
 				position: {
@@ -91,8 +91,8 @@ const startPhysicalDrag = ( row: HTMLTableRowElement ) => {
 
 describe( 'Row moving display', () => {
 	beforeEach( () => {
-		rowDndPhase = 'idle';
-		dragDropMonitor = {};
+		mockRowDndPhase = 'idle';
+		mockDragDropMonitor = {};
 		document.body.replaceChildren();
 	} );
 
@@ -118,7 +118,7 @@ describe( 'Row moving display', () => {
 		expect( row.style.opacity ).toBe( '' );
 		expect( document.body.querySelectorAll( 'table' ) ).toHaveLength( 1 );
 
-		rowDndPhase = 'active';
+		mockRowDndPhase = 'active';
 		rerender( <RowMovingDisplay /> );
 
 		expect( row.style.opacity ).toBe( '0.35' );
@@ -145,12 +145,12 @@ describe( 'Row moving display', () => {
 	 */
 	it( 'when the physical drag moves vertically, should follow only the vertical position while keeping the table-aligned horizontal position', () => {
 		const { row } = createSourceTable();
-		rowDndPhase = 'active';
+		mockRowDndPhase = 'active';
 		render( <RowMovingDisplay /> );
 		startPhysicalDrag( row );
 
 		act( () => {
-			dragDropMonitor.onDragMove?.( {
+			mockDragDropMonitor.onDragMove?.( {
 				operation: {
 					position: {
 						current: { y: 130 },
@@ -181,12 +181,12 @@ describe( 'Row moving display', () => {
 	 */
 	it( 'when the row DnD session becomes idle, should remove the moving display and restore the source row', () => {
 		const { row } = createSourceTable();
-		rowDndPhase = 'active';
+		mockRowDndPhase = 'active';
 		const { rerender } = render( <RowMovingDisplay /> );
 		startPhysicalDrag( row );
 		expect( row.style.opacity ).toBe( '0.35' );
 
-		rowDndPhase = 'idle';
+		mockRowDndPhase = 'idle';
 		rerender( <RowMovingDisplay /> );
 
 		expect( row.style.opacity ).toBe( '' );
