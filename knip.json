@@ -9,9 +9,6 @@
 		"config": [ "babel.i18n.config.js" ]
 	},
 	"eslint": true,
-	"ignoreDependencies": [
-		"@wordpress/jest-preset-default",
-		"@redux-devtools/extension"
-	],
+	"ignoreDependencies": [ "@wordpress/jest-preset-default", "@redux-devtools/extension" ],
 	"ignoreBinaries": [ "wp" ]
 }
