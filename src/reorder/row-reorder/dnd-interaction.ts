@@ -78,7 +78,7 @@ type RowDndStoreActions = {
 	 */
 	updateDestination: ( destinationBoundaryIndex: number | null ) => void;
 	/** active Sessionの最終移動先を現在のTable構造へ再照合し、成立する行移動だけを確定してSessionを終了する。 */
-	complete: () => void;
+	complete: () => RowDndCompleteResult;
 	/** Tableを更新せずactive Sessionを終了する。 */
 	cancel: () => void;
 };
