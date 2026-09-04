@@ -17,8 +17,8 @@ export type RowReorderConstraints = {
 	blockedBoundaries: readonly number[];
 };
 
-/** Data UpdateからTable Integrationへ渡す、現在のTable構造へ再照合済みの確定済み行移動。 */
-export type RowMove = {
+/** Table Integrationが現在のTableへ反映する、再照合済みの確定済み行移動。 */
+type RowMove = {
 	/** 更新対象のTable個体を識別するclientId。 */
 	clientId: string;
 	/** 更新直前のtbodyを基準とする0-based移動元行位置。 */
