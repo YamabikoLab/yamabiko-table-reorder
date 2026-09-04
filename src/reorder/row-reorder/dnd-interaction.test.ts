@@ -50,7 +50,11 @@ const source = {
 	sourceRowIndex: 1,
 };
 
-/** 通常のactive Sessionを公開境界から準備する。 */
+/**
+ * 通常のactive Sessionを公開境界から準備する。
+ *
+ * @param initialConstraints Session開始時の判定基準として使用する行制約。
+ */
 const prepareActiveSession = ( initialConstraints = availableConstraints ): void => {
 	getConstraintsMock.mockReturnValueOnce( initialConstraints );
 	const checkedConstraints = rowDndInteraction.prepareStart( source );
