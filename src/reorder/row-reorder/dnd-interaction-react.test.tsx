@@ -1,14 +1,15 @@
 /**
- * Auto Scroll向けの行DnD active状態IFが、行DnD SessionのLifecycleだけを反映することを確認する。
+ * 行専用DnD InteractionのReact購読境界が、行DnD SessionのLifecycleだけを描画へ反映することを確認する。
  *
- * StoreやSession内部を直接参照せず、公開されたuseRowDndActive()をReactから購読し、
+ * StoreやSession内部を直接参照せず、React向けのuseRowDndActive()を購読し、
  * idle、start、complete、cancelによるactive状態の変化を検証する。
  */
 
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 
-import { rowDndInteraction, useRowDndActive } from './dnd-interaction';
+import { rowDndInteraction } from './dnd-interaction';
+import { useRowDndActive } from './dnd-interaction-react';
 import { rowTableIntegration } from './table-integration';
 
 jest.mock( './table-integration', () => ( {
@@ -42,7 +43,7 @@ const RowDndActiveProbe = () => {
 	return <div data-active={ active ? 'true' : 'false' } />;
 };
 
-describe( 'Row DnD active state interface', () => {
+describe( 'Row DnD React active state interface', () => {
 	const reactActGlobal = globalThis as ReactActGlobal;
 	const previousReactActEnvironment = reactActGlobal.IS_REACT_ACT_ENVIRONMENT;
 	let container: HTMLDivElement;

@@ -5,10 +5,9 @@
  * 開始可否判定で確認した行制約はprepareStartの戻り値としてstartへ引き継ぎ、Session開始時に外部Table構造を取得し直さない。
  * active Sessionだけを共有状態として保持し、DnD Engine固有の物理状態やSession開始前の候補を状態として複製しない。
  * DnD終了後はSessionと一時状態を破棄してから対象Tableの現在行制約を取得し直し、Reorder Modeへ継続可否だけを通知する。
- * DnD Interaction外部へStoreを公開せず、Reorder PresentationやAuto Scrollに必要な状態を用途別Hookと一回性イベントで公開する。
+ * DnD Interaction外部へStoreを公開せず、Reorder PresentationやAuto Scrollに必要な状態をReact非依存の購読境界と一回性イベントで公開する。
  */
 
-import { useStore } from 'zustand';
 import { devtools } from 'zustand/middleware';
 import { createStore } from 'zustand/vanilla';
 
@@ -86,6 +85,9 @@ type RowDndStoreActions = {
 
 /** DnD Interactionが所有する意味状態とLifecycle操作をまとめたStore境界。 */
 type RowDndStore = RowDndStoreState & RowDndStoreActions;
+
+/** DnD Interactionの共有状態変更をReact非依存で受け取る購読listener。 */
+type RowDndStateListener = () => void;
 
 /** Reorder PresentationがDnD異常終了通知を受け取るための購読listener。 */
 type RowDndTerminationNoticeListener = () => void;
@@ -415,44 +417,51 @@ const rowDndStore = createStore< RowDndStore >()(
 );
 
 /**
- * Reorder Presentationが行DnD中の表示開始・終了を追従するために利用する。
+ * DnD Interactionの共有状態が変化したことを、Store内部を公開せず外部利用者へ通知する。
  *
- * DnD Interactionが所有する状態のうちphaseだけを購読し、Session内部状態やActionは公開しない。
+ * @param listener 共有状態が変化したときに呼び出す購読listener。
+ * @return 購読を解除する関数。
+ */
+export const subscribeRowDndState = ( listener: RowDndStateListener ): ( () => void ) => {
+	const unsubscribe = rowDndStore.subscribe( listener );
+	return unsubscribe;
+};
+
+/**
+ * Reorder Presentationが行DnD中の表示開始・終了を追従するため、現在のLifecycle状態を取得する。
  *
  * @return 現在の行DnD Lifecycle状態。
  */
-export const useRowDndPhase = (): RowDndStoreState[ 'phase' ] =>
-	useStore( rowDndStore, ( state ) => state.phase );
+export const getRowDndPhase = (): RowDndStoreState[ 'phase' ] => {
+	const phase = rowDndStore.getState().phase;
+	return phase;
+};
 
 /**
- * Auto Scrollが行DnD中だけ自動スクロール許可状態を有効にするために利用する。
- *
- * DnD Interactionが所有するphaseからactiveかだけを導出し、Session内部状態やDnD Lifecycle表現は公開しない。
- * DnD終了でSessionがidleへ戻るとfalseへ更新される。
+ * Auto Scrollが行DnD中だけ自動スクロール許可状態を有効にするため、現在のactive状態を取得する。
  *
  * @return 行DnD Sessionがactiveな場合はtrue。それ以外はfalse。
  */
-export const useRowDndActive = (): boolean =>
-	useStore( rowDndStore, ( state ) => state.phase === 'active' );
+export const getRowDndActive = (): boolean => {
+	const active = rowDndStore.getState().phase === 'active';
+	return active;
+};
 
 /**
- * Reorder Presentationが現在の有効な挿入位置を追従するために利用する。
+ * Reorder Presentationが現在の有効な挿入位置を追従するため、現在の移動先境界を取得する。
  *
- * active SessionのdestinationBoundaryIndexだけを購読し、idleまたは有効な移動先がない場合はnullを返す。
- * Session全体を公開せず、移動先変更と無関係な内部状態の変化でPresentationを更新しない。
- *
- * @return 現在の有効な0-based移動先境界。有効な移動先がない場合はnull。
+ * @return 現在の有効な0-based移動先境界。idleまたは有効な移動先がない場合はnull。
  */
-export const useRowDndDestinationBoundaryIndex = (): number | null =>
-	useStore( rowDndStore, ( state ) => {
-		let destinationBoundaryIndex: number | null = null;
+export const getRowDndDestinationBoundaryIndex = (): number | null => {
+	const state = rowDndStore.getState();
+	let destinationBoundaryIndex: number | null = null;
 
-		if ( state.phase === 'active' ) {
-			destinationBoundaryIndex = state.session.destinationBoundaryIndex;
-		}
+	if ( state.phase === 'active' ) {
+		destinationBoundaryIndex = state.session.destinationBoundaryIndex;
+	}
 
-		return destinationBoundaryIndex;
-	} );
+	return destinationBoundaryIndex;
+};
 
 /**
  * Reorder PresentationがDnD異常終了通知を一回性イベントとして受け取るために利用する。
