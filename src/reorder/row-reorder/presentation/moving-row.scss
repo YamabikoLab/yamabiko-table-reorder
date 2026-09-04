@@ -1,16 +1,3 @@
-/**
- * Row Reorderの移動対象行について、DnD中も内容を明瞭に識別できる固定視覚表現を定義する。
- *
- * 座標と実測寸法はReact側が所有し、このファイルは行並び替えモード中の操作可能表示、移動元表示、
- * 移動overlayの背景、枠線、セル境界、重なり順などDnD位置によらず一定となる見た目だけを所有する。
- */
-
-.yamabiko-table-reorder-row-mode tbody > tr:hover > td,
-.yamabiko-table-reorder-row-mode tbody > tr:hover > th {
-	box-shadow: inset 0 0 0 9999px rgb(56 88 233 / 5%);
-	cursor: grab;
-}
-
 .yamabiko-table-reorder-moving-row-source {
 	opacity: 0.35;
 }
@@ -44,4 +31,13 @@
 .yamabiko-table-reorder-moving-row-table td:last-child,
 .yamabiko-table-reorder-moving-row-table th:last-child {
 	border-right: 0;
+}
+
+.yamabiko-table-reorder-row-mode tbody > tr {
+	cursor: grab;
+}
+
+.yamabiko-table-reorder-row-mode tbody > tr:hover > td,
+.yamabiko-table-reorder-row-mode tbody > tr:hover > th {
+	box-shadow: inset 0 0 0 9999px rgb(56 88 233 / 5%);
 }
