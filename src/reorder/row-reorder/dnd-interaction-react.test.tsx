@@ -63,7 +63,9 @@ describe( 'Row DnD React state interface', () => {
 	} );
 
 	afterEach( () => {
-		rowDndInteraction.cancel();
+		act( () => {
+			rowDndInteraction.cancel();
+		} );
 	} );
 
 	/**
