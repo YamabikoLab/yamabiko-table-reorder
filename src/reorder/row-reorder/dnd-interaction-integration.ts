@@ -8,7 +8,14 @@
  */
 
 import { Droppable } from '@dnd-kit/dom';
-import type { DragDropManager } from '@dnd-kit/dom';
+import type {
+	BeforeDragStartEvent,
+	DragDropManager,
+	DragEndEvent,
+	DragMoveEvent,
+	DragOverEvent,
+	DragStartEvent,
+} from '@dnd-kit/dom';
 
 import {
 	createRowDndOperationBoundary,
@@ -62,8 +69,8 @@ const parseRowDndSource = ( data: unknown ): RowDndSource | null => {
 	const validSource =
 		typeof tableIdentity === 'string' &&
 		tableIdentity.length > 0 &&
-		Number.isInteger( sourceRowIndex ) &&
 		typeof sourceRowIndex === 'number' &&
+		Number.isInteger( sourceRowIndex ) &&
 		sourceRowIndex >= 0;
 
 	if ( ! validSource ) {
@@ -110,8 +117,8 @@ const parseRowDndTargetData = ( data: unknown ): RowDndTargetData | null => {
 	const validTarget =
 		typeof tableIdentity === 'string' &&
 		tableIdentity.length > 0 &&
-		Number.isInteger( rowIndex ) &&
 		typeof rowIndex === 'number' &&
+		Number.isInteger( rowIndex ) &&
 		rowIndex >= 0;
 
 	if ( ! validTarget ) {
@@ -337,7 +344,8 @@ export const connectRowDndInteraction = ( manager: RowDndEngineManager ): ( () =
 		} );
 	};
 
-	const handleBeforeDragStart = ( event: Parameters< typeof manager.monitor.dispatch >[ 1 ] ): void => {
+	/** 物理DnD開始前に開始可否を判定し、成立した準備値だけをこの接続インスタンスへ保持する。 */
+	const handleBeforeDragStart = ( event: BeforeDragStartEvent ): void => {
 		discardPreparedStart();
 
 		try {
@@ -353,12 +361,12 @@ export const connectRowDndInteraction = ( manager: RowDndEngineManager ): ( () =
 			preparedStart = preparation;
 		} catch ( error ) {
 			event.preventDefault();
-			boundary.recoverFailure( 'prepareStart', error );
+			boundary.recoverFailure( 'prepareStart', error, createRecoveryContext( event.operation.source ) );
 		}
 	};
 
 	/** 物理DnD開始成立後に一回限りの開始準備値を消費し、Sessionと移動先登録を開始する。 */
-	const handleDragStart = ( event: Parameters< typeof manager.monitor.dispatch >[ 1 ] ): void => {
+	const handleDragStart = ( event: DragStartEvent ): void => {
 		/* failure recoveryによる物理DnD cancelから再入したcallbackでは通常Lifecycleを進めない。 */
 		if ( boundary.isRecovering() ) {
 			return;
@@ -404,7 +412,7 @@ export const connectRowDndInteraction = ( manager: RowDndEngineManager ): ( () =
 	 *
 	 * @param event dragMoveまたはdragOverで受け取った現在の物理DnD状態。
 	 */
-	const handleProgress = ( event: Parameters< typeof manager.monitor.dispatch >[ 1 ] ): void => {
+	const handleProgress = ( event: DragMoveEvent | DragOverEvent ): void => {
 		if ( boundary.isRecovering() ) {
 			return;
 		}
@@ -424,11 +432,13 @@ export const connectRowDndInteraction = ( manager: RowDndEngineManager ): ( () =
 	};
 
 	/**
-	 * DnD Engine終了種別をcomplete / cancelへ変換し、正常終了時の接続一時状態を破棄する。
+	 * DnD Engine終了種別をcomplete / cancelへ変換し、通常終了用の接続一時状態を先に破棄する。
+	 *
+	 * operation boundary内でfailure recoveryへ入った後に通常cleanupを重ねないため、接続一時状態の通常cleanupはoperation実行前に完了させる。
 	 *
 	 * @param event DnD Engineが示す終了状態。
 	 */
-	const handleDragEnd = ( event: Parameters< typeof manager.monitor.dispatch >[ 1 ] ): void => {
+	const handleDragEnd = ( event: DragEndEvent ): void => {
 		/* failure recoveryから同期的に発生した終了callbackは、通常終了と二重cleanupへ進ませない。 */
 		if ( boundary.isRecovering() ) {
 			return;
@@ -441,14 +451,14 @@ export const connectRowDndInteraction = ( manager: RowDndEngineManager ): ( () =
 		}
 
 		try {
+			discardPreparedStart();
+			discardTemporaryDndState();
+
 			if ( operation === 'cancel' ) {
 				boundary.cancel();
 			} else {
 				boundary.complete();
 			}
-
-			discardPreparedStart();
-			discardTemporaryDndState();
 		} catch ( error ) {
 			const context = createRecoveryContext( event.operation.source );
 			boundary.recoverFailure( operation, error, context );
