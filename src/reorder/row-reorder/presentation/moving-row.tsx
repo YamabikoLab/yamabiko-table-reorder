@@ -199,6 +199,7 @@ const RowMovingOverlay = ( props: { layout: RowMovingDisplayLayout; top: number 
 export const RowMovingDisplay = () => {
 	const phase = useRowDndPhase();
 	const activeLayout = useRef< RowMovingDisplayLayout | null >( null );
+	const sessionBecameActive = useRef( false );
 	const [ layout, setLayout ] = useState< RowMovingDisplayLayout | null >( null );
 	const [ top, setTop ] = useState( 0 );
 
@@ -232,12 +233,20 @@ export const RowMovingDisplay = () => {
 	useEffect( () => {
 		const currentLayout = activeLayout.current;
 
-		/* Row DnD Sessionがactiveで表示対象が成立した期間だけ、元行を移動overlayと視覚的に区別する。 */
-		if ( phase !== 'active' || currentLayout === null ) {
-			if ( phase === 'idle' ) {
+		/* 物理DnD開始直後のidleはSession開始前の一時状態であり、一度activeになったSessionがidleへ戻った場合だけ終了として扱う。 */
+		if ( phase === 'idle' ) {
+			if ( sessionBecameActive.current ) {
+				sessionBecameActive.current = false;
 				activeLayout.current = null;
 				setLayout( null );
 			}
+			return;
+		}
+
+		sessionBecameActive.current = true;
+
+		/* Row DnD Sessionがactiveでも表示対象を解決できない場合は、元行の視覚変更を行わない。 */
+		if ( currentLayout === null ) {
 			return;
 		}
 
