@@ -167,14 +167,11 @@ const RowMovingOverlay = ( props: { layout: RowMovingDisplayLayout; top: number 
 		width: layout.tableWidth,
 	};
 	const sourceTableClasses = layout.sourceTable.className;
-	const movingTableClasses = `${ sourceTableClasses } yamabiko-table-reorder-moving-row-table`.trim();
+	const movingTableClasses =
+		`${ sourceTableClasses } yamabiko-table-reorder-moving-row-table`.trim();
 
 	return createPortal(
-		<div
-			aria-hidden="true"
-			className="yamabiko-table-reorder-moving-row"
-			style={ viewportStyle }
-		>
+		<div aria-hidden="true" className="yamabiko-table-reorder-moving-row" style={ viewportStyle }>
 			<table className={ movingTableClasses } style={ tableStyle } aria-hidden="true">
 				<tbody ref={ tableBodyRef } />
 			</table>
