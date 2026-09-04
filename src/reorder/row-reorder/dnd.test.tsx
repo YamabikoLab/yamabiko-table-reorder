@@ -5,12 +5,7 @@
  * 終了種別、および行並び替え無効化時を含む一時登録破棄だけを検証する。
  */
 
-import type {
-	BeforeDragStartEvent,
-	DragEndEvent,
-	DragMoveEvent,
-	Draggable,
-} from '@dnd-kit/dom';
+import type { BeforeDragStartEvent, DragEndEvent, DragMoveEvent, Draggable } from '@dnd-kit/dom';
 import { DragDropProvider } from '@dnd-kit/react';
 import { render } from '@testing-library/react';
 import type { ReactNode } from 'react';
