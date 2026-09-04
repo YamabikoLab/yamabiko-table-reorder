@@ -45,7 +45,7 @@ const preservePointerDownHandler = (
  * 現在操作中の対応Tableの既存Block wrapperへReorder Modeの編集可否とRow DnD接続を反映する。
  *
  * このcomponentは現在選択中の対応Tableに対してだけ生成され、Reorder Modeの購読を所有する。
- * 行並び替えモードではRow Reorder側のDnD境界へ既存Block wrapperを接続し、列並び替えモードでは編集抑止だけを維持する。
+ * Row DnD境界はモード切替でBlockListBlockを再mountしないよう常に同じ位置に維持し、行並び替えモード中だけ開始入力を有効化する。
  *
  * @param props                Gutenbergから渡されるBlockListBlock propsと元のcomponent。
  * @param props.BlockListBlock
@@ -68,13 +68,8 @@ export const ReorderModeBlockListBlock = ( props: {
 		  }
 		: wrapperProps;
 
-	/* 行並び替えモード以外ではRow DnDを接続せず、既存の編集抑止だけを維持する。 */
-	if ( selectedKind !== 'row' ) {
-		return <BlockListBlock { ...blockProps } wrapperProps={ reorderWrapperProps } />;
-	}
-
 	return (
-		<RowDnd tableIdentity={ clientId }>
+		<RowDnd enabled={ selectedKind === 'row' } tableIdentity={ clientId }>
 			{ ( rowDndPointerDownCapture ) => (
 				<BlockListBlock
 					{ ...blockProps }
