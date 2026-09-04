@@ -38,9 +38,7 @@ export type RowDndPointerDownHandler = ( event: unknown ) => void;
  * @param event 現在のdragmoveまたはdragoverイベント。
  * @return 現在の移動先境界。移動先行がない場合はnull。
  */
-const resolveDestinationBoundaryIndex = (
-	event: DragMoveEvent | DragOverEvent
-): number | null => {
+const resolveDestinationBoundaryIndex = ( event: DragMoveEvent | DragOverEvent ): number | null => {
 	const targetElement = event.operation.target?.element;
 
 	if ( ! targetElement || targetElement.tagName !== 'TR' ) {
@@ -265,10 +263,7 @@ export const RowDnd = ( props: {
 			onDragOver={ onDragOver }
 			onDragEnd={ onDragEnd }
 		>
-			<RowDndPointerSource
-				tableIdentity={ tableIdentity }
-				activeDraggable={ activeDraggable }
-			>
+			<RowDndPointerSource tableIdentity={ tableIdentity } activeDraggable={ activeDraggable }>
 				{ children }
 			</RowDndPointerSource>
 		</DragDropProvider>
