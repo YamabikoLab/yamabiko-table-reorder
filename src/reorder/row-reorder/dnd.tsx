@@ -19,6 +19,7 @@ import type { ReactNode } from 'react';
 
 import { rowDndInteraction, type RowDndSource } from './dnd-interaction';
 import { RowPcInput, type RowDndPointerDownHandler } from './pc-input';
+import { RowReorderPresentation } from './presentation';
 import type { RowReorderConstraints } from './table-integration';
 
 export type { RowDndPointerDownHandler } from './pc-input';
@@ -179,6 +180,7 @@ export const RowDnd = ( props: {
 			onDragMove={ onDragMove }
 			onDragEnd={ onDragEnd }
 		>
+			<RowReorderPresentation />
 			<RowPcInput
 				enabled={ enabled }
 				tableIdentity={ tableIdentity }
