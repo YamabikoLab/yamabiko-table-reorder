@@ -4,6 +4,7 @@
  * 行DnD境界はTableの描画中に安定して存在し、行並び替えが有効な期間だけ開始入力を受け付ける。
  * PC固有の開始条件判定はPC入力境界へ委ね、dnd-kitが通知する物理DnDの進行と現在位置を、
  * DnD Interactionが扱う開始、移動先更新、確定、取消へ接続する。
+ * 行並び替えの無効化または境界の終了時には、次の通常編集や別モードへ持ち越せない開始準備と物理DnD登録を破棄する。
  */
 
 import {
@@ -13,7 +14,7 @@ import {
 	type DragMoveEvent,
 } from '@dnd-kit/dom';
 import { DragDropProvider } from '@dnd-kit/react';
-import { useRef } from '@wordpress/element';
+import { useEffect, useRef } from '@wordpress/element';
 import type { ReactNode } from 'react';
 
 import { rowDndInteraction, type RowDndSource } from './dnd-interaction';
@@ -84,6 +85,7 @@ const resolveDestinationBoundaryIndex = ( event: DragMoveEvent ): number | null 
  *
  * 接続自体はTableの描画中に安定して維持し、行並び替えが有効な期間だけPC入力境界から開始対象を登録する。
  * DnD開始後はポインター位置から対象Table内の移動先境界を解決し、確定または取消までDnD Interactionへ接続する。
+ * 行並び替えが無効になった場合と接続自体が終了する場合は、未完了の開始準備とDraggable登録を破棄する。
  *
  * @param props               行DnD接続に必要な値。
  * @param props.enabled       現在のTableで行並び替え開始入力を受け付ける場合はtrue。
@@ -102,6 +104,24 @@ export const RowDnd = ( props: {
 		source: RowDndSource;
 		constraints: RowReorderConstraints;
 	} | null >( null );
+
+	useEffect( () => {
+		/* 行並び替えが無効になった時点で、通常編集や別モードへ開始準備と物理DnD登録を持ち越さない。 */
+		if ( ! enabled ) {
+			preparedStart.current = null;
+			activeDraggable.current?.destroy();
+			activeDraggable.current = null;
+		}
+	}, [ enabled ] );
+
+	useEffect( () => {
+		return () => {
+			/* TableのDnD接続終了時は、未完了の開始準備と物理DnD登録を残さない。 */
+			preparedStart.current = null;
+			activeDraggable.current?.destroy();
+			activeDraggable.current = null;
+		};
+	}, [] );
 
 	const onBeforeDragStart = ( event: BeforeDragStartEvent ) => {
 		const source = event?.operation?.source?.data as RowDndSource;
