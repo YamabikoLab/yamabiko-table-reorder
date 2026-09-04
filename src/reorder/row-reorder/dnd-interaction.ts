@@ -377,11 +377,16 @@ const rowDndStore = createStore< RowDndStore >()(
 						return;
 					}
 
-					rowTableIntegration.applyRowMove( {
+					const rowMoveApplied = rowTableIntegration.applyRowMove( {
 						clientId: session.tableIdentity,
 						sourceRowIndex: session.sourceRowIndex,
 						destinationBoundaryIndex: session.destinationBoundaryIndex,
 					} );
+
+					/* 更新要求時点の外部状態変化等で行移動を反映できない場合は、安全に確定できない通常の終了として扱う。 */
+					if ( ! rowMoveApplied ) {
+						shouldNotifyTermination = true;
+					}
 				} finally {
 					set(
 						{
