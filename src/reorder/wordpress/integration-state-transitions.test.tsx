@@ -226,7 +226,7 @@ describe( 'Reorder Mode WordPress integration state transitions', () => {
 
 	/**
 	 * 概要:
-	 * - 選択中Tableの通常編集と並び替えモードの切替に合わせて、既存Block wrapperの編集開始抑止が切り替わることを確認する。
+	 * - 選択中Tableの通常編集と並び替えモードの切替に合わせて、pointer入力と通常編集開始の扱いが切り替わることを確認する。
 	 *
 	 * 事前条件:
 	 * - Core Tableが選択され、通常編集状態である。
@@ -234,12 +234,13 @@ describe( 'Reorder Mode WordPress integration state transitions', () => {
 	 *
 	 * 操作:
 	 * - 通常編集、行並び替え、通常編集の各状態でBlock wrapperへpointerdownを送出する。
+	 * - 行並び替え中には、DnDが開始されない通常のmousedownも送出する。
 	 *
 	 * 期待結果:
-	 * - 通常編集では既存handlerだけが実行され、既定動作は抑止されない。
-	 * - 行並び替え中だけ既定動作が抑止され、通常編集へ戻ると抑止が解除される。
+	 * - pointerdownは各状態で既存handlerへ渡され、既定動作を抑止しない。
+	 * - 行並び替え中のmousedownだけは通常編集開始につながる既定動作を抑止する。
 	 */
-	it( 'when selected table switches between edit and reorder mode, should guard editing only while reorder mode is active', () => {
+	it( 'when selected table switches between edit and reorder mode, should keep pointer input available and guard normal editing only in reorder mode', () => {
 		const props = createBlockEditProps( 'table-a', true );
 		const existingPointerDownCapture = jest.fn();
 		setSelectedBlock( 'table-a', 'core/table' );
@@ -268,8 +269,11 @@ describe( 'Reorder Mode WordPress integration state transitions', () => {
 		} );
 		const reorderPointerDown = new Event( 'pointerdown', { bubbles: true, cancelable: true } );
 		getBlockWrapper( container ).dispatchEvent( reorderPointerDown );
+		const reorderMouseDown = new Event( 'mousedown', { bubbles: true, cancelable: true } );
+		getBlockWrapper( container ).dispatchEvent( reorderMouseDown );
 		expect( existingPointerDownCapture ).toHaveBeenCalledTimes( 2 );
-		expect( reorderPointerDown.defaultPrevented ).toBe( true );
+		expect( reorderPointerDown.defaultPrevented ).toBe( false );
+		expect( reorderMouseDown.defaultPrevented ).toBe( true );
 
 		act( () => {
 			getToolbarButton( container, 'Reorder rows' ).click();
@@ -488,20 +492,55 @@ describe( 'Reorder Mode WordPress integration state transitions', () => {
 
 	/**
 	 * 概要:
-	 * - 並び替えモード中の編集開始抑止が、対象となる3種類の入力で既存handlerを維持することを確認する。
+	 * - 並び替えモード中もpointerdownを既存handlerへ渡し、DnD開始入力として利用可能なことを確認する。
+	 *
+	 * 事前条件:
+	 * - Core Tableで行並び替えモードが有効である。
+	 * - Block wrapperにはGutenberg既存のpointerdown handlerが存在する。
+	 *
+	 * 操作:
+	 * - pointerdownをBlock wrapperへ送出する。
+	 *
+	 * 期待結果:
+	 * - 既存handlerが呼ばれる。
+	 * - Reorder Modeはpointerdownの既定動作を抑止しない。
+	 */
+	it( 'when pointerdown occurs in reorder mode, should preserve the existing handler without preventing pointer input', () => {
+		const existingPointerDownCapture = jest.fn();
+		reorderMode.select( 'row', 'table-a' );
+
+		act( () => {
+			root.render(
+				<WrappedBlockListBlock
+					clientId="table-a"
+					isSelected={ true }
+					name="core/table"
+					wrapperProps={ { onPointerDownCapture: existingPointerDownCapture } }
+				/>
+			);
+		} );
+
+		const pointerDown = new Event( 'pointerdown', { bubbles: true, cancelable: true } );
+		getBlockWrapper( container ).dispatchEvent( pointerDown );
+		expect( existingPointerDownCapture ).toHaveBeenCalledTimes( 1 );
+		expect( pointerDown.defaultPrevented ).toBe( false );
+	} );
+
+	/**
+	 * 概要:
+	 * - 並び替えモード中の通常編集開始抑止が、通常編集につながる入力で既存handlerを維持することを確認する。
 	 *
 	 * 事前条件:
 	 * - Core Tableで行並び替えモードが有効である。
 	 * - 各入力に対応するGutenberg既存handlerが存在する。
 	 *
 	 * 操作:
-	 * - pointerdown、mousedown、dblclickをそれぞれBlock wrapperへ送出する。
+	 * - mousedown、dblclickをそれぞれBlock wrapperへ送出する。
 	 *
 	 * 期待結果:
 	 * - 各既存handlerが呼ばれたうえで、通常編集開始につながる既定動作が抑止される。
 	 */
 	it.each( [
-		[ 'pointerdown', 'onPointerDownCapture' ],
 		[ 'mousedown', 'onMouseDownCapture' ],
 		[ 'dblclick', 'onDoubleClickCapture' ],
 	] as const )(
@@ -533,19 +572,19 @@ describe( 'Reorder Mode WordPress integration state transitions', () => {
 
 	/**
 	 * 概要:
-	 * - 既存handlerがないBlock wrapperでも、並び替えモード中の編集開始を安全に抑止できることを確認する。
+	 * - 既存handlerがないBlock wrapperでも、並び替えモード中の通常編集開始を安全に抑止できることを確認する。
 	 *
 	 * 事前条件:
 	 * - Core Tableで行並び替えモードが有効である。
 	 * - Block wrapperには既存の編集開始handlerがない。
 	 *
 	 * 操作:
-	 * - Block wrapperへpointerdownを送出する。
+	 * - DnDが開始されない通常のmousedownをBlock wrapperへ送出する。
 	 *
 	 * 期待結果:
 	 * - 例外を発生させず、通常編集開始につながる既定動作が抑止される。
 	 */
-	it( 'when no existing editing handler is present in reorder mode, should still prevent editing start', () => {
+	it( 'when no existing editing handler is present in reorder mode, should still prevent normal editing start', () => {
 		reorderMode.select( 'row', 'table-a' );
 
 		act( () => {
@@ -554,8 +593,8 @@ describe( 'Reorder Mode WordPress integration state transitions', () => {
 			);
 		} );
 
-		const pointerDown = new Event( 'pointerdown', { bubbles: true, cancelable: true } );
-		getBlockWrapper( container ).dispatchEvent( pointerDown );
-		expect( pointerDown.defaultPrevented ).toBe( true );
+		const mouseDown = new Event( 'mousedown', { bubbles: true, cancelable: true } );
+		getBlockWrapper( container ).dispatchEvent( mouseDown );
+		expect( mouseDown.defaultPrevented ).toBe( true );
 	} );
 } );
