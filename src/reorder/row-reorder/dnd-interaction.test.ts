@@ -1,14 +1,15 @@
 /**
- * 行専用DnD Interactionの開始、移動先更新、確定、cancelのLifecycleを確認する。
+ * 行専用DnD Interactionの正常Lifecycleと共通failure recoveryを確認する。
  *
- * Store内部を直接参照せず、公開されたDnD Interaction境界とTable Integrationへの更新要求を通して、
- * Session開始時制約の保持、開始拒否通知、complete時の現在構造への再照合、正常終了、異常終了通知、
- * DnD終了後のReorder Mode解決、およびLifecycle違反を検証する。
+ * Store内部を直接参照せず、公開されたDnD Interaction境界、failure recovery境界、Table Integration、
+ * Reorder Mode、および一回性通知を通して、正常終了と内部Errorからのsafe idle復帰を検証する。
  */
 
 import { reorderMode, rowReorderMode } from '@/reorder/reorder-mode';
 
 import {
+	createRowDndOperationBoundary,
+	getRowDndPhase,
 	rowDndInteraction,
 	subscribeRowDndStartRejectionNotice,
 	subscribeRowDndTerminationNotice,
@@ -34,11 +35,6 @@ const availableConstraints = {
 	blockedBoundaries: [] as readonly number[],
 };
 
-const blockedSourceConstraints = {
-	rowCount: 5,
-	blockedBoundaries: [ 2 ] as readonly number[],
-};
-
 const source = {
 	tableIdentity: 'table-a',
 	sourceRowIndex: 1,
@@ -46,17 +42,13 @@ const source = {
 
 const RESET_TABLE_IDENTITY = '__row-dnd-test-reset__';
 
-const resetReorderMode = () => {
+const resetReorderMode = (): void => {
 	reorderMode.observeTable( RESET_TABLE_IDENTITY );
 	reorderMode.notifyTableInactive( RESET_TABLE_IDENTITY );
 };
 
-/**
- * 通常系のactive Sessionを準備する。
- *
- * prepareStartで確認した行制約をstartへ渡し、テスト対象のLifecycleをactiveまで進める。
- */
-const prepareActiveSession = () => {
+/** 通常系のactive Sessionを準備する。 */
+const prepareActiveSession = (): void => {
 	getConstraintsMock.mockReturnValueOnce( availableConstraints );
 	const initialConstraints = rowDndInteraction.prepareStart( source );
 
@@ -65,14 +57,14 @@ const prepareActiveSession = () => {
 	}
 
 	rowDndInteraction.start( source, initialConstraints );
-	return initialConstraints;
 };
 
-describe( 'Row DnD Interaction lifecycle', () => {
+describe( 'Row DnD Interaction lifecycle and failure recovery', () => {
 	let terminationNoticeListener: jest.Mock;
 	let unsubscribeTerminationNotice: () => void;
 	let startRejectionNoticeListener: jest.Mock;
 	let unsubscribeStartRejectionNotice: () => void;
+	let consoleErrorSpy: jest.SpyInstance;
 
 	beforeEach( () => {
 		jest.clearAllMocks();
@@ -87,9 +79,11 @@ describe( 'Row DnD Interaction lifecycle', () => {
 		unsubscribeStartRejectionNotice = subscribeRowDndStartRejectionNotice(
 			startRejectionNoticeListener
 		);
+		consoleErrorSpy = jest.spyOn( console, 'error' ).mockImplementation( () => undefined );
 	} );
 
 	afterEach( () => {
+		consoleErrorSpy.mockRestore();
 		unsubscribeTerminationNotice();
 		unsubscribeStartRejectionNotice();
 		rowDndInteraction.cancel();
@@ -98,7 +92,7 @@ describe( 'Row DnD Interaction lifecycle', () => {
 
 	/**
 	 * 概要:
-	 * - 開始可能な行では、DnD開始可否判定時に確認した行制約が返り、開始拒否通知を行わないことを確認する。
+	 * - 開始可能な行では、開始可否判定時に確認した行制約を返し、開始拒否通知を行わないことを確認する。
 	 *
 	 * 事前条件:
 	 * - 対象Tableは取得可能で、移動元行の前後に分断不可境界がない。
@@ -107,7 +101,7 @@ describe( 'Row DnD Interaction lifecycle', () => {
 	 * - prepareStart()を実行する。
 	 *
 	 * 期待結果:
-	 * - Table Integrationから取得した行制約がそのまま返り、開始拒否通知は発行されない。
+	 * - Table Integrationから取得した行制約が返り、開始拒否通知とError記録は発生しない。
 	 */
 	it( 'when source row is movable, should return the checked initial constraints', () => {
 		getConstraintsMock.mockReturnValueOnce( availableConstraints );
@@ -116,11 +110,12 @@ describe( 'Row DnD Interaction lifecycle', () => {
 
 		expect( initialConstraints ).toBe( availableConstraints );
 		expect( startRejectionNoticeListener ).not.toHaveBeenCalled();
+		expect( consoleErrorSpy ).not.toHaveBeenCalled();
 	} );
 
 	/**
 	 * 概要:
-	 * - rowspan等の結合範囲に含まれる移動元行では、DnD開始を拒否して移動不可理由の通知を1回発行することを確認する。
+	 * - rowspan等の結合範囲に含まれる移動元行では、通常の開始拒否として扱うことを確認する。
 	 *
 	 * 事前条件:
 	 * - 移動元行の直後が分断不可境界である。
@@ -129,448 +124,327 @@ describe( 'Row DnD Interaction lifecycle', () => {
 	 * - prepareStart()を実行する。
 	 *
 	 * 期待結果:
-	 * - nullを返し、開始拒否通知を1回発行し、異常終了通知は発行しない。
+	 * - nullを返し開始拒否通知を1回発行するが、内部Errorとして記録しない。
 	 */
-	it( 'when source row crosses a blocked boundary, should notify the start rejection once', () => {
-		getConstraintsMock.mockReturnValueOnce( blockedSourceConstraints );
+	it( 'when source row crosses a blocked boundary, should notify the start rejection without logging an error', () => {
+		getConstraintsMock.mockReturnValueOnce( {
+			rowCount: 5,
+			blockedBoundaries: [ 2 ],
+		} );
 
 		const initialConstraints = rowDndInteraction.prepareStart( source );
 
 		expect( initialConstraints ).toBeNull();
 		expect( startRejectionNoticeListener ).toHaveBeenCalledTimes( 1 );
 		expect( terminationNoticeListener ).not.toHaveBeenCalled();
+		expect( consoleErrorSpy ).not.toHaveBeenCalled();
 	} );
 
 	/**
 	 * 概要:
-	 * - Designで定義された移動不可理由によらない開始不能では、開始拒否通知を発行しないことを確認する。
+	 * - 正常なcompleteでは現在構造へ再照合して行移動を確定し、Session終了後にReorder Mode継続可否を解決することを確認する。
 	 *
 	 * 事前条件:
-	 * - 対象Tableの行制約を取得できない。
-	 *
-	 * 操作:
-	 * - prepareStart()を実行する。
-	 *
-	 * 期待結果:
-	 * - nullを返すが、開始拒否通知は発行されない。
-	 */
-	it( 'when table constraints are unavailable, should reject without a start rejection notice', () => {
-		getConstraintsMock.mockReturnValueOnce( null );
-
-		const initialConstraints = rowDndInteraction.prepareStart( source );
-
-		expect( initialConstraints ).toBeNull();
-		expect( startRejectionNoticeListener ).not.toHaveBeenCalled();
-	} );
-
-	/**
-	 * 概要:
-	 * - tbody内の実在行ではない開始候補を、結合セルによる移動不可理由として通知しないことを確認する。
-	 *
-	 * 事前条件:
-	 * - 対象Tableの行制約は取得可能である。
-	 * - 開始候補の行位置はtbodyの範囲外である。
-	 *
-	 * 操作:
-	 * - prepareStart()を実行する。
-	 *
-	 * 期待結果:
-	 * - nullを返すが、開始拒否通知は発行されない。
-	 */
-	it( 'when source row is outside tbody, should reject without a start rejection notice', () => {
-		getConstraintsMock.mockReturnValueOnce( availableConstraints );
-
-		const initialConstraints = rowDndInteraction.prepareStart( {
-			tableIdentity: 'table-a',
-			sourceRowIndex: 5,
-		} );
-
-		expect( initialConstraints ).toBeNull();
-		expect( startRejectionNoticeListener ).not.toHaveBeenCalled();
-	} );
-
-	/**
-	 * 概要:
-	 * - 開始拒否通知の購読を解除したPresentationには、その後の通知対象となる開始拒否を伝えないことを確認する。
-	 *
-	 * 事前条件:
-	 * - 開始拒否通知listenerが購読済みである。
-	 * - 移動元行の直後が分断不可境界である。
-	 *
-	 * 操作:
-	 * - 購読を解除した後、prepareStart()を実行する。
-	 *
-	 * 期待結果:
-	 * - 開始拒否自体は成立するが、解除済みlistenerは呼び出されない。
-	 */
-	it( 'when start rejection notice subscription is removed, should stop delivering notices', () => {
-		unsubscribeStartRejectionNotice();
-		getConstraintsMock.mockReturnValueOnce( blockedSourceConstraints );
-
-		const initialConstraints = rowDndInteraction.prepareStart( source );
-
-		expect( initialConstraints ).toBeNull();
-		expect( startRejectionNoticeListener ).not.toHaveBeenCalled();
-	} );
-
-	/**
-	 * 概要:
-	 * - start()がprepareStart()で確認した行制約をそのままSessionへ引き継ぎ、DnD終了後のLifecycle判定とは分離されることを確認する。
-	 *
-	 * 事前条件:
-	 * - prepareStart()で開始可能な行制約が返っている。
-	 *
-	 * 操作:
-	 * - start()でSessionを開始し、その後の有効移動先を更新してcomplete()する。
-	 *
-	 * 期待結果:
-	 * - Session中の確定再照合までは開始時制約を保持し、Session終了後にReorder Mode用の現在行制約を別途取得する。
-	 */
-	it( 'when checked constraints start a session, should keep them until complete revalidation', () => {
-		const initialConstraints = prepareActiveSession();
-		getConstraintsMock.mockReturnValueOnce( availableConstraints );
-
-		rowDndInteraction.updateDestination( 4 );
-		rowDndInteraction.complete();
-
-		expect( initialConstraints ).toBe( availableConstraints );
-		expect( getConstraintsMock ).toHaveBeenCalledTimes( 3 );
-		expect( getConstraintsMock ).toHaveBeenNthCalledWith( 1, 'table-a' );
-		expect( getConstraintsMock ).toHaveBeenNthCalledWith( 2, 'table-a' );
-		expect( getConstraintsMock ).toHaveBeenNthCalledWith( 3, 'table-a' );
-	} );
-
-	/**
-	 * 概要:
-	 * - Session開始時の行制約に対して無効な移動先は、確定可能な移動先として保持せず異常終了通知も行わないことを確認する。
-	 *
-	 * 事前条件:
-	 * - active Sessionが成立している。
-	 * - 移動先境界2はSession開始時の制約で分断不可である。
-	 *
-	 * 操作:
-	 * - 無効な境界へupdateDestination()し、complete()する。
-	 *
-	 * 期待結果:
-	 * - Table更新と異常終了通知を要求せず、確定用再照合は行わないが、終了後Lifecycle用の現在行制約は取得する。
-	 */
-	it( 'when destination is blocked by initial constraints, should complete without updating the table', () => {
-		const blockedDestinationConstraints = {
-			rowCount: 5,
-			blockedBoundaries: [ 2 ] as readonly number[],
-		};
-		getConstraintsMock.mockReturnValueOnce( blockedDestinationConstraints );
-		const destinationSource = {
-			tableIdentity: 'table-a',
-			sourceRowIndex: 3,
-		};
-		const initialConstraints = rowDndInteraction.prepareStart( destinationSource );
-
-		if ( initialConstraints === null ) {
-			throw new Error( 'Test precondition failed: expected initial constraints.' );
-		}
-
-		rowDndInteraction.start( destinationSource, initialConstraints );
-		rowDndInteraction.updateDestination( 2 );
-		rowDndInteraction.complete();
-
-		expect( getConstraintsMock ).toHaveBeenCalledTimes( 2 );
-		expect( applyRowMoveMock ).not.toHaveBeenCalled();
-		expect( terminationNoticeListener ).not.toHaveBeenCalled();
-	} );
-
-	/**
-	 * 概要:
-	 * - 一度有効になった移動先候補がDnD中に失われた場合、過去の移動先を確定に使用しないことを確認する。
-	 *
-	 * 事前条件:
-	 * - active Sessionが成立し、移動先境界4が有効である。
-	 *
-	 * 操作:
-	 * - 境界4を設定した後、現在の移動先候補なしとしてnullへ更新し、complete()する。
-	 *
-	 * 期待結果:
-	 * - 過去の境界4を使用してTableを更新せず、異常終了通知も発行しない。
-	 */
-	it( 'when the current destination is cleared before completion, should not apply the previous destination', () => {
-		prepareActiveSession();
-
-		rowDndInteraction.updateDestination( 4 );
-		rowDndInteraction.updateDestination( null );
-		rowDndInteraction.complete();
-
-		expect( applyRowMoveMock ).not.toHaveBeenCalled();
-		expect( terminationNoticeListener ).not.toHaveBeenCalled();
-	} );
-
-	/**
-	 * 概要:
-	 * - complete()時点の現在構造でも移動元と移動先が成立する場合だけ、Table Integrationへ確定済み行移動を渡すことを確認する。
-	 *
-	 * 事前条件:
-	 * - active Sessionの最終移動先はSession開始時の行制約に対して有効である。
-	 * - complete()時点でも同じ移動が成立する。
+	 * - active Sessionが成立し、移動先境界4が開始時とcomplete時の双方で有効である。
 	 *
 	 * 操作:
 	 * - 移動先を更新してcomplete()する。
 	 *
 	 * 期待結果:
-	 * - Table Identity、移動元行、移動先境界を含む1回の行更新要求が行われる。
+	 * - Table更新を1回要求し、idleへ戻り、異常終了通知とError記録は行わない。
 	 */
-	it( 'when complete revalidation succeeds, should apply the confirmed row move once', () => {
+	it( 'when complete revalidation succeeds, should apply the confirmed move and return to idle', () => {
 		prepareActiveSession();
 		getConstraintsMock.mockReturnValueOnce( availableConstraints );
 
 		rowDndInteraction.updateDestination( 4 );
 		rowDndInteraction.complete();
 
-		expect( applyRowMoveMock ).toHaveBeenCalledTimes( 1 );
 		expect( applyRowMoveMock ).toHaveBeenCalledWith( {
 			clientId: 'table-a',
 			sourceRowIndex: 1,
 			destinationBoundaryIndex: 4,
 		} );
+		expect( getRowDndPhase() ).toBe( 'idle' );
 		expect( terminationNoticeListener ).not.toHaveBeenCalled();
+		expect( consoleErrorSpy ).not.toHaveBeenCalled();
 	} );
 
 	/**
 	 * 概要:
-	 * - complete()時点で今回の移動先だけが成立しなくなっても、対象Table自体が行並び替え可能ならReorder Modeを維持することを確認する。
+	 * - complete時の外部環境変化は内部Errorとせず、安全な異常終了通知だけを行うことを確認する。
 	 *
 	 * 事前条件:
-	 * - Table Aで行並び替えが有効である。
-	 * - Session開始時には移動先境界4が有効だが、complete()時の再照合では境界4だけが分断不可になっている。
-	 * - DnD終了後に取得し直すTable Aの行制約は利用可能である。
+	 * - active Sessionの移動先は開始時には有効だが、complete時には分断不可になっている。
 	 *
 	 * 操作:
-	 * - 移動先を更新してcomplete()する。
+	 * - complete()する。
 	 *
 	 * 期待結果:
-	 * - 今回のDnDは異常終了通知対象となるが、Table Aの行並び替えモードは維持される。
+	 * - Table更新せずidleへ戻り、異常終了通知を1回発行するがError記録は行わない。
 	 */
-	it( 'when the completed move becomes invalid but the table remains supported, should keep row mode active', () => {
-		reorderMode.select( 'row', 'table-a' );
+	it( 'when complete revalidation becomes unavailable normally, should notify termination without logging an error', () => {
 		prepareActiveSession();
-		getConstraintsMock
-			.mockReturnValueOnce( {
-				rowCount: 5,
-				blockedBoundaries: [ 4 ],
-			} )
-			.mockReturnValueOnce( availableConstraints );
-
+		getConstraintsMock.mockReturnValueOnce( {
+			rowCount: 5,
+			blockedBoundaries: [ 4 ],
+		} );
 		rowDndInteraction.updateDestination( 4 );
+
 		rowDndInteraction.complete();
 
 		expect( applyRowMoveMock ).not.toHaveBeenCalled();
+		expect( getRowDndPhase() ).toBe( 'idle' );
+		expect( terminationNoticeListener ).toHaveBeenCalledTimes( 1 );
+		expect( consoleErrorSpy ).not.toHaveBeenCalled();
+	} );
+
+	/**
+	 * 概要:
+	 * - prepareStart中の内部Errorは共通failure recoveryで1回だけ記録し、物理DnD成立前のfailureとして通知しないことを確認する。
+	 *
+	 * 事前条件:
+	 * - Table Integrationが開始可否判定中にErrorを送出する。
+	 *
+	 * 操作:
+	 * - prepareStart()を実行する。
+	 *
+	 * 期待結果:
+	 * - nullを返してidleを維持し、Errorを1回記録するが異常終了通知とReorder Mode終了後判断は行わない。
+	 */
+	it( 'when prepareStart throws internally, should recover to idle without a termination notice', () => {
+		const error = new Error( 'constraints failed' );
+		getConstraintsMock.mockImplementationOnce( () => {
+			throw error;
+		} );
+		reorderMode.select( 'row', 'table-a' );
+
+		const initialConstraints = rowDndInteraction.prepareStart( source );
+
+		expect( initialConstraints ).toBeNull();
+		expect( getRowDndPhase() ).toBe( 'idle' );
+		expect( consoleErrorSpy ).toHaveBeenCalledTimes( 1 );
+		expect( consoleErrorSpy ).toHaveBeenCalledWith(
+			'[Yamabiko Table Reorder] Row DnD prepareStart failed.',
+			error
+		);
+		expect( terminationNoticeListener ).not.toHaveBeenCalled();
+		expect( rowReorderMode.isActive( 'table-a' ) ).toBe( true );
+	} );
+
+	/**
+	 * 概要:
+	 * - start中のLifecycle違反もoperation boundaryから共通failure recoveryへ合流することを確認する。
+	 *
+	 * 事前条件:
+	 * - Table Aのactive Sessionがすでに成立している。
+	 *
+	 * 操作:
+	 * - Table Bのstart()を追加で要求する。
+	 *
+	 * 期待結果:
+	 * - Errorを外へ再送出せずSessionを破棄してidleへ戻し、start failureとして1回記録・通知する。
+	 */
+	it( 'when start violates the active-session invariant, should recover without rethrowing', () => {
+		prepareActiveSession();
+
+		expect( () =>
+			rowDndInteraction.start(
+				{
+					tableIdentity: 'table-b',
+					sourceRowIndex: 0,
+				},
+				availableConstraints
+			)
+		).not.toThrow();
+
+		expect( getRowDndPhase() ).toBe( 'idle' );
+		expect( consoleErrorSpy ).toHaveBeenCalledTimes( 1 );
+		expect( terminationNoticeListener ).toHaveBeenCalledTimes( 1 );
+	} );
+
+	/**
+	 * 概要:
+	 * - updateDestination中の内部Errorは共通failure recoveryでsafe idleへ戻ることを確認する。
+	 *
+	 * 事前条件:
+	 * - active Sessionが存在しないため、移動先更新要求は内部Lifecycle違反になる。
+	 *
+	 * 操作:
+	 * - updateDestination()を実行する。
+	 *
+	 * 期待結果:
+	 * - Errorを外へ再送出せず1回記録し、idleを維持して異常終了通知を1回発行する。
+	 */
+	it( 'when updateDestination throws internally, should recover through the common failure path', () => {
+		expect( () => rowDndInteraction.updateDestination( 1 ) ).not.toThrow();
+
+		expect( getRowDndPhase() ).toBe( 'idle' );
+		expect( consoleErrorSpy ).toHaveBeenCalledTimes( 1 );
+		expect( terminationNoticeListener ).toHaveBeenCalledTimes( 1 );
+	} );
+
+	/**
+	 * 概要:
+	 * - complete中のTable Integration ErrorはSessionを破棄し、現在Table状態からReorder Mode継続可否を再取得することを確認する。
+	 *
+	 * 事前条件:
+	 * - Table Aで行並び替えが有効なactive Sessionが成立している。
+	 * - complete再照合の最初の取得だけがErrorとなり、回復後の現在行制約は取得可能である。
+	 *
+	 * 操作:
+	 * - complete()する。
+	 *
+	 * 期待結果:
+	 * - Errorを1回記録してidleへ戻り、異常終了通知を1回発行し、Table Aの行並び替えモードを維持する。
+	 */
+	it( 'when complete throws internally, should recover and resolve row mode from the current table state', () => {
+		reorderMode.select( 'row', 'table-a' );
+		prepareActiveSession();
+		rowDndInteraction.updateDestination( 4 );
+		getConstraintsMock
+			.mockImplementationOnce( () => {
+				throw new Error( 'complete constraints failed' );
+			} )
+			.mockReturnValueOnce( availableConstraints );
+
+		rowDndInteraction.complete();
+
+		expect( getRowDndPhase() ).toBe( 'idle' );
+		expect( consoleErrorSpy ).toHaveBeenCalledTimes( 1 );
 		expect( terminationNoticeListener ).toHaveBeenCalledTimes( 1 );
 		expect( rowReorderMode.isActive( 'table-a' ) ).toBe( true );
 	} );
 
 	/**
 	 * 概要:
-	 * - complete()時点で対象Table自体を安全に扱えなくなった場合は、DnDを異常終了として通知し、行並び替えモードも終了することを確認する。
+	 * - Reorder Mode継続可否の再取得自体が失敗しても、safe idleを維持し二重logしないことを確認する。
 	 *
 	 * 事前条件:
-	 * - Table Aで行並び替えが有効で、active Sessionが成立している。
-	 * - complete()時の再照合とDnD終了後の継続可否確認のどちらでもTable Aの行制約を取得できない。
+	 * - complete再照合とfailure recovery中の現在Table再取得が連続してErrorを送出する。
 	 *
 	 * 操作:
-	 * - 有効な移動先を設定してcomplete()する。
+	 * - complete()する。
 	 *
 	 * 期待結果:
-	 * - Table更新を要求せず異常終了通知を1回発行し、Table Aの行並び替えを終了して通常編集へ戻る。
+	 * - 元のcomplete failureだけを1回記録し、canContinue=falseとして行並び替えモードを終了する。
 	 */
-	it( 'when completed DnD table can no longer continue row reorder, should terminate and return reorder mode to edit', () => {
+	it( 'when failure recovery cannot re-read current constraints, should keep idle and resolve row mode as unavailable', () => {
 		reorderMode.select( 'row', 'table-a' );
 		prepareActiveSession();
-		getConstraintsMock.mockReturnValueOnce( null ).mockReturnValueOnce( null );
-
 		rowDndInteraction.updateDestination( 4 );
+		getConstraintsMock.mockImplementation( () => {
+			throw new Error( 'constraints unavailable' );
+		} );
+
 		rowDndInteraction.complete();
 
-		expect( applyRowMoveMock ).not.toHaveBeenCalled();
-		expect( terminationNoticeListener ).toHaveBeenCalledTimes( 1 );
+		expect( getRowDndPhase() ).toBe( 'idle' );
+		expect( consoleErrorSpy ).toHaveBeenCalledTimes( 1 );
 		expect( reorderMode.getMode( 'table-a' ) ).toBe( 'edit' );
 	} );
 
 	/**
 	 * 概要:
-	 * - complete()時点で外部Table構造が変化し、最終移動先を安全に確定できなくなった場合は異常終了通知を行うことを確認する。
+	 * - execution boundaryから渡されたErrorも同じ共通failure recoveryのcleanup順序へ合流することを確認する。
 	 *
 	 * 事前条件:
-	 * - Session開始時には移動先境界4が有効である。
-	 * - complete()時点では境界4が分断不可になっている。
+	 * - 接続インスタンスに開始準備値、activeな物理DnD、Droppable一時登録のcleanupが存在する。
 	 *
 	 * 操作:
-	 * - 移動先を更新してcomplete()する。
+	 * - recoverFailure()へupdateDestination Errorを渡す。
 	 *
 	 * 期待結果:
-	 * - Table更新を要求せずSessionを終了し、異常終了通知を1回発行する。
+	 * - 開始準備値破棄、物理DnD cancel、一時登録破棄の順で1回ずつ実行し、Errorと異常終了通知も1回だけ発生する。
 	 */
-	it( 'when complete revalidation no longer accepts the destination, should notify the termination once', () => {
-		prepareActiveSession();
-		getConstraintsMock.mockReturnValueOnce( {
-			rowCount: 5,
-			blockedBoundaries: [ 4 ],
+	it( 'when an execution boundary forwards an error, should join the same ordered failure recovery', () => {
+		const cleanupOrder: string[] = [];
+		const boundary = createRowDndOperationBoundary( {
+			discardPreparedStart: () => cleanupOrder.push( 'preparedStart' ),
+			cancelActiveDnd: () => cleanupOrder.push( 'activeDnd' ),
+			discardTemporaryDndState: () => cleanupOrder.push( 'temporaryDndState' ),
 		} );
 
-		rowDndInteraction.updateDestination( 4 );
-		rowDndInteraction.complete();
+		boundary.recoverFailure( 'updateDestination', new Error( 'engine callback failed' ), {
+			tableIdentity: 'table-a',
+		} );
 
-		expect( applyRowMoveMock ).not.toHaveBeenCalled();
+		expect( cleanupOrder ).toEqual( [ 'preparedStart', 'activeDnd', 'temporaryDndState' ] );
+		expect( consoleErrorSpy ).toHaveBeenCalledTimes( 1 );
+		expect( terminationNoticeListener ).toHaveBeenCalledTimes( 1 );
+		expect( getRowDndPhase() ).toBe( 'idle' );
+	} );
+
+	/**
+	 * 概要:
+	 * - failure recoveryから物理DnDをcancelした際の終了callbackが、同じ回復処理へ再入しないことを確認する。
+	 *
+	 * 事前条件:
+	 * - cancelActiveDnd()が同期的にrecoverFailure()を再度要求する接続インスタンスを使用する。
+	 *
+	 * 操作:
+	 * - 最初のrecoverFailure()を実行する。
+	 *
+	 * 期待結果:
+	 * - 再入要求は無視され、cleanup・Error記録・異常終了通知が二重に発生しない。
+	 */
+	it( 'when engine cancellation re-enters recovery, should suppress duplicate cleanup logging and notification', () => {
+		const discardPreparedStart = jest.fn();
+		const discardTemporaryDndState = jest.fn();
+		let boundary: ReturnType< typeof createRowDndOperationBoundary >;
+		const cancelActiveDnd = jest.fn( () => {
+			boundary.recoverFailure( 'cancel', new Error( 're-entered callback' ), {
+				tableIdentity: 'table-a',
+			} );
+		} );
+		boundary = createRowDndOperationBoundary( {
+			discardPreparedStart,
+			cancelActiveDnd,
+			discardTemporaryDndState,
+		} );
+
+		boundary.recoverFailure( 'complete', new Error( 'original failure' ), {
+			tableIdentity: 'table-a',
+		} );
+
+		expect( discardPreparedStart ).toHaveBeenCalledTimes( 1 );
+		expect( cancelActiveDnd ).toHaveBeenCalledTimes( 1 );
+		expect( discardTemporaryDndState ).toHaveBeenCalledTimes( 1 );
+		expect( consoleErrorSpy ).toHaveBeenCalledTimes( 1 );
 		expect( terminationNoticeListener ).toHaveBeenCalledTimes( 1 );
 	} );
 
 	/**
 	 * 概要:
-	 * - 移動元行の直前または直後へのdropでは、実際の行順が変わらないため更新も異常終了通知も発生させないことを確認する。
+	 * - cleanup途中の追加Errorが後続cleanupとsafe idle復帰を妨げないことを確認する。
 	 *
 	 * 事前条件:
-	 * - active Sessionが成立している。
-	 * - 移動元行は1で、移動先境界2はその直後である。
+	 * - 開始準備値破棄と物理DnD cancelがErrorを送出し、一時登録破棄は正常に完了する。
 	 *
 	 * 操作:
-	 * - 境界2を有効移動先としてcomplete()する。
+	 * - recoverFailure()を実行する。
 	 *
 	 * 期待結果:
-	 * - 現在構造への再照合は行うが、Table更新および異常終了通知は要求しない。
+	 * - 後続cleanupまで実行してidleへ戻り、元のfailureだけを1回記録する。
 	 */
-	it( 'when destination keeps the source row in the same order, should not update the table', () => {
-		prepareActiveSession();
-		getConstraintsMock.mockReturnValueOnce( availableConstraints );
-
-		rowDndInteraction.updateDestination( 2 );
-		rowDndInteraction.complete();
-
-		expect( getConstraintsMock ).toHaveBeenCalledTimes( 3 );
-		expect( applyRowMoveMock ).not.toHaveBeenCalled();
-		expect( terminationNoticeListener ).not.toHaveBeenCalled();
-	} );
-
-	/**
-	 * 概要:
-	 * - cancel()ではTableを更新せずSessionを終了し、異常終了通知を行わず次のDnDを開始できることを確認する。
-	 *
-	 * 事前条件:
-	 * - active Sessionが成立している。
-	 *
-	 * 操作:
-	 * - cancel()した後、新しいprepareStart()を実行する。
-	 *
-	 * 期待結果:
-	 * - Table更新と異常終了通知は行われず、新しい開始判定の行制約が正常に返る。
-	 */
-	it( 'when active session is cancelled, should end without update and allow the next start', () => {
-		prepareActiveSession();
-
-		rowDndInteraction.cancel();
-		getConstraintsMock.mockReturnValueOnce( availableConstraints );
-		const nextConstraints = rowDndInteraction.prepareStart( {
-			tableIdentity: 'table-b',
-			sourceRowIndex: 2,
+	it( 'when cleanup steps throw during recovery, should continue cleanup and keep the original log single', () => {
+		const discardTemporaryDndState = jest.fn();
+		const boundary = createRowDndOperationBoundary( {
+			discardPreparedStart: () => {
+				throw new Error( 'prepared cleanup failed' );
+			},
+			cancelActiveDnd: () => {
+				throw new Error( 'engine cancel failed' );
+			},
+			discardTemporaryDndState,
 		} );
 
-		expect( applyRowMoveMock ).not.toHaveBeenCalled();
-		expect( terminationNoticeListener ).not.toHaveBeenCalled();
-		expect( nextConstraints ).toBe( availableConstraints );
-	} );
-
-	/**
-	 * 概要:
-	 * - cancel後にSession対象Tableの現在行制約を取得できない場合は、Reorder Modeを通常編集へ戻すことを確認する。
-	 *
-	 * 事前条件:
-	 * - Table Aで行並び替えが有効で、active Sessionが成立している。
-	 * - DnD終了後にはTable Aの現在行制約を安全に取得できない。
-	 *
-	 * 操作:
-	 * - cancel()する。
-	 *
-	 * 期待結果:
-	 * - Session終了後にTable Aの現在行制約を取得し直し、行並び替えを終了して通常編集へ戻る。
-	 */
-	it( 'when cancelled DnD table can no longer continue row reorder, should return reorder mode to edit', () => {
-		reorderMode.select( 'row', 'table-a' );
-		prepareActiveSession();
-		getConstraintsMock.mockReturnValueOnce( null );
-
-		rowDndInteraction.cancel();
-
-		expect( getConstraintsMock ).toHaveBeenCalledTimes( 2 );
-		expect( getConstraintsMock ).toHaveBeenNthCalledWith( 2, 'table-a' );
-		expect( reorderMode.getMode( 'table-a' ) ).toBe( 'edit' );
-	} );
-
-	/**
-	 * 概要:
-	 * - 異常終了通知の購読を解除したPresentationには、その後の通知対象終了を伝えないことを確認する。
-	 *
-	 * 事前条件:
-	 * - active Sessionが成立し、異常終了通知listenerが購読済みである。
-	 *
-	 * 操作:
-	 * - 購読を解除した後、complete()時の現在構造で最終移動先を成立不能にする。
-	 *
-	 * 期待結果:
-	 * - 通知対象の終了は成立するが、解除済みlistenerは呼び出されない。
-	 */
-	it( 'when termination notice subscription is removed, should stop delivering notices', () => {
-		prepareActiveSession();
-		unsubscribeTerminationNotice();
-		getConstraintsMock.mockReturnValueOnce( {
-			rowCount: 5,
-			blockedBoundaries: [ 4 ],
+		boundary.recoverFailure( 'cancel', new Error( 'original failure' ), {
+			tableIdentity: 'table-a',
 		} );
 
-		rowDndInteraction.updateDestination( 4 );
-		rowDndInteraction.complete();
-
-		expect( terminationNoticeListener ).not.toHaveBeenCalled();
-	} );
-
-	/**
-	 * 概要:
-	 * - active Session中に別の開始試行を受理しないことを確認する。
-	 *
-	 * 事前条件:
-	 * - すでにactive Sessionが成立している。
-	 *
-	 * 操作:
-	 * - prepareStart()を再度実行する。
-	 *
-	 * 期待結果:
-	 * - 1つのactive SessionというInvariant違反としてErrorを送出する。
-	 */
-	it( 'when another start is prepared during an active session, should reject the lifecycle violation', () => {
-		prepareActiveSession();
-
-		expect( () =>
-			rowDndInteraction.prepareStart( {
-				tableIdentity: 'table-b',
-				sourceRowIndex: 0,
-			} )
-		).toThrow( 'Row DnD start preparation requires an idle session.' );
-	} );
-
-	/**
-	 * 概要:
-	 * - idle状態では移動先更新またはcompleteを受理しないことを確認する。
-	 *
-	 * 事前条件:
-	 * - active Sessionが存在しない。
-	 *
-	 * 操作:
-	 * - updateDestination()とcomplete()を実行する。
-	 *
-	 * 期待結果:
-	 * - どちらもSession Lifecycle違反としてErrorを送出する。
-	 */
-	it( 'when session is idle, should reject destination updates and completion', () => {
-		expect( () => rowDndInteraction.updateDestination( 1 ) ).toThrow(
-			'Row DnD destination can only be updated during an active session.'
-		);
-		expect( () => rowDndInteraction.complete() ).toThrow(
-			'Row DnD complete requires an active session.'
-		);
+		expect( discardTemporaryDndState ).toHaveBeenCalledTimes( 1 );
+		expect( consoleErrorSpy ).toHaveBeenCalledTimes( 1 );
+		expect( getRowDndPhase() ).toBe( 'idle' );
 	} );
 } );
