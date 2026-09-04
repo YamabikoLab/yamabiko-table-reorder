@@ -8,7 +8,7 @@
 
 import { Draggable, Feedback, PointerSensor } from '@dnd-kit/dom';
 import { useDragDropManager } from '@dnd-kit/react';
-import type { ReactNode } from 'react';
+import type { PointerEvent, ReactNode } from 'react';
 
 import type { RowDndSource } from './dnd-interaction';
 
@@ -16,7 +16,7 @@ import type { RowDndSource } from './dnd-interaction';
 export const ROW_DND_TYPE = 'ytr-row';
 
 /** Row DnDが既存DOMのpointer入力へ接続するhandler。 */
-export type RowDndPointerDownHandler = ( event: unknown ) => void;
+export type RowDndPointerDownHandler = ( event: PointerEvent< Element > ) => void;
 
 /**
  * PC入力から行DnD開始候補を解決し、現在のpointer入力で必要な行だけをDraggableへ登録する。
@@ -48,20 +48,18 @@ export const RowPcInput = ( props: {
 			return;
 		}
 
-		const pointerEvent = event as PointerEvent;
-
 		/* PCの主pointer入力だけを行DnD開始候補として受け入れる。 */
 		if (
-			! pointerEvent.isPrimary ||
-			pointerEvent.button !== 0 ||
-			pointerEvent.pointerType === 'touch' ||
+			! event.isPrimary ||
+			event.button !== 0 ||
+			event.pointerType === 'touch' ||
 			! manager.dragOperation.status.idle
 		) {
 			return;
 		}
 
-		const target = pointerEvent.target as Element | null;
-		const currentTarget = pointerEvent.currentTarget as Element | null;
+		const target = event.target as Element | null;
+		const currentTarget = event.currentTarget;
 
 		if ( ! target || ! currentTarget ) {
 			return;
