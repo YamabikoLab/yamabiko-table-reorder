@@ -25,10 +25,12 @@ These instructions apply to source files under `src/reorder/` in addition to `sr
 - When an asynchronous callback or another execution boundary cannot propagate an error to the normal operation boundary, that callback may define an error boundary. It must not introduce independent logging or recovery and must join the same common abort path used by the operation boundary.
 - After catching an error, join the common abort path, discard the Reorder Session and temporary DnD state, and return to a safe idle state.
 - After recovery, do not rethrow the error into the Editor as a whole when doing so would only spread an already-contained Reorder failure.
+- Do not show a user-facing notification merely because an unexpected internal Error was caught. Internal error handling and user-visible messaging are separate concerns; user-facing notifications must be defined explicitly by requirements or design for a user-actionable condition.
 
 ### log
 
-- Log an error exactly once at the operation boundary that owns recovery.
+- Log an unexpected internal error exactly once at the operation boundary that owns recovery.
 - A log entry must include at least which Reorder operation failed and the original error information.
 - Do not duplicate logs for the same error, such as logging once where it is thrown and again where it is caught.
-- Do not log normal absence, normal unavailability, or an expected abort caused by an external environment change as an internal error.
+- Do not log normal absence, normal unavailability, user cancellation, no-op results, or an expected abort caused by an external environment change as an internal error.
+- Do not let a secondary Error raised during recovery stop the remaining recovery steps or replace the original failure being diagnosed.
