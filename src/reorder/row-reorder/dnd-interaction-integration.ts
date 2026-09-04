@@ -174,7 +174,7 @@ const resolveCurrentRows = ( sourceEntity: RowDndEngineEntity | null ): HTMLTabl
 /**
  * DnD開始成立時点の開始対象が、開始可否判定で確定した対象と同一か判定する。
  *
- * @param currentSource DnD開始成立時点でDnD Engineが示す開始対象。
+ * @param currentSource  DnD開始成立時点でDnD Engineが示す開始対象。
  * @param preparedSource 開始可否判定で確定した開始対象。
  * @return Table Identityと行位置がともに一致する場合はtrue。
  */
@@ -214,8 +214,8 @@ const createRecoveryContext = (
  * 移動先候補が存在しない状態は正常な「有効移動先なし」としてnullへ変換する。
  * 移動先候補が存在する場合は、その行の中央より前側を行直前、後側を行直後の挿入境界として扱う。
  *
- * @param source 現在のDnD Engine開始対象。
- * @param target 現在のDnD Engine移動先候補。候補がない場合はnull。
+ * @param source   現在のDnD Engine開始対象。
+ * @param target   現在のDnD Engine移動先候補。候補がない場合はnull。
  * @param position DnD Engineが示す現在の物理入力位置。
  * @return 現在の0-based移動先境界。移動先候補がない場合はnull。
  */
@@ -331,7 +331,7 @@ export const connectRowDndInteraction = ( manager: RowDndEngineManager ): ( () =
 	 * 登録は現在Sessionだけに有効とし、Session終了または共通回復処理で全件を破棄する。
 	 *
 	 * @param sourceEntity DnD開始成立時点でDnD Engineが示す開始対象Entity。
-	 * @param source 開始可否判定済みのRow DnD開始対象。
+	 * @param source       開始可否判定済みのRow DnD開始対象。
 	 */
 	const registerCurrentRowDroppables = (
 		sourceEntity: RowDndEngineEntity | null,

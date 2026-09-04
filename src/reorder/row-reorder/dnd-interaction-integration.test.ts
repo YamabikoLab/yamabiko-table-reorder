@@ -97,7 +97,7 @@ const createTableRows = ( rowCount = 3 ): HTMLTableRowElement[] => {
 /**
  * DnD EngineがRow DnD開始対象として通知するEntityを生成する。
  *
- * @param row 開始対象として通知するTable行。
+ * @param row            開始対象として通知するTable行。
  * @param sourceRowIndex tbody内の0-based開始行位置。
  * @return Table Aの開始対象を表すDnD Engine Entity。
  */
@@ -114,7 +114,7 @@ const createSourceEntity = ( row: HTMLTableRowElement, sourceRowIndex = 1 ) => (
  *
  * @param source 現在の開始対象Entity。
  * @param target 現在の移動先候補。候補がない場合はnull。
- * @param y 現在の縦方向の物理入力位置。
+ * @param y      現在の縦方向の物理入力位置。
  * @return 接続境界へ通知する物理DnD状態。
  */
 const createOperation = (
@@ -269,11 +269,9 @@ describe( 'Row DnD Interaction DnD Engine integration', () => {
 		} );
 
 		expect( secondBoundary.start ).not.toHaveBeenCalled();
-		expect( secondBoundary.recoverFailure ).toHaveBeenCalledWith(
-			'start',
-			expect.any( Error ),
-			{ tableIdentity: 'table-a' }
-		);
+		expect( secondBoundary.recoverFailure ).toHaveBeenCalledWith( 'start', expect.any( Error ), {
+			tableIdentity: 'table-a',
+		} );
 	} );
 
 	/**
