@@ -1,9 +1,13 @@
 /**
  * Row Reorderの移動対象行について、DnD中も内容を明瞭に識別できる固定視覚表現を定義する。
  *
- * 座標と実測寸法はReact側が所有し、このファイルは移動表示の背景、枠線、重なり順など
+ * 座標と実測寸法はReact側が所有し、このファイルは移動元表示と移動overlayの背景、枠線、重なり順など
  * DnD位置によらず一定となる見た目だけを所有する。
  */
+
+.yamabiko-table-reorder-moving-row-source {
+	opacity: 0.35;
+}
 
 .yamabiko-table-reorder-moving-row {
 	position: fixed;
