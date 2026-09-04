@@ -5,7 +5,7 @@
  * 開始可否判定で確認した行制約はprepareStartの戻り値としてstartへ引き継ぎ、Session開始時に外部Table構造を取得し直さない。
  * active Sessionだけを共有状態として保持し、DnD Engine固有の物理状態やSession開始前の候補を状態として複製しない。
  * DnD終了後はSessionと一時状態を破棄してから対象Tableの現在行制約を取得し直し、Reorder Modeへ継続可否だけを通知する。
- * Reorder PresentationへはStoreを公開せず、表示に必要な意味状態を用途別のHookと一回性イベントで公開する。
+ * DnD Interaction外部へStoreを公開せず、Reorder PresentationやAuto Scrollに必要な状態を用途別Hookと一回性イベントで公開する。
  */
 
 import { useStore } from 'zustand';
@@ -423,6 +423,17 @@ const rowDndStore = createStore< RowDndStore >()(
  */
 export const useRowDndPhase = (): RowDndStoreState[ 'phase' ] =>
 	useStore( rowDndStore, ( state ) => state.phase );
+
+/**
+ * Auto Scrollが行DnD中だけ自動スクロール許可状態を有効にするために利用する。
+ *
+ * DnD Interactionが所有するphaseからactiveかだけを導出し、Session内部状態やDnD Lifecycle表現は公開しない。
+ * DnD終了でSessionがidleへ戻るとfalseへ更新される。
+ *
+ * @return 行DnD Sessionがactiveな場合はtrue。それ以外はfalse。
+ */
+export const useRowDndActive = (): boolean =>
+	useStore( rowDndStore, ( state ) => state.phase === 'active' );
 
 /**
  * Reorder Presentationが現在の有効な挿入位置を追従するために利用する。
