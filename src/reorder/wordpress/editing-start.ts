@@ -6,7 +6,7 @@
  */
 
 /** Table内容への編集開始につながる入力イベント。 */
-export type EditingStartEvent = {
+type EditingStartEvent = {
 	preventDefault: () => void;
 };
 
