@@ -60,8 +60,5 @@ export const generateStructurizrWorkspaceDsl = ( model: ArchitectureModel ): str
 	const dsl = generateStructurizrDsl( model );
 	const groupedDsl = applyOwnershipBoundaries( dsl, model );
 
-	return groupedDsl.replace(
-		dependencyViewDeclarationPattern,
-		'$1systemLandscape "$2" {'
-	);
+	return groupedDsl.replace( dependencyViewDeclarationPattern, '$1systemLandscape "$2" {' );
 };
