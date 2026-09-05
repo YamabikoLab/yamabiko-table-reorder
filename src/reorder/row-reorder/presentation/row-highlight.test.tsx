@@ -62,9 +62,7 @@ describe( 'Row highlight', () => {
 
 		expect( getByTestId( 'row-0' ).className ).toBe( '' );
 		expect( getByTestId( 'row-1' ).className ).toBe( '' );
-		expect( getByTestId( 'row-2' ).className ).toBe(
-			'yamabiko-table-reorder-row-highlightable'
-		);
+		expect( getByTestId( 'row-2' ).className ).toBe( 'yamabiko-table-reorder-row-highlightable' );
 	} );
 
 	/**
