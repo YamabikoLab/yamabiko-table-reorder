@@ -85,10 +85,10 @@ export const RowInput = ( props: {
 				id: `ytr-row:${ tableIdentity }:${ row.sectionRowIndex }`,
 				element: row,
 				data: source,
-				/* 移動対象行の表示はdnd-kit標準Feedbackへ委ねる。 */
+				/* 行DnD中の移動表示はReorder Presentationが所有するため、dnd-kit標準表示は利用しない。 */
 				plugins: [
 					Feedback.configure( {
-						feedback: 'default',
+						feedback: 'none',
 					} ),
 				],
 				sensors: [
