@@ -51,11 +51,7 @@ export const RowDisplacement = () => {
 	 * @param lastIndex  元位置へ戻す末尾行位置。
 	 */
 	const restoreRows = useCallback(
-		(
-			tableBody: HTMLTableSectionElement,
-			firstIndex: number,
-			lastIndex: number
-		): void => {
+		( tableBody: HTMLTableSectionElement, firstIndex: number, lastIndex: number ): void => {
 			/* 現在の移動先から外れた行だけを元位置へ戻し、継続して押しのける行の表示指定は変更しない。 */
 			for ( let index = firstIndex; index <= lastIndex; index++ ) {
 				const row = tableBody.rows.item( index );
@@ -72,9 +68,9 @@ export const RowDisplacement = () => {
 	/**
 	 * 指定範囲の行へ押しのけ表示を適用する。
 	 *
-	 * @param tableBody     対象Tableのtbody。
-	 * @param firstIndex    押しのける先頭行位置。
-	 * @param lastIndex     押しのける末尾行位置。
+	 * @param tableBody    対象Tableのtbody。
+	 * @param firstIndex   押しのける先頭行位置。
+	 * @param lastIndex    押しのける末尾行位置。
 	 * @param displacement 移動元行1行分の表示移動量。
 	 */
 	const displaceRows = useCallback(
@@ -125,11 +121,7 @@ export const RowDisplacement = () => {
 			}
 
 			if ( nextRange === null ) {
-				restoreRows(
-					previousRange.tableBody,
-					previousRange.firstIndex,
-					previousRange.lastIndex
-				);
+				restoreRows( previousRange.tableBody, previousRange.firstIndex, previousRange.lastIndex );
 				currentRange.current = null;
 				return;
 			}
@@ -140,11 +132,7 @@ export const RowDisplacement = () => {
 
 			/* Tableまたは押しのけ方向が変わる場合は範囲の連続性を保証できないため、旧表示を解除して新表示を成立させる。 */
 			if ( ! canUpdateByDifference ) {
-				restoreRows(
-					previousRange.tableBody,
-					previousRange.firstIndex,
-					previousRange.lastIndex
-				);
+				restoreRows( previousRange.tableBody, previousRange.firstIndex, previousRange.lastIndex );
 				displaceRows(
 					nextRange.tableBody,
 					nextRange.firstIndex,
@@ -155,22 +143,12 @@ export const RowDisplacement = () => {
 				return;
 			}
 
-			const sharedFirstIndex = Math.max(
-				previousRange.firstIndex,
-				nextRange.firstIndex
-			);
-			const sharedLastIndex = Math.min(
-				previousRange.lastIndex,
-				nextRange.lastIndex
-			);
+			const sharedFirstIndex = Math.max( previousRange.firstIndex, nextRange.firstIndex );
+			const sharedLastIndex = Math.min( previousRange.lastIndex, nextRange.lastIndex );
 
 			/* 前回範囲と次回範囲が重ならない場合は、差分として共有できる表示状態がないため両範囲を個別に更新する。 */
 			if ( sharedFirstIndex > sharedLastIndex ) {
-				restoreRows(
-					previousRange.tableBody,
-					previousRange.firstIndex,
-					previousRange.lastIndex
-				);
+				restoreRows( previousRange.tableBody, previousRange.firstIndex, previousRange.lastIndex );
 				displaceRows(
 					nextRange.tableBody,
 					nextRange.firstIndex,
@@ -181,16 +159,8 @@ export const RowDisplacement = () => {
 				return;
 			}
 
-			restoreRows(
-				previousRange.tableBody,
-				previousRange.firstIndex,
-				sharedFirstIndex - 1
-			);
-			restoreRows(
-				previousRange.tableBody,
-				sharedLastIndex + 1,
-				previousRange.lastIndex
-			);
+			restoreRows( previousRange.tableBody, previousRange.firstIndex, sharedFirstIndex - 1 );
+			restoreRows( previousRange.tableBody, sharedLastIndex + 1, previousRange.lastIndex );
 			displaceRows(
 				nextRange.tableBody,
 				nextRange.firstIndex,
