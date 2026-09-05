@@ -1,7 +1,8 @@
 /**
- * Row Reorderの移動対象行について、実Table上の移動元と独立した移動表示の視覚状態を所有する。
+ * Row Reorderの移動対象行について、実Table上の移動元、独立した移動表示、DnD中のポインター表示を所有する。
  *
  * 移動元の配置を維持したまま半透明化し、移動表示はeditor表示領域に収まる範囲だけを描画する。
+ * DnD中はポインター下の要素に依存せず、掴んでいる状態をeditor全体へ示す。
  */
 
 /* 移動元は配置を変えず、移動表示との区別に必要な視覚差だけを付ける。 */
@@ -19,6 +20,12 @@
 	background: #fff;
 	outline: 2px solid #3858e9;
 	box-shadow: 0 4px 12px rgb(0 0 0 / 20%);
+}
+
+/* 行DnD中は移動表示が入力対象外でも、ポインター下の要素に依存せず掴んでいる状態を示す。 */
+.yamabiko-table-reorder-row-dragging,
+.yamabiko-table-reorder-row-dragging * {
+	cursor: grabbing !important;
 }
 
 /* 元Tableの表示特性を引き継ぎつつ、移動対象行の配置を開始時の寸法で維持する。 */

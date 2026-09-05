@@ -17,6 +17,7 @@ import { useRowDndPhase } from '@/reorder/row-reorder/dnd-interaction-react';
 import './moving-row.scss';
 
 const SOURCE_ROW_CLASS = 'yamabiko-table-reorder-moving-row-source';
+const DRAGGING_CLASS = 'yamabiko-table-reorder-row-dragging';
 
 /** Row DnD開始時に確定し、そのDnD中の移動表示で維持する配置情報。 */
 type RowMovingDisplayLayout = {
@@ -283,14 +284,16 @@ export const RowMovingDisplay = () => {
 	}, [ phase ] );
 
 	useEffect( () => {
-		/* Row DnD Sessionと移動表示の両方が成立している期間だけ、元行を移動元として識別する。 */
+		/* Row DnD Sessionと移動表示の両方が成立している期間だけ、移動元と掴んでいるポインター状態を表示する。 */
 		if ( phase !== 'active' || layout === null ) {
 			return;
 		}
 
 		layout.sourceRow.classList.add( SOURCE_ROW_CLASS );
+		layout.editorDocument.body.classList.add( DRAGGING_CLASS );
 		return () => {
 			layout.sourceRow.classList.remove( SOURCE_ROW_CLASS );
+			layout.editorDocument.body.classList.remove( DRAGGING_CLASS );
 		};
 	}, [ phase, layout ] );
 
