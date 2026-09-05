@@ -26,24 +26,26 @@ import type { RowReorderConstraints } from './table-integration';
 
 export type { RowDndPointerDownHandler } from './pc-input';
 
+/** 現在の物理DnD位置を、スクロール後にも再利用できる形で保持する。 */
+type RowDndPointerPosition = {
+	sourceRow: HTMLTableRowElement;
+	clientX: number;
+	clientY: number;
+};
+
 /**
  * 現在のポインター位置から、行並び替えの0-based移動先境界を解決する。
  *
  * 対象Tableと同じ表示環境の座標を利用し、tbody直下行だけを移動先候補として扱う。
  * 行の上半分ではその行の直前、下半分ではその行の直後を移動先とする。
  *
- * @param event 現在の物理DnD位置を示す移動イベント。
+ * @param pointerPosition 現在の物理DnD位置。
  * @return 現在の移動先境界。対象Table内の移動先行がない場合はnull。
  */
-const resolveDestinationBoundaryIndex = ( event: DragMoveEvent ): number | null => {
-	const sourceElement = event.operation.source?.element;
-
-	/* 行DnDの並び替え対象を確認できない場合は、移動先判定を成立させない。 */
-	if ( ! sourceElement || sourceElement.tagName !== 'TR' ) {
-		return null;
-	}
-
-	const sourceRow = sourceElement as HTMLTableRowElement;
+const resolveDestinationBoundaryIndex = (
+	pointerPosition: RowDndPointerPosition
+): number | null => {
+	const { sourceRow, clientX, clientY } = pointerPosition;
 	const tableBody = sourceRow.parentElement;
 
 	/* 行DnDの対象範囲であるtbodyを確認できない場合は、移動先判定を成立させない。 */
@@ -51,20 +53,9 @@ const resolveDestinationBoundaryIndex = ( event: DragMoveEvent ): number | null 
 		return null;
 	}
 
-	const nativeEvent = event.nativeEvent;
-
-	/* 移動先判定は現在のポインター入力にだけ成立し、別入力方式の座標を推測して補完しない。 */
-	if ( ! nativeEvent || ! ( 'clientX' in nativeEvent ) || ! ( 'clientY' in nativeEvent ) ) {
-		return null;
-	}
-
-	const pointerEvent = nativeEvent as PointerEvent;
-	const x = pointerEvent.clientX;
-	const y = pointerEvent.clientY;
-
 	/* ポインター位置に重なる要素から対象Tableのtbody直下行を解決し、入れ子Tableなどの行を候補から除外する。 */
 	const targetRow = sourceRow.ownerDocument
-		.elementsFromPoint( x, y )
+		.elementsFromPoint( clientX, clientY )
 		.map( ( element ) => element.closest( 'tr' ) as HTMLTableRowElement | null )
 		.find( ( row ) => row?.parentElement === tableBody );
 
@@ -78,9 +69,37 @@ const resolveDestinationBoundaryIndex = ( event: DragMoveEvent ): number | null 
 
 	/* 指している行の中央を境界とし、上側は直前、下側は直後の挿入位置として扱う。 */
 	const destinationBoundaryIndex =
-		y < middleY ? targetRow.sectionRowIndex : targetRow.sectionRowIndex + 1;
+		clientY < middleY ? targetRow.sectionRowIndex : targetRow.sectionRowIndex + 1;
 
 	return destinationBoundaryIndex;
+};
+
+/**
+ * DnD移動通知から、現在のポインター位置を取得する。
+ *
+ * @param event 現在の物理DnD位置を示す移動イベント。
+ * @return 対象行とポインター座標。必要な情報がない場合はnull。
+ */
+const resolvePointerPosition = ( event: DragMoveEvent ): RowDndPointerPosition | null => {
+	const sourceElement = event.operation.source?.element;
+
+	/* 行DnDの並び替え対象を確認できない場合は、現在位置を成立させない。 */
+	if ( ! sourceElement || sourceElement.tagName !== 'TR' ) {
+		return null;
+	}
+
+	const nativeEvent = event.nativeEvent;
+
+	/* 移動先判定は現在のポインター入力にだけ成立し、別入力方式の座標を推測して補完しない。 */
+	if ( ! nativeEvent || ! ( 'clientX' in nativeEvent ) || ! ( 'clientY' in nativeEvent ) ) {
+		return null;
+	}
+
+	return {
+		sourceRow: sourceElement as HTMLTableRowElement,
+		clientX: ( nativeEvent as PointerEvent ).clientX,
+		clientY: ( nativeEvent as PointerEvent ).clientY,
+	};
 };
 
 /**
@@ -88,6 +107,7 @@ const resolveDestinationBoundaryIndex = ( event: DragMoveEvent ): number | null 
  *
  * 接続自体はTableの描画中に安定して維持し、行並び替えが有効な期間だけPC入力境界から開始対象を登録する。
  * DnD開始後はポインター位置から対象Table内の移動先境界を解決し、確定または取消までDnD Interactionへ接続する。
+ * ポインターが停止したままeditorがスクロールした場合も、最後に確認したポインター位置を使って移動先境界を現在のTable配置へ追従させる。
  * Reorder Presentationも同じ物理DnD境界へ接続し、意味状態と必要な物理情報がそろった期間だけ移動対象行と有効な挿入位置を表示する。
  * 行並び替えが無効になった場合と接続自体が終了する場合は、未完了の開始準備とDraggable登録を破棄する。
  *
@@ -108,6 +128,14 @@ export const RowDnd = ( props: {
 		source: RowDndSource;
 		constraints: RowReorderConstraints;
 	} | null >( null );
+	const lastPointerPosition = useRef< RowDndPointerPosition | null >( null );
+	const stopScrollMonitoring = useRef< ( () => void ) | null >( null );
+
+	const clearScrollMonitoring = () => {
+		stopScrollMonitoring.current?.();
+		stopScrollMonitoring.current = null;
+		lastPointerPosition.current = null;
+	};
 
 	useEffect( () => {
 		/* 行並び替えが無効になった時点で、通常編集や別モードへ開始準備と物理DnD登録を持ち越さない。 */
@@ -115,6 +143,7 @@ export const RowDnd = ( props: {
 			preparedStart.current = null;
 			activeDraggable.current?.destroy();
 			activeDraggable.current = null;
+			clearScrollMonitoring();
 		}
 	}, [ enabled ] );
 
@@ -124,6 +153,9 @@ export const RowDnd = ( props: {
 			preparedStart.current = null;
 			activeDraggable.current?.destroy();
 			activeDraggable.current = null;
+			stopScrollMonitoring.current?.();
+			stopScrollMonitoring.current = null;
+			lastPointerPosition.current = null;
 		};
 	}, [] );
 
@@ -158,7 +190,34 @@ export const RowDnd = ( props: {
 	};
 
 	const onDragMove = ( event: DragMoveEvent ) => {
-		rowDndInteraction.updateDestination( resolveDestinationBoundaryIndex( event ) );
+		const pointerPosition = resolvePointerPosition( event );
+		lastPointerPosition.current = pointerPosition;
+
+		if ( pointerPosition === null ) {
+			rowDndInteraction.updateDestination( null );
+			return;
+		}
+
+		if ( stopScrollMonitoring.current === null ) {
+			const editorDocument = pointerPosition.sourceRow.ownerDocument;
+			const onScroll = () => {
+				const currentPointerPosition = lastPointerPosition.current;
+
+				/* DnD中に最後のポインター位置を確認できる場合だけ、スクロール後のTable配置から移動先を再解決する。 */
+				if ( currentPointerPosition !== null ) {
+					rowDndInteraction.updateDestination(
+						resolveDestinationBoundaryIndex( currentPointerPosition )
+					);
+				}
+			};
+
+			editorDocument.addEventListener( 'scroll', onScroll, true );
+			stopScrollMonitoring.current = () => {
+				editorDocument.removeEventListener( 'scroll', onScroll, true );
+			};
+		}
+
+		rowDndInteraction.updateDestination( resolveDestinationBoundaryIndex( pointerPosition ) );
 	};
 
 	const onDragEnd = ( event: DragEndEvent ) => {
@@ -166,6 +225,7 @@ export const RowDnd = ( props: {
 		preparedStart.current = null;
 		activeDraggable.current?.destroy();
 		activeDraggable.current = null;
+		clearScrollMonitoring();
 
 		/* 物理DnDが取消で終了した場合は、行並び替えを確定せずSessionを取消する。 */
 		if ( event.canceled ) {
