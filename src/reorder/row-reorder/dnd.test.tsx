@@ -217,6 +217,47 @@ describe( 'Row DnD engine connection', () => {
 
 	/**
 	 * 概要:
+	 * - DnD開始通知で移動先解決境界を作れなくても、最初の移動通知で対象行を確認できれば補完できることを確認する。
+	 * 事前条件:
+	 * - Row DnD Sessionは開始済みである。
+	 * - DnD開始通知では移動対象DOMを確認できず、移動先解決境界が未生成である。
+	 * - 最初の移動通知では移動対象行を確認できる。
+	 * 操作:
+	 * - 最初の物理移動通知を受ける。
+	 * 期待結果:
+	 * - その移動通知から解決境界を一度生成し、解決した移動先をDnD Interactionへ通知する。
+	 */
+	it( 'when destination resolution was unavailable at drag start, should create it from the first drag move', () => {
+		const sourceElement = document.createElement( 'tr' );
+		const resolve = jest.fn().mockReturnValue( 2 );
+		destinationResolverFactoryMock.mockReturnValueOnce( null ).mockReturnValueOnce( { resolve } );
+		interactionMock.prepareStart.mockReturnValue( { rowCount: 3, blockedBoundaries: [] } );
+		render(
+			<RowDnd enabled tableIdentity="table-1">
+				{ () => <div /> }
+			</RowDnd>
+		);
+		const props = getProviderProps();
+		props.onBeforeDragStart( {
+			operation: { source: { data: { tableIdentity: 'table-1', sourceRowIndex: 0 } } },
+			preventDefault: jest.fn(),
+		} as unknown as BeforeDragStartEvent );
+		props.onDragStart( { operation: { source: { element: undefined } } } );
+		const moveEvent = {
+			operation: { source: { element: sourceElement } },
+			nativeEvent: { clientX: 10, clientY: 50 },
+		} as unknown as DragMoveEvent;
+
+		props.onDragMove( moveEvent );
+
+		expect( destinationResolverFactoryMock ).toHaveBeenNthCalledWith( 1, undefined );
+		expect( destinationResolverFactoryMock ).toHaveBeenNthCalledWith( 2, sourceElement );
+		expect( resolve ).toHaveBeenCalledWith( moveEvent );
+		expect( interactionMock.updateDestination ).toHaveBeenCalledWith( 2 );
+	} );
+
+	/**
+	 * 概要:
 	 * - 物理DnDのcancelと通常終了をSessionの取消と確定へ分岐して接続することを確認する。
 	 * 事前条件:
 	 * - DnD Engineから終了通知を受けられる。
