@@ -12,7 +12,7 @@ import type { CSSProperties } from 'react';
 
 import { resolveEditorDomContext } from '@/reorder/editor-dom-context';
 
-import { useRowDndPhase } from '../dnd-interaction-react';
+import { useRowDndPhase } from '@/reorder/row-reorder/dnd-interaction-react';
 
 import './moving-row.scss';
 
