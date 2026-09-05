@@ -8,6 +8,8 @@
 
 import type { DragMoveEvent } from '@dnd-kit/dom';
 
+import { measureTableBodyRowGeometry } from './row-geometry';
+
 /** DnD開始時のTable配置を基準として移動先判定に利用する、tbody内の論理的な行境界。 */
 type RowDestinationBoundary = {
 	index: number;
@@ -60,15 +62,12 @@ const resolveDestinationLayout = (
 	}
 
 	const typedTableBody = tableBody as HTMLTableSectionElement;
-	const bodyRectangle = typedTableBody.getBoundingClientRect();
-	const boundaries = Array.from( typedTableBody.rows, ( row, index ) => {
-		const rectangle = row.getBoundingClientRect();
-		return {
-			index,
-			top: rectangle.top - bodyRectangle.top,
-			bottom: rectangle.bottom - bodyRectangle.top,
-		};
-	} );
+	const rowGeometry = measureTableBodyRowGeometry( typedTableBody );
+	const boundaries = rowGeometry.map( ( geometry, index ) => ( {
+		index,
+		top: geometry.top,
+		bottom: geometry.bottom,
+	} ) );
 
 	return {
 		tableBody: typedTableBody,
