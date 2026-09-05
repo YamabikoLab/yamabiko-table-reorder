@@ -31,6 +31,7 @@ import { RowInput, type RowDndPointerDownHandler } from './input';
 import { RowPresentation } from './presentation/row-presentation';
 import type { RowReorderConstraints } from './table-integration';
 
+/** 行DnDを既存DOMのポインター入力へ接続する開始処理型を、DnD接続境界から公開する。 */
 export type { RowDndPointerDownHandler } from './input';
 
 /**
@@ -141,6 +142,7 @@ export const RowDnd = ( props: {
 	return (
 		<DragDropProvider
 			plugins={ ( defaults ) =>
+				/* 行DnDは入力境界と独自Presentationで必要な操作・表示状態を管理するため、dnd-kit既定の補助処理は重ねて接続しない。 */
 				defaults.filter(
 					( plugin ) => plugin !== Cursor && plugin !== PreventSelection && plugin !== Feedback
 				)
