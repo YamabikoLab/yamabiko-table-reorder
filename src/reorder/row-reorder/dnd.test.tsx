@@ -285,6 +285,71 @@ describe( 'Row DnD engine connection', () => {
 
 	/**
 	 * 概要:
+	 * - ポインター停止中にeditorがスクロールしても、最後のポインター位置から移動先境界を再解決することを確認する。
+	 *
+	 * 事前条件:
+	 * - ポインターは2行目の上半分を指した位置で停止している。
+	 * - スクロール後は同じ画面座標に対する2行目の位置関係が変化する。
+	 *
+	 * 操作:
+	 * - 最初の移動通知後、ポインター移動なしでscrollイベントを通知する。
+	 *
+	 * 期待結果:
+	 * - スクロール後の行位置から移動先境界が再解決され、DnD終了後はscrollで更新されない。
+	 */
+	it( 'when the editor scrolls while the pointer is stationary, should update the destination from the last pointer position until the drag ends', () => {
+		const { first, second } = createTableRows();
+		Object.defineProperty( first.ownerDocument, 'elementsFromPoint', {
+			configurable: true,
+			value: jest.fn( () => [ second ] ),
+		} );
+		const rectangleMock = jest.spyOn( second, 'getBoundingClientRect' );
+		rectangleMock.mockReturnValue( {
+			top: 100,
+			height: 40,
+			bottom: 140,
+			left: 0,
+			right: 100,
+			width: 100,
+			x: 0,
+			y: 100,
+			toJSON: () => ( {} ),
+		} );
+		render(
+			<RowDnd enabled tableIdentity="table-1">
+				{ () => <div /> }
+			</RowDnd>
+		);
+		const props = getProviderProps();
+
+		props.onDragMove( {
+			operation: { source: { element: first } },
+			nativeEvent: { clientX: 10, clientY: 110 },
+		} as unknown as DragMoveEvent );
+		expect( interactionMock.updateDestination ).toHaveBeenLastCalledWith( 1 );
+
+		rectangleMock.mockReturnValue( {
+			top: 80,
+			height: 40,
+			bottom: 120,
+			left: 0,
+			right: 100,
+			width: 100,
+			x: 0,
+			y: 80,
+			toJSON: () => ( {} ),
+		} );
+		first.ownerDocument.dispatchEvent( new Event( 'scroll' ) );
+		expect( interactionMock.updateDestination ).toHaveBeenLastCalledWith( 2 );
+
+		props.onDragEnd( { canceled: true } as DragEndEvent );
+		interactionMock.updateDestination.mockClear();
+		first.ownerDocument.dispatchEvent( new Event( 'scroll' ) );
+		expect( interactionMock.updateDestination ).not.toHaveBeenCalled();
+	} );
+
+	/**
+	 * 概要:
 	 * - 物理DnDのcancelと通常終了を、行DnD Sessionの取消と確定へ分岐して接続することを確認する。
 	 *
 	 * 事前条件:
