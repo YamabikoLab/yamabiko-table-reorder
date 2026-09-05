@@ -143,6 +143,7 @@ const renderMovingRow = (
 
 /**
  * DnD開始時に確定した行表示を、現在の縦位置へ追従する独立した移動表示として描画する。
+ * 移動表示は視覚的な補助だけを担い、複製した編集可能要素を含めて入力・フォーカス対象にしない。
  *
  * @param props        移動表示に必要な配置と現在位置。
  * @param props.layout DnD開始時に確定した元行とTableの配置情報。
@@ -182,6 +183,7 @@ const RowMovingOverlay = ( props: { layout: RowMovingDisplayLayout; top: number 
 		<div
 			aria-hidden="true"
 			className="editor-styles-wrapper yamabiko-table-reorder-moving-row"
+			inert
 			style={ viewportStyle }
 		>
 			<table className={ movingTableClasses } style={ tableStyle } aria-hidden="true">
