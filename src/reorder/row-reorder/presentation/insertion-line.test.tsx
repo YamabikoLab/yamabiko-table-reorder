@@ -1,8 +1,8 @@
 /**
- * Row Reorderの挿入位置表示が、DnD Interactionの有効な移動先境界を対象Tableの行境界へ正しく表現することを確認する。
+ * Row Reorderの挿入位置表示が、DnD Interactionの有効な移動先境界を対象Tableの論理境界へ正しく表現することを確認する。
  *
  * 移動先解決そのものは重複して検証せず、null時の非表示、先頭・行間・末尾境界への対応、editor表示領域への制限、
- * 物理移動時の再計測、およびDnD終了時の表示解除を検証する。
+ * 押しのけ表示から独立した論理境界の維持、スクロール時の再計測、およびDnD終了時の表示解除を検証する。
  */
 
 import { act, render } from '@testing-library/react';
@@ -71,6 +71,9 @@ const createSourceTable = () => {
 	jest
 		.spyOn( table, 'getBoundingClientRect' )
 		.mockReturnValue( rectangle( { left: -20, right: 300, width: 320 } ) );
+	const bodyRectangleMock = jest
+		.spyOn( tbody, 'getBoundingClientRect' )
+		.mockReturnValue( rectangle( { top: 80, bottom: 170, height: 90 } ) );
 	const firstRectangleMock = jest
 		.spyOn( first, 'getBoundingClientRect' )
 		.mockReturnValue( rectangle( { top: 80, bottom: 120, height: 40 } ) );
@@ -78,7 +81,7 @@ const createSourceTable = () => {
 		.spyOn( second, 'getBoundingClientRect' )
 		.mockReturnValue( rectangle( { top: 120, bottom: 170, height: 50 } ) );
 
-	return { first, second, firstRectangleMock };
+	return { first, second, bodyRectangleMock, firstRectangleMock };
 };
 
 /**
@@ -129,7 +132,7 @@ describe( 'Row insertion line', () => {
 
 	/**
 	 * 概要:
-	 * - 最初の要素の手前を示す移動先境界を、先頭行の上端へ表示することを確認する。
+	 * - 最初の要素の手前を示す移動先境界を、先頭行の論理的な上端へ表示することを確認する。
 	 *
 	 * 事前条件:
 	 * - 2行のTableで境界0が有効な移動先である。
@@ -138,9 +141,9 @@ describe( 'Row insertion line', () => {
 	 * - 物理DnD開始後に境界0を表示する。
 	 *
 	 * 期待結果:
-	 * - 先頭行の上端へ挿入線が表示される。
+	 * - 先頭行の論理的な上端へ挿入線が表示される。
 	 */
-	it( 'when the destination is before the first row, should show the line at the first row top', () => {
+	it( 'when the destination is before the first row, should show the line at the first logical row top', () => {
 		const { first } = createSourceTable();
 		const { rerender } = render( <RowInsertionLine /> );
 		startPhysicalDrag( first );
@@ -154,7 +157,7 @@ describe( 'Row insertion line', () => {
 
 	/**
 	 * 概要:
-	 * - 行間の有効な移動先境界を、その境界直後の行上端へ表示することを確認する。
+	 * - 行間の有効な移動先境界を、その論理境界へ表示することを確認する。
 	 *
 	 * 事前条件:
 	 * - 2行のTableで境界1が有効な移動先である。
@@ -164,9 +167,9 @@ describe( 'Row insertion line', () => {
 	 * - 物理DnD開始後に境界1を表示する。
 	 *
 	 * 期待結果:
-	 * - 2行目上端へ、現在表示領域とTableが重なる横幅だけ挿入線が表示される。
+	 * - 行間の論理境界へ、現在表示領域とTableが重なる横幅だけ挿入線が表示される。
 	 */
-	it( 'when an internal destination boundary is active, should show the line at the following row top within the visible table width', () => {
+	it( 'when an internal destination boundary is active, should show the line at the logical boundary within the visible table width', () => {
 		const { first } = createSourceTable();
 		const { rerender } = render( <RowInsertionLine /> );
 		startPhysicalDrag( first );
@@ -182,7 +185,7 @@ describe( 'Row insertion line', () => {
 
 	/**
 	 * 概要:
-	 * - 最後の要素の後ろを示す移動先境界を、最終行の下端へ表示することを確認する。
+	 * - 最後の要素の後ろを示す移動先境界を、最終行の論理的な下端へ表示することを確認する。
 	 *
 	 * 事前条件:
 	 * - 2行のTableで境界2が有効な移動先である。
@@ -191,9 +194,9 @@ describe( 'Row insertion line', () => {
 	 * - 物理DnD開始後に境界2を表示する。
 	 *
 	 * 期待結果:
-	 * - 最終行の下端へ挿入線が表示される。
+	 * - 最終行の論理的な下端へ挿入線が表示される。
 	 */
-	it( 'when the destination is after the last row, should show the line at the last row bottom', () => {
+	it( 'when the destination is after the last row, should show the line at the last logical row bottom', () => {
 		const { first } = createSourceTable();
 		const { rerender } = render( <RowInsertionLine /> );
 		startPhysicalDrag( first );
@@ -207,20 +210,52 @@ describe( 'Row insertion line', () => {
 
 	/**
 	 * 概要:
-	 * - 移動先境界が変わらなくても、物理移動に伴って行境界の表示位置を再計測することを確認する。
+	 * - 上方向移動で周囲行が押し下げられても、挿入線を挿入空間の上端へ維持することを確認する。
 	 *
 	 * 事前条件:
-	 * - 境界0の挿入線が先頭行上端に表示されている。
-	 * - editor内のスクロール等により、同じ行境界の表示位置が変化している。
+	 * - 2行目を移動対象としてDnDを開始している。
+	 * - 移動先は先頭境界であり、押しのけ表示によって先頭行の物理位置だけが下へ移動している。
+	 *
+	 * 操作:
+	 * - 押しのけ後の物理移動を通知する。
+	 *
+	 * 期待結果:
+	 * - 挿入線は押し下げられた行へ追従せず、DnD開始時の先頭境界へ表示される。
+	 */
+	it( 'when rows are displaced during an upward move, should keep the line at the insertion gap top', () => {
+		const { first, second, firstRectangleMock } = createSourceTable();
+		const { rerender } = render( <RowInsertionLine /> );
+		startPhysicalDrag( second );
+		mockDestinationBoundaryIndex = 0;
+		rerender( <RowInsertionLine /> );
+
+		firstRectangleMock.mockReturnValue( rectangle( { top: 170, bottom: 210, height: 40 } ) );
+		act( () => {
+			mockDragDropMonitor.onDragMove?.();
+		} );
+
+		expect(
+			( document.querySelector( '.yamabiko-table-reorder-insertion-line' ) as HTMLElement ).style
+				.top
+		).toBe( '80px' );
+	} );
+
+	/**
+	 * 概要:
+	 * - 移動先境界が変わらなくても、Table全体の物理移動に伴って論理境界の表示位置を再計測することを確認する。
+	 *
+	 * 事前条件:
+	 * - 境界0の挿入線が先頭境界に表示されている。
+	 * - editor内のスクロール等により、tbody全体の表示位置が変化している。
 	 *
 	 * 操作:
 	 * - DnD Engineから物理移動を通知する。
 	 *
 	 * 期待結果:
-	 * - 移動先境界を変更せず、挿入線が現在の先頭行上端へ更新される。
+	 * - 移動先境界を変更せず、挿入線がtbody全体の現在位置へ追従する。
 	 */
-	it( 'when the physical drag moves without changing the destination boundary, should remeasure the current boundary position', () => {
-		const { first, firstRectangleMock } = createSourceTable();
+	it( 'when the table body moves without changing the destination boundary, should remeasure the current logical boundary position', () => {
+		const { first, bodyRectangleMock } = createSourceTable();
 		const { rerender } = render( <RowInsertionLine /> );
 		startPhysicalDrag( first );
 		mockDestinationBoundaryIndex = 0;
@@ -230,7 +265,7 @@ describe( 'Row insertion line', () => {
 				.top
 		).toBe( '80px' );
 
-		firstRectangleMock.mockReturnValue( rectangle( { top: 60, bottom: 100, height: 40 } ) );
+		bodyRectangleMock.mockReturnValue( rectangle( { top: 60, bottom: 150, height: 90 } ) );
 		act( () => {
 			mockDragDropMonitor.onDragMove?.();
 		} );
