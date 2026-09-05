@@ -175,7 +175,7 @@ describe( 'Row moving display', () => {
 		) as HTMLElement | null;
 		const clonedEditable = overlayViewport?.querySelector( '[contenteditable="true"]' );
 		expect( clonedEditable ).not.toBeNull();
-		expect( overlayViewport ).toHaveAttribute( 'inert' );
+		expect( overlayViewport?.hasAttribute( 'inert' ) ).toBe( true );
 	} );
 
 	/**

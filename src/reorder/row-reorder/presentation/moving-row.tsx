@@ -181,9 +181,9 @@ const RowMovingOverlay = ( props: { layout: RowMovingDisplayLayout; top: number 
 
 	return createPortal(
 		<div
+			ref={ ( element ) => element?.setAttribute( 'inert', '' ) }
 			aria-hidden="true"
 			className="editor-styles-wrapper yamabiko-table-reorder-moving-row"
-			inert
 			style={ viewportStyle }
 		>
 			<table className={ movingTableClasses } style={ tableStyle } aria-hidden="true">
