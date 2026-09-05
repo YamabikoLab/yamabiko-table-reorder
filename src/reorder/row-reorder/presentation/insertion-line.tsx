@@ -67,6 +67,8 @@ const resolveInsertionLineLayout = (
 	}
 
 	const boundaryRow = rows.item( destinationBoundaryIndex );
+
+	/* 先頭から行間までの境界は直後の行上端へ対応し、最後の要素の後ろだけは最終行下端へ対応する。 */
 	const top =
 		boundaryRow !== null
 			? boundaryRow.getBoundingClientRect().top
@@ -102,6 +104,8 @@ export const RowInsertionLine = () => {
 	useDragDropMonitor( {
 		onDragStart: ( event ) => {
 			const sourceElement = event.operation.source?.element;
+
+			/* Row Reorderの物理開始対象として行要素を確認できる場合だけ、そのDnDの挿入位置表示対象として保持する。 */
 			const nextSourceRow =
 				sourceElement?.tagName === 'TR' ? ( sourceElement as HTMLTableRowElement ) : null;
 			setSourceRow( nextSourceRow );
