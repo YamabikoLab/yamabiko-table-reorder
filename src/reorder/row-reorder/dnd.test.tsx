@@ -24,12 +24,20 @@ jest.mock( './dnd-interaction', () => ( {
 	},
 } ) );
 
-jest.mock( './presentation/moving-row', () => ( {
-	RowMovingDisplay: () => null,
-} ) );
-
 jest.mock( './presentation/insertion-line', () => ( {
 	RowInsertionLine: () => null,
+} ) );
+
+jest.mock( './presentation/insertion-gap', () => ( {
+	RowInsertionGap: () => null,
+} ) );
+
+jest.mock( './presentation/row-displacement', () => ( {
+	createRowDisplacementPresentation: jest.fn( () => ( {
+		start: jest.fn(),
+		update: jest.fn(),
+		end: jest.fn(),
+	} ) ),
 } ) );
 
 let activeDraggableRef: { current: Draggable | null } | null = null;
