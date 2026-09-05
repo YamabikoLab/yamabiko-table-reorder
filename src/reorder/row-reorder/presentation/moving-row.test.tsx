@@ -15,7 +15,7 @@ let mockDragDropMonitor: {
 	onDragMove?: ( event: any ) => void;
 } = {};
 
-jest.mock( '../dnd-interaction-react', () => ( {
+jest.mock( '@/reorder/row-reorder/dnd-interaction-react', () => ( {
 	useRowDndPhase: () => mockRowDndPhase,
 } ) );
 
