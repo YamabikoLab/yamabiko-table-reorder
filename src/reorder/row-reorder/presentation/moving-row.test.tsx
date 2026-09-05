@@ -162,7 +162,7 @@ describe( 'Row moving display', () => {
 	it( 'when the source row contains editable content, should keep the moving display outside input and focus targets', () => {
 		const { row } = createSourceTable();
 		const editable = document.createElement( 'div' );
-		editable.contentEditable = 'true';
+		editable.setAttribute( 'contenteditable', 'true' );
 		editable.textContent = 'Editable';
 		row.cells.item( 0 )?.replaceChildren( editable );
 		mockRowDndPhase = 'active';
