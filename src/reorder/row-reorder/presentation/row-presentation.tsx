@@ -5,6 +5,7 @@
  * DnD接続側へ表示Lifecycleや表示固有状態を持ち込まない。
  */
 
+import { RowDropAnimation } from './drop-animation';
 import { RowInsertionGap } from './insertion-gap';
 import { RowInsertionLine } from './insertion-line';
 import { RowMovingDisplay } from './moving-row';
@@ -21,6 +22,7 @@ export const RowPresentation = () => (
 		<RowDisplacement />
 		<RowInsertionGap />
 		<RowMovingDisplay />
+		<RowDropAnimation />
 		<RowInsertionLine />
 	</>
 );
