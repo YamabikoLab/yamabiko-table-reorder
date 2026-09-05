@@ -1,7 +1,7 @@
 /**
- * Row Reorderの挿入空間を、実Tableの行境界から独立した1つの空白領域として表示する。
+ * Row Reorderの挿入空間を、移動対象1行分の空きとしてTable上へ表示する。
  *
- * 挿入線より下、実Tableより上へ描画し、押しのけによって空いた範囲に残るTableの罫線や行背景を覆う。
+ * 押しのけによって空いた範囲を白背景で示しつつ、行境界とセル境界の罫線を残してTableの連続性を保つ。
  */
 
 .yamabiko-table-reorder-insertion-gap {
@@ -9,5 +9,14 @@
 	z-index: 99999;
 	pointer-events: none;
 	box-sizing: border-box;
+	overflow: hidden;
 	background: #fff;
+	border-block: 1px solid currentcolor;
+}
+
+.yamabiko-table-reorder-insertion-gap-cell-boundary {
+	position: absolute;
+	top: 0;
+	bottom: 0;
+	border-left: 1px solid currentcolor;
 }
