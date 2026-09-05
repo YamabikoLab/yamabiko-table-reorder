@@ -177,6 +177,47 @@ describe( 'Row displacement presentation', () => {
 
 	/**
 	 * 概要:
+	 * - 移動先が隣接境界へ変わる場合、既に同じ位置へ押しのけ済みの行を更新し直さないことを確認する。
+	 *
+	 * 事前条件:
+	 * - 下方向への押しのけ表示が複数行に成立している。
+	 *
+	 * 操作:
+	 * - 移動先を1境界だけ下へ変更する。
+	 *
+	 * 期待結果:
+	 * - 既存の押しのけ行には表示位置の再設定が発生せず、新しく範囲へ入った1行だけが追加で押しのけられる。
+	 */
+	it( 'when the destination moves by one boundary, should update only the changed displacement row', () => {
+		const tableBody = createRows( 6 );
+		const sourceRow = tableBody.rows.item( 0 );
+		const unchangedRow = tableBody.rows.item( 2 );
+		const newlyDisplacedRow = tableBody.rows.item( 4 );
+
+		if ( sourceRow === null || unchangedRow === null || newlyDisplacedRow === null ) {
+			throw new Error( 'Required rows were not created.' );
+		}
+
+		const { rerender } = render( <RowDisplacement /> );
+		startPhysicalDrag( sourceRow );
+		mockDestinationBoundaryIndex = 4;
+		rerender( <RowDisplacement /> );
+
+		const unchangedSetProperty = jest.spyOn( unchangedRow.style, 'setProperty' );
+		const newlyDisplacedSetProperty = jest.spyOn( newlyDisplacedRow.style, 'setProperty' );
+
+		mockDestinationBoundaryIndex = 5;
+		rerender( <RowDisplacement /> );
+
+		expect( unchangedSetProperty ).not.toHaveBeenCalled();
+		expect( newlyDisplacedSetProperty ).toHaveBeenCalledWith(
+			'--yamabiko-table-reorder-row-displacement',
+			'-40px'
+		);
+	} );
+
+	/**
+	 * 概要:
 	 * - 移動先変更とDnD終了で、直前の押しのけ表示が残らないことを確認する。
 	 *
 	 * 事前条件:
