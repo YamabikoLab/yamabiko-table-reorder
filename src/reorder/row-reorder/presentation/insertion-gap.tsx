@@ -12,6 +12,10 @@ import type { CSSProperties } from 'react';
 
 import { resolveEditorDomContext } from '@/reorder/editor-dom-context';
 import { useRowDndDestinationBoundaryIndex } from '@/reorder/row-reorder/dnd-interaction-react';
+import {
+	measureTableBodyRowGeometry,
+	resolveRowBoundaryOffsets,
+} from '@/reorder/row-reorder/row-geometry';
 
 import './insertion-gap.scss';
 
@@ -21,7 +25,7 @@ type RowInsertionGapSessionLayout = {
 	sourceTable: HTMLTableElement;
 	sourceRowIndex: number;
 	sourceRowHeight: number;
-	boundaryOffsets: number[];
+	boundaryOffsets: readonly number[];
 	cellBoundaryOffsets: number[];
 	editorDocument: Document;
 	editorWindow: Window;
@@ -69,30 +73,16 @@ const resolveInsertionGapSessionLayout = (
 	}
 
 	const typedTableBody = tableBody as HTMLTableSectionElement;
-	const rows = typedTableBody.rows;
-	const rowCount = rows.length;
-	const lastRow = rows.item( rowCount - 1 );
 	const sourceRectangle = sourceRow.getBoundingClientRect();
 	const tableRectangle = sourceTable.getBoundingClientRect();
+	const rowGeometry = measureTableBodyRowGeometry( typedTableBody );
 
 	/* 1行分の挿入空間とセル境界を確定できないTable状態では表示を成立させない。 */
-	if (
-		rowCount === 0 ||
-		lastRow === null ||
-		sourceRectangle.height <= 0 ||
-		tableRectangle.width <= 0
-	) {
+	if ( rowGeometry.length === 0 || sourceRectangle.height <= 0 || tableRectangle.width <= 0 ) {
 		return null;
 	}
 
-	const bodyRectangle = typedTableBody.getBoundingClientRect();
-
-	/* DnD中の押しのけ表示に影響されないよう、開始時の各行境界をtbody相対位置として確定する。 */
-	const boundaryOffsets = Array.from(
-		rows,
-		( row ) => row.getBoundingClientRect().top - bodyRectangle.top
-	);
-	boundaryOffsets.push( lastRow.getBoundingClientRect().bottom - bodyRectangle.top );
+	const boundaryOffsets = resolveRowBoundaryOffsets( rowGeometry );
 
 	/* 押しのけ後の空間でも元Tableの列区切りが分かるよう、移動対象行のセル右境界をTable相対位置として確定する。 */
 	const cellBoundaryOffsets = Array.from( sourceRow.cells, ( cell ) => {
