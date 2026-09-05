@@ -23,6 +23,10 @@ jest.mock( './dnd-interaction', () => ( {
 	},
 } ) );
 
+jest.mock( './presentation/moving-row', () => ( {
+	RowMovingDisplay: () => null,
+} ) );
+
 let activeDraggableRef: { current: Draggable | null } | null = null;
 
 jest.mock( './pc-input', () => ( {
@@ -228,6 +232,51 @@ describe( 'Row DnD engine connection', () => {
 		} as unknown as DragMoveEvent );
 
 		expect( interactionMock.updateDestination ).toHaveBeenCalledWith( 1 );
+	} );
+
+	/**
+	 * 概要:
+	 * - 行の下半分を指した場合は、その行の直後を移動先境界として通知することを確認する。
+	 *
+	 * 事前条件:
+	 * - 2行目の下半分を現在ポインターが指している。
+	 *
+	 * 操作:
+	 * - DnD Engineから移動通知を受ける。
+	 *
+	 * 期待結果:
+	 * - 2行目直後の境界である2がDnD Interactionへ通知される。
+	 */
+	it( 'when pointer movement targets the lower half of a direct tbody row, should update the destination to the boundary after that row', () => {
+		const { first, second } = createTableRows();
+		Object.defineProperty( first.ownerDocument, 'elementsFromPoint', {
+			configurable: true,
+			value: jest.fn( () => [ second ] ),
+		} );
+		jest.spyOn( second, 'getBoundingClientRect' ).mockReturnValue( {
+			top: 100,
+			height: 40,
+			bottom: 140,
+			left: 0,
+			right: 100,
+			width: 100,
+			x: 0,
+			y: 100,
+			toJSON: () => ( {} ),
+		} );
+		render(
+			<RowDnd enabled tableIdentity="table-1">
+				{ () => <div /> }
+			</RowDnd>
+		);
+		const props = getProviderProps();
+
+		props.onDragMove( {
+			operation: { source: { element: first } },
+			nativeEvent: { clientX: 10, clientY: 130 },
+		} as unknown as DragMoveEvent );
+
+		expect( interactionMock.updateDestination ).toHaveBeenCalledWith( 2 );
 	} );
 
 	/**

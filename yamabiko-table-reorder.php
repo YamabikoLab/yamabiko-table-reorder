@@ -34,6 +34,10 @@ final class Plugin {
 			'enqueue_block_editor_assets',
 			array( self::class, 'enqueue_editor_assets' )
 		);
+		add_action(
+			'enqueue_block_assets',
+			array( self::class, 'enqueue_editor_content_styles' )
+		);
 	}
 
 	/**
@@ -78,6 +82,31 @@ final class Plugin {
 			$handle,
 			'yamabiko-table-reorder',
 			__DIR__ . '/languages'
+		);
+	}
+
+	/**
+	 * Enqueues presentation styles in the editor content context.
+	 *
+	 * The stylesheet is limited to administration requests so it is available in both
+	 * iframe and non-iframe block editors without affecting the site front end.
+	 */
+	public static function enqueue_editor_content_styles(): void {
+		if ( ! is_admin() ) {
+			return;
+		}
+
+		$file_path = __DIR__ . '/build/index.css';
+
+		if ( ! is_readable( $file_path ) ) {
+			return;
+		}
+
+		wp_enqueue_style(
+			'yamabiko-table-reorder-index',
+			plugins_url( 'build/index.css', __FILE__ ),
+			array(),
+			(string) filemtime( $file_path )
 		);
 	}
 
