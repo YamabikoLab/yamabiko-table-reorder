@@ -1,10 +1,10 @@
 /**
- * 行並び替えにおけるdnd-kitとの物理DnD接続と、物理DnDに同期するPresentation接続を所有する。
+ * 行並び替えにおけるdnd-kitとの物理DnD接続を所有する。
  *
  * 行DnD境界はTableの描画中に安定して存在し、行並び替えが有効な期間だけ開始入力を受け付ける。
  * PCとタッチ端末の開始条件判定は入力境界へ委ね、dnd-kitが通知する物理DnDの進行と現在位置を、
  * DnD Interactionが扱う開始、移動先更新、確定、取消へ接続する。
- * Reorder Presentationは同じ物理DnD境界内でLifecycleと物理情報を受け取り、DnD Interactionの意味状態と組み合わせて有効な挿入位置、挿入空間、周囲行の押しのけ表示を行う。
+ * Reorder Presentationは同じDnD Engine境界の配下へ独立して接続し、表示Lifecycleと表示状態を自身で所有する。
  * 行並び替えの無効化または境界の終了時には、次の通常編集や別モードへ持ち越せない開始準備と物理DnD登録を破棄する。
  */
 
@@ -19,40 +19,31 @@ import { DragDropProvider } from '@dnd-kit/react';
 import { useEffect, useRef } from '@wordpress/element';
 import type { ReactNode } from 'react';
 
-import {
-	getRowDndDestinationBoundaryIndex,
-	rowDndInteraction,
-	type RowDndSource,
-} from './dnd-interaction';
+import { rowDndInteraction, type RowDndSource } from './dnd-interaction';
 import { RowInput, type RowDndPointerDownHandler } from './input';
-import { RowInsertionGap } from './presentation/insertion-gap';
-import { RowInsertionLine } from './presentation/insertion-line';
-import './presentation/row-highlight.scss';
-import {
-	createRowDisplacementPresentation,
-	type RowDisplacementPresentation,
-} from './presentation/row-displacement';
+import { RowPresentation } from './presentation/row-presentation';
 import type { RowReorderConstraints } from './table-integration';
 
 export type { RowDndPointerDownHandler } from './input';
 
-/** 押しのけ表示の影響を受けない移動先判定に利用する、tbody内の論理的な行境界。 */
+/** DnD開始時のTable配置を基準として移動先判定に利用する、tbody内の論理的な行境界。 */
 type RowDestinationBoundary = {
 	index: number;
 	top: number;
 	bottom: number;
 };
 
-/** DnD中に維持する、対象tbodyと押しのけ前の論理的な行境界。 */
+/** DnD中に維持する、対象tbodyと開始時に確定した論理的な行境界。 */
 type RowDestinationLayout = {
 	tableBody: HTMLTableSectionElement;
 	boundaries: RowDestinationBoundary[];
 };
 
 /**
- * 移動対象行から、押しのけ表示に影響されない移動先判定用の論理配置を取得する。
+ * 移動対象行から、DnD中の移動先判定に利用する論理配置を取得する。
  *
  * 行境界はtbodyからの相対位置として保持し、スクロールによる画面上の位置変化は固定しない。
+ * DnD中に実Tableの表示位置が変化しても、移動先候補は開始時の行配置を基準として解決する。
  *
  * @param sourceElement DnD Engineが現在の移動対象として管理するDOM要素。
  * @return 対象tbodyと論理的な行境界。Row Reorder対象として成立しない場合はnull。
@@ -91,9 +82,9 @@ const resolveDestinationLayout = (
 };
 
 /**
- * 現在のポインター位置から、押しのけ前の論理的な行配置に対する0-based移動先境界を解決する。
+ * 現在のポインター位置から、DnD開始時の論理的な行配置に対する0-based移動先境界を解決する。
  *
- * 押しのけ表示によるCSS変形は移動先判定へ反映せず、スクロール等によるtbody自体の現在位置だけを反映する。
+ * DnD中の表示上の位置変化は移動先判定へ反映せず、スクロール等によるtbody自体の現在位置だけを反映する。
  * 行の上半分ではその行の直前、下半分ではその行の直後を移動先とする。
  *
  * @param event  現在の物理DnD位置を示す移動イベント。
@@ -157,14 +148,14 @@ const resolveDestinationBoundaryIndex = (
  *
  * 接続自体はTableの描画中に安定して維持し、行並び替えが有効な期間だけ入力境界から開始対象を登録する。
  * DnD開始後はポインター位置から対象Table内の移動先境界を解決し、確定または取消までDnD Interactionへ接続する。
- * Reorder Presentationも同じ物理DnD境界へ接続し、意味状態と必要な物理情報がそろった期間だけ有効な挿入位置、挿入空間、押しのけ表示を行う。
+ * Reorder Presentationは同じDnD Engine境界を利用する独立した表示境界として接続する。
  * 行並び替えが無効になった場合と接続自体が終了する場合は、未完了の開始準備とDraggable登録を破棄する。
  *
  * @param props               行DnD接続に必要な値。
  * @param props.enabled       現在のTableで行並び替え開始入力を受け付ける場合はtrue。
  * @param props.tableIdentity 行並び替え対象のTable Identity。
  * @param props.children      既存DOMへポインター開始処理を接続する描画処理。
- * @return dnd-kitの行DnD進行とReorder Presentationへ接続された子要素。
+ * @return dnd-kitの行DnD進行と表示境界へ接続された子要素。
  */
 export const RowDnd = ( props: {
 	enabled: boolean;
@@ -174,22 +165,16 @@ export const RowDnd = ( props: {
 	const { enabled, tableIdentity, children } = props;
 	const activeDraggable = useRef< Draggable | null >( null );
 	const destinationLayout = useRef< RowDestinationLayout | null >( null );
-	const rowDisplacement = useRef< RowDisplacementPresentation | null >( null );
 	const preparedStart = useRef< {
 		source: RowDndSource;
 		constraints: RowReorderConstraints;
 	} | null >( null );
-
-	if ( rowDisplacement.current === null ) {
-		rowDisplacement.current = createRowDisplacementPresentation();
-	}
 
 	useEffect( () => {
 		/* 行並び替えが無効になった時点で、通常編集や別モードへ開始準備と物理DnD登録を持ち越さない。 */
 		if ( ! enabled ) {
 			preparedStart.current = null;
 			destinationLayout.current = null;
-			rowDisplacement.current?.end();
 			activeDraggable.current?.destroy();
 			activeDraggable.current = null;
 		}
@@ -197,10 +182,9 @@ export const RowDnd = ( props: {
 
 	useEffect( () => {
 		return () => {
-			/* TableのDnD接続終了時は、未完了の開始準備、移動先判定用配置、Presentation表示、物理DnD登録を残さない。 */
+			/* TableのDnD接続終了時は、未完了の開始準備、移動先判定用配置、物理DnD登録を残さない。 */
 			preparedStart.current = null;
 			destinationLayout.current = null;
-			rowDisplacement.current?.end();
 			activeDraggable.current?.destroy();
 			activeDraggable.current = null;
 		};
@@ -233,14 +217,12 @@ export const RowDnd = ( props: {
 		}
 
 		preparedStart.current = null;
-		const sourceElement = event?.operation.source?.element;
-		destinationLayout.current = resolveDestinationLayout( sourceElement );
-		rowDisplacement.current?.start( sourceElement );
+		destinationLayout.current = resolveDestinationLayout( event?.operation.source?.element );
 		rowDndInteraction.start( preparation.source, preparation.constraints );
 	};
 
 	const onDragMove = ( event: DragMoveEvent ) => {
-		/* テスト環境など開始通知からDOM配置を取得できない場合も、押しのけ開始前の最初の移動通知から一度だけ補完する。 */
+		/* 開始通知からDOM配置を取得できない場合は、最初の移動通知から移動先判定用配置を一度だけ補完する。 */
 		const layout =
 			destinationLayout.current ?? resolveDestinationLayout( event.operation.source?.element );
 		destinationLayout.current = layout;
@@ -248,14 +230,12 @@ export const RowDnd = ( props: {
 		const destinationBoundaryIndex =
 			layout === null ? null : resolveDestinationBoundaryIndex( event, layout );
 		rowDndInteraction.updateDestination( destinationBoundaryIndex );
-		rowDisplacement.current?.update( getRowDndDestinationBoundaryIndex() );
 	};
 
 	const onDragEnd = ( event: DragEndEvent ) => {
-		/* 物理DnD終了時は、次回入力へ持ち越してはならない開始準備、移動先判定用配置、Presentation表示、一時登録を破棄する。 */
+		/* 物理DnD終了時は、次回入力へ持ち越してはならない開始準備、移動先判定用配置、一時登録を破棄する。 */
 		preparedStart.current = null;
 		destinationLayout.current = null;
-		rowDisplacement.current?.end();
 		activeDraggable.current?.destroy();
 		activeDraggable.current = null;
 
@@ -275,8 +255,7 @@ export const RowDnd = ( props: {
 			onDragMove={ onDragMove }
 			onDragEnd={ onDragEnd }
 		>
-			<RowInsertionGap />
-			<RowInsertionLine />
+			<RowPresentation />
 			<RowInput
 				enabled={ enabled }
 				tableIdentity={ tableIdentity }

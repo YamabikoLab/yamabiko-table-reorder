@@ -1,13 +1,39 @@
 /**
- * Row Reorderの押しのけ表示が、移動先に応じて必要な行だけを移動し、DnD終了時に表示状態を解除することを確認する。
+ * Row Reorderの押しのけ表示が、DnD EngineとDnD Interactionへ直接接続し、移動先に応じて必要な行だけを移動することを確認する。
  */
 
-import { createRowDisplacementPresentation } from './row-displacement';
+import { act, render } from '@testing-library/react';
 
+import { RowDisplacement } from './row-displacement';
+
+let mockDestinationBoundaryIndex: number | null = null;
+let mockDragDropMonitor: {
+	onDragStart?: ( event: any ) => void;
+	onDragEnd?: () => void;
+} = {};
+
+jest.mock( '@/reorder/row-reorder/dnd-interaction-react', () => ( {
+	useRowDndDestinationBoundaryIndex: () => mockDestinationBoundaryIndex,
+} ) );
+
+jest.mock( '@dnd-kit/react', () => ( {
+	useDragDropMonitor: ( monitor: typeof mockDragDropMonitor ) => {
+		mockDragDropMonitor = monitor;
+	},
+} ) );
+
+/**
+ * 押しのけ表示の対象となる一定高さの行を持つTableを作成する。
+ *
+ * @param count     Tableに作成する行数。
+ * @param rowHeight 各行の表示高さ。
+ * @return 作成したtbody。
+ */
 const createRows = ( count: number, rowHeight = 40 ) => {
 	const table = document.createElement( 'table' );
 	const tableBody = document.createElement( 'tbody' );
 
+	/* 移動元と移動先の間に複数行がある押しのけ範囲を検証できるTableを構成する。 */
 	for ( let index = 0; index < count; index++ ) {
 		const row = document.createElement( 'tr' );
 		row.appendChild( document.createElement( 'td' ) );
@@ -29,7 +55,26 @@ const createRows = ( count: number, rowHeight = 40 ) => {
 	return tableBody;
 };
 
+/**
+ * DnD Engineから対象行の物理DnD開始が通知された状態を作る。
+ *
+ * @param row 物理DnDの移動対象として通知する行。
+ */
+const startPhysicalDrag = ( row: HTMLTableRowElement ) => {
+	act( () => {
+		mockDragDropMonitor.onDragStart?.( {
+			operation: { source: { element: row } },
+		} );
+	} );
+};
+
 describe( 'Row displacement presentation', () => {
+	beforeEach( () => {
+		mockDestinationBoundaryIndex = null;
+		mockDragDropMonitor = {};
+		document.body.replaceChildren();
+	} );
+
 	/**
 	 * 概要:
 	 * - 下方向への移動で、移動元と移動先の間にある行だけが上へ押しのけられることを確認する。
@@ -38,22 +83,23 @@ describe( 'Row displacement presentation', () => {
 	 * - 5行のTableで2行目を移動対象とする。
 	 *
 	 * 操作:
-	 * - 最後の要素の後ろを移動先として更新する。
+	 * - 物理DnDを開始し、最後の要素の後ろを有効な移動先として通知する。
 	 *
 	 * 期待結果:
 	 * - 3〜5行目だけが移動元行の高さ分だけ上へ移動する。
 	 */
 	it( 'when the destination is below the source row, should move only the rows between them upward', () => {
 		const tableBody = createRows( 5 );
-		const presentation = createRowDisplacementPresentation();
 		const sourceRow = tableBody.rows.item( 1 );
 
 		if ( sourceRow === null ) {
 			throw new Error( 'Source row was not created.' );
 		}
 
-		presentation.start( sourceRow );
-		presentation.update( 5 );
+		const { rerender } = render( <RowDisplacement /> );
+		startPhysicalDrag( sourceRow );
+		mockDestinationBoundaryIndex = 5;
+		rerender( <RowDisplacement /> );
 
 		expect(
 			tableBody.rows
@@ -65,21 +111,15 @@ describe( 'Row displacement presentation', () => {
 				.item( 1 )
 				?.style.getPropertyValue( '--yamabiko-table-reorder-row-displacement' )
 		).toBe( '' );
-		expect(
-			tableBody.rows
-				.item( 2 )
-				?.style.getPropertyValue( '--yamabiko-table-reorder-row-displacement' )
-		).toBe( '-40px' );
-		expect(
-			tableBody.rows
-				.item( 3 )
-				?.style.getPropertyValue( '--yamabiko-table-reorder-row-displacement' )
-		).toBe( '-40px' );
-		expect(
-			tableBody.rows
-				.item( 4 )
-				?.style.getPropertyValue( '--yamabiko-table-reorder-row-displacement' )
-		).toBe( '-40px' );
+
+		/* 移動元より後ろから移動先直前までの行だけが、移動元行1行分だけ上へ移動する。 */
+		for ( let index = 2; index <= 4; index++ ) {
+			expect(
+				tableBody.rows
+					.item( index )
+					?.style.getPropertyValue( '--yamabiko-table-reorder-row-displacement' )
+			).toBe( '-40px' );
+		}
 	} );
 
 	/**
@@ -90,22 +130,23 @@ describe( 'Row displacement presentation', () => {
 	 * - 5行のTableで4行目を移動対象とする。
 	 *
 	 * 操作:
-	 * - 2行目直前を移動先として更新する。
+	 * - 物理DnDを開始し、2行目直前を有効な移動先として通知する。
 	 *
 	 * 期待結果:
 	 * - 2〜3行目だけが移動元行の高さ分だけ下へ移動する。
 	 */
 	it( 'when the destination is above the source row, should move only the rows between them downward', () => {
 		const tableBody = createRows( 5 );
-		const presentation = createRowDisplacementPresentation();
 		const sourceRow = tableBody.rows.item( 3 );
 
 		if ( sourceRow === null ) {
 			throw new Error( 'Source row was not created.' );
 		}
 
-		presentation.start( sourceRow );
-		presentation.update( 1 );
+		const { rerender } = render( <RowDisplacement /> );
+		startPhysicalDrag( sourceRow );
+		mockDestinationBoundaryIndex = 1;
+		rerender( <RowDisplacement /> );
 
 		expect(
 			tableBody.rows
@@ -142,14 +183,13 @@ describe( 'Row displacement presentation', () => {
 	 * - 下方向への押しのけ表示が成立している。
 	 *
 	 * 操作:
-	 * - 順序が変わらない移動元直後へ戻した後、DnDを終了する。
+	 * - 順序が変わらない移動元直後へ戻した後、物理DnDを終了する。
 	 *
 	 * 期待結果:
 	 * - 押しのけた行は元位置へ戻り、終了後はclassと表示位置の指定が残らない。
 	 */
 	it( 'when the destination returns to the source position and the drag ends, should restore and clear the displacement state', () => {
 		const tableBody = createRows( 4 );
-		const presentation = createRowDisplacementPresentation();
 		const sourceRow = tableBody.rows.item( 1 );
 		const displacedRow = tableBody.rows.item( 2 );
 
@@ -157,9 +197,12 @@ describe( 'Row displacement presentation', () => {
 			throw new Error( 'Required rows were not created.' );
 		}
 
-		presentation.start( sourceRow );
-		presentation.update( 4 );
-		presentation.update( 2 );
+		const { rerender } = render( <RowDisplacement /> );
+		startPhysicalDrag( sourceRow );
+		mockDestinationBoundaryIndex = 4;
+		rerender( <RowDisplacement /> );
+		mockDestinationBoundaryIndex = 2;
+		rerender( <RowDisplacement /> );
 
 		expect(
 			displacedRow.style.getPropertyValue( '--yamabiko-table-reorder-row-displacement' )
@@ -168,7 +211,9 @@ describe( 'Row displacement presentation', () => {
 			true
 		);
 
-		presentation.end();
+		act( () => {
+			mockDragDropMonitor.onDragEnd?.();
+		} );
 
 		expect(
 			displacedRow.style.getPropertyValue( '--yamabiko-table-reorder-row-displacement' )

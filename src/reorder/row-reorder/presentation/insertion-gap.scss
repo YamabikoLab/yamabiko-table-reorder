@@ -1,7 +1,7 @@
 /**
  * Row Reorderの挿入空間を、移動対象1行分の空きとしてTable上へ表示する。
  *
- * 押しのけによって空いた範囲を白背景で示しつつ、行境界とセル境界の罫線を残してTableの連続性を保つ。
+ * 押しのけによって空いた範囲を白背景で示しつつ、行境界、Table両端、セル境界の罫線を残してTableの連続性を保つ。
  */
 
 .yamabiko-table-reorder-insertion-gap {
@@ -11,7 +11,7 @@
 	box-sizing: border-box;
 	overflow: hidden;
 	background: #fff;
-	border-block: 1px solid currentcolor;
+	border: 1px solid currentcolor;
 }
 
 .yamabiko-table-reorder-insertion-gap-cell-boundary {
