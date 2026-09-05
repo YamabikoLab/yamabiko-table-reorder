@@ -123,6 +123,25 @@ describe( 'Row destination resolution', () => {
 
 	/**
 	 * 概要:
+	 * - 現在の物理入力位置を取得できないDnD移動通知から移動先を推測しないことを確認する。
+	 * 事前条件:
+	 * - DnD開始時のTable配置は正常に取得できている。
+	 * - 移動通知にはポインター座標が含まれない。
+	 * 操作:
+	 * - 現在位置を解決する。
+	 * 期待結果:
+	 * - 有効な移動先がないためnullが返される。
+	 */
+	it( 'when the drag move does not provide pointer coordinates, should resolve no destination', () => {
+		const { rows } = createTableRows();
+		const resolver = createRowDestinationResolver( rows[ 0 ] );
+		const event = { nativeEvent: {} } as unknown as DragMoveEvent;
+
+		expect( resolver?.resolve( event ) ).toBeNull();
+	} );
+
+	/**
+	 * 概要:
 	 * - DnD開始後に表示上の行位置が変わっても開始時の論理境界を維持することを確認する。
 	 * 事前条件:
 	 * - 解決境界生成後に、行のgetBoundingClientRectが異なる表示位置を返す。
