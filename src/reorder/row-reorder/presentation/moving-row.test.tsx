@@ -2,7 +2,7 @@
  * Row Reorderの移動対象表示が、DnD Interactionの意味状態とDnD Engineの物理情報を責務どおり組み合わせることを確認する。
  *
  * DnD Interaction本体やDnD Engine本体の実装は重複して検証せず、active Session中だけの表示、
- * 元行の半透明表示、移動表示の通常濃度、入力対象外であること、移動方向に応じた配置、表示領域への制限、Session終了および境界終了時の表示解除を検証する。
+ * 元行の半透明表示、移動表示の通常濃度、入力対象外であること、挿入位置と移動方向に応じた配置、表示領域への制限、Session終了および境界終了時の表示解除を検証する。
  */
 
 import { act, render } from '@testing-library/react';
@@ -10,6 +10,7 @@ import { act, render } from '@testing-library/react';
 import { RowMovingDisplay } from './moving-row';
 
 let mockRowDndPhase: 'idle' | 'active' = 'idle';
+let mockDestinationBoundaryIndex: number | null = null;
 let mockDragDropMonitor: {
 	onDragStart?: ( event: any ) => void;
 	onDragMove?: ( event: any ) => void;
@@ -17,6 +18,7 @@ let mockDragDropMonitor: {
 
 jest.mock( '@/reorder/row-reorder/dnd-interaction-react', () => ( {
 	useRowDndPhase: () => mockRowDndPhase,
+	useRowDndDestinationBoundaryIndex: () => mockDestinationBoundaryIndex,
 } ) );
 
 jest.mock( '@dnd-kit/react', () => ( {
@@ -104,6 +106,7 @@ const startPhysicalDrag = ( row: HTMLTableRowElement ) => {
 describe( 'Row moving display', () => {
 	beforeEach( () => {
 		mockRowDndPhase = 'idle';
+		mockDestinationBoundaryIndex = null;
 		mockDragDropMonitor = {};
 		document.body.replaceChildren();
 	} );
@@ -180,21 +183,22 @@ describe( 'Row moving display', () => {
 
 	/**
 	 * 概要:
-	 * - 下方向への移動時に、移動表示が入力位置の後ろ側へ退避することを確認する。
+	 * - 下方向への移動時に、移動表示が現在の挿入線の上へ近接して配置されることを確認する。
 	 *
 	 * 事前条件:
 	 * - Row DnD Sessionがactiveで、開始時の移動表示が成立している。
-	 * - 移動対象行の高さは40pxである。
+	 * - 移動対象行の高さは40pxで、現在の挿入位置は行下端の120pxである。
 	 *
 	 * 操作:
-	 * - DnD Engineから開始位置より30px下の現在位置を通知する。
+	 * - 下方向への物理移動を通知する。
 	 *
 	 * 期待結果:
-	 * - 移動表示は現在位置の8px上までに収まり、横方向は対象Tableの表示位置を維持する。
+	 * - 移動表示の下端は挿入位置から2px上にあり、横方向は対象Tableの表示位置を維持する。
 	 */
-	it( 'when the physical drag moves downward, should place the moving row behind the movement while keeping the table-aligned horizontal position', () => {
+	it( 'when the physical drag moves downward, should place the moving row immediately above the insertion boundary while keeping the table-aligned horizontal position', () => {
 		const { row } = createSourceTable();
 		mockRowDndPhase = 'active';
+		mockDestinationBoundaryIndex = 1;
 		render( <RowMovingDisplay /> );
 		startPhysicalDrag( row );
 
@@ -211,26 +215,28 @@ describe( 'Row moving display', () => {
 		const overlayViewport = document.body.querySelector(
 			'.yamabiko-table-reorder-moving-row'
 		) as HTMLElement | null;
-		expect( overlayViewport?.style.top ).toBe( '82px' );
+		expect( overlayViewport?.style.top ).toBe( '78px' );
 		expect( overlayViewport?.style.left ).toBe( '100px' );
 	} );
 
 	/**
 	 * 概要:
-	 * - 上方向への移動時に、移動表示が入力位置の後ろ側へ退避することを確認する。
+	 * - 上方向への移動時に、移動表示が現在の挿入線の下へ近接して配置されることを確認する。
 	 *
 	 * 事前条件:
 	 * - Row DnD Sessionがactiveで、開始時の移動表示が成立している。
+	 * - 現在の挿入位置は行上端の80pxである。
 	 *
 	 * 操作:
-	 * - DnD Engineから開始位置より30px上の現在位置を通知する。
+	 * - 上方向への物理移動を通知する。
 	 *
 	 * 期待結果:
-	 * - 移動表示は現在位置から8px下へ離して表示され、横方向は対象Tableの表示位置を維持する。
+	 * - 移動表示の上端は挿入位置から2px下にあり、横方向は対象Tableの表示位置を維持する。
 	 */
-	it( 'when the physical drag moves upward, should place the moving row behind the movement while keeping the table-aligned horizontal position', () => {
+	it( 'when the physical drag moves upward, should place the moving row immediately below the insertion boundary while keeping the table-aligned horizontal position', () => {
 		const { row } = createSourceTable();
 		mockRowDndPhase = 'active';
+		mockDestinationBoundaryIndex = 0;
 		render( <RowMovingDisplay /> );
 		startPhysicalDrag( row );
 
@@ -247,7 +253,7 @@ describe( 'Row moving display', () => {
 		const overlayViewport = document.body.querySelector(
 			'.yamabiko-table-reorder-moving-row'
 		) as HTMLElement | null;
-		expect( overlayViewport?.style.top ).toBe( '78px' );
+		expect( overlayViewport?.style.top ).toBe( '82px' );
 		expect( overlayViewport?.style.left ).toBe( '100px' );
 	} );
 
