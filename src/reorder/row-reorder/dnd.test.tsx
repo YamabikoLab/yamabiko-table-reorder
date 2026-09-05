@@ -1,8 +1,8 @@
 /**
- * 行並び替えのDnD境界が、物理DnDのLifecycleと現在位置をDnD Interactionへ正しく接続することを確認する。
+ * 行並び替えのDnD境界が、物理DnDのLifecycleをDnD Interactionへ正しく接続することを確認する。
  *
- * Presentationは独立責務として検証し、この境界では開始可否、開始成立、移動先境界の解決、終了種別、
- * および行並び替え無効化時を含む一時登録破棄だけを検証する。
+ * 移動先解決とPresentationは独立責務として検証し、この境界では開始可否、開始成立、
+ * 移動先解決結果の接続、終了種別、および行並び替え無効化時を含む一時登録破棄だけを検証する。
  */
 
 import type { BeforeDragStartEvent, DragEndEvent, DragMoveEvent, Draggable } from '@dnd-kit/dom';
@@ -12,6 +12,7 @@ import type { ReactNode } from 'react';
 
 import { rowDndInteraction } from './dnd-interaction';
 import { RowDnd } from './dnd';
+import { createRowDestinationResolver } from './destination-resolution';
 
 jest.mock( './dnd-interaction', () => ( {
 	rowDndInteraction: {
@@ -21,6 +22,10 @@ jest.mock( './dnd-interaction', () => ( {
 		complete: jest.fn(),
 		cancel: jest.fn(),
 	},
+} ) );
+
+jest.mock( './destination-resolution', () => ( {
+	createRowDestinationResolver: jest.fn(),
 } ) );
 
 jest.mock( './presentation/row-presentation', () => ( {
@@ -45,6 +50,9 @@ jest.mock( '@dnd-kit/react', () => ( {
 
 const dragDropProviderMock = DragDropProvider as unknown as jest.Mock;
 const interactionMock = rowDndInteraction as jest.Mocked< typeof rowDndInteraction >;
+const destinationResolverFactoryMock = createRowDestinationResolver as jest.MockedFunction<
+	typeof createRowDestinationResolver
+>;
 
 /** DnD Engine境界へ渡された最新のcallback群を取得する。 */
 const getProviderProps = () => {
@@ -55,46 +63,11 @@ const getProviderProps = () => {
 	return props;
 };
 
-/** 40px高の2行を持つ移動先判定用Tableを作成する。 */
-const createTableRows = () => {
-	const table = document.createElement( 'table' );
-	const tbody = document.createElement( 'tbody' );
-	const rows = Array.from( { length: 2 }, ( _, index ) => {
-		const row = document.createElement( 'tr' );
-		row.appendChild( document.createElement( 'td' ) );
-		jest.spyOn( row, 'getBoundingClientRect' ).mockReturnValue( {
-			top: index * 40,
-			bottom: ( index + 1 ) * 40,
-			left: 0,
-			right: 100,
-			width: 100,
-			height: 40,
-			x: 0,
-			y: index * 40,
-			toJSON: () => ( {} ),
-		} );
-		return row;
-	} );
-	tbody.append( ...rows );
-	table.appendChild( tbody );
-	jest.spyOn( tbody, 'getBoundingClientRect' ).mockReturnValue( {
-		top: 0,
-		bottom: 80,
-		left: 0,
-		right: 100,
-		width: 100,
-		height: 80,
-		x: 0,
-		y: 0,
-		toJSON: () => ( {} ),
-	} );
-	return rows;
-};
-
 describe( 'Row DnD engine connection', () => {
 	beforeEach( () => {
 		jest.clearAllMocks();
 		activeDraggableRef = null;
+		destinationResolverFactoryMock.mockReturnValue( null );
 	} );
 
 	/**
@@ -200,16 +173,18 @@ describe( 'Row DnD engine connection', () => {
 
 	/**
 	 * 概要:
-	 * - DnD開始時の論理配置を基準に現在ポインター位置から移動先境界を解決することを確認する。
+	 * - 移動先解決境界が返した論理的な移動先をDnD Interactionへ接続することを確認する。
 	 * 事前条件:
-	 * - 2行目の上半分を現在ポインターが指している。
+	 * - DnD開始時に移動先解決境界が成立し、現在位置から境界1を返す。
 	 * 操作:
 	 * - 物理DnD開始後に移動通知を受ける。
 	 * 期待結果:
-	 * - 2行目直前の境界である1がDnD Interactionへ通知される。
+	 * - 解決済みの境界1がDnD Interactionへ通知される。
 	 */
-	it( 'when pointer movement targets the upper half of a row, should update the destination to the boundary before that row', () => {
-		const rows = createTableRows();
+	it( 'when destination resolution returns a boundary, should update the DnD interaction with that boundary', () => {
+		const sourceElement = document.createElement( 'tr' );
+		const resolve = jest.fn().mockReturnValue( 1 );
+		destinationResolverFactoryMock.mockReturnValue( { resolve } );
 		interactionMock.prepareStart.mockReturnValue( { rowCount: 2, blockedBoundaries: [] } );
 		render(
 			<RowDnd enabled tableIdentity="table-1">
@@ -221,12 +196,15 @@ describe( 'Row DnD engine connection', () => {
 			operation: { source: { data: { tableIdentity: 'table-1', sourceRowIndex: 0 } } },
 			preventDefault: jest.fn(),
 		} as unknown as BeforeDragStartEvent );
-		props.onDragStart( { operation: { source: { element: rows[ 0 ] } } } );
-		props.onDragMove( {
-			operation: { source: { element: rows[ 0 ] } },
+		props.onDragStart( { operation: { source: { element: sourceElement } } } );
+		const moveEvent = {
+			operation: { source: { element: sourceElement } },
 			nativeEvent: { clientX: 10, clientY: 50 },
-		} as unknown as DragMoveEvent );
+		} as unknown as DragMoveEvent;
+		props.onDragMove( moveEvent );
 
+		expect( destinationResolverFactoryMock ).toHaveBeenCalledWith( sourceElement );
+		expect( resolve ).toHaveBeenCalledWith( moveEvent );
 		expect( interactionMock.updateDestination ).toHaveBeenCalledWith( 1 );
 	} );
 
