@@ -201,7 +201,7 @@ describe( 'Row DnD input boundary', () => {
 	 * 期待結果:
 	 * - 各入力に対応する行だけがTable Identityと0-based行位置を持つDraggableとして登録される。
 	 * - 2回目の登録前に1回目の一時Draggableが破棄される。
-	 * - dnd-kit標準表示を利用せず、Tableセル内部からの開始を許可する行DnD設定が適用される。
+	 * - dnd-kit標準表示とTableセル内部からの開始を許可する行DnD設定が適用される。
 	 */
 	it( 'when primary mouse input targets direct tbody rows, should register only the current row and replace the previous candidate', () => {
 		const { currentTarget, rows, cells } = createDirectRowTarget();
@@ -250,7 +250,7 @@ describe( 'Row DnD input boundary', () => {
 			expect.anything()
 		);
 		expect( feedbackConfigureMock ).toHaveBeenCalledWith( {
-			feedback: 'none',
+			feedback: 'default',
 		} );
 
 		const pointerSensorOptions = pointerSensorConfigureMock.mock.calls[ 0 ]?.[ 0 ];
