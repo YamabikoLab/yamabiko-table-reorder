@@ -107,9 +107,7 @@ export const RowDnd = ( props: {
 		}
 
 		preparedStart.current = null;
-		destinationResolver.current = createRowDestinationResolver(
-			event?.operation.source?.element
-		);
+		destinationResolver.current = createRowDestinationResolver( event?.operation.source?.element );
 		rowDndInteraction.start( preparation.source, preparation.constraints );
 	};
 

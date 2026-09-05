@@ -6,7 +6,7 @@
  * DnD開始後の進行、移動先候補、確定、取消はDnD境界へ委ねる。
  */
 
-import { Draggable, Feedback, PointerActivationConstraints, PointerSensor } from '@dnd-kit/dom';
+import { Draggable, PointerActivationConstraints, PointerSensor } from '@dnd-kit/dom';
 import { useDragDropManager } from '@dnd-kit/react';
 import type { PointerEvent, ReactNode } from 'react';
 
