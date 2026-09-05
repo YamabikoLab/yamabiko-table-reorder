@@ -2,7 +2,7 @@
  * Row Reorderの移動対象表示が、DnD Interactionの意味状態とDnD Engineの物理情報を責務どおり組み合わせることを確認する。
  *
  * DnD Interaction本体やDnD Engine本体の実装は重複して検証せず、active Session中だけの表示、
- * 元行の半透明表示、移動表示の通常濃度、縦方向追従、Session終了時の表示解除を検証する。
+ * 元行の半透明表示、移動表示の通常濃度、縦方向追従、表示領域への制限、Session終了および境界終了時の表示解除を検証する。
  */
 
 import { act, render } from '@testing-library/react';
@@ -59,7 +59,7 @@ const createSourceTable = () => {
 	table.appendChild( tbody );
 	document.body.appendChild( table );
 
-	jest.spyOn( table, 'getBoundingClientRect' ).mockReturnValue(
+	const tableRectangleMock = jest.spyOn( table, 'getBoundingClientRect' ).mockReturnValue(
 		rectangle( {
 			left: 100,
 			right: 500,
@@ -79,7 +79,7 @@ const createSourceTable = () => {
 	jest.spyOn( firstCell, 'getBoundingClientRect' ).mockReturnValue( rectangle( { width: 220 } ) );
 	jest.spyOn( secondCell, 'getBoundingClientRect' ).mockReturnValue( rectangle( { width: 180 } ) );
 
-	return { table, row };
+	return { table, row, tableRectangleMock };
 };
 
 /**
@@ -183,6 +183,47 @@ describe( 'Row moving display', () => {
 
 	/**
 	 * 概要:
+	 * - 対象Tableがeditor表示領域の左右へはみ出す場合も、移動表示を現在見えている範囲へ制限することを確認する。
+	 *
+	 * 事前条件:
+	 * - Row DnD Sessionがactiveである。
+	 * - 対象Tableはeditor表示領域より左右へ50pxずつはみ出している。
+	 *
+	 * 操作:
+	 * - 対象行の物理DnD開始を通知する。
+	 *
+	 * 期待結果:
+	 * - 移動表示の表示枠はeditor表示領域の横幅に収まり、Table自体の横位置と幅は元の配置を維持する。
+	 */
+	it( 'when the source table extends beyond both sides of the editor viewport, should clip the moving display to the visible horizontal range', () => {
+		const { row, tableRectangleMock } = createSourceTable();
+		const viewportWidth = window.innerWidth;
+		tableRectangleMock.mockReturnValue(
+			rectangle( {
+				left: -50,
+				right: viewportWidth + 50,
+				width: viewportWidth + 100,
+			} )
+		);
+		mockRowDndPhase = 'active';
+		render( <RowMovingDisplay /> );
+
+		startPhysicalDrag( row );
+
+		const overlayViewport = document.body.querySelector(
+			'.yamabiko-table-reorder-moving-row'
+		) as HTMLElement | null;
+		const overlayTable = document.body.querySelector(
+			'.yamabiko-table-reorder-moving-row-table'
+		) as HTMLTableElement | null;
+		expect( overlayViewport?.style.left ).toBe( '0px' );
+		expect( overlayViewport?.style.width ).toBe( `${ viewportWidth }px` );
+		expect( overlayTable?.style.left ).toBe( '-50px' );
+		expect( overlayTable?.style.width ).toBe( `${ viewportWidth + 100 }px` );
+	} );
+
+	/**
+	 * 概要:
 	 * - Row DnD Session終了を移動表示の終了条件として扱うことを確認する。
 	 *
 	 * 事前条件:
@@ -203,6 +244,33 @@ describe( 'Row moving display', () => {
 
 		mockRowDndPhase = 'idle';
 		rerender( <RowMovingDisplay /> );
+
+		expect( row.classList ).not.toContain( 'yamabiko-table-reorder-moving-row-source' );
+		expect( document.body.querySelectorAll( 'table' ) ).toHaveLength( 1 );
+	} );
+
+	/**
+	 * 概要:
+	 * - active Session中にPresentation境界が終了しても、一時表示を実Tableへ残さないことを確認する。
+	 *
+	 * 事前条件:
+	 * - active Session中に元行の半透明表示と移動表示が成立している。
+	 *
+	 * 操作:
+	 * - RowMovingDisplayをunmountする。
+	 *
+	 * 期待結果:
+	 * - 元行の半透明表示が解除され、独立した移動表示もDOMから除去される。
+	 */
+	it( 'when the moving display unmounts during an active row DnD session, should restore the source row and remove the temporary display', () => {
+		const { row } = createSourceTable();
+		mockRowDndPhase = 'active';
+		const { unmount } = render( <RowMovingDisplay /> );
+		startPhysicalDrag( row );
+		expect( row.classList ).toContain( 'yamabiko-table-reorder-moving-row-source' );
+		expect( document.body.querySelectorAll( 'table' ) ).toHaveLength( 2 );
+
+		unmount();
 
 		expect( row.classList ).not.toContain( 'yamabiko-table-reorder-moving-row-source' );
 		expect( document.body.querySelectorAll( 'table' ) ).toHaveLength( 1 );
