@@ -9,6 +9,9 @@
  */
 
 import {
+	Cursor,
+	PreventSelection,
+	Feedback,
 	Draggable,
 	type BeforeDragStartEvent,
 	type DragEndEvent,
@@ -250,6 +253,11 @@ export const RowDnd = ( props: {
 
 	return (
 		<DragDropProvider
+			plugins={ ( defaults ) =>
+				defaults.filter(
+					( plugin ) => plugin !== Cursor && plugin !== PreventSelection && plugin !== Feedback
+				)
+			}
 			onBeforeDragStart={ onBeforeDragStart }
 			onDragStart={ onDragStart }
 			onDragMove={ onDragMove }

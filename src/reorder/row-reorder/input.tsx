@@ -72,6 +72,10 @@ export const RowInput = ( props: {
 			return;
 		}
 
+		if ( event.pointerType === 'mouse' ) {
+			event.preventDefault();
+		}
+
 		/* 開始候補は現在のポインター入力だけに対応させ、前回入力の一時登録を残さない。 */
 		activeDraggable.current?.destroy();
 
@@ -85,12 +89,6 @@ export const RowInput = ( props: {
 				id: `ytr-row:${ tableIdentity }:${ row.sectionRowIndex }`,
 				element: row,
 				data: source,
-				/* 行DnD中の移動表示はReorder Presentationが所有するため、dnd-kit標準表示は利用しない。 */
-				plugins: [
-					Feedback.configure( {
-						feedback: 'none',
-					} ),
-				],
 				sensors: [
 					PointerSensor.configure( {
 						activationConstraints: ( activationEvent ) => {
