@@ -2,7 +2,7 @@
  * Row Reorderの挿入位置表示が、DnD Interactionの有効な移動先境界を対象Tableの行境界へ正しく表現することを確認する。
  *
  * 移動先解決そのものは重複して検証せず、null時の非表示、先頭・行間・末尾境界への対応、editor表示領域への制限、
- * 物理移動時の再計測、およびDnD終了時の表示解除を検証する。
+ * 物理移動時の再計測、スクロール時の再計測、およびDnD終了時の表示解除を検証する。
  */
 
 import { act, render } from '@testing-library/react';
@@ -239,6 +239,42 @@ describe( 'Row insertion line', () => {
 			( document.querySelector( '.yamabiko-table-reorder-insertion-line' ) as HTMLElement ).style
 				.top
 		).toBe( '60px' );
+	} );
+
+	/**
+	 * 概要:
+	 * - ポインター停止中のスクロールでも、現在の行境界へ挿入線を追従させることを確認する。
+	 *
+	 * 事前条件:
+	 * - 境界0の挿入線が先頭行上端に表示されている。
+	 * - ポインター移動なしでeditor内の表示位置が変化する。
+	 *
+	 * 操作:
+	 * - 行境界の位置を変更した後、editor documentへscrollイベントを通知する。
+	 *
+	 * 期待結果:
+	 * - 移動先境界を変更せず、挿入線がスクロール後の先頭行上端へ更新される。
+	 */
+	it( 'when the editor scrolls while the pointer is stationary, should remeasure the current boundary position', () => {
+		const { first, firstRectangleMock } = createSourceTable();
+		const { rerender } = render( <RowInsertionLine /> );
+		startPhysicalDrag( first );
+		mockDestinationBoundaryIndex = 0;
+		rerender( <RowInsertionLine /> );
+		expect(
+			( document.querySelector( '.yamabiko-table-reorder-insertion-line' ) as HTMLElement ).style
+				.top
+		).toBe( '80px' );
+
+		firstRectangleMock.mockReturnValue( rectangle( { top: 40, bottom: 80, height: 40 } ) );
+		act( () => {
+			document.dispatchEvent( new Event( 'scroll' ) );
+		} );
+
+		expect(
+			( document.querySelector( '.yamabiko-table-reorder-insertion-line' ) as HTMLElement ).style
+				.top
+		).toBe( '40px' );
 	} );
 
 	/**
