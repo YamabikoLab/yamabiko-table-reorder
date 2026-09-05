@@ -1,8 +1,8 @@
 /**
- * 現在操作中の対応Tableの既存Block wrapperへReorder Mode中の通常編集抑止と行DnD接続を反映するReact componentを所有する。
+ * 現在操作中の対応Tableの既存Block wrapperへReorder Mode中の通常編集抑止、行DnD接続、Presentation対象識別を反映するReact componentを所有する。
  *
  * 新しいDOM階層は追加せず、Gutenberg既存のwrapper propsへ必要な入力抑止とRow DnD開始入力だけを合成する。
- * dnd-kitの物理LifecycleとRow DnD Sessionの接続はRow Reorder側へ委譲する。
+ * dnd-kitの物理LifecycleとRow DnD Sessionの接続はRow Reorder側へ委譲し、この境界はPresentationが行並び替えモード中の対象Tableを識別するためのclassだけを既存wrapperへ付与する。
  */
 
 import type { ComponentType } from '@wordpress/element';
