@@ -1,0 +1,14 @@
+/**
+ * Reorder Mode中の対応Tableについて、セル内容を通常編集へ遷移させるポインター操作を抑止する。
+ *
+ * 行並び替えモードではTable内の編集可能要素をポインター入力対象から外し、
+ * 長押しDnD開始時にRichTextなどの編集要素へfocusや文字選択が発生しないようにする。
+ * 行自体へのポインター入力は維持し、DnD開始判定はセルまたは行を起点として継続できる。
+ */
+
+/* 行並び替えモード中はセル内容を編集対象にせず、行操作へポインター入力を委ねる。 */
+.yamabiko-table-reorder-row-mode tbody [contenteditable='true'] {
+	pointer-events: none;
+	user-select: none;
+	-webkit-user-select: none;
+}
