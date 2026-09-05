@@ -15,7 +15,7 @@ import {
 	type DragMoveEvent,
 } from '@dnd-kit/dom';
 import { DragDropProvider } from '@dnd-kit/react';
-import { useEffect, useRef } from '@wordpress/element';
+import { useCallback, useEffect, useRef } from '@wordpress/element';
 import type { ReactNode } from 'react';
 
 import { rowDndInteraction, type RowDndSource } from './dnd-interaction';
@@ -131,11 +131,11 @@ export const RowDnd = ( props: {
 	const lastPointerPosition = useRef< RowDndPointerPosition | null >( null );
 	const stopScrollMonitoring = useRef< ( () => void ) | null >( null );
 
-	const clearScrollMonitoring = () => {
+	const clearScrollMonitoring = useCallback( () => {
 		stopScrollMonitoring.current?.();
 		stopScrollMonitoring.current = null;
 		lastPointerPosition.current = null;
-	};
+	}, [] );
 
 	useEffect( () => {
 		/* 行並び替えが無効になった時点で、通常編集や別モードへ開始準備と物理DnD登録を持ち越さない。 */
@@ -145,7 +145,7 @@ export const RowDnd = ( props: {
 			activeDraggable.current = null;
 			clearScrollMonitoring();
 		}
-	}, [ enabled ] );
+	}, [ clearScrollMonitoring, enabled ] );
 
 	useEffect( () => {
 		return () => {
