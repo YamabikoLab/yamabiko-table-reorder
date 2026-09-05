@@ -2,7 +2,7 @@
  * 行DnD開始入力が、入力方式に応じてブラウザー既定動作を適切に扱うことを確認する。
  */
 
-import { Draggable, PointerSensor } from '@dnd-kit/dom';
+import { Draggable } from '@dnd-kit/dom';
 import { useDragDropManager } from '@dnd-kit/react';
 import { render } from '@testing-library/react';
 import type { PointerEvent as ReactPointerEvent } from 'react';
@@ -60,9 +60,9 @@ const renderPointerHandler = (): RowDndPointerDownHandler => {
 /**
  * 有効な行DnD開始入力を生成する。
  *
- * @param pointerType 入力方式。
- * @param target 入力開始位置。
- * @param currentTarget 現在Tableの基準要素。
+ * @param pointerType    入力方式。
+ * @param target         入力開始位置。
+ * @param currentTarget  現在Tableの基準要素。
  * @param preventDefault ブラウザー既定動作の抑止を観測する処理。
  * @return 行DnD開始処理へ渡すポインターイベント。
  */
