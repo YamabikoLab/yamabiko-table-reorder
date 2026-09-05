@@ -90,7 +90,7 @@ const resolveInsertionLineLayout = (
 /**
  * DnD Interactionが示す現在の有効な移動先境界を、対象Table上の挿入線として描画する。
  *
- * DnD Engineの移動通知は、スクロール等で同じ移動先境界の物理位置が変化した場合に再計測するためだけに利用する。
+ * DnD Engineの移動通知とeditor内のスクロールは、同じ移動先境界の物理位置が変化した場合に再計測するためだけに利用する。
  * `destinationBoundaryIndex`がnullの場合は表示しない。
  *
  * @return 現在の有効な挿入位置を示す水平線。有効な表示位置がない場合はnull。
@@ -120,6 +120,24 @@ export const RowInsertionLine = () => {
 			setLayout( null );
 		},
 	} );
+
+	useEffect( () => {
+		if ( sourceRow === null ) {
+			return;
+		}
+
+		const editorDocument = sourceRow.ownerDocument;
+		const onScroll = () => {
+			/* ポインターが停止したまま表示位置が変化する場合も、現在の行境界を再計測する。 */
+			setMeasurementRevision( ( current ) => current + 1 );
+		};
+
+		editorDocument.addEventListener( 'scroll', onScroll, true );
+
+		return () => {
+			editorDocument.removeEventListener( 'scroll', onScroll, true );
+		};
+	}, [ sourceRow ] );
 
 	useEffect( () => {
 		/* 有効な移動先境界または対象行を確認できない期間は、挿入線を残さない。 */
