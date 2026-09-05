@@ -17,6 +17,8 @@ import { useRowDndPhase } from '@/reorder/row-reorder/dnd-interaction-react';
 import './moving-row.scss';
 
 const SOURCE_ROW_CLASS = 'yamabiko-table-reorder-moving-row-source';
+
+/** 移動表示と現在入力位置の間に確保する距離。 */
 const MOVING_DISPLAY_GAP = 8;
 
 /** Row DnD開始時に確定し、そのDnD中の移動表示で維持する配置情報。 */
@@ -202,7 +204,7 @@ const RowMovingOverlay = ( props: { layout: RowMovingDisplayLayout; top: number 
 export const RowMovingDisplay = () => {
 	const phase = useRowDndPhase();
 	const activeLayout = useRef< RowMovingDisplayLayout | null >( null );
-	const previousPositionY = useRef< number | null >( null );
+	const initialPositionY = useRef< number | null >( null );
 	const sessionBecameActive = useRef( false );
 	const [ layout, setLayout ] = useState< RowMovingDisplayLayout | null >( null );
 	const [ top, setTop ] = useState( 0 );
@@ -213,7 +215,7 @@ export const RowMovingDisplay = () => {
 			const nextLayout = resolveMovingDisplayLayout( event.operation.source?.element );
 
 			activeLayout.current = nextLayout;
-			previousPositionY.current = position.initial.y;
+			initialPositionY.current = position.initial.y;
 			setLayout( nextLayout );
 
 			/* 表示を成立させられる場合だけ、移動開始位置を元行の表示位置へ合わせる。 */
@@ -223,25 +225,24 @@ export const RowMovingDisplay = () => {
 		},
 		onDragMove: ( event ) => {
 			const currentLayout = activeLayout.current;
-			const previousY = previousPositionY.current;
+			const startY = initialPositionY.current;
 
 			/* DnD開始時に移動表示が成立していない場合は、物理移動だけで途中から表示を開始しない。 */
-			if ( currentLayout === null || previousY === null ) {
+			if ( currentLayout === null || startY === null ) {
 				return;
 			}
 
 			const currentPositionY = event.operation.position.current.y;
 
-			/* 入力位置が変化していない間は移動方向を変更せず、直前の表示位置を維持する。 */
-			if ( currentPositionY === previousY ) {
+			/* 開始位置と同じ高さでは移動方向が定まらないため、開始時の表示位置を維持する。 */
+			if ( currentPositionY === startY ) {
 				return;
 			}
 
 			const nextTop =
-				currentPositionY > previousY
+				currentPositionY > startY
 					? currentPositionY - currentLayout.rowHeight - MOVING_DISPLAY_GAP
 					: currentPositionY + MOVING_DISPLAY_GAP;
-			previousPositionY.current = currentPositionY;
 			setTop( nextTop );
 		},
 	} );
@@ -252,7 +253,7 @@ export const RowMovingDisplay = () => {
 			if ( sessionBecameActive.current ) {
 				sessionBecameActive.current = false;
 				activeLayout.current = null;
-				previousPositionY.current = null;
+				initialPositionY.current = null;
 				setLayout( null );
 			}
 			return;
