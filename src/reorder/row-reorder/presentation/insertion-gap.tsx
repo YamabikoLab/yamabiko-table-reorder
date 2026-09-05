@@ -3,6 +3,7 @@
  *
  * 周囲行の押しのけによって生じる空間をTable本来の行境界から独立して覆い、可変高さの移動対象でも複数の空行ではなく
  * 移動対象1行が入る空間として示す。表示位置は押しのけ前の論理的な行境界を基準とし、スクロールによる現在位置だけへ追従する。
+ * 挿入空間には移動対象行のセル境界を反映し、押しのけ後もTableの罫線が途切れないようにする。
  */
 
 import { useDragDropMonitor } from '@dnd-kit/react';
@@ -21,6 +22,7 @@ type RowInsertionGapSessionLayout = {
 	sourceRowIndex: number;
 	sourceRowHeight: number;
 	boundaryOffsets: number[];
+	cellBoundaryOffsets: number[];
 	editorDocument: Document;
 	editorWindow: Window;
 };
@@ -31,6 +33,8 @@ type RowInsertionGapLayout = {
 	left: number;
 	width: number;
 	height: number;
+	cellBoundaryOffsets: number[];
+	tableOffsetLeft: number;
 	editorDocument: Document;
 };
 
@@ -69,9 +73,15 @@ const resolveInsertionGapSessionLayout = (
 	const rowCount = rows.length;
 	const lastRow = rows.item( rowCount - 1 );
 	const sourceRectangle = sourceRow.getBoundingClientRect();
+	const tableRectangle = sourceTable.getBoundingClientRect();
 
-	/* 1行分の挿入空間を確定できないTable状態では表示を成立させない。 */
-	if ( rowCount === 0 || lastRow === null || sourceRectangle.height <= 0 ) {
+	/* 1行分の挿入空間とセル境界を確定できないTable状態では表示を成立させない。 */
+	if (
+		rowCount === 0 ||
+		lastRow === null ||
+		sourceRectangle.height <= 0 ||
+		tableRectangle.width <= 0
+	) {
 		return null;
 	}
 
@@ -84,12 +94,19 @@ const resolveInsertionGapSessionLayout = (
 	);
 	boundaryOffsets.push( lastRow.getBoundingClientRect().bottom - bodyRectangle.top );
 
+	/* 押しのけ後の空間でも元Tableの列区切りが分かるよう、移動対象行のセル右境界をTable相対位置として確定する。 */
+	const cellBoundaryOffsets = Array.from( sourceRow.cells, ( cell ) => {
+		return cell.getBoundingClientRect().right - tableRectangle.left;
+	} );
+	cellBoundaryOffsets.pop();
+
 	return {
 		tableBody: typedTableBody,
 		sourceTable,
 		sourceRowIndex: sourceRow.sectionRowIndex,
 		sourceRowHeight: sourceRectangle.height,
 		boundaryOffsets,
+		cellBoundaryOffsets,
 		editorDocument: editorContext.document,
 		editorWindow: editorContext.window,
 	};
@@ -152,6 +169,8 @@ const resolveInsertionGapLayout = (
 		left: visibleLeft,
 		width: visibleWidth,
 		height: sourceRowHeight,
+		cellBoundaryOffsets: sessionLayout.cellBoundaryOffsets,
+		tableOffsetLeft: tableRectangle.left - visibleLeft,
 		editorDocument: sessionLayout.editorDocument,
 	};
 };
@@ -159,7 +178,7 @@ const resolveInsertionGapLayout = (
 /**
  * DnD Interactionが示す現在の有効な移動先へ、移動対象1行分の独立した挿入空間を描画する。
  *
- * DnD開始時に押しのけ前の論理境界を確定し、その後の物理移動ではTableの現在位置だけを再計測する。
+ * DnD開始時に押しのけ前の論理境界とセル境界を確定し、その後の物理移動ではTableの現在位置だけを再計測する。
  * 表示は入力を遮らず、DnD終了時にそのSessionの一時情報を破棄する。
  *
  * @return 現在の有効な移動先を覆う1行分の挿入空間。表示条件が成立しない場合はnull。
@@ -209,7 +228,20 @@ export const RowInsertionGap = () => {
 	};
 
 	return createPortal(
-		<div aria-hidden="true" className="yamabiko-table-reorder-insertion-gap" style={ style } />,
+		<div aria-hidden="true" className="yamabiko-table-reorder-insertion-gap" style={ style }>
+			{ layout.cellBoundaryOffsets.map( ( boundaryOffset ) => {
+				const separatorStyle: CSSProperties = {
+					left: layout.tableOffsetLeft + boundaryOffset,
+				};
+				return (
+					<span
+						key={ boundaryOffset }
+						className="yamabiko-table-reorder-insertion-gap-cell-boundary"
+						style={ separatorStyle }
+					/>
+				);
+			} ) }
+		</div>,
 		layout.editorDocument.body
 	);
 };
