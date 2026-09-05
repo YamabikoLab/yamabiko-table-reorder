@@ -6,7 +6,7 @@
  * DnD開始後の進行、移動先候補、確定、取消はDnD境界へ委ねる。
  */
 
-import { Draggable, Feedback, PointerSensor } from '@dnd-kit/dom';
+import { Draggable, Feedback, PointerActivationConstraints, PointerSensor } from '@dnd-kit/dom';
 import { useDragDropManager } from '@dnd-kit/react';
 import type { PointerEvent, ReactNode } from 'react';
 
@@ -93,6 +93,22 @@ export const RowInput = ( props: {
 				],
 				sensors: [
 					PointerSensor.configure( {
+						activationConstraints: ( activationEvent ) => {
+							if ( activationEvent.pointerType === 'mouse' ) {
+								return [
+									new PointerActivationConstraints.Distance( {
+										value: 5,
+									} ),
+								];
+							}
+
+							return [
+								new PointerActivationConstraints.Delay( {
+									value: 250,
+									tolerance: 5,
+								} ),
+							];
+						},
 						/* Tableセル内部からのポインター入力もDnD開始対象として扱う。 */
 						preventActivation: () => false,
 					} ),
