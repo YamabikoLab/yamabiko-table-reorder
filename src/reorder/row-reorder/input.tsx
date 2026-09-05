@@ -89,6 +89,7 @@ export const RowInput = ( props: {
 				plugins: [
 					Feedback.configure( {
 						feedback: 'default',
+						dropAnimation: null,
 					} ),
 				],
 				sensors: [
