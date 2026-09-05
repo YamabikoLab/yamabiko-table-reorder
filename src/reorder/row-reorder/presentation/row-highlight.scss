@@ -1,0 +1,12 @@
+/**
+ * Row Reorderモード中、行が移動操作の対象であることをポインター操作に対して示す。
+ */
+
+.yamabiko-table-reorder-row-mode tbody > tr {
+	cursor: grab;
+}
+
+.yamabiko-table-reorder-row-mode tbody > tr:hover > td,
+.yamabiko-table-reorder-row-mode tbody > tr:hover > th {
+	box-shadow: inset 0 0 0 9999px rgb(56 88 233 / 5%);
+}
