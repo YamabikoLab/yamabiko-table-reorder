@@ -20,7 +20,7 @@ const MOVING_DISPLAY_SELECTOR = '.yamabiko-table-reorder-moving-row';
 const INSERTION_GAP_SELECTOR = '.yamabiko-table-reorder-insertion-gap';
 const DROP_MOVING_DISPLAY_CLASS = 'yamabiko-table-reorder-drop-animation-moving-row';
 const DROP_INSERTION_GAP_CLASS = 'yamabiko-table-reorder-drop-animation-gap';
-const DROP_ANIMATION_DURATION_MS = 250;
+const DROP_ANIMATION_DURATION_MS = 500;
 const REDUCED_MOTION_QUERY = '(prefers-reduced-motion: reduce)';
 
 /** 着地アニメーションで固定するeditor表示領域内の矩形。 */
