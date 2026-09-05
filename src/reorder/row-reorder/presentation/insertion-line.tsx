@@ -41,7 +41,7 @@ const resolveInsertionLineLayout = (
 		return null;
 	}
 
-	const rows = tableBody.rows;
+	const rows = ( tableBody as HTMLTableSectionElement ).rows;
 	const rowCount = rows.length;
 
 	/* DnD Interactionが扱う行境界の範囲外は、表示側で推測して補正しない。 */
