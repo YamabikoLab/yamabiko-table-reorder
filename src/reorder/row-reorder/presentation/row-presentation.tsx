@@ -7,6 +7,7 @@
 
 import { RowInsertionGap } from './insertion-gap';
 import { RowInsertionLine } from './insertion-line';
+import { RowMovingDisplay } from './moving-row';
 import { RowDisplacement } from './row-displacement';
 import './row-highlight.scss';
 
@@ -19,6 +20,7 @@ export const RowPresentation = () => (
 	<>
 		<RowDisplacement />
 		<RowInsertionGap />
+		<RowMovingDisplay />
 		<RowInsertionLine />
 	</>
 );
