@@ -67,15 +67,15 @@ const createSourceTable = () => {
 	table.appendChild( tbody );
 	document.body.appendChild( table );
 
-	jest.spyOn( table, 'getBoundingClientRect' ).mockReturnValue(
-		rectangle( { left: -20, right: 300, width: 320 } )
-	);
-	jest.spyOn( first, 'getBoundingClientRect' ).mockReturnValue(
-		rectangle( { top: 80, bottom: 120, height: 40 } )
-	);
-	jest.spyOn( second, 'getBoundingClientRect' ).mockReturnValue(
-		rectangle( { top: 120, bottom: 170, height: 50 } )
-	);
+	jest
+		.spyOn( table, 'getBoundingClientRect' )
+		.mockReturnValue( rectangle( { left: -20, right: 300, width: 320 } ) );
+	jest
+		.spyOn( first, 'getBoundingClientRect' )
+		.mockReturnValue( rectangle( { top: 80, bottom: 120, height: 40 } ) );
+	jest
+		.spyOn( second, 'getBoundingClientRect' )
+		.mockReturnValue( rectangle( { top: 120, bottom: 170, height: 50 } ) );
 
 	return { first, second };
 };
@@ -178,4 +178,4 @@ describe( 'Row insertion line', () => {
 		expect( line ).not.toBeNull();
 		expect( line.style.top ).toBe( '170px' );
 	} );
-});
+} );
