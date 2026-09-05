@@ -108,7 +108,7 @@ describe( 'Row drop return animation', () => {
 	 * - 取消ではない物理DnD終了を通知する。
 	 *
 	 * 期待結果:
-	 * - Moving Rowの複製が元行へ500msで移動する。
+	 * - Moving Rowの複製が元行へ350msで移動する。
 	 * - 帰還中は元行を半透明で維持し、アニメーション終了後に元の表示へ戻す。
 	 */
 	it( 'when a row is dropped without a valid destination, should animate the moving display back to the current source row position', () => {
