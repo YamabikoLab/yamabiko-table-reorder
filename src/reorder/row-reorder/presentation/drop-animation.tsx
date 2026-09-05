@@ -82,10 +82,10 @@ const resolveDropAnimationSnapshot = (
 	editorContext: EditorDomContext,
 	destinationBoundaryIndex: number
 ): DropAnimationSnapshot | null => {
-	const movingDisplay = editorContext.document.querySelector< HTMLElement >(
-		MOVING_DISPLAY_SELECTOR
-	);
-	const insertionGap = editorContext.document.querySelector< HTMLElement >( INSERTION_GAP_SELECTOR );
+	const movingDisplay =
+		editorContext.document.querySelector< HTMLElement >( MOVING_DISPLAY_SELECTOR );
+	const insertionGap =
+		editorContext.document.querySelector< HTMLElement >( INSERTION_GAP_SELECTOR );
 
 	/* 移動表示と挿入空間の両方が同時に成立している状態だけを、着地アニメーションへ引き継ぐ。 */
 	if ( movingDisplay === null || insertionGap === null ) {
@@ -337,9 +337,8 @@ export const RowDropAnimation = () => {
 				return;
 			}
 
-			const currentMovingDisplay = currentSnapshot.editorDocument.querySelector< HTMLElement >(
-				MOVING_DISPLAY_SELECTOR
-			);
+			const currentMovingDisplay =
+				currentSnapshot.editorDocument.querySelector< HTMLElement >( MOVING_DISPLAY_SELECTOR );
 			const currentMovingRectangle =
 				currentMovingDisplay === null ? null : resolveDisplayRectangle( currentMovingDisplay );
 

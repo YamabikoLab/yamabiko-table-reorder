@@ -145,13 +145,13 @@ describe( 'Row drop animation', () => {
 		animationFrameCallbacks = [];
 		animationFrameId = 0;
 
-		jest.spyOn( window, 'requestAnimationFrame' ).mockImplementation(
-			( callback: FrameRequestCallback ) => {
+		jest
+			.spyOn( window, 'requestAnimationFrame' )
+			.mockImplementation( ( callback: FrameRequestCallback ) => {
 				animationFrameCallbacks.push( callback );
 				animationFrameId += 1;
 				return animationFrameId;
-			}
-		);
+			} );
 		jest.spyOn( window, 'cancelAnimationFrame' ).mockImplementation( ( requestId: number ) => {
 			const callbackIndex = requestId - 1;
 			animationFrameCallbacks[ callbackIndex ] = () => {};
@@ -233,18 +233,13 @@ describe( 'Row drop animation', () => {
 		const dropMovingDisplay = document.querySelector(
 			'.yamabiko-table-reorder-drop-animation-moving-row'
 		);
-		const dropInsertionGap = document.querySelector(
-			'.yamabiko-table-reorder-drop-animation-gap'
-		);
+		const dropInsertionGap = document.querySelector( '.yamabiko-table-reorder-drop-animation-gap' );
 		expect( dropMovingDisplay ).not.toBeNull();
 		expect( dropInsertionGap ).not.toBeNull();
 		expect( dropMovingDisplay ).not.toBe( movingDisplay );
 		expect( dropInsertionGap ).not.toBe( insertionGap );
 		expect( animateMock ).toHaveBeenCalledWith(
-			[
-				{ transform: 'translate3d(0, 0, 0)' },
-				{ transform: 'translate3d(-350px, -200px, 0)' },
-			],
+			[ { transform: 'translate3d(0, 0, 0)' }, { transform: 'translate3d(-350px, -200px, 0)' } ],
 			{
 				duration: 250,
 				easing: 'ease-out',
