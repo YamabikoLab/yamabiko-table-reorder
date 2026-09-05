@@ -12,6 +12,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
+
 	/* 動きを抑制する設定では、移動先の予告位置は示しながらアニメーションだけを行わない。 */
 	.yamabiko-table-reorder-displaced-row {
 		transition: none;

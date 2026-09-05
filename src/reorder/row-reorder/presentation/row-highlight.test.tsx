@@ -58,9 +58,7 @@ describe( 'Row highlight', () => {
 		mockGetConstraints.mockReturnValue( { rowCount: 3, blockedBoundaries: [ 1 ] } );
 		const { getByTestId } = render( <TestTable /> );
 
-		fireEvent.pointerOver(
-			getByTestId( 'row-2' ).querySelector( 'td' ) as HTMLTableCellElement
-		);
+		fireEvent.pointerOver( getByTestId( 'row-2' ).querySelector( 'td' ) as HTMLTableCellElement );
 
 		expect( getByTestId( 'row-0' ).className ).toBe( '' );
 		expect( getByTestId( 'row-1' ).className ).toBe( '' );
@@ -84,12 +82,8 @@ describe( 'Row highlight', () => {
 		mockGetConstraints.mockReturnValue( { rowCount: 3, blockedBoundaries: [ 1 ] } );
 		const { getByTestId } = render( <TestTable /> );
 
-		fireEvent.pointerOver(
-			getByTestId( 'row-2' ).querySelector( 'td' ) as HTMLTableCellElement
-		);
-		fireEvent.pointerOver(
-			getByTestId( 'row-1' ).querySelector( 'td' ) as HTMLTableCellElement
-		);
+		fireEvent.pointerOver( getByTestId( 'row-2' ).querySelector( 'td' ) as HTMLTableCellElement );
+		fireEvent.pointerOver( getByTestId( 'row-1' ).querySelector( 'td' ) as HTMLTableCellElement );
 
 		expect( getByTestId( 'row-1' ).className ).toBe( '' );
 		expect( getByTestId( 'row-2' ).className ).toBe( '' );
@@ -112,9 +106,7 @@ describe( 'Row highlight', () => {
 		mockGetConstraints.mockReturnValue( null );
 		const { getByTestId } = render( <TestTable /> );
 
-		fireEvent.pointerOver(
-			getByTestId( 'row-2' ).querySelector( 'td' ) as HTMLTableCellElement
-		);
+		fireEvent.pointerOver( getByTestId( 'row-2' ).querySelector( 'td' ) as HTMLTableCellElement );
 
 		expect( getByTestId( 'row-2' ).className ).toBe( '' );
 	} );
