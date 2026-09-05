@@ -250,7 +250,7 @@ describe( 'Row DnD input boundary', () => {
 			expect.anything()
 		);
 		expect( feedbackConfigureMock ).toHaveBeenCalledWith( {
-			feedback: 'none',
+			feedback: 'default',
 		} );
 
 		const pointerSensorOptions = pointerSensorConfigureMock.mock.calls[ 0 ]?.[ 0 ];
