@@ -2,7 +2,7 @@
  * Row Reorderの移動対象表示が、DnD Interactionの意味状態とDnD Engineの物理情報を責務どおり組み合わせることを確認する。
  *
  * DnD Interaction本体やDnD Engine本体の実装は重複して検証せず、active Session中だけの表示、
- * 元行の半透明表示、overlayの通常濃度、縦方向追従、Session終了時の表示解除を検証する。
+ * 元行の半透明表示、移動表示の通常濃度、縦方向追従、Session終了時の表示解除を検証する。
  */
 
 import { act, render } from '@testing-library/react';
@@ -25,6 +25,12 @@ jest.mock( '@dnd-kit/react', () => ( {
 	},
 } ) );
 
+/**
+ * 移動表示の配置条件を必要な値だけで表せるDOM矩形を作成する。
+ *
+ * @param values テスト条件として上書きする表示寸法と位置。
+ * @return 指定値以外を0としたDOM矩形。
+ */
 const rectangle = ( values: Partial< DOMRect > ): DOMRect =>
 	( {
 		top: 0,
@@ -39,6 +45,7 @@ const rectangle = ( values: Partial< DOMRect > ): DOMRect =>
 		...values,
 	} ) as DOMRect;
 
+/** 移動表示の成立条件を満たす2セルの対象Tableを用意する。 */
 const createSourceTable = () => {
 	const table = document.createElement( 'table' );
 	const tbody = document.createElement( 'tbody' );
@@ -75,6 +82,11 @@ const createSourceTable = () => {
 	return { table, row };
 };
 
+/**
+ * DnD Engineから対象行の物理DnD開始が通知された状態を作る。
+ *
+ * @param row 物理DnDの移動対象として通知する行。
+ */
 const startPhysicalDrag = ( row: HTMLTableRowElement ) => {
 	act( () => {
 		mockDragDropMonitor.onDragStart?.( {
@@ -108,7 +120,7 @@ describe( 'Row moving display', () => {
 	 * - 物理DnD開始を通知した後、Row DnD Sessionをactiveへ変更する。
 	 *
 	 * 期待結果:
-	 * - idle中は表示せず、active後に元行を半透明として残し、overlayには半透明状態を持ち込まず表示する。
+	 * - idle中は表示せず、active後に元行を半透明として残し、移動表示には半透明状態を持ち込まず表示する。
 	 */
 	it( 'when physical drag information exists and the row DnD session becomes active, should show the moving row only for the active session', () => {
 		const { table, row } = createSourceTable();
@@ -174,13 +186,13 @@ describe( 'Row moving display', () => {
 	 * - Row DnD Session終了を移動表示の終了条件として扱うことを確認する。
 	 *
 	 * 事前条件:
-	 * - active Session中に元行の半透明表示とoverlayが成立している。
+	 * - active Session中に元行の半透明表示と移動表示が成立している。
 	 *
 	 * 操作:
 	 * - DnD Interactionの意味状態をidleへ変更する。
 	 *
 	 * 期待結果:
-	 * - overlayと元行の半透明表示を解除する。
+	 * - 移動表示と元行の半透明表示を解除する。
 	 */
 	it( 'when the row DnD session becomes idle, should remove the moving display and restore the source row', () => {
 		const { row } = createSourceTable();
