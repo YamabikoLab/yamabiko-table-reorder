@@ -6,7 +6,7 @@
  */
 
 import { useDragDropMonitor } from '@dnd-kit/react';
-import { createPortal, useMemo, useState } from '@wordpress/element';
+import { createPortal, useEffect, useState } from '@wordpress/element';
 import type { CSSProperties } from 'react';
 
 import { resolveEditorDomContext } from '@/reorder/editor-dom-context';
@@ -101,29 +101,26 @@ const resolveInsertionGapSessionLayout = (
  * 上方向への移動では移動先境界から下へ、下方向への移動では移動先境界から移動元行高ぶん上へ空間が形成される。
  * Table自体の現在位置と表示幅は再計測し、スクロールや表示領域の変化へ追従する。
  *
- * @param sessionLayout            DnD開始時に確定した論理配置。
- * @param destinationBoundaryIndex DnD Interactionが有効とした0-based移動先境界。
+ * @param sessionLayout DnD開始時に確定した論理配置。
+ * @param boundaryIndex DnD Interactionが有効とした0-based移動先境界。
  * @return 現在描画できる1行分の挿入空間。表示不要または描画不能の場合はnull。
  */
 const resolveInsertionGapLayout = (
 	sessionLayout: RowInsertionGapSessionLayout,
-	destinationBoundaryIndex: number | null
+	boundaryIndex: number | null
 ): RowInsertionGapLayout | null => {
-	if ( destinationBoundaryIndex === null ) {
+	if ( boundaryIndex === null ) {
 		return null;
 	}
 
 	const { boundaryOffsets, sourceRowHeight, sourceRowIndex } = sessionLayout;
 
 	/* 移動元の直前または直後は順序が変わらないため、挿入空間を表示しない。 */
-	if (
-		destinationBoundaryIndex === sourceRowIndex ||
-		destinationBoundaryIndex === sourceRowIndex + 1
-	) {
+	if ( boundaryIndex === sourceRowIndex || boundaryIndex === sourceRowIndex + 1 ) {
 		return null;
 	}
 
-	const destinationBoundaryOffset = boundaryOffsets[ destinationBoundaryIndex ];
+	const destinationBoundaryOffset = boundaryOffsets[ boundaryIndex ];
 
 	/* DnD Interactionが扱う行境界の範囲外は、表示側で推測して補正しない。 */
 	if ( destinationBoundaryOffset === undefined ) {
@@ -133,7 +130,7 @@ const resolveInsertionGapLayout = (
 	let gapTopOffset = destinationBoundaryOffset;
 
 	/* 下方向への移動では、押し上げられた行の直後に空く領域へ1行分の表示を合わせる。 */
-	if ( destinationBoundaryIndex > sourceRowIndex + 1 ) {
+	if ( boundaryIndex > sourceRowIndex + 1 ) {
 		gapTopOffset -= sourceRowHeight;
 	}
 
@@ -173,6 +170,7 @@ export const RowInsertionGap = () => {
 		null
 	);
 	const [ measurementRevision, setMeasurementRevision ] = useState( 0 );
+	const [ layout, setLayout ] = useState< RowInsertionGapLayout | null >( null );
 
 	useDragDropMonitor( {
 		onDragStart: ( event ) => {
@@ -184,15 +182,18 @@ export const RowInsertionGap = () => {
 		},
 		onDragEnd: () => {
 			setSessionLayout( null );
+			setLayout( null );
 		},
 	} );
 
-	const layout = useMemo( () => {
+	useEffect( () => {
+		/* DnD開始時の論理配置がない期間は、直前の挿入空間を表示へ残さない。 */
 		if ( sessionLayout === null ) {
-			return null;
+			setLayout( null );
+			return;
 		}
 
-		return resolveInsertionGapLayout( sessionLayout, destinationBoundaryIndex );
+		setLayout( resolveInsertionGapLayout( sessionLayout, destinationBoundaryIndex ) );
 	}, [ destinationBoundaryIndex, measurementRevision, sessionLayout ] );
 
 	/* 現在描画できる挿入空間がない期間は、表示要素自体を生成しない。 */
