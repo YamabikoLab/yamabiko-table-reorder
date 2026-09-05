@@ -111,9 +111,11 @@ export const RowInsertionLine = () => {
 			setSourceRow( nextSourceRow );
 		},
 		onDragMove: () => {
+			/* 移動先境界が同じまま物理配置だけ変わる場合も、現在の行境界を再計測する。 */
 			setMeasurementRevision( ( current ) => current + 1 );
 		},
 		onDragEnd: () => {
+			/* 物理DnD終了後は、直前の対象行や挿入位置表示を次の操作へ持ち越さない。 */
 			setSourceRow( null );
 			setLayout( null );
 		},
@@ -129,6 +131,7 @@ export const RowInsertionLine = () => {
 		setLayout( resolveInsertionLineLayout( sourceRow, destinationBoundaryIndex ) );
 	}, [ destinationBoundaryIndex, measurementRevision, sourceRow ] );
 
+	/* 現在描画できる有効な挿入位置がない期間は、表示要素自体を生成しない。 */
 	if ( layout === null ) {
 		return null;
 	}
