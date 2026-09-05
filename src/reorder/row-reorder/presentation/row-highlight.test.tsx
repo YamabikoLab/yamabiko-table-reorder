@@ -6,11 +6,11 @@ import { fireEvent, render } from '@testing-library/react';
 
 import { RowHighlight } from './row-highlight';
 
-const getConstraintsMock = jest.fn();
+const mockGetConstraints = jest.fn();
 
 jest.mock( '@/reorder/row-reorder/table-integration', () => ( {
 	rowTableIntegration: {
-		getConstraints: ( tableIdentity: string ) => getConstraintsMock( tableIdentity ),
+		getConstraints: ( tableIdentity: string ) => mockGetConstraints( tableIdentity ),
 	},
 } ) );
 
@@ -38,7 +38,7 @@ const TestTable = ( props: { enabled?: boolean } ) => (
 
 describe( 'Row highlight', () => {
 	beforeEach( () => {
-		getConstraintsMock.mockReset();
+		mockGetConstraints.mockReset();
 	} );
 
 	/**
@@ -55,7 +55,7 @@ describe( 'Row highlight', () => {
 	 * - 3行目だけがホバー表示とgrabカーソルの対象として識別される。
 	 */
 	it( 'when a hovered row is outside merged ranges, should mark only that row as highlightable', () => {
-		getConstraintsMock.mockReturnValue( { rowCount: 3, blockedBoundaries: [ 1 ] } );
+		mockGetConstraints.mockReturnValue( { rowCount: 3, blockedBoundaries: [ 1 ] } );
 		const { getByTestId } = render( <TestTable /> );
 
 		fireEvent.pointerOver(
@@ -81,7 +81,7 @@ describe( 'Row highlight', () => {
 	 * - 以前の操作可能表示が解除され、2行目にも操作可能表示を付けない。
 	 */
 	it( 'when the pointer moves onto a row inside a merged range, should clear the highlightable row', () => {
-		getConstraintsMock.mockReturnValue( { rowCount: 3, blockedBoundaries: [ 1 ] } );
+		mockGetConstraints.mockReturnValue( { rowCount: 3, blockedBoundaries: [ 1 ] } );
 		const { getByTestId } = render( <TestTable /> );
 
 		fireEvent.pointerOver(
@@ -109,7 +109,7 @@ describe( 'Row highlight', () => {
 	 * - どの行にも操作可能表示を付けない。
 	 */
 	it( 'when current table constraints are unavailable, should not mark a hovered row as highlightable', () => {
-		getConstraintsMock.mockReturnValue( null );
+		mockGetConstraints.mockReturnValue( null );
 		const { getByTestId } = render( <TestTable /> );
 
 		fireEvent.pointerOver(
