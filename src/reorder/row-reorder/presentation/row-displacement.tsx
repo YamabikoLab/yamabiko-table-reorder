@@ -54,12 +54,13 @@ export const RowDisplacement = () => {
 			clear();
 			const sourceElement = event.operation.source?.element;
 
-			/* Row Reorderの移動対象としてtbody直下行を確認できる場合だけ、押しのけ表示を開始する。 */
+			/* Row Reorderの移動対象として行要素を確認できない場合は、押しのけ表示を開始しない。 */
 			if ( ! sourceElement || sourceElement.tagName !== 'TR' ) {
 				return;
 			}
 
 			const candidate = sourceElement as HTMLTableRowElement;
+			/* 対象Tableのtbody直下行だけを押しのけ表示の基準とし、別のTable構造から表示対象を推測しない。 */
 			if ( candidate.parentElement?.tagName !== 'TBODY' ) {
 				return;
 			}
@@ -73,11 +74,13 @@ export const RowDisplacement = () => {
 		restoreDisplacedRows();
 
 		const currentSourceRow = sourceRow.current;
+		/* 移動対象行または有効な移動先がない期間は、押しのけ表示を成立させない。 */
 		if ( currentSourceRow === null || destinationBoundaryIndex === null ) {
 			return;
 		}
 
 		const tableBody = currentSourceRow.parentElement as HTMLTableSectionElement | null;
+		/* DnD中に対象行がRow Reorderのtbody直下行でなくなった場合は、残っている表示状態を解除する。 */
 		if ( tableBody === null || tableBody.tagName !== 'TBODY' ) {
 			clear();
 			return;
@@ -95,6 +98,7 @@ export const RowDisplacement = () => {
 		let lastDisplacedIndex: number;
 		let displacement: number;
 
+		/* 上方向では移動先から移動元直前までを下げ、下方向では移動元直後から移動先直前までを上げる。 */
 		if ( destinationBoundaryIndex < sourceRowIndex ) {
 			firstDisplacedIndex = destinationBoundaryIndex;
 			lastDisplacedIndex = sourceRowIndex - 1;
