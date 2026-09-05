@@ -92,6 +92,7 @@ export const RowInput = ( props: {
 				sensors: [
 					PointerSensor.configure( {
 						activationConstraints: ( activationEvent ) => {
+							/* マウスは短い移動距離で開始し、タッチは通常操作との競合を避けるため長押しで開始する。 */
 							if ( activationEvent.pointerType === 'mouse' ) {
 								return [
 									new PointerActivationConstraints.Distance( {
