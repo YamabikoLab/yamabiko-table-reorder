@@ -2,7 +2,7 @@
  * Row Reorderの移動対象行を、実Tableの配置を変えない独立した移動表示として描画する。
  *
  * Row DnDの意味上のLifecycleはDnD InteractionのReact境界から受け取り、表示に必要な移動対象DOMと物理位置だけをDnD Engineから直接利用する。
- * 移動表示は縦方向だけ現在位置へ追従し、横方向は対象Tableと現在のeditor表示領域が重なる範囲へ制限する。
+ * 移動表示は現在のドラッグ位置へ縦横とも追従し、利用者が移動先のTable内容を確認しやすい位置へ自由に動かせる。
  * 元行は実DOM上の位置と大きさを維持したまま半透明で残し、独立した移動表示によって現在の移動対象を識別できるようにする。
  */
 
@@ -28,20 +28,30 @@ type RowMovingDisplayLayout = {
 	visibleWidth: number;
 	tableOffsetLeft: number;
 	cellWidths: number[];
+	initialPositionX: number;
 	initialPositionY: number;
+	initialLeft: number;
 	initialTop: number;
 	editorDocument: Document;
+};
+
+/** 移動表示が現在追従するeditor表示領域内の位置。 */
+type RowMovingDisplayPosition = {
+	left: number;
+	top: number;
 };
 
 /**
  * 移動対象行から、そのDnD中に維持する移動表示の配置を解決する。
  *
  * @param sourceElement    DnD Engineが現在の移動対象として管理するDOM要素。
+ * @param initialPositionX DnD Engineが示すDnD開始時の横位置。
  * @param initialPositionY DnD Engineが示すDnD開始時の縦位置。
  * @return 移動表示に必要な配置情報。表示を成立させられない場合はnull。
  */
 const resolveMovingDisplayLayout = (
 	sourceElement: Element | undefined,
+	initialPositionX: number,
 	initialPositionY: number
 ): RowMovingDisplayLayout | null => {
 	/* Row Reorderの移動対象としてtbody直下行を確認できない場合は、移動表示を成立させない。 */
@@ -88,7 +98,9 @@ const resolveMovingDisplayLayout = (
 		visibleWidth,
 		tableOffsetLeft: tableRectangle.left - visibleLeft,
 		cellWidths,
+		initialPositionX,
 		initialPositionY,
+		initialLeft: visibleLeft,
 		initialTop: rowRectangle.top,
 		editorDocument: editorContext.document,
 	};
@@ -142,16 +154,19 @@ const renderMovingRow = (
 };
 
 /**
- * DnD開始時に確定した行表示を、現在の縦位置へ追従する独立した移動表示として描画する。
+ * DnD開始時に確定した行表示を、現在のドラッグ位置へ縦横とも追従する独立した移動表示として描画する。
  * 移動表示は視覚的な補助だけを担い、複製した編集可能要素を含めて入力・フォーカス対象にしない。
  *
- * @param props        移動表示に必要な配置と現在位置。
- * @param props.layout DnD開始時に確定した元行とTableの配置情報。
- * @param props.top    現在の移動表示上端位置。
+ * @param props          移動表示に必要な配置と現在位置。
+ * @param props.layout   DnD開始時に確定した元行とTableの配置情報。
+ * @param props.position 現在の移動表示位置。
  * @return 現在のeditor contextへ描画する移動対象行表示。
  */
-const RowMovingOverlay = ( props: { layout: RowMovingDisplayLayout; top: number } ) => {
-	const { layout, top } = props;
+const RowMovingOverlay = ( props: {
+	layout: RowMovingDisplayLayout;
+	position: RowMovingDisplayPosition;
+} ) => {
+	const { layout, position } = props;
 	const tableBodyRef = useRef< HTMLTableSectionElement | null >( null );
 
 	useEffect( () => {
@@ -166,8 +181,8 @@ const RowMovingOverlay = ( props: { layout: RowMovingDisplayLayout; top: number 
 	}, [ layout ] );
 
 	const viewportStyle: CSSProperties = {
-		top,
-		left: layout.visibleLeft,
+		top: position.top,
+		left: position.left,
 		width: layout.visibleWidth,
 		height: layout.rowHeight,
 	};
@@ -199,6 +214,7 @@ const RowMovingOverlay = ( props: { layout: RowMovingDisplayLayout; top: number 
  *
  * DnD Interactionからはactive / idleだけを受け取り、物理座標やDOM参照をSessionへ複製しない。
  * 元行はactive Session中も実Tableに残し、レイアウトを変えない半透明表示だけで移動元として区別する。
+ * 移動表示はDnD Engineの物理移動へ縦横とも追従するが、行の移動先判定には関与しない。
  *
  * @return activeなRow DnD中は移動対象行表示。それ以外はnull。
  */
@@ -207,14 +223,18 @@ export const RowMovingDisplay = () => {
 	const activeLayout = useRef< RowMovingDisplayLayout | null >( null );
 	const sessionBecameActive = useRef( false );
 	const [ layout, setLayout ] = useState< RowMovingDisplayLayout | null >( null );
-	const [ top, setTop ] = useState( 0 );
+	const [ position, setPosition ] = useState< RowMovingDisplayPosition >( {
+		left: 0,
+		top: 0,
+	} );
 
 	useDragDropMonitor( {
 		onDragStart: ( event ) => {
-			const position = event.operation.position;
+			const dragPosition = event.operation.position;
 			const nextLayout = resolveMovingDisplayLayout(
 				event.operation.source?.element,
-				position.initial.y
+				dragPosition.initial.x,
+				dragPosition.initial.y
 			);
 
 			activeLayout.current = nextLayout;
@@ -222,7 +242,10 @@ export const RowMovingDisplay = () => {
 
 			/* 表示を成立させられる場合だけ、移動開始位置を元行の表示位置へ合わせる。 */
 			if ( nextLayout !== null ) {
-				setTop( nextLayout.initialTop );
+				setPosition( {
+					left: nextLayout.initialLeft,
+					top: nextLayout.initialTop,
+				} );
 			}
 		},
 		onDragMove: ( event ) => {
@@ -233,9 +256,13 @@ export const RowMovingDisplay = () => {
 				return;
 			}
 
-			const currentPositionY = event.operation.position.current.y;
-			const verticalMovement = currentPositionY - currentLayout.initialPositionY;
-			setTop( currentLayout.initialTop + verticalMovement );
+			const currentPosition = event.operation.position.current;
+			const horizontalMovement = currentPosition.x - currentLayout.initialPositionX;
+			const verticalMovement = currentPosition.y - currentLayout.initialPositionY;
+			setPosition( {
+				left: currentLayout.initialLeft + horizontalMovement,
+				top: currentLayout.initialTop + verticalMovement,
+			} );
 		},
 	} );
 
@@ -272,5 +299,5 @@ export const RowMovingDisplay = () => {
 		return null;
 	}
 
-	return <RowMovingOverlay layout={ layout } top={ top } />;
+	return <RowMovingOverlay layout={ layout } position={ position } />;
 };
