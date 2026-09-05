@@ -21,7 +21,7 @@ const MOVING_DISPLAY_SELECTOR = '.yamabiko-table-reorder-moving-row';
 const INSERTION_GAP_SELECTOR = '.yamabiko-table-reorder-insertion-gap';
 const DROP_MOVING_DISPLAY_CLASS = 'yamabiko-table-reorder-drop-animation-moving-row';
 const DROP_INSERTION_GAP_CLASS = 'yamabiko-table-reorder-drop-animation-gap';
-const DROP_ANIMATION_DURATION_MS = 500;
+const DROP_ANIMATION_DURATION_MS = 350;
 const REDUCED_MOTION_QUERY = '(prefers-reduced-motion: reduce)';
 const RETURNING_SOURCE_OPACITY = '0.35';
 
@@ -88,7 +88,7 @@ const resolveDisplayRectangle = ( element: HTMLElement ): DropAnimationRectangle
  *
  * 横方向はMoving Rowと同じくeditor左端より外側へ表示枠を置かず、縦方向はドロップ時点の元行位置をそのまま利用する。
  *
- * @param sourceRow        Row DnD開始時から実Table上に残している元行。
+ * @param sourceRow       Row DnD開始時から実Table上に残している元行。
  * @param movingRectangle 現在の移動表示の表示寸法。
  * @return 現在の元行へ戻るための表示矩形。元行の位置を確定できない場合はnull。
  */
@@ -218,10 +218,7 @@ export const RowDropAnimation = () => {
 		currentAnimation.coverElement?.remove();
 
 		/* 元行への帰還中だけ維持した半透明表示は、帰還終了または中断時に元のinline指定へ戻す。 */
-		if (
-			currentAnimation.sourceRow !== null &&
-			currentAnimation.previousSourceOpacity !== null
-		) {
+		if ( currentAnimation.sourceRow !== null && currentAnimation.previousSourceOpacity !== null ) {
 			currentAnimation.sourceRow.style.opacity = currentAnimation.previousSourceOpacity;
 		}
 	}, [] );
@@ -419,7 +416,12 @@ export const RowDropAnimation = () => {
 			const currentDestinationBoundaryIndex = destinationBoundaryIndex.current;
 
 			/* 取消または異常終了では、成立しなかった操作を最終位置へ移動する表示を行わない。 */
-			if ( event.canceled || terminated.current || currentContext === null || currentSourceRow === null ) {
+			if (
+				event.canceled ||
+				terminated.current ||
+				currentContext === null ||
+				currentSourceRow === null
+			) {
 				editorContext.current = null;
 				sourceRow.current = null;
 				destinationBoundaryIndex.current = null;

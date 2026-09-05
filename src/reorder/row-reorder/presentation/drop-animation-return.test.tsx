@@ -156,7 +156,7 @@ describe( 'Row drop return animation', () => {
 		expect( animateMock ).toHaveBeenCalledWith(
 			[ { transform: 'translate3d(0, 0, 0)' }, { transform: 'translate3d(-350px, -220px, 0)' } ],
 			{
-				duration: 500,
+				duration: 350,
 				easing: 'ease-out',
 				fill: 'forwards',
 			}
