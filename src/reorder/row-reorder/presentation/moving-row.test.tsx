@@ -2,7 +2,7 @@
  * Row Reorderの移動対象表示が、DnD Interactionの意味状態とDnD Engineの物理情報を責務どおり組み合わせることを確認する。
  *
  * DnD Interaction本体やDnD Engine本体の実装は重複して検証せず、active Session中だけの表示、
- * 元行の半透明表示、移動表示の通常濃度、入力対象外であること、縦方向追従、表示領域への制限、Session終了および境界終了時の表示解除を検証する。
+ * 元行の半透明表示、移動表示の通常濃度、入力対象外であること、移動方向に応じた配置、表示領域への制限、Session終了および境界終了時の表示解除を検証する。
  */
 
 import { act, render } from '@testing-library/react';
@@ -180,18 +180,19 @@ describe( 'Row moving display', () => {
 
 	/**
 	 * 概要:
-	 * - 移動表示がDnD Engineの物理位置から縦方向だけ現在位置へ追従することを確認する。
+	 * - 下方向への移動時に、移動表示が入力位置の後ろ側へ退避することを確認する。
 	 *
 	 * 事前条件:
 	 * - Row DnD Sessionがactiveで、開始時の移動表示が成立している。
+	 * - 移動対象行の高さは40pxである。
 	 *
 	 * 操作:
 	 * - DnD Engineから開始位置より30px下の現在位置を通知する。
 	 *
 	 * 期待結果:
-	 * - 移動表示の上端だけが30px下へ移動し、横方向の開始位置は対象Tableの表示位置を維持する。
+	 * - 移動表示は現在位置の8px上までに収まり、横方向は対象Tableの表示位置を維持する。
 	 */
-	it( 'when the physical drag moves vertically, should follow only the vertical position while keeping the table-aligned horizontal position', () => {
+	it( 'when the physical drag moves downward, should place the moving row behind the movement while keeping the table-aligned horizontal position', () => {
 		const { row } = createSourceTable();
 		mockRowDndPhase = 'active';
 		render( <RowMovingDisplay /> );
@@ -210,7 +211,43 @@ describe( 'Row moving display', () => {
 		const overlayViewport = document.body.querySelector(
 			'.yamabiko-table-reorder-moving-row'
 		) as HTMLElement | null;
-		expect( overlayViewport?.style.top ).toBe( '110px' );
+		expect( overlayViewport?.style.top ).toBe( '82px' );
+		expect( overlayViewport?.style.left ).toBe( '100px' );
+	} );
+
+	/**
+	 * 概要:
+	 * - 上方向への移動時に、移動表示が入力位置の後ろ側へ退避することを確認する。
+	 *
+	 * 事前条件:
+	 * - Row DnD Sessionがactiveで、開始時の移動表示が成立している。
+	 *
+	 * 操作:
+	 * - DnD Engineから開始位置より30px上の現在位置を通知する。
+	 *
+	 * 期待結果:
+	 * - 移動表示は現在位置から8px下へ離して表示され、横方向は対象Tableの表示位置を維持する。
+	 */
+	it( 'when the physical drag moves upward, should place the moving row behind the movement while keeping the table-aligned horizontal position', () => {
+		const { row } = createSourceTable();
+		mockRowDndPhase = 'active';
+		render( <RowMovingDisplay /> );
+		startPhysicalDrag( row );
+
+		act( () => {
+			mockDragDropMonitor.onDragMove?.( {
+				operation: {
+					position: {
+						current: { y: 70 },
+					},
+				},
+			} );
+		} );
+
+		const overlayViewport = document.body.querySelector(
+			'.yamabiko-table-reorder-moving-row'
+		) as HTMLElement | null;
+		expect( overlayViewport?.style.top ).toBe( '78px' );
 		expect( overlayViewport?.style.left ).toBe( '100px' );
 	} );
 
