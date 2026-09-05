@@ -72,6 +72,7 @@ export const RowInput = ( props: {
 			return;
 		}
 
+		/* マウスDnD開始時は既定の文字選択を抑止し、DnDと無関係なブラウザー処理を増やさない。 */
 		if ( event.pointerType === 'mouse' ) {
 			event.preventDefault();
 		}
