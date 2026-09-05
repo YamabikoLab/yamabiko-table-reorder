@@ -30,18 +30,27 @@ export type ReorderModeBlockListBlockProps = {
 };
 
 /**
- * Gutenberg既存のpointerdown処理を維持したまま、Row DnD開始入力を追加する。
+ * Gutenberg既存のpointerdown処理を維持しつつ、Row DnD開始入力を追加する。
  *
- * @param existingHandler Gutenberg本体または他のfilterが設定した既存handler。
- * @param rowDndHandler   Row DnDが提供する開始入力handler。
- * @return 既存処理の後にRow DnD開始入力を通知するhandler。
+ * 行並び替えモード中のタッチ開始入力は、長押しDnDの開始候補としてRow DnDへ渡す一方、
+ * 通常編集へ遷移させないためGutenberg既存のpointerdown処理へは通知しない。
+ * その他のpointer入力では既存処理を維持する。
+ *
+ * @param existingHandler   Gutenberg本体または他のfilterが設定した既存handler。
+ * @param rowDndHandler     Row DnDが提供する開始入力handler。
+ * @param rowReorderEnabled 現在のTableで行並び替えモードが有効な場合はtrue。
+ * @return 通常編集とRow DnD開始の競合を避けてpointerdownを通知するhandler。
  */
 const preservePointerDownHandler = (
 	existingHandler: EditingStartWrapperProps[ 'onPointerDownCapture' ],
-	rowDndHandler: RowDndPointerDownHandler
+	rowDndHandler: RowDndPointerDownHandler,
+	rowReorderEnabled: boolean
 ): RowDndPointerDownHandler => {
 	const handler: RowDndPointerDownHandler = ( event ) => {
-		existingHandler?.( event );
+		/* 行並び替え中のタッチ長押しはDnD専用入力とし、通常編集を開始させない。 */
+		if ( ! rowReorderEnabled || event.pointerType !== 'touch' ) {
+			existingHandler?.( event );
+		}
 		rowDndHandler( event );
 	};
 	return handler;
@@ -129,7 +138,8 @@ export const ReorderModeBlockListBlock = ( props: {
 								),
 								onPointerDownCapture: preservePointerDownHandler(
 									wrapperProps?.onPointerDownCapture,
-									rowDndPointerDownCapture
+									rowDndPointerDownCapture,
+									rowReorderEnabled
 								),
 							} }
 						/>
