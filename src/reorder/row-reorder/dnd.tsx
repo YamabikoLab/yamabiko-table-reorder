@@ -4,7 +4,7 @@
  * 行DnD境界はTableの描画中に安定して存在し、行並び替えが有効な期間だけ開始入力を受け付ける。
  * PCとタッチ端末の開始条件判定は入力境界へ委ね、dnd-kitが通知する物理DnDの進行と現在位置を、
  * DnD Interactionが扱う開始、移動先更新、確定、取消へ接続する。
- * Reorder Presentationは同じ物理DnD境界内でLifecycleと物理情報を受け取り、DnD Interactionの意味状態と組み合わせて移動対象行、有効な挿入位置、挿入空間、周囲行の押しのけ表示を行う。
+ * Reorder Presentationは同じ物理DnD境界内でLifecycleと物理情報を受け取り、DnD Interactionの意味状態と組み合わせて有効な挿入位置、挿入空間、周囲行の押しのけ表示を行う。
  * 行並び替えの無効化または境界の終了時には、次の通常編集や別モードへ持ち越せない開始準備と物理DnD登録を破棄する。
  */
 
@@ -27,7 +27,7 @@ import {
 import { RowInput, type RowDndPointerDownHandler } from './input';
 import { RowInsertionGap } from './presentation/insertion-gap';
 import { RowInsertionLine } from './presentation/insertion-line';
-import { RowMovingDisplay } from './presentation/moving-row';
+import './presentation/row-highlight.scss';
 import {
 	createRowDisplacementPresentation,
 	type RowDisplacementPresentation,
@@ -157,7 +157,7 @@ const resolveDestinationBoundaryIndex = (
  *
  * 接続自体はTableの描画中に安定して維持し、行並び替えが有効な期間だけ入力境界から開始対象を登録する。
  * DnD開始後はポインター位置から対象Table内の移動先境界を解決し、確定または取消までDnD Interactionへ接続する。
- * Reorder Presentationも同じ物理DnD境界へ接続し、意味状態と必要な物理情報がそろった期間だけ移動対象行、有効な挿入位置、挿入空間、押しのけ表示を行う。
+ * Reorder Presentationも同じ物理DnD境界へ接続し、意味状態と必要な物理情報がそろった期間だけ有効な挿入位置、挿入空間、押しのけ表示を行う。
  * 行並び替えが無効になった場合と接続自体が終了する場合は、未完了の開始準備とDraggable登録を破棄する。
  *
  * @param props               行DnD接続に必要な値。
@@ -276,7 +276,6 @@ export const RowDnd = ( props: {
 			onDragEnd={ onDragEnd }
 		>
 			<RowInsertionGap />
-			<RowMovingDisplay />
 			<RowInsertionLine />
 			<RowInput
 				enabled={ enabled }
