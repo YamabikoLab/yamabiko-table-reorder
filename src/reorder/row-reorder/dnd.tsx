@@ -2,7 +2,7 @@
  * 行並び替えにおけるdnd-kitとの物理DnD接続と、物理DnDに同期するPresentation接続を所有する。
  *
  * 行DnD境界はTableの描画中に安定して存在し、行並び替えが有効な期間だけ開始入力を受け付ける。
- * PC固有の開始条件判定はPC入力境界へ委ね、dnd-kitが通知する物理DnDの進行と現在位置を、
+ * PCとタッチ端末の開始条件判定は入力境界へ委ね、dnd-kitが通知する物理DnDの進行と現在位置を、
  * DnD Interactionが扱う開始、移動先更新、確定、取消へ接続する。
  * Reorder Presentationは同じ物理DnD境界内でLifecycleと物理情報を受け取り、DnD Interactionの意味状態と組み合わせて移動対象行と有効な挿入位置を表示する。
  * 行並び替えの無効化または境界の終了時には、次の通常編集や別モードへ持ち越せない開始準備と物理DnD登録を破棄する。
@@ -19,12 +19,12 @@ import { useEffect, useRef } from '@wordpress/element';
 import type { ReactNode } from 'react';
 
 import { rowDndInteraction, type RowDndSource } from './dnd-interaction';
-import { RowPcInput, type RowDndPointerDownHandler } from './pc-input';
+import { RowInput, type RowDndPointerDownHandler } from './input';
 import { RowInsertionLine } from './presentation/insertion-line';
 import { RowMovingDisplay } from './presentation/moving-row';
 import type { RowReorderConstraints } from './table-integration';
 
-export type { RowDndPointerDownHandler } from './pc-input';
+export type { RowDndPointerDownHandler } from './input';
 
 /**
  * 現在のポインター位置から、行並び替えの0-based移動先境界を解決する。
@@ -86,7 +86,7 @@ const resolveDestinationBoundaryIndex = ( event: DragMoveEvent ): number | null 
 /**
  * 対象Tableへdnd-kitの物理DnD進行を接続する。
  *
- * 接続自体はTableの描画中に安定して維持し、行並び替えが有効な期間だけPC入力境界から開始対象を登録する。
+ * 接続自体はTableの描画中に安定して維持し、行並び替えが有効な期間だけ入力境界から開始対象を登録する。
  * DnD開始後はポインター位置から対象Table内の移動先境界を解決し、確定または取消までDnD Interactionへ接続する。
  * Reorder Presentationも同じ物理DnD境界へ接続し、意味状態と必要な物理情報がそろった期間だけ移動対象行と有効な挿入位置を表示する。
  * 行並び替えが無効になった場合と接続自体が終了する場合は、未完了の開始準備とDraggable登録を破棄する。
@@ -185,13 +185,13 @@ export const RowDnd = ( props: {
 		>
 			<RowMovingDisplay />
 			<RowInsertionLine />
-			<RowPcInput
+			<RowInput
 				enabled={ enabled }
 				tableIdentity={ tableIdentity }
 				activeDraggable={ activeDraggable }
 			>
 				{ children }
-			</RowPcInput>
+			</RowInput>
 		</DragDropProvider>
 	);
 };
