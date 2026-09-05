@@ -2,7 +2,7 @@
  * Row Reorderの移動対象表示が、DnD Interactionの意味状態とDnD Engineの物理情報を責務どおり組み合わせることを確認する。
  *
  * DnD Interaction本体やDnD Engine本体の実装は重複して検証せず、active Session中だけの表示、
- * 元行の半透明表示、移動表示の通常濃度、縦方向追従、表示領域への制限、Session終了および境界終了時の表示解除を検証する。
+ * 元行の半透明表示、移動表示の通常濃度、入力対象外であること、縦方向追従、表示領域への制限、Session終了および境界終了時の表示解除を検証する。
  */
 
 import { act, render } from '@testing-library/react';
@@ -143,6 +143,39 @@ describe( 'Row moving display', () => {
 		expect( overlayCells.item( 0 ).style.width ).toBe( '220px' );
 		expect( overlayCells.item( 1 ).style.width ).toBe( '180px' );
 		expect( overlayTable.classList ).toContain( 'yamabiko-table-reorder-moving-row-table' );
+	} );
+
+	/**
+	 * 概要:
+	 * - 元行に編集可能要素があっても、移動表示全体を入力・フォーカス対象外にすることを確認する。
+	 *
+	 * 事前条件:
+	 * - Row DnD Sessionがactiveである。
+	 * - 移動対象行にはcontenteditableな要素が含まれる。
+	 *
+	 * 操作:
+	 * - 対象行の物理DnD開始を通知する。
+	 *
+	 * 期待結果:
+	 * - 編集可能要素を含む複製は移動表示へ描画されるが、移動表示境界はinertであり入力・フォーカス対象にならない。
+	 */
+	it( 'when the source row contains editable content, should keep the moving display outside input and focus targets', () => {
+		const { row } = createSourceTable();
+		const editable = document.createElement( 'div' );
+		editable.contentEditable = 'true';
+		editable.textContent = 'Editable';
+		row.cells.item( 0 )?.replaceChildren( editable );
+		mockRowDndPhase = 'active';
+		render( <RowMovingDisplay /> );
+
+		startPhysicalDrag( row );
+
+		const overlayViewport = document.body.querySelector(
+			'.yamabiko-table-reorder-moving-row'
+		) as HTMLElement | null;
+		const clonedEditable = overlayViewport?.querySelector( '[contenteditable="true"]' );
+		expect( clonedEditable ).not.toBeNull();
+		expect( overlayViewport ).toHaveAttribute( 'inert' );
 	} );
 
 	/**
