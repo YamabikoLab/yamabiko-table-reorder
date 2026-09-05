@@ -44,11 +44,12 @@ export const measureTableBodyRowGeometry = (
 export const resolveRowBoundaryOffsets = (
 	rowGeometry: readonly RowGeometry[]
 ): readonly number[] => {
-	if ( rowGeometry.length === 0 ) {
+	const lastRowGeometry = rowGeometry.at( -1 );
+
+	/* 行が存在しない場合は挿入境界を成立させない。 */
+	if ( lastRowGeometry === undefined ) {
 		return [];
 	}
-
-	const lastRowGeometry = rowGeometry[ rowGeometry.length - 1 ];
 
 	/* 末尾直後を含む全挿入位置を同じ境界定義で表すため、各行上端に最後の行下端を加える。 */
 	const boundaryOffsets = rowGeometry.map( ( geometry ) => geometry.top );
