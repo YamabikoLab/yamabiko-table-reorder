@@ -8,6 +8,10 @@
 import type { ComponentType } from '@wordpress/element';
 
 import { RowDnd, type RowDndPointerDownHandler } from '@/reorder/row-reorder/dnd';
+import {
+	RowHighlight,
+	type RowHighlightPointerOverHandler,
+} from '@/reorder/row-reorder/presentation/row-highlight';
 import { useReorderMode } from '@/reorder/reorder-mode-react';
 import {
 	preserveEditingStartHandler,
@@ -39,6 +43,26 @@ const preservePointerDownHandler = (
 	const handler: RowDndPointerDownHandler = ( event ) => {
 		existingHandler?.( event );
 		rowDndHandler( event );
+	};
+	return handler;
+};
+
+/**
+ * Gutenberg既存のpointerover処理を維持したまま、行ホバー表示へ現在位置を通知する。
+ *
+ * @param existingHandler     Gutenberg本体または他のfilterが設定した既存handler。
+ * @param rowHighlightHandler 行ホバー表示が提供する判定handler。
+ * @return 既存処理の後に行ホバー表示へ入力を通知するhandler。
+ */
+const preservePointerOverHandler = (
+	existingHandler: unknown,
+	rowHighlightHandler: RowHighlightPointerOverHandler
+): RowHighlightPointerOverHandler => {
+	const handler: RowHighlightPointerOverHandler = ( event ) => {
+		if ( typeof existingHandler === 'function' ) {
+			( existingHandler as RowHighlightPointerOverHandler )( event );
+		}
+		rowHighlightHandler( event );
 	};
 	return handler;
 };
@@ -91,19 +115,27 @@ export const ReorderModeBlockListBlock = ( props: {
 		: rowReorderWrapperProps;
 
 	return (
-		<RowDnd enabled={ rowReorderEnabled } tableIdentity={ clientId }>
-			{ ( rowDndPointerDownCapture ) => (
-				<BlockListBlock
-					{ ...blockProps }
-					wrapperProps={ {
-						...reorderWrapperProps,
-						onPointerDownCapture: preservePointerDownHandler(
-							wrapperProps?.onPointerDownCapture,
-							rowDndPointerDownCapture
-						),
-					} }
-				/>
+		<RowHighlight enabled={ rowReorderEnabled } tableIdentity={ clientId }>
+			{ ( rowHighlightPointerOverCapture ) => (
+				<RowDnd enabled={ rowReorderEnabled } tableIdentity={ clientId }>
+					{ ( rowDndPointerDownCapture ) => (
+						<BlockListBlock
+							{ ...blockProps }
+							wrapperProps={ {
+								...reorderWrapperProps,
+								onPointerOverCapture: preservePointerOverHandler(
+									wrapperProps?.onPointerOverCapture,
+									rowHighlightPointerOverCapture
+								),
+								onPointerDownCapture: preservePointerDownHandler(
+									wrapperProps?.onPointerDownCapture,
+									rowDndPointerDownCapture
+								),
+							} }
+						/>
+					) }
+				</RowDnd>
 			) }
-		</RowDnd>
+		</RowHighlight>
 	);
 };

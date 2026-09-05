@@ -10,7 +10,6 @@ import { RowInsertionGap } from './insertion-gap';
 import { RowInsertionLine } from './insertion-line';
 import { RowMovingDisplay } from './moving-row';
 import { RowDisplacement } from './row-displacement';
-import './row-highlight.scss';
 
 /**
  * 行DnD中に必要なPresentationを同じDnD Engine境界へ接続する。
