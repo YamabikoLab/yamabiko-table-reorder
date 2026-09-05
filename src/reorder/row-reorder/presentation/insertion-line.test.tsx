@@ -223,7 +223,7 @@ describe( 'Row insertion line', () => {
 	 * - 挿入線は押し下げられた行へ追従せず、DnD開始時の先頭境界へ表示される。
 	 */
 	it( 'when rows are displaced during an upward move, should keep the line at the insertion gap top', () => {
-		const { first, second, firstRectangleMock } = createSourceTable();
+		const { second, firstRectangleMock } = createSourceTable();
 		const { rerender } = render( <RowInsertionLine /> );
 		startPhysicalDrag( second );
 		mockDestinationBoundaryIndex = 0;
