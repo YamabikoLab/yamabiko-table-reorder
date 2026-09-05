@@ -1,12 +1,14 @@
 /**
  * 行DnD中の現在の物理入力位置を、DnD開始時のTable配置に対する論理的な移動先境界へ変換する。
  *
- * DnD Engine固有の現在位置とDOM計測をこの実装境界に閉じ込め、DnD Interactionへは0-based移動先境界だけを渡す。
+ * DnD Engine固有の現在位置から論理的な移動先境界へ変換する責務をこの実装境界に閉じ込め、DnD Interactionへは0-based移動先境界だけを渡す。
  * 行境界はDnD開始時のtbody相対位置として固定し、Presentationによる表示位置の変化を移動先判定へ反映しない。
  * 一方でtbody自体の現在位置は解決時に取得し直し、DnD中のスクロールには追従する。
  */
 
 import type { DragMoveEvent } from '@dnd-kit/dom';
+
+import { measureTableBodyRowGeometry } from './row-geometry';
 
 /** DnD開始時のTable配置を基準として移動先判定に利用する、tbody内の論理的な行境界。 */
 type RowDestinationBoundary = {
@@ -60,15 +62,12 @@ const resolveDestinationLayout = (
 	}
 
 	const typedTableBody = tableBody as HTMLTableSectionElement;
-	const bodyRectangle = typedTableBody.getBoundingClientRect();
-	const boundaries = Array.from( typedTableBody.rows, ( row, index ) => {
-		const rectangle = row.getBoundingClientRect();
-		return {
-			index,
-			top: rectangle.top - bodyRectangle.top,
-			bottom: rectangle.bottom - bodyRectangle.top,
-		};
-	} );
+	const rowGeometry = measureTableBodyRowGeometry( typedTableBody );
+	const boundaries = rowGeometry.map( ( geometry, index ) => ( {
+		index,
+		top: geometry.top,
+		bottom: geometry.bottom,
+	} ) );
 
 	return {
 		tableBody: typedTableBody,

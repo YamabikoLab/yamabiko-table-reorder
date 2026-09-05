@@ -12,6 +12,10 @@ import type { CSSProperties } from 'react';
 
 import { resolveEditorDomContext } from '@/reorder/editor-dom-context';
 import { useRowDndDestinationBoundaryIndex } from '@/reorder/row-reorder/dnd-interaction-react';
+import {
+	measureTableBodyRowGeometry,
+	resolveRowBoundaryOffsets,
+} from '@/reorder/row-reorder/row-geometry';
 
 import './insertion-line.scss';
 
@@ -19,7 +23,7 @@ import './insertion-line.scss';
 type RowInsertionLineSessionLayout = {
 	tableBody: HTMLTableSectionElement;
 	sourceTable: HTMLTableElement;
-	boundaryOffsets: number[];
+	boundaryOffsets: readonly number[];
 	editorDocument: Document;
 	editorWindow: Window;
 };
@@ -63,23 +67,14 @@ const resolveInsertionLineSessionLayout = (
 	}
 
 	const typedTableBody = tableBody as HTMLTableSectionElement;
-	const rows = typedTableBody.rows;
-	const rowCount = rows.length;
-	const lastRow = rows.item( rowCount - 1 );
+	const rowGeometry = measureTableBodyRowGeometry( typedTableBody );
 
 	/* 行境界を確定できないTable状態では、そのDnDの挿入線表示を成立させない。 */
-	if ( rowCount === 0 || lastRow === null ) {
+	if ( rowGeometry.length === 0 ) {
 		return null;
 	}
 
-	const bodyRectangle = typedTableBody.getBoundingClientRect();
-
-	/* 押しのけ表示後も元の挿入境界を示せるよう、DnD開始時の各行境界をtbody相対位置として確定する。 */
-	const boundaryOffsets = Array.from(
-		rows,
-		( row ) => row.getBoundingClientRect().top - bodyRectangle.top
-	);
-	boundaryOffsets.push( lastRow.getBoundingClientRect().bottom - bodyRectangle.top );
+	const boundaryOffsets = resolveRowBoundaryOffsets( rowGeometry );
 
 	return {
 		tableBody: typedTableBody,
