@@ -18,6 +18,8 @@ import {
 	type EditingStartWrapperProps,
 } from '@/reorder/wordpress/editing-start';
 
+import '../editing-guard.scss';
+
 const ROW_REORDER_MODE_CLASS = 'yamabiko-table-reorder-row-mode';
 
 /** BlockListBlock HOCが利用するprops。 */
