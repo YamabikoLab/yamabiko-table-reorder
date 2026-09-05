@@ -14,6 +14,13 @@ import { rowDndInteraction } from './dnd-interaction';
 import { RowDnd } from './dnd';
 import { createRowDestinationResolver } from './destination-resolution';
 
+jest.mock( '@dnd-kit/dom', () => ( {
+	Cursor: {},
+	PreventSelection: {},
+	Feedback: {},
+	Draggable: jest.fn(),
+} ) );
+
 jest.mock( './dnd-interaction', () => ( {
 	rowDndInteraction: {
 		prepareStart: jest.fn(),
