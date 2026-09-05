@@ -27,6 +27,10 @@ jest.mock( './presentation/moving-row', () => ( {
 	RowMovingDisplay: () => null,
 } ) );
 
+jest.mock( './presentation/insertion-line', () => ( {
+	RowInsertionLine: () => null,
+} ) );
+
 let activeDraggableRef: { current: Draggable | null } | null = null;
 
 jest.mock( './pc-input', () => ( {
