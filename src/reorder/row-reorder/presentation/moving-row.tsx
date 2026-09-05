@@ -231,9 +231,10 @@ export const RowMovingDisplay = () => {
 	useDragDropMonitor( {
 		onDragStart: ( event ) => {
 			const dragPosition = event.operation.position;
+			const initialPositionX = dragPosition.initial.x ?? 0;
 			const nextLayout = resolveMovingDisplayLayout(
 				event.operation.source?.element,
-				dragPosition.initial.x,
+				initialPositionX,
 				dragPosition.initial.y
 			);
 
@@ -257,7 +258,8 @@ export const RowMovingDisplay = () => {
 			}
 
 			const currentPosition = event.operation.position.current;
-			const horizontalMovement = currentPosition.x - currentLayout.initialPositionX;
+			const currentPositionX = currentPosition.x ?? currentLayout.initialPositionX;
+			const horizontalMovement = currentPositionX - currentLayout.initialPositionX;
 			const verticalMovement = currentPosition.y - currentLayout.initialPositionY;
 			setPosition( {
 				left: currentLayout.initialLeft + horizontalMovement,
