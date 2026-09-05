@@ -1,7 +1,7 @@
 /**
- * 行並び替えのPC入力開始条件とDnD開始対象の接続を所有する。
+ * 行並び替えのポインター入力開始条件とDnD開始対象の接続を所有する。
  *
- * PCの主ポインター入力から現在Tableのtbody直下行を開始候補として解決し、
+ * PCとタッチ端末の主ポインター入力から現在Tableのtbody直下行を開始候補として解決し、
  * 行並び替えが有効な間だけ、その行をdnd-kitのDraggableへ必要時に登録する。
  * DnD開始後の進行、移動先候補、確定、取消はDnD境界へ委ねる。
  */
@@ -20,20 +20,20 @@ import type { RowDndSource } from './dnd-interaction';
 export type RowDndPointerDownHandler = ( event: PointerEvent< Element > ) => void;
 
 /**
- * PC入力から行DnD開始候補を解決し、現在のポインター入力で必要な行だけをDraggableへ登録する。
+ * ポインター入力から行DnD開始候補を解決し、現在の入力で必要な行だけをDraggableへ登録する。
  *
- * タッチ入力は対象外とし、行並び替えが有効なPC入力で成立した開始候補だけをDnD境界へ接続する。
+ * PCとタッチ端末の主ポインター入力を共通のPointerSensor経路へ接続し、行並び替えが有効な入力で成立した開始候補だけをDnD境界へ接続する。
  * 入力ごとに登録したDraggableは次の開始候補へ持ち越さず、常に現在の開始候補だけを有効にする。
  *
- * @param props                         PC入力接続に必要な値。
+ * @param props                         ポインター入力接続に必要な値。
  * @param props.enabled                 現在のTableで行並び替え開始入力を受け付ける場合はtrue。
  * @param props.tableIdentity           行並び替え対象のTable Identity。
  * @param props.activeDraggable         現在のポインター入力で登録したDraggableを保持する参照。
  * @param props.activeDraggable.current 現在のポインター入力で登録したDraggable。未登録の場合はnull。
  * @param props.children                既存DOMへポインター開始処理を接続する描画処理。
- * @return PC入力による行DnD開始へ接続された子要素。
+ * @return ポインター入力による行DnD開始へ接続された子要素。
  */
-export const RowPcInput = ( props: {
+export const RowInput = ( props: {
 	enabled: boolean;
 	tableIdentity: string;
 	activeDraggable: {
@@ -50,13 +50,8 @@ export const RowPcInput = ( props: {
 			return;
 		}
 
-		/* PCの主ポインターによる新しい開始入力だけを受け入れ、タッチや進行中DnDへの追加入力は対象外とする。 */
-		if (
-			! event.isPrimary ||
-			event.button !== 0 ||
-			event.pointerType === 'touch' ||
-			! manager.dragOperation.status.idle
-		) {
+		/* 主ポインターによる新しい開始入力だけを受け入れ、追加入力や副ボタン入力は対象外とする。 */
+		if ( ! event.isPrimary || event.button !== 0 || ! manager.dragOperation.status.idle ) {
 			return;
 		}
 

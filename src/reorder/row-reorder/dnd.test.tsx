@@ -33,8 +33,8 @@ jest.mock( './presentation/insertion-line', () => ( {
 
 let activeDraggableRef: { current: Draggable | null } | null = null;
 
-jest.mock( './pc-input', () => ( {
-	RowPcInput: ( props: {
+jest.mock( './input', () => ( {
+	RowInput: ( props: {
 		activeDraggable: { current: Draggable | null };
 		children: ( handler: () => void ) => ReactNode;
 	} ) => {
@@ -176,7 +176,7 @@ describe( 'Row DnD engine connection', () => {
 		} as unknown as BeforeDragStartEvent );
 
 		if ( activeDraggableRef === null ) {
-			throw new Error( 'RowPcInput activeDraggable ref was not captured.' );
+			throw new Error( 'RowInput activeDraggable ref was not captured.' );
 		}
 		activeDraggableRef.current = { destroy } as unknown as Draggable;
 
