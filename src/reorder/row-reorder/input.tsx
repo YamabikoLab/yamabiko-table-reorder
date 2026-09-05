@@ -88,7 +88,7 @@ export const RowInput = ( props: {
 				/* 行DnD中の視覚表現はReorder Presentationが所有するため、dnd-kit標準表示は利用しない。 */
 				plugins: [
 					Feedback.configure( {
-						feedback: 'none',
+						feedback: 'default',
 					} ),
 				],
 				sensors: [

@@ -23,10 +23,6 @@ jest.mock( './dnd-interaction', () => ( {
 	},
 } ) );
 
-jest.mock( './presentation/moving-row', () => ( {
-	RowMovingDisplay: () => null,
-} ) );
-
 jest.mock( './presentation/insertion-line', () => ( {
 	RowInsertionLine: () => null,
 } ) );

@@ -21,7 +21,6 @@ import type { ReactNode } from 'react';
 import { rowDndInteraction, type RowDndSource } from './dnd-interaction';
 import { RowInput, type RowDndPointerDownHandler } from './input';
 import { RowInsertionLine } from './presentation/insertion-line';
-import { RowMovingDisplay } from './presentation/moving-row';
 import type { RowReorderConstraints } from './table-integration';
 
 export type { RowDndPointerDownHandler } from './input';
@@ -183,7 +182,6 @@ export const RowDnd = ( props: {
 			onDragMove={ onDragMove }
 			onDragEnd={ onDragEnd }
 		>
-			<RowMovingDisplay />
 			<RowInsertionLine />
 			<RowInput
 				enabled={ enabled }
