@@ -14,6 +14,7 @@ import { rowDndInteraction } from './dnd-interaction';
 import { RowDnd } from './dnd';
 
 jest.mock( './dnd-interaction', () => ( {
+	getRowDndDestinationBoundaryIndex: jest.fn( () => null ),
 	rowDndInteraction: {
 		prepareStart: jest.fn(),
 		start: jest.fn(),

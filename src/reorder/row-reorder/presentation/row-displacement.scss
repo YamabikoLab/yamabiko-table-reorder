@@ -1,0 +1,15 @@
+/**
+ * Row Reorderの押しのけ表示について、実TableのDOM順を変えずに周囲行の視覚位置だけを滑らかに移動する。
+ */
+
+.yamabiko-table-reorder-displaced-row {
+	transform: translateY(var(--yamabiko-table-reorder-row-displacement, 0));
+	transition: transform 150ms ease;
+	will-change: transform;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.yamabiko-table-reorder-displaced-row {
+		transition: none;
+	}
+}
