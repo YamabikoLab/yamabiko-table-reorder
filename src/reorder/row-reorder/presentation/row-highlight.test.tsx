@@ -110,4 +110,31 @@ describe( 'Row highlight', () => {
 
 		expect( getByTestId( 'row-2' ).className ).toBe( '' );
 	} );
+
+	/**
+	 * 概要:
+	 * - 行並び替えモード終了時に既存の操作可能表示を残さず、その後の通常編集入力でも再表示しないことを確認する。
+	 *
+	 * 事前条件:
+	 * - 行並び替えモード中に移動可能な行へ操作可能表示が出ている。
+	 *
+	 * 操作:
+	 * - 行並び替えを無効化し、その後に別の行へポインターを移動する。
+	 *
+	 * 期待結果:
+	 * - 既存の操作可能表示が解除され、無効化後はどの行にも操作可能表示を付けない。
+	 */
+	it( 'when row reordering becomes disabled, should clear the current highlight and stop marking rows as highlightable', () => {
+		mockGetConstraints.mockReturnValue( { rowCount: 3, blockedBoundaries: [] } );
+		const { getByTestId, rerender } = render( <TestTable /> );
+
+		fireEvent.pointerOver( getByTestId( 'row-2' ).querySelector( 'td' ) as HTMLTableCellElement );
+		expect( getByTestId( 'row-2' ).className ).toBe( 'yamabiko-table-reorder-row-highlightable' );
+
+		rerender( <TestTable enabled={ false } /> );
+		expect( getByTestId( 'row-2' ).className ).toBe( '' );
+
+		fireEvent.pointerOver( getByTestId( 'row-0' ).querySelector( 'td' ) as HTMLTableCellElement );
+		expect( getByTestId( 'row-0' ).className ).toBe( '' );
+	} );
 } );
