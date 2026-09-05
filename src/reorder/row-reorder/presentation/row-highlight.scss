@@ -2,8 +2,14 @@
  * Row Reorderモード中、行が移動操作の対象であることをポインター操作に対して示す。
  */
 
-.yamabiko-table-reorder-row-mode tbody > tr {
-	cursor: grab;
+.yamabiko-table-reorder-row-mode tbody > tr,
+.yamabiko-table-reorder-row-mode tbody > tr * {
+	cursor: grab !important;
+}
+
+.yamabiko-table-reorder-row-mode tbody > tr:active,
+.yamabiko-table-reorder-row-mode tbody > tr:active * {
+	cursor: grabbing !important;
 }
 
 .yamabiko-table-reorder-row-mode tbody > tr:hover > td,
