@@ -218,7 +218,7 @@ describe( 'Row drop animation', () => {
 	 * - 現在表示を記録した後、取消ではないドロップを通知する。
 	 *
 	 * 期待結果:
-	 * - 移動表示と挿入空間の複製が残り、移動表示が現在位置から挿入空間へ250msで移動する。
+	 * - 移動表示と挿入空間の複製が残り、移動表示が現在位置から挿入空間へ350msで移動する。
 	 * - アニメーション終了後は複製だけが除去される。
 	 */
 	it( 'when a valid row drop completes, should animate the moving display to the gap', () => {
