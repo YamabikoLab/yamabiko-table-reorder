@@ -97,18 +97,18 @@ describe( 'Row insertion gap cell boundaries', () => {
 		table.appendChild( tbody );
 		document.body.appendChild( table );
 
-		jest.spyOn( table, 'getBoundingClientRect' ).mockReturnValue(
-			rectangle( { left: 50, right: 500, width: 450 } )
-		);
-		jest.spyOn( tbody, 'getBoundingClientRect' ).mockReturnValue(
-			rectangle( { top: 100, bottom: 180, height: 80 } )
-		);
-		jest.spyOn( sourceRow, 'getBoundingClientRect' ).mockReturnValue(
-			rectangle( { top: 100, bottom: 140, height: 40 } )
-		);
-		jest.spyOn( otherRow, 'getBoundingClientRect' ).mockReturnValue(
-			rectangle( { top: 140, bottom: 180, height: 40 } )
-		);
+		jest
+			.spyOn( table, 'getBoundingClientRect' )
+			.mockReturnValue( rectangle( { left: 50, right: 500, width: 450 } ) );
+		jest
+			.spyOn( tbody, 'getBoundingClientRect' )
+			.mockReturnValue( rectangle( { top: 100, bottom: 180, height: 80 } ) );
+		jest
+			.spyOn( sourceRow, 'getBoundingClientRect' )
+			.mockReturnValue( rectangle( { top: 100, bottom: 140, height: 40 } ) );
+		jest
+			.spyOn( otherRow, 'getBoundingClientRect' )
+			.mockReturnValue( rectangle( { top: 140, bottom: 180, height: 40 } ) );
 		jest
 			.spyOn( sourceCells[ 0 ], 'getBoundingClientRect' )
 			.mockReturnValue( rectangle( { left: 50, right: 150, width: 100 } ) );
