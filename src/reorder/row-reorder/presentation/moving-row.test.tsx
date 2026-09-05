@@ -189,9 +189,9 @@ describe( 'Row moving display', () => {
 	 * - DnD Engineから開始位置より30px下の現在位置を通知する。
 	 *
 	 * 期待結果:
-	 * - 移動表示の上端だけが30px下へ移動し、横方向の開始位置は対象Tableの表示位置を維持する。
+	 * - DnD開始時の入力位置との相対関係を維持して移動表示が30px下へ移動し、横方向の開始位置は対象Tableの表示位置を維持する。
 	 */
-	it( 'when the physical drag moves vertically, should follow only the vertical position while keeping the table-aligned horizontal position', () => {
+	it( 'when the physical drag moves vertically, should keep the pointer-relative row position while preserving the table-aligned horizontal position', () => {
 		const { row } = createSourceTable();
 		mockRowDndPhase = 'active';
 		render( <RowMovingDisplay /> );
@@ -212,6 +212,41 @@ describe( 'Row moving display', () => {
 		) as HTMLElement | null;
 		expect( overlayViewport?.style.top ).toBe( '110px' );
 		expect( overlayViewport?.style.left ).toBe( '100px' );
+	} );
+
+	/**
+	 * 概要:
+	 * - 画面下端まで移動してスクロールを開始しても、移動表示が画面外へ消えないことを確認する。
+	 *
+	 * 事前条件:
+	 * - Row DnD Sessionがactiveで、移動対象行の高さは40pxである。
+	 *
+	 * 操作:
+	 * - 移動表示がeditor表示領域の下端を越える物理位置を通知する。
+	 *
+	 * 期待結果:
+	 * - 移動表示全体がeditor表示領域内に残る最大位置へ制限される。
+	 */
+	it( 'when the physical drag reaches beyond the bottom viewport edge, should keep the moving row fully visible', () => {
+		const { row } = createSourceTable();
+		mockRowDndPhase = 'active';
+		render( <RowMovingDisplay /> );
+		startPhysicalDrag( row );
+
+		act( () => {
+			mockDragDropMonitor.onDragMove?.( {
+				operation: {
+					position: {
+						current: { y: window.innerHeight + 100 },
+					},
+				},
+			} );
+		} );
+
+		const overlayViewport = document.body.querySelector(
+			'.yamabiko-table-reorder-moving-row'
+		) as HTMLElement | null;
+		expect( overlayViewport?.style.top ).toBe( `${ window.innerHeight - 40 }px` );
 	} );
 
 	/**

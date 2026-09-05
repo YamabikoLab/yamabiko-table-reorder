@@ -2,7 +2,8 @@
  * Row Reorderの移動対象行を、実Tableの配置を変えない独立した移動表示として描画する。
  *
  * Row DnDの意味上のLifecycleはDnD InteractionのReact境界から受け取り、表示に必要な移動対象DOMと物理位置だけをDnD Engineから直接利用する。
- * 移動表示は縦方向だけ現在位置へ追従し、横方向は対象Tableと現在のeditor表示領域が重なる範囲へ制限する。
+ * 移動表示はDnD開始時の入力位置との相対関係を維持して縦方向へ追従し、横方向は対象Tableと現在のeditor表示領域が重なる範囲へ制限する。
+ * 画面端では移動表示全体をeditor表示領域内へ収め、スクロール中も現在の移動対象を見失わないようにする。
  * 元行は実DOM上の位置と大きさを維持したまま半透明で残し、独立した移動表示によって現在の移動対象を識別できるようにする。
  */
 
@@ -31,6 +32,7 @@ type RowMovingDisplayLayout = {
 	initialPositionY: number;
 	initialTop: number;
 	editorDocument: Document;
+	editorWindow: Window;
 };
 
 /**
@@ -91,7 +93,26 @@ const resolveMovingDisplayLayout = (
 		initialPositionY,
 		initialTop: rowRectangle.top,
 		editorDocument: editorContext.document,
+		editorWindow: editorContext.window,
 	};
+};
+
+/**
+ * DnD開始時の入力位置との相対関係を維持しながら、移動表示を現在のeditor表示領域内へ配置する。
+ *
+ * @param layout           DnD開始時に確定した移動表示の配置情報。
+ * @param currentPositionY DnD Engineが示す現在の縦位置。
+ * @return 現在の移動表示上端位置。
+ */
+const resolveMovingDisplayTop = (
+	layout: RowMovingDisplayLayout,
+	currentPositionY: number
+): number => {
+	const verticalMovement = currentPositionY - layout.initialPositionY;
+	const desiredTop = layout.initialTop + verticalMovement;
+	const maximumTop = Math.max( layout.editorWindow.innerHeight - layout.rowHeight, 0 );
+
+	return Math.min( Math.max( desiredTop, 0 ), maximumTop );
 };
 
 /**
@@ -234,8 +255,7 @@ export const RowMovingDisplay = () => {
 			}
 
 			const currentPositionY = event.operation.position.current.y;
-			const verticalMovement = currentPositionY - currentLayout.initialPositionY;
-			setTop( currentLayout.initialTop + verticalMovement );
+			setTop( resolveMovingDisplayTop( currentLayout, currentPositionY ) );
 		},
 	} );
 
