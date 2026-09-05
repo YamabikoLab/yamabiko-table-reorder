@@ -106,11 +106,7 @@ const resolveDestinationBoundaryIndex = (
 	const nativeEvent = event.nativeEvent;
 
 	/* 移動先判定は現在のポインター入力にだけ成立し、別入力方式の座標を推測して補完しない。 */
-	if (
-		! nativeEvent ||
-		! ( 'clientX' in nativeEvent ) ||
-		! ( 'clientY' in nativeEvent )
-	) {
+	if ( ! nativeEvent || ! ( 'clientX' in nativeEvent ) || ! ( 'clientY' in nativeEvent ) ) {
 		return null;
 	}
 
@@ -120,10 +116,7 @@ const resolveDestinationBoundaryIndex = (
 	const y = pointerEvent.clientY;
 
 	/* 実ブラウザーでtbodyの横幅を取得できる場合は、対象Tableの横方向外側を移動先として扱わない。 */
-	if (
-		bodyRectangle.width > 0 &&
-		( x < bodyRectangle.left || x > bodyRectangle.right )
-	) {
+	if ( bodyRectangle.width > 0 && ( x < bodyRectangle.left || x > bodyRectangle.right ) ) {
 		return null;
 	}
 
@@ -151,8 +144,7 @@ const resolveDestinationBoundaryIndex = (
 		}
 
 		const middleY = boundary.top + ( boundary.bottom - boundary.top ) / 2;
-		const destinationBoundaryIndex =
-			localY < middleY ? boundary.index : boundary.index + 1;
+		const destinationBoundaryIndex = localY < middleY ? boundary.index : boundary.index + 1;
 		return destinationBoundaryIndex;
 	}
 
@@ -249,8 +241,7 @@ export const RowDnd = ( props: {
 	const onDragMove = ( event: DragMoveEvent ) => {
 		/* テスト環境など開始通知からDOM配置を取得できない場合も、押しのけ開始前の最初の移動通知から一度だけ補完する。 */
 		const layout =
-			destinationLayout.current ??
-			resolveDestinationLayout( event.operation.source?.element );
+			destinationLayout.current ?? resolveDestinationLayout( event.operation.source?.element );
 		destinationLayout.current = layout;
 
 		const destinationBoundaryIndex =

@@ -55,11 +55,31 @@ describe( 'Row displacement presentation', () => {
 		presentation.start( sourceRow );
 		presentation.update( 5 );
 
-		expect( tableBody.rows.item( 0 )?.style.getPropertyValue( '--yamabiko-table-reorder-row-displacement' ) ).toBe( '' );
-		expect( tableBody.rows.item( 1 )?.style.getPropertyValue( '--yamabiko-table-reorder-row-displacement' ) ).toBe( '' );
-		expect( tableBody.rows.item( 2 )?.style.getPropertyValue( '--yamabiko-table-reorder-row-displacement' ) ).toBe( '-40px' );
-		expect( tableBody.rows.item( 3 )?.style.getPropertyValue( '--yamabiko-table-reorder-row-displacement' ) ).toBe( '-40px' );
-		expect( tableBody.rows.item( 4 )?.style.getPropertyValue( '--yamabiko-table-reorder-row-displacement' ) ).toBe( '-40px' );
+		expect(
+			tableBody.rows
+				.item( 0 )
+				?.style.getPropertyValue( '--yamabiko-table-reorder-row-displacement' )
+		).toBe( '' );
+		expect(
+			tableBody.rows
+				.item( 1 )
+				?.style.getPropertyValue( '--yamabiko-table-reorder-row-displacement' )
+		).toBe( '' );
+		expect(
+			tableBody.rows
+				.item( 2 )
+				?.style.getPropertyValue( '--yamabiko-table-reorder-row-displacement' )
+		).toBe( '-40px' );
+		expect(
+			tableBody.rows
+				.item( 3 )
+				?.style.getPropertyValue( '--yamabiko-table-reorder-row-displacement' )
+		).toBe( '-40px' );
+		expect(
+			tableBody.rows
+				.item( 4 )
+				?.style.getPropertyValue( '--yamabiko-table-reorder-row-displacement' )
+		).toBe( '-40px' );
 	} );
 
 	/**
@@ -87,11 +107,31 @@ describe( 'Row displacement presentation', () => {
 		presentation.start( sourceRow );
 		presentation.update( 1 );
 
-		expect( tableBody.rows.item( 0 )?.style.getPropertyValue( '--yamabiko-table-reorder-row-displacement' ) ).toBe( '' );
-		expect( tableBody.rows.item( 1 )?.style.getPropertyValue( '--yamabiko-table-reorder-row-displacement' ) ).toBe( '40px' );
-		expect( tableBody.rows.item( 2 )?.style.getPropertyValue( '--yamabiko-table-reorder-row-displacement' ) ).toBe( '40px' );
-		expect( tableBody.rows.item( 3 )?.style.getPropertyValue( '--yamabiko-table-reorder-row-displacement' ) ).toBe( '' );
-		expect( tableBody.rows.item( 4 )?.style.getPropertyValue( '--yamabiko-table-reorder-row-displacement' ) ).toBe( '' );
+		expect(
+			tableBody.rows
+				.item( 0 )
+				?.style.getPropertyValue( '--yamabiko-table-reorder-row-displacement' )
+		).toBe( '' );
+		expect(
+			tableBody.rows
+				.item( 1 )
+				?.style.getPropertyValue( '--yamabiko-table-reorder-row-displacement' )
+		).toBe( '40px' );
+		expect(
+			tableBody.rows
+				.item( 2 )
+				?.style.getPropertyValue( '--yamabiko-table-reorder-row-displacement' )
+		).toBe( '40px' );
+		expect(
+			tableBody.rows
+				.item( 3 )
+				?.style.getPropertyValue( '--yamabiko-table-reorder-row-displacement' )
+		).toBe( '' );
+		expect(
+			tableBody.rows
+				.item( 4 )
+				?.style.getPropertyValue( '--yamabiko-table-reorder-row-displacement' )
+		).toBe( '' );
 	} );
 
 	/**
@@ -121,12 +161,20 @@ describe( 'Row displacement presentation', () => {
 		presentation.update( 4 );
 		presentation.update( 2 );
 
-		expect( displacedRow.style.getPropertyValue( '--yamabiko-table-reorder-row-displacement' ) ).toBe( '0px' );
-		expect( displacedRow.classList.contains( 'yamabiko-table-reorder-displaced-row' ) ).toBe( true );
+		expect(
+			displacedRow.style.getPropertyValue( '--yamabiko-table-reorder-row-displacement' )
+		).toBe( '0px' );
+		expect( displacedRow.classList.contains( 'yamabiko-table-reorder-displaced-row' ) ).toBe(
+			true
+		);
 
 		presentation.end();
 
-		expect( displacedRow.style.getPropertyValue( '--yamabiko-table-reorder-row-displacement' ) ).toBe( '' );
-		expect( displacedRow.classList.contains( 'yamabiko-table-reorder-displaced-row' ) ).toBe( false );
+		expect(
+			displacedRow.style.getPropertyValue( '--yamabiko-table-reorder-row-displacement' )
+		).toBe( '' );
+		expect( displacedRow.classList.contains( 'yamabiko-table-reorder-displaced-row' ) ).toBe(
+			false
+		);
 	} );
 } );
