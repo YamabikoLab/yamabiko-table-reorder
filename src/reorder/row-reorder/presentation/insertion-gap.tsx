@@ -101,7 +101,7 @@ const resolveInsertionGapSessionLayout = (
  * 上方向への移動では移動先境界から下へ、下方向への移動では移動先境界から移動元行高ぶん上へ空間が形成される。
  * Table自体の現在位置と表示幅は再計測し、スクロールや表示領域の変化へ追従する。
  *
- * @param sessionLayout           DnD開始時に確定した論理配置。
+ * @param sessionLayout            DnD開始時に確定した論理配置。
  * @param destinationBoundaryIndex DnD Interactionが有効とした0-based移動先境界。
  * @return 現在描画できる1行分の挿入空間。表示不要または描画不能の場合はnull。
  */
@@ -146,11 +146,7 @@ const resolveInsertionGapLayout = (
 	const bottom = top + sourceRowHeight;
 
 	/* Tableと表示領域が重ならない場合は、画面外の挿入空間を生成しない。 */
-	if (
-		visibleWidth <= 0 ||
-		bottom <= 0 ||
-		top >= sessionLayout.editorWindow.innerHeight
-	) {
+	if ( visibleWidth <= 0 || bottom <= 0 || top >= sessionLayout.editorWindow.innerHeight ) {
 		return null;
 	}
 
@@ -180,9 +176,7 @@ export const RowInsertionGap = () => {
 
 	useDragDropMonitor( {
 		onDragStart: ( event ) => {
-			setSessionLayout(
-				resolveInsertionGapSessionLayout( event.operation.source?.element )
-			);
+			setSessionLayout( resolveInsertionGapSessionLayout( event.operation.source?.element ) );
 		},
 		onDragMove: () => {
 			/* 同じ移動先境界でもスクロール等で画面上の位置が変わるため、現在位置を再計測する。 */
