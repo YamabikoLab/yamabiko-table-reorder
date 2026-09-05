@@ -3,7 +3,7 @@
  *
  * Row DnDの意味上のLifecycleはDnD InteractionのReact境界から受け取り、表示に必要な移動対象DOMと物理位置だけをDnD Engineから直接利用する。
  * 移動表示は縦方向だけ現在位置へ追従し、横方向は対象Tableと現在のeditor表示領域が重なる範囲へ制限する。
- * 元行は実DOM上の位置と大きさを維持したまま半透明で残し、移動表示側の独立した視覚表現によって現在の移動対象を識別できるようにする。
+ * 元行は実DOM上の位置と大きさを維持したまま半透明で残し、独立した移動表示によって現在の移動対象を識別できるようにする。
  */
 
 import { useDragDropMonitor } from '@dnd-kit/react';
@@ -71,11 +71,12 @@ const resolveMovingDisplayLayout = (
 	const visibleRight = Math.min( tableRectangle.right, editorContext.window.innerWidth );
 	const visibleWidth = visibleRight - visibleLeft;
 
-	/* Tableと現在表示領域が重ならない場合、または元行の表示寸法を確定できない場合はoverlayを描画しない。 */
+	/* Tableと現在表示領域が重ならない場合、または元行の表示寸法を確定できない場合は移動表示を成立させない。 */
 	if ( visibleWidth <= 0 || tableRectangle.width <= 0 || rowRectangle.height <= 0 ) {
 		return null;
 	}
 
+	/* 内容量に左右されず元行の列配置を維持できるよう、DnD開始時の各セル幅を確定する。 */
 	const cellWidths = Array.from( sourceRow.cells, ( cell ) => cell.getBoundingClientRect().width );
 
 	return {
@@ -120,7 +121,7 @@ const renderMovingRow = (
 	const clonedRow = layout.sourceRow.cloneNode( true ) as HTMLTableRowElement;
 	removeDuplicatedIds( clonedRow );
 
-	/* 元行だけに適用する半透明表示をcloneへ持ち込まず、overlayの内容は通常濃度で表示する。 */
+	/* 元行だけに適用する半透明表示を複製側へ持ち込まず、移動表示の内容は通常濃度で表示する。 */
 	clonedRow.classList.remove( SOURCE_ROW_CLASS );
 	clonedRow.style.height = `${ layout.rowHeight }px`;
 
@@ -141,12 +142,12 @@ const renderMovingRow = (
 };
 
 /**
- * DnD開始時に確定した行表示を、現在の縦位置へ追従する独立overlayとして描画する。
+ * DnD開始時に確定した行表示を、現在の縦位置へ追従する独立した移動表示として描画する。
  *
  * @param props        移動表示に必要な配置と現在位置。
  * @param props.layout DnD開始時に確定した元行とTableの配置情報。
  * @param props.top    現在の移動表示上端位置。
- * @return 現在のeditor contextへ描画する移動対象行overlay。
+ * @return 現在のeditor contextへ描画する移動対象行表示。
  */
 const RowMovingOverlay = ( props: { layout: RowMovingDisplayLayout; top: number } ) => {
 	const { layout, top } = props;
@@ -154,6 +155,8 @@ const RowMovingOverlay = ( props: { layout: RowMovingDisplayLayout; top: number 
 
 	useEffect( () => {
 		const tableBody = tableBodyRef.current;
+
+		/* 描画先がまだ成立していない段階では、移動対象行の複製を行わない。 */
 		if ( tableBody === null ) {
 			return;
 		}
@@ -191,7 +194,7 @@ const RowMovingOverlay = ( props: { layout: RowMovingDisplayLayout; top: number 
  * DnD Interactionからはactive / idleだけを受け取り、物理座標やDOM参照をSessionへ複製しない。
  * 元行はactive Session中も実Tableに残し、レイアウトを変えない半透明表示だけで移動元として区別する。
  *
- * @return activeなRow DnD中は移動対象行overlay。それ以外はnull。
+ * @return activeなRow DnD中は移動対象行表示。それ以外はnull。
  */
 export const RowMovingDisplay = () => {
 	const phase = useRowDndPhase();
@@ -211,12 +214,15 @@ export const RowMovingDisplay = () => {
 			activeLayout.current = nextLayout;
 			setLayout( nextLayout );
 
+			/* 表示を成立させられる場合だけ、移動開始位置を元行の表示位置へ合わせる。 */
 			if ( nextLayout !== null ) {
 				setTop( nextLayout.initialTop );
 			}
 		},
 		onDragMove: ( event ) => {
 			const currentLayout = activeLayout.current;
+
+			/* DnD開始時に移動表示が成立していない場合は、物理移動だけで途中から表示を開始しない。 */
 			if ( currentLayout === null ) {
 				return;
 			}
@@ -242,6 +248,7 @@ export const RowMovingDisplay = () => {
 	}, [ phase ] );
 
 	useEffect( () => {
+		/* Row DnD Sessionと移動表示の両方が成立している期間だけ、元行を移動元として識別する。 */
 		if ( phase !== 'active' || layout === null ) {
 			return;
 		}
@@ -253,6 +260,8 @@ export const RowMovingDisplay = () => {
 	}, [ phase, layout ] );
 
 	const visible = phase === 'active' && layout !== null;
+
+	/* 意味上のRow DnD Sessionまたは表示配置のどちらかが成立しない間は、利用者向け移動表示を出さない。 */
 	if ( ! visible ) {
 		return null;
 	}
