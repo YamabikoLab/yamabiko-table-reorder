@@ -5,7 +5,7 @@
  * その理由を利用者の操作位置付近へ提示するために必要な位置だけを現在のPresentation購読へ伝える。
  */
 
-import type { RowReorderTargetRejectionReason } from '@/reorder/row-reorder/target-resolution';
+import type { RowReorderTargetRejectionReason } from '@/reorder/row-reorder/responsibilities/target-resolution';
 
 /** 利用者が行DnD開始を試みた位置と、Designで提示する開始拒否理由。 */
 export type RowStartRejectionNoticeEvent = {
