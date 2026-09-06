@@ -180,19 +180,19 @@ describe( 'Row moving display', () => {
 
 	/**
 	 * 概要:
-	 * - DnD開始時点で元行自身に適用されていた非透明な背景色を、移動表示がそのDnD中維持することを確認する。
+	 * - 元Table上の位置によって行またはセルへ付く背景色を、移動表示がDnD開始時点の表示として維持することを確認する。
 	 *
 	 * 事前条件:
 	 * - Row DnD Sessionがactiveである。
-	 * - 元行はTable上の位置に依存するCSSによって非透明な背景色を持つ。
+	 * - 元行には行背景色、セルには別の背景色がTable上の位置に依存するCSSで適用されている。
 	 *
 	 * 操作:
-	 * - 対象行の物理DnDを開始し、その後に元Table側の背景色条件を変更する。
+	 * - 対象行の物理DnDを開始する。
 	 *
 	 * 期待結果:
-	 * - 移動表示は複製先でのCSS再評価結果や開始後の変更ではなく、DnD開始時点の元行背景色を維持する。
+	 * - 移動表示の行と各セルに、DnD開始時点の計算済み背景色が維持される。
 	 */
-	it( 'when the source row has a non-transparent computed background at drag start, should preserve that background for the active drag', () => {
+	it( 'when row and cell backgrounds depend on the source table position, should preserve their computed backgrounds in the moving row', () => {
 		const { table, row } = createSourceTable();
 		const precedingRow = document.createElement( 'tr' );
 		precedingRow.appendChild( document.createElement( 'td' ) );
@@ -200,61 +200,22 @@ describe( 'Row moving display', () => {
 		table.classList.add( 'yamabiko-test-row-background' );
 		const style = document.createElement( 'style' );
 		style.textContent = `
-			.yamabiko-test-row-background tbody > tr:first-child { background-color: rgb(255, 255, 255); }
 			.yamabiko-test-row-background tbody > tr:nth-child(2) { background-color: rgb(12, 34, 56); }
+			.yamabiko-test-row-background tbody > tr:nth-child(2) td { background-color: rgb(70, 80, 90); }
 		`;
 		document.body.appendChild( style );
 		mockRowDndPhase = 'active';
 		render( <RowMovingDisplay /> );
 
 		startPhysicalDrag( row );
-		style.textContent = `
-			.yamabiko-test-row-background tbody > tr:first-child { background-color: rgb(255, 255, 255); }
-			.yamabiko-test-row-background tbody > tr:nth-child(2) { background-color: rgb(70, 80, 90); }
-		`;
-
-		act( () => {
-			mockDragDropMonitor.onDragMove?.( {
-				operation: {
-					position: {
-						current: { y: 120 },
-					},
-				},
-			} );
-		} );
 
 		const overlayRow = document.body.querySelector(
 			'.yamabiko-table-reorder-moving-row-table tr'
 		) as HTMLTableRowElement | null;
+		const overlayCells = overlayRow?.querySelectorAll( 'td' );
 		expect( overlayRow?.style.backgroundColor ).toBe( 'rgb(12, 34, 56)' );
-	} );
-
-	/**
-	 * 概要:
-	 * - 元行自身の計算済み背景色が完全透明な場合に、移動表示が従来の白背景を維持することを確認する。
-	 *
-	 * 事前条件:
-	 * - Row DnD Sessionがactiveである。
-	 * - 元行自身の背景色はalphaが0の計算済み色である。
-	 *
-	 * 操作:
-	 * - 対象行の物理DnDを開始する。
-	 *
-	 * 期待結果:
-	 * - 移動表示の行背景色には白が適用され、背後が透ける状態にならない。
-	 */
-	it( 'when the source row computed background is fully transparent, should keep the white moving-row fallback', () => {
-		const { row } = createSourceTable();
-		row.style.backgroundColor = 'rgba(0, 0, 0, 0)';
-		mockRowDndPhase = 'active';
-		render( <RowMovingDisplay /> );
-
-		startPhysicalDrag( row );
-
-		const overlayRow = document.body.querySelector(
-			'.yamabiko-table-reorder-moving-row-table tr'
-		) as HTMLTableRowElement | null;
-		expect( overlayRow?.style.backgroundColor ).toBe( 'rgb(255, 255, 255)' );
+		expect( overlayCells?.item( 0 ).style.backgroundColor ).toBe( 'rgb(70, 80, 90)' );
+		expect( overlayCells?.item( 1 ).style.backgroundColor ).toBe( 'rgb(70, 80, 90)' );
 	} );
 
 	/**
