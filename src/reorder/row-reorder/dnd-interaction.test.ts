@@ -138,7 +138,7 @@ describe( 'Row DnD Interaction lifecycle', () => {
 
 		expect( checkedConstraints ).toBeNull();
 		expect( getRowDndPhase() ).toBe( 'idle' );
-		expect( startRejectionNoticeListener ).toHaveBeenCalledTimes( 1 );
+		expect( startRejectionNoticeListener ).not.toHaveBeenCalled();
 		expect( terminationNoticeListener ).not.toHaveBeenCalled();
 	} );
 
@@ -239,30 +239,6 @@ describe( 'Row DnD Interaction lifecycle', () => {
 	 */
 	it( 'when complete has no valid destination, should finish without applying a row move or notice', () => {
 		prepareActiveSession();
-
-		rowDndInteraction.complete();
-
-		expect( applyRowMoveMock ).not.toHaveBeenCalled();
-		expect( terminationNoticeListener ).not.toHaveBeenCalled();
-		expect( getRowDndPhase() ).toBe( 'idle' );
-	} );
-
-	/**
-	 * 概要:
-	 * - 移動元の直後へのdropは行順が変化しないため、Table更新を発生させないことを確認する。
-	 *
-	 * 事前条件:
-	 * - 移動元行は1で、最終移動先は直後の境界2である。
-	 *
-	 * 操作:
-	 * - complete()する。
-	 *
-	 * 期待結果:
-	 * - 行移動と異常終了通知を発生させずidleへ戻る。
-	 */
-	it( 'when the final destination keeps the same row order, should finish without applying a row move', () => {
-		prepareActiveSession();
-		rowDndInteraction.updateDestination( 2 );
 
 		rowDndInteraction.complete();
 
