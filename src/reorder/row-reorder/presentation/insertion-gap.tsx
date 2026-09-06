@@ -121,12 +121,6 @@ const resolveInsertionGapLayout = (
 	}
 
 	const { boundaryOffsets, sourceRowHeight, sourceRowIndex } = sessionLayout;
-
-	/* 移動元の直前または直後は順序が変わらないため、挿入空間を表示しない。 */
-	if ( boundaryIndex === sourceRowIndex || boundaryIndex === sourceRowIndex + 1 ) {
-		return null;
-	}
-
 	const destinationBoundaryOffset = boundaryOffsets[ boundaryIndex ];
 
 	/* DnD Interactionが扱う行境界の範囲外は、表示側で推測して補正しない。 */
@@ -137,7 +131,7 @@ const resolveInsertionGapLayout = (
 	let gapTopOffset = destinationBoundaryOffset;
 
 	/* 下方向への移動では、押し上げられた行の直後に空く領域へ1行分の表示を合わせる。 */
-	if ( boundaryIndex > sourceRowIndex + 1 ) {
+	if ( boundaryIndex > sourceRowIndex ) {
 		gapTopOffset -= sourceRowHeight;
 	}
 
