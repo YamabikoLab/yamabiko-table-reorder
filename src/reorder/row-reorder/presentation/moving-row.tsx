@@ -24,7 +24,6 @@ type RowMovingDisplayLayout = {
 	sourceRow: HTMLTableRowElement;
 	sourceTable: HTMLTableElement;
 	rowHeight: number;
-	tableBackgroundColor: string;
 	rowBackgroundColor: string;
 	tableWidth: number;
 	visibleWidth: number;
@@ -92,8 +91,7 @@ const resolveMovingDisplayLayout = (
 	/* 内容量に左右されず元行の列配置を維持できるよう、DnD開始時の各セル幅を確定する。 */
 	const cellWidths = Array.from( sourceRow.cells, ( cell ) => cell.getBoundingClientRect().width );
 
-	/* 元Table内の位置や親要素に依存する背景表示も維持できるよう、DnD開始時の計算済み背景色を確定する。 */
-	const tableBackgroundColor = editorContext.window.getComputedStyle( sourceTable ).backgroundColor;
+	/* 元Table内の位置や親要素に依存する背景表示も維持できるよう、DnD開始時の行と各セルの計算済み背景色を確定する。 */
 	const rowBackgroundColor = editorContext.window.getComputedStyle( sourceRow ).backgroundColor;
 	const cellBackgroundColors = Array.from(
 		sourceRow.cells,
@@ -104,7 +102,6 @@ const resolveMovingDisplayLayout = (
 		sourceRow,
 		sourceTable,
 		rowHeight: rowRectangle.height,
-		tableBackgroundColor,
 		rowBackgroundColor,
 		tableWidth: tableRectangle.width,
 		visibleWidth,
@@ -205,7 +202,6 @@ const RowMovingOverlay = ( props: {
 	const tableStyle: CSSProperties = {
 		left: layout.tableOffsetLeft,
 		width: layout.tableWidth,
-		backgroundColor: layout.tableBackgroundColor,
 	};
 	const sourceTableClasses = layout.sourceTable.className;
 	const movingTableClasses =
