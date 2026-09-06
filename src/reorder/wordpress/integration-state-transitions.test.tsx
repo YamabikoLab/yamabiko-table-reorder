@@ -27,9 +27,19 @@ jest.mock( '@wordpress/preferences', () => ( {
 } ) );
 
 jest.mock( '@wordpress/data', () => ( {
-	select: () => ( {
-		getBlock: ( clientId: string ) => mockBlocks.get( clientId ) ?? null,
-		getSelectedBlockClientId: () => mockSelectedBlockClientId,
+	select: ( store: unknown ) => {
+		if ( store === 'preferences-store' ) {
+			return {
+				get: () => true,
+			};
+		}
+		return {
+			getBlock: ( clientId: string ) => mockBlocks.get( clientId ) ?? null,
+			getSelectedBlockClientId: () => mockSelectedBlockClientId,
+		};
+	},
+	dispatch: () => ( {
+		set: jest.fn(),
 	} ),
 } ) );
 
