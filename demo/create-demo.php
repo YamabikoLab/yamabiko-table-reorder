@@ -2,7 +2,7 @@
 require_once '/wordpress/wp-load.php';
 
 $page_id      = 100;
-$demo_version = '0.4.0';
+$demo_version = '0.5.0';
 
 if ( get_post( $page_id ) ) {
 	wp_delete_post( $page_id, true );
@@ -219,16 +219,16 @@ $flexible_table      =
 $content = implode(
 	'',
 	[
-		'<!-- wp:paragraph --><p>マウス・タッチ・キーボードで、WordPress Core Table と Flexible Table Block の行を並べ替えられます。まずは下の30秒チャレンジを試してみてください。</p><!-- /wp:paragraph -->',
+		'<!-- wp:paragraph --><p>WordPress Core Table と Flexible Table Block で、マウスまたはタッチによる行のドラッグ＆ドロップを試せます。Table を選択し、ツールバーの「行を並び替え」から行並び替えモードを開始してください。</p><!-- /wp:paragraph -->',
 		'<!-- wp:heading --><h2 class="wp-block-heading">30秒チャレンジ</h2><!-- /wp:heading -->',
-		'<!-- wp:list {"ordered":true} --><ol class="wp-block-list"><li>通常の行を1つ動かす</li><li>Undo で元に戻す</li><li>7〜8行目の縦結合行を動かそうとして、制限されることを確認する</li></ol><!-- /wp:list -->',
+		'<!-- wp:list {"ordered":true} --><ol class="wp-block-list"><li>通常の行を1つドラッグして移動する</li><li>Undo で元に戻す</li><li>7〜8行目の縦結合をまたぐ位置へ移動できないことを確認する</li></ol><!-- /wp:list -->',
 		'<!-- wp:separator --><hr class="wp-block-separator has-alpha-channel-opacity"/><!-- /wp:separator -->',
 		'<!-- wp:heading --><h2 class="wp-block-heading">WordPress Core Table：日本の山30座</h2><!-- /wp:heading -->',
-		'<!-- wp:paragraph --><p>基本の行並べ替えを試すエリアです。7〜8行目の所在地は縦結合、14行目の山名＋標高は横結合です。</p><!-- /wp:paragraph -->',
+		'<!-- wp:paragraph --><p>基本の行並び替えを試すエリアです。7〜8行目の所在地は縦結合、14行目の山名＋標高は横結合です。</p><!-- /wp:paragraph -->',
 		$core_table,
 		'<!-- wp:separator --><hr class="wp-block-separator has-alpha-channel-opacity"/><!-- /wp:separator -->',
 		'<!-- wp:heading --><h2 class="wp-block-heading">Flexible Table Block：世界の山30座</h2><!-- /wp:heading -->',
-		'<!-- wp:paragraph --><p>書式付きセルや結合セルなどを試せる実験的なエリアです。標高順の30座で、7〜8行目の所在地は縦結合、14行目の山名＋標高は横結合です。RichText、リンク、インラインコード、改行、scope、class、セルスタイルも含めています。</p><!-- /wp:paragraph -->',
+		'<!-- wp:paragraph --><p>書式付きセルや結合セルを含むTableで行並び替えを試すエリアです。7〜8行目の所在地は縦結合、14行目の山名＋標高は横結合です。RichText、リンク、インラインコード、改行、scope、class、セルスタイルも含めています。</p><!-- /wp:paragraph -->',
 		$flexible_table,
 		'<!-- wp:paragraph --><p>不具合や気づいた点があれば、<a href="https://github.com/YamabikoLab/yamabiko-table-reorder/issues">GitHub Issues</a> からお知らせください。</p><!-- /wp:paragraph -->',
 		sprintf(
@@ -271,19 +271,14 @@ if ( $user ) {
 	}
 
 	if (
-		isset( $preferences['yamabiko-editor-tools'] ) &&
-		is_array( $preferences['yamabiko-editor-tools'] )
+		! isset( $preferences['yamabiko-table-reorder'] ) ||
+		! is_array( $preferences['yamabiko-table-reorder'] )
 	) {
-		unset(
-			$preferences['yamabiko-editor-tools']['tableReorderKeyboardCoachmarkDismissed'],
-			$preferences['yamabiko-editor-tools']['tableReorderTouchCoachmarkDismissed']
-		);
-
-		if ( empty( $preferences['yamabiko-editor-tools'] ) ) {
-			unset( $preferences['yamabiko-editor-tools'] );
-		}
+		$preferences['yamabiko-table-reorder'] = [];
 	}
 
+	$preferences['yamabiko-table-reorder']['initialGuidanceAcknowledgedPc']    = false;
+	$preferences['yamabiko-table-reorder']['initialGuidanceAcknowledgedTouch'] = false;
 	$preferences['_modified'] = gmdate( 'c' );
 
 	update_user_meta( $user->ID, $meta_key, $preferences );

@@ -10,13 +10,15 @@ Tableツールバーから行並び替えモードへ切り替え、Mouse / Touc
 
 列並び替えは0.5.0には含まれません。現在、次の機能として開発中です。
 
-## Prototype v0.4.0 デモ
+## v0.5.0 デモ
 
-既に共有済みのWordPress Playgroundデモは、**YTR Prototype v0.4.0の保存済みデモ**として引き続き利用できます。
+WordPress Playgroundで、**Yamabiko Table Reorder v0.5.0のRow Reorder**を試せます。
 
-[▶ Prototype v0.4.0のデモを開く](https://playground.wordpress.net/?blueprint-url=https://raw.githubusercontent.com/YamabikoLab/yamabiko-table-reorder/main/demo/blueprint.json)
+[▶ v0.5.0のデモを開く](https://playground.wordpress.net/?blueprint-url=https://raw.githubusercontent.com/YamabikoLab/yamabiko-table-reorder/main/demo/blueprint.json)
 
-このデモはv0.4.0 releaseを明示的にインストールします。0.5.0の現在の実装を示すものではありません。Prototypeの実装や設計を参照する場合は`prototype-final` tagを使用してください。
+デモではWordPress Core TableとFlexible Table Blockを用意しており、Mouse / Touchによる行のDnDと、結合セルを含むTableでの移動制約を確認できます。
+
+Prototype v0.4.0の実装や設計を参照する場合は`prototype-final` tagを使用してください。
 
 ## Versioning
 

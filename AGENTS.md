@@ -7,8 +7,8 @@ These instructions apply to the entire repository.
 - The implementation through 0.4.0 is **YTR Prototype** and is preserved by the `prototype-final` tag.
 - Do not restore Prototype code, tests, design documents, implementation plans, dependencies, or directory structure merely to preserve the old shape.
 - Use `prototype-final` when historical implementation or documentation is needed as reference material.
-- Treat formal v1 as a design and implementation generation. Release version history continues from 0.4.0, with the next release using 0.5.0.
-- `demo/` is intentionally retained as the shared Prototype v0.4.0 demo. Do not treat it as evidence of the current `main` implementation.
+- Treat formal v1 as a design and implementation generation. 0.5.0 is the first formal v1 Row Reorder release.
+- `demo/` contains the shared WordPress Playground demo for the current released implementation.
 
 ## Repository boundaries
 
