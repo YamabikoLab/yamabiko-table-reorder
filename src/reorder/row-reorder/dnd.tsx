@@ -19,7 +19,7 @@ import {
 	type DragStartEvent,
 } from '@dnd-kit/dom';
 import { DragDropProvider } from '@dnd-kit/react';
-import { useEffect, useRef } from '@wordpress/element';
+import { useCallback, useEffect, useRef } from '@wordpress/element';
 import type { ReactNode } from 'react';
 
 import { rowDndInteraction } from './dnd-interaction';
@@ -65,25 +65,25 @@ export const RowDnd = ( props: {
 		{ status: 'resolved' }
 	> | null >( null );
 
-	useEffect( () => {
-		/* 行並び替えが無効になった時点で、通常編集や別モードへ解決結果と物理DnD登録を持ち越さない。 */
-		if ( ! enabled ) {
-			resolvedStart.current = null;
-			destinationResolver.current = null;
-			activeDraggable.current?.destroy();
-			activeDraggable.current = null;
-		}
-	}, [ enabled ] );
+	/** 次の開始入力や通常編集へ持ち越せないDnD接続境界の一時状態をまとめて破棄する。 */
+	const clearTransientDndState = useCallback( (): void => {
+		resolvedStart.current = null;
+		destinationResolver.current = null;
+		activeDraggable.current?.destroy();
+		activeDraggable.current = null;
+	}, [] );
 
 	useEffect( () => {
-		return () => {
-			/* TableのDnD接続終了時は、未使用の解決結果、移動先解決境界、物理DnD登録を残さない。 */
-			resolvedStart.current = null;
-			destinationResolver.current = null;
-			activeDraggable.current?.destroy();
-			activeDraggable.current = null;
-		};
-	}, [] );
+		/* 行並び替えが無効になった時点で、通常編集や別モードへ一時状態を持ち越さない。 */
+		if ( ! enabled ) {
+			clearTransientDndState();
+		}
+	}, [ enabled, clearTransientDndState ] );
+
+	useEffect( () => {
+		/* TableのDnD接続終了時は、未使用の解決結果、移動先解決境界、物理DnD登録を残さない。 */
+		return clearTransientDndState;
+	}, [ clearTransientDndState ] );
 
 	const onBeforeDragStart = ( event: BeforeDragStartEvent ) => {
 		const target = event?.operation?.source?.data as RowReorderTarget;
@@ -91,10 +91,8 @@ export const RowDnd = ( props: {
 
 		/* 開始入力後のTable状態変化で開始対象が成立しなくなった場合は、利用者向け通知を重複させず物理DnDだけを開始しない。 */
 		if ( resolution.status !== 'resolved' ) {
-			resolvedStart.current = null;
 			event.preventDefault();
-			activeDraggable.current?.destroy();
-			activeDraggable.current = null;
+			clearTransientDndState();
 			return;
 		}
 
@@ -126,11 +124,8 @@ export const RowDnd = ( props: {
 	};
 
 	const onDragEnd = ( event: DragEndEvent ) => {
-		/* 物理DnD終了時は、次回入力へ持ち越してはならない解決結果、移動先解決境界、一時登録を破棄する。 */
-		resolvedStart.current = null;
-		destinationResolver.current = null;
-		activeDraggable.current?.destroy();
-		activeDraggable.current = null;
+		/* 物理DnD終了時は、次回入力へ持ち越してはならない一時状態を破棄する。 */
+		clearTransientDndState();
 
 		/* 物理DnDが取消で終了した場合は、行並び替えを確定せずSessionを取消する。 */
 		if ( event.canceled ) {
