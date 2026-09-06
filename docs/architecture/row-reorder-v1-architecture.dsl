@@ -73,12 +73,6 @@ workspace "YTR Reorder v1 Architecture" {
 				element.setGroup("Row Reorder")
 			}
 		}
-		RESP_ROW_AUTO_SCROLL = element "Auto Scroll" "Responsibility" "行DnD中に許可する縦方向と対象Tableに必要なスクロール範囲を決定し、物理的な実行をDnD Engineへ委ねる。" {
-			tags "Responsibility"
-			!script groovy {
-				element.setGroup("Row Reorder")
-			}
-		}
 
 		DEP_001 = RESP_REORDER_MODE -> EXT_WORDPRESS_EDITOR "WordPress Editor上のTableツールバー入口、通常編集と行・列並び替えの排他、および対象Table単位のモードLifecycleを扱うために必要とする。" {
 			tags "Structural Dependency"
@@ -131,16 +125,7 @@ workspace "YTR Reorder v1 Architecture" {
 		DEP_017 = RESP_ROW_PRESENTATION -> RESP_ROW_DND_INTERACTION "現在の有効な移動先、移動不可理由、終了時の表示解除、およびDesign上の通知要否を表示状態へ反映するために必要とする。" {
 			tags "Structural Dependency"
 		}
-		DEP_018 = RESP_ROW_AUTO_SCROLL -> RESP_ROW_DND_INTERACTION "activeな行DnD状態と終了状態を自動スクロール判断に必要とする。" {
-			tags "Structural Dependency"
-		}
-		DEP_019 = RESP_ROW_AUTO_SCROLL -> RESP_EDITOR_DOM_CONTEXT "現在のeditor contextでスクロール許可範囲を扱うために必要とする。" {
-			tags "Structural Dependency"
-		}
-		DEP_020 = RESP_ROW_AUTO_SCROLL -> EXT_SCROLL_AREA "行DnD中に縦方向へスクロールできる外部領域を必要とする。" {
-			tags "Structural Dependency"
-		}
-		DEP_021 = RESP_ROW_AUTO_SCROLL -> EXT_DND_ENGINE "許可した縦方向と範囲内で物理的な自動スクロールを実行する境界として必要とする。" {
+		DEP_018 = EXT_DND_ENGINE -> EXT_SCROLL_AREA "行DnD中に縦方向の自動スクロールを実行する対象領域として必要とする。" {
 			tags "Structural Dependency"
 		}
 
@@ -168,10 +153,7 @@ workspace "YTR Reorder v1 Architecture" {
 		PF_008 = RESP_ROW_DND_INTERACTION -> RESP_ROW_PRESENTATION "[recovery] DnD中だけの表示状態を解除し、安全な操作継続不能による終了ではDesignで定義された通知を要求する。" {
 			tags "Process Flow,ProcessFlow_PV_ROW_EXTERNAL_CHANGE_RECOVERY,recovery"
 		}
-		PF_009 = RESP_ROW_DND_INTERACTION -> RESP_ROW_AUTO_SCROLL "[recovery] 行DnDの自動スクロール一時状態を終了する。" {
-			tags "Process Flow,ProcessFlow_PV_ROW_EXTERNAL_CHANGE_RECOVERY,recovery"
-		}
-		PF_010 = RESP_ROW_DND_INTERACTION -> RESP_REORDER_MODE "[recovery] DnD終了後に現在のTableで行並び替えモードを安全に継続できるかを外側のモード境界へ渡す。" {
+		PF_009 = RESP_ROW_DND_INTERACTION -> RESP_REORDER_MODE "[recovery] DnD終了後に現在のTableで行並び替えモードを安全に継続できるかを外側のモード境界へ渡す。" {
 			tags "Process Flow,ProcessFlow_PV_ROW_EXTERNAL_CHANGE_RECOVERY,recovery"
 		}
 
@@ -236,107 +218,83 @@ workspace "YTR Reorder v1 Architecture" {
 				"runtime.RV_ROW_DND_PROGRESS.step.2" "現在の有効な移動先とRow Reorderの表示意味を更新する。"
 			}
 		}
-		RT_011 = RESP_ROW_DND_INTERACTION -> RESP_ROW_AUTO_SCROLL "active DnDに対する縦方向自動スクロール許可の更新を要求する。" {
+		RT_011 = EXT_DND_ENGINE -> EXT_SCROLL_AREA "行DnDの移動に必要な場合だけ縦方向へ自動スクロールする。" {
 			tags "Runtime Interaction,Runtime_RV_ROW_DND_PROGRESS"
 			properties {
-				"runtime.RV_ROW_DND_PROGRESS.step.3" "active DnDに対する縦方向自動スクロール許可の更新を要求する。"
+				"runtime.RV_ROW_DND_PROGRESS.step.3" "行DnDの移動に必要な場合だけ縦方向へ自動スクロールする。"
 			}
 		}
-		RT_012 = RESP_ROW_AUTO_SCROLL -> EXT_DND_ENGINE "対象Tableに必要な縦方向と許可範囲を提供する。" {
-			tags "Runtime Interaction,Runtime_RV_ROW_DND_PROGRESS"
-			properties {
-				"runtime.RV_ROW_DND_PROGRESS.step.4" "対象Tableに必要な縦方向と許可範囲を提供する。"
-			}
-		}
-		RT_013 = EXT_DND_ENGINE -> EXT_SCROLL_AREA "許可範囲内で必要な場合だけ物理的な自動スクロールを実行する。" {
-			tags "Runtime Interaction,Runtime_RV_ROW_DND_PROGRESS"
-			properties {
-				"runtime.RV_ROW_DND_PROGRESS.step.5" "許可範囲内で必要な場合だけ物理的な自動スクロールを実行する。"
-			}
-		}
-		RT_014 = EXT_DND_ENGINE -> RESP_ROW_DND_INTERACTION "物理的なDnD終了をcompleteまたはcancelとして解釈する境界へ渡す。" {
+		RT_012 = EXT_DND_ENGINE -> RESP_ROW_DND_INTERACTION "物理的なDnD終了をcompleteまたはcancelとして解釈する境界へ渡す。" {
 			tags "Runtime Interaction,Runtime_RV_ROW_DND_COMPLETE"
 			properties {
 				"runtime.RV_ROW_DND_COMPLETE.step.1" "物理的なDnD終了をcompleteまたはcancelとして解釈する境界へ渡す。"
 			}
 		}
-		RT_015 = RESP_ROW_DND_INTERACTION -> RESP_ROW_TABLE_INTEGRATION "completeでは現在のTable同一性と行構造を要求する。" {
+		RT_013 = RESP_ROW_DND_INTERACTION -> RESP_ROW_TABLE_INTEGRATION "completeでは現在のTable同一性と行構造を要求する。" {
 			tags "Runtime Interaction,Runtime_RV_ROW_DND_COMPLETE"
 			properties {
 				"runtime.RV_ROW_DND_COMPLETE.step.2" "completeでは現在のTable同一性と行構造を要求する。"
 			}
 		}
-		RT_016 = RESP_ROW_DND_INTERACTION -> RESP_ROW_TABLE_INTEGRATION "現在も成立し、実際に行順が変化することを確認できた場合だけ確定済み行移動の反映を要求する。" {
+		RT_014 = RESP_ROW_DND_INTERACTION -> RESP_ROW_TABLE_INTEGRATION "現在も成立し、実際に行順が変化することを確認できた場合だけ確定済み行移動の反映を要求する。" {
 			tags "Runtime Interaction,Runtime_RV_ROW_DND_COMPLETE"
 			properties {
 				"runtime.RV_ROW_DND_COMPLETE.step.4" "現在も成立し、実際に行順が変化することを確認できた場合だけ確定済み行移動の反映を要求する。"
 			}
 		}
-		RT_017 = RESP_ROW_TABLE_INTEGRATION -> EXT_SUPPORTED_TABLE_BLOCK "tbodyの行順だけを確定結果として更新する。" {
+		RT_015 = RESP_ROW_TABLE_INTEGRATION -> EXT_SUPPORTED_TABLE_BLOCK "tbodyの行順だけを確定結果として更新する。" {
 			tags "Runtime Interaction,Runtime_RV_ROW_DND_COMPLETE"
 			properties {
 				"runtime.RV_ROW_DND_COMPLETE.step.5" "tbodyの行順だけを確定結果として更新する。"
 			}
 		}
-		RT_018 = RESP_ROW_TABLE_INTEGRATION -> EXT_WORDPRESS_UNDO "成立した行並び替えを1回のUndoで戻せる更新単位として維持する。" {
+		RT_016 = RESP_ROW_TABLE_INTEGRATION -> EXT_WORDPRESS_UNDO "成立した行並び替えを1回のUndoで戻せる更新単位として維持する。" {
 			tags "Runtime Interaction,Runtime_RV_ROW_DND_COMPLETE"
 			properties {
 				"runtime.RV_ROW_DND_COMPLETE.step.6" "成立した行並び替えを1回のUndoで戻せる更新単位として維持する。"
 			}
 		}
-		RT_019 = RESP_ROW_DND_INTERACTION -> RESP_ROW_PRESENTATION "DnD中だけの表示を終了する。" {
+		RT_017 = RESP_ROW_DND_INTERACTION -> RESP_ROW_PRESENTATION "DnD中だけの表示を終了する。" {
 			tags "Runtime Interaction,Runtime_RV_ROW_DND_COMPLETE"
 			properties {
 				"runtime.RV_ROW_DND_COMPLETE.step.7" "DnD中だけの表示を終了する。"
 			}
 		}
-		RT_020 = RESP_ROW_DND_INTERACTION -> RESP_ROW_AUTO_SCROLL "行DnDの自動スクロール許可状態を終了する。" {
-			tags "Runtime Interaction,Runtime_RV_ROW_DND_COMPLETE"
-			properties {
-				"runtime.RV_ROW_DND_COMPLETE.step.8" "行DnDの自動スクロール許可状態を終了する。"
-			}
-		}
-		RT_021 = EXT_DND_ENGINE -> RESP_ROW_INPUT_INTERACTION "DnD終了またはcancelのLifecycleを通知し、Input Interactionが自身の開始候補と入力一時状態を破棄する。" {
+		RT_018 = EXT_DND_ENGINE -> RESP_ROW_INPUT_INTERACTION "DnD終了またはcancelのLifecycleを通知し、Input Interactionが自身の開始候補と入力一時状態を破棄する。" {
 			tags "Runtime Interaction,Runtime_RV_ROW_DND_COMPLETE,Runtime_RV_ROW_DND_EXTERNAL_ABORT"
 			properties {
-				"runtime.RV_ROW_DND_COMPLETE.step.9" "DnD終了またはcancelのLifecycleを通知し、Input Interactionが自身の開始候補と入力一時状態を破棄する。"
-				"runtime.RV_ROW_DND_EXTERNAL_ABORT.step.5" "DnD終了またはcancelのLifecycleを通知し、Input Interactionが自身の開始候補と入力一時状態を破棄する。"
+				"runtime.RV_ROW_DND_COMPLETE.step.8" "DnD終了またはcancelのLifecycleを通知し、Input Interactionが自身の開始候補と入力一時状態を破棄する。"
+				"runtime.RV_ROW_DND_EXTERNAL_ABORT.step.4" "DnD終了またはcancelのLifecycleを通知し、Input Interactionが自身の開始候補と入力一時状態を破棄する。"
 			}
 		}
-		RT_022 = RESP_ROW_DND_INTERACTION -> RESP_REORDER_MODE "complete終了後も現在のTableで行並び替えモードを維持できる結果を渡す。" {
+		RT_019 = RESP_ROW_DND_INTERACTION -> RESP_REORDER_MODE "complete終了後も現在のTableで行並び替えモードを維持できる結果を渡す。" {
 			tags "Runtime Interaction,Runtime_RV_ROW_DND_COMPLETE"
 			properties {
-				"runtime.RV_ROW_DND_COMPLETE.step.10" "complete終了後も現在のTableで行並び替えモードを維持できる結果を渡す。"
+				"runtime.RV_ROW_DND_COMPLETE.step.9" "complete終了後も現在のTableで行並び替えモードを維持できる結果を渡す。"
 			}
 		}
-		RT_023 = RESP_ROW_DND_INTERACTION -> RESP_ROW_TABLE_INTEGRATION "complete時は現在の対象Table情報を要求する。" {
+		RT_020 = RESP_ROW_DND_INTERACTION -> RESP_ROW_TABLE_INTEGRATION "complete時は現在の対象Table情報を要求する。" {
 			tags "Runtime Interaction,Runtime_RV_ROW_DND_EXTERNAL_ABORT"
 			properties {
 				"runtime.RV_ROW_DND_EXTERNAL_ABORT.step.1" "complete時は現在の対象Table情報を要求する。"
 			}
 		}
-		RT_024 = RESP_ROW_TABLE_INTEGRATION -> RESP_ROW_DND_INTERACTION "現在のTable情報、または対象Tableが利用できない正常な不在を返す。" {
+		RT_021 = RESP_ROW_TABLE_INTEGRATION -> RESP_ROW_DND_INTERACTION "現在のTable情報、または対象Tableが利用できない正常な不在を返す。" {
 			tags "Runtime Interaction,Runtime_RV_ROW_DND_EXTERNAL_ABORT"
 			properties {
 				"runtime.RV_ROW_DND_EXTERNAL_ABORT.step.2" "現在のTable情報、または対象Tableが利用できない正常な不在を返す。"
 			}
 		}
-		RT_025 = RESP_ROW_DND_INTERACTION -> RESP_ROW_PRESENTATION "DnD中だけの表示を解除し、安全な操作継続不能による終了としてDesignで定義された通知を要求する。" {
+		RT_022 = RESP_ROW_DND_INTERACTION -> RESP_ROW_PRESENTATION "DnD中だけの表示を解除し、安全な操作継続不能による終了としてDesignで定義された通知を要求する。" {
 			tags "Runtime Interaction,Runtime_RV_ROW_DND_EXTERNAL_ABORT"
 			properties {
 				"runtime.RV_ROW_DND_EXTERNAL_ABORT.step.3" "DnD中だけの表示を解除し、安全な操作継続不能による終了としてDesignで定義された通知を要求する。"
 			}
 		}
-		RT_026 = RESP_ROW_DND_INTERACTION -> RESP_ROW_AUTO_SCROLL "自動スクロール許可状態を終了する。" {
+		RT_023 = RESP_ROW_DND_INTERACTION -> RESP_REORDER_MODE "現在のTableで行並び替えモードを安全に継続できるかという結果を渡す。" {
 			tags "Runtime Interaction,Runtime_RV_ROW_DND_EXTERNAL_ABORT"
 			properties {
-				"runtime.RV_ROW_DND_EXTERNAL_ABORT.step.4" "自動スクロール許可状態を終了する。"
-			}
-		}
-		RT_027 = RESP_ROW_DND_INTERACTION -> RESP_REORDER_MODE "現在のTableで行並び替えモードを安全に継続できるかという結果を渡す。" {
-			tags "Runtime Interaction,Runtime_RV_ROW_DND_EXTERNAL_ABORT"
-			properties {
-				"runtime.RV_ROW_DND_EXTERNAL_ABORT.step.6" "現在のTableで行並び替えモードを安全に継続できるかという結果を渡す。"
+				"runtime.RV_ROW_DND_EXTERNAL_ABORT.step.5" "現在のTableで行並び替えモードを安全に継続できるかという結果を渡す。"
 			}
 		}
 	}
@@ -344,7 +302,7 @@ workspace "YTR Reorder v1 Architecture" {
 	views {
 		systemLandscape "DV_ROW_RESPONSIBILITY" {
 			title "Structural Dependencies - Responsibility View"
-			include EXT_WORDPRESS_EDITOR EXT_SUPPORTED_TABLE_BLOCK EXT_WORDPRESS_UNDO EXT_SCROLL_AREA EXT_DND_ENGINE RESP_REORDER_MODE RESP_REORDER_GUIDANCE RESP_EDITOR_DOM_CONTEXT RESP_ROW_INPUT_INTERACTION RESP_ROW_TABLE_INTEGRATION RESP_ROW_DND_INTERACTION RESP_ROW_PRESENTATION RESP_ROW_AUTO_SCROLL
+			include EXT_WORDPRESS_EDITOR EXT_SUPPORTED_TABLE_BLOCK EXT_WORDPRESS_UNDO EXT_SCROLL_AREA EXT_DND_ENGINE RESP_REORDER_MODE RESP_REORDER_GUIDANCE RESP_EDITOR_DOM_CONTEXT RESP_ROW_INPUT_INTERACTION RESP_ROW_TABLE_INTEGRATION RESP_ROW_DND_INTERACTION RESP_ROW_PRESENTATION
 			exclude "relationship.tag!=Structural Dependency"
 			autoLayout lr
 		}
@@ -365,7 +323,7 @@ workspace "YTR Reorder v1 Architecture" {
 
 		systemLandscape "DV_ROW_FEEDBACK" {
 			title "Structural Dependencies - DnD Feedback"
-			include EXT_SCROLL_AREA EXT_DND_ENGINE RESP_EDITOR_DOM_CONTEXT RESP_ROW_DND_INTERACTION RESP_ROW_PRESENTATION RESP_ROW_AUTO_SCROLL
+			include EXT_SCROLL_AREA EXT_DND_ENGINE RESP_EDITOR_DOM_CONTEXT RESP_ROW_DND_INTERACTION RESP_ROW_PRESENTATION
 			exclude "relationship.tag!=Structural Dependency"
 			autoLayout lr
 		}
@@ -386,7 +344,7 @@ workspace "YTR Reorder v1 Architecture" {
 
 		custom "PV_ROW_EXTERNAL_CHANGE_RECOVERY" {
 			title "Process Flow [Failure / Recovery] - External Environment Change and Recovery"
-			include RESP_ROW_INPUT_INTERACTION RESP_ROW_DND_INTERACTION RESP_ROW_TABLE_INTEGRATION RESP_ROW_PRESENTATION RESP_ROW_AUTO_SCROLL RESP_REORDER_MODE
+			include RESP_ROW_INPUT_INTERACTION RESP_ROW_DND_INTERACTION RESP_ROW_TABLE_INTEGRATION RESP_ROW_PRESENTATION RESP_REORDER_MODE
 			exclude "relationship.tag!=ProcessFlow_PV_ROW_EXTERNAL_CHANGE_RECOVERY"
 			autoLayout lr
 		}
@@ -403,30 +361,30 @@ workspace "YTR Reorder v1 Architecture" {
 
 		custom "RV_ROW_DND_PROGRESS" {
 			title "Runtime - Row DnD progress"
-			include EXT_DND_ENGINE RESP_ROW_DND_INTERACTION RESP_ROW_PRESENTATION RESP_ROW_AUTO_SCROLL EXT_SCROLL_AREA
+			include EXT_DND_ENGINE RESP_ROW_DND_INTERACTION RESP_ROW_PRESENTATION EXT_SCROLL_AREA
 			exclude "relationship.tag!=Runtime_RV_ROW_DND_PROGRESS"
 			properties {
-				"runtime.steps" "1=RT_009;2=RT_010;3=RT_011;4=RT_012;5=RT_013"
+				"runtime.steps" "1=RT_009;2=RT_010;3=RT_011"
 			}
 			autoLayout lr
 		}
 
 		custom "RV_ROW_DND_COMPLETE" {
 			title "Runtime - Row DnD complete"
-			include EXT_DND_ENGINE RESP_ROW_DND_INTERACTION RESP_ROW_TABLE_INTEGRATION EXT_SUPPORTED_TABLE_BLOCK EXT_WORDPRESS_UNDO RESP_ROW_PRESENTATION RESP_ROW_AUTO_SCROLL RESP_ROW_INPUT_INTERACTION RESP_REORDER_MODE
+			include EXT_DND_ENGINE RESP_ROW_DND_INTERACTION RESP_ROW_TABLE_INTEGRATION EXT_SUPPORTED_TABLE_BLOCK EXT_WORDPRESS_UNDO RESP_ROW_PRESENTATION RESP_ROW_INPUT_INTERACTION RESP_REORDER_MODE
 			exclude "relationship.tag!=Runtime_RV_ROW_DND_COMPLETE"
 			properties {
-				"runtime.steps" "1=RT_014;2=RT_015;3=RT_004;4=RT_016;5=RT_017;6=RT_018;7=RT_019;8=RT_020;9=RT_021;10=RT_022"
+				"runtime.steps" "1=RT_012;2=RT_013;3=RT_004;4=RT_014;5=RT_015;6=RT_016;7=RT_017;8=RT_018;9=RT_019"
 			}
 			autoLayout lr
 		}
 
 		custom "RV_ROW_DND_EXTERNAL_ABORT" {
 			title "Runtime - Row DnD external change abort"
-			include RESP_ROW_DND_INTERACTION RESP_ROW_TABLE_INTEGRATION RESP_ROW_PRESENTATION RESP_ROW_AUTO_SCROLL EXT_DND_ENGINE RESP_ROW_INPUT_INTERACTION RESP_REORDER_MODE
+			include RESP_ROW_DND_INTERACTION RESP_ROW_TABLE_INTEGRATION RESP_ROW_PRESENTATION EXT_DND_ENGINE RESP_ROW_INPUT_INTERACTION RESP_REORDER_MODE
 			exclude "relationship.tag!=Runtime_RV_ROW_DND_EXTERNAL_ABORT"
 			properties {
-				"runtime.steps" "1=RT_023;2=RT_024;3=RT_025;4=RT_026;5=RT_021;6=RT_027"
+				"runtime.steps" "1=RT_020;2=RT_021;3=RT_022;4=RT_018;5=RT_023"
 			}
 			autoLayout lr
 		}
