@@ -12,7 +12,7 @@ import {
 	getRowDndDestinationBoundaryIndex,
 	getRowDndPhase,
 	subscribeRowDndState,
-} from './dnd-interaction';
+} from '@/reorder/row-reorder/responsibilities/dnd-interaction';
 
 /**
  * Reorder Presentationが行DnD中の表示開始・終了をReact描画へ反映するために利用する。
