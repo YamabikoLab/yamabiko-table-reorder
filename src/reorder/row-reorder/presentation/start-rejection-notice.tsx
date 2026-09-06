@@ -7,7 +7,7 @@
  */
 
 import { Snackbar } from '@wordpress/components';
-import { useEffect, useState } from '@wordpress/element';
+import { useEffect, useRef, useState } from '@wordpress/element';
 
 import { getRowDndStartRejectionMessage } from '@/messages';
 
@@ -26,22 +26,50 @@ type RowStartRejectionNoticeState = RowStartRejectionNoticeEvent & {
 /**
  * 行DnD開始拒否通知を、開始を試みた位置の近くへ短時間だけ表示する。
  *
+ * 新しい開始拒否が続けて発生した場合は表示時間をその通知から数え直し、先の通知終了によって最新通知を消さない。
+ *
  * @return 結合セルにより開始できなかった後だけ表示する一時メッセージ。それ以外はnull。
  */
 export const RowStartRejectionNotice = () => {
 	const [ notice, setNotice ] = useState< RowStartRejectionNoticeState | null >( null );
+	const sequence = useRef( 0 );
+	const timeoutId = useRef< ReturnType< typeof setTimeout > | null >( null );
 
 	useEffect( () => {
-		return subscribeRowStartRejection( ( event ) => {
+		const unsubscribe = subscribeRowStartRejection( ( event ) => {
+			sequence.current += 1;
+			const currentSequence = sequence.current;
+
+			if ( timeoutId.current !== null ) {
+				clearTimeout( timeoutId.current );
+			}
+
 			setNotice( {
 				...event,
-				sequence: Date.now(),
+				sequence: currentSequence,
 			} );
 
-			setTimeout( () => {
-				setNotice( null );
+			timeoutId.current = setTimeout( () => {
+				setNotice( ( current ) => {
+					const isTimeoutForCurrentNotice = current?.sequence === currentSequence;
+
+					/* 新しい通知へ切り替わっている場合は、先の通知に属する終了処理で表示を消さない。 */
+					if ( ! isTimeoutForCurrentNotice ) {
+						return current;
+					}
+
+					return null;
+				} );
 			}, NOTICE_DURATION );
 		} );
+
+		return () => {
+			unsubscribe();
+
+			if ( timeoutId.current !== null ) {
+				clearTimeout( timeoutId.current );
+			}
+		};
 	}, [] );
 
 	/* 開始拒否通知が発生していない間は利用者向けメッセージを表示しない。 */
