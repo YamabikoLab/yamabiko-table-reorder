@@ -52,10 +52,9 @@ describe( 'RowStartRejectionNotice', () => {
 		} );
 
 		expect( screen.queryByText( 'start rejection message' ) ).not.toBeNull();
-		expect( container.firstElementChild ).toHaveStyle( {
-			left: '120px',
-			top: '240px',
-		} );
+		const notice = container.firstElementChild as HTMLElement | null;
+		expect( notice?.style.left ).toBe( '120px' );
+		expect( notice?.style.top ).toBe( '240px' );
 	} );
 
 	/**
