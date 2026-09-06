@@ -43,7 +43,7 @@ export type RowReorderTargetResolution =
  *
  * 行並び替えモード中の表示判定では、Table構造を行ごとに再取得せず同じ制約を基準に開始可否を確認できる。
  */
-export type RowReorderTargetResolver = {
+type RowReorderTargetResolver = {
 	/**
 	 * 指定行を現在の解決基準に対するReorder Targetとして解決する。
 	 *
