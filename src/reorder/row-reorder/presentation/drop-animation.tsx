@@ -194,6 +194,13 @@ export const RowDropAnimation = () => {
 	const activeAnimation = useRef< ActiveDropAnimation | null >( null );
 	const terminated = useRef( false );
 
+	const clearSessionReferences = useCallback( (): void => {
+		editorContext.current = null;
+		sourceRow.current = null;
+		destinationBoundaryIndex.current = null;
+		snapshot.current = null;
+	}, [] );
+
 	const cancelScheduledCapture = useCallback( (): void => {
 		const currentFrame = captureFrame.current;
 		captureFrame.current = null;
@@ -386,20 +393,16 @@ export const RowDropAnimation = () => {
 			cancelScheduledCapture();
 			clearActiveAnimation();
 			terminated.current = false;
-			snapshot.current = null;
-			destinationBoundaryIndex.current = null;
-			sourceRow.current = null;
+			clearSessionReferences();
 
 			const sourceElement = event.operation.source?.element;
 			/* Row Reorderの移動対象としてtbody直下行を確認できない場合は、終了アニメーションを成立させない。 */
 			if ( ! sourceElement || sourceElement.tagName !== 'TR' ) {
-				editorContext.current = null;
 				return;
 			}
 
 			const candidate = sourceElement as HTMLTableRowElement;
 			if ( candidate.parentElement?.tagName !== 'TBODY' ) {
-				editorContext.current = null;
 				return;
 			}
 
@@ -422,10 +425,7 @@ export const RowDropAnimation = () => {
 				currentContext === null ||
 				currentSourceRow === null
 			) {
-				editorContext.current = null;
-				sourceRow.current = null;
-				destinationBoundaryIndex.current = null;
-				snapshot.current = null;
+				clearSessionReferences();
 				return;
 			}
 
@@ -442,10 +442,7 @@ export const RowDropAnimation = () => {
 				currentSnapshot === null ||
 				currentSnapshot.destinationBoundaryIndex !== currentDestinationBoundaryIndex
 			) {
-				editorContext.current = null;
-				sourceRow.current = null;
-				destinationBoundaryIndex.current = null;
-				snapshot.current = null;
+				clearSessionReferences();
 				return;
 			}
 
@@ -474,10 +471,7 @@ export const RowDropAnimation = () => {
 				} );
 			}
 
-			editorContext.current = null;
-			sourceRow.current = null;
-			destinationBoundaryIndex.current = null;
-			snapshot.current = null;
+			clearSessionReferences();
 		},
 	} );
 
@@ -485,12 +479,9 @@ export const RowDropAnimation = () => {
 		return () => {
 			cancelScheduledCapture();
 			clearActiveAnimation();
-			editorContext.current = null;
-			sourceRow.current = null;
-			destinationBoundaryIndex.current = null;
-			snapshot.current = null;
+			clearSessionReferences();
 		};
-	}, [ cancelScheduledCapture, clearActiveAnimation ] );
+	}, [ cancelScheduledCapture, clearActiveAnimation, clearSessionReferences ] );
 
 	return null;
 };
