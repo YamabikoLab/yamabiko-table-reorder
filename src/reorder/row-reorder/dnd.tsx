@@ -29,7 +29,6 @@ import {
 } from './destination-resolution';
 import { RowInput, type RowDndPointerDownHandler } from './input';
 import { RowPresentation } from './presentation/row-presentation';
-import { notifyRowStartRejection } from './presentation/start-rejection-notice-event';
 import {
 	rowReorderTargetResolution,
 	type RowReorderTarget,
@@ -43,7 +42,7 @@ export type { RowDndPointerDownHandler } from './input';
  * 対象Tableへdnd-kitの物理DnD進行を接続する。
  *
  * 接続自体はTableの描画中に安定して維持し、行並び替えが有効な期間だけ入力境界から開始対象を登録する。
- * 物理DnD成立前にReorder Target Resolutionで開始対象を解決し、成立後は解決済みのTargetと開始時制約だけをDnD Interactionへ渡す。
+ * 物理DnD成立前にReorder Target Resolutionで開始対象を再確認し、成立後は解決済みのTargetと開始時制約だけをDnD Interactionへ渡す。
  * Reorder Presentationは同じDnD Engine境界を利用する独立した表示境界として接続する。
  * 行並び替えが無効になった場合と接続自体が終了する場合は、未使用の解決結果とDraggable登録を破棄する。
  *
@@ -90,14 +89,9 @@ export const RowDnd = ( props: {
 		const target = event?.operation?.source?.data as RowReorderTarget;
 		const resolution = rowReorderTargetResolution.resolve( target );
 
-		/* 開始時点のTable構造で並び替え対象が成立しない場合は、物理DnDを開始しない。 */
+		/* 開始入力後のTable状態変化で開始対象が成立しなくなった場合は、利用者向け通知を重複させず物理DnDだけを開始しない。 */
 		if ( resolution.status !== 'resolved' ) {
 			resolvedStart.current = null;
-
-			if ( resolution.status === 'rejected' ) {
-				notifyRowStartRejection( resolution.reason );
-			}
-
 			event.preventDefault();
 			activeDraggable.current?.destroy();
 			activeDraggable.current = null;
