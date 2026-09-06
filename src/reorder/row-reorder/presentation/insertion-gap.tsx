@@ -116,6 +116,7 @@ const resolveInsertionGapLayout = (
 	sessionLayout: RowInsertionGapSessionLayout,
 	boundaryIndex: number | null
 ): RowInsertionGapLayout | null => {
+	/* DnD Interactionが有効な移動先を持たない期間は、Presentation側で挿入位置を補完しない。 */
 	if ( boundaryIndex === null ) {
 		return null;
 	}
