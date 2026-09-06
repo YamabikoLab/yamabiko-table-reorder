@@ -2,7 +2,7 @@
  * Row Reorderの現在の有効な挿入位置を、押しのけ表示から独立した水平線として描画する。
  *
  * 挿入位置そのものはDnD Interactionが提供する0-based移動先境界だけを利用し、Presentation独自の移動先状態を持たない。
- * DnD開始時の論理的な行境界へ挿入線を固定することで、上方向移動では挿入空間の上端、下方向移動では下端へ表示する。
+ * 挿入線の表示側はオーバーレイの現在の縦移動方向へ追従し、上方向では挿入空間の上端、下方向では下端へ表示する。
  * DnD Engineからは描画対象Tableの特定と物理移動に伴う再計測のきっかけだけを受け取り、スクロールによるTable全体の現在位置へ追従する。
  */
 
@@ -19,10 +19,15 @@ import {
 
 import './insertion-line.scss';
 
+/** 挿入線の表示側を決める、オーバーレイの現在の縦移動方向。 */
+type RowVerticalMovementDirection = 'upward' | 'downward' | null;
+
 /** 1回のRow DnD中に維持する、押しのけ前の挿入線配置基準。 */
 type RowInsertionLineSessionLayout = {
 	tableBody: HTMLTableSectionElement;
 	sourceTable: HTMLTableElement;
+	sourceRowIndex: number;
+	sourceRowHeight: number;
 	boundaryOffsets: readonly number[];
 	editorDocument: Document;
 	editorWindow: Window;
@@ -67,10 +72,11 @@ const resolveInsertionLineSessionLayout = (
 	}
 
 	const typedTableBody = tableBody as HTMLTableSectionElement;
+	const sourceRectangle = sourceRow.getBoundingClientRect();
 	const rowGeometry = measureTableBodyRowGeometry( typedTableBody );
 
-	/* 行境界を確定できないTable状態では、そのDnDの挿入線表示を成立させない。 */
-	if ( rowGeometry.length === 0 ) {
+	/* 行境界と挿入空間の高さを確定できないTable状態では、そのDnDの挿入線表示を成立させない。 */
+	if ( rowGeometry.length === 0 || sourceRectangle.height <= 0 ) {
 		return null;
 	}
 
@@ -79,6 +85,8 @@ const resolveInsertionLineSessionLayout = (
 	return {
 		tableBody: typedTableBody,
 		sourceTable,
+		sourceRowIndex: sourceRow.sectionRowIndex,
+		sourceRowHeight: sourceRectangle.height,
 		boundaryOffsets,
 		editorDocument: editorContext.document,
 		editorWindow: editorContext.window,
@@ -86,24 +94,42 @@ const resolveInsertionLineSessionLayout = (
 };
 
 /**
- * DnD開始時の論理境界から、現在の挿入線表示位置を解決する。
+ * DnD開始時の論理境界と現在の縦移動方向から、現在の挿入線表示位置を解決する。
  *
- * 押しのけ後の個別行位置には追従せず、論理境界を維持することで上方向移動では挿入空間の上端、下方向移動では下端を示す。
+ * 押しのけ後の個別行位置には追従せず、現在の挿入空間に対して上方向移動では上端、下方向移動では下端を示す。
  * Table自体の現在位置と表示幅は再計測し、スクロールや表示領域の変化へ追従する。
  *
  * @param sessionLayout DnD開始時に確定した論理配置。
  * @param boundaryIndex DnD Interactionが有効とした0-based移動先境界。
+ * @param movementDirection オーバーレイの現在の縦移動方向。未確定時は論理境界をそのまま表示する。
  * @return 現在のeditor表示領域内へ描画できる挿入線配置。描画できない場合はnull。
  */
 const resolveInsertionLineLayout = (
 	sessionLayout: RowInsertionLineSessionLayout,
-	boundaryIndex: number
+	boundaryIndex: number,
+	movementDirection: RowVerticalMovementDirection
 ): RowInsertionLineLayout | null => {
 	const destinationBoundaryOffset = sessionLayout.boundaryOffsets[ boundaryIndex ];
 
 	/* DnD Interactionが扱う行境界の範囲外は、表示側で推測して補正しない。 */
 	if ( destinationBoundaryOffset === undefined ) {
 		return null;
+	}
+
+	let lineOffset = destinationBoundaryOffset;
+
+	if ( movementDirection !== null ) {
+		let insertionGapTopOffset = destinationBoundaryOffset;
+
+		/* 現在の挿入空間はGap表示と同じ論理位置を基準とし、挿入線だけを移動方向に応じて反対側へ切り替える。 */
+		if ( boundaryIndex > sessionLayout.sourceRowIndex ) {
+			insertionGapTopOffset -= sessionLayout.sourceRowHeight;
+		}
+
+		lineOffset = insertionGapTopOffset;
+		if ( movementDirection === 'downward' ) {
+			lineOffset += sessionLayout.sourceRowHeight;
+		}
 	}
 
 	const tableRectangle = sessionLayout.sourceTable.getBoundingClientRect();
@@ -117,7 +143,7 @@ const resolveInsertionLineLayout = (
 	}
 
 	const bodyRectangle = sessionLayout.tableBody.getBoundingClientRect();
-	const top = bodyRectangle.top + destinationBoundaryOffset;
+	const top = bodyRectangle.top + lineOffset;
 
 	/* 現在表示領域外の境界は描画しない。 */
 	if ( top < 0 || top > sessionLayout.editorWindow.innerHeight ) {
@@ -135,7 +161,7 @@ const resolveInsertionLineLayout = (
 /**
  * DnD Interactionが示す現在の有効な移動先境界を、対象Table上の挿入線として描画する。
  *
- * DnD開始時の論理境界をそのSession中の表示基準として維持し、DnD Engineの移動通知ではTable全体の現在位置だけを再計測する。
+ * DnD開始時の論理境界をそのSession中の表示基準として維持し、DnD Engineの移動通知から現在の縦移動方向を更新する。
  * `destinationBoundaryIndex`がnullの場合は表示しない。
  *
  * @return 現在の有効な挿入位置を示す水平線。有効な表示位置がない場合はnull。
@@ -145,20 +171,34 @@ export const RowInsertionLine = () => {
 	const [ sessionLayout, setSessionLayout ] = useState< RowInsertionLineSessionLayout | null >(
 		null
 	);
+	const [ movementDirection, setMovementDirection ] =
+		useState< RowVerticalMovementDirection >( null );
 	const [ measurementRevision, setMeasurementRevision ] = useState( 0 );
 	const [ layout, setLayout ] = useState< RowInsertionLineLayout | null >( null );
 
 	useDragDropMonitor( {
 		onDragStart: ( event ) => {
 			setSessionLayout( resolveInsertionLineSessionLayout( event.operation.source?.element ) );
+			setMovementDirection( null );
 		},
-		onDragMove: () => {
+		onDragMove: ( event ) => {
+			const nextY = event.to?.y;
+			const currentY = event.operation.position.current.y;
+
+			/* 同一移動通知内の更新前後位置から現在方向を確定し、縦位置が変わらない通知では直前方向を維持する。 */
+			if ( nextY !== undefined && nextY !== currentY ) {
+				const nextDirection: RowVerticalMovementDirection =
+					nextY < currentY ? 'upward' : 'downward';
+				setMovementDirection( nextDirection );
+			}
+
 			/* 同じ移動先境界でもスクロール等でTable全体の画面上の位置が変わるため、現在位置を再計測する。 */
 			setMeasurementRevision( ( current ) => current + 1 );
 		},
 		onDragEnd: () => {
-			/* 物理DnD終了後は、そのSessionの論理配置と挿入位置表示を次の操作へ持ち越さない。 */
+			/* 物理DnD終了後は、そのSessionの論理配置・移動方向・挿入位置表示を次の操作へ持ち越さない。 */
 			setSessionLayout( null );
+			setMovementDirection( null );
 			setLayout( null );
 		},
 	} );
@@ -170,8 +210,10 @@ export const RowInsertionLine = () => {
 			return;
 		}
 
-		setLayout( resolveInsertionLineLayout( sessionLayout, destinationBoundaryIndex ) );
-	}, [ destinationBoundaryIndex, measurementRevision, sessionLayout ] );
+		setLayout(
+			resolveInsertionLineLayout( sessionLayout, destinationBoundaryIndex, movementDirection )
+		);
+	}, [ destinationBoundaryIndex, measurementRevision, movementDirection, sessionLayout ] );
 
 	/* 現在描画できる有効な挿入位置がない期間は、表示要素自体を生成しない。 */
 	if ( layout === null ) {
