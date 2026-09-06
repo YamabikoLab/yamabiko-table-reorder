@@ -9,7 +9,7 @@ import { ReorderGuidance } from '@/reorder/wordpress/components/guidance';
 
 jest.mock( '@/messages', () => ( {
 	getCloseReorderGuidanceLabel: () => 'Close reorder guidance',
-	getReorderGuidanceMessage: () => 'Reorder rows and columns.',
+	getReorderGuidanceMessage: () => 'Reorder rows.',
 } ) );
 
 jest.mock( '@wordpress/components', () => ( {
@@ -50,7 +50,7 @@ jest.mock( '@wordpress/components', () => ( {
 describe( 'Reorder Guidance presentation', () => {
 	/**
 	 * 概要:
-	 * - 初回案内表示中に共通案内文と閉じる入口を利用できることを確認する。
+	 * - 初回案内表示中に行並び替えの案内文と閉じる入口を利用できることを確認する。
 	 *
 	 * 事前条件:
 	 * - 初回案内は表示対象であり、ツールバー上の配置基準を取得済みである。
@@ -59,14 +59,14 @@ describe( 'Reorder Guidance presentation', () => {
 	 * - 初回案内を描画し、閉じる入口を選択する。
 	 *
 	 * 期待結果:
-	 * - 行・列共通の案内文が表示され、閉じる操作が通知される。
+	 * - 行並び替えの案内文が表示され、閉じる操作が通知される。
 	 */
-	it( 'when guidance is visible, should present the common message and allow dismissal', () => {
+	it( 'when guidance is visible, should present the row reorder message and allow dismissal', () => {
 		const onDismiss = jest.fn();
 		const anchor = document.createElement( 'button' );
 		render( <ReorderGuidance anchor={ anchor } isVisible onDismiss={ onDismiss } /> );
 
-		expect( screen.getByText( 'Reorder rows and columns.' ) ).not.toBeNull();
+		expect( screen.getByText( 'Reorder rows.' ) ).not.toBeNull();
 
 		fireEvent.click( screen.getByRole( 'button', { name: 'Close reorder guidance' } ) );
 
