@@ -25,7 +25,6 @@ type RowMovingDisplayLayout = {
 	sourceTable: HTMLTableElement;
 	rowHeight: number;
 	tableWidth: number;
-	visibleLeft: number;
 	visibleWidth: number;
 	tableOffsetLeft: number;
 	cellWidths: number[];
@@ -95,7 +94,6 @@ const resolveMovingDisplayLayout = (
 		sourceTable,
 		rowHeight: rowRectangle.height,
 		tableWidth: tableRectangle.width,
-		visibleLeft,
 		visibleWidth,
 		tableOffsetLeft: tableRectangle.left - visibleLeft,
 		cellWidths,
