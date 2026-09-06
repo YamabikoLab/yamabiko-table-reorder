@@ -13,6 +13,8 @@ import { useReorderMode } from '@/reorder/reorder-mode-react';
 import { ReorderGuidance } from '@/reorder/wordpress/components/guidance';
 import { useReorderGuidance } from '@/reorder/wordpress/hooks/use-reorder-guidance';
 
+import './toolbar.scss';
+
 /** Reorder Modeのツールバーへ接続する対象Tableを表す。 */
 type ReorderModeToolbarProps = {
 	tableIdentity: string;
@@ -102,7 +104,7 @@ export const ReorderModeToolbar = ( props: ReorderModeToolbarProps ) => {
 					onClick={ () => selectMode( 'row' ) }
 				/>
 				<ToolbarButton
-					className={ guidanceTargetClassName }
+					className="yamabiko-table-reorder-column-entry"
 					icon={ columnReorderIcon }
 					isPressed={ selectedKind === 'column' }
 					label={ getColumnReorderName() }

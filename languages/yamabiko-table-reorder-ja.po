@@ -39,8 +39,8 @@ msgid "Reorder columns"
 msgstr "列を並び替え"
 
 #: src/messages.ts:40
-msgid "Reorder rows and columns."
-msgstr "行と列を並び替えられます。"
+msgid "Reorder rows."
+msgstr "行を並び替えられます。"
 
 #: src/messages.ts:48
 msgid "Close reorder guidance"

@@ -1,0 +1,9 @@
+/**
+ * 0.5.0では未提供の列並び替え入口をWordPress Editor上から一時的に隠す。
+ *
+ * 列並び替えの状態管理とReact上の入口は維持し、公開時にこの非表示指定だけを取り除けるようにする。
+ */
+
+.yamabiko-table-reorder-column-entry {
+	display: none;
+}

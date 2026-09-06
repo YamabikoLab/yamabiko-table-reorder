@@ -32,12 +32,11 @@ export const getRowDndTerminationMessage = () =>
 	__( 'Reordering could not continue, so the operation was ended.', 'yamabiko-table-reorder' );
 
 /**
- * 初回案内に表示する行・列共通の説明文を取得する。
+ * 初回案内に表示する行並び替えの説明文を取得する。
  *
  * @return 現在の言語に対応した初回案内文。
  */
-export const getReorderGuidanceMessage = () =>
-	__( 'Reorder rows and columns.', 'yamabiko-table-reorder' );
+export const getReorderGuidanceMessage = () => __( 'Reorder rows.', 'yamabiko-table-reorder' );
 
 /**
  * 初回案内を閉じる入口の支援技術向け表示名を取得する。
