@@ -19,8 +19,6 @@ import {
 
 const MOVING_DISPLAY_SELECTOR = '.yamabiko-table-reorder-moving-row';
 const INSERTION_GAP_SELECTOR = '.yamabiko-table-reorder-insertion-gap';
-const DROP_MOVING_DISPLAY_CLASS = 'yamabiko-table-reorder-drop-animation-moving-row';
-const DROP_INSERTION_GAP_CLASS = 'yamabiko-table-reorder-drop-animation-gap';
 const DROP_ANIMATION_DURATION_MS = 350;
 const REDUCED_MOTION_QUERY = '(prefers-reduced-motion: reduce)';
 const RETURNING_SOURCE_OPACITY = '0.35';
@@ -292,14 +290,12 @@ export const RowDropAnimation = () => {
 			clearActiveAnimation();
 			const movingDisplay = currentSnapshot.movingDisplay.cloneNode( true ) as HTMLElement;
 			const coverElement = target.coverElement?.cloneNode( true ) as HTMLElement | undefined;
-			movingDisplay.classList.add( DROP_MOVING_DISPLAY_CLASS );
 			movingDisplay.style.top = `${ currentSnapshot.movingRectangle.top }px`;
 			movingDisplay.style.left = `${ currentSnapshot.movingRectangle.left }px`;
 			movingDisplay.style.width = `${ currentSnapshot.movingRectangle.width }px`;
 			movingDisplay.style.height = `${ currentSnapshot.movingRectangle.height }px`;
 
 			if ( coverElement !== undefined ) {
-				coverElement.classList.add( DROP_INSERTION_GAP_CLASS );
 				coverElement.style.top = `${ target.rectangle.top }px`;
 				coverElement.style.left = `${ target.rectangle.left }px`;
 				coverElement.style.width = `${ target.rectangle.width }px`;
