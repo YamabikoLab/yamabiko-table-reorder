@@ -15,7 +15,7 @@ import {
 	getRowDndPhase,
 	subscribeRowDndState,
 	subscribeRowDndTerminationNotice,
-} from '@/reorder/row-reorder/dnd-interaction';
+} from '@/reorder/row-reorder/responsibilities/dnd-interaction';
 
 const MOVING_DISPLAY_SELECTOR = '.yamabiko-table-reorder-moving-row';
 const INSERTION_GAP_SELECTOR = '.yamabiko-table-reorder-insertion-gap';

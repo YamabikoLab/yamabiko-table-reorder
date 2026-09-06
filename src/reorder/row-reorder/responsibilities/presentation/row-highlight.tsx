@@ -8,7 +8,7 @@
 import { useEffect, useRef } from '@wordpress/element';
 import type { PointerEvent, ReactNode } from 'react';
 
-import { rowReorderTargetResolution } from '@/reorder/row-reorder/target-resolution';
+import { rowReorderTargetResolution } from '@/reorder/row-reorder/responsibilities/target-resolution';
 
 import './row-highlight.scss';
 

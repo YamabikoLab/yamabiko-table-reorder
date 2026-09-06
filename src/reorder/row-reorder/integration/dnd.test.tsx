@@ -10,10 +10,10 @@ import { DragDropProvider } from '@dnd-kit/react';
 import { render } from '@testing-library/react';
 import type { ReactNode } from 'react';
 
-import { rowDndInteraction } from './dnd-interaction';
+import { rowDndInteraction } from '../responsibilities/dnd-interaction';
 import { RowDnd } from './dnd';
 import { createRowDestinationResolver } from './destination-resolution';
-import { rowReorderTargetResolution } from './target-resolution';
+import { rowReorderTargetResolution } from '../responsibilities/target-resolution';
 
 jest.mock( '@dnd-kit/dom', () => ( {
 	Cursor: {},
@@ -22,7 +22,7 @@ jest.mock( '@dnd-kit/dom', () => ( {
 	Draggable: jest.fn(),
 } ) );
 
-jest.mock( './dnd-interaction', () => ( {
+jest.mock( '@/reorder/row-reorder/responsibilities/dnd-interaction', () => ( {
 	rowDndInteraction: {
 		start: jest.fn(),
 		updateDestination: jest.fn(),
@@ -31,23 +31,23 @@ jest.mock( './dnd-interaction', () => ( {
 	},
 } ) );
 
-jest.mock( './target-resolution', () => ( {
+jest.mock( '@/reorder/row-reorder/responsibilities/target-resolution', () => ( {
 	rowReorderTargetResolution: {
 		resolve: jest.fn(),
 	},
 } ) );
 
-jest.mock( './destination-resolution', () => ( {
+jest.mock( '@/reorder/row-reorder/integration/destination-resolution', () => ( {
 	createRowDestinationResolver: jest.fn(),
 } ) );
 
-jest.mock( './presentation/row-presentation', () => ( {
+jest.mock( '@/reorder/row-reorder/responsibilities/presentation/row-presentation', () => ( {
 	RowPresentation: () => null,
 } ) );
 
 let activeDraggableRef: { current: Draggable | null } | null = null;
 
-jest.mock( './input', () => ( {
+jest.mock( '@/reorder/row-reorder/responsibilities/input', () => ( {
 	RowInput: ( props: {
 		activeDraggable: { current: Draggable | null };
 		children: ( handler: () => void ) => ReactNode;

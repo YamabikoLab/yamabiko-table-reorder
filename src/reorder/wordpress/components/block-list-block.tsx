@@ -7,11 +7,11 @@
 
 import type { ComponentType } from '@wordpress/element';
 
-import { RowDnd, type RowDndPointerDownHandler } from '@/reorder/row-reorder/dnd';
+import { RowDnd, type RowDndPointerDownHandler } from '@/reorder/row-reorder/integration/dnd';
 import {
 	RowHighlight,
 	type RowHighlightPointerOverHandler,
-} from '@/reorder/row-reorder/presentation/row-highlight';
+} from '@/reorder/row-reorder/responsibilities/presentation/row-highlight';
 import { useReorderMode } from '@/reorder/reorder-mode-react';
 import {
 	preserveEditingStartHandler,

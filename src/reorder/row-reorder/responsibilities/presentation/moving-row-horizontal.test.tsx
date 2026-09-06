@@ -12,7 +12,7 @@ let mockDragDropMonitor: {
 	onDragMove?: ( event: any ) => void;
 } = {};
 
-jest.mock( '@/reorder/row-reorder/dnd-interaction-react', () => ( {
+jest.mock( '@/reorder/row-reorder/integration/dnd-interaction-react', () => ( {
 	useRowDndPhase: () => mockRowDndPhase,
 } ) );
 

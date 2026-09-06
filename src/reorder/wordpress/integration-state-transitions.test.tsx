@@ -72,7 +72,7 @@ jest.mock( '@wordpress/components', () => {
 	};
 } );
 
-jest.mock( '@/reorder/row-reorder/dnd', () => ( {
+jest.mock( '@/reorder/row-reorder/integration/dnd', () => ( {
 	RowDnd: ( {
 		children,
 	}: {

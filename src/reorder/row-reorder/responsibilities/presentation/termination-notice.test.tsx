@@ -15,7 +15,7 @@ jest.mock( '@/messages', () => ( {
 	getRowDndTerminationMessage: () => 'termination message',
 } ) );
 
-jest.mock( '@/reorder/row-reorder/dnd-interaction', () => ( {
+jest.mock( '@/reorder/row-reorder/responsibilities/dnd-interaction', () => ( {
 	subscribeRowDndTerminationNotice: ( listener: () => void ) => {
 		terminationListener = listener;
 		return () => {

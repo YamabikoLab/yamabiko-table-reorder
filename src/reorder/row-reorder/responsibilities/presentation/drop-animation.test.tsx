@@ -18,7 +18,7 @@ let mockDragDropMonitor: {
 	onDragEnd?: ( event: any ) => void;
 } = {};
 
-jest.mock( '@/reorder/row-reorder/dnd-interaction', () => ( {
+jest.mock( '@/reorder/row-reorder/responsibilities/dnd-interaction', () => ( {
 	getRowDndPhase: () => mockRowDndPhase,
 	getRowDndDestinationBoundaryIndex: () => mockDestinationBoundaryIndex,
 	subscribeRowDndState: ( listener: () => void ) => {

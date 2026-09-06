@@ -9,7 +9,7 @@
 import { useDragDropMonitor } from '@dnd-kit/react';
 import { useCallback, useEffect, useRef } from '@wordpress/element';
 
-import { useRowDndDestinationBoundaryIndex } from '@/reorder/row-reorder/dnd-interaction-react';
+import { useRowDndDestinationBoundaryIndex } from '@/reorder/row-reorder/integration/dnd-interaction-react';
 
 import './row-displacement.scss';
 

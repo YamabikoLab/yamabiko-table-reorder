@@ -4,9 +4,12 @@
 
 import { rowReorderMode } from '@/reorder/reorder-mode';
 
-import { getRowDndDestinationBoundaryIndex, rowDndInteraction } from './dnd-interaction';
-import { rowTableIntegration } from './table-integration';
-import type { RowReorderConstraints } from './table-integration';
+import {
+	getRowDndDestinationBoundaryIndex,
+	rowDndInteraction,
+} from '../responsibilities/dnd-interaction';
+import { rowTableIntegration } from '../responsibilities/table-integration';
+import type { RowReorderConstraints } from '../responsibilities/table-integration';
 
 jest.mock( '@/reorder/reorder-mode', () => ( {
 	rowReorderMode: {
@@ -14,7 +17,7 @@ jest.mock( '@/reorder/reorder-mode', () => ( {
 	},
 } ) );
 
-jest.mock( './table-integration', () => ( {
+jest.mock( '@/reorder/row-reorder/responsibilities/table-integration', () => ( {
 	rowTableIntegration: {
 		getConstraints: jest.fn(),
 		applyRowMove: jest.fn(),

@@ -9,7 +9,7 @@ import { Snackbar } from '@wordpress/components';
 import { useEffect, useState } from '@wordpress/element';
 
 import { getRowDndTerminationMessage } from '@/messages';
-import { subscribeRowDndTerminationNotice } from '@/reorder/row-reorder/dnd-interaction';
+import { subscribeRowDndTerminationNotice } from '@/reorder/row-reorder/responsibilities/dnd-interaction';
 
 import './termination-notice.scss';
 

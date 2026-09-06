@@ -12,7 +12,7 @@ let mockDragDropMonitor: {
 	onDragEnd?: () => void;
 } = {};
 
-jest.mock( '@/reorder/row-reorder/dnd-interaction-react', () => ( {
+jest.mock( '@/reorder/row-reorder/integration/dnd-interaction-react', () => ( {
 	useRowDndDestinationBoundaryIndex: () => mockDestinationBoundaryIndex,
 } ) );
 

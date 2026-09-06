@@ -4,11 +4,11 @@
 
 import { fireEvent, render } from '@testing-library/react';
 
-import { rowReorderTargetResolution } from '@/reorder/row-reorder/target-resolution';
+import { rowReorderTargetResolution } from '@/reorder/row-reorder/responsibilities/target-resolution';
 
 import { RowHighlight } from './row-highlight';
 
-jest.mock( '@/reorder/row-reorder/target-resolution', () => ( {
+jest.mock( '@/reorder/row-reorder/responsibilities/target-resolution', () => ( {
 	rowReorderTargetResolution: {
 		createResolver: jest.fn(),
 	},
