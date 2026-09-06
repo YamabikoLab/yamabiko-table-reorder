@@ -212,6 +212,53 @@ describe( 'Row DnD Interaction lifecycle', () => {
 
 	/**
 	 * 概要:
+	 * - complete直前の外部構造変化で最終移動先が成立しなくなった場合に安全終了することを確認する。
+	 * 事前条件:
+	 * - Session開始時には境界4が有効だが、complete時には境界4が分断不可になっている。
+	 * 操作:
+	 * - 境界4を保持した状態でcomplete()する。
+	 * 期待結果:
+	 * - Tableを更新せず異常終了通知を1回発行してidleへ戻る。
+	 */
+	it( 'when the destination becomes invalid before complete, should terminate without applying the row move', () => {
+		startActiveSession();
+		rowDndInteraction.updateDestination( 4 );
+		getConstraintsMock.mockReturnValueOnce( {
+			rowCount: 5,
+			blockedBoundaries: [ 4 ],
+		} );
+
+		rowDndInteraction.complete();
+
+		expect( applyRowMoveMock ).not.toHaveBeenCalled();
+		expect( terminationNoticeListener ).toHaveBeenCalledTimes( 1 );
+		expect( getRowDndPhase() ).toBe( 'idle' );
+	} );
+
+	/**
+	 * 概要:
+	 * - 再照合後の外部状態変化で確定済み行移動を反映できない場合も安全終了することを確認する。
+	 * 事前条件:
+	 * - complete時の再照合は成立するが、Table Integrationは行移動を反映できない。
+	 * 操作:
+	 * - 有効な移動先を保持した状態でcomplete()する。
+	 * 期待結果:
+	 * - active Sessionをidleへ戻し、異常終了通知を1回発行する。
+	 */
+	it( 'when the confirmed row move cannot be applied, should finish with a termination notice', () => {
+		startActiveSession();
+		rowDndInteraction.updateDestination( 4 );
+		applyRowMoveMock.mockReturnValueOnce( false );
+
+		rowDndInteraction.complete();
+
+		expect( applyRowMoveMock ).toHaveBeenCalledTimes( 1 );
+		expect( terminationNoticeListener ).toHaveBeenCalledTimes( 1 );
+		expect( getRowDndPhase() ).toBe( 'idle' );
+	} );
+
+	/**
+	 * 概要:
 	 * - cancelではTableを更新せずSessionを終了することを確認する。
 	 * 事前条件:
 	 * - active Sessionが存在する。
