@@ -6,12 +6,13 @@
  * 解決結果は保持せず、DnD Sessionや表示状態を所有しない。
  */
 
-import { rowTableIntegration, type RowReorderConstraints } from './table-integration';
 import {
 	isRowReorderTargetBlockedByMergedRange,
 	isRowReorderTargetInRange,
 	type RowReorderTarget,
-} from './target-validity';
+} from '@/reorder/row-reorder/domain/target-validity';
+
+import { rowTableIntegration, type RowReorderConstraints } from './table-integration';
 
 /** Designで利用者へ理由を提示する開始拒否理由。 */
 export type RowReorderTargetRejectionReason = 'merged-range';
@@ -128,4 +129,4 @@ export const rowReorderTargetResolution = {
 	resolve,
 };
 
-export type { RowReorderTarget } from './target-validity';
+export type { RowReorderTarget } from '@/reorder/row-reorder/domain/target-validity';
