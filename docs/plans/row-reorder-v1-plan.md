@@ -3,7 +3,7 @@
 ## References
 
 - Parent issue: #682
-- Plan update issues: #700, #752
+- Plan update issues: #700, #752, #821
 - Requirements:
   - `docs/requirements/reorder-v1-requirements.md`
   - `docs/requirements/reorder-v1-quality-requirements.md`
@@ -27,6 +27,7 @@
 
 - Row Reorder v1 Architectureを実装するための実装順序とIssue単位
 - Row Reorderが利用するReorder Mode、Reorder Guidance、Editor DOM Context、DnD Engineとの接続
+- Reorder Target ResolutionとDnD Interaction / Session Lifecycleの責務境界
 - 各Phaseで必要な実装前決定と実装中validation
 - Product compositionと横断validation
 
@@ -39,11 +40,11 @@
 
 ## Approach
 
-Reorder Mode / Toolbar integrationを最初に成立させ、次にTable Integrationを実装する。その後、DnD Interaction / Session LifecycleをDnD EngineとTable Integrationへ接続し、Architectureで定義されたLifecycleを実装する。
+Reorder Mode / Toolbar integrationを最初に成立させ、次にTable Integrationを実装する。その後、active DnD成立前の開始可否判定をReorder Target Resolutionへ分離し、開始可能なReorder Targetと開始時制約からDnD Interaction / Session Lifecycleを開始する。DnD Interactionは開始可否判定を所有せず、Session開始後のLifecycleをDnD EngineとTable Integrationへ接続する。
 
-DnD Interactionの接続を成立させた後、PC / Touch Input InteractionをDnD Engineへ接続し、入力からDnD Interactionへ到達する実装経路を成立させる。DnD EngineにはArchitectureで採用済みのdnd-kitを用いる。
+DnD Interactionの接続を成立させた後、PC / Touch Input InteractionをDnD Engineへ接続し、入力からReorder Target Resolutionを経てDnD Interactionへ到達する実装経路を成立させる。DnD EngineにはArchitectureで採用済みのdnd-kitを用いる。
 
-入力経路の成立後にReorder Presentationを接続し、その後既存のDnD Engine自動スクロールが行DnDで必要な縦方向の挙動を満たすことを確認してからGuidanceを接続する。最後にproduct compositionと横断validationを行う。
+入力経路の成立後にReorder Presentationを接続し、Reorder Target Resolutionが返すDesign上の開始不可理由と、DnD Interactionが返すSession開始後の意味状態をそれぞれ表示へ反映する。その後既存のDnD Engine自動スクロールが行DnDで必要な縦方向の挙動を満たすことを確認してからGuidanceを接続する。最後にproduct compositionと横断validationを行う。
 
 各Phaseでは、その段階で必要な実装レベルの選択だけを確定し、focused test / integration testでArchitectureへの適合を確認する。実WordPress Editorの製品経路を通るPlaywrightはproduct composition成立後に行う。
 
@@ -51,7 +52,7 @@ DnD Interactionの接続を成立させた後、PC / Touch Input InteractionをD
 
 ## Architecture impact
 
-このPlanは、確定済みの`docs/architecture/row-reorder-v1-architecture.md`を実装へ落とし込むものであり、Architecture自体の変更は予定しない。
+#821で`docs/architecture/row-reorder-v1-architecture.md`の開始可否判定をDnD InteractionからReorder Target Resolutionへ分離した。本Planはその確定済みArchitectureへ追従し、Reorder Target Resolutionを独立責務として扱う。Reorder Target自体は「移動する行」という意味を維持し、開始時制約や開始不可理由は解決結果として扱う。
 
 ## Decisions and validation questions
 
@@ -67,9 +68,11 @@ DnD Interactionの接続を成立させた後、PC / Touch Input InteractionをD
 
    - Architecture責務を`src/reorder/row-reorder/`内のmoduleへ対応付け、対応Table差を吸収するType / Result表現と、確定済み行移動の更新方式を確定する。
 
-3. **Phase 3開始前: DnD Interaction / Session Lifecycleの実装表現**
+3. **Phase 3開始前: Reorder Target Resolution / DnD Interaction / Session Lifecycleの実装表現**
 
-   - dnd-kitへのadapter構成、Architectureで定義されたSession stateのType表現、結果 / Error表現、focused testの境界を確定する。
+   - Reorder Target Resolutionは共有状態を持たない解決境界として実装し、Reorder Targetと開始時制約を分離した解決結果を表現する。
+   - DnD Interactionは解決済みTargetから開始するSession stateのType表現、結果 / Error表現、focused testの境界を確定する。
+   - dnd-kitへのadapter構成では、active DnD成立前の解決結果をstartへ引き継ぎ、`prepareStart`相当の状態遷移をDnD Interactionへ残さない。
 
 4. **Phase 4開始前: PC Input InteractionのDnD Engine接続方式**
 
@@ -82,6 +85,7 @@ DnD Interactionの接続を成立させた後、PC / Touch Input InteractionをD
 6. **Phase 6開始前: Reorder Presentationの描画方式**
 
    - React / DOM / CSSの分担と、DnD Engineから利用する物理情報の取得方法を確定する。
+   - Reorder Target Resolutionの開始不可理由をPresentation側で構造判定し直さず表示へ反映する接続を確定する。
 
 7. **Phase 8開始前: Reorder Guidanceの状態実装位置**
 
@@ -107,14 +111,15 @@ DnD Interactionの接続を成立させた後、PC / Touch Input InteractionをD
    - 対応Table Blockへの適応、現在構造の取得、確定済み行移動の反映、WordPress Undoとの境界がArchitectureおよびRequirementsどおり成立することを確認する。
    - Evidence: focused integration testと主要E2E。
 
-3. **Phase 3、Phase 10で最終確認: DnD Interaction / Session Lifecycle**
+3. **Phase 3、Phase 10で最終確認: Reorder Target Resolution / DnD Interaction / Session Lifecycle**
 
-   - DnD EngineとTable Integrationへの接続上で、Architectureで定義されたDnD Interaction / Session Lifecycleが成立することを確認する。
-   - Evidence: focused normal / failure-recovery integration testと主要E2E。
+   - Reorder Target Resolutionが開始試行時の現在制約から開始可否を解決し、DnD Interactionが解決済みTargetからSession Lifecycleを開始する責務分離がArchitectureどおり成立することを確認する。
+   - DnD Interactionが開始可否判定や開始前共有状態を所有せず、active Session中の`start`禁止などLifecycle invariantだけを所有することを確認する。
+   - Evidence: Target Resolution focused test、DnD Interaction normal / failure-recovery integration testと主要E2E。
 
 4. **Phase 3 / 4 / 5、Phase 10で最終確認: DnD Engine integration**
 
-   - PC / Touch Input InteractionとDnD Interactionが、Architectureで定義された接続境界を保ってDnD Engineへ接続されることを確認する。
+   - PC / Touch Input Interaction、Reorder Target Resolution、DnD Interactionが、Architectureで定義された接続境界を保ってDnD Engineへ接続されることを確認する。
    - Evidence: focused lifecycle / integration test。
 
 5. **Phase 3 / 1、Phase 10で最終確認: DnD終了後Lifecycle**
@@ -129,7 +134,7 @@ DnD Interactionの接続を成立させた後、PC / Touch Input InteractionをD
 
 7. **Phase 6、Phase 10で最終確認: Presentation / notification / cleanup**
 
-   - Reorder PresentationがDesign / Architectureに適合することを確認する。
+   - Reorder PresentationがReorder Target Resolutionの開始不可理由を重複判定せず利用し、Design / Architectureに適合することを確認する。
    - Evidence: Presentation focused testと主要E2E。
 
 8. **Phase 7、Phase 10で最終確認: DnD Engine auto scroll**
@@ -172,18 +177,22 @@ DnD Interactionの接続を成立させた後、PC / Touch Input InteractionをD
 - Validation:
   - ArchitectureのContract、対応Table Blockへの適応、更新結果、Undo境界をfocused testで確認する。
 
-### Phase 3: DnD Interaction and Session Lifecycle
+### Phase 3: Reorder Target Resolution and DnD Session Lifecycle
 
-- Outcome: Architectureで定義されたDnD Interaction / Session LifecycleをDnD EngineとTable Integrationへ接続できる。
+- Outcome: Reorder Target Resolutionで開始対象を解決し、開始可能なTargetからArchitectureで定義されたDnD Interaction / Session Lifecycleを開始できる。
 - Tasks:
-  - DnD Interaction / Session Lifecycleを実装する。
+  - 状態を保持しないReorder Target Resolutionを実装する。
+  - Reorder Targetと開始時制約・開始不可理由を分離した解決結果を実装する。
+  - DnD Interactionから開始可否判定と`prepareStart`相当の境界を削除する。
+  - DnD Interaction / Session Lifecycleを解決済みTargetから開始する形へ接続する。
   - dnd-kitとTable Integrationへの実装接続を成立させる。
 - Validation:
-  - Architectureで定義されたLifecycleへの適合をfocused normal / failure-recovery integration testで確認する。
+  - Target Resolutionの成立可否と理由をfocused testで確認する。
+  - DnD Interactionが解決済みTargetから開始し、Architectureで定義されたLifecycleへ適合することをfocused normal / failure-recovery integration testで確認する。
 
 ### Phase 4: PC Input Interaction
 
-- Outcome: PC入力からDnD Engineを経由してDnD Interactionへ到達する実装経路が成立する。
+- Outcome: PC入力からDnD Engineを経由してReorder Target ResolutionとDnD Interactionへ到達する実装経路が成立する。
 - Tasks:
   - PC Input Interactionを実装する。
   - PC入力をDnD Engineへ接続する。
@@ -192,7 +201,7 @@ DnD Interactionの接続を成立させた後、PC / Touch Input InteractionをD
 
 ### Phase 5: Touch Input Interaction
 
-- Outcome: Touch入力からDnD Engineを経由してDnD Interactionへ到達する実装経路が成立する。
+- Outcome: Touch入力からDnD Engineを経由してReorder Target ResolutionとDnD Interactionへ到達する実装経路が成立する。
 - Tasks:
   - Touch Input Interactionを実装する。
   - Touch入力をDnD Engineへ接続する。
@@ -201,9 +210,10 @@ DnD Interactionの接続を成立させた後、PC / Touch Input InteractionをD
 
 ### Phase 6: Reorder Presentation
 
-- Outcome: Reorder PresentationをArchitectureで定義された境界に従ってDnD Engineへ接続できる。
+- Outcome: Reorder PresentationをArchitectureで定義された境界に従ってTarget ResolutionとDnD Engineへ接続できる。
 - Tasks:
   - Reorder Presentationを実装し、必要な実装境界へ接続する。
+  - Target ResolutionのDesign上の開始不可理由を構造判定の重複なしで一時通知へ反映する。
 - Validation:
   - Design / Architectureへの適合をfocused testで確認する。
 
@@ -249,7 +259,7 @@ Planレビュー後、次の単位で実装Issueを作成する。各Issueはこ
 
 - [x] Reorder Mode foundation / Toolbar integration
 - [x] Table Integration
-- [ ] DnD Interaction and Session Lifecycle / DnD Engine integration
+- [ ] Reorder Target Resolution / DnD Interaction and Session Lifecycle / DnD Engine integration
 - [ ] PC Input Interaction
 - [ ] Touch Input Interaction
 - [ ] Reorder Presentation
@@ -263,8 +273,9 @@ Planレビュー後、次の単位で実装Issueを作成する。各Issueはこ
 ## Validation
 
 - 各実装Issueでは、そのPhaseの実装結果が該当する上位文書に適合することをfocused test / integration testで確認する。
-- Phase 3では、DnD Interaction / Session LifecycleとDnD Engine / Table Integrationの接続がArchitectureに適合することをfocused integration testで確認する。
-- Phase 4 / 5では、PC / Touch Input InteractionからDnD Engineを経由してDnD Interactionへ到達する実装経路をfocused input / integration testで確認する。
+- Phase 3では、Reorder Target Resolutionの開始可否解決と、解決済みTargetから開始するDnD Interaction / Session LifecycleがArchitectureに適合することをfocused test / integration testで確認する。
+- Phase 4 / 5では、PC / Touch Input InteractionからDnD Engineを経由してReorder Target ResolutionとDnD Interactionへ到達する実装経路をfocused input / integration testで確認する。
+- Phase 6では、Target Resolutionの開始不可理由をPresentationが構造判定し直さず表示へ反映することをfocused testで確認する。
 - Phase 7では、既存のDnD Engine自動スクロールが行DnDで必要な縦方向の挙動を満たしていることをfocused integration testで確認する。
 - Phase 9でproduct compositionを成立させ、実entry pointを通る最小Playwright scenarioを実行する。
 - Phase 10でvalidation matrixに従って横断確認し、代表的な大規模TableではYTR自身の追加コストをストレステストする。
@@ -273,9 +284,11 @@ Planレビュー後、次の単位で実装Issueを作成する。各Issueはこ
 ## Completion criteria
 
 - 最新Row Reorder v1 Architectureの実装対象が、依存関係に沿ったレビュー可能なIssue単位へ分割されている。
-- Reorder Target Resolution / Drop Target Resolution / Data Updateが独立責務、独立Phase、Issue単位として残っていない。
-- 開始可否判定と移動先判定がDnD Interaction / Session Lifecycleへ、確定済み行移動の反映がTable Integrationへ統合されている。
-- DnD Interaction、Input Interaction、Reorder Presentationの順に主要なDnD実装経路を成立させ、その後既存のDnD Engine自動スクロールが行DnDで必要な挙動を満たしていることを検証する実装順になっている。
+- Reorder Target Resolutionが開始前の独立責務として存在し、DnD Interactionに開始可否判定または`prepareStart`相当のLifecycleを残していない。
+- Reorder Targetは「移動する行」の意味を維持し、開始時制約と開始不可理由はTarget Resolutionの解決結果として分離されている。
+- 移動先判定はDnD Interaction / Session Lifecycleへ、確定済み行移動の反映はTable Integrationへ配置されている。
+- Drop Target Resolution / Data Updateが独立責務、独立Phase、Issue単位として残っていない。
+- Reorder Target Resolution、DnD Interaction、Input Interaction、Reorder Presentationの責務境界と実装順が最新Architectureに一致している。
 - DnD Engineを利用する各Phaseの実装方向・順序・Validationが最新Architectureと矛盾しない。
 - 各Phase開始前に、そのPhaseに必要な実装レベルの`Decide before implementation`が解決される構成になっている。
 - `Validate during implementation`が、検証対象の上位文書、該当Phase、evidenceへ結び付いている。
