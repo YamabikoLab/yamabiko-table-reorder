@@ -1,7 +1,7 @@
 /**
  * WordPress EditorのTableツールバーへReorder Mode入口と初回案内を表示するReactコンポーネントを所有する。
  *
- * 行・列の入口を排他的なReorder Mode状態へ接続し、0.5.0では公開済みの行入口だけを初回案内で強調する。
+ * 行・列の入口を排他的なReorder Mode状態へ接続し、初回案内表示中は両方の入口を視覚的に強調する。
  */
 
 import { BlockControls } from '@wordpress/block-editor';
@@ -72,7 +72,7 @@ const columnReorderIcon = (
 );
 
 /**
- * 対応Tableの行・列並び替え入口をReorder Modeへ接続し、公開中の入口と初回案内を表示する。
+ * 対応Tableの行・列並び替え入口を表示し、Reorder Modeと初回案内へ接続する。
  *
  * @param props ツールバーを表示するTable Identity。
  * @return 現在のReorder Mode選択状態と初回案内状態を反映したツールバー入口。
@@ -86,8 +86,8 @@ export const ReorderModeToolbar = ( props: ReorderModeToolbarProps ) => {
 		guidanceAnchor
 	);
 
-	/* 初回案内中は、0.5.0で公開する行入口だけを開始位置として通常時より強調する。 */
-	const rowGuidanceTargetClassName = isGuidanceVisible
+	/* 初回案内中は、行・列の両入口を共通の開始位置として通常時より強調する。 */
+	const guidanceTargetClassName = isGuidanceVisible
 		? 'yamabiko-table-reorder-guidance-target'
 		: undefined;
 
@@ -97,7 +97,7 @@ export const ReorderModeToolbar = ( props: ReorderModeToolbarProps ) => {
 				{ /* 選択中の方向だけを現在の並び替えモードとして表示する。 */ }
 				<ToolbarButton
 					ref={ setGuidanceAnchor }
-					className={ rowGuidanceTargetClassName }
+					className={ guidanceTargetClassName }
 					icon={ rowReorderIcon }
 					isPressed={ selectedKind === 'row' }
 					label={ getRowReorderName() }
