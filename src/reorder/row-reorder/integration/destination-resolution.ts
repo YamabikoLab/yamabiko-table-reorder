@@ -8,7 +8,7 @@
 
 import type { DragMoveEvent } from '@dnd-kit/dom';
 
-import { measureTableBodyRowGeometry } from './row-geometry';
+import { measureTableBodyRowGeometry } from '@/reorder/row-reorder/infrastructure/row-geometry';
 
 /** DnD開始時のTable配置を基準として移動先判定に利用する、tbody内の論理的な行境界。 */
 type RowDestinationBoundary = {
