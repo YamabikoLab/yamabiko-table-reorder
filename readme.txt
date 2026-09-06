@@ -1,23 +1,25 @@
 === Yamabiko Table Reorder ===
 Tags: block editor, gutenberg, table
 Requires at least: 6.8
-Tested up to: 7.0
+Tested up to: 7.1
 Requires PHP: 8.1
-Stable tag: 0.4.0
+Stable tag: 0.5.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
-Table reordering for supported blocks in the WordPress block editor.
+Reorder table rows in supported blocks in the WordPress block editor.
 
 == Description ==
 
-The stable 0.4.0 release is the final YTR Prototype release.
+Yamabiko Table Reorder 0.5.0 provides Row Reorder for WordPress Core Table and Flexible Table Block.
 
-Development on `main` is now redesigning formal YTR v1 from the interaction, accessibility, and performance requirements rather than extending the Prototype implementation structure. The active source on `main` is intentionally minimal while that work proceeds.
+Use Row Reorder mode from the Table toolbar, then drag body rows with Mouse or Touch. During DnD, the plugin shows the moving row, the current destination, and the surrounding row displacement so the result remains visible before it is committed.
 
-The existing release history is preserved. The release after 0.4.0 will continue the sequence as 0.5.0; "formal v1" names the new design and implementation generation and does not change the package version to 1.0.0.
+Row Reorder preserves supported Table structure, including merged-cell constraints, and updates the row order only when the drop is valid. Automatic scrolling is available while dragging when needed.
 
-The previously shared WordPress Playground demo remains available as a YTR Prototype v0.4.0 demo from the GitHub repository. It installs the 0.4.0 release explicitly and does not represent the current `main` implementation.
+Column Reorder is not included in 0.5.0 and is currently under development as the next feature.
+
+The previously shared WordPress Playground demo remains available as a YTR Prototype v0.4.0 demo from the GitHub repository. It installs the 0.4.0 release explicitly and does not represent the 0.5.0 implementation.
 
 Source code and development documentation are available on GitHub:
 https://github.com/YamabikoLab/yamabiko-table-reorder
@@ -37,6 +39,15 @@ The generated archive is `yamabiko-table-reorder.zip`.
 4. Activate Yamabiko Table Reorder.
 
 == Changelog ==
+
+= 0.5.0 =
+
+* Changed: Redesigned and reimplemented Row Reorder as the formal v1 generation instead of extending the Prototype implementation structure.
+* Added: Added Mouse and Touch DnD for Row Reorder in WordPress Core Table and Flexible Table Block.
+* Added: Added visual feedback for the moving row, current destination, surrounding row displacement, and automatic scrolling during DnD.
+* Changed: Preserved supported Table structure by preventing moves that would break merged-cell constraints.
+* Changed: Column Reorder is not included in 0.5.0 and is currently under development.
+* Changed: Prototype Keyboard and single-pointer reorder interactions are not included in 0.5.0.
 
 = 0.4.0 =
 
