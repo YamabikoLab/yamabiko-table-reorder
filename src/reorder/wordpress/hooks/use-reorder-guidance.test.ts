@@ -12,20 +12,25 @@ import { reorderMode } from '@/reorder/reorder-mode';
 import { useReorderGuidance } from '@/reorder/wordpress/hooks/use-reorder-guidance';
 
 const mockPreferences = new Map< string, unknown >();
+const mockPreferencesStore = Symbol( 'preferences-store' );
 let mockTouchEnvironment = false;
 
+jest.mock( '@wordpress/preferences', () => ( {
+	store: mockPreferencesStore,
+} ) );
+
 jest.mock( '@wordpress/data', () => ( {
-	select: ( store: string ) => {
-		if ( store !== 'core/preferences' ) {
-			throw new Error( `Unexpected store selection: ${ store }` );
+	select: ( store: symbol ) => {
+		if ( store !== mockPreferencesStore ) {
+			throw new Error( 'Unexpected store selection.' );
 		}
 		return {
 			get: ( scope: string, key: string ) => mockPreferences.get( `${ scope }:${ key }` ),
 		};
 	},
-	dispatch: ( store: string ) => {
-		if ( store !== 'core/preferences' ) {
-			throw new Error( `Unexpected store dispatch: ${ store }` );
+	dispatch: ( store: symbol ) => {
+		if ( store !== mockPreferencesStore ) {
+			throw new Error( 'Unexpected store dispatch.' );
 		}
 		return {
 			set: ( scope: string, key: string, value: unknown ) => {
