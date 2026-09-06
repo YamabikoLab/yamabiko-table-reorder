@@ -10,7 +10,7 @@
 	opacity: 0.35;
 }
 
-/* 移動表示はDnD入力を遮らず、対象Tableとeditor表示領域が重なる範囲だけを表示する。白背景は元行自身が透明な場合のfallbackとして維持する。 */
+/* 移動表示はDnD入力を遮らず、対象Tableとeditor表示領域が重なる範囲だけを表示する。 */
 .yamabiko-table-reorder-moving-row {
 	position: fixed;
 	z-index: 100000;
@@ -28,7 +28,7 @@
 	cursor: grabbing !important;
 }
 
-/* 元Tableの表示特性を引き継ぎつつ、移動対象行の配置を開始時の寸法で維持する。白背景は元行自身が透明な場合のfallbackとして維持する。 */
+/* 元Tableの表示特性を引き継ぎつつ、移動対象行の配置を開始時の寸法で維持する。 */
 .yamabiko-table-reorder-moving-row-table {
 	position: absolute;
 	top: 0;
