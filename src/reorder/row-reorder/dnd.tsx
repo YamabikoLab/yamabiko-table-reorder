@@ -29,6 +29,7 @@ import {
 } from './destination-resolution';
 import { RowInput, type RowDndPointerDownHandler } from './input';
 import { RowPresentation } from './presentation/row-presentation';
+import { notifyRowStartRejection } from './presentation/start-rejection-notice';
 import {
 	rowReorderTargetResolution,
 	type RowReorderTarget,
@@ -91,6 +92,11 @@ export const RowDnd = ( props: {
 		/* 開始時点のTable構造で並び替え対象が成立しない場合は、物理DnDを開始しない。 */
 		if ( resolution.status !== 'resolved' ) {
 			resolvedStart.current = null;
+
+			if ( resolution.status === 'rejected' ) {
+				notifyRowStartRejection( resolution.reason );
+			}
+
 			event.preventDefault();
 			activeDraggable.current?.destroy();
 			activeDraggable.current = null;
