@@ -102,12 +102,16 @@ export const ReorderModeBlockListBlock = ( props: {
 	const { selectedKind } = useReorderMode( clientId );
 	const rowReorderEnabled = selectedKind === 'row';
 	const editingAllowed = selectedKind === null;
+
+	/* 行並び替えモード中だけ対象TableをPresentationから識別できるclassを既存wrapperへ加える。 */
 	const rowReorderWrapperProps = rowReorderEnabled
 		? {
 				...wrapperProps,
 				className: createRowReorderModeClassName( wrapperProps?.className ),
 		  }
 		: wrapperProps;
+
+	/* いずれかの並び替えモード中は通常編集開始を抑止し、モード解除後はGutenberg本来の入力処理へ戻す。 */
 	const reorderWrapperProps = ! editingAllowed
 		? {
 				...rowReorderWrapperProps,
