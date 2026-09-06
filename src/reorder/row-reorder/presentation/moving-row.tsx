@@ -24,10 +24,12 @@ type RowMovingDisplayLayout = {
 	sourceRow: HTMLTableRowElement;
 	sourceTable: HTMLTableElement;
 	rowHeight: number;
+	rowBackgroundColor: string;
 	tableWidth: number;
 	visibleWidth: number;
 	tableOffsetLeft: number;
 	cellWidths: number[];
+	cellBackgroundColors: string[];
 	initialPositionX: number;
 	initialPositionY: number;
 	initialLeft: number;
@@ -89,14 +91,23 @@ const resolveMovingDisplayLayout = (
 	/* 内容量に左右されず元行の列配置を維持できるよう、DnD開始時の各セル幅を確定する。 */
 	const cellWidths = Array.from( sourceRow.cells, ( cell ) => cell.getBoundingClientRect().width );
 
+	/* 元Table内の位置や親要素に依存する背景表示も維持できるよう、DnD開始時の行と各セルの計算済み背景色を確定する。 */
+	const rowBackgroundColor = editorContext.window.getComputedStyle( sourceRow ).backgroundColor;
+	const cellBackgroundColors = Array.from(
+		sourceRow.cells,
+		( cell ) => editorContext.window.getComputedStyle( cell ).backgroundColor
+	);
+
 	return {
 		sourceRow,
 		sourceTable,
 		rowHeight: rowRectangle.height,
+		rowBackgroundColor,
 		tableWidth: tableRectangle.width,
 		visibleWidth,
 		tableOffsetLeft: tableRectangle.left - visibleLeft,
 		cellWidths,
+		cellBackgroundColors,
 		initialPositionX,
 		initialPositionY,
 		initialLeft: visibleLeft,
@@ -135,11 +146,13 @@ const renderMovingRow = (
 	/* 元行だけに適用する半透明表示を複製側へ持ち込まず、移動表示の内容は通常濃度で表示する。 */
 	clonedRow.classList.remove( SOURCE_ROW_CLASS );
 	clonedRow.style.height = `${ layout.rowHeight }px`;
+	clonedRow.style.backgroundColor = layout.rowBackgroundColor;
 
-	/* 空セルを含む場合も元行のセル幅を維持し、内容量による列位置の変化を発生させない。 */
+	/* 空セルを含む場合もDnD開始時のセル配置と背景表示を維持し、複製先の位置による表示変化を発生させない。 */
 	Array.from( clonedRow.cells ).forEach( ( cell, index ) => {
 		const width = layout.cellWidths[ index ];
-		if ( width === undefined ) {
+		const backgroundColor = layout.cellBackgroundColors[ index ];
+		if ( width === undefined || backgroundColor === undefined ) {
 			return;
 		}
 
@@ -147,6 +160,7 @@ const renderMovingRow = (
 		cell.style.width = `${ width }px`;
 		cell.style.minWidth = `${ width }px`;
 		cell.style.maxWidth = `${ width }px`;
+		cell.style.backgroundColor = backgroundColor;
 	} );
 
 	tableBody.replaceChildren( clonedRow );

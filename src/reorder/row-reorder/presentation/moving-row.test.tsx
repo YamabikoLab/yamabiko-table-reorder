@@ -2,7 +2,7 @@
  * Row Reorderの移動対象表示が、DnD Interactionの意味状態とDnD Engineの物理情報を責務どおり組み合わせることを確認する。
  *
  * DnD Interaction本体やDnD Engine本体の実装は重複して検証せず、active Session中だけの表示、
- * 元行の半透明表示、移動表示の通常濃度、入力対象外であること、縦方向追従、表示領域への制限、Session終了および境界終了時の表示解除を検証する。
+ * 元行の半透明表示、移動表示の通常濃度、入力対象外であること、背景色維持、縦方向追従、表示領域への制限、Session終了および境界終了時の表示解除を検証する。
  */
 
 import { act, render } from '@testing-library/react';
@@ -176,6 +176,46 @@ describe( 'Row moving display', () => {
 		const clonedEditable = overlayViewport?.querySelector( '[contenteditable="true"]' );
 		expect( clonedEditable ).not.toBeNull();
 		expect( overlayViewport?.hasAttribute( 'inert' ) ).toBe( true );
+	} );
+
+	/**
+	 * 概要:
+	 * - 元Table上の位置によって行またはセルへ付く背景色を、移動表示がDnD開始時点の表示として維持することを確認する。
+	 *
+	 * 事前条件:
+	 * - Row DnD Sessionがactiveである。
+	 * - 元行には行背景色、セルには別の背景色がTable上の位置に依存するCSSで適用されている。
+	 *
+	 * 操作:
+	 * - 対象行の物理DnDを開始する。
+	 *
+	 * 期待結果:
+	 * - 移動表示の行と各セルに、DnD開始時点の計算済み背景色が維持される。
+	 */
+	it( 'when row and cell backgrounds depend on the source table position, should preserve their computed backgrounds in the moving row', () => {
+		const { table, row } = createSourceTable();
+		const precedingRow = document.createElement( 'tr' );
+		precedingRow.appendChild( document.createElement( 'td' ) );
+		row.parentElement?.insertBefore( precedingRow, row );
+		table.classList.add( 'yamabiko-test-row-background' );
+		const style = document.createElement( 'style' );
+		style.textContent = `
+			.yamabiko-test-row-background tbody > tr:nth-child(2) { background-color: rgb(12, 34, 56); }
+			.yamabiko-test-row-background tbody > tr:nth-child(2) td { background-color: rgb(70, 80, 90); }
+		`;
+		document.body.appendChild( style );
+		mockRowDndPhase = 'active';
+		render( <RowMovingDisplay /> );
+
+		startPhysicalDrag( row );
+
+		const overlayRow = document.body.querySelector(
+			'.yamabiko-table-reorder-moving-row-table tr'
+		) as HTMLTableRowElement | null;
+		const overlayCells = overlayRow?.querySelectorAll( 'td' );
+		expect( overlayRow?.style.backgroundColor ).toBe( 'rgb(12, 34, 56)' );
+		expect( overlayCells?.item( 0 ).style.backgroundColor ).toBe( 'rgb(70, 80, 90)' );
+		expect( overlayCells?.item( 1 ).style.backgroundColor ).toBe( 'rgb(70, 80, 90)' );
 	} );
 
 	/**
