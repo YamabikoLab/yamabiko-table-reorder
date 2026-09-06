@@ -31,13 +31,10 @@ export const RowStartRejectionNotice = () => {
 
 	useEffect( () => {
 		return subscribeRowStartRejection( ( event ) => {
-			/* 現在Designで利用者向け理由を定義している結合範囲の開始拒否だけを表示対象とする。 */
-			if ( event.reason === 'merged-range' ) {
-				setNotice( ( current ) => ( {
-					...event,
-					sequence: ( current?.sequence ?? 0 ) + 1,
-				} ) );
-			}
+			setNotice( ( current ) => ( {
+				...event,
+				sequence: ( current?.sequence ?? 0 ) + 1,
+			} ) );
 		} );
 	}, [] );
 
