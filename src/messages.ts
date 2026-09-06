@@ -36,8 +36,7 @@ export const getRowDndTerminationMessage = () =>
  *
  * @return 現在の言語に対応した初回案内文。
  */
-export const getReorderGuidanceMessage = () =>
-	__( 'Reorder rows.', 'yamabiko-table-reorder' );
+export const getReorderGuidanceMessage = () => __( 'Reorder rows.', 'yamabiko-table-reorder' );
 
 /**
  * 初回案内を閉じる入口の支援技術向け表示名を取得する。
