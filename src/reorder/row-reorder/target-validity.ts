@@ -68,10 +68,7 @@ export const isRowReorderTargetMovable = (
 		return false;
 	}
 
-	const targetBlockedByMergedRange = isRowReorderTargetBlockedByMergedRange(
-		target,
-		constraints
-	);
+	const targetBlockedByMergedRange = isRowReorderTargetBlockedByMergedRange( target, constraints );
 	const targetMovable = ! targetBlockedByMergedRange;
 	return targetMovable;
 };
