@@ -10,7 +10,7 @@ import { Draggable, PointerActivationConstraints, PointerSensor } from '@dnd-kit
 import { useDragDropManager } from '@dnd-kit/react';
 import type { PointerEvent, ReactNode } from 'react';
 
-import type { RowDndSource } from './dnd-interaction';
+import type { RowReorderTarget } from './target-resolution';
 
 /**
  * 行DnDが既存DOMのポインター入力へ接続する開始処理。
@@ -80,7 +80,7 @@ export const RowInput = ( props: {
 		/* 開始候補は現在のポインター入力だけに対応させ、前回入力の一時登録を残さない。 */
 		activeDraggable.current?.destroy();
 
-		const source: RowDndSource = {
+		const source: RowReorderTarget = {
 			tableIdentity,
 			sourceRowIndex: row.sectionRowIndex,
 		};
