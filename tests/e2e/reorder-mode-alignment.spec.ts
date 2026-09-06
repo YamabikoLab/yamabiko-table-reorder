@@ -18,6 +18,7 @@ const getTableWidth = async ( tableFigure: Locator ) =>
 	tableFigure.evaluate( ( element ) => element.getBoundingClientRect().width );
 
 test.describe( 'Reorder Mode Table alignment', () => {
+	test.use( { viewport: { width: 1920, height: 1080 } } );
 	test.beforeEach( async ( { admin, editor, page } ) => {
 		await admin.createNewPost();
 		await setPreferences( page );
@@ -37,6 +38,8 @@ test.describe( 'Reorder Mode Table alignment', () => {
 			name: ROW_BUTTON,
 		} );
 		const alignmentButton = page.getByRole( 'button', { name: /(Align|配置)/ } ).first();
+		const alignmentOption = ( name: RegExp ) =>
+			page.getByRole( 'menuitemradio', { name } ).or( page.getByRole( 'menuitem', { name } ) );
 
 		await editor.selectBlocks( tableBlock );
 		await expect( reorderRowsButton ).toBeVisible();
@@ -46,19 +49,19 @@ test.describe( 'Reorder Mode Table alignment', () => {
 		const normalWidth = await getTableWidth( tableFigure );
 
 		await alignmentButton.click();
-		await page.getByRole( 'menuitem', { name: /^(Wide width|幅広)$/ } ).click();
+		await alignmentOption( /^(Wide width|幅広)/ ).click();
 		await expect( tableFigure ).toHaveClass( /alignwide/ );
 		const wideWidth = await getTableWidth( tableFigure );
 		expect( wideWidth ).toBeGreaterThan( normalWidth );
 
 		await alignmentButton.click();
-		await page.getByRole( 'menuitem', { name: /^(Full width|全幅)$/ } ).click();
+		await alignmentOption( /^(Full width|全幅)/ ).click();
 		await expect( tableFigure ).toHaveClass( /alignfull/ );
 		const fullWidth = await getTableWidth( tableFigure );
 		expect( fullWidth ).toBeGreaterThan( wideWidth );
 
 		await alignmentButton.click();
-		await page.getByRole( 'menuitem', { name: /^(None|なし)$/ } ).click();
+		await alignmentOption( /^(None|なし)/ ).click();
 		await expect( tableFigure ).not.toHaveClass( /align(?:wide|full)/ );
 		await expect.poll( () => getTableWidth( tableFigure ) ).toBeCloseTo( normalWidth, 0 );
 
