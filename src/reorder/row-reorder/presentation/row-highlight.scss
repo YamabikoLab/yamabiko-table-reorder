@@ -17,16 +17,16 @@
 	cursor: grabbing !important;
 }
 
-/* ホバー中はTable本来のセル配置を変えず、操作対象となる行だけを視覚的に識別できるようにする。 */
-.yamabiko-table-reorder-row-highlightable:hover > td,
-.yamabiko-table-reorder-row-highlightable:hover > th {
-	box-shadow: inset 0 0 0 9999px rgb(56 88 233 / 5%);
-}
-
 /* 結合範囲により移動できない行は、操作可能行と区別できる控えめなグレー表示にする。 */
 .yamabiko-table-reorder-row-unavailable > td,
 .yamabiko-table-reorder-row-unavailable > th {
 	box-shadow: inset 0 0 0 9999px rgb(0 0 0 / 6%);
+}
+
+/* ホバー中はTable本来のセル配置を変えず、操作対象となる行だけを視覚的に識別できるようにする。 */
+.yamabiko-table-reorder-row-highlightable:hover > td,
+.yamabiko-table-reorder-row-highlightable:hover > th {
+	box-shadow: inset 0 0 0 9999px rgb(56 88 233 / 5%);
 }
 
 /* 移動不可行では、親Blockから継承される掴めるポインター表示を打ち消す。 */

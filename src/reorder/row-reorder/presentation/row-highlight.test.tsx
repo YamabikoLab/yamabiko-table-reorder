@@ -95,11 +95,11 @@ describe( 'Row highlight', () => {
 					return { status: 'rejected', reason: 'merged-range' };
 				}
 
-			return {
-				status: 'resolved',
-				target: { tableIdentity: 'table-a', sourceRowIndex },
-				initialConstraints: { rowCount: 3, blockedBoundaries: [ 1 ] },
-			};
+				return {
+					status: 'resolved',
+					target: { tableIdentity: 'table-a', sourceRowIndex },
+					initialConstraints: { rowCount: 3, blockedBoundaries: [ 1 ] },
+				};
 			},
 		} );
 		const { getByTestId } = render( <TestTable /> );

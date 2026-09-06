@@ -63,7 +63,13 @@ export const RowHighlight = ( props: {
 		currentRow.current = null;
 
 		/* 行並び替えモード外、または対象Tableのtbody直下行でない位置は操作可否表示の対象にしない。 */
-		if ( ! enabled || resolver === null || ! tableBody || ! row || row.parentElement !== tableBody ) {
+		if (
+			! enabled ||
+			resolver === null ||
+			! tableBody ||
+			! row ||
+			row.parentElement !== tableBody
+		) {
 			return;
 		}
 
