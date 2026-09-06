@@ -7,6 +7,7 @@
 
 import { dispatch, select } from '@wordpress/data';
 import { useCallback, useEffect } from '@wordpress/element';
+import { store as preferencesStore } from '@wordpress/preferences';
 import { useStore } from 'zustand';
 
 import { resolveEditorDomContext } from '@/reorder/editor-dom-context';
@@ -20,14 +21,6 @@ import { useReorderMode } from '@/reorder/reorder-mode-react';
 const PREFERENCE_SCOPE = 'yamabiko-table-reorder';
 const PC_PREFERENCE_KEY = 'initialGuidanceAcknowledgedPc';
 const TOUCH_PREFERENCE_KEY = 'initialGuidanceAcknowledgedTouch';
-
-type PreferencesSelectors = {
-	get: ( scope: string, key: string ) => unknown;
-};
-
-type PreferencesActions = {
-	set: ( scope: string, key: string, value: unknown ) => void;
-};
 
 /**
  * 操作環境に対応する初回案内の表示済み設定名を取得する。
@@ -69,9 +62,8 @@ const resolveGuidanceEnvironment = (
  * @return その操作環境で初回案内を完了済みの場合はtrue。
  */
 const isInitialGuidanceAcknowledged = ( environment: ReorderGuidanceEnvironment ): boolean => {
-	const preferences = select( 'core/preferences' ) as unknown as PreferencesSelectors;
 	const acknowledged = Boolean(
-		preferences.get( PREFERENCE_SCOPE, getPreferenceKey( environment ) )
+		select( preferencesStore ).get( PREFERENCE_SCOPE, getPreferenceKey( environment ) )
 	);
 	return acknowledged;
 };
@@ -82,8 +74,7 @@ const isInitialGuidanceAcknowledged = ( environment: ReorderGuidanceEnvironment 
  * @param environment 表示済み状態を保存する操作環境。
  */
 const acknowledgeInitialGuidance = ( environment: ReorderGuidanceEnvironment ): void => {
-	const preferences = dispatch( 'core/preferences' ) as unknown as PreferencesActions;
-	preferences.set( PREFERENCE_SCOPE, getPreferenceKey( environment ), true );
+	dispatch( preferencesStore ).set( PREFERENCE_SCOPE, getPreferenceKey( environment ), true );
 };
 
 /**
