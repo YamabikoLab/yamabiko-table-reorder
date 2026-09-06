@@ -218,18 +218,18 @@ describe( 'Row displacement presentation', () => {
 
 	/**
 	 * 概要:
-	 * - 移動先変更とDnD終了で、直前の押しのけ表示が残らないことを確認する。
+	 * - DnD Interactionから有効な移動先がなくなった場合とDnD終了時に、直前の押しのけ表示が残らないことを確認する。
 	 *
 	 * 事前条件:
 	 * - 下方向への押しのけ表示が成立している。
 	 *
 	 * 操作:
-	 * - 順序が変わらない移動元直後へ戻した後、物理DnDを終了する。
+	 * - 有効な移動先をnullへ変更した後、物理DnDを終了する。
 	 *
 	 * 期待結果:
 	 * - 押しのけた行は元位置へ戻り、終了後はclassと表示位置の指定が残らない。
 	 */
-	it( 'when the destination returns to the source position and the drag ends, should restore and clear the displacement state', () => {
+	it( 'when there is no valid destination and the drag ends, should restore and clear the displacement state', () => {
 		const tableBody = createRows( 4 );
 		const sourceRow = tableBody.rows.item( 1 );
 		const displacedRow = tableBody.rows.item( 2 );
@@ -242,7 +242,7 @@ describe( 'Row displacement presentation', () => {
 		startPhysicalDrag( sourceRow );
 		mockDestinationBoundaryIndex = 4;
 		rerender( <RowDisplacement /> );
-		mockDestinationBoundaryIndex = 2;
+		mockDestinationBoundaryIndex = null;
 		rerender( <RowDisplacement /> );
 
 		expect(
