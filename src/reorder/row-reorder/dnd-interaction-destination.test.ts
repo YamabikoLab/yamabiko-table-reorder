@@ -69,23 +69,31 @@ describe( 'Row DnD destination validity', () => {
 
 	/**
 	 * 概要:
-	 * - 移動元の直前と直後は候補境界として受け取っても、有効な移動先として保持しないことを確認する。
+	 * - 有効な移動先を保持した後に移動元の直前または直後へ戻った場合、現在の有効移動先が解除されることを確認する。
 	 *
 	 * 事前条件:
 	 * - 2行目を移動対象とするactive Sessionが成立している。
 	 * - Table構造上は全境界が利用可能である。
+	 * - 境界4は行順を変更できる有効な移動先である。
 	 *
 	 * 操作:
-	 * - 移動元直前の境界1、直後の境界2を順に移動先候補として更新する。
+	 * - 境界4を有効な移動先として保持した後、移動元直前の境界1へ戻す。
+	 * - 再度境界4を有効な移動先として保持した後、移動元直後の境界2へ戻す。
 	 *
 	 * 期待結果:
-	 * - どちらも現在の有効移動先はnullとなる。
+	 * - 移動元直前・直後へ戻るたびに、現在の有効移動先はnullとなる。
 	 */
-	it( 'when the candidate is immediately before or after the source row, should expose no valid destination', () => {
+	it( 'when a valid destination returns to immediately before or after the source row, should clear the valid destination', () => {
 		startSession();
+
+		rowDndInteraction.updateDestination( 4 );
+		expect( getRowDndDestinationBoundaryIndex() ).toBe( 4 );
 
 		rowDndInteraction.updateDestination( 1 );
 		expect( getRowDndDestinationBoundaryIndex() ).toBeNull();
+
+		rowDndInteraction.updateDestination( 4 );
+		expect( getRowDndDestinationBoundaryIndex() ).toBe( 4 );
 
 		rowDndInteraction.updateDestination( 2 );
 		expect( getRowDndDestinationBoundaryIndex() ).toBeNull();
