@@ -1,3 +1,9 @@
+/**
+ * 初回案内Popoverと、案内中に強調する並び替え入口の視覚表現を定義する。
+ *
+ * 表示条件や状態は所有せず、Reorder Guidanceが決定した現在表示だけを表現する。
+ */
+
 .yamabiko-table-reorder-guidance {
 	display: flex;
 	align-items: center;

@@ -1,5 +1,5 @@
 /**
- * Reorder GuidanceとWordPress Editor接続境界の初回案内Lifecycleを確認する。
+ * Reorder GuidanceとWordPress Editor接続境界の初回案内ライフサイクルを確認する。
  *
  * WordPress preferences、操作環境、Reorder Modeを接続した結果として、
  * 初回案内の表示、表示済み保存、入口選択による終了が成立することを検証する。
@@ -43,6 +43,7 @@ const RESET_TABLE_IDENTITY = '__reorder-guidance-test-reset__';
 const PC_PREFERENCE = 'yamabiko-table-reorder:initialGuidanceAcknowledgedPc';
 const TOUCH_PREFERENCE = 'yamabiko-table-reorder:initialGuidanceAcknowledgedTouch';
 
+/** WordPress側の表示済み状態とReorderの一時状態を、各テスト開始前の状態へ戻す。 */
 const resetState = () => {
 	mockPreferences.clear();
 	mockTouchEnvironment = false;
@@ -52,9 +53,16 @@ const resetState = () => {
 	reorderMode.notifyTableInactive( RESET_TABLE_IDENTITY );
 };
 
+/**
+ * 現在のEditor DOMを示し、PC／タッチの操作環境判定を切り替えられる基準要素を作成する。
+ *
+ * @return テスト用Editor DOMに属するツールバー相当の要素。
+ */
 const createReferenceElement = () => {
 	const element = document.createElement( 'button' );
 	const editorWindow = element.ownerDocument.defaultView;
+
+	/* テスト用Editor DOMを解決できない状態では操作環境判定を検証できないため、テストを成立させない。 */
 	if ( editorWindow === null ) {
 		throw new Error( 'Expected test document to have a window.' );
 	}
@@ -88,7 +96,7 @@ describe( 'Reorder Guidance WordPress integration', () => {
 	 * - Reorder Modeは通常編集である。
 	 *
 	 * 操作:
-	 * - Table ToolbarをReorder Guidanceへ接続する。
+	 * - TableツールバーをReorder Guidanceへ接続する。
 	 *
 	 * 期待結果:
 	 * - 対象Tableの初回案内が表示される。
@@ -100,6 +108,28 @@ describe( 'Reorder Guidance WordPress integration', () => {
 		await waitFor( () => {
 			expect( result.current.isVisible ).toBe( true );
 		} );
+	} );
+
+	/**
+	 * 概要:
+	 * - 現在の操作環境ですでに初回案内を表示済みの場合は再表示しないことを確認する。
+	 *
+	 * 事前条件:
+	 * - PCの初回案内は表示済みとして保存されている。
+	 * - 現在もPC環境である。
+	 *
+	 * 操作:
+	 * - TableツールバーをReorder Guidanceへ接続する。
+	 *
+	 * 期待結果:
+	 * - 対象Tableの初回案内は表示されない。
+	 */
+	it( 'when guidance is already acknowledged for the current environment, should not show it again', () => {
+		mockPreferences.set( PC_PREFERENCE, true );
+		const referenceElement = createReferenceElement();
+		const { result } = renderHook( () => useReorderGuidance( 'table-a', referenceElement ) );
+
+		expect( result.current.isVisible ).toBe( false );
 	} );
 
 	/**
@@ -141,7 +171,7 @@ describe( 'Reorder Guidance WordPress integration', () => {
 	 * - 現在はタッチ環境である。
 	 *
 	 * 操作:
-	 * - Table ToolbarをReorder Guidanceへ接続する。
+	 * - TableツールバーをReorder Guidanceへ接続する。
 	 *
 	 * 期待結果:
 	 * - タッチ環境の初回案内が表示される。

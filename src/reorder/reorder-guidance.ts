@@ -1,8 +1,8 @@
 /**
  * 初回案内の表示中状態を所有する。
  *
- * ReactやWordPressには依存せず、Zustandのvanilla storeを状態境界として、
- * 現在どのTableへ、どの操作環境の初回案内を表示しているかを保持する。
+ * ReactやWordPressには依存せず、現在どのTableへ、どの操作環境の初回案内を表示しているかという
+ * 一時状態だけをReorder Guidanceの状態境界として保持する。
  */
 
 import { devtools } from 'zustand/middleware';
@@ -11,18 +11,18 @@ import { createStore } from 'zustand/vanilla';
 /** 初回案内を個別に扱う操作環境を表す。 */
 export type ReorderGuidanceEnvironment = 'pc' | 'touch';
 
-/** 初回案内の表示中状態を表す。 */
+/** 現在表示している初回案内の対象Tableと操作環境を表す。 */
 type ActiveReorderGuidance = {
 	tableIdentity: string;
 	environment: ReorderGuidanceEnvironment;
 };
 
-/** Reorder Guidance Storeが所有する状態を表す。 */
+/** Reorder Guidanceの状態ストアが所有する現在表示を表す。 */
 type ReorderGuidanceStoreState = {
 	activeGuidance: ActiveReorderGuidance | null;
 };
 
-/** Reorder Guidance Storeが提供する状態変更操作を表す。 */
+/** Reorder Guidanceの状態ストアが提供する状態変更操作を表す。 */
 type ReorderGuidanceStoreActions = {
 	/**
 	 * 対象Tableへ初回案内を表示する。
@@ -43,13 +43,14 @@ type ReorderGuidanceStoreActions = {
 	hide: ( tableIdentity: string ) => void;
 };
 
+/** Reorder Guidanceの現在表示と、その状態変更操作をまとめた状態ストア内部仕様。 */
 type ReorderGuidanceStore = ReorderGuidanceStoreState & ReorderGuidanceStoreActions;
 
 /**
- * 初回案内の表示中状態を所有するStore。
+ * 初回案内の表示中状態を所有する状態ストア。
  *
- * PC / タッチごとの表示済み状態はWordPress側の永続化境界が所有し、
- * このStoreはReact componentのmount / unmountに依存しない現在表示だけを保持する。
+ * PC／タッチごとの表示済み状態はWordPress側の永続化境界が所有し、
+ * この状態ストアはReactコンポーネントのマウント／アンマウントに依存しない現在表示だけを保持する。
  */
 export const reorderGuidanceStore = createStore< ReorderGuidanceStore >()(
 	devtools(

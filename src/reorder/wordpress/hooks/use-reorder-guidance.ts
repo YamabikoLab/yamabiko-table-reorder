@@ -1,7 +1,7 @@
 /**
  * Reorder GuidanceをWordPress EditorとReactへ接続する。
  *
- * 初回案内の表示契機、PC / タッチの操作環境判定、WordPress preferencesによる表示済み状態、
+ * 初回案内の表示契機、PC／タッチの操作環境判定、WordPress preferencesによる表示済み状態、
  * Reorder Mode選択時の案内終了をこの境界で接続し、Reorder Guidance本体へWordPress依存を持ち込まない。
  */
 
@@ -29,25 +29,30 @@ const TOUCH_PREFERENCE_KEY = 'initialGuidanceAcknowledgedTouch';
  * @return 操作環境ごとに独立したWordPress preferencesの設定名。
  */
 const getPreferenceKey = ( environment: ReorderGuidanceEnvironment ): string => {
+	/* 初回案内の表示済み状態はPCとタッチで独立して保持する。 */
 	const preferenceKey = environment === 'touch' ? TOUCH_PREFERENCE_KEY : PC_PREFERENCE_KEY;
 	return preferenceKey;
 };
 
 /**
- * 現在のeditor contextから、初回案内を個別に扱う操作環境を解決する。
+ * 現在のEditor DOMから、初回案内を個別に扱う操作環境を解決する。
  *
- * @param referenceElement 現在のeditor contextを特定できるToolbar要素。
- * @return タッチ操作を主とする環境ではtouch、それ以外ではpc。editor contextを解決できない場合はnull。
+ * @param referenceElement 現在のEditor DOMを特定できるツールバー要素。
+ * @return タッチ操作を主とする環境ではtouch、それ以外ではpc。Editor DOMを解決できない場合はnull。
  */
 const resolveGuidanceEnvironment = (
 	referenceElement: Element
 ): ReorderGuidanceEnvironment | null => {
 	const editorContext = resolveEditorDomContext( referenceElement );
+
+	/* 現在のEditor DOMを特定できない場合は、誤った操作環境として初回案内を開始しない。 */
 	if ( editorContext === null ) {
 		return null;
 	}
 
 	const { window: editorWindow } = editorContext;
+
+	/* 初回案内は、現在のEditor DOMで主となるポインター種別によりPC／タッチを分離する。 */
 	const touchEnvironment =
 		typeof editorWindow.matchMedia === 'function' &&
 		editorWindow.matchMedia( '(pointer: coarse)' ).matches;
@@ -80,11 +85,11 @@ const acknowledgeInitialGuidance = ( environment: ReorderGuidanceEnvironment ): 
 /**
  * 対象Tableの初回案内をWordPress Editorへ接続する。
  *
- * Toolbar要素が現在のeditor contextで利用可能になった時点で、その操作環境が未表示なら初回案内を開始する。
+ * ツールバー要素が現在のEditor DOMで利用可能になった時点で、その操作環境が未表示なら初回案内を開始する。
  * 初回案内中に行または列の並び替え入口が選択された場合は、表示済みとして保存して案内を終了する。
  *
  * @param tableIdentity    初回案内の対象となるTable Identity。
- * @param referenceElement 現在のeditor contextとPopover位置を特定するToolbar要素。
+ * @param referenceElement 現在のEditor DOMとPopover位置を特定するツールバー要素。
  * @return 対象Tableの初回案内表示状態と、閉じる操作。
  */
 export const useReorderGuidance = (
@@ -93,15 +98,20 @@ export const useReorderGuidance = (
 ) => {
 	const activeGuidance = useStore( reorderGuidanceStore, ( state ) => state.activeGuidance );
 	const { selectedKind } = useReorderMode( tableIdentity );
+
+	/* 別Tableの案内状態は、現在のTableへ表示中として反映しない。 */
 	const guidanceForTable = activeGuidance?.tableIdentity === tableIdentity ? activeGuidance : null;
 	const isVisible = guidanceForTable !== null;
 
 	useEffect( () => {
+		/* 配置基準がない間、または並び替えモード中は初回案内を新しく開始しない。 */
 		if ( referenceElement === null || selectedKind !== null ) {
 			return;
 		}
 
 		const environment = resolveGuidanceEnvironment( referenceElement );
+
+		/* 操作環境を確定できない場合、または同じ操作環境で表示済みの場合は再表示しない。 */
 		if ( environment === null || isInitialGuidanceAcknowledged( environment ) ) {
 			return;
 		}
@@ -110,6 +120,7 @@ export const useReorderGuidance = (
 	}, [ referenceElement, selectedKind, tableIdentity ] );
 
 	const dismiss = useCallback( () => {
+		/* 現在のTableへ案内を表示していない場合は、表示済み状態を誤って更新しない。 */
 		if ( guidanceForTable === null ) {
 			return;
 		}
