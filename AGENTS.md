@@ -8,7 +8,7 @@ These instructions apply to the entire repository.
 - Do not restore Prototype code, tests, design documents, implementation plans, dependencies, or directory structure merely to preserve the old shape.
 - Use `prototype-final` when historical implementation or documentation is needed as reference material.
 - Treat formal v1 as a design and implementation generation. Release version history continues from 0.4.0, with the next release using 0.5.0.
-- `demo/` is intentionally retained as the shared Prototype v0.4.0 demo. Do not treat it as evidence of the current `main` implementation.
+- `demo/` contains the shared WordPress Playground demo for the current released implementation.
 
 ## Repository boundaries
 
