@@ -5,6 +5,10 @@
 	"jest": {
 		"config": [ "jest-unit.config.js" ]
 	},
+	"playwright": {
+		"config": [ "playwright.config.ts" ],
+		"entry": [ "tests/e2e/**/*.spec.ts", "tests/e2e/**/*.performance.ts", "tests/e2e/auth.setup.ts" ]
+	},
 	"babel": {
 		"config": [ "babel.i18n.config.js" ]
 	},
