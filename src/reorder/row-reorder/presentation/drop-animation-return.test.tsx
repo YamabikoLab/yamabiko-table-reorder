@@ -163,7 +163,9 @@ describe( 'Row drop return animation', () => {
 		);
 		expect( sourceRow.style.opacity ).toBe( '0.35' );
 		expect( document.querySelectorAll( '.yamabiko-table-reorder-moving-row' ) ).toHaveLength( 2 );
-		expect( document.querySelectorAll( '.yamabiko-table-reorder-insertion-gap' ) ).toHaveLength( 0 );
+		expect( document.querySelectorAll( '.yamabiko-table-reorder-insertion-gap' ) ).toHaveLength(
+			0
+		);
 
 		act( () => {
 			currentAnimation.onfinish?.( new Event( 'finish' ) as AnimationPlaybackEvent );

@@ -253,7 +253,9 @@ describe( 'Row drop animation', () => {
 			currentAnimation.onfinish?.( new Event( 'finish' ) as AnimationPlaybackEvent );
 		} );
 		expect( document.querySelectorAll( '.yamabiko-table-reorder-moving-row' ) ).toHaveLength( 1 );
-		expect( document.querySelectorAll( '.yamabiko-table-reorder-insertion-gap' ) ).toHaveLength( 1 );
+		expect( document.querySelectorAll( '.yamabiko-table-reorder-insertion-gap' ) ).toHaveLength(
+			1
+		);
 		expect( document.body.contains( movingDisplay ) ).toBe( true );
 		expect( document.body.contains( insertionGap ) ).toBe( true );
 	} );
@@ -282,7 +284,9 @@ describe( 'Row drop animation', () => {
 
 		expect( animateMock ).not.toHaveBeenCalled();
 		expect( document.querySelectorAll( '.yamabiko-table-reorder-moving-row' ) ).toHaveLength( 1 );
-		expect( document.querySelectorAll( '.yamabiko-table-reorder-insertion-gap' ) ).toHaveLength( 1 );
+		expect( document.querySelectorAll( '.yamabiko-table-reorder-insertion-gap' ) ).toHaveLength(
+			1
+		);
 	} );
 
 	/**
@@ -313,7 +317,9 @@ describe( 'Row drop animation', () => {
 
 		expect( currentAnimation.cancel ).toHaveBeenCalledTimes( 1 );
 		expect( document.querySelectorAll( '.yamabiko-table-reorder-moving-row' ) ).toHaveLength( 1 );
-		expect( document.querySelectorAll( '.yamabiko-table-reorder-insertion-gap' ) ).toHaveLength( 1 );
+		expect( document.querySelectorAll( '.yamabiko-table-reorder-insertion-gap' ) ).toHaveLength(
+			1
+		);
 	} );
 
 	/**
@@ -347,7 +353,9 @@ describe( 'Row drop animation', () => {
 
 		expect( animateMock ).not.toHaveBeenCalled();
 		expect( document.querySelectorAll( '.yamabiko-table-reorder-moving-row' ) ).toHaveLength( 1 );
-		expect( document.querySelectorAll( '.yamabiko-table-reorder-insertion-gap' ) ).toHaveLength( 1 );
+		expect( document.querySelectorAll( '.yamabiko-table-reorder-insertion-gap' ) ).toHaveLength(
+			1
+		);
 	} );
 
 	/**
@@ -375,6 +383,8 @@ describe( 'Row drop animation', () => {
 
 		expect( currentAnimation.cancel ).toHaveBeenCalledTimes( 1 );
 		expect( document.querySelectorAll( '.yamabiko-table-reorder-moving-row' ) ).toHaveLength( 1 );
-		expect( document.querySelectorAll( '.yamabiko-table-reorder-insertion-gap' ) ).toHaveLength( 1 );
+		expect( document.querySelectorAll( '.yamabiko-table-reorder-insertion-gap' ) ).toHaveLength(
+			1
+		);
 	} );
 } );
