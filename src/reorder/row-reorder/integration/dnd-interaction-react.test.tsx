@@ -12,12 +12,12 @@ import {
 	getRowDndDestinationBoundaryIndex,
 	getRowDndPhase,
 	subscribeRowDndState,
-} from '../responsibilities/dnd-interaction';
+} from '@/reorder/row-reorder/responsibilities/dnd-interaction';
 import {
 	useRowDndActive,
 	useRowDndDestinationBoundaryIndex,
 	useRowDndPhase,
-} from './dnd-interaction-react';
+} from '@/reorder/row-reorder/integration/dnd-interaction-react';
 
 jest.mock( '@/reorder/row-reorder/responsibilities/dnd-interaction', () => ( {
 	getRowDndActive: jest.fn(),

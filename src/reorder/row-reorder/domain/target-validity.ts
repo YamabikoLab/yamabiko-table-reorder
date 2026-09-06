@@ -6,7 +6,7 @@
  * Table構造の取得、解決結果、DnD Sessionは所有しない。
  */
 
-import type { RowReorderConstraints } from '../responsibilities/table-integration';
+import type { RowReorderConstraints } from '@/reorder/row-reorder/responsibilities/table-integration';
 
 /** 行並び替えで移動する行を識別するReorder Target。 */
 export type RowReorderTarget = {

@@ -11,7 +11,7 @@ import {
 	isRowReorderTargetBlockedByMergedRange,
 	isRowReorderTargetInRange,
 	type RowReorderTarget,
-} from '../domain/target-validity';
+} from '@/reorder/row-reorder/domain/target-validity';
 
 /** Designで利用者へ理由を提示する開始拒否理由。 */
 export type RowReorderTargetRejectionReason = 'merged-range';

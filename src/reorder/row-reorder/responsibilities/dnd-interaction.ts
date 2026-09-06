@@ -14,7 +14,10 @@ import { createStore } from 'zustand/vanilla';
 import { rowReorderMode } from '@/reorder/reorder-mode';
 
 import { rowTableIntegration, type RowReorderConstraints } from './table-integration';
-import { isRowReorderTargetMovable, type RowReorderTarget } from '../domain/target-validity';
+import {
+	isRowReorderTargetMovable,
+	type RowReorderTarget,
+} from '@/reorder/row-reorder/domain/target-validity';
 
 /**
  * activeな行DnD中にDnD Interactionが所有する意味状態を表す。

@@ -10,10 +10,10 @@ import { DragDropProvider } from '@dnd-kit/react';
 import { render } from '@testing-library/react';
 import type { ReactNode } from 'react';
 
-import { rowDndInteraction } from '../responsibilities/dnd-interaction';
+import { rowDndInteraction } from '@/reorder/row-reorder/responsibilities/dnd-interaction';
 import { RowDnd } from './dnd';
-import { createRowDestinationResolver } from './destination-resolution';
-import { rowReorderTargetResolution } from '../responsibilities/target-resolution';
+import { createRowDestinationResolver } from '@/reorder/row-reorder/integration/destination-resolution';
+import { rowReorderTargetResolution } from '@/reorder/row-reorder/responsibilities/target-resolution';
 
 jest.mock( '@dnd-kit/dom', () => ( {
 	Cursor: {},

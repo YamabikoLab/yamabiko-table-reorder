@@ -7,9 +7,9 @@ import { rowReorderMode } from '@/reorder/reorder-mode';
 import {
 	getRowDndDestinationBoundaryIndex,
 	rowDndInteraction,
-} from '../responsibilities/dnd-interaction';
-import { rowTableIntegration } from '../responsibilities/table-integration';
-import type { RowReorderConstraints } from '../responsibilities/table-integration';
+} from '@/reorder/row-reorder/responsibilities/dnd-interaction';
+import { rowTableIntegration } from '@/reorder/row-reorder/responsibilities/table-integration';
+import type { RowReorderConstraints } from '@/reorder/row-reorder/responsibilities/table-integration';
 
 jest.mock( '@/reorder/reorder-mode', () => ( {
 	rowReorderMode: {

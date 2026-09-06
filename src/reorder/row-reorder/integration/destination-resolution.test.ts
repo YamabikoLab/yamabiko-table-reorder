@@ -6,7 +6,7 @@
 
 import type { DragMoveEvent } from '@dnd-kit/dom';
 
-import { createRowDestinationResolver } from './destination-resolution';
+import { createRowDestinationResolver } from '@/reorder/row-reorder/integration/destination-resolution';
 
 /**
  * 指定位置と高さを持つ2行Tableを生成する。

@@ -22,21 +22,24 @@ import { DragDropProvider } from '@dnd-kit/react';
 import { useCallback, useEffect, useRef } from '@wordpress/element';
 import type { ReactNode } from 'react';
 
-import { rowDndInteraction } from '../responsibilities/dnd-interaction';
+import { rowDndInteraction } from '@/reorder/row-reorder/responsibilities/dnd-interaction';
 import {
 	createRowDestinationResolver,
 	type RowDestinationResolver,
-} from './destination-resolution';
-import { RowInput, type RowDndPointerDownHandler } from '../responsibilities/input';
-import { RowPresentation } from '../responsibilities/presentation/row-presentation';
+} from '@/reorder/row-reorder/integration/destination-resolution';
+import {
+	RowInput,
+	type RowDndPointerDownHandler,
+} from '@/reorder/row-reorder/responsibilities/input';
+import { RowPresentation } from '@/reorder/row-reorder/responsibilities/presentation/row-presentation';
 import {
 	rowReorderTargetResolution,
 	type RowReorderTarget,
 	type RowReorderTargetResolution,
-} from '../responsibilities/target-resolution';
+} from '@/reorder/row-reorder/responsibilities/target-resolution';
 
 /** 行DnDを既存DOMのポインター入力へ接続する開始処理型を、DnD接続境界から公開する。 */
-export type { RowDndPointerDownHandler } from '../responsibilities/input';
+export type { RowDndPointerDownHandler } from '@/reorder/row-reorder/responsibilities/input';
 
 /**
  * 対象Tableへdnd-kitの物理DnD進行を接続する。
