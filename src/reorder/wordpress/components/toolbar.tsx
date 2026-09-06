@@ -1,14 +1,17 @@
 /**
- * WordPress EditorのTable ToolbarへReorder Mode入口を表示するReact componentを所有する。
+ * WordPress EditorのTable ToolbarへReorder Mode入口と初回案内を表示するReact componentを所有する。
  *
- * 行・列の入口を排他的なReorder Mode状態へ接続し、現在の選択状態をToolbarへ反映する。
+ * 行・列の入口を排他的なReorder Mode状態へ接続し、初回案内表示中は両方の入口を視覚的に強調する。
  */
 
 import { BlockControls } from '@wordpress/block-editor';
 import { ToolbarButton, ToolbarGroup } from '@wordpress/components';
+import { useState } from '@wordpress/element';
 
 import { getColumnReorderName, getRowReorderName } from '@/messages';
 import { useReorderMode } from '@/reorder/reorder-mode-react';
+import { ReorderGuidance } from '@/reorder/wordpress/components/guidance';
+import { useReorderGuidance } from '@/reorder/wordpress/hooks/use-reorder-guidance';
 
 /** Reorder Mode Toolbarへ渡すprops。 */
 type ReorderModeToolbarProps = {
@@ -67,31 +70,47 @@ const columnReorderIcon = (
 );
 
 /**
- * 対応Tableの行・列並び替え入口を表示し、排他的なReorder Mode状態へ接続する。
+ * 対応Tableの行・列並び替え入口を表示し、Reorder Modeと初回案内へ接続する。
  *
  * @param props Toolbarを表示するTable Identity。
- * @return 現在のReorder Mode選択状態を反映したToolbar入口。
+ * @return 現在のReorder Mode選択状態と初回案内状態を反映したToolbar入口。
  */
 export const ReorderModeToolbar = ( props: ReorderModeToolbarProps ) => {
 	const { tableIdentity } = props;
 	const { selectedKind, select: selectMode } = useReorderMode( tableIdentity );
+	const [ guidanceAnchor, setGuidanceAnchor ] = useState< HTMLElement | null >( null );
+	const { dismiss, isVisible: isGuidanceVisible } = useReorderGuidance(
+		tableIdentity,
+		guidanceAnchor
+	);
+	const guidanceTargetClassName = isGuidanceVisible
+		? 'yamabiko-table-reorder-guidance-target'
+		: undefined;
 
 	return (
 		<BlockControls>
 			<ToolbarGroup>
 				<ToolbarButton
+					ref={ setGuidanceAnchor }
+					className={ guidanceTargetClassName }
 					icon={ rowReorderIcon }
 					isPressed={ selectedKind === 'row' }
 					label={ getRowReorderName() }
 					onClick={ () => selectMode( 'row' ) }
 				/>
 				<ToolbarButton
+					className={ guidanceTargetClassName }
 					icon={ columnReorderIcon }
 					isPressed={ selectedKind === 'column' }
 					label={ getColumnReorderName() }
 					onClick={ () => selectMode( 'column' ) }
 				/>
 			</ToolbarGroup>
+			<ReorderGuidance
+				anchor={ guidanceAnchor }
+				isVisible={ isGuidanceVisible }
+				onDismiss={ dismiss }
+			/>
 		</BlockControls>
 	);
 };
