@@ -3,7 +3,7 @@ Tags: block editor, gutenberg, table
 Requires at least: 6.8
 Tested up to: 7.1
 Requires PHP: 8.1
-Stable tag: 0.5.0
+Stable tag: 0.6.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -11,15 +11,15 @@ Reorder table rows in supported blocks in the WordPress block editor.
 
 == Description ==
 
-Yamabiko Table Reorder 0.5.0 provides Row Reorder for WordPress Core Table and Flexible Table Block.
+Yamabiko Table Reorder 0.6.0 provides Row Reorder for WordPress Core Table and Flexible Table Block.
 
 Use Row Reorder mode from the Table toolbar, then drag body rows with Mouse or Touch. During DnD, the plugin shows the moving row, the current destination, and the surrounding row displacement so the result remains visible before it is committed.
 
-Row Reorder preserves supported Table structure, including merged-cell constraints, and updates the row order only when the drop is valid. Automatic scrolling is available while dragging when needed.
+Row Reorder preserves supported Table structure, including merged-cell constraints, and updates the row order only when the drop is valid. Rows that cannot be moved because of merged-cell constraints are identified in advance, and a short message explains the reason when a drag is attempted. The moving row also preserves the source row and cell background colors. Automatic scrolling is available while dragging when needed.
 
-Column Reorder is not included in 0.5.0 and is currently under development as the next feature.
+Column Reorder is not included in 0.6.0 and is currently under development as the next feature.
 
-The previously shared WordPress Playground demo remains available as a YTR Prototype v0.4.0 demo from the GitHub repository. It installs the 0.4.0 release explicitly and does not represent the 0.5.0 implementation.
+A WordPress Playground demo is available from the GitHub repository and uses the current latest stable release.
 
 Source code and development documentation are available on GitHub:
 https://github.com/YamabikoLab/yamabiko-table-reorder
@@ -39,6 +39,12 @@ The generated archive is `yamabiko-table-reorder.zip`.
 4. Activate Yamabiko Table Reorder.
 
 == Changelog ==
+
+= 0.6.0 =
+
+* Added: Added clearer feedback for rows that cannot be moved because of merged-cell constraints, including an unavailable row state and a short message when a drag is attempted.
+* Fixed: Preserved the source row and cell background colors in the moving row during Row Reorder DnD.
+* Changed: Refined the internal Row Reorder responsibility boundaries and source organization, including Reorder Target Resolution.
 
 = 0.5.0 =
 
