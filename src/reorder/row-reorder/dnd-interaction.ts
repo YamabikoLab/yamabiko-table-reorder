@@ -5,6 +5,7 @@
  * 移動先更新、確定、cancelのLifecycleを所有する。開始可否判定は所有しない。
  * active Sessionだけを共有状態として保持し、DnD Engine固有の物理状態やSession開始前の候補を状態として複製しない。
  * DnD終了後はSessionを破棄してから対象Tableの現在行制約を取得し直し、Reorder Modeへ継続可否だけを通知する。
+ * DnD Interaction外部へStoreを公開せず、Reorder PresentationやAuto Scrollに必要な状態だけを購読境界と一回性イベントで公開する。
  */
 
 import { devtools } from 'zustand/middleware';
@@ -93,6 +94,9 @@ const emitRowDndTerminationNotice = (): void => {
 
 /**
  * DnD終了後のSession対象Tableが、次の行並び替え操作を安全に受けられるかReorder Modeへ通知する。
+ *
+ * complete途中で取得した行制約やSession開始時制約は流用せず、Session終了後にTable Integrationから現在の行制約を取得し直す。
+ * 今回の移動元・移動先・終了種別ではなく、対象Table自体が次の操作を受けられるかだけをReorder Modeへ通知する。
  *
  * @param tableIdentity 終了した行DnD Sessionの対象Table Identity。
  */
@@ -328,6 +332,8 @@ export const getRowDndDestinationBoundaryIndex = (): number | null => {
 /**
  * Reorder PresentationがDnD異常終了通知を一回性イベントとして受け取るために利用する。
  *
+ * 通知表示そのものの状態や終了理由は公開せず、通知対象となる終了が発生したことだけを伝える。
+ *
  * @param listener 通知対象のDnD終了時に呼び出す購読listener。
  * @return 購読を解除する関数。
  */
@@ -347,7 +353,7 @@ export const subscribeRowDndTerminationNotice = (
  * DnD Engine Lifecycleから利用する行専用DnD Interactionの内部仕様。
  *
  * Store自体や状態置換手段は公開せず、解決済みTargetから始まるSession Lifecycleの操作だけを公開する。
- * completeとcancelでは、終了対象SessionのTable IdentityをStore操作前に退避する。
+ * completeとcancelでは、終了対象SessionのTable IdentityをStore操作前に退避し、Session終了後にそのTableの継続可否だけをReorder Modeへ通知する。
  */
 export const rowDndInteraction: RowDndStoreActions = {
 	start: ( target, initialConstraints ) =>
@@ -370,6 +376,7 @@ export const rowDndInteraction: RowDndStoreActions = {
 	cancel: () => {
 		const state = rowDndStore.getState();
 
+		/* active DnDの終了経路だけをReorder ModeのDnD終了後Lifecycleへ接続し、idle時の後処理を発生させない。 */
 		if ( state.phase !== 'active' ) {
 			rowDndStore.getState().cancel();
 			return;
