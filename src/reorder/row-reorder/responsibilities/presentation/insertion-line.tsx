@@ -11,11 +11,11 @@ import { createPortal, useEffect, useState } from '@wordpress/element';
 import type { CSSProperties } from 'react';
 
 import { resolveEditorDomContext } from '@/reorder/editor-dom-context';
-import { useRowDndDestinationBoundaryIndex } from '@/reorder/row-reorder/dnd-interaction-react';
+import { useRowDndDestinationBoundaryIndex } from '@/reorder/row-reorder/integration/dnd-interaction-react';
 import {
 	measureTableBodyRowGeometry,
 	resolveRowBoundaryOffsets,
-} from '@/reorder/row-reorder/row-geometry';
+} from '@/reorder/row-reorder/infrastructure/row-geometry';
 
 import './insertion-line.scss';
 
