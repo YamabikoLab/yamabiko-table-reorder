@@ -18,18 +18,19 @@ import './moving-row.scss';
 
 const SOURCE_ROW_CLASS = 'yamabiko-table-reorder-moving-row-source';
 const DRAGGING_CLASS = 'yamabiko-table-reorder-row-dragging';
-const FALLBACK_BACKGROUND_COLOR = '#fff';
 
 /** Row DnD開始時に確定し、そのDnD中の移動表示で維持する配置情報。 */
 type RowMovingDisplayLayout = {
 	sourceRow: HTMLTableRowElement;
 	sourceTable: HTMLTableElement;
 	rowHeight: number;
+	tableBackgroundColor: string;
 	rowBackgroundColor: string;
 	tableWidth: number;
 	visibleWidth: number;
 	tableOffsetLeft: number;
 	cellWidths: number[];
+	cellBackgroundColors: string[];
 	initialPositionX: number;
 	initialPositionY: number;
 	initialLeft: number;
@@ -41,50 +42,6 @@ type RowMovingDisplayLayout = {
 type RowMovingDisplayPosition = {
 	left: number;
 	top: number;
-};
-
-/**
- * DnD開始時点の元行背景色から、移動表示で維持する背景色を確定する。
- *
- * 元行自身の背景色が透明な場合は、移動表示の背後が透けないよう従来の白背景を維持する。
- *
- * @param backgroundColor 現在のeditor contextで解決した元行の計算済み背景色。
- * @return そのDnD中の移動表示で維持する背景色。
- */
-const resolveMovingRowBackgroundColor = ( backgroundColor: string ): string => {
-	const normalizedColor = backgroundColor.trim().toLowerCase();
-
-	if ( normalizedColor === 'transparent' ) {
-		return FALLBACK_BACKGROUND_COLOR;
-	}
-
-	const functionalColor = normalizedColor.match( /^rgba?\((.*)\)$/ );
-	if ( functionalColor === null ) {
-		return backgroundColor;
-	}
-
-	const components = functionalColor[ 1 ];
-	const slashAlpha = components.split( '/' );
-	const alphaZeroPattern = /^0(?:\.0+)?%?$/;
-
-	/* CSS Colorのスラッシュ記法で完全透明と確定できる場合は、移動表示を白背景へ戻す。 */
-	if ( slashAlpha.length === 2 ) {
-		const alpha = slashAlpha[ 1 ].trim();
-		const resolvedColor = alphaZeroPattern.test( alpha )
-			? FALLBACK_BACKGROUND_COLOR
-			: backgroundColor;
-		return resolvedColor;
-	}
-
-	const commaComponents = components.split( ',' );
-	const alpha = commaComponents.at( -1 )?.trim();
-	const hasTransparentLegacyAlpha =
-		normalizedColor.startsWith( 'rgba(' ) &&
-		commaComponents.length === 4 &&
-		alpha !== undefined &&
-		alphaZeroPattern.test( alpha );
-	const resolvedColor = hasTransparentLegacyAlpha ? FALLBACK_BACKGROUND_COLOR : backgroundColor;
-	return resolvedColor;
 };
 
 /**
@@ -134,19 +91,26 @@ const resolveMovingDisplayLayout = (
 
 	/* 内容量に左右されず元行の列配置を維持できるよう、DnD開始時の各セル幅を確定する。 */
 	const cellWidths = Array.from( sourceRow.cells, ( cell ) => cell.getBoundingClientRect().width );
-	const rowBackgroundColor = resolveMovingRowBackgroundColor(
-		editorContext.window.getComputedStyle( sourceRow ).backgroundColor
+
+	/* 元Table内の位置や親要素に依存する背景表示も維持できるよう、DnD開始時の計算済み背景色を確定する。 */
+	const tableBackgroundColor = editorContext.window.getComputedStyle( sourceTable ).backgroundColor;
+	const rowBackgroundColor = editorContext.window.getComputedStyle( sourceRow ).backgroundColor;
+	const cellBackgroundColors = Array.from(
+		sourceRow.cells,
+		( cell ) => editorContext.window.getComputedStyle( cell ).backgroundColor
 	);
 
 	return {
 		sourceRow,
 		sourceTable,
 		rowHeight: rowRectangle.height,
+		tableBackgroundColor,
 		rowBackgroundColor,
 		tableWidth: tableRectangle.width,
 		visibleWidth,
 		tableOffsetLeft: tableRectangle.left - visibleLeft,
 		cellWidths,
+		cellBackgroundColors,
 		initialPositionX,
 		initialPositionY,
 		initialLeft: visibleLeft,
@@ -187,10 +151,11 @@ const renderMovingRow = (
 	clonedRow.style.height = `${ layout.rowHeight }px`;
 	clonedRow.style.backgroundColor = layout.rowBackgroundColor;
 
-	/* 空セルを含む場合も元行のセル幅を維持し、内容量による列位置の変化を発生させない。 */
+	/* 空セルを含む場合もDnD開始時のセル配置と背景表示を維持し、複製先の位置による表示変化を発生させない。 */
 	Array.from( clonedRow.cells ).forEach( ( cell, index ) => {
 		const width = layout.cellWidths[ index ];
-		if ( width === undefined ) {
+		const backgroundColor = layout.cellBackgroundColors[ index ];
+		if ( width === undefined || backgroundColor === undefined ) {
 			return;
 		}
 
@@ -198,6 +163,7 @@ const renderMovingRow = (
 		cell.style.width = `${ width }px`;
 		cell.style.minWidth = `${ width }px`;
 		cell.style.maxWidth = `${ width }px`;
+		cell.style.backgroundColor = backgroundColor;
 	} );
 
 	tableBody.replaceChildren( clonedRow );
@@ -239,6 +205,7 @@ const RowMovingOverlay = ( props: {
 	const tableStyle: CSSProperties = {
 		left: layout.tableOffsetLeft,
 		width: layout.tableWidth,
+		backgroundColor: layout.tableBackgroundColor,
 	};
 	const sourceTableClasses = layout.sourceTable.className;
 	const movingTableClasses =
