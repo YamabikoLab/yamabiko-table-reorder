@@ -70,7 +70,9 @@ const resolveGuidanceEnvironment = (
  */
 const isInitialGuidanceAcknowledged = ( environment: ReorderGuidanceEnvironment ): boolean => {
 	const preferences = select( 'core/preferences' ) as unknown as PreferencesSelectors;
-	const acknowledged = Boolean( preferences.get( PREFERENCE_SCOPE, getPreferenceKey( environment ) ) );
+	const acknowledged = Boolean(
+		preferences.get( PREFERENCE_SCOPE, getPreferenceKey( environment ) )
+	);
 	return acknowledged;
 };
 
@@ -90,7 +92,7 @@ const acknowledgeInitialGuidance = ( environment: ReorderGuidanceEnvironment ): 
  * Toolbar要素が現在のeditor contextで利用可能になった時点で、その操作環境が未表示なら初回案内を開始する。
  * 初回案内中に行または列の並び替え入口が選択された場合は、表示済みとして保存して案内を終了する。
  *
- * @param tableIdentity   初回案内の対象となるTable Identity。
+ * @param tableIdentity    初回案内の対象となるTable Identity。
  * @param referenceElement 現在のeditor contextとPopover位置を特定するToolbar要素。
  * @return 対象Tableの初回案内表示状態と、閉じる操作。
  */
@@ -100,8 +102,7 @@ export const useReorderGuidance = (
 ) => {
 	const activeGuidance = useStore( reorderGuidanceStore, ( state ) => state.activeGuidance );
 	const { selectedKind } = useReorderMode( tableIdentity );
-	const guidanceForTable =
-		activeGuidance?.tableIdentity === tableIdentity ? activeGuidance : null;
+	const guidanceForTable = activeGuidance?.tableIdentity === tableIdentity ? activeGuidance : null;
 	const isVisible = guidanceForTable !== null;
 
 	useEffect( () => {
