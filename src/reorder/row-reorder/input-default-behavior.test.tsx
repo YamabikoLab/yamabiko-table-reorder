@@ -1,5 +1,8 @@
 /**
  * 行DnD開始入力が、入力方式に応じてブラウザー既定動作を適切に扱うことを確認する。
+ *
+ * Reorder Target Resolutionは独立責務としてmockし、この境界では開始可能な行に対する
+ * マウスとタッチのブラウザー既定動作だけを検証する。
  */
 
 import { Draggable } from '@dnd-kit/dom';
@@ -18,6 +21,19 @@ jest.mock( '@dnd-kit/dom', () => ( {
 
 jest.mock( '@dnd-kit/react', () => ( {
 	useDragDropManager: jest.fn(),
+} ) );
+
+jest.mock( './target-resolution', () => ( {
+	rowReorderTargetResolution: {
+		resolve: jest.fn( ( target ) => ( {
+			status: 'resolved',
+			target,
+			initialConstraints: {
+				rowCount: 1,
+				blockedBoundaries: [],
+			},
+		} ) ),
+	},
 } ) );
 
 const draggableConstructorMock = Draggable as unknown as jest.Mock;

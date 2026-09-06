@@ -1,18 +1,22 @@
 /**
- * Row Reorderの行ホバー表示が、Table Integrationの現在制約に従って操作可能な行だけを表示対象にすることを確認する。
+ * Row Reorderの行ホバー表示が、Reorder Target Resolutionの開始可否に従って操作可能・移動不可を表示することを確認する。
  */
 
 import { fireEvent, render } from '@testing-library/react';
 
+import { rowReorderTargetResolution } from '@/reorder/row-reorder/target-resolution';
+
 import { RowHighlight } from './row-highlight';
 
-const mockGetConstraints = jest.fn();
-
-jest.mock( '@/reorder/row-reorder/table-integration', () => ( {
-	rowTableIntegration: {
-		getConstraints: ( tableIdentity: string ) => mockGetConstraints( tableIdentity ),
+jest.mock( '@/reorder/row-reorder/target-resolution', () => ( {
+	rowReorderTargetResolution: {
+		createResolver: jest.fn(),
 	},
 } ) );
+
+const createResolverMock = rowReorderTargetResolution.createResolver as jest.MockedFunction<
+	typeof rowReorderTargetResolution.createResolver
+>;
 
 const TestTable = ( props: { enabled?: boolean } ) => (
 	<RowHighlight enabled={ props.enabled ?? true } tableIdentity="table-a">
@@ -38,24 +42,30 @@ const TestTable = ( props: { enabled?: boolean } ) => (
 
 describe( 'Row highlight', () => {
 	beforeEach( () => {
-		mockGetConstraints.mockReset();
+		jest.clearAllMocks();
+		createResolverMock.mockReturnValue( {
+			resolve: ( sourceRowIndex ) => ( {
+				status: 'resolved',
+				target: { tableIdentity: 'table-a', sourceRowIndex },
+				initialConstraints: { rowCount: 3, blockedBoundaries: [] },
+			} ),
+		} );
 	} );
 
 	/**
 	 * 概要:
-	 * - 縦結合の分断不可境界に接していない行だけが操作可能表示の対象になることを確認する。
+	 * - Target Resolutionが開始可能とした行だけが操作可能表示の対象になることを確認する。
 	 *
 	 * 事前条件:
-	 * - 3行Tableで境界1が縦結合により分断不可である。
+	 * - 現在Tableの各行は行単位で移動可能と解決される。
 	 *
 	 * 操作:
-	 * - 縦結合に含まれない3行目へポインターを移動する。
+	 * - 3行目へポインターを移動する。
 	 *
 	 * 期待結果:
 	 * - 3行目だけがホバー表示とgrabカーソルの対象として識別される。
 	 */
-	it( 'when a hovered row is outside merged ranges, should mark only that row as highlightable', () => {
-		mockGetConstraints.mockReturnValue( { rowCount: 3, blockedBoundaries: [ 1 ] } );
+	it( 'when target resolution resolves the hovered row, should mark only that row as highlightable', () => {
 		const { getByTestId } = render( <TestTable /> );
 
 		fireEvent.pointerOver( getByTestId( 'row-2' ).querySelector( 'td' ) as HTMLTableCellElement );
@@ -67,43 +77,57 @@ describe( 'Row highlight', () => {
 
 	/**
 	 * 概要:
-	 * - 縦結合範囲に含まれる行へ移動した場合、操作可能表示を出さないことを確認する。
+	 * - 結合範囲により開始拒否となる行を移動不可表示として識別できることを確認する。
 	 *
 	 * 事前条件:
-	 * - 3行Tableで境界1が縦結合により分断不可であり、3行目には操作可能表示が出ている。
+	 * - 2行目は結合範囲により開始拒否、3行目は開始可能と解決される。
 	 *
 	 * 操作:
-	 * - 3行目から縦結合に含まれる2行目へポインターを移動する。
+	 * - 3行目から2行目へポインターを移動する。
 	 *
 	 * 期待結果:
-	 * - 以前の操作可能表示が解除され、2行目にも操作可能表示を付けない。
+	 * - 3行目の操作可能表示が解除され、2行目に移動不可表示が付く。
 	 */
-	it( 'when the pointer moves onto a row inside a merged range, should clear the highlightable row', () => {
-		mockGetConstraints.mockReturnValue( { rowCount: 3, blockedBoundaries: [ 1 ] } );
+	it( 'when target resolution rejects the hovered row, should show the row as unavailable', () => {
+		createResolverMock.mockReturnValue( {
+			resolve: ( sourceRowIndex ) => {
+				if ( sourceRowIndex === 1 ) {
+					return { status: 'rejected', reason: 'merged-range' };
+				}
+
+				return {
+					status: 'resolved',
+					target: { tableIdentity: 'table-a', sourceRowIndex },
+					initialConstraints: { rowCount: 3, blockedBoundaries: [ 1 ] },
+				};
+			},
+		} );
 		const { getByTestId } = render( <TestTable /> );
 
 		fireEvent.pointerOver( getByTestId( 'row-2' ).querySelector( 'td' ) as HTMLTableCellElement );
 		fireEvent.pointerOver( getByTestId( 'row-1' ).querySelector( 'td' ) as HTMLTableCellElement );
 
-		expect( getByTestId( 'row-1' ).className ).toBe( '' );
 		expect( getByTestId( 'row-2' ).className ).toBe( '' );
+		expect( getByTestId( 'row-1' ).className ).toBe( 'yamabiko-table-reorder-row-unavailable' );
 	} );
 
 	/**
 	 * 概要:
-	 * - Table Integrationが制約を提供できない場合に操作可能と推測しないことを確認する。
+	 * - 現在の移動対象を安全に解決できない場合に操作可能または移動不可と推測しないことを確認する。
 	 *
 	 * 事前条件:
-	 * - 現在Tableの制約情報を取得できない。
+	 * - Target Resolutionが現在行を通常の利用不能と解決する。
 	 *
 	 * 操作:
 	 * - Table内の行へポインターを移動する。
 	 *
 	 * 期待結果:
-	 * - どの行にも操作可能表示を付けない。
+	 * - 行に操作可能表示も移動不可表示も付けない。
 	 */
-	it( 'when current table constraints are unavailable, should not mark a hovered row as highlightable', () => {
-		mockGetConstraints.mockReturnValue( null );
+	it( 'when target resolution returns unavailable, should not mark the hovered row with an availability state', () => {
+		createResolverMock.mockReturnValue( {
+			resolve: () => ( { status: 'unavailable' } ),
+		} );
 		const { getByTestId } = render( <TestTable /> );
 
 		fireEvent.pointerOver( getByTestId( 'row-2' ).querySelector( 'td' ) as HTMLTableCellElement );
@@ -113,7 +137,7 @@ describe( 'Row highlight', () => {
 
 	/**
 	 * 概要:
-	 * - 行並び替えモード終了時に既存の操作可能表示を残さず、その後の通常編集入力でも再表示しないことを確認する。
+	 * - 行並び替えモード終了時に既存の操作可否表示を残さず、その後の通常編集入力でも再表示しないことを確認する。
 	 *
 	 * 事前条件:
 	 * - 行並び替えモード中に移動可能な行へ操作可能表示が出ている。
@@ -122,10 +146,9 @@ describe( 'Row highlight', () => {
 	 * - 行並び替えを無効化し、その後に別の行へポインターを移動する。
 	 *
 	 * 期待結果:
-	 * - 既存の操作可能表示が解除され、無効化後はどの行にも操作可能表示を付けない。
+	 * - 既存の操作可能表示が解除され、無効化後はどの行にも操作可否表示を付けない。
 	 */
-	it( 'when row reordering becomes disabled, should clear the current highlight and stop marking rows as highlightable', () => {
-		mockGetConstraints.mockReturnValue( { rowCount: 3, blockedBoundaries: [] } );
+	it( 'when row reordering becomes disabled, should clear the current row state and stop marking rows', () => {
 		const { getByTestId, rerender } = render( <TestTable /> );
 
 		fireEvent.pointerOver( getByTestId( 'row-2' ).querySelector( 'td' ) as HTMLTableCellElement );

@@ -36,20 +36,14 @@ const constraints: RowReorderConstraints = {
 	blockedBoundaries: [],
 };
 
-const source = {
+const target = {
 	tableIdentity: 'table-a',
 	sourceRowIndex: 1,
 };
 
-/** activeな行DnD Sessionを開始する。 */
+/** 解決済みTargetからactiveな行DnD Sessionを開始する。 */
 const startSession = (): void => {
-	const checkedConstraints = rowDndInteraction.prepareStart( source );
-
-	if ( checkedConstraints === null ) {
-		throw new Error( 'Test precondition failed: expected row DnD to be startable.' );
-	}
-
-	rowDndInteraction.start( source, checkedConstraints );
+	rowDndInteraction.start( target, constraints );
 };
 
 describe( 'Row DnD destination validity', () => {
@@ -70,18 +64,12 @@ describe( 'Row DnD destination validity', () => {
 	/**
 	 * 概要:
 	 * - 有効な移動先を保持した後に移動元の直前または直後へ戻った場合、現在の有効移動先が解除されることを確認する。
-	 *
 	 * 事前条件:
 	 * - 2行目を移動対象とするactive Sessionが成立している。
-	 * - Table構造上は全境界が利用可能である。
-	 * - 境界4は行順を変更できる有効な移動先である。
-	 *
 	 * 操作:
-	 * - 境界4を有効な移動先として保持した後、移動元直前の境界1へ戻す。
-	 * - 再度境界4を有効な移動先として保持した後、移動元直後の境界2へ戻す。
-	 *
+	 * - 有効な境界4から移動元直前・直後の境界へ戻す。
 	 * 期待結果:
-	 * - 移動元直前・直後へ戻るたびに、現在の有効移動先はnullとなる。
+	 * - 移動元直前・直後へ戻るたびに現在の有効移動先はnullとなる。
 	 */
 	it( 'when a valid destination returns to immediately before or after the source row, should clear the valid destination', () => {
 		startSession();
@@ -93,23 +81,17 @@ describe( 'Row DnD destination validity', () => {
 		expect( getRowDndDestinationBoundaryIndex() ).toBeNull();
 
 		rowDndInteraction.updateDestination( 4 );
-		expect( getRowDndDestinationBoundaryIndex() ).toBe( 4 );
-
 		rowDndInteraction.updateDestination( 2 );
 		expect( getRowDndDestinationBoundaryIndex() ).toBeNull();
 	} );
 
 	/**
 	 * 概要:
-	 * - 行順が変わる構造上有効な候補は、現在の有効移動先として保持されることを確認する。
-	 *
+	 * - 行順が変わる構造上有効な候補は現在の有効移動先として保持されることを確認する。
 	 * 事前条件:
 	 * - 2行目を移動対象とするactive Sessionが成立している。
-	 * - 境界4はTable構造上利用可能であり、移動元直前・直後ではない。
-	 *
 	 * 操作:
 	 * - 境界4を移動先候補として更新する。
-	 *
 	 * 期待結果:
 	 * - 現在の有効移動先として境界4を取得できる。
 	 */
