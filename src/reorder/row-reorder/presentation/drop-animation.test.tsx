@@ -61,6 +61,19 @@ const rectangle = ( values: Partial< DOMRect > ): DOMRect =>
 		...values,
 	} ) as DOMRect;
 
+/**
+ * 操作前後の参照差から、Presentationがbody直下へ一時追加した要素だけを取得する。
+ *
+ * @param existingChildren 操作前に存在していたbody直下要素。
+ * @return 操作後に新しく追加されたbody直下要素。
+ */
+const getAddedBodyChildren = ( existingChildren: readonly Element[] ): Element[] => {
+	const existingElements = new Set( existingChildren );
+	return Array.from( document.body.children ).filter(
+		( element ) => ! existingElements.has( element )
+	);
+};
+
 /** Row DnDの基準要素と、着地アニメーションが引き継ぐ2つのPresentation表示を用意する。 */
 const createPresentation = () => {
 	const table = document.createElement( 'table' );
@@ -225,21 +238,14 @@ describe( 'Row drop animation', () => {
 		const { sourceRow, movingDisplay, insertionGap } = createPresentation();
 		render( <RowDropAnimation /> );
 		captureValidDestination( sourceRow, flushAnimationFrame );
+		const existingBodyChildren = Array.from( document.body.children );
 
 		act( () => {
 			mockDragDropMonitor.onDragEnd?.( { canceled: false } );
 		} );
 
-		const movingDisplays = Array.from(
-			document.querySelectorAll< HTMLElement >( '.yamabiko-table-reorder-moving-row' )
-		);
-		const insertionGaps = Array.from(
-			document.querySelectorAll< HTMLElement >( '.yamabiko-table-reorder-insertion-gap' )
-		);
-		const dropMovingDisplay = movingDisplays.find( ( element ) => element !== movingDisplay );
-		const dropInsertionGap = insertionGaps.find( ( element ) => element !== insertionGap );
-		expect( dropMovingDisplay ).toBeDefined();
-		expect( dropInsertionGap ).toBeDefined();
+		const landingElements = getAddedBodyChildren( existingBodyChildren );
+		expect( landingElements ).toHaveLength( 2 );
 		expect( animateMock ).toHaveBeenCalledWith(
 			[ { transform: 'translate3d(0, 0, 0)' }, { transform: 'translate3d(-350px, -200px, 0)' } ],
 			{
@@ -252,10 +258,7 @@ describe( 'Row drop animation', () => {
 		act( () => {
 			currentAnimation.onfinish?.( new Event( 'finish' ) as AnimationPlaybackEvent );
 		} );
-		expect( document.querySelectorAll( '.yamabiko-table-reorder-moving-row' ) ).toHaveLength( 1 );
-		expect( document.querySelectorAll( '.yamabiko-table-reorder-insertion-gap' ) ).toHaveLength(
-			1
-		);
+		expect( landingElements.every( ( element ) => ! element.isConnected ) ).toBe( true );
 		expect( document.body.contains( movingDisplay ) ).toBe( true );
 		expect( document.body.contains( insertionGap ) ).toBe( true );
 	} );
@@ -277,16 +280,14 @@ describe( 'Row drop animation', () => {
 		const { sourceRow } = createPresentation();
 		render( <RowDropAnimation /> );
 		captureValidDestination( sourceRow, flushAnimationFrame );
+		const existingBodyChildren = Array.from( document.body.children );
 
 		act( () => {
 			mockDragDropMonitor.onDragEnd?.( { canceled: true } );
 		} );
 
 		expect( animateMock ).not.toHaveBeenCalled();
-		expect( document.querySelectorAll( '.yamabiko-table-reorder-moving-row' ) ).toHaveLength( 1 );
-		expect( document.querySelectorAll( '.yamabiko-table-reorder-insertion-gap' ) ).toHaveLength(
-			1
-		);
+		expect( getAddedBodyChildren( existingBodyChildren ) ).toHaveLength( 0 );
 	} );
 
 	/**
@@ -306,20 +307,20 @@ describe( 'Row drop animation', () => {
 		const { sourceRow } = createPresentation();
 		render( <RowDropAnimation /> );
 		captureValidDestination( sourceRow, flushAnimationFrame );
+		const existingBodyChildren = Array.from( document.body.children );
 		act( () => {
 			mockDragDropMonitor.onDragEnd?.( { canceled: false } );
 		} );
+		const landingElements = getAddedBodyChildren( existingBodyChildren );
 		expect( animateMock ).toHaveBeenCalledTimes( 1 );
+		expect( landingElements ).toHaveLength( 2 );
 
 		act( () => {
 			mockTerminationListener?.();
 		} );
 
 		expect( currentAnimation.cancel ).toHaveBeenCalledTimes( 1 );
-		expect( document.querySelectorAll( '.yamabiko-table-reorder-moving-row' ) ).toHaveLength( 1 );
-		expect( document.querySelectorAll( '.yamabiko-table-reorder-insertion-gap' ) ).toHaveLength(
-			1
-		);
+		expect( landingElements.every( ( element ) => ! element.isConnected ) ).toBe( true );
 	} );
 
 	/**
@@ -346,16 +347,14 @@ describe( 'Row drop animation', () => {
 		const { sourceRow } = createPresentation();
 		render( <RowDropAnimation /> );
 		captureValidDestination( sourceRow, flushAnimationFrame );
+		const existingBodyChildren = Array.from( document.body.children );
 
 		act( () => {
 			mockDragDropMonitor.onDragEnd?.( { canceled: false } );
 		} );
 
 		expect( animateMock ).not.toHaveBeenCalled();
-		expect( document.querySelectorAll( '.yamabiko-table-reorder-moving-row' ) ).toHaveLength( 1 );
-		expect( document.querySelectorAll( '.yamabiko-table-reorder-insertion-gap' ) ).toHaveLength(
-			1
-		);
+		expect( getAddedBodyChildren( existingBodyChildren ) ).toHaveLength( 0 );
 	} );
 
 	/**
@@ -375,16 +374,16 @@ describe( 'Row drop animation', () => {
 		const { sourceRow } = createPresentation();
 		const { unmount } = render( <RowDropAnimation /> );
 		captureValidDestination( sourceRow, flushAnimationFrame );
+		const existingBodyChildren = Array.from( document.body.children );
 		act( () => {
 			mockDragDropMonitor.onDragEnd?.( { canceled: false } );
 		} );
+		const landingElements = getAddedBodyChildren( existingBodyChildren );
+		expect( landingElements ).toHaveLength( 2 );
 
 		unmount();
 
 		expect( currentAnimation.cancel ).toHaveBeenCalledTimes( 1 );
-		expect( document.querySelectorAll( '.yamabiko-table-reorder-moving-row' ) ).toHaveLength( 1 );
-		expect( document.querySelectorAll( '.yamabiko-table-reorder-insertion-gap' ) ).toHaveLength(
-			1
-		);
+		expect( landingElements.every( ( element ) => ! element.isConnected ) ).toBe( true );
 	} );
 } );
