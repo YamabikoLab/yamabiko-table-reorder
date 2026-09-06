@@ -79,7 +79,10 @@ const getProviderProps = () => {
 	return props;
 };
 
-/** 開始可能なTarget Resolution結果を設定する。 */
+/**
+ * 開始可能なTarget Resolution結果を設定する。
+ * @param sourceRowIndex
+ */
 const mockResolvedTarget = ( sourceRowIndex = 0 ) => {
 	const target = { tableIdentity: 'table-1', sourceRowIndex };
 	const initialConstraints = { rowCount: 3, blockedBoundaries: [] as number[] };

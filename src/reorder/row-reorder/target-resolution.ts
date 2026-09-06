@@ -107,7 +107,10 @@ export const isRowReorderTargetMovable = (
 const resolve = ( target: RowReorderTarget ): RowReorderTargetResolution => {
 	const initialConstraints = rowTableIntegration.getConstraints( target.tableIdentity );
 
-	if ( initialConstraints === null || ! isSourceInRange( target.sourceRowIndex, initialConstraints ) ) {
+	if (
+		initialConstraints === null ||
+		! isSourceInRange( target.sourceRowIndex, initialConstraints )
+	) {
 		return { status: 'unavailable' };
 	}
 

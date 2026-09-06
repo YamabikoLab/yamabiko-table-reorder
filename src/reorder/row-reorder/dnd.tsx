@@ -61,9 +61,10 @@ export const RowDnd = ( props: {
 	const { enabled, tableIdentity, children } = props;
 	const activeDraggable = useRef< Draggable | null >( null );
 	const destinationResolver = useRef< RowDestinationResolver | null >( null );
-	const resolvedStart = useRef< Extract< RowReorderTargetResolution, { status: 'resolved' } > | null >(
-		null
-	);
+	const resolvedStart = useRef< Extract<
+		RowReorderTargetResolution,
+		{ status: 'resolved' }
+	> | null >( null );
 
 	useEffect( () => {
 		/* 行並び替えが無効になった時点で、通常編集や別モードへ解決結果と物理DnD登録を持ち越さない。 */
