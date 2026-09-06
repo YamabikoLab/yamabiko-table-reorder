@@ -2,7 +2,7 @@
 # This file is distributed under the GPL-2.0-or-later.
 msgid ""
 msgstr ""
-"Project-Id-Version: Yamabiko Table Reorder 0.4.0\n"
+"Project-Id-Version: Yamabiko Table Reorder 0.5.0\n"
 "Report-Msgid-Bugs-To: https://wordpress.org/support/plugin/project\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -33,7 +33,7 @@ msgid "Reordering could not continue, so the operation was ended."
 msgstr ""
 
 #: src/messages.ts:40
-msgid "Reorder rows and columns."
+msgid "Reorder rows."
 msgstr ""
 
 #: src/messages.ts:48
