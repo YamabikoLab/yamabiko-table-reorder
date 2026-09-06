@@ -101,7 +101,7 @@ const startPhysicalDrag = ( row: HTMLTableRowElement ) => {
  * DnD Engineから1回の縦移動が通知された状態を作る。
  *
  * @param currentY 今回移動する直前のオーバーレイY座標。
- * @param nextY 今回移動しようとしているオーバーレイY座標。
+ * @param nextY    今回移動しようとしているオーバーレイY座標。
  */
 const movePhysicalDrag = ( currentY: number, nextY: number ) => {
 	act( () => {

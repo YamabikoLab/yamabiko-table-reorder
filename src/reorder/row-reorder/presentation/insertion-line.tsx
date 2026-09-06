@@ -99,8 +99,8 @@ const resolveInsertionLineSessionLayout = (
  * 押しのけ後の個別行位置には追従せず、現在の挿入空間に対して上方向移動では上端、下方向移動では下端を示す。
  * Table自体の現在位置と表示幅は再計測し、スクロールや表示領域の変化へ追従する。
  *
- * @param sessionLayout DnD開始時に確定した論理配置。
- * @param boundaryIndex DnD Interactionが有効とした0-based移動先境界。
+ * @param sessionLayout     DnD開始時に確定した論理配置。
+ * @param boundaryIndex     DnD Interactionが有効とした0-based移動先境界。
  * @param movementDirection オーバーレイの現在の縦移動方向。未確定時は論理境界をそのまま表示する。
  * @return 現在のeditor表示領域内へ描画できる挿入線配置。描画できない場合はnull。
  */
