@@ -9,26 +9,9 @@ import { Snackbar } from '@wordpress/components';
 import { useEffect, useState } from '@wordpress/element';
 
 import { getRowDndStartRejectionMessage } from '@/messages';
-import type { RowReorderTargetRejectionReason } from '@/reorder/row-reorder/target-resolution';
 
+import { subscribeRowStartRejection } from './start-rejection-notice-event';
 import './start-rejection-notice.scss';
-
-/** Reorder Target Resolutionの開始拒否理由を受け取る購読listener。 */
-type RowStartRejectionListener = ( reason: RowReorderTargetRejectionReason ) => void;
-
-/** 現在の開始拒否通知購読をPresentation境界内で保持する。 */
-const rowStartRejectionListeners = new Set< RowStartRejectionListener >();
-
-/**
- * Reorder Target Resolutionが返した開始拒否理由を現在のPresentationへ通知する。
- *
- * @param reason Designで利用者へ提示する開始拒否理由。
- */
-export const notifyRowStartRejection = ( reason: RowReorderTargetRejectionReason ): void => {
-	rowStartRejectionListeners.forEach( ( listener ) => {
-		listener( reason );
-	} );
-};
 
 /**
  * 行DnD開始拒否通知を短時間だけ表示する。
@@ -39,17 +22,12 @@ export const RowStartRejectionNotice = () => {
 	const [ noticeSequence, setNoticeSequence ] = useState< number | null >( null );
 
 	useEffect( () => {
-		const listener: RowStartRejectionListener = ( reason ) => {
+		return subscribeRowStartRejection( ( reason ) => {
 			/* 現在Designで利用者向け理由を定義している結合範囲の開始拒否だけを表示対象とする。 */
 			if ( reason === 'merged-range' ) {
 				setNoticeSequence( ( current ) => ( current ?? 0 ) + 1 );
 			}
-		};
-
-		rowStartRejectionListeners.add( listener );
-		return () => {
-			rowStartRejectionListeners.delete( listener );
-		};
+		} );
 	}, [] );
 
 	/* 開始拒否通知が発生していない間は利用者向けメッセージを表示しない。 */
