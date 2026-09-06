@@ -2,7 +2,6 @@
 require_once '/wordpress/wp-load.php';
 
 $page_id      = 100;
-$demo_version = '0.5.0';
 
 if ( get_post( $page_id ) ) {
 	wp_delete_post( $page_id, true );
@@ -231,10 +230,7 @@ $content = implode(
 		'<!-- wp:paragraph --><p>書式付きセルや結合セルを含むTableで行並び替えを試すエリアです。7〜8行目の所在地は縦結合、14行目の山名＋標高は横結合です。RichText、リンク、インラインコード、改行、scope、class、セルスタイルも含めています。</p><!-- /wp:paragraph -->',
 		$flexible_table,
 		'<!-- wp:paragraph --><p>不具合や気づいた点があれば、<a href="https://github.com/YamabikoLab/yamabiko-table-reorder/issues">GitHub Issues</a> からお知らせください。</p><!-- /wp:paragraph -->',
-		sprintf(
-			'<!-- wp:paragraph {"align":"right","fontSize":"small"} --><p class="has-text-align-right has-small-font-size">Yamabiko Table Reorder v%s</p><!-- /wp:paragraph -->',
-			esc_html( $demo_version )
-		),
+		'<!-- wp:paragraph {"align":"right","fontSize":"small"} --><p class="has-text-align-right has-small-font-size">Yamabiko Table Reorder</p><!-- /wp:paragraph -->',
 	]
 );
 
