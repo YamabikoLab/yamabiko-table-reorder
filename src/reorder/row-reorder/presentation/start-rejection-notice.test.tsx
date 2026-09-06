@@ -7,7 +7,8 @@
 
 import { act, render, screen } from '@testing-library/react';
 
-import { notifyRowStartRejection, RowStartRejectionNotice } from './start-rejection-notice';
+import { notifyRowStartRejection } from './start-rejection-notice-event';
+import { RowStartRejectionNotice } from './start-rejection-notice';
 
 let snackbarRemove: ( () => void ) | undefined;
 
