@@ -128,4 +128,4 @@ export const rowReorderTargetResolution = {
 	resolve,
 };
 
-export type { RowReorderTarget } from '../domain/target-validity';
+export type { RowReorderTarget } from '@/reorder/row-reorder/domain/target-validity';
