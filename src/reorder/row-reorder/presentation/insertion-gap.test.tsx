@@ -205,22 +205,26 @@ describe( 'Row insertion gap', () => {
 
 	/**
 	 * 概要:
-	 * - 並び順が変わらない移動先とDnD終了時には挿入空間を残さないことを確認する。
+	 * - DnD Interactionから有効な移動先がなくなった場合とDnD終了時に、挿入空間を残さないことを確認する。
 	 *
 	 * 事前条件:
-	 * - 2行目が移動対象である。
+	 * - 2行目が移動対象で、有効な移動先の挿入空間が表示されている。
 	 *
 	 * 操作:
-	 * - 移動元直後を移動先とした後、別の有効な移動先を表示してDnDを終了する。
+	 * - 有効な移動先をnullへ変更した後、別の有効な移動先を表示してDnDを終了する。
 	 *
 	 * 期待結果:
-	 * - 移動元直後では表示せず、DnD終了後も一時的な挿入空間を残さない。
+	 * - nullでは表示せず、DnD終了後も一時的な挿入空間を残さない。
 	 */
-	it( 'when the destination does not change the order or the drag ends, should not leave an insertion gap', () => {
+	it( 'when there is no valid destination or the drag ends, should not leave an insertion gap', () => {
 		const { rows } = createSourceTable();
 		const { rerender } = render( <RowInsertionGap /> );
 		startPhysicalDrag( rows[ 1 ] );
-		mockDestinationBoundaryIndex = 2;
+		mockDestinationBoundaryIndex = 4;
+		rerender( <RowInsertionGap /> );
+		expect( document.querySelector( '.yamabiko-table-reorder-insertion-gap' ) ).not.toBeNull();
+
+		mockDestinationBoundaryIndex = null;
 		rerender( <RowInsertionGap /> );
 		expect( document.querySelector( '.yamabiko-table-reorder-insertion-gap' ) ).toBeNull();
 
