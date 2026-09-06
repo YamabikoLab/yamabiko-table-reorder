@@ -18,9 +18,18 @@ type ReorderGuidanceProps = {
 };
 
 /**
+ * 初回案内からfocusが外れても案内を終了しない。
+ *
+ * 通常のセル編集やTable内のfocus移動は表示済み条件ではないため、
+ * Popover外へのfocus移動を閉じる操作として扱わない。
+ */
+const ignoreReorderGuidanceFocusOutside = () => undefined;
+
+/**
  * Tableツールバーの下へ行・列並び替えの初回案内を表示する。
  *
  * 通常のセル編集を妨げないよう、表示時にfocusを移動しない。
+ * また、通常のTable内focus移動では案内を終了せず、利用者が案内を閉じた場合だけ閉じる操作を通知する。
  *
  * @param props           初回案内の表示状態、配置基準、閉じる操作。
  * @param props.anchor    初回案内を配置するツールバー上の基準要素。
@@ -44,6 +53,7 @@ export const ReorderGuidance = ( props: ReorderGuidanceProps ) => {
 			focusOnMount={ false }
 			offset={ 4 }
 			onClose={ onDismiss }
+			onFocusOutside={ ignoreReorderGuidanceFocusOutside }
 			placement="bottom"
 			shift
 			variant="unstyled"

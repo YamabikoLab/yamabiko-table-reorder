@@ -1,5 +1,5 @@
 /**
- * Reorder Guidanceの表示コンポーネントが、初回案内の利用者向け内容と終了操作を提供することを確認する。
+ * Reorder Guidanceの表示コンポーネントが、初回案内の利用者向け内容と終了条件を提供することを確認する。
  */
 
 import type { ReactNode } from 'react';
@@ -26,7 +26,25 @@ jest.mock( '@wordpress/components', () => ( {
 			{ children }
 		</button>
 	),
-	Popover: ( { children }: { children: ReactNode } ) => <div>{ children }</div>,
+	Popover: ( {
+		children,
+		onClose,
+		onFocusOutside,
+	}: {
+		children: ReactNode;
+		onClose: () => void;
+		onFocusOutside?: () => void;
+	} ) => (
+		<div>
+			<button onClick={ onFocusOutside } type="button">
+				Move focus outside
+			</button>
+			<button onClick={ onClose } type="button">
+				Close popover
+			</button>
+			{ children }
+		</div>
+	),
 } ) );
 
 describe( 'Reorder Guidance presentation', () => {
@@ -53,5 +71,28 @@ describe( 'Reorder Guidance presentation', () => {
 		fireEvent.click( screen.getByRole( 'button', { name: 'Close reorder guidance' } ) );
 
 		expect( onDismiss ).toHaveBeenCalledTimes( 1 );
+	} );
+
+	/**
+	 * 概要:
+	 * - 通常のセル編集やTable内のfocus移動では初回案内を表示済みにしないことを確認する。
+	 *
+	 * 事前条件:
+	 * - 初回案内が表示されている。
+	 *
+	 * 操作:
+	 * - Popover外へfocusが移動した状態を通知する。
+	 *
+	 * 期待結果:
+	 * - 初回案内を閉じる操作は通知されない。
+	 */
+	it( 'when focus moves outside the guidance, should keep the guidance active', () => {
+		const onDismiss = jest.fn();
+		const anchor = document.createElement( 'button' );
+		render( <ReorderGuidance anchor={ anchor } isVisible onDismiss={ onDismiss } /> );
+
+		fireEvent.click( screen.getByRole( 'button', { name: 'Move focus outside' } ) );
+
+		expect( onDismiss ).not.toHaveBeenCalled();
 	} );
 } );
