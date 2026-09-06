@@ -5,6 +5,8 @@
 	"files": [
 		"build/",
 		"languages/",
+		"LICENSE",
+		"THIRD_PARTY_LICENSES.txt",
 		"readme.txt",
 		"yamabiko-table-reorder.php"
 	],
