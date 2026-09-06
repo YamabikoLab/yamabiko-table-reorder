@@ -162,17 +162,14 @@ describe( 'Row drop return animation', () => {
 			}
 		);
 		expect( sourceRow.style.opacity ).toBe( '0.35' );
-		expect(
-			document.querySelector( '.yamabiko-table-reorder-drop-animation-moving-row' )
-		).not.toBeNull();
-		expect( document.querySelector( '.yamabiko-table-reorder-drop-animation-gap' ) ).toBeNull();
+		expect( document.querySelectorAll( '.yamabiko-table-reorder-moving-row' ) ).toHaveLength( 2 );
+		expect( document.querySelectorAll( '.yamabiko-table-reorder-insertion-gap' ) ).toHaveLength( 0 );
 
 		act( () => {
 			currentAnimation.onfinish?.( new Event( 'finish' ) as AnimationPlaybackEvent );
 		} );
 		expect( sourceRow.style.opacity ).toBe( '' );
-		expect(
-			document.querySelector( '.yamabiko-table-reorder-drop-animation-moving-row' )
-		).toBeNull();
+		expect( document.querySelectorAll( '.yamabiko-table-reorder-moving-row' ) ).toHaveLength( 1 );
+		expect( document.body.contains( movingDisplay ) ).toBe( true );
 	} );
 } );
