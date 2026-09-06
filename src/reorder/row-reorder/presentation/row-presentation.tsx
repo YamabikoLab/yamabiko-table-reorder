@@ -10,6 +10,7 @@ import { RowInsertionGap } from './insertion-gap';
 import { RowInsertionLine } from './insertion-line';
 import { RowMovingDisplay } from './moving-row';
 import { RowDisplacement } from './row-displacement';
+import { RowTerminationNotice } from './termination-notice';
 
 /**
  * 行DnD中に必要なPresentationを同じDnD Engine境界へ接続する。
@@ -23,5 +24,6 @@ export const RowPresentation = () => (
 		<RowMovingDisplay />
 		<RowDropAnimation />
 		<RowInsertionLine />
+		<RowTerminationNotice />
 	</>
 );
