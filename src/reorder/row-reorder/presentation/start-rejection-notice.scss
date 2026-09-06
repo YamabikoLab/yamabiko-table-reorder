@@ -1,11 +1,10 @@
 /**
- * 行DnD開始拒否メッセージをTableのレイアウトへ影響させず、editor表示領域内の一時通知として配置する。
+ * 行DnD開始拒否メッセージをTable直前の表示フローに置き、Tableツールバーの下で理由を確認できるようにする。
  */
 
 .yamabiko-table-reorder-start-rejection-notice {
-	position: fixed;
-	left: 24px;
-	bottom: 24px;
-	z-index: 100000;
-	max-width: calc(100vw - 48px);
+	position: relative;
+	z-index: 1;
+	margin-bottom: 8px;
+	max-width: 100%;
 }
