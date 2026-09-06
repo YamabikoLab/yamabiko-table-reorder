@@ -11,8 +11,8 @@ import { reorderGuidance } from '@/reorder/reorder-guidance';
 import { reorderMode } from '@/reorder/reorder-mode';
 import { useReorderGuidance } from '@/reorder/wordpress/hooks/use-reorder-guidance';
 
-const preferences = new Map< string, unknown >();
-let touchEnvironment = false;
+const mockPreferences = new Map< string, unknown >();
+let mockTouchEnvironment = false;
 
 jest.mock( '@wordpress/data', () => ( {
 	select: ( store: string ) => {
@@ -20,7 +20,7 @@ jest.mock( '@wordpress/data', () => ( {
 			throw new Error( `Unexpected store selection: ${ store }` );
 		}
 		return {
-			get: ( scope: string, key: string ) => preferences.get( `${ scope }:${ key }` ),
+			get: ( scope: string, key: string ) => mockPreferences.get( `${ scope }:${ key }` ),
 		};
 	},
 	dispatch: ( store: string ) => {
@@ -29,7 +29,7 @@ jest.mock( '@wordpress/data', () => ( {
 		}
 		return {
 			set: ( scope: string, key: string, value: unknown ) => {
-				preferences.set( `${ scope }:${ key }`, value );
+				mockPreferences.set( `${ scope }:${ key }`, value );
 			},
 		};
 	},
@@ -40,8 +40,8 @@ const PC_PREFERENCE = 'yamabiko-table-reorder:initialGuidanceAcknowledgedPc';
 const TOUCH_PREFERENCE = 'yamabiko-table-reorder:initialGuidanceAcknowledgedTouch';
 
 const resetState = () => {
-	preferences.clear();
-	touchEnvironment = false;
+	mockPreferences.clear();
+	mockTouchEnvironment = false;
 	reorderGuidance.show( RESET_TABLE_IDENTITY, 'pc' );
 	reorderGuidance.hide( RESET_TABLE_IDENTITY );
 	reorderMode.observeTable( RESET_TABLE_IDENTITY );
@@ -58,7 +58,7 @@ const createReferenceElement = () => {
 	Object.defineProperty( editorWindow, 'matchMedia', {
 		configurable: true,
 		value: jest.fn().mockImplementation( () => ( {
-			matches: touchEnvironment,
+			matches: mockTouchEnvironment,
 		} ) ),
 	} );
 	return element;
@@ -121,8 +121,8 @@ describe( 'Reorder Guidance WordPress integration', () => {
 			result.current.dismiss();
 		} );
 
-		expect( preferences.get( PC_PREFERENCE ) ).toBe( true );
-		expect( preferences.has( TOUCH_PREFERENCE ) ).toBe( false );
+		expect( mockPreferences.get( PC_PREFERENCE ) ).toBe( true );
+		expect( mockPreferences.has( TOUCH_PREFERENCE ) ).toBe( false );
 		expect( result.current.isVisible ).toBe( false );
 	} );
 
@@ -141,8 +141,8 @@ describe( 'Reorder Guidance WordPress integration', () => {
 	 * - タッチ環境の初回案内が表示される。
 	 */
 	it( 'when only PC guidance is acknowledged in a touch environment, should still show initial guidance', async () => {
-		preferences.set( PC_PREFERENCE, true );
-		touchEnvironment = true;
+		mockPreferences.set( PC_PREFERENCE, true );
+		mockTouchEnvironment = true;
 		const referenceElement = createReferenceElement();
 		const { result } = renderHook( () => useReorderGuidance( 'table-a', referenceElement ) );
 
@@ -179,6 +179,6 @@ describe( 'Reorder Guidance WordPress integration', () => {
 		await waitFor( () => {
 			expect( result.current.isVisible ).toBe( false );
 		} );
-		expect( preferences.get( PC_PREFERENCE ) ).toBe( true );
+		expect( mockPreferences.get( PC_PREFERENCE ) ).toBe( true );
 	} );
 } );
