@@ -22,3 +22,19 @@ export const getRowReorderName = () => __( 'Reorder rows', 'yamabiko-table-reord
  * @return 現在の言語に対応した列並び替え入口の表示名。
  */
 export const getColumnReorderName = () => __( 'Reorder columns', 'yamabiko-table-reorder' );
+
+/**
+ * 初回案内に表示する行・列共通の説明文を取得する。
+ *
+ * @return 現在の言語に対応した初回案内文。
+ */
+export const getReorderGuidanceMessage = () =>
+	__( 'Reorder rows and columns.', 'yamabiko-table-reorder' );
+
+/**
+ * 初回案内を閉じる入口の支援技術向け表示名を取得する。
+ *
+ * @return 現在の言語に対応した閉じる入口の表示名。
+ */
+export const getCloseReorderGuidanceLabel = () =>
+	__( 'Close reorder guidance', 'yamabiko-table-reorder' );

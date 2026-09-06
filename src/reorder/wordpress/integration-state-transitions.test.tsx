@@ -22,6 +22,10 @@ jest.mock( '@wordpress/block-editor', () => ( {
 	store: Symbol( 'block-editor-store' ),
 } ) );
 
+jest.mock( '@wordpress/preferences', () => ( {
+	store: 'preferences-store',
+} ) );
+
 jest.mock( '@wordpress/data', () => ( {
 	select: () => ( {
 		getBlock: ( clientId: string ) => mockBlocks.get( clientId ) ?? null,
@@ -29,27 +33,28 @@ jest.mock( '@wordpress/data', () => ( {
 	} ),
 } ) );
 
-jest.mock( '@wordpress/components', () => ( {
-	ToolbarButton: ( {
-		icon,
-		isPressed,
-		label,
-		onClick,
-	}: {
-		icon: React.ReactNode;
-		isPressed: boolean;
-		label: string;
-		onClick: () => void;
-	} ) => (
-		<button aria-label={ label } aria-pressed={ isPressed } onClick={ onClick } type="button">
-			{ icon }
-			{ label }
-		</button>
-	),
-	ToolbarGroup: ( { children }: { children: React.ReactNode } ) => (
-		<div data-testid="toolbar-group">{ children }</div>
-	),
-} ) );
+jest.mock( '@wordpress/components', () => {
+	const react = jest.requireActual( 'react' ) as typeof import('react');
+	return {
+		ToolbarButton: react.forwardRef<
+			HTMLButtonElement,
+			{
+				icon: React.ReactNode;
+				isPressed: boolean;
+				label: string;
+				onClick: () => void;
+			}
+		>( ( { icon, isPressed, label, onClick } ) => (
+			<button aria-label={ label } aria-pressed={ isPressed } onClick={ onClick } type="button">
+				{ icon }
+				{ label }
+			</button>
+		) ),
+		ToolbarGroup: ( { children }: { children: React.ReactNode } ) => (
+			<div data-testid="toolbar-group">{ children }</div>
+		),
+	};
+} );
 
 jest.mock( '@/reorder/row-reorder/dnd', () => ( {
 	RowDnd: ( {

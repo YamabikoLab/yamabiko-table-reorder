@@ -37,3 +37,11 @@ msgstr "行を並び替え"
 #: src/messages.ts:24
 msgid "Reorder columns"
 msgstr "列を並び替え"
+
+#: src/messages.ts:32
+msgid "Reorder rows and columns."
+msgstr "行と列を並び替えられます。"
+
+#: src/messages.ts:40
+msgid "Close reorder guidance"
+msgstr "並び替えの案内を閉じる"
