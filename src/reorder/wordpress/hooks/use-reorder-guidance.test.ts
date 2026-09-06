@@ -12,24 +12,23 @@ import { reorderMode } from '@/reorder/reorder-mode';
 import { useReorderGuidance } from '@/reorder/wordpress/hooks/use-reorder-guidance';
 
 const mockPreferences = new Map< string, unknown >();
-const mockPreferencesStore = Symbol( 'preferences-store' );
 let mockTouchEnvironment = false;
 
 jest.mock( '@wordpress/preferences', () => ( {
-	store: mockPreferencesStore,
+	store: 'preferences-store',
 } ) );
 
 jest.mock( '@wordpress/data', () => ( {
-	select: ( store: symbol ) => {
-		if ( store !== mockPreferencesStore ) {
+	select: ( store: string ) => {
+		if ( store !== 'preferences-store' ) {
 			throw new Error( 'Unexpected store selection.' );
 		}
 		return {
 			get: ( scope: string, key: string ) => mockPreferences.get( `${ scope }:${ key }` ),
 		};
 	},
-	dispatch: ( store: symbol ) => {
-		if ( store !== mockPreferencesStore ) {
+	dispatch: ( store: string ) => {
+		if ( store !== 'preferences-store' ) {
 			throw new Error( 'Unexpected store dispatch.' );
 		}
 		return {
@@ -75,7 +74,9 @@ describe( 'Reorder Guidance WordPress integration', () => {
 	} );
 
 	afterEach( () => {
-		resetState();
+		act( () => {
+			resetState();
+		} );
 	} );
 
 	/**
