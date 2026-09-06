@@ -18,12 +18,14 @@ import './moving-row.scss';
 
 const SOURCE_ROW_CLASS = 'yamabiko-table-reorder-moving-row-source';
 const DRAGGING_CLASS = 'yamabiko-table-reorder-row-dragging';
+const FALLBACK_BACKGROUND_COLOR = '#fff';
 
 /** Row DnD開始時に確定し、そのDnD中の移動表示で維持する配置情報。 */
 type RowMovingDisplayLayout = {
 	sourceRow: HTMLTableRowElement;
 	sourceTable: HTMLTableElement;
 	rowHeight: number;
+	rowBackgroundColor: string;
 	tableWidth: number;
 	visibleWidth: number;
 	tableOffsetLeft: number;
@@ -39,6 +41,52 @@ type RowMovingDisplayLayout = {
 type RowMovingDisplayPosition = {
 	left: number;
 	top: number;
+};
+
+/**
+ * DnD開始時点の元行背景色から、移動表示で維持する背景色を確定する。
+ *
+ * 元行自身の背景色が透明な場合は、移動表示の背後が透けないよう従来の白背景を維持する。
+ *
+ * @param backgroundColor 現在のeditor contextで解決した元行の計算済み背景色。
+ * @return そのDnD中の移動表示で維持する背景色。
+ */
+const resolveMovingRowBackgroundColor = ( backgroundColor: string ): string => {
+	const normalizedColor = backgroundColor.trim().toLowerCase();
+
+	if ( normalizedColor === 'transparent' ) {
+		return FALLBACK_BACKGROUND_COLOR;
+	}
+
+	const functionalColor = normalizedColor.match( /^rgba?\((.*)\)$/ );
+	if ( functionalColor === null ) {
+		return backgroundColor;
+	}
+
+	const components = functionalColor[ 1 ];
+	const slashAlpha = components.split( '/' );
+	const alphaZeroPattern = /^0(?:\.0+)?%?$/;
+
+	/* CSS Colorのスラッシュ記法で完全透明と確定できる場合は、移動表示を白背景へ戻す。 */
+	if ( slashAlpha.length === 2 ) {
+		const alpha = slashAlpha[ 1 ].trim();
+		const resolvedColor = alphaZeroPattern.test( alpha )
+			? FALLBACK_BACKGROUND_COLOR
+			: backgroundColor;
+		return resolvedColor;
+	}
+
+	const commaComponents = components.split( ',' );
+	const alpha = commaComponents.at( -1 )?.trim();
+	const hasTransparentLegacyAlpha =
+		normalizedColor.startsWith( 'rgba(' ) &&
+		commaComponents.length === 4 &&
+		alpha !== undefined &&
+		alphaZeroPattern.test( alpha );
+	const resolvedColor = hasTransparentLegacyAlpha
+		? FALLBACK_BACKGROUND_COLOR
+		: backgroundColor;
+	return resolvedColor;
 };
 
 /**
@@ -88,11 +136,15 @@ const resolveMovingDisplayLayout = (
 
 	/* 内容量に左右されず元行の列配置を維持できるよう、DnD開始時の各セル幅を確定する。 */
 	const cellWidths = Array.from( sourceRow.cells, ( cell ) => cell.getBoundingClientRect().width );
+	const rowBackgroundColor = resolveMovingRowBackgroundColor(
+		editorContext.window.getComputedStyle( sourceRow ).backgroundColor
+	);
 
 	return {
 		sourceRow,
 		sourceTable,
 		rowHeight: rowRectangle.height,
+		rowBackgroundColor,
 		tableWidth: tableRectangle.width,
 		visibleWidth,
 		tableOffsetLeft: tableRectangle.left - visibleLeft,
@@ -135,6 +187,7 @@ const renderMovingRow = (
 	/* 元行だけに適用する半透明表示を複製側へ持ち込まず、移動表示の内容は通常濃度で表示する。 */
 	clonedRow.classList.remove( SOURCE_ROW_CLASS );
 	clonedRow.style.height = `${ layout.rowHeight }px`;
+	clonedRow.style.backgroundColor = layout.rowBackgroundColor;
 
 	/* 空セルを含む場合も元行のセル幅を維持し、内容量による列位置の変化を発生させない。 */
 	Array.from( clonedRow.cells ).forEach( ( cell, index ) => {
