@@ -17,7 +17,7 @@
 - Row ReorderとColumn Reorderは独立した実装とし、両者の間に共通の並び替え抽象化を導入しない。
 - Reorder Mode境界はTableツールバーの行・列並び替え入口、`edit | row | column`の排他状態、および`row | column`が有効なTableを識別するための最小限のTable Identityを所有する。Table内容、行・列構造、移動対象、移動先、DnD Sessionその他の方向固有Table情報は所有せず、Row ReorderへColumn Reorderの内部状態、責務、Contractを公開しない。
 - `edit`では通常のTable編集を許可し、`row | column`では対象Tableの内容編集を開始させない。通常編集と並び替えモードの排他はReorder Modeが所有し、Row ReorderまたはColumn Reorderへ重複して所有させない。
-- Reorder Guidance境界はPC / タッチごとの初回案内表示済み状態と、Reorder Modeが所有する行・列の入口をまとめて提示する共通案内状態をRow Reorderの外側で所有する。Row Reorderは行を移動しようとする通常編集時の操作検出だけを所有し、案内表示済み状態や列入口の案内状態を所有しない。
+- Reorder Guidance境界はPC / タッチごとの初回案内表示済み状態と、Reorder Modeが所有する行・列の入口をまとめて提示する共通案内状態をRow Reorderの外側で所有する。
 - 本書の責務名がColumn ReorderのArchitectureと同一であっても、責務の同一性、実装共有、状態共有を意味しない。
 - Row Reorderは`tbody`の行だけを移動対象とし、行順以外のTable内容を変更しない。
 - 行DnD中はTableデータを並べ替えず、DnD Interactionが確定した場合だけTable Integrationの行更新境界を利用して行順を更新する。
@@ -56,13 +56,11 @@ Editor DOM ContextはWordPress Editorの現在のeditor contextからDOM / Web A
 
 ## 4. Solution Strategy
 
-Row Reorderは、モード境界、共通入口案内境界、editor context、行の再案内候補検出、入力、Table Block差、DnD Engine、DnD Session、表示、自動スクロールを別責務または外部境界として扱う。移動対象判定と移動先判定はDnD InteractionのSession Lifecycleに含め、Table更新はTable Integrationの行更新境界として扱う。
+Row Reorderは、モード境界、共通入口案内境界、editor context、入力、Table Block差、DnD Engine、DnD Session、表示、自動スクロールを別責務または外部境界として扱う。移動対象判定と移動先判定はDnD InteractionのSession Lifecycleに含め、Table更新はTable Integrationの行更新境界として扱う。
 
 Reorder ModeはTableツールバーの行・列入口と`edit | row | column`の排他状態を所有し、`row | column`を入口選択時のTable Identityへ関連付ける外側の境界である。選択中の入口の再選択では`edit`へ戻り、別方向の入口選択ではその方向へ切り替える。同じTable内では選択中のモードを維持し、別Blockを選択した場合は`edit`へ戻る。Toolbar componentのunmount / remountそのものはモード終了条件としない。Reorder Modeは行DnDのSessionや方向固有Table情報を所有せず、Row Reorderへは行DnDが有効であることだけを提供する。
 
-Reorder Guidanceは初回案内と再案内でReorder Modeが所有する行・列の入口をまとめて案内する外側の境界であり、入口選択状態そのもの、行DnD Session、Column Reorder内部状態を所有しない。Editor DOM Contextは現在のWordPress Editorに属するDOM / Web API contextを必要な時点で解決する共有境界であり、Row Reorder固有状態を所有しない。
-
-Rediscovery Detectionは通常編集時に行を移動しようとする反復操作だけを行側で検出し、案内表示の成立判断と表示状態はReorder Guidanceへ委ねる。
+Reorder Guidanceは初回案内でReorder Modeが所有する行・列の入口をまとめて案内する外側の境界であり、入口選択状態そのもの、行DnD Session、Column Reorder内部状態を所有しない。Editor DOM Contextは現在のWordPress Editorに属するDOM / Web API contextを必要な時点で解決する共有境界であり、Row Reorder固有状態を所有しない。
 
 Input Interactionは行並び替えが有効な期間に入力方式固有の開始条件を判断し、開始候補だけを必要な時点でDnD Engineへ接続する。開始後の物理入力の継続、移動、終了、cancelの検出はDnD Engineへ委ねる。Input Interactionが所有する開始候補と入力方式固有の一時状態はInput Interaction自身が破棄し、DnD終了またはcancelはDnD EngineのLifecycleから検知してcleanupする。
 
@@ -88,7 +86,7 @@ WordPress Editorの入力からDnD Engineを介して行DnDを開始し、comple
 | RESP_ROW_DND_INTERACTION | RESP_ROW_TABLE_INTEGRATION | normal | 開始可否判定時の行構造取得とcomplete時の現在構造取得・確定済み行移動の反映へ進む。 |
 | RESP_ROW_TABLE_INTEGRATION | EXT_SUPPORTED_TABLE_BLOCK | normal | 対応Table Blockから行構造を取得し、確定時は`tbody`の行順だけを反映する。 |
 
-このViewは主要な処理進行だけを示す。Reorder Guidance、Rediscovery Detection、Presentation、Auto Scrollなどの補助責務やRuntime Interactionの往復はRuntime ViewとDependenciesで表現する。
+このViewは主要な処理進行だけを示す。Reorder Guidance、Presentation、Auto Scrollなどの補助責務やRuntime Interactionの往復はRuntime ViewとDependenciesで表現する。
 
 #### External Environment Change and Recovery {#PV_ROW_EXTERNAL_CHANGE_RECOVERY kind=failure-recovery}
 
@@ -113,7 +111,6 @@ EditorまたはTableの外部状態変化によってactiveな行DnDを継続ま
 | RESP_REORDER_MODE | Reorder Mode | Tableツールバーの行・列入口、`edit | row | column`の排他状態、および選択中モードのTable単位Lifecycleを所有する外側の境界。 |
 | RESP_REORDER_GUIDANCE | Reorder Guidance | PC / タッチごとの初回案内表示済み状態と、Reorder Modeが所有する行・列入口をまとめて提示する共通案内状態を所有する外側の境界。 |
 | RESP_EDITOR_DOM_CONTEXT | Editor DOM Context | 現在のWordPress Editorに属するDOM / Web API contextを必要な時点で解決する。 |
-| RESP_ROW_REDISCOVERY_DETECTION | Rediscovery Detection | 通常編集時の反復操作から行を移動しようとする意図が成立したことだけを検出し、外側の案内境界へ通知する。 |
 | RESP_ROW_INPUT_INTERACTION | Input Interaction | PCとタッチ端末の開始条件を解釈し、DnD開始候補と入力方式固有の一時状態を所有してDnD Engineへ接続する。 |
 | RESP_ROW_TABLE_INTEGRATION | Table Integration | 対応Table Blockとの差を吸収し、行並び替えに必要なTable同一性、現在構造、行更新境界、およびWordPress Undoとの境界を提供する。 |
 | RESP_ROW_DND_INTERACTION | DnD Interaction | DnD Engineの物理的なDnD進行をRow Reorderの意味状態へ変換し、行DnD Session、開始可否判定、移動先判定、確定、中止のLifecycleを所有する。 |
@@ -126,7 +123,7 @@ EditorまたはTableの外部状態変化によってactiveな行DnDを継続ま
 | --- | --- | --- |
 | BOUNDARY_REORDER_COMMON | Reorder Common | RESP_REORDER_MODE RESP_REORDER_GUIDANCE |
 | BOUNDARY_EDITOR_INTEGRATION | Editor Integration | RESP_EDITOR_DOM_CONTEXT |
-| BOUNDARY_ROW_REORDER | Row Reorder | RESP_ROW_REDISCOVERY_DETECTION RESP_ROW_INPUT_INTERACTION RESP_ROW_TABLE_INTEGRATION RESP_ROW_DND_INTERACTION RESP_ROW_PRESENTATION RESP_ROW_AUTO_SCROLL |
+| BOUNDARY_ROW_REORDER | Row Reorder | RESP_ROW_INPUT_INTERACTION RESP_ROW_TABLE_INTEGRATION RESP_ROW_DND_INTERACTION RESP_ROW_PRESENTATION RESP_ROW_AUTO_SCROLL |
 | BOUNDARY_WORDPRESS_INTEGRATION | WordPress Integration | EXT_WORDPRESS_EDITOR EXT_SUPPORTED_TABLE_BLOCK EXT_WORDPRESS_UNDO EXT_SCROLL_AREA |
 
 Reorder ModeとReorder Guidanceは行・列に共通するReorder Common境界に含める。Editor DOM Contextは現在のWordPress Editorとの共有接点を担うEditor Integration境界に含める。Row Reorder境界には行専用責務だけを含め、DnD Engineは独立した外部ライブラリ境界として含めない。WordPress Integration境界はWordPress Editorとその編集・更新環境に属する外部接点をまとめ、内部責務とは混在させない。
@@ -136,13 +133,10 @@ Reorder ModeとReorder Guidanceは行・列に共通するReorder Common境界�
 | Dependent | Depends on | Reason |
 | --- | --- | --- |
 | RESP_REORDER_MODE | EXT_WORDPRESS_EDITOR | WordPress Editor上のTableツールバー入口、通常編集と行・列並び替えの排他、および対象Table単位のモードLifecycleを扱うために必要とする。 |
-| RESP_REORDER_GUIDANCE | EXT_WORDPRESS_EDITOR | 初回案内と再案内の表示契機、および行・列の入口をまとめて提示する編集環境を必要とする。 |
+| RESP_REORDER_GUIDANCE | EXT_WORDPRESS_EDITOR | 初回案内の表示契機、および行・列の入口をまとめて提示する編集環境を必要とする。 |
 | RESP_REORDER_GUIDANCE | RESP_EDITOR_DOM_CONTEXT | 共通入口案内を現在のeditor contextで表現するために必要とする。 |
 | RESP_REORDER_GUIDANCE | RESP_REORDER_MODE | Reorder Modeが所有する行・列入口の案内と、入口選択による案内終了を整合させるために必要とする。 |
 | RESP_EDITOR_DOM_CONTEXT | EXT_WORDPRESS_EDITOR | 現在のeditor contextを解決するために現在のWordPress Editorを必要とする。 |
-| RESP_ROW_REDISCOVERY_DETECTION | EXT_WORDPRESS_EDITOR | 通常編集として成立する操作と行移動の再案内候補を区別するために必要とする。 |
-| RESP_ROW_REDISCOVERY_DETECTION | RESP_REORDER_MODE | 通常編集状態でだけ行移動意図の検出を行うために必要とする。 |
-| RESP_ROW_REDISCOVERY_DETECTION | RESP_REORDER_GUIDANCE | 成立した行移動意図を共通の再案内判断へ渡すために必要とする。 |
 | RESP_ROW_INPUT_INTERACTION | EXT_WORDPRESS_EDITOR | PCまたはタッチ端末の開始入力を判断するために必要とする。 |
 | RESP_ROW_INPUT_INTERACTION | RESP_EDITOR_DOM_CONTEXT | 入力開始時の現在のeditor contextを利用するために必要とする。 |
 | RESP_ROW_INPUT_INTERACTION | RESP_REORDER_MODE | 行並び替えが有効な期間だけ行入力を受理するために必要とする。 |
@@ -164,8 +158,8 @@ Reorder ModeとReorder Guidanceは行・列に共通するReorder Common境界�
 
 | ID | Name | Includes |
 | --- | --- | --- |
-| DV_ROW_RESPONSIBILITY | Responsibility View | EXT_WORDPRESS_EDITOR EXT_SUPPORTED_TABLE_BLOCK EXT_WORDPRESS_UNDO EXT_SCROLL_AREA EXT_DND_ENGINE RESP_REORDER_MODE RESP_REORDER_GUIDANCE RESP_EDITOR_DOM_CONTEXT RESP_ROW_REDISCOVERY_DETECTION RESP_ROW_INPUT_INTERACTION RESP_ROW_TABLE_INTEGRATION RESP_ROW_DND_INTERACTION RESP_ROW_PRESENTATION RESP_ROW_AUTO_SCROLL |
-| DV_ROW_EDITOR_INTERACTION | Editor Interaction | EXT_WORDPRESS_EDITOR EXT_DND_ENGINE RESP_REORDER_MODE RESP_REORDER_GUIDANCE RESP_EDITOR_DOM_CONTEXT RESP_ROW_REDISCOVERY_DETECTION RESP_ROW_INPUT_INTERACTION |
+| DV_ROW_RESPONSIBILITY | Responsibility View | EXT_WORDPRESS_EDITOR EXT_SUPPORTED_TABLE_BLOCK EXT_WORDPRESS_UNDO EXT_SCROLL_AREA EXT_DND_ENGINE RESP_REORDER_MODE RESP_REORDER_GUIDANCE RESP_EDITOR_DOM_CONTEXT RESP_ROW_INPUT_INTERACTION RESP_ROW_TABLE_INTEGRATION RESP_ROW_DND_INTERACTION RESP_ROW_PRESENTATION RESP_ROW_AUTO_SCROLL |
+| DV_ROW_EDITOR_INTERACTION | Editor Interaction | EXT_WORDPRESS_EDITOR EXT_DND_ENGINE RESP_REORDER_MODE RESP_REORDER_GUIDANCE RESP_EDITOR_DOM_CONTEXT RESP_ROW_INPUT_INTERACTION |
 | DV_ROW_DND_CORE | DnD Core | EXT_SUPPORTED_TABLE_BLOCK EXT_DND_ENGINE RESP_REORDER_MODE RESP_ROW_INPUT_INTERACTION RESP_ROW_TABLE_INTEGRATION RESP_ROW_DND_INTERACTION |
 | DV_ROW_FEEDBACK | DnD Feedback | EXT_SCROLL_AREA EXT_DND_ENGINE RESP_EDITOR_DOM_CONTEXT RESP_ROW_DND_INTERACTION RESP_ROW_PRESENTATION RESP_ROW_AUTO_SCROLL |
 | DV_ROW_DATA_UPDATE | Table Update | EXT_SUPPORTED_TABLE_BLOCK EXT_WORDPRESS_UNDO RESP_ROW_DND_INTERACTION RESP_ROW_TABLE_INTEGRATION |
@@ -209,23 +203,23 @@ DnDのcomplete、cancel、成立しないdropだけではReorder Modeを終了�
 
 ##### Responsibility
 
-初めて利用する人への案内と通常編集時の再案内について、Reorder Modeが所有する「行を並び替え」と「列を並び替え」の入口をまとめて提示する外側の案内境界を所有する。
+初めて利用する人への案内について、Reorder Modeが所有する「行を並び替え」と「列を並び替え」の入口をまとめて提示する外側の案内境界を所有する。
 
 ##### State ownership
 
-利用者についてPCとタッチ端末ごとの初回案内表示済み状態、現在の共通入口案内状態、および同じ状況で過度に再案内しないための案内抑制状態を所有する。入口の選択状態、行DnD Session、Column Reorder内部状態、行または列固有の移動意図検出状態は所有しない。
+利用者についてPCとタッチ端末ごとの初回案内表示済み状態と、現在の共通入口案内状態を所有する。入口の選択状態、行DnD Session、Column Reorder内部状態は所有しない。
 
 ##### Contract
 
-設計で定義された初回案内条件と、Row ReorderまたはColumn Reorder側で成立した方向固有の再案内候補を受け取り、必要な場合だけReorder Modeが所有する行・列両方の入口を確認できる共通案内を提示する。利用者がいずれかの入口を選択した場合、または初回案内を閉じた場合は案内を終了し、その操作環境では初回案内を表示済みとして扱う。
+設計で定義された初回案内条件を受け取り、必要な場合だけReorder Modeが所有する行・列両方の入口を確認できる共通案内を提示する。利用者がいずれかの入口を選択した場合、または初回案内を閉じた場合は案内を終了し、その操作環境では初回案内を表示済みとして扱う。
 
 ##### Lifecycle
 
-初回案内はPCとタッチ端末の各操作環境で未表示の状態から表示契機により案内状態となり、いずれかの入口選択または案内終了で表示済みとなる。再案内は方向固有の検出結果を受けた場合に必要性を判断し、通常編集を妨げず、同じ状況で過度に繰り返さない範囲で一時的に案内する。
+初回案内はPCとタッチ端末の各操作環境で未表示の状態から表示契機により案内状態となり、いずれかの入口選択または案内終了で表示済みとなる。
 
 ##### Invariants
 
-- 初回案内と再案内では行・列両方の入口をまとめて提示する。
+- 初回案内では行・列両方の入口をまとめて提示する。
 - 初回案内表示済み状態をRow ReorderとColumn Reorderへ重複して所有させない。
 - 一方の入口を選択した場合でも、その操作環境の初回案内全体を表示済みとして扱う。
 - 行または列の入口選択状態をReorder Guidanceの状態として所有しない。
@@ -255,32 +249,6 @@ DOM / Web APIを必要とする時点で現在のeditor contextを解決する�
 - 現在のWordPress Editorとは異なるcontextをfallbackとして提供しない。
 - iframe / non-iframeというEditor方式を利用側へ判定させない。
 - 現在のcontextを解決できない状態をRow Reorder内部のInvariant違反として扱わない。
-
-#### Rediscovery Detection {#RESP_ROW_REDISCOVERY_DETECTION}
-
-##### Responsibility
-
-通常編集時に、セル内容の編集、文字選択、通常スクロールなどではなく、行を移動しようとする操作が短時間に繰り返されたと判断できる場合に、その行固有の再案内候補だけを検出する。
-
-##### State ownership
-
-行を移動しようとする反復操作の成立判定に必要な短期状態だけを所有する。初回案内表示済み状態、共通入口案内状態、再案内の表示抑制状態、行DnD Sessionは所有しない。
-
-##### Contract
-
-通常編集状態で観測した操作から、行を移動しようとする反復操作が成立したかを判定する。成立した場合はReorder Guidanceへ行側の再案内候補を通知し、案内を表示するか、どの入口を強調するか、初回案内が表示済みかは判断しない。
-
-##### Lifecycle
-
-通常編集状態でだけ判定を行い、行並び替えまたは列並び替えが有効になった場合、通常編集として成立する操作へ移行した場合、または判定系列が終了した場合は短期状態を破棄する。
-
-##### Invariants
-
-- 一度だけの短いドラッグや通常の編集操作を行移動意図の成立として扱わない。
-- 行・列共通の案内表示状態を所有しない。
-- 列を移動しようとする操作を検出しない。
-- 行DnD Sessionを所有しない。
-- Column Reorderの内部状態を判定に利用しない。
 
 #### Input Interaction {#RESP_ROW_INPUT_INTERACTION}
 
@@ -397,7 +365,7 @@ complete成功、cancel、成立しないdropでは現在の行並び替えモ�
 
 ##### Responsibility
 
-行並び替えに必要な利用者向け一時表示を表現する。移動対象の強調、水平挿入線、周囲行の移動、移動不可理由、およびDesignで定義された通知をRow Reorderが所有する範囲で扱う。DnD Engine標準の移動表示は利用せず、行・列共通の初回案内と再案内は扱わない。
+行並び替えに必要な利用者向け一時表示を表現する。移動対象の強調、水平挿入線、周囲行の移動、移動不可理由、およびDesignで定義された通知をRow Reorderが所有する範囲で扱う。DnD Engine標準の移動表示は利用せず、行・列共通の初回案内は扱わない。
 
 ##### State ownership
 
@@ -516,7 +484,7 @@ Editor contextの消失など、Table Integrationを経由しない外部環境�
 
 ### 行専用責務境界
 
-本書のTable Integration、Input Interaction、DnD Interaction、Reorder Presentation、Auto Scroll、Rediscovery DetectionはすべてRow Reorderだけを実現する責務である。
+本書のTable Integration、Input Interaction、DnD Interaction、Reorder Presentation、Auto ScrollはすべてRow Reorderだけを実現する責務である。
 
 責務名から`Row`を省いても、Column Reorderとの共通責務を意味しない。Row / Columnの独立性は文書境界、Architecture Constraints、状態所有、Contract、Invariantで保証する。
 
@@ -526,7 +494,7 @@ Reorder ModeとReorder GuidanceはRow Reorderの外側にある。Reorder Mode�
 
 Reorder Modeは`row | column`中の対象Table編集を開始させず、通常編集と並び替えモードを排他的に成立させる。同じTable内では選択中モードを維持し、別Blockを選択した場合は`edit`へ戻る。Toolbar componentのunmount / remountはそれ自体ではLifecycle境界としない。
 
-Row Reorderは通常編集時に行を移動しようとする操作の検出を所有できるが、その検出結果を列入口まで含む案内状態へ変換しない。Column Reorder側の検出状態や内部仕様にも依存しない。Row Reorderへ公開されるReorder Mode情報は、対象Tableで行並び替えが有効であることだけとする。
+Row Reorderへ公開されるReorder Mode情報は、対象Tableで行並び替えが有効であることだけとする。
 
 ### DnD Engine境界
 
@@ -606,7 +574,7 @@ Row Reorderは、対応Table Block本体の属性更新や再描画に要する�
 
 ### AD-04 共通入口案内をRow Reorder外へ置く
 
-初回案内はPC / タッチごとに行・列をまとめて一度だけ表示し、再案内も行・列両方の入口を提示するため、表示済み状態と共通案内状態をReorder Guidanceが所有する。入口そのものと選択状態はReorder Modeが所有する。Row Reorderは行を移動しようとする操作の検出だけを所有し、Column Reorderとの共通並び替え抽象化は導入しない。
+初回案内はPC / タッチごとに行・列をまとめて一度だけ表示するため、表示済み状態と共通案内状態をReorder Guidanceが所有する。入口そのものと選択状態はReorder Modeが所有する。Row / Columnの内部実装を接続する共通並び替え抽象化は導入しない。
 
 ### AD-05 Error処理を通常Lifecycleへ持ち込まない
 
@@ -650,10 +618,9 @@ Architecture上はdnd-kit固有のLifecycle名、DnD対象の具体的な登録�
 ## 12. Glossary
 
 - **Reorder Mode境界**: Tableツールバーの行・列並び替え入口、`edit | row | column`の排他状態、および`row | column`が有効なTableを識別するための最小限のTable Identityを所有し、各方向へその方向が有効であることだけを渡す外側の境界。
-- **Reorder Guidance境界**: PC / タッチごとの初回案内表示済み状態と、Reorder Modeが所有する行・列両方の入口を提示する初回案内・再案内状態を所有するRow Reorder外側の境界。
+- **Reorder Guidance境界**: PC / タッチごとの初回案内表示済み状態と、Reorder Modeが所有する行・列両方の入口を提示する初回案内状態を所有するRow Reorder外側の境界。
 - **Row Reorder**: `tbody`の行並び替えだけを所有する独立したArchitecture境界。本書の方向固有Responsibility全体を含む。
 - **DnD Engine**: 物理入力の継続、物理的なDnD状態、現在の物理入力位置、自動スクロール実行を提供する外部境界。Row Reorderはdnd-kitを採用するが、内部責務とSessionはdnd-kit固有のAPIや物理状態をContractにしない。
-- **Rediscovery Detection**: 通常編集時に行を移動しようとする反復操作が成立したことだけを検出し、共通案内状態を所有せずReorder Guidanceへ通知する行専用責務。
 - **行DnD Session**: 一回の行DnDに必要な移動対象、対象Table同一性、Session開始時の行制約、現在の有効な移動先だけを保持する行専用の意味状態。DnD Engine固有の物理状態、外部参照、計測結果は保持せず、progressでは開始時の行制約を移動先判定に利用し、Sessionの最終移動先はcomplete時の現在構造への再照合を省略する根拠にはならない。
 - **正常な不在**: 外部環境変化や利用者操作上、正当に発生し得る「現在利用できない」「対象が成立しない」「現在は確定できない」という結果。
 - **runtime invariant**: 型だけでは保証できず、かつRow Reorder自身が所有する値レベルの成立条件。
