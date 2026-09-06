@@ -2,7 +2,6 @@
 require_once '/wordpress/wp-load.php';
 
 $page_id      = 100;
-$demo_version = '0.6.0';
 
 if ( get_post( $page_id ) ) {
 	wp_delete_post( $page_id, true );
@@ -233,7 +232,6 @@ $content = implode(
 		'<!-- wp:paragraph --><p>不具合や気づいた点があれば、<a href="https://github.com/YamabikoLab/yamabiko-table-reorder/issues">GitHub Issues</a> からお知らせください。</p><!-- /wp:paragraph -->',
 		sprintf(
 			'<!-- wp:paragraph {"align":"right","fontSize":"small"} --><p class="has-text-align-right has-small-font-size">Yamabiko Table Reorder v%s</p><!-- /wp:paragraph -->',
-			esc_html( $demo_version )
 		),
 	]
 );
