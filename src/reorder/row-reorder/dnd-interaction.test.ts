@@ -138,7 +138,7 @@ describe( 'Row DnD Interaction lifecycle', () => {
 
 		expect( checkedConstraints ).toBeNull();
 		expect( getRowDndPhase() ).toBe( 'idle' );
-		expect( startRejectionNoticeListener ).not.toHaveBeenCalled();
+		expect( startRejectionNoticeListener ).toHaveBeenCalledTimes( 1 );
 		expect( terminationNoticeListener ).not.toHaveBeenCalled();
 	} );
 
