@@ -180,6 +180,40 @@ describe( 'Row DnD engine connection', () => {
 
 	/**
 	 * 概要:
+	 * - DnD接続境界が終了した時点で未完了の開始準備とDraggable登録を破棄することを確認する。
+	 * 事前条件:
+	 * - 開始可否確認済みの開始準備とDraggable登録が存在する。
+	 * 操作:
+	 * - RowDndをunmountする。
+	 * 期待結果:
+	 * - Draggableが破棄され、境界終了後へ一時登録を持ち越さない。
+	 */
+	it( 'when the row DnD connection unmounts, should destroy the active draggable', () => {
+		interactionMock.prepareStart.mockReturnValue( { rowCount: 3, blockedBoundaries: [] } );
+		const { unmount } = render(
+			<RowDnd enabled tableIdentity="table-1">
+				{ () => <div /> }
+			</RowDnd>
+		);
+		const props = getProviderProps();
+		props.onBeforeDragStart( {
+			operation: { source: { data: { tableIdentity: 'table-1', sourceRowIndex: 1 } } },
+			preventDefault: jest.fn(),
+		} as unknown as BeforeDragStartEvent );
+
+		if ( activeDraggableRef === null ) {
+			throw new Error( 'RowInput activeDraggable ref was not captured.' );
+		}
+		const destroy = jest.fn();
+		activeDraggableRef.current = { destroy } as unknown as Draggable;
+
+		unmount();
+
+		expect( destroy ).toHaveBeenCalledTimes( 1 );
+	} );
+
+	/**
+	 * 概要:
 	 * - 移動先解決境界が返した論理的な移動先をDnD Interactionへ接続することを確認する。
 	 * 事前条件:
 	 * - DnD開始時に移動先解決境界が成立し、現在位置から境界1を返す。
@@ -213,6 +247,41 @@ describe( 'Row DnD engine connection', () => {
 		expect( destinationResolverFactoryMock ).toHaveBeenCalledWith( sourceElement );
 		expect( resolve ).toHaveBeenCalledWith( moveEvent );
 		expect( interactionMock.updateDestination ).toHaveBeenCalledWith( 1 );
+	} );
+
+	/**
+	 * 概要:
+	 * - 現在位置から有効な移動先を解決できない場合に、既存の移動先を保持せずnullへ更新することを確認する。
+	 * 事前条件:
+	 * - DnD開始時に移動先解決境界が成立している。
+	 * - 現在の物理入力位置には有効な移動先がない。
+	 * 操作:
+	 * - 物理DnD開始後に移動通知を受ける。
+	 * 期待結果:
+	 * - DnD Interactionへnullが通知され、以前の有効移動先を残さない。
+	 */
+	it( 'when destination resolution returns no destination, should clear the DnD interaction destination', () => {
+		const sourceElement = document.createElement( 'tr' );
+		const resolve = jest.fn().mockReturnValue( null );
+		destinationResolverFactoryMock.mockReturnValue( { resolve } );
+		interactionMock.prepareStart.mockReturnValue( { rowCount: 2, blockedBoundaries: [] } );
+		render(
+			<RowDnd enabled tableIdentity="table-1">
+				{ () => <div /> }
+			</RowDnd>
+		);
+		const props = getProviderProps();
+		props.onBeforeDragStart( {
+			operation: { source: { data: { tableIdentity: 'table-1', sourceRowIndex: 0 } } },
+			preventDefault: jest.fn(),
+		} as unknown as BeforeDragStartEvent );
+		props.onDragStart( { operation: { source: { element: sourceElement } } } );
+		props.onDragMove( {
+			operation: { source: { element: sourceElement } },
+			nativeEvent: { clientX: 120, clientY: 50 },
+		} as unknown as DragMoveEvent );
+
+		expect( interactionMock.updateDestination ).toHaveBeenCalledWith( null );
 	} );
 
 	/**
