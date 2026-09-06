@@ -230,14 +230,16 @@ describe( 'Row drop animation', () => {
 			mockDragDropMonitor.onDragEnd?.( { canceled: false } );
 		} );
 
-		const dropMovingDisplay = document.querySelector(
-			'.yamabiko-table-reorder-drop-animation-moving-row'
+		const movingDisplays = Array.from(
+			document.querySelectorAll< HTMLElement >( '.yamabiko-table-reorder-moving-row' )
 		);
-		const dropInsertionGap = document.querySelector( '.yamabiko-table-reorder-drop-animation-gap' );
-		expect( dropMovingDisplay ).not.toBeNull();
-		expect( dropInsertionGap ).not.toBeNull();
-		expect( dropMovingDisplay ).not.toBe( movingDisplay );
-		expect( dropInsertionGap ).not.toBe( insertionGap );
+		const insertionGaps = Array.from(
+			document.querySelectorAll< HTMLElement >( '.yamabiko-table-reorder-insertion-gap' )
+		);
+		const dropMovingDisplay = movingDisplays.find( ( element ) => element !== movingDisplay );
+		const dropInsertionGap = insertionGaps.find( ( element ) => element !== insertionGap );
+		expect( dropMovingDisplay ).toBeDefined();
+		expect( dropInsertionGap ).toBeDefined();
 		expect( animateMock ).toHaveBeenCalledWith(
 			[ { transform: 'translate3d(0, 0, 0)' }, { transform: 'translate3d(-350px, -200px, 0)' } ],
 			{
@@ -250,10 +252,8 @@ describe( 'Row drop animation', () => {
 		act( () => {
 			currentAnimation.onfinish?.( new Event( 'finish' ) as AnimationPlaybackEvent );
 		} );
-		expect(
-			document.querySelector( '.yamabiko-table-reorder-drop-animation-moving-row' )
-		).toBeNull();
-		expect( document.querySelector( '.yamabiko-table-reorder-drop-animation-gap' ) ).toBeNull();
+		expect( document.querySelectorAll( '.yamabiko-table-reorder-moving-row' ) ).toHaveLength( 1 );
+		expect( document.querySelectorAll( '.yamabiko-table-reorder-insertion-gap' ) ).toHaveLength( 1 );
 		expect( document.body.contains( movingDisplay ) ).toBe( true );
 		expect( document.body.contains( insertionGap ) ).toBe( true );
 	} );
@@ -281,9 +281,8 @@ describe( 'Row drop animation', () => {
 		} );
 
 		expect( animateMock ).not.toHaveBeenCalled();
-		expect(
-			document.querySelector( '.yamabiko-table-reorder-drop-animation-moving-row' )
-		).toBeNull();
+		expect( document.querySelectorAll( '.yamabiko-table-reorder-moving-row' ) ).toHaveLength( 1 );
+		expect( document.querySelectorAll( '.yamabiko-table-reorder-insertion-gap' ) ).toHaveLength( 1 );
 	} );
 
 	/**
@@ -313,10 +312,8 @@ describe( 'Row drop animation', () => {
 		} );
 
 		expect( currentAnimation.cancel ).toHaveBeenCalledTimes( 1 );
-		expect(
-			document.querySelector( '.yamabiko-table-reorder-drop-animation-moving-row' )
-		).toBeNull();
-		expect( document.querySelector( '.yamabiko-table-reorder-drop-animation-gap' ) ).toBeNull();
+		expect( document.querySelectorAll( '.yamabiko-table-reorder-moving-row' ) ).toHaveLength( 1 );
+		expect( document.querySelectorAll( '.yamabiko-table-reorder-insertion-gap' ) ).toHaveLength( 1 );
 	} );
 
 	/**
@@ -349,9 +346,8 @@ describe( 'Row drop animation', () => {
 		} );
 
 		expect( animateMock ).not.toHaveBeenCalled();
-		expect(
-			document.querySelector( '.yamabiko-table-reorder-drop-animation-moving-row' )
-		).toBeNull();
+		expect( document.querySelectorAll( '.yamabiko-table-reorder-moving-row' ) ).toHaveLength( 1 );
+		expect( document.querySelectorAll( '.yamabiko-table-reorder-insertion-gap' ) ).toHaveLength( 1 );
 	} );
 
 	/**
@@ -378,9 +374,7 @@ describe( 'Row drop animation', () => {
 		unmount();
 
 		expect( currentAnimation.cancel ).toHaveBeenCalledTimes( 1 );
-		expect(
-			document.querySelector( '.yamabiko-table-reorder-drop-animation-moving-row' )
-		).toBeNull();
-		expect( document.querySelector( '.yamabiko-table-reorder-drop-animation-gap' ) ).toBeNull();
+		expect( document.querySelectorAll( '.yamabiko-table-reorder-moving-row' ) ).toHaveLength( 1 );
+		expect( document.querySelectorAll( '.yamabiko-table-reorder-insertion-gap' ) ).toHaveLength( 1 );
 	} );
 } );
