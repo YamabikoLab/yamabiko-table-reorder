@@ -39,6 +39,21 @@ export type RowReorderTargetResolution =
 	  };
 
 /**
+ * 同一Tableの現在制約を基準に、複数の移動対象候補を解決する一時的な解決境界。
+ *
+ * 行並び替えモード中の表示判定では、Table構造を行ごとに再取得せず同じ制約を基準に開始可否を確認できる。
+ */
+export type RowReorderTargetResolver = {
+	/**
+	 * 指定行を現在の解決基準に対するReorder Targetとして解決する。
+	 *
+	 * @param sourceRowIndex tbody内の0-based移動元行位置。
+	 * @return 開始可能なTargetと開始時制約、開始拒否理由、または通常の利用不能結果。
+	 */
+	resolve: ( sourceRowIndex: number ) => RowReorderTargetResolution;
+};
+
+/**
  * 移動対象行が指定された行制約のtbody内に実在するか判定する。
  *
  * @param sourceRowIndex 移動対象の0-based行位置。
@@ -96,21 +111,17 @@ export const isRowReorderTargetMovable = (
 };
 
 /**
- * 要求時点のTable構造から行DnD開始対象を解決する。
+ * 指定された行制約に対してReorder Targetを解決する。
  *
- * 対象Tableまたは移動元行を安全に解釈できない場合は通常の利用不能とし、
- * 結合範囲により行単位で移動できない場合だけDesign上の開始拒否理由を返す。
- *
- * @param target 開始を試行するReorder Target。
+ * @param target             解決するReorder Target。
+ * @param initialConstraints 解決基準とする開始時の行制約。
  * @return 開始可能なTargetと開始時制約、Design上の開始拒否理由、または通常の利用不能結果。
  */
-const resolve = ( target: RowReorderTarget ): RowReorderTargetResolution => {
-	const initialConstraints = rowTableIntegration.getConstraints( target.tableIdentity );
-
-	if (
-		initialConstraints === null ||
-		! isSourceInRange( target.sourceRowIndex, initialConstraints )
-	) {
+const resolveWithConstraints = (
+	target: RowReorderTarget,
+	initialConstraints: RowReorderConstraints
+): RowReorderTargetResolution => {
+	if ( ! isSourceInRange( target.sourceRowIndex, initialConstraints ) ) {
 		return { status: 'unavailable' };
 	}
 
@@ -128,7 +139,51 @@ const resolve = ( target: RowReorderTarget ): RowReorderTargetResolution => {
 	};
 };
 
+/**
+ * 同一Tableの要求時点の行制約を基準とする一時的なTarget Resolverを生成する。
+ *
+ * Table制約を取得できない場合もresolver自体は成立させ、各候補を通常の利用不能として解決する。
+ * これによりPresentationはTable Integrationへ直接依存せず、開始可否判定の意味をTarget Resolutionへ統一できる。
+ *
+ * @param tableIdentity 解決対象となるTable個体の識別値。
+ * @return 同じTable制約を基準に複数の移動対象候補を解決するResolver。
+ */
+const createResolver = ( tableIdentity: string ): RowReorderTargetResolver => {
+	const initialConstraints = rowTableIntegration.getConstraints( tableIdentity );
+	const resolver: RowReorderTargetResolver = {
+		resolve: ( sourceRowIndex ) => {
+			if ( initialConstraints === null ) {
+				return { status: 'unavailable' };
+			}
+
+			const target: RowReorderTarget = {
+				tableIdentity,
+				sourceRowIndex,
+			};
+			const resolution = resolveWithConstraints( target, initialConstraints );
+			return resolution;
+		},
+	};
+	return resolver;
+};
+
+/**
+ * 要求時点のTable構造から行DnD開始対象を解決する。
+ *
+ * 対象Tableまたは移動元行を安全に解釈できない場合は通常の利用不能とし、
+ * 結合範囲により行単位で移動できない場合だけDesign上の開始拒否理由を返す。
+ *
+ * @param target 開始を試行するReorder Target。
+ * @return 開始可能なTargetと開始時制約、Design上の開始拒否理由、または通常の利用不能結果。
+ */
+const resolve = ( target: RowReorderTarget ): RowReorderTargetResolution => {
+	const resolver = createResolver( target.tableIdentity );
+	const resolution = resolver.resolve( target.sourceRowIndex );
+	return resolution;
+};
+
 /** 行並び替え開始前の移動対象解決境界。 */
 export const rowReorderTargetResolution = {
+	createResolver,
 	resolve,
 };
