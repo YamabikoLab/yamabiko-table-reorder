@@ -49,12 +49,6 @@ workspace "YTR Reorder v1 Architecture" {
 				element.setGroup("Editor Integration")
 			}
 		}
-		RESP_ROW_REDISCOVERY_DETECTION = element "Rediscovery Detection" "Responsibility" "通常編集時の反復操作から行を移動しようとする意図が成立したことだけを検出し、外側の案内境界へ通知する。" {
-			tags "Responsibility"
-			!script groovy {
-				element.setGroup("Row Reorder")
-			}
-		}
 		RESP_ROW_INPUT_INTERACTION = element "Input Interaction" "Responsibility" "PCとタッチ端末の開始条件を解釈し、DnD開始候補と入力方式固有の一時状態を所有してDnD Engineへ接続する。" {
 			tags "Responsibility"
 			!script groovy {
@@ -89,7 +83,7 @@ workspace "YTR Reorder v1 Architecture" {
 		DEP_001 = RESP_REORDER_MODE -> EXT_WORDPRESS_EDITOR "WordPress Editor上のTableツールバー入口、通常編集と行・列並び替えの排他、および対象Table単位のモードLifecycleを扱うために必要とする。" {
 			tags "Structural Dependency"
 		}
-		DEP_002 = RESP_REORDER_GUIDANCE -> EXT_WORDPRESS_EDITOR "初回案内と再案内の表示契機、および行・列の入口をまとめて提示する編集環境を必要とする。" {
+		DEP_002 = RESP_REORDER_GUIDANCE -> EXT_WORDPRESS_EDITOR "初回案内の表示契機、および行・列の入口をまとめて提示する編集環境を必要とする。" {
 			tags "Structural Dependency"
 		}
 		DEP_003 = RESP_REORDER_GUIDANCE -> RESP_EDITOR_DOM_CONTEXT "共通入口案内を現在のeditor contextで表現するために必要とする。" {
@@ -101,61 +95,52 @@ workspace "YTR Reorder v1 Architecture" {
 		DEP_005 = RESP_EDITOR_DOM_CONTEXT -> EXT_WORDPRESS_EDITOR "現在のeditor contextを解決するために現在のWordPress Editorを必要とする。" {
 			tags "Structural Dependency"
 		}
-		DEP_006 = RESP_ROW_REDISCOVERY_DETECTION -> EXT_WORDPRESS_EDITOR "通常編集として成立する操作と行移動の再案内候補を区別するために必要とする。" {
+		DEP_006 = RESP_ROW_INPUT_INTERACTION -> EXT_WORDPRESS_EDITOR "PCまたはタッチ端末の開始入力を判断するために必要とする。" {
 			tags "Structural Dependency"
 		}
-		DEP_007 = RESP_ROW_REDISCOVERY_DETECTION -> RESP_REORDER_MODE "通常編集状態でだけ行移動意図の検出を行うために必要とする。" {
+		DEP_007 = RESP_ROW_INPUT_INTERACTION -> RESP_EDITOR_DOM_CONTEXT "入力開始時の現在のeditor contextを利用するために必要とする。" {
 			tags "Structural Dependency"
 		}
-		DEP_008 = RESP_ROW_REDISCOVERY_DETECTION -> RESP_REORDER_GUIDANCE "成立した行移動意図を共通の再案内判断へ渡すために必要とする。" {
+		DEP_008 = RESP_ROW_INPUT_INTERACTION -> RESP_REORDER_MODE "行並び替えが有効な期間だけ行入力を受理するために必要とする。" {
 			tags "Structural Dependency"
 		}
-		DEP_009 = RESP_ROW_INPUT_INTERACTION -> EXT_WORDPRESS_EDITOR "PCまたはタッチ端末の開始入力を判断するために必要とする。" {
+		DEP_009 = RESP_ROW_INPUT_INTERACTION -> EXT_DND_ENGINE "開始条件が成立した行だけを物理的なDnD開始候補へ接続し、DnD終了またはcancelを検知して自身の一時状態を終了するために必要とする。" {
 			tags "Structural Dependency"
 		}
-		DEP_010 = RESP_ROW_INPUT_INTERACTION -> RESP_EDITOR_DOM_CONTEXT "入力開始時の現在のeditor contextを利用するために必要とする。" {
+		DEP_010 = RESP_ROW_TABLE_INTEGRATION -> EXT_SUPPORTED_TABLE_BLOCK "対応Table Block固有の行構造取得と行順更新を行うために必要とする。" {
 			tags "Structural Dependency"
 		}
-		DEP_011 = RESP_ROW_INPUT_INTERACTION -> RESP_REORDER_MODE "行並び替えが有効な期間だけ行入力を受理するために必要とする。" {
+		DEP_011 = RESP_ROW_TABLE_INTEGRATION -> EXT_WORDPRESS_UNDO "成立した1回の行並び替えを1回のUndoで戻せる更新単位を維持するために必要とする。" {
 			tags "Structural Dependency"
 		}
-		DEP_012 = RESP_ROW_INPUT_INTERACTION -> EXT_DND_ENGINE "開始条件が成立した行だけを物理的なDnD開始候補へ接続し、DnD終了またはcancelを検知して自身の一時状態を終了するために必要とする。" {
+		DEP_012 = RESP_ROW_DND_INTERACTION -> EXT_DND_ENGINE "active DnD成立前の開始試行、成立後の物理的なDnD進行、および現在の物理入力位置をRow Reorderの意味状態へ変換するために必要とする。" {
 			tags "Structural Dependency"
 		}
-		DEP_013 = RESP_ROW_TABLE_INTEGRATION -> EXT_SUPPORTED_TABLE_BLOCK "対応Table Block固有の行構造取得と行順更新を行うために必要とする。" {
+		DEP_013 = RESP_ROW_DND_INTERACTION -> RESP_REORDER_MODE "DnD Interactionがモード状態を所有せず、DnD終了後のモードLifecycle判断をReorder Modeの責務として成立させるために必要とする。" {
 			tags "Structural Dependency"
 		}
-		DEP_014 = RESP_ROW_TABLE_INTEGRATION -> EXT_WORDPRESS_UNDO "成立した1回の行並び替えを1回のUndoで戻せる更新単位を維持するために必要とする。" {
+		DEP_014 = RESP_ROW_DND_INTERACTION -> RESP_ROW_TABLE_INTEGRATION "開始可否判定時の行構造取得、complete時の現在構造への再照合、および確定した行移動の反映に必要とする。" {
 			tags "Structural Dependency"
 		}
-		DEP_015 = RESP_ROW_DND_INTERACTION -> EXT_DND_ENGINE "active DnD成立前の開始試行、成立後の物理的なDnD進行、および現在の物理入力位置をRow Reorderの意味状態へ変換するために必要とする。" {
+		DEP_015 = RESP_ROW_PRESENTATION -> RESP_EDITOR_DOM_CONTEXT "現在のeditor contextで行DnDの表示を行うために必要とする。" {
 			tags "Structural Dependency"
 		}
-		DEP_016 = RESP_ROW_DND_INTERACTION -> RESP_REORDER_MODE "DnD Interactionがモード状態を所有せず、DnD終了後のモードLifecycle判断をReorder Modeの責務として成立させるために必要とする。" {
+		DEP_016 = RESP_ROW_PRESENTATION -> EXT_DND_ENGINE "行DnDの表示に必要な物理的なDnD情報をSessionへ取り込まず利用するために必要とする。" {
 			tags "Structural Dependency"
 		}
-		DEP_017 = RESP_ROW_DND_INTERACTION -> RESP_ROW_TABLE_INTEGRATION "開始可否判定時の行構造取得、complete時の現在構造への再照合、および確定した行移動の反映に必要とする。" {
+		DEP_017 = RESP_ROW_PRESENTATION -> RESP_ROW_DND_INTERACTION "現在の有効な移動先、移動不可理由、終了時の表示解除、およびDesign上の通知要否を表示状態へ反映するために必要とする。" {
 			tags "Structural Dependency"
 		}
-		DEP_018 = RESP_ROW_PRESENTATION -> RESP_EDITOR_DOM_CONTEXT "現在のeditor contextで行DnDの表示を行うために必要とする。" {
+		DEP_018 = RESP_ROW_AUTO_SCROLL -> RESP_ROW_DND_INTERACTION "activeな行DnD状態と終了状態を自動スクロール判断に必要とする。" {
 			tags "Structural Dependency"
 		}
-		DEP_019 = RESP_ROW_PRESENTATION -> EXT_DND_ENGINE "行DnDの表示に必要な物理的なDnD情報をSessionへ取り込まず利用するために必要とする。" {
+		DEP_019 = RESP_ROW_AUTO_SCROLL -> RESP_EDITOR_DOM_CONTEXT "現在のeditor contextでスクロール許可範囲を扱うために必要とする。" {
 			tags "Structural Dependency"
 		}
-		DEP_020 = RESP_ROW_PRESENTATION -> RESP_ROW_DND_INTERACTION "現在の有効な移動先、移動不可理由、終了時の表示解除、およびDesign上の通知要否を表示状態へ反映するために必要とする。" {
+		DEP_020 = RESP_ROW_AUTO_SCROLL -> EXT_SCROLL_AREA "行DnD中に縦方向へスクロールできる外部領域を必要とする。" {
 			tags "Structural Dependency"
 		}
-		DEP_021 = RESP_ROW_AUTO_SCROLL -> RESP_ROW_DND_INTERACTION "activeな行DnD状態と終了状態を自動スクロール判断に必要とする。" {
-			tags "Structural Dependency"
-		}
-		DEP_022 = RESP_ROW_AUTO_SCROLL -> RESP_EDITOR_DOM_CONTEXT "現在のeditor contextでスクロール許可範囲を扱うために必要とする。" {
-			tags "Structural Dependency"
-		}
-		DEP_023 = RESP_ROW_AUTO_SCROLL -> EXT_SCROLL_AREA "行DnD中に縦方向へスクロールできる外部領域を必要とする。" {
-			tags "Structural Dependency"
-		}
-		DEP_024 = RESP_ROW_AUTO_SCROLL -> EXT_DND_ENGINE "許可した縦方向と範囲内で物理的な自動スクロールを実行する境界として必要とする。" {
+		DEP_021 = RESP_ROW_AUTO_SCROLL -> EXT_DND_ENGINE "許可した縦方向と範囲内で物理的な自動スクロールを実行する境界として必要とする。" {
 			tags "Structural Dependency"
 		}
 
@@ -359,14 +344,14 @@ workspace "YTR Reorder v1 Architecture" {
 	views {
 		systemLandscape "DV_ROW_RESPONSIBILITY" {
 			title "Structural Dependencies - Responsibility View"
-			include EXT_WORDPRESS_EDITOR EXT_SUPPORTED_TABLE_BLOCK EXT_WORDPRESS_UNDO EXT_SCROLL_AREA EXT_DND_ENGINE RESP_REORDER_MODE RESP_REORDER_GUIDANCE RESP_EDITOR_DOM_CONTEXT RESP_ROW_REDISCOVERY_DETECTION RESP_ROW_INPUT_INTERACTION RESP_ROW_TABLE_INTEGRATION RESP_ROW_DND_INTERACTION RESP_ROW_PRESENTATION RESP_ROW_AUTO_SCROLL
+			include EXT_WORDPRESS_EDITOR EXT_SUPPORTED_TABLE_BLOCK EXT_WORDPRESS_UNDO EXT_SCROLL_AREA EXT_DND_ENGINE RESP_REORDER_MODE RESP_REORDER_GUIDANCE RESP_EDITOR_DOM_CONTEXT RESP_ROW_INPUT_INTERACTION RESP_ROW_TABLE_INTEGRATION RESP_ROW_DND_INTERACTION RESP_ROW_PRESENTATION RESP_ROW_AUTO_SCROLL
 			exclude "relationship.tag!=Structural Dependency"
 			autoLayout lr
 		}
 
 		systemLandscape "DV_ROW_EDITOR_INTERACTION" {
 			title "Structural Dependencies - Editor Interaction"
-			include EXT_WORDPRESS_EDITOR EXT_DND_ENGINE RESP_REORDER_MODE RESP_REORDER_GUIDANCE RESP_EDITOR_DOM_CONTEXT RESP_ROW_REDISCOVERY_DETECTION RESP_ROW_INPUT_INTERACTION
+			include EXT_WORDPRESS_EDITOR EXT_DND_ENGINE RESP_REORDER_MODE RESP_REORDER_GUIDANCE RESP_EDITOR_DOM_CONTEXT RESP_ROW_INPUT_INTERACTION
 			exclude "relationship.tag!=Structural Dependency"
 			autoLayout lr
 		}
