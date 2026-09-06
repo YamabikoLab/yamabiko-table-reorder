@@ -118,6 +118,7 @@ const resolveInsertionLineLayout = (
 
 	let lineOffset = destinationBoundaryOffset;
 
+	/* 縦移動方向を確定できた期間だけ挿入空間のどちら側を示すか切り替え、未確定時は論理境界そのものを表示する。 */
 	if ( movementDirection !== null ) {
 		let insertionGapTopOffset = destinationBoundaryOffset;
 
