@@ -27,9 +27,19 @@ jest.mock( '@wordpress/preferences', () => ( {
 } ) );
 
 jest.mock( '@wordpress/data', () => ( {
-	select: () => ( {
-		getBlock: ( clientId: string ) => mockBlocks.get( clientId ) ?? null,
-		getSelectedBlockClientId: () => mockSelectedBlockClientId,
+	select: ( store: unknown ) => {
+		if ( store === 'preferences-store' ) {
+			return {
+				get: () => true,
+			};
+		}
+		return {
+			getBlock: ( clientId: string ) => mockBlocks.get( clientId ) ?? null,
+			getSelectedBlockClientId: () => mockSelectedBlockClientId,
+		};
+	},
+	dispatch: () => ( {
+		set: jest.fn(),
 	} ),
 } ) );
 
@@ -44,8 +54,14 @@ jest.mock( '@wordpress/components', () => {
 				label: string;
 				onClick: () => void;
 			}
-		>( ( { icon, isPressed, label, onClick } ) => (
-			<button aria-label={ label } aria-pressed={ isPressed } onClick={ onClick } type="button">
+		>( ( { icon, isPressed, label, onClick }, ref ) => (
+			<button
+				ref={ ref }
+				aria-label={ label }
+				aria-pressed={ isPressed }
+				onClick={ onClick }
+				type="button"
+			>
 				{ icon }
 				{ label }
 			</button>
