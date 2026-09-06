@@ -3,9 +3,9 @@
  *
  * 行DnD境界はTableの描画中に安定して存在し、行並び替えが有効な期間だけ開始入力を受け付ける。
  * PCとタッチ端末の開始条件判定は入力境界へ委ね、dnd-kitが通知する物理DnDの進行を、
- * 移動先解決境界とDnD Interactionが扱う開始、移動先更新、確定、取消へ接続する。
+ * Reorder Target Resolution、移動先解決境界、DnD Interactionへ接続する。
  * Reorder Presentationは同じDnD Engine境界の配下へ独立して接続し、表示Lifecycleと表示状態を自身で所有する。
- * 行並び替えの無効化または境界の終了時には、次の通常編集や別モードへ持ち越せない開始準備と物理DnD登録を破棄する。
+ * 行並び替えの無効化または境界の終了時には、次の通常編集や別モードへ持ち越せない解決結果と物理DnD登録を破棄する。
  */
 
 import {
@@ -22,14 +22,18 @@ import { DragDropProvider } from '@dnd-kit/react';
 import { useEffect, useRef } from '@wordpress/element';
 import type { ReactNode } from 'react';
 
-import { rowDndInteraction, type RowDndSource } from './dnd-interaction';
+import { rowDndInteraction } from './dnd-interaction';
 import {
 	createRowDestinationResolver,
 	type RowDestinationResolver,
 } from './destination-resolution';
 import { RowInput, type RowDndPointerDownHandler } from './input';
 import { RowPresentation } from './presentation/row-presentation';
-import type { RowReorderConstraints } from './table-integration';
+import {
+	rowReorderTargetResolution,
+	type RowReorderTarget,
+	type RowReorderTargetResolution,
+} from './target-resolution';
 
 /** 行DnDを既存DOMのポインター入力へ接続する開始処理型を、DnD接続境界から公開する。 */
 export type { RowDndPointerDownHandler } from './input';
@@ -38,9 +42,9 @@ export type { RowDndPointerDownHandler } from './input';
  * 対象Tableへdnd-kitの物理DnD進行を接続する。
  *
  * 接続自体はTableの描画中に安定して維持し、行並び替えが有効な期間だけ入力境界から開始対象を登録する。
- * DnD開始後は移動先解決境界を介して対象Table内の移動先境界を解決し、確定または取消までDnD Interactionへ接続する。
+ * 物理DnD成立前にReorder Target Resolutionで開始対象を解決し、成立後は解決済みのTargetと開始時制約だけをDnD Interactionへ渡す。
  * Reorder Presentationは同じDnD Engine境界を利用する独立した表示境界として接続する。
- * 行並び替えが無効になった場合と接続自体が終了する場合は、未完了の開始準備とDraggable登録を破棄する。
+ * 行並び替えが無効になった場合と接続自体が終了する場合は、未使用の解決結果とDraggable登録を破棄する。
  *
  * @param props               行DnD接続に必要な値。
  * @param props.enabled       現在のTableで行並び替え開始入力を受け付ける場合はtrue。
@@ -56,15 +60,14 @@ export const RowDnd = ( props: {
 	const { enabled, tableIdentity, children } = props;
 	const activeDraggable = useRef< Draggable | null >( null );
 	const destinationResolver = useRef< RowDestinationResolver | null >( null );
-	const preparedStart = useRef< {
-		source: RowDndSource;
-		constraints: RowReorderConstraints;
-	} | null >( null );
+	const resolvedStart = useRef< Extract< RowReorderTargetResolution, { status: 'resolved' } > | null >(
+		null
+	);
 
 	useEffect( () => {
-		/* 行並び替えが無効になった時点で、通常編集や別モードへ開始準備と物理DnD登録を持ち越さない。 */
+		/* 行並び替えが無効になった時点で、通常編集や別モードへ解決結果と物理DnD登録を持ち越さない。 */
 		if ( ! enabled ) {
-			preparedStart.current = null;
+			resolvedStart.current = null;
 			destinationResolver.current = null;
 			activeDraggable.current?.destroy();
 			activeDraggable.current = null;
@@ -73,8 +76,8 @@ export const RowDnd = ( props: {
 
 	useEffect( () => {
 		return () => {
-			/* TableのDnD接続終了時は、未完了の開始準備、移動先解決境界、物理DnD登録を残さない。 */
-			preparedStart.current = null;
+			/* TableのDnD接続終了時は、未使用の解決結果、移動先解決境界、物理DnD登録を残さない。 */
+			resolvedStart.current = null;
 			destinationResolver.current = null;
 			activeDraggable.current?.destroy();
 			activeDraggable.current = null;
@@ -82,34 +85,32 @@ export const RowDnd = ( props: {
 	}, [] );
 
 	const onBeforeDragStart = ( event: BeforeDragStartEvent ) => {
-		const source = event?.operation?.source?.data as RowDndSource;
-		const constraints = rowDndInteraction.prepareStart( source );
+		const target = event?.operation?.source?.data as RowReorderTarget;
+		const resolution = rowReorderTargetResolution.resolve( target );
 
 		/* 開始時点のTable構造で並び替え対象が成立しない場合は、物理DnDを開始しない。 */
-		if ( constraints === null ) {
+		if ( resolution.status !== 'resolved' ) {
+			resolvedStart.current = null;
 			event.preventDefault();
 			activeDraggable.current?.destroy();
 			activeDraggable.current = null;
 			return;
 		}
 
-		preparedStart.current = {
-			source,
-			constraints,
-		};
+		resolvedStart.current = resolution;
 	};
 
 	const onDragStart = ( event?: DragStartEvent ) => {
-		const preparation = preparedStart.current;
+		const resolution = resolvedStart.current;
 
-		/* 開始可否確認が成立していない物理DnD通知からは、行DnD Sessionを開始しない。 */
-		if ( preparation === null ) {
+		/* 開始対象の解決が成立していない物理DnD通知からは、行DnD Sessionを開始しない。 */
+		if ( resolution === null ) {
 			return;
 		}
 
-		preparedStart.current = null;
+		resolvedStart.current = null;
 		destinationResolver.current = createRowDestinationResolver( event?.operation.source?.element );
-		rowDndInteraction.start( preparation.source, preparation.constraints );
+		rowDndInteraction.start( resolution.target, resolution.initialConstraints );
 	};
 
 	const onDragMove = ( event: DragMoveEvent ) => {
@@ -124,8 +125,8 @@ export const RowDnd = ( props: {
 	};
 
 	const onDragEnd = ( event: DragEndEvent ) => {
-		/* 物理DnD終了時は、次回入力へ持ち越してはならない開始準備、移動先解決境界、一時登録を破棄する。 */
-		preparedStart.current = null;
+		/* 物理DnD終了時は、次回入力へ持ち越してはならない解決結果、移動先解決境界、一時登録を破棄する。 */
+		resolvedStart.current = null;
 		destinationResolver.current = null;
 		activeDraggable.current?.destroy();
 		activeDraggable.current = null;
