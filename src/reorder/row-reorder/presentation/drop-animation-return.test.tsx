@@ -46,6 +46,19 @@ const rectangle = ( values: Partial< DOMRect > ): DOMRect =>
 		...values,
 	} ) as DOMRect;
 
+/**
+ * 操作前後の参照差から、Presentationがbody直下へ一時追加した要素だけを取得する。
+ *
+ * @param existingChildren 操作前に存在していたbody直下要素。
+ * @return 操作後に新しく追加されたbody直下要素。
+ */
+const getAddedBodyChildren = ( existingChildren: readonly Element[] ): Element[] => {
+	const existingElements = new Set( existingChildren );
+	return Array.from( document.body.children ).filter(
+		( element ) => ! existingElements.has( element )
+	);
+};
+
 describe( 'Row drop return animation', () => {
 	let animateMock: jest.Mock;
 	let currentAnimation: Animation & { cancel: jest.Mock };
@@ -144,6 +157,7 @@ describe( 'Row drop return animation', () => {
 		document.body.appendChild( movingDisplay );
 
 		render( <RowDropAnimation /> );
+		const existingBodyChildren = Array.from( document.body.children );
 		act( () => {
 			mockDragDropMonitor.onDragStart?.( {
 				operation: {
@@ -153,6 +167,8 @@ describe( 'Row drop return animation', () => {
 			mockDragDropMonitor.onDragEnd?.( { canceled: false } );
 		} );
 
+		const returnElements = getAddedBodyChildren( existingBodyChildren );
+		expect( returnElements ).toHaveLength( 1 );
 		expect( animateMock ).toHaveBeenCalledWith(
 			[ { transform: 'translate3d(0, 0, 0)' }, { transform: 'translate3d(-350px, -220px, 0)' } ],
 			{
@@ -162,16 +178,12 @@ describe( 'Row drop return animation', () => {
 			}
 		);
 		expect( sourceRow.style.opacity ).toBe( '0.35' );
-		expect( document.querySelectorAll( '.yamabiko-table-reorder-moving-row' ) ).toHaveLength( 2 );
-		expect( document.querySelectorAll( '.yamabiko-table-reorder-insertion-gap' ) ).toHaveLength(
-			0
-		);
 
 		act( () => {
 			currentAnimation.onfinish?.( new Event( 'finish' ) as AnimationPlaybackEvent );
 		} );
 		expect( sourceRow.style.opacity ).toBe( '' );
-		expect( document.querySelectorAll( '.yamabiko-table-reorder-moving-row' ) ).toHaveLength( 1 );
+		expect( returnElements[ 0 ]?.isConnected ).toBe( false );
 		expect( document.body.contains( movingDisplay ) ).toBe( true );
 	} );
 } );
