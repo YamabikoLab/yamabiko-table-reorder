@@ -12,10 +12,7 @@ import { useDragDropManager } from '@dnd-kit/react';
 import type { PointerEvent, ReactNode } from 'react';
 
 import { notifyRowStartRejection } from './presentation/start-rejection-notice-event';
-import {
-	rowReorderTargetResolution,
-	type RowReorderTarget,
-} from './target-resolution';
+import { rowReorderTargetResolution, type RowReorderTarget } from './target-resolution';
 
 /**
  * 行DnDが既存DOMのポインター入力へ接続する開始処理。
