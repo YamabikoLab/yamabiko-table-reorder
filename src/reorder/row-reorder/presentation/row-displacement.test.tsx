@@ -177,6 +177,68 @@ describe( 'Row displacement presentation', () => {
 
 	/**
 	 * 概要:
+	 * - ドラッグ中に移動方向が反転した場合、反転前の押しのけ表示を残さず現在方向だけを反映することを確認する。
+	 *
+	 * 事前条件:
+	 * - 5行のTableで3行目を移動対象とし、下方向の押しのけ表示が成立している。
+	 *
+	 * 操作:
+	 * - 移動先を移動元より上の境界へ変更する。
+	 *
+	 * 期待結果:
+	 * - 下方向移動で押し上げていた行は元位置へ戻り、上方向移動で必要な行だけが下へ押しのけられる。
+	 */
+	it( 'when the destination crosses the source row, should replace the previous displacement with the new direction', () => {
+		const tableBody = createRows( 5 );
+		const sourceRow = tableBody.rows.item( 2 );
+
+		if ( sourceRow === null ) {
+			throw new Error( 'Source row was not created.' );
+		}
+
+		const { rerender } = render( <RowDisplacement /> );
+		startPhysicalDrag( sourceRow );
+		mockDestinationBoundaryIndex = 5;
+		rerender( <RowDisplacement /> );
+
+		expect(
+			tableBody.rows
+				.item( 3 )
+				?.style.getPropertyValue( '--yamabiko-table-reorder-row-displacement' )
+		).toBe( '-40px' );
+		expect(
+			tableBody.rows
+				.item( 4 )
+				?.style.getPropertyValue( '--yamabiko-table-reorder-row-displacement' )
+		).toBe( '-40px' );
+
+		mockDestinationBoundaryIndex = 0;
+		rerender( <RowDisplacement /> );
+
+		expect(
+			tableBody.rows
+				.item( 0 )
+				?.style.getPropertyValue( '--yamabiko-table-reorder-row-displacement' )
+		).toBe( '40px' );
+		expect(
+			tableBody.rows
+				.item( 1 )
+				?.style.getPropertyValue( '--yamabiko-table-reorder-row-displacement' )
+		).toBe( '40px' );
+		expect(
+			tableBody.rows
+				.item( 3 )
+				?.style.getPropertyValue( '--yamabiko-table-reorder-row-displacement' )
+		).toBe( '0px' );
+		expect(
+			tableBody.rows
+				.item( 4 )
+				?.style.getPropertyValue( '--yamabiko-table-reorder-row-displacement' )
+		).toBe( '0px' );
+	} );
+
+	/**
+	 * 概要:
 	 * - 移動先が隣接境界へ変わる場合、既に同じ位置へ押しのけ済みの行を更新し直さないことを確認する。
 	 *
 	 * 事前条件:
