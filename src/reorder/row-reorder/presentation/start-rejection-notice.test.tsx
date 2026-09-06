@@ -28,6 +28,10 @@ describe( 'RowStartRejectionNotice', () => {
 		snackbarRemove = undefined;
 	} );
 
+	afterEach( () => {
+		jest.useRealTimers();
+	} );
+
 	/**
 	 * 概要:
 	 * - Designで定義された結合範囲による開始拒否時だけメッセージを操作位置付近へ表示することを確認する。
@@ -122,5 +126,43 @@ describe( 'RowStartRejectionNotice', () => {
 		} );
 
 		expect( screen.queryByText( 'start rejection message' ) ).not.toBeNull();
+	} );
+
+	/**
+	 * 概要:
+	 * - 連続した開始拒否では最新通知の表示時間を新しい通知から数え直すことを確認する。
+	 * 事前条件:
+	 * - 最初の開始拒否通知が表示されている。
+	 * 操作:
+	 * - 表示時間の途中で新しい開始拒否を通知し、最初の通知なら終了する時点まで時間を進める。
+	 * 期待結果:
+	 * - 最新通知は残り、その通知自身の表示時間が経過した後だけ終了する。
+	 */
+	it( 'when a newer rejection arrives before the timeout, should restart the display duration for the latest notice', () => {
+		jest.useFakeTimers();
+		render( <RowStartRejectionNotice /> );
+
+		act( () => {
+			notifyRowStartRejection( {
+				reason: 'merged-range',
+				clientX: 120,
+				clientY: 240,
+			} );
+			jest.advanceTimersByTime( 1000 );
+			notifyRowStartRejection( {
+				reason: 'merged-range',
+				clientX: 180,
+				clientY: 300,
+			} );
+			jest.advanceTimersByTime( 500 );
+		} );
+
+		expect( screen.queryByText( 'start rejection message' ) ).not.toBeNull();
+
+		act( () => {
+			jest.advanceTimersByTime( 1000 );
+		} );
+
+		expect( screen.queryByText( 'start rejection message' ) ).toBeNull();
 	} );
 } );
