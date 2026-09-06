@@ -238,19 +238,15 @@ export const RowDisplacement = () => {
 		let lastDisplacedIndex: number;
 		let displacement: number;
 
-		/* 上方向では移動先から移動元直前までを下げ、下方向では移動元直後から移動先直前までを上げる。 */
+		/* DnD Interactionが保証する実移動先に応じて、上方向では対象範囲を下げ、下方向では対象範囲を上げる。 */
 		if ( destinationBoundaryIndex < sourceRowIndex ) {
 			firstDisplacedIndex = destinationBoundaryIndex;
 			lastDisplacedIndex = sourceRowIndex - 1;
 			displacement = sourceRowHeight;
-		} else if ( destinationBoundaryIndex > sourceRowIndex + 1 ) {
+		} else {
 			firstDisplacedIndex = sourceRowIndex + 1;
 			lastDisplacedIndex = destinationBoundaryIndex - 1;
 			displacement = -sourceRowHeight;
-		} else {
-			/* 移動元の直前または直後は順序が変わらないため、挿入空間を作らない。 */
-			updateRange( null );
-			return;
 		}
 
 		updateRange( {
