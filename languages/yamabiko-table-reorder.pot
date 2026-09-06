@@ -29,7 +29,11 @@ msgid "Reorder columns"
 msgstr ""
 
 #: src/messages.ts:32
-msgid "Reordering could not continue, so the operation was ended."
+msgid "Reorder rows and columns."
+msgstr ""
+
+#: src/messages.ts:40
+msgid "Close reorder guidance"
 msgstr ""
 
 #. Description of the plugin

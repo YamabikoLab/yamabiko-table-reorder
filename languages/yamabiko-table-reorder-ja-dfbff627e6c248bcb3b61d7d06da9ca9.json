@@ -11,6 +11,14 @@
 			"Reorder columns": [ "列を並び替え" ],
 			"Reordering could not continue, so the operation was ended.": [
 				"並び替えを続けられないため、操作を終了しました。"
+			],
+			"Reorder rows": [ "\u884c\u3092\u4e26\u3073\u66ff\u3048" ],
+			"Reorder columns": [ "\u5217\u3092\u4e26\u3073\u66ff\u3048" ],
+			"Reorder rows and columns.": [
+				"\u884c\u3068\u5217\u3092\u4e26\u3073\u66ff\u3048\u3089\u308c\u307e\u3059\u3002"
+			],
+			"Close reorder guidance": [
+				"\u4e26\u3073\u66ff\u3048\u306e\u6848\u5185\u3092\u9589\u3058\u308b"
 			]
 		}
 	}
