@@ -17,6 +17,8 @@ import {
 } from './start-rejection-notice-event';
 import './start-rejection-notice.scss';
 
+const NOTICE_DURATION = 1500;
+
 type RowStartRejectionNoticeState = RowStartRejectionNoticeEvent & {
 	sequence: number;
 };
@@ -31,10 +33,14 @@ export const RowStartRejectionNotice = () => {
 
 	useEffect( () => {
 		return subscribeRowStartRejection( ( event ) => {
-			setNotice( ( current ) => ( {
+			setNotice( {
 				...event,
-				sequence: ( current?.sequence ?? 0 ) + 1,
-			} ) );
+				sequence: Date.now(),
+			} );
+
+			setTimeout( () => {
+				setNotice( null );
+			}, NOTICE_DURATION );
 		} );
 	}, [] );
 
