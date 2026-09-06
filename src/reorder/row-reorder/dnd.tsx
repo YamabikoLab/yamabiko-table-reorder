@@ -29,7 +29,7 @@ import {
 } from './destination-resolution';
 import { RowInput, type RowDndPointerDownHandler } from './input';
 import { RowPresentation } from './presentation/row-presentation';
-import { notifyRowStartRejection } from './presentation/start-rejection-notice';
+import { notifyRowStartRejection } from './presentation/start-rejection-notice-event';
 import {
 	rowReorderTargetResolution,
 	type RowReorderTarget,
