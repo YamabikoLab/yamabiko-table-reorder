@@ -26,7 +26,7 @@ type RowDndSession = {
 	tableIdentity: string;
 	/** Session開始時に確定したtbody内の0-based移動元行位置。 */
 	sourceRowIndex: number;
-	/** Session開始時の行制約に対して現在有効な0-based移動先境界。有効な移動先がない場合はnull。 */
+	/** Session開始時の行制約に対して実際に行順を変更できる現在の0-based移動先境界。有効な移動先がない場合はnull。 */
 	destinationBoundaryIndex: number | null;
 	/** 開始可否判定時に確認し、Session開始時の判定基準として固定した行制約。 */
 	initialConstraints: RowReorderConstraints;
@@ -72,9 +72,9 @@ type RowDndStoreActions = {
 	 */
 	start: ( source: RowDndSource, initialConstraints: RowReorderConstraints ) => void;
 	/**
-	 * DnD Engine側で解決済みの移動先境界を、Session開始時の行制約へ照合して現在の有効移動先へ反映する。
+	 * DnD Engine側で解決済みの移動先候補を、Session開始時の行制約と移動元へ照合して現在の有効移動先へ反映する。
 	 *
-	 * @param destinationBoundaryIndex 現在の0-based移動先境界。有効な候補がない場合はnull。
+	 * @param destinationBoundaryIndex 現在の0-based移動先候補境界。候補がない場合はnull。
 	 */
 	updateDestination: ( destinationBoundaryIndex: number | null ) => void;
 	/** active Sessionの最終移動先を現在のTable構造へ再照合し、成立する行移動だけを確定してSessionを終了する。 */
@@ -224,22 +224,6 @@ const isDestinationValid = (
 };
 
 /**
- * 移動元行と移動先境界の組み合わせで実際に行順が変化するか判定する。
- *
- * 移動元行自身の直前または直後への挿入は、削除後の挿入位置が元の位置と一致するため更新対象にしない。
- *
- * @param sourceRowIndex           移動元の0-based行位置。
- * @param destinationBoundaryIndex 移動前のtbodyを基準とする0-based移動先境界。
- * @return 行順が変化する場合はtrue。
- */
-const changesRowOrder = ( sourceRowIndex: number, destinationBoundaryIndex: number ): boolean => {
-	const destinationBeforeSource = destinationBoundaryIndex === sourceRowIndex;
-	const destinationAfterSource = destinationBoundaryIndex === sourceRowIndex + 1;
-	const rowOrderChanges = ! destinationBeforeSource && ! destinationAfterSource;
-	return rowOrderChanges;
-};
-
-/**
  * 行DnD SessionとLifecycleを所有するStore。
  *
  * active Sessionだけを共有状態として保持し、物理的なDnD成立前に確認した行制約はStoreへ保存しない。
@@ -321,9 +305,14 @@ const rowDndStore = createStore< RowDndStore >()(
 				}
 
 				let validDestination: number | null = null;
+				const destinationChangesRowOrder =
+					destinationBoundaryIndex !== null &&
+					destinationBoundaryIndex !== state.session.sourceRowIndex &&
+					destinationBoundaryIndex !== state.session.sourceRowIndex + 1;
 
-				/* Session開始時の行制約に対して現在も利用できる候補だけを有効移動先として保持する。 */
+				/* Table構造を保持でき、かつ実際に行順が変わる候補だけを現在の有効移動先として保持する。 */
 				if (
+					destinationChangesRowOrder &&
 					destinationBoundaryIndex !== null &&
 					isDestinationValid( destinationBoundaryIndex, state.session.initialConstraints )
 				) {
@@ -369,11 +358,6 @@ const rowDndStore = createStore< RowDndStore >()(
 						! isDestinationValid( session.destinationBoundaryIndex, currentConstraints )
 					) {
 						shouldNotifyTermination = true;
-						return;
-					}
-
-					/* 移動元の直前または直後へのdropは行順を変えないため、Table更新を発生させない。 */
-					if ( ! changesRowOrder( session.sourceRowIndex, session.destinationBoundaryIndex ) ) {
 						return;
 					}
 
@@ -455,7 +439,7 @@ export const getRowDndActive = (): boolean => {
 /**
  * Reorder Presentationが現在の有効な挿入位置を追従するため、現在の移動先境界を取得する。
  *
- * @return 現在の有効な0-based移動先境界。idleまたは有効な移動先がない場合はnull。
+ * @return 実際に行順を変更できる現在の0-based移動先境界。idleまたは有効な移動先がない場合はnull。
  */
 export const getRowDndDestinationBoundaryIndex = (): number | null => {
 	const state = rowDndStore.getState();
