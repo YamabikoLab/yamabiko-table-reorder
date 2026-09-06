@@ -107,6 +107,7 @@ export const RowDisplacement = () => {
 		( nextRange: DisplacementRange | null ): void => {
 			const previousRange = currentRange.current;
 
+			/* 直前まで押しのけ表示がない場合は、次の有効範囲だけを新たに成立させる。 */
 			if ( previousRange === null ) {
 				if ( nextRange !== null ) {
 					displaceRows(
@@ -120,6 +121,7 @@ export const RowDisplacement = () => {
 				return;
 			}
 
+			/* 有効な移動先がなくなった場合は、直前までの押しのけ表示をすべて元位置へ戻す。 */
 			if ( nextRange === null ) {
 				restoreRows( previousRange.tableBody, previousRange.firstIndex, previousRange.lastIndex );
 				currentRange.current = null;
