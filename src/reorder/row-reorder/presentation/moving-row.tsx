@@ -83,9 +83,7 @@ const resolveMovingRowBackgroundColor = ( backgroundColor: string ): string => {
 		commaComponents.length === 4 &&
 		alpha !== undefined &&
 		alphaZeroPattern.test( alpha );
-	const resolvedColor = hasTransparentLegacyAlpha
-		? FALLBACK_BACKGROUND_COLOR
-		: backgroundColor;
+	const resolvedColor = hasTransparentLegacyAlpha ? FALLBACK_BACKGROUND_COLOR : backgroundColor;
 	return resolvedColor;
 };
 
