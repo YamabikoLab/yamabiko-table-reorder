@@ -12,7 +12,7 @@ import { createStore } from 'zustand/vanilla';
 export type ReorderGuidanceEnvironment = 'pc' | 'touch';
 
 /** 初回案内の表示中状態を表す。 */
-export type ActiveReorderGuidance = {
+type ActiveReorderGuidance = {
 	tableIdentity: string;
 	environment: ReorderGuidanceEnvironment;
 };
