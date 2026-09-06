@@ -4,9 +4,10 @@ Run application commands from the repository root. Use the narrowest relevant ch
 
 ## Current formal v1 test state
 
-- Jest currently verifies the minimal source skeleton and i18n source.
+- Jest verifies Row Reorder responsibilities, React / WordPress integration, editor lifecycle, and i18n source.
 - Node.js architecture tests verify deterministic Markdown parsing, architecture validation, and Structurizr DSL generation.
-- Playwright currently keeps the E2E infrastructure alive with an administration smoke test that verifies the plugin is active.
+- Playwright verifies the administration smoke test, Table alignment, and the major Row Reorder browser contracts (mouse / touch, guidance, merged cells, data preservation / Undo, and scrolling).
+- The [Row Reorder validation matrix](../plans/row-reorder-v1-plan.md#698-validation-matrix) assigns contracts to existing Jest tests, major Playwright E2E, and separate performance measurement.
 - Prototype-specific unit and E2E behavior is available from the `prototype-final` tag and is reference material, not the active formal v1 specification.
 - Add tests as formal v1 responsibilities and user-visible contracts are implemented. Do not restore Prototype tests solely to preserve historical coverage.
 
@@ -31,8 +32,8 @@ npm run format:check
 npm run lint:js
 npm run lint:css
 npm run typecheck
-npm run test:unit:coverage
 npm run test:architecture
+npm run test:unit:coverage
 ```
 
 Use individual commands while iterating on a focused change. Before handoff for JavaScript, TypeScript, JSON, CSS, or SCSS changes, use the applicable checks unless validation is intentionally left to the user.
@@ -121,7 +122,7 @@ For local development, Playwright E2E tests run against the WordPress environmen
 
 Do not add real credentials to this repository. Authentication state is stored under `.playwright/.auth/`, which is excluded from Git.
 
-With the `wp-dev` Dev Container open and Yamabiko Table Reorder active in WordPress, run:
+With the `wp-dev` Dev Container open and Yamabiko Table Reorder and Flexible Table Block 3.9.0 active in WordPress, run:
 
 ```bash
 npm run test:e2e
@@ -143,19 +144,39 @@ npm run test:e2e:ui
 
 PR Validation uses the CI-only environment defined in `tests/e2e/compose.ci.yaml`. The E2E job is optional and disabled by default for manually triggered validation.
 
-While the active suite contains only the administration smoke test, CI checks that same smoke test against these representative supported WordPress versions:
+CI checks the smoke test and major Row Reorder suite against these representative supported environments:
 
-- WordPress 6.8.3
-- WordPress 7.0.4
-- WordPress 7.1.0
+- WordPress 6.8.3: non-iframe editor
+- WordPress 7.0.4: iframe editor
+- WordPress 7.1.0: iframe editor
 
-The current CI smoke matrix intentionally does **not** install Flexible Table Block, force an editor mode, or install the former non-iframe fixture. Those were Prototype interaction-test requirements and should return only when a concrete formal v1 E2E scenario needs them.
+Each environment installs Flexible Table Block 3.9.0. The CI-only `tests/e2e/fixtures/non-iframe.php` adds a classic meta box when `E2E_EDITOR_MODE=non-iframe`; this makes the WordPress 6.8 compatibility scenario exercise the non-iframe editing surface. Authentication setup verifies the expected editor mode before the suite runs. This representative matrix covers both editor contexts without duplicating every version/context combination. The fixture is not installed in local WordPress or included in the plugin distribution.
 
 The CI E2E job uses the pinned Playwright Docker image matching `@playwright/test`. Failed runs upload `playwright-report/`, `test-results/`, and `docker-compose.log` when available.
 
 Playwright writes authentication state to `.playwright/`, HTML reports to `playwright-report/`, and test artifacts to `test-results/`. These paths are excluded from Git.
 
 WordPress-specific browser operations should use `@wordpress/e2e-test-utils-playwright` where it provides an appropriate helper. Use direct browser input when the input path itself is part of the formal v1 behavior under test.
+
+### Row Reorder performance measurement (QR-01)
+
+Run the dedicated Core Table / Flexible Table Block 1,000 × 20 stress measurement separately from the major E2E suite:
+
+```bash
+npm run test:e2e:performance
+```
+
+For repeated observations on the same machine and environment:
+
+```bash
+npm run test:e2e:performance -- --repeat-each=3
+```
+
+`E2E_PERFORMANCE=1` selects only `*.performance.ts` plus authentication; normal E2E selects `*.spec.ts`. PR Validation runs the normal suite. Performance measurements require a dedicated run and do not impose a fixed millisecond gate on normal CI.
+
+The performance report attaches a JSON summary and Chrome CPU profiles for the same Table's ordinary WordPress attribute update, mode entry, physical drag start, progress, and commit. The baseline uses the same row move through the public WordPress update API; Undo restores the initial data outside measurement. The summary records Table size, browser version, editor context, wall time, and sampled CPU self time grouped by script owner. Record WordPress / FTB versions, machine conditions, and the tested SHA alongside the results.
+
+Review the attached `.cpuprofile` files in browser developer tools when a phase is slow. Distinguish YTR and its bundled dnd-kit code from Table Block code, WordPress / React, browser work, and idle time. Script self-time attribution is sampling evidence, not exact end-to-end ownership: layout and React work triggered by YTR can appear under browser / WordPress frames. Use caller stacks and the baseline to investigate such work; do not subtract whole-operation wall times and call the difference YTR cost. Look for new sustained stalls in YTR calculation, state / presentation updates, and engine connection management. Total Table commit duration is not a QR-01 pass/fail threshold. A passing performance scenario establishes measurement completion and the row result; QR-01 assessment also requires reviewing the measurements. Record inconclusive attribution or unexecuted environments explicitly.
 
 ## PHP
 

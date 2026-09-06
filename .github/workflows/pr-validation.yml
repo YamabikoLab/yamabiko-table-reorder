@@ -125,13 +125,17 @@ jobs:
         include:
           - wordpress_version: '7.1.0'
             wordpress_image: 'wordpress:7.1.0-php8.3-apache'
+            editor_mode: iframe
           - wordpress_version: '7.0.4'
             wordpress_image: 'wordpress:7.0.4-php8.3-apache'
+            editor_mode: iframe
           - wordpress_version: '6.8.3'
             wordpress_image: 'wordpress:6.8.3-php8.3-apache'
+            editor_mode: non-iframe
     env:
       E2E_COMPOSE_FILE: tests/e2e/compose.ci.yaml
       E2E_WORDPRESS_IMAGE: ${{ matrix.wordpress_image }}
+      E2E_EDITOR_MODE: ${{ matrix.editor_mode }}
       WP_BASE_URL: http://127.0.0.1:8080
       WP_USERNAME: admin
       WP_PASSWORD: admin
@@ -200,6 +204,9 @@ jobs:
           docker compose -f "${E2E_COMPOSE_FILE}" run --rm cli \
             wp plugin activate yamabiko-table-reorder
 
+          docker compose -f "${E2E_COMPOSE_FILE}" run --rm cli \
+            wp plugin install flexible-table-block --version=3.9.0 --activate
+
       - name: Run Playwright E2E
         run: |
           docker run --rm \
@@ -210,6 +217,7 @@ jobs:
             --env WP_BASE_URL \
             --env WP_USERNAME \
             --env WP_PASSWORD \
+            --env E2E_EDITOR_MODE \
             mcr.microsoft.com/playwright:v1.62.1-noble \
             npx playwright test
 

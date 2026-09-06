@@ -101,6 +101,25 @@ DnD Interactionの接続を成立させた後、PC / Touch Input InteractionをR
     - Requirements / Design / Architecture / Quality Requirementsを、focused test、Playwright、計測のどこで確認するか確定する。
     - PerformanceはTable全体の更新時間を合否基準にせず、対応Table Block本体の更新コストとYTR自身の追加コストを区別して確認できる計測方法を定める。
 
+#### #698 validation matrix
+
+Issue #698のPhase 11は、#821反映後の本PlanではPhase 10に対応する。以下を横断検証の責任分担とする。テスト名は`src/reorder/`または`tests/e2e/`からの相対位置。
+
+| 主要契約 | Jest（既存の保護） | Playwright（実ブラウザで追加する保護） | 専用計測・確認 |
+| --- | --- | --- | --- |
+| FR-01 / FR-11、行設計2・4・5、Table Integration | `row-reorder/responsibilities/table-integration.test.ts`、`row-reorder/integration/dnd.test.tsx` | Coreの物理マウスDnD、先頭・末尾、タッチ長押しDnD、drop前後の行順 | — |
+| FR-03 / FR-06、共通設計7・8 | `row-reorder/responsibilities/table-integration.test.ts`の行オブジェクト保持・単一更新境界 | 内容・装飾・属性・head/footを含む編集データの保持、WordPressで1回のUndo | — |
+| FR-04 / FR-05 / FR-17、行設計3・6 | `row-reorder/responsibilities/target-resolution.test.ts`、`row-reorder/integration/destination-resolution.test.ts`、`dnd-interaction-destination.test.ts`の全分岐・境界 | rowspan行から開始しない、理由の表示と自動終了、結合を分断するdropとTable外dropで変更なし、colspan行の成立 | — |
+| FR-07 / FR-08、共通設計3、Reorder Mode | `reorder-mode.test.ts`、`wordpress/integration-state-transitions.test.tsx`の排他・編集抑止・別Block選択 | 別Table選択でモードが漏れず通常編集へ戻る | 列DnDは対象外 |
+| FR-09、共通設計3.1、Reorder Guidance | `wordpress/hooks/use-reorder-guidance.test.ts`のPC／タッチ独立、既読、入口選択。`reorder-guidance.test.ts`のTable範囲 | 初回表示、入口強調、行入口選択／閉じる操作で終了、次のTableでも再表示なし | 現行リリースの行専用案内とIssueの両入口要件の差異を明示する |
+| FR-10 / FR-14 / FR-15、行設計6、Presentation | `row-reorder/responsibilities/presentation/*.test.tsx`の表示条件・寸法・cleanup | 移動行の枠と幅、挿入線の位置変化、drop前のデータ不変、確定後の配置 | 補間・空セルの全組合せは既存Jestで保護 |
+| FR-12、行設計5・7、DnD Engine | `row-reorder/responsibilities/input-default-behavior.test.tsx`、`row-reorder/integration/dnd.test.tsx` | 開始前のタッチスクロール、縦Auto Scrollで画面外の行へdrop、横位置不変 | — |
+| FR-13 / QR-02、Editor DOM Context | `editor-dom-context.test.ts`、`wordpress/integration*.test.tsx`、Table Integrationの両Block適応 | Coreの主要ケース、FTBの代表DnDと編集データ結果。iframe / non-iframeの代表環境 | 実行したWordPress・FTB・editor方式を結果へ記録 |
+| QR-03、Architecture 6・7・10、Session Lifecycle | `row-reorder/integration/dnd-interaction.test.ts`、`dnd-interaction-react.test.tsx`、`wordpress/integration-state-transitions.test.tsx`の外部変化・終了・再接続・内部Error伝播 | モード終了後もセルを編集できる統合結果 | 内部Error完全復旧を追加保証しない |
+| QR-01、Architecture 2・10 | 既存input / dndテストで必要時だけの接続とcleanup、Sessionテストでprogress中の再取得なし | 通常E2Eに巨大Tableを含めない | Core / FTBそれぞれ1,000×20。通常の属性更新をbaselineとし、物理DnDの開始・進行・確定を別々に記録。ブラウザCPU profileでYTR / dnd-kitとBlock本体を分けて確認。全体時間や固定ms値だけで合否を決めない |
+
+実行コマンドと性能結果の読み方は`docs/development/testing.md`を正本とする。既存Jestが保護する判定分岐や内部遷移をE2Eで全面複製しない。移動不可メッセージの位置は、#698本文より後に更新された行設計3の「開始を試みた位置の近く」に従う。
+
 ### Validate during implementation
 
 1. **Phase 1、Phase 10で最終確認: Reorder Mode / Toolbar integration**

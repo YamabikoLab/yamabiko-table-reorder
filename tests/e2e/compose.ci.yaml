@@ -22,6 +22,7 @@ services:
   wordpress:
     image: ${E2E_WORDPRESS_IMAGE:-wordpress:7.1.0-php8.3-apache}
     environment:
+      E2E_EDITOR_MODE: ${E2E_EDITOR_MODE:-iframe}
       WORDPRESS_DB_HOST: db:3306
       WORDPRESS_DB_NAME: wordpress
       WORDPRESS_DB_USER: wordpress
@@ -34,6 +35,7 @@ services:
     volumes:
       - wordpress_data:/var/www/html
       - ../..:/var/www/html/wp-content/plugins/yamabiko-table-reorder:ro
+      - ./fixtures/non-iframe.php:/var/www/html/wp-content/mu-plugins/ytr-e2e-non-iframe.php:ro
     depends_on:
       db:
         condition: service_healthy

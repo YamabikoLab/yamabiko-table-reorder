@@ -2,6 +2,7 @@ import type { Locator } from '@playwright/test';
 import { expect, test } from '@wordpress/e2e-test-utils-playwright';
 
 import { getEditorContext } from './editor-context';
+import { ROW_BUTTON, setPreferences } from './row-reorder';
 
 const TABLE_CONTENT = `<!-- wp:table -->
 <figure class="wp-block-table"><table class="has-fixed-layout"><tbody><tr><td>Alpha</td><td>Bravo</td></tr><tr><td>Charlie</td><td>Delta</td></tr></tbody></table></figure>
@@ -17,8 +18,9 @@ const getTableWidth = async ( tableFigure: Locator ) =>
 	tableFigure.evaluate( ( element ) => element.getBoundingClientRect().width );
 
 test.describe( 'Reorder Mode Table alignment', () => {
-	test.beforeEach( async ( { admin, editor } ) => {
+	test.beforeEach( async ( { admin, editor, page } ) => {
 		await admin.createNewPost();
+		await setPreferences( page );
 		await editor.setContent( TABLE_CONTENT );
 	} );
 
@@ -28,9 +30,11 @@ test.describe( 'Reorder Mode Table alignment', () => {
 	} ) => {
 		const editorContext = await getEditorContext( page, editor.canvas );
 		const tableBlock = editorContext.locator( '[data-type="core/table"][data-block]' );
-		const tableFigure = tableBlock.locator( 'figure.wp-block-table' );
+		const tableFigure = tableBlock
+			.and( editorContext.locator( 'figure.wp-block-table' ) )
+			.or( tableBlock.locator( 'figure.wp-block-table' ) );
 		const reorderRowsButton = page.getByRole( 'button', {
-			name: /^(Reorder rows|行を並べ替え)$/,
+			name: ROW_BUTTON,
 		} );
 		const alignmentButton = page.getByRole( 'button', { name: /(Align|配置)/ } ).first();
 

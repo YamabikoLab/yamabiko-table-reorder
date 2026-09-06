@@ -33,6 +33,7 @@
 		"test:unit": "wp-scripts test-unit-js",
 		"test:unit:coverage": "wp-scripts test-unit-js --coverage",
 		"test:e2e": "npm run build && playwright test",
+		"test:e2e:performance": "npm run build && E2E_PERFORMANCE=1 playwright test",
 		"test:e2e:auth": "playwright test --project=setup",
 		"test:e2e:ui": "npm run test:e2e:auth && playwright test --project=chromium --ui --ui-host=0.0.0.0 --ui-port=9323",
 		"i18n:extract-js": "mkdir -p languages && rm -f languages/.yamabiko-table-reorder-js.pot languages/.i18n-messages.js && babel src/messages.ts --out-file languages/.i18n-messages.js --config-file ./babel.i18n.config.js",
