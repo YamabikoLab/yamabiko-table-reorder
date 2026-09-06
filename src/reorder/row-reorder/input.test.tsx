@@ -2,7 +2,8 @@
  * 行並び替えのポインター入力境界が、開始可能なPCとタッチ端末の入力だけを現在Tableの行DnD開始候補へ接続することを確認する。
  *
  * DnD Engine内部の挙動は再現せず、入力境界が所有する入力受理条件、対象行の限定、
- * 一時Draggable登録の差し替え、および行DnD固有のEngine設定だけを検証する。
+ * Reorder Target Resolutionによる開始可否、開始拒否通知、一時Draggable登録の差し替え、
+ * および行DnD固有のEngine設定だけを検証する。
  */
 
 import { Draggable, PointerSensor } from '@dnd-kit/dom';
@@ -11,6 +12,8 @@ import { render } from '@testing-library/react';
 import type { PointerEvent as ReactPointerEvent } from 'react';
 
 import { RowInput, type RowDndPointerDownHandler } from './input';
+import { notifyRowStartRejection } from './presentation/start-rejection-notice-event';
+import { rowReorderTargetResolution } from './target-resolution';
 
 jest.mock( '@dnd-kit/dom', () => ( {
 	Draggable: jest.fn(),
@@ -23,12 +26,28 @@ jest.mock( '@dnd-kit/react', () => ( {
 	useDragDropManager: jest.fn(),
 } ) );
 
+jest.mock( './target-resolution', () => ( {
+	rowReorderTargetResolution: {
+		resolve: jest.fn(),
+	},
+} ) );
+
+jest.mock( './presentation/start-rejection-notice-event', () => ( {
+	notifyRowStartRejection: jest.fn(),
+} ) );
+
 const draggableConstructorMock = Draggable as unknown as jest.Mock;
 const pointerSensorConfigureMock = PointerSensor.configure as jest.MockedFunction<
 	typeof PointerSensor.configure
 >;
 const useDragDropManagerMock = useDragDropManager as jest.MockedFunction<
 	typeof useDragDropManager
+>;
+const targetResolutionMock = rowReorderTargetResolution as jest.Mocked<
+	typeof rowReorderTargetResolution
+>;
+const notifyRowStartRejectionMock = notifyRowStartRejection as jest.MockedFunction<
+	typeof notifyRowStartRejection
 >;
 
 /**
@@ -180,6 +199,14 @@ describe( 'Row DnD input boundary', () => {
 			destroy: jest.fn(),
 		} ) );
 		useDragDropManagerMock.mockReturnValue( createManager() );
+		targetResolutionMock.resolve.mockImplementation( ( target ) => ( {
+			status: 'resolved',
+			target,
+			initialConstraints: {
+				rowCount: 2,
+				blockedBoundaries: [],
+			},
+		} ) );
 	} );
 
 	/**
@@ -249,6 +276,71 @@ describe( 'Row DnD input boundary', () => {
 		expect(
 			pointerSensorOptions?.preventActivation?.( {} as globalThis.PointerEvent, {} as Draggable )
 		).toBe( false );
+	} );
+
+	/**
+	 * 概要:
+	 * - 結合範囲により開始できない行では利用者向け理由を通知し、物理DnD開始候補を登録しないことを確認する。
+	 *
+	 * 事前条件:
+	 * - 行並び替えが有効で、対象行はReorder Target Resolutionから開始拒否として解決される。
+	 *
+	 * 操作:
+	 * - 対象行のセルから主マウスボタン入力を行う。
+	 *
+	 * 期待結果:
+	 * - Designで定義された開始拒否理由がPresentationへ通知され、Draggableは登録されない。
+	 */
+	it( 'when target resolution rejects the row, should notify the rejection and not register a draggable', () => {
+		targetResolutionMock.resolve.mockReturnValue( {
+			status: 'rejected',
+			reason: 'merged-range',
+		} );
+		const { currentTarget, cells } = createDirectRowTarget();
+		const { pointerDownHandler } = renderRowInput();
+
+		pointerDownHandler(
+			createPointerEvent( {
+				target: cells[ 0 ],
+				currentTarget,
+			} )
+		);
+
+		expect( targetResolutionMock.resolve ).toHaveBeenCalledWith( {
+			tableIdentity: 'table-1',
+			sourceRowIndex: 0,
+		} );
+		expect( notifyRowStartRejectionMock ).toHaveBeenCalledWith( 'merged-range' );
+		expect( draggableConstructorMock ).not.toHaveBeenCalled();
+	} );
+
+	/**
+	 * 概要:
+	 * - 開始対象を安全に解釈できない通常の利用不能では通知せず、物理DnD開始候補も登録しないことを確認する。
+	 *
+	 * 事前条件:
+	 * - 行並び替えが有効で、Reorder Target Resolutionは対象行を通常の利用不能として解決する。
+	 *
+	 * 操作:
+	 * - 対象行のセルから主マウスボタン入力を行う。
+	 *
+	 * 期待結果:
+	 * - 利用者向け開始拒否通知は発生せず、Draggableも登録されない。
+	 */
+	it( 'when target resolution is unavailable, should not notify or register a draggable', () => {
+		targetResolutionMock.resolve.mockReturnValue( { status: 'unavailable' } );
+		const { currentTarget, cells } = createDirectRowTarget();
+		const { pointerDownHandler } = renderRowInput();
+
+		pointerDownHandler(
+			createPointerEvent( {
+				target: cells[ 0 ],
+				currentTarget,
+			} )
+		);
+
+		expect( notifyRowStartRejectionMock ).not.toHaveBeenCalled();
+		expect( draggableConstructorMock ).not.toHaveBeenCalled();
 	} );
 
 	/**
