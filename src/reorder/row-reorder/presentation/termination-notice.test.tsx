@@ -1,7 +1,7 @@
 /**
  * 行DnD異常終了時の利用者向け通知表示を検証する。
  *
- * DnD Interactionの終了理由判定は重複して検証せず、通知イベントから表示開始、表示終了、購読解除までのPresentation Lifecycleに限定する。
+ * DnD Interactionの終了理由判定は重複して検証せず、通知イベントから表示開始、表示更新、表示終了、購読解除までのPresentationのライフサイクルに限定する。
  */
 
 import { act, render, screen } from '@testing-library/react';
@@ -90,6 +90,38 @@ describe( 'RowTerminationNotice', () => {
 	} );
 
 	/**
+	 * 表示中に新しい異常終了通知が発生した場合、先の通知の表示終了で新しい通知を消さないことを確認する。
+	 *
+	 * 事前条件:
+	 * - 最初の異常終了通知によりメッセージが表示されている。
+	 * - 最初の通知に対応する表示終了処理を保持している。
+	 *
+	 * 操作:
+	 * - 続けて新しい異常終了通知を発行した後、先の通知に対応する表示終了処理を実行する。
+	 *
+	 * 期待結果:
+	 * - 新しい異常終了メッセージは表示されたままになる。
+	 */
+	it( 'when a newer termination notice is shown before the previous notice is removed, should keep the newer notice visible', () => {
+		render( <RowTerminationNotice /> );
+
+		act( () => {
+			terminationListener?.();
+		} );
+		const removePreviousNotice = snackbarRemove;
+
+		act( () => {
+			terminationListener?.();
+		} );
+
+		act( () => {
+			removePreviousNotice?.();
+		} );
+
+		expect( screen.queryByText( 'termination message' ) ).not.toBeNull();
+	} );
+
+	/**
 	 * Presentation終了時に異常終了通知の購読を解除することを確認する。
 	 *
 	 * 事前条件:
@@ -99,7 +131,7 @@ describe( 'RowTerminationNotice', () => {
 	 * - Presentationをunmountする。
 	 *
 	 * 期待結果:
-	 * - 異常終了通知listenerが残らない。
+	 * - 異常終了通知の購読が残らない。
 	 */
 	it( 'when the presentation unmounts, should unsubscribe from termination notices', () => {
 		const { unmount } = render( <RowTerminationNotice /> );
