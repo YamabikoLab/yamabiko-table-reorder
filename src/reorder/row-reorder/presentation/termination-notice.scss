@@ -1,0 +1,11 @@
+/**
+ * 行DnD異常終了メッセージをTableのレイアウトへ影響させず、editor表示領域内の一時通知として配置する。
+ */
+
+.yamabiko-table-reorder-termination-notice {
+	position: fixed;
+	left: 24px;
+	bottom: 24px;
+	z-index: 100000;
+	max-width: calc(100vw - 48px);
+}
