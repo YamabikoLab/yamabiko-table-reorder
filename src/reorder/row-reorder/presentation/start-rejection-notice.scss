@@ -1,0 +1,11 @@
+/**
+ * 行DnD開始拒否メッセージを開始を試みた位置の近くへ表示し、操作対象との関係を確認できるようにする。
+ */
+
+.yamabiko-table-reorder-start-rejection-notice {
+	position: fixed;
+	z-index: 100;
+	max-width: 100%;
+	transform: translate(12px, 12px);
+	pointer-events: none;
+}

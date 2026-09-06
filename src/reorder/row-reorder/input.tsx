@@ -2,7 +2,8 @@
  * 行並び替えのポインター入力開始条件とDnD開始対象の接続を所有する。
  *
  * PCとタッチ端末の主ポインター入力から現在Tableのtbody直下行を開始候補として解決し、
- * 行並び替えが有効な間だけ、その行をdnd-kitのDraggableへ必要時に登録する。
+ * Reorder Target Resolutionで開始可能な行だけをdnd-kitのDraggableへ必要時に登録する。
+ * 結合範囲により開始できない行では物理DnDを登録せず、利用者向け開始不可理由を開始を試みた位置とともにPresentationへ通知する。
  * DnD開始後の進行、移動先候補、確定、取消はDnD境界へ委ねる。
  */
 
@@ -10,7 +11,8 @@ import { Draggable, PointerActivationConstraints, PointerSensor } from '@dnd-kit
 import { useDragDropManager } from '@dnd-kit/react';
 import type { PointerEvent, ReactNode } from 'react';
 
-import type { RowDndSource } from './dnd-interaction';
+import { notifyRowStartRejection } from './presentation/start-rejection-notice-event';
+import { rowReorderTargetResolution, type RowReorderTarget } from './target-resolution';
 
 /**
  * 行DnDが既存DOMのポインター入力へ接続する開始処理。
@@ -22,7 +24,9 @@ export type RowDndPointerDownHandler = ( event: PointerEvent< Element > ) => voi
 /**
  * ポインター入力から行DnD開始候補を解決し、現在の入力で必要な行だけをDraggableへ登録する。
  *
- * PCとタッチ端末の主ポインター入力を共通のPointerSensor経路へ接続し、行並び替えが有効な入力で成立した開始候補だけをDnD境界へ接続する。
+ * PCとタッチ端末の主ポインター入力を共通のPointerSensor経路へ接続し、
+ * Reorder Target Resolutionで開始可能と解決された行だけをDnD境界へ接続する。
+ * 開始不可理由が定義された行ではDraggableを登録せず、利用者向け理由を操作位置付近へ表示できる情報とともにPresentationへ通知する。
  * 入力ごとに登録したDraggableは次の開始候補へ持ち越さず、常に現在の開始候補だけを有効にする。
  *
  * @param props                         ポインター入力接続に必要な値。
@@ -79,17 +83,31 @@ export const RowInput = ( props: {
 
 		/* 開始候補は現在のポインター入力だけに対応させ、前回入力の一時登録を残さない。 */
 		activeDraggable.current?.destroy();
+		activeDraggable.current = null;
 
-		const source: RowDndSource = {
+		const source: RowReorderTarget = {
 			tableIdentity,
 			sourceRowIndex: row.sectionRowIndex,
 		};
+		const resolution = rowReorderTargetResolution.resolve( source );
+
+		/* 現在のTable制約で開始対象が成立しない行は、物理DnDへ登録しない。 */
+		if ( resolution.status !== 'resolved' ) {
+			if ( resolution.status === 'rejected' ) {
+				notifyRowStartRejection( {
+					reason: resolution.reason,
+					clientX: event.clientX,
+					clientY: event.clientY,
+				} );
+			}
+			return;
+		}
 
 		activeDraggable.current = new Draggable(
 			{
 				id: `ytr-row:${ tableIdentity }:${ row.sectionRowIndex }`,
 				element: row,
-				data: source,
+				data: resolution.target,
 				sensors: [
 					PointerSensor.configure( {
 						activationConstraints: ( activationEvent ) => {
