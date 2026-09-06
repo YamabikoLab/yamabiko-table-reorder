@@ -1,7 +1,7 @@
 /**
  * Reorder Guidanceの初回案内表示を所有する。
  *
- * 表示成立条件や表示済み状態は所有せず、WordPressのTableツールバー付近へ公開中の並び替え案内文と閉じる入口を描画する。
+ * 表示成立条件や表示済み状態は所有せず、WordPressのTableツールバー付近へ共通案内文と閉じる入口を描画する。
  */
 
 import { Button, Popover } from '@wordpress/components';
@@ -26,7 +26,7 @@ type ReorderGuidanceProps = {
 const ignoreReorderGuidanceFocusOutside = () => undefined;
 
 /**
- * Tableツールバーの下へ公開中の行並び替えの初回案内を表示する。
+ * Tableツールバーの下へ行・列並び替えの初回案内を表示する。
  *
  * 通常のセル編集を妨げないよう、表示時にfocusを移動しない。
  * また、通常のTable内focus移動では案内を終了せず、利用者が案内を閉じた場合だけ閉じる操作を通知する。
