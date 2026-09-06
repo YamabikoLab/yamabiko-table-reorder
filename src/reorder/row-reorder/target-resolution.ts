@@ -7,14 +7,11 @@
  */
 
 import { rowTableIntegration, type RowReorderConstraints } from './table-integration';
-
-/** 行並び替えで移動する行を識別するReorder Target。 */
-export type RowReorderTarget = {
-	/** 行並び替え対象のTable個体を識別する値。 */
-	tableIdentity: string;
-	/** tbody内の0-based移動元行位置。 */
-	sourceRowIndex: number;
-};
+import {
+	isRowReorderTargetBlockedByMergedRange,
+	isRowReorderTargetInRange,
+	type RowReorderTarget,
+} from './target-validity';
 
 /** Designで利用者へ理由を提示する開始拒否理由。 */
 export type RowReorderTargetRejectionReason = 'merged-range';
@@ -54,63 +51,6 @@ type RowReorderTargetResolver = {
 };
 
 /**
- * 移動対象行が指定された行制約のtbody内に実在するか判定する。
- *
- * @param sourceRowIndex 移動対象の0-based行位置。
- * @param constraints    判定基準とする行制約。
- * @return tbody内の実在行として扱える場合はtrue。
- */
-const isSourceInRange = ( sourceRowIndex: number, constraints: RowReorderConstraints ): boolean => {
-	const sourceInRange =
-		Number.isInteger( sourceRowIndex ) &&
-		sourceRowIndex >= 0 &&
-		sourceRowIndex < constraints.rowCount;
-	return sourceInRange;
-};
-
-/**
- * 移動対象行がrowspan等による結合範囲のため行単位で移動できないか判定する。
- *
- * @param sourceRowIndex 移動対象の0-based行位置。
- * @param constraints    判定基準とする行制約。
- * @return 移動対象行の直前または直後が分断不可境界の場合はtrue。
- */
-const isSourceBlockedByMergedRange = (
-	sourceRowIndex: number,
-	constraints: RowReorderConstraints
-): boolean => {
-	const sourceBlockedByMergedRange =
-		constraints.blockedBoundaries.includes( sourceRowIndex ) ||
-		constraints.blockedBoundaries.includes( sourceRowIndex + 1 );
-	return sourceBlockedByMergedRange;
-};
-
-/**
- * 指定されたReorder Targetが現在の行制約に対して行単位で移動可能か判定する。
- *
- * complete時の再照合でも開始時と同じ移動対象ルールを利用し、開始可否と確定可否で判定を重複させない。
- *
- * @param target      判定するReorder Target。
- * @param constraints 判定基準とする現在の行制約。
- * @return 行単位の移動でTable構造を保持できる場合はtrue。
- */
-export const isRowReorderTargetMovable = (
-	target: RowReorderTarget,
-	constraints: RowReorderConstraints
-): boolean => {
-	if ( ! isSourceInRange( target.sourceRowIndex, constraints ) ) {
-		return false;
-	}
-
-	const sourceBlockedByMergedRange = isSourceBlockedByMergedRange(
-		target.sourceRowIndex,
-		constraints
-	);
-	const sourceMovable = ! sourceBlockedByMergedRange;
-	return sourceMovable;
-};
-
-/**
  * 指定された行制約に対してReorder Targetを解決する。
  *
  * @param target             解決するReorder Target。
@@ -121,11 +61,11 @@ const resolveWithConstraints = (
 	target: RowReorderTarget,
 	initialConstraints: RowReorderConstraints
 ): RowReorderTargetResolution => {
-	if ( ! isSourceInRange( target.sourceRowIndex, initialConstraints ) ) {
+	if ( ! isRowReorderTargetInRange( target, initialConstraints ) ) {
 		return { status: 'unavailable' };
 	}
 
-	if ( isSourceBlockedByMergedRange( target.sourceRowIndex, initialConstraints ) ) {
+	if ( isRowReorderTargetBlockedByMergedRange( target, initialConstraints ) ) {
 		return {
 			status: 'rejected',
 			reason: 'merged-range',
@@ -187,3 +127,5 @@ export const rowReorderTargetResolution = {
 	createResolver,
 	resolve,
 };
+
+export type { RowReorderTarget } from './target-validity';
