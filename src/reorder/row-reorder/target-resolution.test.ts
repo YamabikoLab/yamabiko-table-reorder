@@ -76,6 +76,33 @@ describe( 'Row Reorder Target Resolution', () => {
 
 	/**
 	 * 概要:
+	 * - 同一Tableの複数行を表示判定する場合にTable制約を一度だけ取得することを確認する。
+	 * 事前条件:
+	 * - 3行Tableで境界1が分断不可である。
+	 * 操作:
+	 * - Table単位のResolverを生成し、1行目と3行目を順に解決する。
+	 * 期待結果:
+	 * - Table制約取得は1回だけで、1行目は開始拒否、3行目は開始可能として同じ制約を基準に解決される。
+	 */
+	it( 'when one table resolver checks multiple rows, should reuse one current constraint snapshot', () => {
+		const constraints = { rowCount: 3, blockedBoundaries: [ 1 ] };
+		getConstraintsMock.mockReturnValue( constraints );
+		const resolver = rowReorderTargetResolution.createResolver( 'table-a' );
+
+		const first = resolver.resolve( 0 );
+		const third = resolver.resolve( 2 );
+
+		expect( getConstraintsMock ).toHaveBeenCalledTimes( 1 );
+		expect( first ).toEqual( { status: 'rejected', reason: 'merged-range' } );
+		expect( third ).toEqual( {
+			status: 'resolved',
+			target: { tableIdentity: 'table-a', sourceRowIndex: 2 },
+			initialConstraints: constraints,
+		} );
+	} );
+
+	/**
+	 * 概要:
 	 * - Table制約を取得できない場合は利用者向け拒否理由を作らず通常の利用不能とすることを確認する。
 	 * 事前条件:
 	 * - 対象Tableの現在制約を取得できない。
