@@ -2,7 +2,7 @@
  * 行DnDを安全に継続できず終了した場合の利用者向け通知表示を所有する。
  *
  * DnD Interactionが通知対象と判断した一回性イベントだけを受け取り、表示中かどうかという一時状態はPresentation内に閉じる。
- * cancelや成立しないdropはDnD Interactionから通知されないため、この表示側で終了理由を再判定しない。
+ * キャンセルや成立しない位置へのドロップはDnD Interactionから通知されないため、この表示側で終了理由を再判定しない。
  */
 
 import { Snackbar } from '@wordpress/components';
@@ -35,7 +35,16 @@ export const RowTerminationNotice = () => {
 	}
 
 	const removeNotice = (): void => {
-		setNoticeSequence( ( current ) => ( current === noticeSequence ? null : current ) );
+		setNoticeSequence( ( current ) => {
+			const isRemovalForCurrentNotice = current === noticeSequence;
+
+			/* 表示中に次の通知が発生していた場合は、先の通知の表示終了によって最新の通知を消さない。 */
+			if ( ! isRemovalForCurrentNotice ) {
+				return current;
+			}
+
+			return null;
+		} );
 	};
 
 	return (
