@@ -43,7 +43,7 @@ Reorder Mode / Toolbar integrationを最初に成立させ、次にTable Integra
 
 DnD Interactionの接続を成立させた後、PC / Touch Input InteractionをDnD Engineへ接続し、入力からDnD Interactionへ到達する実装経路を成立させる。DnD EngineにはArchitectureで採用済みのdnd-kitを用いる。
 
-入力経路の成立後にReorder Presentationを接続し、その後DnD Engineの自動スクロール設定とGuidanceを接続する。自動スクロールは行DnDで縦方向だけを有効にし、最後にproduct compositionと横断validationを行う。
+入力経路の成立後にReorder Presentationを接続し、その後既存のDnD Engine自動スクロールが行DnDで必要な縦方向の挙動を満たすことを確認してからGuidanceを接続する。最後にproduct compositionと横断validationを行う。
 
 各Phaseでは、その段階で必要な実装レベルの選択だけを確定し、focused test / integration testでArchitectureへの適合を確認する。実WordPress Editorの製品経路を通るPlaywrightはproduct composition成立後に行う。
 
@@ -83,19 +83,15 @@ DnD Interactionの接続を成立させた後、PC / Touch Input InteractionをD
 
    - React / DOM / CSSの分担と、DnD Engineから利用する物理情報の取得方法を確定する。
 
-7. **Phase 7開始前: DnD Engineの自動スクロール設定方式**
-
-   - dnd-kitの自動スクロールを行DnDでは縦方向だけ有効にする設定方式を確定する。
-
-8. **Phase 8開始前: Reorder Guidanceの状態実装位置**
+7. **Phase 8開始前: Reorder Guidanceの状態実装位置**
 
    - Architectureで定義された状態をWordPress / React側のどこで保持するか確定する。
 
-9. **Phase 9開始前: Product composition boundary**
+8. **Phase 9開始前: Product composition boundary**
 
    - `src/index.tsx`をthin entry pointとして保つ生成・接続・cleanup位置とDnD Engine providerの配置を確定する。
 
-10. **Phase 10開始前: 横断validation matrix**
+9. **Phase 10開始前: 横断validation matrix**
     - Requirements / Design / Architecture / Quality Requirementsを、focused test、Playwright、計測のどこで確認するか確定する。
     - PerformanceはTable全体の更新時間を合否基準にせず、対応Table Block本体の更新コストとYTR自身の追加コストを区別して確認できる計測方法を定める。
 
@@ -138,7 +134,7 @@ DnD Interactionの接続を成立させた後、PC / Touch Input InteractionをD
 
 8. **Phase 7、Phase 10で最終確認: DnD Engine auto scroll**
 
-   - 行DnDでDnD Engineの自動スクロールが縦方向だけ有効になることを確認する。
+   - 既存のDnD Engine自動スクロールが、行DnDで必要な縦方向の挙動を満たしていることを確認する。
    - Evidence: focused integration testと主要E2E。
 
 9. **Phase 4 / 5、Phase 9 / 10で最終確認: Editor lifecycle / input**
@@ -211,13 +207,13 @@ DnD Interactionの接続を成立させた後、PC / Touch Input InteractionをD
 - Validation:
   - Design / Architectureへの適合をfocused testで確認する。
 
-### Phase 7: DnD Engine auto scroll
+### Phase 7: DnD Engine auto scroll validation
 
-- Outcome: 行DnDでDnD Engineの自動スクロールが縦方向だけ有効になる。
+- Outcome: 既存のDnD Engine自動スクロールが、行DnDで必要な縦方向の挙動を満たしていることを確認できる。
 - Tasks:
-  - dnd-kitの自動スクロール設定を行DnD向けに構成する。
+  - 既存の自動スクロール挙動を確認し、追加設定や再実装を行わずにArchitectureの要求を満たしていることを確認する。
 - Validation:
-  - 縦方向だけ自動スクロールすることをfocused integration testで確認する。
+  - 行DnDで必要な縦方向の自動スクロールが成立することをfocused integration testで確認する。
 
 ### Phase 8: Reorder Guidance
 
@@ -257,7 +253,7 @@ Planレビュー後、次の単位で実装Issueを作成する。各Issueはこ
 - [ ] PC Input Interaction
 - [ ] Touch Input Interaction
 - [ ] Reorder Presentation
-- [ ] DnD Engine auto scroll configuration
+- [ ] DnD Engine auto scroll validation
 - [ ] Reorder Guidance
 - [ ] Row Reorder product composition
 - [ ] Row Reorder cross-cutting validation and E2E
@@ -269,6 +265,7 @@ Planレビュー後、次の単位で実装Issueを作成する。各Issueはこ
 - 各実装Issueでは、そのPhaseの実装結果が該当する上位文書に適合することをfocused test / integration testで確認する。
 - Phase 3では、DnD Interaction / Session LifecycleとDnD Engine / Table Integrationの接続がArchitectureに適合することをfocused integration testで確認する。
 - Phase 4 / 5では、PC / Touch Input InteractionからDnD Engineを経由してDnD Interactionへ到達する実装経路をfocused input / integration testで確認する。
+- Phase 7では、既存のDnD Engine自動スクロールが行DnDで必要な縦方向の挙動を満たしていることをfocused integration testで確認する。
 - Phase 9でproduct compositionを成立させ、実entry pointを通る最小Playwright scenarioを実行する。
 - Phase 10でvalidation matrixに従って横断確認し、代表的な大規模TableではYTR自身の追加コストをストレステストする。
 - 具体的なコマンドと適用範囲は`docs/development/testing.md`を正本とする。
@@ -278,7 +275,7 @@ Planレビュー後、次の単位で実装Issueを作成する。各Issueはこ
 - 最新Row Reorder v1 Architectureの実装対象が、依存関係に沿ったレビュー可能なIssue単位へ分割されている。
 - Reorder Target Resolution / Drop Target Resolution / Data Updateが独立責務、独立Phase、Issue単位として残っていない。
 - 開始可否判定と移動先判定がDnD Interaction / Session Lifecycleへ、確定済み行移動の反映がTable Integrationへ統合されている。
-- DnD Interaction、Input Interaction、Reorder Presentationの順に主要なDnD実装経路を成立させ、その後DnD Engineの自動スクロールを行DnD向けに設定する実装順になっている。
+- DnD Interaction、Input Interaction、Reorder Presentationの順に主要なDnD実装経路を成立させ、その後既存のDnD Engine自動スクロールが行DnDで必要な挙動を満たしていることを検証する実装順になっている。
 - DnD Engineを利用する各Phaseの実装方向・順序・Validationが最新Architectureと矛盾しない。
 - 各Phase開始前に、そのPhaseに必要な実装レベルの`Decide before implementation`が解決される構成になっている。
 - `Validate during implementation`が、検証対象の上位文書、該当Phase、evidenceへ結び付いている。
