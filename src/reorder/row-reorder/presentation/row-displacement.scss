@@ -1,0 +1,19 @@
+/**
+ * Row Reorderの押しのけ表示について、実TableのDOM順を変えずに周囲行の視覚位置だけを滑らかに移動する。
+ *
+ * 移動量はPresentationが行ごとに与える一時値だけを反映し、DnD終了後に元のTable表示へ戻せる状態を維持する。
+ * 動きを抑制する利用者設定では位置変更自体は保ちつつ、遷移だけを無効にする。
+ */
+
+.yamabiko-table-reorder-displaced-row {
+	transform: translateY(var(--yamabiko-table-reorder-row-displacement, 0));
+	transition: transform 150ms ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+
+	/* 動きを抑制する設定では、移動先の予告位置は示しながらアニメーションだけを行わない。 */
+	.yamabiko-table-reorder-displaced-row {
+		transition: none;
+	}
+}

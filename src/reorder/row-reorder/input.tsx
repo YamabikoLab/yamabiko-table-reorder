@@ -6,7 +6,7 @@
  * DnD開始後の進行、移動先候補、確定、取消はDnD境界へ委ねる。
  */
 
-import { Draggable, Feedback, PointerSensor } from '@dnd-kit/dom';
+import { Draggable, PointerActivationConstraints, PointerSensor } from '@dnd-kit/dom';
 import { useDragDropManager } from '@dnd-kit/react';
 import type { PointerEvent, ReactNode } from 'react';
 
@@ -72,6 +72,11 @@ export const RowInput = ( props: {
 			return;
 		}
 
+		/* マウスDnD開始時は既定の文字選択を抑止し、DnDと無関係なブラウザー処理を増やさない。 */
+		if ( event.pointerType === 'mouse' ) {
+			event.preventDefault();
+		}
+
 		/* 開始候補は現在のポインター入力だけに対応させ、前回入力の一時登録を残さない。 */
 		activeDraggable.current?.destroy();
 
@@ -85,14 +90,25 @@ export const RowInput = ( props: {
 				id: `ytr-row:${ tableIdentity }:${ row.sectionRowIndex }`,
 				element: row,
 				data: source,
-				/* 行DnD中の視覚表現はReorder Presentationが所有するため、dnd-kit標準表示は利用しない。 */
-				plugins: [
-					Feedback.configure( {
-						feedback: 'none',
-					} ),
-				],
 				sensors: [
 					PointerSensor.configure( {
+						activationConstraints: ( activationEvent ) => {
+							/* マウスは短い移動距離で開始し、タッチは通常操作との競合を避けるため長押しで開始する。 */
+							if ( activationEvent.pointerType === 'mouse' ) {
+								return [
+									new PointerActivationConstraints.Distance( {
+										value: 5,
+									} ),
+								];
+							}
+
+							return [
+								new PointerActivationConstraints.Delay( {
+									value: 250,
+									tolerance: 5,
+								} ),
+							];
+						},
 						/* Tableセル内部からのポインター入力もDnD開始対象として扱う。 */
 						preventActivation: () => false,
 					} ),

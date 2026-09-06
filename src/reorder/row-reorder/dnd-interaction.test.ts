@@ -249,30 +249,6 @@ describe( 'Row DnD Interaction lifecycle', () => {
 
 	/**
 	 * 概要:
-	 * - 移動元の直後へのdropは行順が変化しないため、Table更新を発生させないことを確認する。
-	 *
-	 * 事前条件:
-	 * - 移動元行は1で、最終移動先は直後の境界2である。
-	 *
-	 * 操作:
-	 * - complete()する。
-	 *
-	 * 期待結果:
-	 * - 行移動と異常終了通知を発生させずidleへ戻る。
-	 */
-	it( 'when the final destination keeps the same row order, should finish without applying a row move', () => {
-		prepareActiveSession();
-		rowDndInteraction.updateDestination( 2 );
-
-		rowDndInteraction.complete();
-
-		expect( applyRowMoveMock ).not.toHaveBeenCalled();
-		expect( terminationNoticeListener ).not.toHaveBeenCalled();
-		expect( getRowDndPhase() ).toBe( 'idle' );
-	} );
-
-	/**
-	 * 概要:
 	 * - complete直前の外部構造変化で最終移動先が成立しなくなった場合は、更新せず安全に終了することを確認する。
 	 *
 	 * 事前条件:

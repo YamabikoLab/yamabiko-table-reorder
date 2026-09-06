@@ -5,7 +5,7 @@
  * 一時Draggable登録の差し替え、および行DnD固有のEngine設定だけを検証する。
  */
 
-import { Draggable, Feedback, PointerSensor } from '@dnd-kit/dom';
+import { Draggable, PointerSensor } from '@dnd-kit/dom';
 import { useDragDropManager } from '@dnd-kit/react';
 import { render } from '@testing-library/react';
 import type { PointerEvent as ReactPointerEvent } from 'react';
@@ -14,9 +14,6 @@ import { RowInput, type RowDndPointerDownHandler } from './input';
 
 jest.mock( '@dnd-kit/dom', () => ( {
 	Draggable: jest.fn(),
-	Feedback: {
-		configure: jest.fn(),
-	},
 	PointerSensor: {
 		configure: jest.fn(),
 	},
@@ -27,9 +24,6 @@ jest.mock( '@dnd-kit/react', () => ( {
 } ) );
 
 const draggableConstructorMock = Draggable as unknown as jest.Mock;
-const feedbackConfigureMock = Feedback.configure as jest.MockedFunction<
-	typeof Feedback.configure
->;
 const pointerSensorConfigureMock = PointerSensor.configure as jest.MockedFunction<
 	typeof PointerSensor.configure
 >;
@@ -132,6 +126,7 @@ const createPointerEvent = ( options: {
 		isPrimary: options.isPrimary ?? true,
 		button: options.button ?? 0,
 		pointerType: options.pointerType ?? 'mouse',
+		preventDefault: jest.fn(),
 	} ) as unknown as ReactPointerEvent< Element >;
 
 /**
@@ -201,7 +196,7 @@ describe( 'Row DnD input boundary', () => {
 	 * 期待結果:
 	 * - 各入力に対応する行だけがTable Identityと0-based行位置を持つDraggableとして登録される。
 	 * - 2回目の登録前に1回目の一時Draggableが破棄される。
-	 * - dnd-kit標準表示を利用せず、Tableセル内部からの開始を許可する行DnD設定が適用される。
+	 * - Tableセル内部からの開始を許可する行DnD設定が適用される。
 	 */
 	it( 'when primary mouse input targets direct tbody rows, should register only the current row and replace the previous candidate', () => {
 		const { currentTarget, rows, cells } = createDirectRowTarget();
@@ -249,9 +244,6 @@ describe( 'Row DnD input boundary', () => {
 			} ),
 			expect.anything()
 		);
-		expect( feedbackConfigureMock ).toHaveBeenCalledWith( {
-			feedback: 'none',
-		} );
 
 		const pointerSensorOptions = pointerSensorConfigureMock.mock.calls[ 0 ]?.[ 0 ];
 		expect(

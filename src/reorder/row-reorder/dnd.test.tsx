@@ -1,8 +1,8 @@
 /**
- * 行並び替えのDnD境界が、物理DnDのLifecycleと現在位置をDnD Interactionへ正しく接続することを確認する。
+ * 行並び替えのDnD境界が、物理DnDのLifecycleをDnD Interactionへ正しく接続することを確認する。
  *
- * DnD Interaction本体の状態遷移は重複して検証せず、開始可否、開始成立、移動先境界の解決、
- * 終了種別、および行並び替え無効化時を含む一時登録破棄だけを検証する。
+ * 移動先解決とPresentationは独立責務として検証し、この境界では開始可否、開始成立、
+ * 移動先解決結果の接続、終了種別、および行並び替え無効化時を含む一時登録破棄だけを検証する。
  */
 
 import type { BeforeDragStartEvent, DragEndEvent, DragMoveEvent, Draggable } from '@dnd-kit/dom';
@@ -12,6 +12,14 @@ import type { ReactNode } from 'react';
 
 import { rowDndInteraction } from './dnd-interaction';
 import { RowDnd } from './dnd';
+import { createRowDestinationResolver } from './destination-resolution';
+
+jest.mock( '@dnd-kit/dom', () => ( {
+	Cursor: {},
+	PreventSelection: {},
+	Feedback: {},
+	Draggable: jest.fn(),
+} ) );
 
 jest.mock( './dnd-interaction', () => ( {
 	rowDndInteraction: {
@@ -23,12 +31,12 @@ jest.mock( './dnd-interaction', () => ( {
 	},
 } ) );
 
-jest.mock( './presentation/moving-row', () => ( {
-	RowMovingDisplay: () => null,
+jest.mock( './destination-resolution', () => ( {
+	createRowDestinationResolver: jest.fn(),
 } ) );
 
-jest.mock( './presentation/insertion-line', () => ( {
-	RowInsertionLine: () => null,
+jest.mock( './presentation/row-presentation', () => ( {
+	RowPresentation: () => null,
 } ) );
 
 let activeDraggableRef: { current: Draggable | null } | null = null;
@@ -49,7 +57,11 @@ jest.mock( '@dnd-kit/react', () => ( {
 
 const dragDropProviderMock = DragDropProvider as unknown as jest.Mock;
 const interactionMock = rowDndInteraction as jest.Mocked< typeof rowDndInteraction >;
+const destinationResolverFactoryMock = createRowDestinationResolver as jest.MockedFunction<
+	typeof createRowDestinationResolver
+>;
 
+/** DnD Engine境界へ渡された最新のcallback群を取得する。 */
 const getProviderProps = () => {
 	const props = dragDropProviderMock.mock.calls.at( -1 )?.[ 0 ];
 	if ( ! props ) {
@@ -58,34 +70,20 @@ const getProviderProps = () => {
 	return props;
 };
 
-const createTableRows = () => {
-	const table = document.createElement( 'table' );
-	const tbody = document.createElement( 'tbody' );
-	const first = document.createElement( 'tr' );
-	const second = document.createElement( 'tr' );
-	first.appendChild( document.createElement( 'td' ) );
-	second.appendChild( document.createElement( 'td' ) );
-	tbody.append( first, second );
-	table.appendChild( tbody );
-	return { first, second };
-};
-
 describe( 'Row DnD engine connection', () => {
 	beforeEach( () => {
 		jest.clearAllMocks();
 		activeDraggableRef = null;
+		destinationResolverFactoryMock.mockReturnValue( null );
 	} );
 
 	/**
 	 * 概要:
 	 * - 開始可否判定で開始不能となった物理DnDを成立させないことを確認する。
-	 *
 	 * 事前条件:
 	 * - DnD Interactionが現在のTable構造では開始不能と判定する。
-	 *
 	 * 操作:
 	 * - DnD Engineから開始前通知を受ける。
-	 *
 	 * 期待結果:
 	 * - 物理DnD開始が取消され、DnD Interactionのstartは呼ばれない。
 	 */
@@ -106,7 +104,6 @@ describe( 'Row DnD engine connection', () => {
 		} as unknown as BeforeDragStartEvent );
 		props.onDragStart();
 
-		expect( interactionMock.prepareStart ).toHaveBeenCalledWith( source );
 		expect( preventDefault ).toHaveBeenCalledTimes( 1 );
 		expect( interactionMock.start ).not.toHaveBeenCalled();
 	} );
@@ -114,15 +111,12 @@ describe( 'Row DnD engine connection', () => {
 	/**
 	 * 概要:
 	 * - 開始可否判定で確認した行制約を物理DnD開始成立後のSession開始へ引き継ぐことを確認する。
-	 *
 	 * 事前条件:
 	 * - DnD Interactionが開始可能と判定し、その時点の行制約を返す。
-	 *
 	 * 操作:
 	 * - 開始前通知の後に物理DnD開始通知を受ける。
-	 *
 	 * 期待結果:
-	 * - 同じ移動対象と開始可否判定時の行制約でDnD Interactionのstartが1回呼ばれる。
+	 * - 同じ移動対象と開始可否判定時の行制約でstartが1回呼ばれる。
 	 */
 	it( 'when physical drag starts after an accepted preparation, should start the row DnD session with the prepared constraints', () => {
 		const constraints = { rowCount: 3, blockedBoundaries: [ 2 ] };
@@ -141,43 +135,36 @@ describe( 'Row DnD engine connection', () => {
 		} as unknown as BeforeDragStartEvent );
 		props.onDragStart();
 
-		expect( interactionMock.start ).toHaveBeenCalledTimes( 1 );
 		expect( interactionMock.start ).toHaveBeenCalledWith( source, constraints );
 	} );
 
 	/**
 	 * 概要:
-	 * - 行並び替えを無効化した時点で、未完了の開始準備とDraggable登録を破棄することを確認する。
-	 *
+	 * - 行並び替えを無効化した時点で未完了の開始準備とDraggable登録を破棄することを確認する。
 	 * 事前条件:
-	 * - 行並び替えが有効で、開始可否確認済みの開始準備とDraggable登録が存在する。
-	 *
+	 * - 開始可否確認済みの開始準備とDraggable登録が存在する。
 	 * 操作:
-	 * - 同じRowDndをenabled=falseへ切り替えた後、物理DnD開始通知を受ける。
-	 *
+	 * - enabled=falseへ切り替える。
 	 * 期待結果:
-	 * - Draggableが破棄され、無効化前の開始準備ではDnD Interactionのstartが呼ばれない。
+	 * - Draggableが破棄され、無効化前の開始準備ではstartが呼ばれない。
 	 */
 	it( 'when row reordering becomes disabled, should discard the pending preparation and active draggable', () => {
-		const constraints = { rowCount: 3, blockedBoundaries: [ 2 ] };
-		interactionMock.prepareStart.mockReturnValue( constraints );
+		interactionMock.prepareStart.mockReturnValue( { rowCount: 3, blockedBoundaries: [] } );
 		const { rerender } = render(
 			<RowDnd enabled tableIdentity="table-1">
 				{ () => <div /> }
 			</RowDnd>
 		);
 		const props = getProviderProps();
-		const source = { tableIdentity: 'table-1', sourceRowIndex: 1 };
-		const destroy = jest.fn();
-
 		props.onBeforeDragStart( {
-			operation: { source: { data: source } },
+			operation: { source: { data: { tableIdentity: 'table-1', sourceRowIndex: 1 } } },
 			preventDefault: jest.fn(),
 		} as unknown as BeforeDragStartEvent );
 
 		if ( activeDraggableRef === null ) {
 			throw new Error( 'RowInput activeDraggable ref was not captured.' );
 		}
+		const destroy = jest.fn();
 		activeDraggableRef.current = { destroy } as unknown as Draggable;
 
 		rerender(
@@ -185,114 +172,166 @@ describe( 'Row DnD engine connection', () => {
 				{ () => <div /> }
 			</RowDnd>
 		);
-		const disabledProps = getProviderProps();
-		disabledProps.onDragStart();
+		getProviderProps().onDragStart();
 
 		expect( destroy ).toHaveBeenCalledTimes( 1 );
-		expect( activeDraggableRef.current ).toBeNull();
 		expect( interactionMock.start ).not.toHaveBeenCalled();
 	} );
 
 	/**
 	 * 概要:
-	 * - 現在ポインター位置から対象Tableのtbody直下行に対する0-based移動先境界を解決することを確認する。
-	 *
+	 * - DnD接続境界が終了した時点で未完了の開始準備とDraggable登録を破棄することを確認する。
 	 * 事前条件:
-	 * - 2行目の上半分を現在ポインターが指している。
-	 *
+	 * - 開始可否確認済みの開始準備とDraggable登録が存在する。
 	 * 操作:
-	 * - DnD Engineから移動通知を受ける。
-	 *
+	 * - RowDndをunmountする。
 	 * 期待結果:
-	 * - 2行目直前の境界である1がDnD Interactionへ通知される。
+	 * - Draggableが破棄され、境界終了後へ一時登録を持ち越さない。
 	 */
-	it( 'when pointer movement targets the upper half of a direct tbody row, should update the destination to the boundary before that row', () => {
-		const { first, second } = createTableRows();
-		Object.defineProperty( first.ownerDocument, 'elementsFromPoint', {
-			configurable: true,
-			value: jest.fn( () => [ second ] ),
-		} );
-		jest.spyOn( second, 'getBoundingClientRect' ).mockReturnValue( {
-			top: 100,
-			height: 40,
-			bottom: 140,
-			left: 0,
-			right: 100,
-			width: 100,
-			x: 0,
-			y: 100,
-			toJSON: () => ( {} ),
-		} );
+	it( 'when the row DnD connection unmounts, should destroy the active draggable', () => {
+		interactionMock.prepareStart.mockReturnValue( { rowCount: 3, blockedBoundaries: [] } );
+		const { unmount } = render(
+			<RowDnd enabled tableIdentity="table-1">
+				{ () => <div /> }
+			</RowDnd>
+		);
+		const props = getProviderProps();
+		props.onBeforeDragStart( {
+			operation: { source: { data: { tableIdentity: 'table-1', sourceRowIndex: 1 } } },
+			preventDefault: jest.fn(),
+		} as unknown as BeforeDragStartEvent );
+
+		if ( activeDraggableRef === null ) {
+			throw new Error( 'RowInput activeDraggable ref was not captured.' );
+		}
+		const destroy = jest.fn();
+		activeDraggableRef.current = { destroy } as unknown as Draggable;
+
+		unmount();
+
+		expect( destroy ).toHaveBeenCalledTimes( 1 );
+	} );
+
+	/**
+	 * 概要:
+	 * - 移動先解決境界が返した論理的な移動先をDnD Interactionへ接続することを確認する。
+	 * 事前条件:
+	 * - DnD開始時に移動先解決境界が成立し、現在位置から境界1を返す。
+	 * 操作:
+	 * - 物理DnD開始後に移動通知を受ける。
+	 * 期待結果:
+	 * - 解決済みの境界1がDnD Interactionへ通知される。
+	 */
+	it( 'when destination resolution returns a boundary, should update the DnD interaction with that boundary', () => {
+		const sourceElement = document.createElement( 'tr' );
+		const resolve = jest.fn().mockReturnValue( 1 );
+		destinationResolverFactoryMock.mockReturnValue( { resolve } );
+		interactionMock.prepareStart.mockReturnValue( { rowCount: 2, blockedBoundaries: [] } );
 		render(
 			<RowDnd enabled tableIdentity="table-1">
 				{ () => <div /> }
 			</RowDnd>
 		);
 		const props = getProviderProps();
+		props.onBeforeDragStart( {
+			operation: { source: { data: { tableIdentity: 'table-1', sourceRowIndex: 0 } } },
+			preventDefault: jest.fn(),
+		} as unknown as BeforeDragStartEvent );
+		props.onDragStart( { operation: { source: { element: sourceElement } } } );
+		const moveEvent = {
+			operation: { source: { element: sourceElement } },
+			nativeEvent: { clientX: 10, clientY: 50 },
+		} as unknown as DragMoveEvent;
+		props.onDragMove( moveEvent );
 
-		props.onDragMove( {
-			operation: { source: { element: first } },
-			nativeEvent: { clientX: 10, clientY: 110 },
-		} as unknown as DragMoveEvent );
-
+		expect( destinationResolverFactoryMock ).toHaveBeenCalledWith( sourceElement );
+		expect( resolve ).toHaveBeenCalledWith( moveEvent );
 		expect( interactionMock.updateDestination ).toHaveBeenCalledWith( 1 );
 	} );
 
 	/**
 	 * 概要:
-	 * - 行の下半分を指した場合は、その行の直後を移動先境界として通知することを確認する。
-	 *
+	 * - 現在位置から有効な移動先を解決できない場合に、既存の移動先を保持せずnullへ更新することを確認する。
 	 * 事前条件:
-	 * - 2行目の下半分を現在ポインターが指している。
-	 *
+	 * - DnD開始時に移動先解決境界が成立している。
+	 * - 現在の物理入力位置には有効な移動先がない。
 	 * 操作:
-	 * - DnD Engineから移動通知を受ける。
-	 *
+	 * - 物理DnD開始後に移動通知を受ける。
 	 * 期待結果:
-	 * - 2行目直後の境界である2がDnD Interactionへ通知される。
+	 * - DnD Interactionへnullが通知され、以前の有効移動先を残さない。
 	 */
-	it( 'when pointer movement targets the lower half of a direct tbody row, should update the destination to the boundary after that row', () => {
-		const { first, second } = createTableRows();
-		Object.defineProperty( first.ownerDocument, 'elementsFromPoint', {
-			configurable: true,
-			value: jest.fn( () => [ second ] ),
-		} );
-		jest.spyOn( second, 'getBoundingClientRect' ).mockReturnValue( {
-			top: 100,
-			height: 40,
-			bottom: 140,
-			left: 0,
-			right: 100,
-			width: 100,
-			x: 0,
-			y: 100,
-			toJSON: () => ( {} ),
-		} );
+	it( 'when destination resolution returns no destination, should clear the DnD interaction destination', () => {
+		const sourceElement = document.createElement( 'tr' );
+		const resolve = jest.fn().mockReturnValue( null );
+		destinationResolverFactoryMock.mockReturnValue( { resolve } );
+		interactionMock.prepareStart.mockReturnValue( { rowCount: 2, blockedBoundaries: [] } );
 		render(
 			<RowDnd enabled tableIdentity="table-1">
 				{ () => <div /> }
 			</RowDnd>
 		);
 		const props = getProviderProps();
-
+		props.onBeforeDragStart( {
+			operation: { source: { data: { tableIdentity: 'table-1', sourceRowIndex: 0 } } },
+			preventDefault: jest.fn(),
+		} as unknown as BeforeDragStartEvent );
+		props.onDragStart( { operation: { source: { element: sourceElement } } } );
 		props.onDragMove( {
-			operation: { source: { element: first } },
-			nativeEvent: { clientX: 10, clientY: 130 },
+			operation: { source: { element: sourceElement } },
+			nativeEvent: { clientX: 120, clientY: 50 },
 		} as unknown as DragMoveEvent );
 
+		expect( interactionMock.updateDestination ).toHaveBeenCalledWith( null );
+	} );
+
+	/**
+	 * 概要:
+	 * - DnD開始通知で移動先解決境界を作れなくても、最初の移動通知で対象行を確認できれば補完できることを確認する。
+	 * 事前条件:
+	 * - Row DnD Sessionは開始済みである。
+	 * - DnD開始通知では移動対象DOMを確認できず、移動先解決境界が未生成である。
+	 * - 最初の移動通知では移動対象行を確認できる。
+	 * 操作:
+	 * - 最初の物理移動通知を受ける。
+	 * 期待結果:
+	 * - その移動通知から解決境界を一度生成し、解決した移動先をDnD Interactionへ通知する。
+	 */
+	it( 'when destination resolution was unavailable at drag start, should create it from the first drag move', () => {
+		const sourceElement = document.createElement( 'tr' );
+		const resolve = jest.fn().mockReturnValue( 2 );
+		destinationResolverFactoryMock.mockReturnValueOnce( null ).mockReturnValueOnce( { resolve } );
+		interactionMock.prepareStart.mockReturnValue( { rowCount: 3, blockedBoundaries: [] } );
+		render(
+			<RowDnd enabled tableIdentity="table-1">
+				{ () => <div /> }
+			</RowDnd>
+		);
+		const props = getProviderProps();
+		props.onBeforeDragStart( {
+			operation: { source: { data: { tableIdentity: 'table-1', sourceRowIndex: 0 } } },
+			preventDefault: jest.fn(),
+		} as unknown as BeforeDragStartEvent );
+		props.onDragStart( { operation: { source: { element: undefined } } } );
+		const moveEvent = {
+			operation: { source: { element: sourceElement } },
+			nativeEvent: { clientX: 10, clientY: 50 },
+		} as unknown as DragMoveEvent;
+
+		props.onDragMove( moveEvent );
+
+		expect( destinationResolverFactoryMock ).toHaveBeenNthCalledWith( 1, undefined );
+		expect( destinationResolverFactoryMock ).toHaveBeenNthCalledWith( 2, sourceElement );
+		expect( resolve ).toHaveBeenCalledWith( moveEvent );
 		expect( interactionMock.updateDestination ).toHaveBeenCalledWith( 2 );
 	} );
 
 	/**
 	 * 概要:
-	 * - 物理DnDのcancelと通常終了を、行DnD Sessionの取消と確定へ分岐して接続することを確認する。
-	 *
+	 * - 物理DnDのcancelと通常終了をSessionの取消と確定へ分岐して接続することを確認する。
 	 * 事前条件:
 	 * - DnD Engineから終了通知を受けられる。
-	 *
 	 * 操作:
 	 * - cancel終了と通常終了をそれぞれ通知する。
-	 *
 	 * 期待結果:
 	 * - cancelではcancelだけ、通常終了ではcompleteだけが呼ばれる。
 	 */

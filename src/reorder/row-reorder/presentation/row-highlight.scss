@@ -1,0 +1,35 @@
+/**
+ * Row Reorderモード中、行単位で移動可能と判定された行だけをポインター操作可能として示す。
+ *
+ * 通常時は掴める状態、押下中は掴んでいる状態をカーソルで示し、ホバー中は対象行だけを軽く強調する。
+ * 移動不可行にはこれらの表示を付けず、実際のDnD開始可否と利用者向け表示を一致させる。
+ */
+
+/* 移動可能な行だけに、行内部の要素を含めて掴めるポインター表示を適用する。 */
+.yamabiko-table-reorder-row-highlightable,
+.yamabiko-table-reorder-row-highlightable * {
+	cursor: grab !important;
+}
+
+/* 押下中は、移動可能な行を現在掴んでいる状態として示す。 */
+.yamabiko-table-reorder-row-highlightable:active,
+.yamabiko-table-reorder-row-highlightable:active * {
+	cursor: grabbing !important;
+}
+
+/* ホバー中はTable本来のセル配置を変えず、操作対象となる行だけを視覚的に識別できるようにする。 */
+.yamabiko-table-reorder-row-highlightable:hover > td,
+.yamabiko-table-reorder-row-highlightable:hover > th {
+	box-shadow: inset 0 0 0 9999px rgb(56 88 233 / 5%);
+}
+
+/* 移動不可行では、親Blockから継承される掴めるポインター表示を打ち消す。 */
+.yamabiko-table-reorder-row-mode
+	tbody
+	> tr:not(.yamabiko-table-reorder-row-highlightable),
+.yamabiko-table-reorder-row-mode
+	tbody
+	> tr:not(.yamabiko-table-reorder-row-highlightable)
+	* {
+	cursor: default !important;
+}
