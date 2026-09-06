@@ -38,12 +38,14 @@ msgstr "行を並び替え"
 msgid "Reorder columns"
 msgstr "列を並び替え"
 
-#: src/messages.ts:32
-msgid "Reordering could not continue, so the operation was ended."
-msgstr "並び替えを続けられないため、操作を終了しました。"
+#: src/messages.ts:40
 msgid "Reorder rows and columns."
 msgstr "行と列を並び替えられます。"
 
-#: src/messages.ts:40
+#: src/messages.ts:48
 msgid "Close reorder guidance"
 msgstr "並び替えの案内を閉じる"
+
+#: src/messages.ts:32
+msgid "Reordering could not continue, so the operation was ended."
+msgstr ""
