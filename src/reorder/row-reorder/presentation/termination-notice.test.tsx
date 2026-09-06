@@ -53,13 +53,13 @@ describe( 'RowTerminationNotice', () => {
 	it( 'when a termination notice is emitted, should show the termination message', () => {
 		render( <RowTerminationNotice /> );
 
-		expect( screen.queryByText( 'termination message' ) ).not.toBeInTheDocument();
+		expect( screen.queryByText( 'termination message' ) ).toBeNull();
 
 		act( () => {
 			terminationListener?.();
 		} );
 
-		expect( screen.getByText( 'termination message' ) ).toBeInTheDocument();
+		expect( screen.queryByText( 'termination message' ) ).not.toBeNull();
 	} );
 
 	/**
@@ -80,13 +80,13 @@ describe( 'RowTerminationNotice', () => {
 		act( () => {
 			terminationListener?.();
 		} );
-		expect( screen.getByText( 'termination message' ) ).toBeInTheDocument();
+		expect( screen.queryByText( 'termination message' ) ).not.toBeNull();
 
 		act( () => {
 			snackbarRemove?.();
 		} );
 
-		expect( screen.queryByText( 'termination message' ) ).not.toBeInTheDocument();
+		expect( screen.queryByText( 'termination message' ) ).toBeNull();
 	} );
 
 	/**
