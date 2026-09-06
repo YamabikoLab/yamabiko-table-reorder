@@ -1,7 +1,7 @@
 /**
  * 結合セルにより行DnDを開始できない場合の利用者向け通知表示を検証する。
  *
- * Reorder Target Resolutionの開始可否判定は重複して検証せず、開始拒否理由の通知から表示開始、
+ * Reorder Target Resolutionの開始可否判定は重複して検証せず、開始拒否理由と操作位置の通知から表示開始、
  * 表示更新、表示終了までのPresentationのLifecycleに限定する。
  */
 
@@ -30,24 +30,32 @@ describe( 'RowStartRejectionNotice', () => {
 
 	/**
 	 * 概要:
-	 * - Designで定義された結合範囲による開始拒否時だけメッセージを表示することを確認する。
+	 * - Designで定義された結合範囲による開始拒否時だけメッセージを操作位置付近へ表示することを確認する。
 	 * 事前条件:
 	 * - 行DnD開始拒否通知はまだ発生していない。
 	 * 操作:
-	 * - Presentationを描画し、結合範囲による開始拒否理由を通知する。
+	 * - Presentationを描画し、結合範囲による開始拒否理由と操作位置を通知する。
 	 * 期待結果:
-	 * - 通知前はメッセージを表示せず、通知後は利用者向け開始拒否メッセージを表示する。
+	 * - 通知前はメッセージを表示せず、通知後は利用者向け開始拒否メッセージを通知された位置へ表示する。
 	 */
-	it( 'when a merged-range start rejection is notified, should show the rejection message', () => {
-		render( <RowStartRejectionNotice /> );
+	it( 'when a merged-range start rejection is notified, should show the rejection message near the interaction position', () => {
+		const { container } = render( <RowStartRejectionNotice /> );
 
 		expect( screen.queryByText( 'start rejection message' ) ).toBeNull();
 
 		act( () => {
-			notifyRowStartRejection( 'merged-range' );
+			notifyRowStartRejection( {
+				reason: 'merged-range',
+				clientX: 120,
+				clientY: 240,
+			} );
 		} );
 
 		expect( screen.queryByText( 'start rejection message' ) ).not.toBeNull();
+		expect( container.firstElementChild ).toHaveStyle( {
+			left: '120px',
+			top: '240px',
+		} );
 	} );
 
 	/**
@@ -64,7 +72,11 @@ describe( 'RowStartRejectionNotice', () => {
 		render( <RowStartRejectionNotice /> );
 
 		act( () => {
-			notifyRowStartRejection( 'merged-range' );
+			notifyRowStartRejection( {
+				reason: 'merged-range',
+				clientX: 120,
+				clientY: 240,
+			} );
 		} );
 		expect( screen.queryByText( 'start rejection message' ) ).not.toBeNull();
 
@@ -90,12 +102,20 @@ describe( 'RowStartRejectionNotice', () => {
 		render( <RowStartRejectionNotice /> );
 
 		act( () => {
-			notifyRowStartRejection( 'merged-range' );
+			notifyRowStartRejection( {
+				reason: 'merged-range',
+				clientX: 120,
+				clientY: 240,
+			} );
 		} );
 		const removePreviousNotice = snackbarRemove;
 
 		act( () => {
-			notifyRowStartRejection( 'merged-range' );
+			notifyRowStartRejection( {
+				reason: 'merged-range',
+				clientX: 180,
+				clientY: 300,
+			} );
 		} );
 
 		act( () => {
