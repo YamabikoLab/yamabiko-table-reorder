@@ -130,6 +130,8 @@ const createNestedRowTarget = () => {
  * @param options.isPrimary     主ポインター入力の場合はtrue。
  * @param options.button        入力ボタン番号。
  * @param options.pointerType   ポインター入力方式。
+ * @param options.clientX       ビューポート内の水平操作位置。
+ * @param options.clientY       ビューポート内の垂直操作位置。
  * @return 行DnD開始処理へ渡すポインターイベント。
  */
 const createPointerEvent = ( options: {
@@ -138,6 +140,8 @@ const createPointerEvent = ( options: {
 	isPrimary?: boolean;
 	button?: number;
 	pointerType?: string;
+	clientX?: number;
+	clientY?: number;
 } ): ReactPointerEvent< Element > =>
 	( {
 		target: options.target,
@@ -145,6 +149,8 @@ const createPointerEvent = ( options: {
 		isPrimary: options.isPrimary ?? true,
 		button: options.button ?? 0,
 		pointerType: options.pointerType ?? 'mouse',
+		clientX: options.clientX ?? 0,
+		clientY: options.clientY ?? 0,
 		preventDefault: jest.fn(),
 	} ) as unknown as ReactPointerEvent< Element >;
 
@@ -280,7 +286,7 @@ describe( 'Row DnD input boundary', () => {
 
 	/**
 	 * 概要:
-	 * - 結合範囲により開始できない行では利用者向け理由を通知し、物理DnD開始候補を登録しないことを確認する。
+	 * - 結合範囲により開始できない行では利用者向け理由と操作位置を通知し、物理DnD開始候補を登録しないことを確認する。
 	 *
 	 * 事前条件:
 	 * - 行並び替えが有効で、対象行はReorder Target Resolutionから開始拒否として解決される。
@@ -289,9 +295,9 @@ describe( 'Row DnD input boundary', () => {
 	 * - 対象行のセルから主マウスボタン入力を行う。
 	 *
 	 * 期待結果:
-	 * - Designで定義された開始拒否理由がPresentationへ通知され、Draggableは登録されない。
+	 * - Designで定義された開始拒否理由と操作位置がPresentationへ通知され、Draggableは登録されない。
 	 */
-	it( 'when target resolution rejects the row, should notify the rejection and not register a draggable', () => {
+	it( 'when target resolution rejects the row, should notify the rejection and interaction position without registering a draggable', () => {
 		targetResolutionMock.resolve.mockReturnValue( {
 			status: 'rejected',
 			reason: 'merged-range',
@@ -303,6 +309,8 @@ describe( 'Row DnD input boundary', () => {
 			createPointerEvent( {
 				target: cells[ 0 ],
 				currentTarget,
+				clientX: 120,
+				clientY: 240,
 			} )
 		);
 
@@ -310,7 +318,11 @@ describe( 'Row DnD input boundary', () => {
 			tableIdentity: 'table-1',
 			sourceRowIndex: 0,
 		} );
-		expect( notifyRowStartRejectionMock ).toHaveBeenCalledWith( 'merged-range' );
+		expect( notifyRowStartRejectionMock ).toHaveBeenCalledWith( {
+			reason: 'merged-range',
+			clientX: 120,
+			clientY: 240,
+		} );
 		expect( draggableConstructorMock ).not.toHaveBeenCalled();
 	} );
 
