@@ -42,7 +42,7 @@
 
 Reorder Mode / Toolbar integrationを最初に成立させ、次にTable Integrationを実装する。その後、active DnD成立前の開始可否判定をReorder Target Resolutionへ分離し、開始可能なReorder Targetと開始時制約からDnD Interaction / Session Lifecycleを開始する。DnD Interactionは開始可否判定を所有せず、Session開始後のLifecycleをDnD EngineとTable Integrationへ接続する。
 
-DnD Interactionの接続を成立させた後、PC / Touch Input InteractionをDnD Engineへ接続し、入力からReorder Target Resolutionを経てDnD Interactionへ到達する実装経路を成立させる。DnD EngineにはArchitectureで採用済みのdnd-kitを用いる。
+DnD Interactionの接続を成立させた後、PC / Touch Input InteractionをReorder Target ResolutionとDnD Engineへ接続する。入力開始時はInput InteractionからReorder Target Resolutionへ現在制約で開始可否を問い合わせ、開始可能な候補だけをDnD Engineへ接続する。DnD Engine側ではactive DnD成立直前に同じReorder Targetを現在制約で再解決し、二段階目の解決が成立した場合だけDnD Interactionへ到達する実装経路を成立させる。DnD EngineにはArchitectureで採用済みのdnd-kitを用いる。
 
 入力経路の成立後にReorder Presentationを接続し、Reorder Target Resolutionが返すDesign上の開始不可理由と、DnD Interactionが返すSession開始後の意味状態をそれぞれ表示へ反映する。その後既存のDnD Engine自動スクロールが行DnDで必要な縦方向の挙動を満たすことを確認してからGuidanceを接続する。最後にproduct compositionと横断validationを行う。
 
@@ -52,7 +52,7 @@ DnD Interactionの接続を成立させた後、PC / Touch Input InteractionをD
 
 ## Architecture impact
 
-#821で`docs/architecture/row-reorder-v1-architecture.md`の開始可否判定をDnD InteractionからReorder Target Resolutionへ分離した。本Planはその確定済みArchitectureへ追従し、Reorder Target Resolutionを独立責務として扱う。Reorder Target自体は「移動する行」という意味を維持し、開始時制約や開始不可理由は解決結果として扱う。
+#821で`docs/architecture/row-reorder-v1-architecture.md`の開始可否判定をDnD InteractionからReorder Target Resolutionへ分離した。本Planはその確定済みArchitectureへ追従し、Reorder Target Resolutionを独立責務として扱う。Reorder Target自体は「移動する行」という意味を維持し、開始時制約や開始不可理由は解決結果として扱う。また、Input Interactionが入力開始時にReorder Target Resolutionを直接利用する依存と、DnD Engineがactive DnD成立直前に再解決する二段階の開始前解決を実装順序へ反映する。
 
 ## Decisions and validation questions
 
@@ -77,10 +77,12 @@ DnD Interactionの接続を成立させた後、PC / Touch Input InteractionをD
 4. **Phase 4開始前: PC Input InteractionのDnD Engine接続方式**
 
    - PC入力をdnd-kitのSensor / activatorへ接続するevent adapterの構成を確定する。
+   - 入力開始時はReorder Target Resolutionで開始可否を事前解決し、開始可能な候補だけをDnD Engineへ接続したうえで、active DnD成立直前に現在制約で再解決する二段階の接続を成立させる。
 
 5. **Phase 5開始前: Touch Input InteractionのDnD Engine接続方式**
 
    - Touch入力をdnd-kitのSensor / activatorへ接続するevent adapterの構成を確定する。
+   - 入力開始時はReorder Target Resolutionで開始可否を事前解決し、開始可能な候補だけをDnD Engineへ接続したうえで、active DnD成立直前に現在制約で再解決する二段階の接続を成立させる。
 
 6. **Phase 6開始前: Reorder Presentationの描画方式**
 
@@ -119,7 +121,7 @@ DnD Interactionの接続を成立させた後、PC / Touch Input InteractionをD
 
 4. **Phase 3 / 4 / 5、Phase 10で最終確認: DnD Engine integration**
 
-   - PC / Touch Input Interaction、Reorder Target Resolution、DnD Interactionが、Architectureで定義された接続境界を保ってDnD Engineへ接続されることを確認する。
+   - PC / Touch Input Interactionが入力開始時にReorder Target Resolutionを直接利用して開始可能な候補だけをDnD Engineへ接続し、active DnD成立直前にReorder Target Resolutionで現在制約を再解決した結果だけがDnD Interactionへ渡る二段階の開始前解決がArchitectureどおり成立することを確認する。
    - Evidence: focused lifecycle / integration test。
 
 5. **Phase 3 / 1、Phase 10で最終確認: DnD終了後Lifecycle**
@@ -192,21 +194,23 @@ DnD Interactionの接続を成立させた後、PC / Touch Input InteractionをD
 
 ### Phase 4: PC Input Interaction
 
-- Outcome: PC入力からDnD Engineを経由してReorder Target ResolutionとDnD Interactionへ到達する実装経路が成立する。
+- Outcome: PC入力開始時にReorder Target Resolutionで開始可否を事前解決し、開始可能な候補だけをDnD Engineへ接続したうえで、active DnD成立直前の再解決を経てDnD Interactionへ到達する実装経路が成立する。
 - Tasks:
   - PC Input Interactionを実装する。
-  - PC入力をDnD Engineへ接続する。
+  - PC入力開始時にReorder Target Resolutionを利用し、開始可能な候補だけをDnD Engineへ接続する。
+  - DnD Engine側のactive DnD成立直前の再解決とDnD Interaction開始へ接続する。
 - Validation:
-  - Architecture / Designへの適合とDnD Engine接続をfocused input / integration testで確認する。
+  - Architecture / Designへの適合と二段階の開始前解決をfocused input / integration testで確認する。
 
 ### Phase 5: Touch Input Interaction
 
-- Outcome: Touch入力からDnD Engineを経由してReorder Target ResolutionとDnD Interactionへ到達する実装経路が成立する。
+- Outcome: Touch入力開始時にReorder Target Resolutionで開始可否を事前解決し、開始可能な候補だけをDnD Engineへ接続したうえで、active DnD成立直前の再解決を経てDnD Interactionへ到達する実装経路が成立する。
 - Tasks:
   - Touch Input Interactionを実装する。
-  - Touch入力をDnD Engineへ接続する。
+  - Touch入力開始時にReorder Target Resolutionを利用し、開始可能な候補だけをDnD Engineへ接続する。
+  - DnD Engine側のactive DnD成立直前の再解決とDnD Interaction開始へ接続する。
 - Validation:
-  - Architecture / Designへの適合とDnD Engine接続をfocused input / integration testで確認する。
+  - Architecture / Designへの適合と二段階の開始前解決をfocused input / integration testで確認する。
 
 ### Phase 6: Reorder Presentation
 
@@ -274,7 +278,7 @@ Planレビュー後、次の単位で実装Issueを作成する。各Issueはこ
 
 - 各実装Issueでは、そのPhaseの実装結果が該当する上位文書に適合することをfocused test / integration testで確認する。
 - Phase 3では、Reorder Target Resolutionの開始可否解決と、解決済みTargetから開始するDnD Interaction / Session LifecycleがArchitectureに適合することをfocused test / integration testで確認する。
-- Phase 4 / 5では、PC / Touch Input InteractionからDnD Engineを経由してReorder Target ResolutionとDnD Interactionへ到達する実装経路をfocused input / integration testで確認する。
+- Phase 4 / 5では、PC / Touch Input Interactionが入力開始時にReorder Target Resolutionを直接利用して開始可能な候補だけをDnD Engineへ接続し、active DnD成立直前に現在制約で再解決した結果だけがDnD Interactionへ到達する二段階の実装経路をfocused input / integration testで確認する。
 - Phase 6では、Target Resolutionの開始不可理由をPresentationが構造判定し直さず表示へ反映することをfocused testで確認する。
 - Phase 7では、既存のDnD Engine自動スクロールが行DnDで必要な縦方向の挙動を満たしていることをfocused integration testで確認する。
 - Phase 9でproduct compositionを成立させ、実entry pointを通る最小Playwright scenarioを実行する。
@@ -286,6 +290,7 @@ Planレビュー後、次の単位で実装Issueを作成する。各Issueはこ
 - 最新Row Reorder v1 Architectureの実装対象が、依存関係に沿ったレビュー可能なIssue単位へ分割されている。
 - Reorder Target Resolutionが開始前の独立責務として存在し、DnD Interactionに開始可否判定または`prepareStart`相当のLifecycleを残していない。
 - Reorder Targetは「移動する行」の意味を維持し、開始時制約と開始不可理由はTarget Resolutionの解決結果として分離されている。
+- Input InteractionからReorder Target Resolutionへの直接依存と、入力開始時・active DnD成立直前の二段階の開始前解決が最新Architectureに一致している。
 - 移動先判定はDnD Interaction / Session Lifecycleへ、確定済み行移動の反映はTable Integrationへ配置されている。
 - Drop Target Resolution / Data Updateが独立責務、独立Phase、Issue単位として残っていない。
 - Reorder Target Resolution、DnD Interaction、Input Interaction、Reorder Presentationの責務境界と実装順が最新Architectureに一致している。
