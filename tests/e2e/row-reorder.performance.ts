@@ -21,6 +21,15 @@ const TABLE_SIZE = IS_STRESS_MEASUREMENT ? STRESS_TABLE_SIZE : REPRESENTATIVE_TA
 const DESTINATION_ROW_INDEX = 3;
 const CPU_SAMPLING_INTERVAL_US = 1000;
 
+type CpuProfile = {
+	nodes: {
+		id: number;
+		callFrame: { url: string; functionName: string };
+	}[];
+	samples?: number[];
+	timeDeltas?: number[];
+};
+
 test.use( { viewport: { width: 1920, height: 1080 } } );
 
 /**
@@ -46,6 +55,28 @@ function frameOwner( frame: { url: string; functionName: string } ) {
 		return 'idle';
 	}
 	return 'WordPress / browser / other';
+}
+
+/**
+ * CPU profileのsample時間を実行主体ごとに集計する。
+ * Profilerが未知のsampleを返した場合は集計対象外とし、計測本体の成立条件にはしない。
+ *
+ * @param profile Chrome Profilerの計測結果。
+ * @return 実行主体ごとのself time。
+ */
+function cpuSelfTimeByOwner( profile: CpuProfile ) {
+	const nodes = new Map( profile.nodes.map( ( node ) => [ node.id, node ] ) );
+	const cpuSelfMs: Record< string, number > = {};
+	for ( const [ index, sample ] of ( profile.samples ?? [] ).entries() ) {
+		const frame = nodes.get( sample )?.callFrame;
+		if ( ! frame ) {
+			continue;
+		}
+		const owner = frameOwner( frame );
+		cpuSelfMs[ owner ] =
+			( cpuSelfMs[ owner ] ?? 0 ) + ( profile.timeDeltas?.[ index ] ?? 0 ) / 1000;
+	}
+	return cpuSelfMs;
 }
 
 for ( const name of [ 'core/table', 'flexible-table-block/table' ] as TableName[] ) {
@@ -85,17 +116,7 @@ for ( const name of [ 'core/table', 'flexible-table-block/table' ] as TableName[
 			} finally {
 				const wallMs = performance.now() - started;
 				const { profile } = await session.send( 'Profiler.stop' );
-				const nodes = new Map( profile.nodes.map( ( node ) => [ node.id, node ] ) );
-				const cpuSelfMs: Record< string, number > = {};
-				for ( const [ index, sample ] of ( profile.samples ?? [] ).entries() ) {
-					const frame = nodes.get( sample )?.callFrame;
-					if ( ! frame ) {
-						continue;
-					}
-					const owner = frameOwner( frame );
-					cpuSelfMs[ owner ] =
-						( cpuSelfMs[ owner ] ?? 0 ) + ( profile.timeDeltas?.[ index ] ?? 0 ) / 1000;
-				}
+				const cpuSelfMs = cpuSelfTimeByOwner( profile );
 				measurements.push( { phase, wallMs, cpuSelfMs } );
 				const profilePath = testInfo.outputPath( `${ phase }.cpuprofile` );
 				await writeFile( profilePath, JSON.stringify( profile ) );
