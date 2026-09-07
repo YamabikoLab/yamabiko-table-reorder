@@ -15,6 +15,44 @@ These instructions apply to files under `tests/e2e/`.
 - Assert user-observable behavior rather than implementation details.
 - Keep the minimal administration smoke test active so the E2E environment continues to verify that the plugin is installed and active.
 
+## Test case documentation
+
+Follow [`../../docs/development/test-case-documentation.md`](../../docs/development/test-case-documentation.md) for the common test case documentation format.
+
+For Playwright E2E tests:
+
+- Describe `操作` as the action a user performs in the real WordPress editor, such as selecting a Table, enabling Reorder Mode, dragging a row, touching the screen, scrolling, or invoking Undo.
+- Describe `期待結果` as behavior observable by the user, such as visible state, row order, preserved edited content, available editing, or the absence of an invalid update.
+- Mention the browser, editor context, input device, supported Table Block, or Table size only when that difference is material to the behavior being verified.
+- Do not describe Playwright selectors, locator composition, DOM traversal, coordinates, CDP commands, helper names, or synchronization details as product behavior.
+- Keep browser and WordPress integration details in the comment only when they explain why the scenario requires E2E rather than Jest.
+
+Example:
+
+```ts
+/**
+ * Core Tableで行をマウスDnDし、編集データを保持したまま移動できることを確認する。
+ *
+ * 事前条件:
+ * - Core Tableに複数の行が存在する。
+ * - 行の並び替えモードを利用できる。
+ *
+ * 操作:
+ * - 行の並び替えモードを有効にする。
+ * - 先頭行をマウスで別の行位置へドラッグ＆ドロップする。
+ *
+ * 期待結果:
+ * - 移動した行が指定した位置へ配置される。
+ * - Tableの編集内容と保持対象の属性が維持される。
+ */
+test(
+	'when a Core Table row is dragged with the mouse, should move the row without losing edited data',
+	async () => {
+		// ...
+	}
+);
+```
+
 ## WordPress editor interaction
 
 - Prefer `@wordpress/e2e-test-utils-playwright` helpers when they appropriately create WordPress or Gutenberg state.
