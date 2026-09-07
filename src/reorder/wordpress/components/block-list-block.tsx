@@ -1,8 +1,8 @@
 /**
- * 現在操作中の対応Tableの既存Block wrapperへReorder Mode中の通常編集抑止、行DnD接続、Presentation対象識別を反映するReact componentを所有する。
+ * 対応Tableの既存Block wrapperへReorder Mode中の通常編集抑止、行DnD接続、Presentation対象識別を反映するReact componentを所有する。
  *
  * 新しいDOM階層は追加せず、Gutenberg既存のwrapper propsへ必要な入力抑止とRow DnD開始入力だけを合成する。
- * dnd-kitの物理LifecycleとRow DnD Sessionの接続はRow Reorder側へ委譲し、この境界はPresentationが行並び替えモード中の対象Tableを識別するためのclassだけを既存wrapperへ付与する。
+ * dnd-kitの物理LifecycleとRow DnD Sessionの接続はRow Reorder側へ委譲し、この境界は現在選択中のTableだけへReorder Presentationを接続する。
  */
 
 import type { ComponentType } from '@wordpress/element';
@@ -82,11 +82,11 @@ const createRowReorderModeClassName = ( existingClassName: unknown ): string => 
 };
 
 /**
- * 現在操作中の対応Tableの既存Block wrapperへReorder Modeの編集可否とRow DnD接続を反映する。
+ * 対応Tableの既存Block wrapperへReorder Modeの編集可否とRow DnD接続を反映する。
  *
- * このcomponentは現在選択中の対応Tableに対してだけ生成され、Reorder Modeの購読を所有する。
- * Row DnD境界はモード切替でBlockListBlockを再mountしないよう常に同じ位置に維持し、行並び替えモード中だけ開始入力を有効化する。
- * 行並び替えモード中は既存Block wrapperへ表示識別用classを付与し、Presentationが行単位の操作可能表示を提供できるようにする。
+ * このcomponentは対応Tableの生存期間中、選択状態にかかわらず同じ位置に維持され、Reorder Modeの購読を所有する。
+ * Row DnD境界はBlockListBlockを再mountしないよう常に同じ位置に維持し、現在選択中のTableだけへReorder Presentationを接続する。
+ * 行並び替えモード中だけ開始入力を有効化し、既存Block wrapperへ表示識別用classを付与する。
  *
  * @param props                Gutenbergから渡されるBlockListBlock propsと元のcomponent。
  * @param props.BlockListBlock
@@ -98,7 +98,7 @@ export const ReorderModeBlockListBlock = ( props: {
 	blockProps: ReorderModeBlockListBlockProps;
 } ) => {
 	const { BlockListBlock, blockProps } = props;
-	const { clientId, wrapperProps } = blockProps;
+	const { clientId, isSelected, wrapperProps } = blockProps;
 	const { selectedKind } = useReorderMode( clientId );
 	const rowReorderEnabled = selectedKind === 'row';
 	const editingAllowed = selectedKind === null;
@@ -123,7 +123,11 @@ export const ReorderModeBlockListBlock = ( props: {
 	return (
 		<RowHighlight enabled={ rowReorderEnabled } tableIdentity={ clientId }>
 			{ ( rowHighlightPointerOverCapture ) => (
-				<RowDnd enabled={ rowReorderEnabled } tableIdentity={ clientId }>
+				<RowDnd
+					enabled={ rowReorderEnabled }
+					presentationEnabled={ isSelected }
+					tableIdentity={ clientId }
+				>
 					{ ( rowDndPointerDownCapture ) => (
 						<BlockListBlock
 							{ ...blockProps }
