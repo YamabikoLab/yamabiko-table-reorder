@@ -36,7 +36,6 @@ describe( 'Column Table Integration', () => {
 	 *
 	 * 期待結果:
 	 * - Table全体のcolumnCountは4になる。
-	 * - 横結合セルが占有する列0、1だけが単独移動不可になる。
 	 * - 横結合セル内部の境界1だけが移動先不可になる。
 	 * - rowspanだけでは列制約を生成しない。
 	 */
@@ -54,7 +53,6 @@ describe( 'Column Table Integration', () => {
 
 		expect( columnTableIntegration.getConstraints( 'table-a' ) ).toEqual( {
 			columnCount: 4,
-			blockedColumnIndexes: [ 0, 1 ],
 			blockedBoundaries: [ 1 ],
 		} );
 	} );
@@ -71,7 +69,7 @@ describe( 'Column Table Integration', () => {
 	 *
 	 * 期待結果:
 	 * - `colSpan`と`rowSpan`が解釈される。
-	 * - 横結合セルが占有する列0、1と内部境界1だけが列制約になる。
+	 * - 横結合セル内部の境界1だけが列制約になる。
 	 */
 	it( 'when Flexible Table Block constraints are requested, should adapt camel-case merged-cell attributes', () => {
 		selectMock.mockReturnValue( {
@@ -85,7 +83,6 @@ describe( 'Column Table Integration', () => {
 
 		expect( columnTableIntegration.getConstraints( 'table-b' ) ).toEqual( {
 			columnCount: 3,
-			blockedColumnIndexes: [ 0, 1 ],
 			blockedBoundaries: [ 1 ],
 		} );
 	} );
@@ -275,13 +272,15 @@ describe( 'Column Table Integration', () => {
 	 *
 	 * 事前条件:
 	 * - 現在Tableには列0、1を占有する横結合セルがある。
-	 * - 横結合セル内の列を移動元にする要求と、横結合セル内部境界を移動先にする要求を順に受け取る。
+	 * - 横結合セルの左右の論理列を移動元にする要求と、横結合セル内部境界を移動先にする要求を順に受け取る。
 	 *
 	 * 操作:
 	 * - 各要求についてapplyColumnMove()を実行する。
 	 *
 	 * 期待結果:
-	 * - どちらもfalseになり、属性更新は行われない。
+	 * - 横結合セルの各論理列は、直前または直後の分断不可境界によって移動元不可になる。
+	 * - 横結合セル内部境界は移動先不可になる。
+	 * - いずれもfalseになり、属性更新は行われない。
 	 */
 	it( 'when the current merged-cell constraints reject a confirmed move, should not update the Table', () => {
 		const updateBlockAttributes = jest.fn();
@@ -299,6 +298,13 @@ describe( 'Column Table Integration', () => {
 			columnTableIntegration.applyColumnMove( {
 				clientId: 'table-a',
 				sourceColumnIndex: 0,
+				destinationBoundaryIndex: 3,
+			} )
+		).toBe( false );
+		expect(
+			columnTableIntegration.applyColumnMove( {
+				clientId: 'table-a',
+				sourceColumnIndex: 1,
 				destinationBoundaryIndex: 3,
 			} )
 		).toBe( false );
