@@ -153,6 +153,7 @@ Column Reorder固有処理は`src/reorder/column-reorder/`配下へ独立して�
   - WordPress Reorder Integrationで、現在Tableの`column`モードだけColumn DnD Engine Integrationを有効化する。
   - 既存Reorder Mode、Reorder Guidance、Editor DOM Context、通常編集抑止をそのまま共通基盤として接続する。
   - Column Reorder入口の暫定非表示を解除する。
+  - Column Reorder入口公開時にWordPress Toolbar統合を更新し、初回案内表示中はRow / Column両入口へ既存のGuidance強調を反映する。
   - `src/index.tsx`はthin entry pointのまま維持し、Column Reorder固有LifecycleをWordPress integration境界へ閉じ込める。
 - Validation:
   - row / column排他、同じ入口の再選択、別Table選択、Toolbar再生成、通常編集抑止と復帰、Guidanceから両入口への導線をReact / WordPress integration testで確認する。
