@@ -120,4 +120,39 @@ describe( 'Column geometry measurement', () => {
 			{ index: 2, offset: 200 },
 		] );
 	} );
+
+	/**
+	 * 概要:
+	 * - 横結合セルの内部境界を別行から観測できる場合、その実測位置を論理列境界として利用できることを確認する。
+	 * 事前条件:
+	 * - 1行目は2論理列を覆う横結合セルで、2行目は同じ2列を通常セルとして描画している。
+	 * 操作:
+	 * - Table全体の論理列境界を計測する。
+	 * 期待結果:
+	 * - 横結合セルだけでは見えない境界1が2行目の実測位置80として返される。
+	 */
+	it( 'when a merged cell hides a boundary that another row exposes, should use the observed boundary from that row', () => {
+		const table = document.createElement( 'table' );
+		const tbody = document.createElement( 'tbody' );
+		const mergedRow = document.createElement( 'tr' );
+		const normalRow = document.createElement( 'tr' );
+		const mergedCell = document.createElement( 'td' );
+		const firstCell = document.createElement( 'td' );
+		const secondCell = document.createElement( 'td' );
+		mergedCell.colSpan = 2;
+		mergedRow.appendChild( mergedCell );
+		normalRow.append( firstCell, secondCell );
+		tbody.append( mergedRow, normalRow );
+		table.appendChild( tbody );
+		setTableRectangle( table, 200 );
+		setCellRectangle( mergedCell, 0, 200 );
+		setCellRectangle( firstCell, 0, 80 );
+		setCellRectangle( secondCell, 80, 200 );
+
+		expect( measureTableColumnBoundaryGeometry( table ) ).toEqual( [
+			{ index: 0, offset: 0 },
+			{ index: 1, offset: 80 },
+			{ index: 2, offset: 200 },
+		] );
+	} );
 } );
