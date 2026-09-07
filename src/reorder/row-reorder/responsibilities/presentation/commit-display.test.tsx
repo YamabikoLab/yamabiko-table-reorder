@@ -113,12 +113,12 @@ describe( 'Row commit display', () => {
 	afterEach( () => {
 		jest.restoreAllMocks();
 		if ( scrollXDescriptor === undefined ) {
-			delete ( window as Partial< Window > ).scrollX;
+			Reflect.deleteProperty( window, 'scrollX' );
 		} else {
 			Object.defineProperty( window, 'scrollX', scrollXDescriptor );
 		}
 		if ( scrollYDescriptor === undefined ) {
-			delete ( window as Partial< Window > ).scrollY;
+			Reflect.deleteProperty( window, 'scrollY' );
 		} else {
 			Object.defineProperty( window, 'scrollY', scrollYDescriptor );
 		}
