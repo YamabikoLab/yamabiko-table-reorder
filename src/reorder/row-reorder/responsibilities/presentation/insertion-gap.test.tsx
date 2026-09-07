@@ -8,6 +8,7 @@ import { resolveEditorDomContext } from '@/reorder/editor-dom-context';
 
 import { RowInsertionGap } from './insertion-gap';
 
+let mockRowDndPhase: 'idle' | 'active' = 'idle';
 let mockDestinationBoundaryIndex: number | null = null;
 let mockDragDropMonitor: {
 	onDragStart?: ( event: any ) => void;
@@ -16,6 +17,7 @@ let mockDragDropMonitor: {
 } = {};
 
 jest.mock( '@/reorder/row-reorder/integration/dnd-interaction-react', () => ( {
+	useRowDndPhase: () => mockRowDndPhase,
 	useRowDndDestinationBoundaryIndex: () => mockDestinationBoundaryIndex,
 } ) );
 
@@ -94,6 +96,7 @@ const createSourceTable = () => {
  * @param row 物理DnDの移動対象として通知する行。
  */
 const startPhysicalDrag = ( row: HTMLTableRowElement ) => {
+	mockRowDndPhase = 'active';
 	act( () => {
 		mockDragDropMonitor.onDragStart?.( {
 			operation: { source: { element: row } },
@@ -103,6 +106,7 @@ const startPhysicalDrag = ( row: HTMLTableRowElement ) => {
 
 describe( 'Row insertion gap', () => {
 	beforeEach( () => {
+		mockRowDndPhase = 'idle';
 		mockDestinationBoundaryIndex = null;
 		mockDragDropMonitor = {};
 		document.body.replaceChildren();
@@ -113,8 +117,7 @@ describe( 'Row insertion gap', () => {
 	} );
 
 	/**
-	 * 概要:
-	 * - 高さの大きい行を下方向へ移動した場合も、移動先にはその行と同じ高さの1つの挿入空間を表示することを確認する。
+	 * 高さの大きい行を下方向へ移動した場合も、移動先にその行と同じ高さの1つの挿入空間を表示することを確認する。
 	 *
 	 * 事前条件:
 	 * - 2行目の高さは100pxである。
@@ -144,8 +147,7 @@ describe( 'Row insertion gap', () => {
 	} );
 
 	/**
-	 * 概要:
-	 * - 高さの大きい行を上方向へ移動した場合も、移動先境界から同じ高さの1つの挿入空間を表示することを確認する。
+	 * 高さの大きい行を上方向へ移動した場合も、移動先境界から同じ高さの1つの挿入空間を表示することを確認する。
 	 *
 	 * 事前条件:
 	 * - 2行目の高さは100pxである。
@@ -172,8 +174,7 @@ describe( 'Row insertion gap', () => {
 	} );
 
 	/**
-	 * 概要:
-	 * - 押しのけ前の論理境界を維持しながら、スクロールによるTable全体の画面位置変化には追従することを確認する。
+	 * 押しのけ前の論理境界を維持しながら、スクロールによるTable全体の画面位置変化には追従することを確認する。
 	 *
 	 * 事前条件:
 	 * - 末尾の挿入空間が表示されている。
@@ -204,19 +205,20 @@ describe( 'Row insertion gap', () => {
 	} );
 
 	/**
-	 * 概要:
-	 * - DnD Interactionから有効な移動先がなくなった場合とDnD終了時に、挿入空間を残さないことを確認する。
+	 * 有効な移動先がない期間は挿入空間を消し、有効drop後は確定完了まで最後の挿入空間を維持することを確認する。
 	 *
 	 * 事前条件:
 	 * - 2行目が移動対象で、有効な移動先の挿入空間が表示されている。
 	 *
 	 * 操作:
-	 * - 有効な移動先をnullへ変更した後、別の有効な移動先を表示してDnDを終了する。
+	 * - ドラッグ中に移動先を失った後、再び有効な移動先へdropし、確定完了でidleへ戻す。
 	 *
 	 * 期待結果:
-	 * - nullでは表示せず、DnD終了後も一時的な挿入空間を残さない。
+	 * - ドラッグ中に移動先がない期間は表示しない。
+	 * - 有効drop直後は最後の挿入空間を維持する。
+	 * - 確定完了後は挿入空間を残さない。
 	 */
-	it( 'when there is no valid destination or the drag ends, should not leave an insertion gap', () => {
+	it( 'when a valid drop is committing, should keep the last gap until the DnD session becomes idle', () => {
 		const { rows } = createSourceTable();
 		const { rerender } = render( <RowInsertionGap /> );
 		startPhysicalDrag( rows[ 1 ] );
@@ -230,11 +232,13 @@ describe( 'Row insertion gap', () => {
 
 		mockDestinationBoundaryIndex = 4;
 		rerender( <RowInsertionGap /> );
-		expect( document.querySelector( '.yamabiko-table-reorder-insertion-gap' ) ).not.toBeNull();
-
 		act( () => {
 			mockDragDropMonitor.onDragEnd?.();
 		} );
+		expect( document.querySelector( '.yamabiko-table-reorder-insertion-gap' ) ).not.toBeNull();
+
+		mockRowDndPhase = 'idle';
+		rerender( <RowInsertionGap /> );
 		expect( document.querySelector( '.yamabiko-table-reorder-insertion-gap' ) ).toBeNull();
 	} );
 } );
