@@ -6,38 +6,36 @@
 
 入力は`docs/design/reorder-v1-design.md`および`docs/design/column-reorder-v1-design.md`とし、利用者向け設計を列専用の責務モデルへ落とし込む。
 
-本書はColumn Reorderだけを対象とする。Row Reorderの状態、責務、Contractは定義せず、Column Reorderから参照しない。
+本書はColumn Reorderだけを対象とする。Row Reorderの方向固有状態や列固有仕様を共有しない。一方、正式v1 Row Reorderで実装を通じて成立している責務境界、特にWordPress接続、DnD Engine接続、物理位置から論理移動先への変換、DnD Session状態の分離は、Column Reorderの責務分割を定める参照モデルとする。列固有要件が異なる場合だけColumn側で責務の意味を変更する。
 
-通常編集、行並び替え、列並び替えの入口、モード選択、排他状態、および選択中の並び替えモードが有効なTableの識別はColumn Reorderの外側にあるReorder Mode境界が所有する。初回案内の表示済み状態と、行・列の入口をまとめて提示する案内状態はColumn Reorderの外側にあるReorder Guidance境界が所有する。Column Reorderは、列並び替えが有効であることだけを受け取り、その有効期間における列DnDの状態とLifecycleを所有する。
-
-責務名はArchitecture上の概念名とし、列専用であることを責務名へ重複して付与しない。本書に定義するTable Integration、Reorder Target Resolution、DnD InteractionなどはすべてColumn Reorderの責務であり、Row Reorder側に同名の責務が存在しても共通実装または共有状態を意味しない。
+Architecture上の責務はソースファイル構成を写したものではない。実装単位が変わっても維持すべき責務、依存方向、状態所有を定義する。
 
 ## 2. Architecture Constraints
 
-- Row ReorderとColumn Reorderは独立した実装とし、両者の間に共通の並び替え抽象化または方向固有状態の共有を導入しない。
-- Reorder Mode境界はTableツールバーの行・列並び替え入口、`edit | row | column`の排他状態、および`row | column`が有効なTableを識別するための最小限のTable Identityを所有する。Table内容、行・列構造、移動対象、移動先、DnD Sessionその他の方向固有Table情報は所有しない。
-- `edit`では通常のTable編集を許可し、`row | column`では対象Tableの内容編集を開始させない。通常編集と並び替えモードの排他はReorder Modeが所有する。
-- Reorder Guidance境界はPC / タッチごとの初回案内表示済み状態と、Reorder Modeが所有する行・列の入口をまとめて提示する共通案内状態をColumn Reorderの外側で所有する。
-- 本書の責務名がRow ReorderのArchitectureと同一であっても、責務の同一性、実装共有、状態共有を意味しない。
-- Column Reorderは対応Table全体の論理列を移動対象とし、列順以外のTable内容を変更しない。
-- 論理列は`thead`、`tbody`、`tfoot`を通じて同じTable全体の列位置を表し、sectionごとに別の移動対象として扱わない。
-- Reorder Target Resolutionはactive DnD成立前に、Input Interactionが開始候補をDnD Engineへ接続する前と、DnD Engineがactive DnDを成立させる直前の二段階で現在のTable制約からReorder Targetの成立可否を解決し、その結果を開始試行を越えて共有状態として保持しない。
-- Reorder Target自体は移動する論理列だけを表し、開始時制約や開始不可理由をReorder Targetへ含めない。
-- 第二段階で開始可能と解決した列制約を開始時制約としてDnD Interactionへ引き継ぎ、active DnD Session中の移動先判定はその開始時制約を基準にする。`progress`ごとにTable Integrationから現在構造を取得し直さない。
-- 列DnD中はTableデータを並べ替えず、`complete`時に現在のTable構造へ再照合し、成立する場合だけTable Integrationの列更新境界を利用して列順を更新する。
-- Table Integrationは1回の成立した列移動をTable全体への1回の確定済み更新として反映する。`thead`、`tbody`、`tfoot`を部分的に個別確定せず、WordPress Undo上も1回のUndo単位とする。
-- DnD Engineは物理入力の継続、物理的なDnD状態、現在の物理入力位置、および自動スクロールの実行を担う。Column Reorderは現在の物理入力位置から対象Table内の移動先候補を解決して意味状態へ変換し、DnD Engine固有の物理状態を列DnD Sessionへ保持しない。
-- 列DnDに必要な開始候補のDnD Engineへの接続は、列並び替えモード開始時にTable全体へ固定的に準備せず、そのDnDで必要になった時点だけ一時的に成立させる。移動先候補はDnD Engineへ登録せず、Column Reorderが現在の物理入力位置から解決する。
+- Row ReorderとColumn Reorderは独立した実装とし、両者の間に方向固有状態または共通の並び替え抽象化を導入しない。
+- RequirementsおよびDesignに反しない範囲では、正式v1 Row Reorderで成立している責務境界と依存方向をColumn Reorderの参照モデルとする。
+- Reorder ModeはWordPress UIを所有せず、`edit | row | column`の排他状態と対象Table Identity、およびTable単位のLifecycleだけを所有する。
+- WordPress Reorder IntegrationはTableツールバー入口、通常編集抑止、現在TableとReorder Modeの接続、およびColumn DnD Engine Integrationの有効化を所有する。
+- Reorder Guidanceは現在表示中の共通案内状態だけを所有する。PC / タッチごとの初回案内表示済み状態、操作環境判定、WordPress preferencesへの永続化はReorder Guidance Integrationが所有する。
+- Editor DOM Contextは現在のeditor contextを要求時点で解決し、以前のcontextへfallbackしない。
+- Input Interactionは列DnDの開始入力と第一段階Reorder Target Resolutionだけを扱い、Reorder Mode、Editor DOM Context、DnD Interactionの状態やLifecycleを直接参照しない。
+- Column DnD Engine IntegrationはDnD Engine固有のLifecycleをColumn Reorderへ接続し、第二段階Reorder Target Resolution、Destination Resolution、DnD Interactionへの橋渡しを所有する。
+- Destination ResolutionはDnD Engineの物理入力位置と対象TableのDnD開始時配置を論理的な列間境界へ変換する。Table構造上その境界へ移動できるかの判定は所有しない。
+- Reorder Target Resolutionはactive DnD成立前に、Input Interactionによる第一段階とColumn DnD Engine Integrationによる第二段階の二回、要求時点のTable制約からReorder Targetの成立可否を解決する。
+- Reorder Target自体は移動する論理列だけを表し、開始時制約や開始不可理由を含めない。
+- 第二段階で開始可能と解決した列制約をDnD InteractionのSession開始時制約として引き継ぐ。
+- DnD InteractionはDnD Engine固有の物理入力位置を保持せず、Destination Resolutionで解決済みの論理列間境界だけを受け取る。
+- `progress`ではSession開始時制約を基準に論理列間境界の有効性を判定し、Table Integrationから現在構造を取得し直さない。
+- `complete`では現在のTable構造を取得し直し、Reorder Targetと最終移動先が現在も成立する場合だけTable Integrationへ確定済み列移動を要求する。
+- 列DnD中はTableデータを並べ替えない。
+- Table Integrationは指定されたTable Identityに対して現在列制約と確定済み列移動の反映能力を提供する。Table Identity自体の所有または発行は行わない。
+- Table Integrationは1回の成立した列移動を`thead`、`tbody`、`tfoot`を含むTable全体への1回の更新として反映し、WordPress Undo上も1回のUndo単位とする。
 - DnD Engineが提供する標準の移動表示は利用せず、列DnD中の利用者向け表示はReorder Presentationが独立して所有する。
-- 列DnDの自動スクロールはDnD Engineの機能として扱い、列の移動に必要な横方向だけを有効にする。Column Reorderに独立した自動スクロール責務または状態を持たせない。
-- 対応Table BlockやEditor環境の差は、Column Reorderの利用者向け挙動へ漏らさず、それぞれを所有する境界で吸収する。
-- 正常な不在、外部環境変化による継続不能、内部仕様またはruntime invariant違反を区別する。
-- 内部Errorは利用者向け通知の理由とせず、外部環境変化等についてDesignで定義される利用者向け通知要否とは分離する。
-- 型で表現できる状態相関は型と状態モデルで保証し、runtime assertionへ戻さない。runtime assertionはColumn Reorderが所有し、型だけでは保証できない値レベルのInvariantに限定する。
-- 実装の単純さと保守性を、想定外のError発生後にColumn Reorder全体を完全復旧することより優先する。
-- Column Reorder内部のContractまたはruntime invariant違反はErrorとして扱う。
-- 内部Errorは原則として握りつぶさず、正常な結果へ変換しない。
-- 外部環境変化による継続不能は内部Errorとして扱わず、通常の終了結果として扱う。
+- 列DnDの自動スクロールはDnD Engineの機能として扱い、横方向だけを有効にする。
+- 対応Table Block固有の保存表現はTable Integration、WordPress固有のUIと永続化はWordPress Integration境界、DnD Engine固有のLifecycleとイベントはColumn DnD Engine IntegrationまたはDestination Resolutionで吸収する。
+- 正常な利用不能、cancel、外部環境変化による継続不能、内部Contractまたはruntime invariant違反を区別する。
+- 内部Errorは原則として握りつぶさず正常結果へ変換しない。内部Errorそのものを利用者向け通知理由としない。
+- 外部環境変化による継続不能は内部Errorとして扱わず、安全な終了結果として扱う。
 - Performanceの責任境界は、対応Table Block本体の属性更新・再描画性能ではなく、Column Reorder自身が追加する並び替え処理のコストとする。
 
 ## 3. Context and Scope
@@ -46,59 +44,60 @@
 
 | ID | Name | Type | Summary |
 | --- | --- | --- | --- |
-| EXT_WORDPRESS_EDITOR | WordPress Editor | External System | `QR-02`で保証対象とする編集環境を提供し、Column Reorderの入力と表示が存在する。 |
-| EXT_SUPPORTED_TABLE_BLOCK | Supported Table Block | External Block | `FR-13`で定義されるCore TableまたはFlexible Table Blockであり、Table Integrationを介してTable全体の列構造取得と列順更新を行う対象。 |
+| EXT_WORDPRESS_EDITOR | WordPress Editor | External System | 対応Tableのツールバー、既存Block wrapper、入力、および列DnD表示が存在する編集環境を提供する。 |
+| EXT_SUPPORTED_TABLE_BLOCK | Supported Table Block | External Block | Core TableまたはFlexible Table Blockとして、Table Integrationが列制約取得と列順更新を行う対象を提供する。 |
 | EXT_WORDPRESS_UNDO | WordPress Undo | External Capability | 成立した1回の列並び替えを1回のUndoで戻せる更新単位を提供する。 |
+| EXT_WORDPRESS_PREFERENCES | WordPress Preferences | External Capability | PC / タッチごとの初回案内表示済み状態を永続化する。 |
 | EXT_SCROLL_AREA | Editor Scroll Area | External Environment | 列DnD中に横方向へ自動スクロールする対象領域を提供する。 |
-| EXT_DND_ENGINE | DnD Engine | External Library | 物理入力の継続、物理的なDnD状態、現在の物理入力位置、および自動スクロール実行を提供する。 |
+| EXT_DND_ENGINE | DnD Engine | External Library | 物理DnDの開始候補登録、開始・移動・終了Lifecycle、物理入力情報、および自動スクロールを提供する。 |
 
-Column ReorderはWordPress Editor、対応Table Block、WordPress Undo、Editor Scroll Area、およびDnD Engineと接続する。対応Table Blockの具体的な対象とEditor環境の保証範囲はRequirementsを正本とし、本書では再定義しない。
-
-Editor DOM ContextはWordPress Editorの現在のeditor contextからDOM / Web APIを利用するためのcontextを解決する。Table IntegrationはSupported Table Blockとの差を吸収し、Table全体の列構造と1回の確定済み更新を提供する。Reorder Target Resolutionはactive DnD成立前に現在列制約から論理列の成立可否を解決する。DnD EngineはColumn Reorderの物理的なDnD進行と、列DnD中の横方向の自動スクロールを担う。
+WordPress固有のUI接続と永続化はColumn Reorderの意味責務から分離する。DnD Engine固有のイベントはColumn DnD Engine IntegrationとDestination Resolutionで吸収し、DnD Interactionへは列DnDの意味状態だけを渡す。
 
 ## 4. Solution Strategy
 
-Column Reorderは、モード境界、共通入口案内境界、editor context、入力、Table Block差、開始対象解決、DnD Engine、DnD Session、表示を別責務または外部境界として扱う。移動対象の開始可否はReorder Target Resolution、Session開始後の移動先判定はDnD Interaction、Table全体への列更新はTable Integrationが所有する。
+Column Reorderは、共通状態、WordPress接続、入力、開始対象解決、DnD Engine接続、物理位置から論理境界への変換、DnD Session、Table Block差、表示を別責務として扱う。
 
-Table IntegrationはTable全体を一つの列構造として解釈できる情報を提供し、`colspan`により単独移動できない論理列と、結合セルを分断せずTable構造を保てる列間の挿入可能境界をColumn Reorder側で判断できる境界を形成する。対応Table Block固有の属性表現やsectionごとの保存形式は他責務へ漏らさない。
+Reorder Modeは排他状態とTable単位Lifecycleだけを所有し、WordPress Reorder IntegrationがTableツールバー入口と既存Block wrapperをReorder Modeへ接続する。Reorder Guidanceは現在表示中の案内状態だけを所有し、Reorder Guidance IntegrationがEditor環境、WordPress preferences、Reorder Modeとの接続を所有する。
 
-Input Interactionは列並び替えが有効な期間に入力方式固有の開始条件を判断し、開始候補をReorder Target Resolutionへ渡して現在の開始可否を事前解決する。開始可能な候補だけを必要な時点でDnD Engineへ接続する。
+Input InteractionはWordPress Reorder IntegrationからColumn DnD Engine Integrationを通じて有効化され、入力方式固有の開始条件を判断する。開始候補はReorder Target Resolutionで第一段階解決し、開始可能な場合だけDnD Engineへ一時的に登録する。Designで通知対象となる開始拒否理由はInput InteractionからReorder Presentationへ渡す。
 
-Reorder Target Resolutionはactive DnD成立前に二段階でTable Integrationから現在の列制約を取得し、Reorder TargetがTable全体で列単位の移動対象として成立するかを解決する。第二段階が成立した場合だけReorder Targetとその開始試行で利用する開始時制約をDnD Interactionへ引き継ぐ。
+Column DnD Engine IntegrationはDnD Engineのactive DnD成立直前にReorder Target Resolutionの第二段階を要求する。第二段階が成立した場合だけ解決済みReorder Targetと開始時制約をDnD Interactionへ渡し、DnD開始時にDestination ResolutionをそのDnDの論理配置へ接続する。
 
-DnD Interactionは第二段階で解決された開始時制約をSession中の基準として保持する。`progress`では現在の物理入力位置をTable全体の列間挿入位置へ変換し、開始時制約で構造を保てる位置だけを有効な移動先とする。`complete`では現在のTable構造を取得し直し、移動対象と最終移動先が現在も成立する場合だけTable Integrationへ1回の確定済み列移動を要求する。
+Destination ResolutionはDnD Engineの物理入力位置をDnD開始時のTable配置に対する論理列間境界へ変換する。スクロールによる対象Table全体の現在位置変化には追従してよいが、Presentationによる列の見かけ上の移動を論理移動先判定へ混入させない。結合セル制約による移動可否は判断しない。
 
-Reorder Presentationは移動対象列、垂直挿入線、実際に位置が変わる周囲列の移動、開始不可理由、およびDesignで定義された通知を表現する。ドラッグ中の列は元Tableの列幅とセル高さの配置関係を維持し、Tableの縦方向から不必要にはみ出さない表示を行う。
-
-自動スクロールは独立責務とせず、DnD Engineの機能として列DnDでは横方向だけを有効にする。
+DnD InteractionはDestination Resolutionで解決済みの論理列間境界をSession開始時制約へ照合し、有効な移動先だけを意味状態として保持する。`complete`では現在構造へ再照合し、成立する場合だけTable IntegrationへTable全体の列移動を要求する。
 
 ### Process Flow Views
 
 #### Column Reorder End-to-End {#PV_COLUMN_REORDER_END_TO_END kind=normal}
 
-WordPress Editorの入力から開始対象を事前解決し、開始可能な候補だけをDnD Engineへ接続する。active DnD成立直前に現在制約で再解決してから列DnDを開始し、complete時にも現在のTable構造で成立することを確認できた列移動だけをTable全体へ反映する主要な処理方向を示す。
+WordPress Editorの入力が共通統合境界からColumn DnD境界へ入り、第一段階Target Resolution、DnD Engineへの一時登録、第二段階Target Resolution、物理位置から論理境界への変換、DnD Session、Table全体の確定更新へ進む主要な処理方向を示す。
 
 | From | To | Kind | Meaning |
 | --- | --- | --- | --- |
-| EXT_WORDPRESS_EDITOR | RESP_COLUMN_INPUT_INTERACTION | normal | WordPress Editorの入力が列並び替えの入力境界へ入る。 |
-| RESP_COLUMN_INPUT_INTERACTION | RESP_COLUMN_TARGET_RESOLUTION | normal | 入力開始候補を現在制約で事前解決し、DnD Engineへ接続可能か確認する。 |
-| RESP_COLUMN_TARGET_RESOLUTION | RESP_COLUMN_TABLE_INTEGRATION | normal | active DnD成立前の各解決時点で現在列制約を取得し、Reorder Targetの成立可否を解決する。 |
-| RESP_COLUMN_TARGET_RESOLUTION | EXT_DND_ENGINE | normal | 第一段階で開始可能な候補だけを物理的なDnD開始境界へ進め、第二段階では開始可否結果を物理DnD成立へ反映する。 |
-| EXT_DND_ENGINE | RESP_COLUMN_TARGET_RESOLUTION | normal | active DnD成立直前にReorder Targetを現在制約で再解決する。 |
-| RESP_COLUMN_TARGET_RESOLUTION | RESP_COLUMN_DND_INTERACTION | normal | 第二段階で開始可能な場合だけReorder Targetと開始時制約をSession開始境界へ渡す。 |
-| RESP_COLUMN_DND_INTERACTION | RESP_COLUMN_TABLE_INTEGRATION | normal | complete時の現在構造取得と確定済み列移動の反映へ進む。 |
-| RESP_COLUMN_TABLE_INTEGRATION | EXT_SUPPORTED_TABLE_BLOCK | normal | 対応Table BlockからTable全体の列構造を取得し、確定時はTable全体の列順を1回で反映する。 |
+| EXT_WORDPRESS_EDITOR | RESP_WORDPRESS_REORDER_INTEGRATION | normal | 対応Tableの選択、ツールバー操作、既存Block wrapper上の入力がWordPress接続境界へ入る。 |
+| RESP_WORDPRESS_REORDER_INTEGRATION | RESP_COLUMN_DND_ENGINE_INTEGRATION | normal | 対象TableのColumn Reorder有効状態をDnD Engine接続境界へ反映する。 |
+| RESP_COLUMN_DND_ENGINE_INTEGRATION | RESP_COLUMN_INPUT_INTERACTION | normal | 有効なColumn DnD境界から開始入力処理へ進む。 |
+| RESP_COLUMN_INPUT_INTERACTION | RESP_COLUMN_TARGET_RESOLUTION | normal | 開始候補を第一段階の現在制約で事前解決する。 |
+| RESP_COLUMN_INPUT_INTERACTION | EXT_DND_ENGINE | normal | 第一段階で開始可能な候補だけを物理DnD開始候補として一時登録する。 |
+| EXT_DND_ENGINE | RESP_COLUMN_DND_ENGINE_INTEGRATION | normal | active DnD成立前後の物理LifecycleをColumn Reorder接続境界へ通知する。 |
+| RESP_COLUMN_DND_ENGINE_INTEGRATION | RESP_COLUMN_TARGET_RESOLUTION | normal | active DnD成立直前に同じReorder Targetを第二段階の現在制約で再解決する。 |
+| RESP_COLUMN_DND_ENGINE_INTEGRATION | RESP_COLUMN_DESTINATION_RESOLUTION | normal | active DnDの物理移動を論理列間境界の解決へ進める。 |
+| RESP_COLUMN_DND_ENGINE_INTEGRATION | RESP_COLUMN_DND_INTERACTION | normal | 解決済み開始情報、論理列間境界、終了種別を列DnD Sessionへ渡す。 |
+| RESP_COLUMN_DND_INTERACTION | RESP_COLUMN_TABLE_INTEGRATION | normal | complete時に現在構造の再照合と確定済み列移動の反映へ進む。 |
+| RESP_COLUMN_TABLE_INTEGRATION | EXT_SUPPORTED_TABLE_BLOCK | normal | 現在列制約を取得し、確定時はTable全体の列順を反映する。 |
 
 #### External Environment Change and Recovery {#PV_COLUMN_EXTERNAL_CHANGE_RECOVERY kind=failure-recovery}
 
-EditorまたはTableの外部状態変化によってactiveな列DnDを継続または確定できなくなった場合に、内部Errorとして扱わず、通常の終了経路として安全に列DnDを終了する処理方向を示す。
+active DnDの物理Lifecycleがcancelとなる場合、またはcomplete時の現在Tableが安全に利用できない場合に、新しい列順を確定せずSessionを終了する処理方向を示す。
 
 | From | To | Kind | Meaning |
 | --- | --- | --- | --- |
-| RESP_COLUMN_INPUT_INTERACTION | RESP_COLUMN_DND_INTERACTION | failure | 現在のEditor contextを利用できないなど、外部環境変化による継続不能を通常の終了結果として渡す。 |
-| RESP_COLUMN_TABLE_INTEGRATION | RESP_COLUMN_DND_INTERACTION | failure | 対象Tableが現在利用できない、または更新開始前に現在更新できないなど、外部Table状態の変化による継続不能・確定不能を通常の結果として返す。 |
-| RESP_COLUMN_DND_INTERACTION | RESP_COLUMN_PRESENTATION | recovery | DnD中だけの表示状態を解除し、安全な操作継続不能による終了ではDesignで定義された通知を要求する。 |
-| RESP_COLUMN_DND_INTERACTION | RESP_REORDER_MODE | recovery | DnD終了後に現在のTableで列並び替えモードを安全に継続できるかを外側のモード境界へ渡す。 |
+| EXT_DND_ENGINE | RESP_COLUMN_DND_ENGINE_INTEGRATION | failure | 物理DnDがcancelまたは継続不能として終了する。 |
+| RESP_COLUMN_DND_ENGINE_INTEGRATION | RESP_COLUMN_DND_INTERACTION | recovery | 物理DnDの終了種別を列DnD Sessionのcancelへ接続する。 |
+| RESP_COLUMN_TABLE_INTEGRATION | RESP_COLUMN_DND_INTERACTION | failure | complete時の現在Table利用不能または更新不能を安全な確定不能結果として返す。 |
+| RESP_COLUMN_DND_INTERACTION | RESP_COLUMN_PRESENTATION | recovery | DnD中表示を終了し、Designで通知対象となる確定不能だけを一回性通知へ反映する。 |
+| RESP_COLUMN_DND_INTERACTION | RESP_REORDER_MODE | recovery | Session終了後に対象Tableで列並び替えを継続できるかだけを共通モード状態へ反映する。 |
 
 ## 5. Building Block View
 
@@ -106,14 +105,18 @@ EditorまたはTableの外部状態変化によってactiveな列DnDを継続ま
 
 | ID | Responsibility | Summary |
 | --- | --- | --- |
-| RESP_REORDER_MODE | Reorder Mode | Tableツールバーの行・列入口、`edit | row | column`の排他状態、および選択中モードのTable単位Lifecycleを所有する外側の境界。 |
-| RESP_REORDER_GUIDANCE | Reorder Guidance | PC / タッチごとの初回案内表示済み状態と、Reorder Modeが所有する行・列入口をまとめて提示する共通案内状態を所有する外側の境界。 |
-| RESP_EDITOR_DOM_CONTEXT | Editor DOM Context | 現在のWordPress Editorに属するDOM / Web API contextを必要な時点で解決する。 |
-| RESP_COLUMN_INPUT_INTERACTION | Input Interaction | PCとタッチ端末の開始条件を解釈し、開始候補をReorder Target Resolutionで事前解決して、開始可能な候補だけをDnD Engineへ接続する。 |
-| RESP_COLUMN_TABLE_INTEGRATION | Table Integration | 対応Table Blockとの差を吸収し、列並び替えに必要なTable同一性、Table全体の現在列構造、列更新境界、およびWordPress Undoとの境界を提供する。 |
-| RESP_COLUMN_TARGET_RESOLUTION | Reorder Target Resolution | active DnD成立前に現在の列制約から論理列の成立可否を二段階で解決し、開始可能な場合はそのDnDで利用する開始時制約を導出する。 |
-| RESP_COLUMN_DND_INTERACTION | DnD Interaction | DnD Engineの物理的なDnD進行をColumn Reorderの意味状態へ変換し、列DnD Session、移動先判定、確定、中止のLifecycleを所有する。 |
-| RESP_COLUMN_PRESENTATION | Reorder Presentation | Column Reorderの意味状態と必要な物理的DnD情報から、列DnD中の独立した視覚フィードバックとDesignで定義された通知を表現する。 |
+| RESP_REORDER_MODE | Reorder Mode | `edit | row | column`の排他状態、対象Table Identity、およびTable単位のモードLifecycleを所有する共通状態責務。 |
+| RESP_REORDER_GUIDANCE | Reorder Guidance | 現在どのTableへどの操作環境の共通入口案内を表示しているかという一時状態だけを所有する共通状態責務。 |
+| RESP_EDITOR_DOM_CONTEXT | Editor DOM Context | 現在のEditor DOM基準から、その表示環境に属するDOM / Web API contextを要求時点で解決する。 |
+| RESP_WORDPRESS_REORDER_INTEGRATION | WordPress Reorder Integration | Tableツールバー入口、通常編集抑止、現在TableとReorder Mode、および方向固有DnD境界をWordPress Editorへ接続する。 |
+| RESP_REORDER_GUIDANCE_INTEGRATION | Reorder Guidance Integration | 初回案内の表示契機、操作環境判定、WordPress preferences永続化、Reorder Mode選択による案内終了を接続する。 |
+| RESP_COLUMN_INPUT_INTERACTION | Input Interaction | PC / タッチの開始条件を解釈し、開始候補を第一段階Target Resolutionで事前解決して、開始可能な候補だけをDnD Engineへ登録する。 |
+| RESP_COLUMN_DND_ENGINE_INTEGRATION | DnD Engine Integration | DnD Engineの物理Lifecycleを第二段階Target Resolution、Destination Resolution、DnD Interactionへ接続し、そのDnDだけの接続一時状態を所有する。 |
+| RESP_COLUMN_DESTINATION_RESOLUTION | Destination Resolution | DnD Engineの物理入力位置をDnD開始時のTable配置に対する論理列間境界へ変換する。 |
+| RESP_COLUMN_TABLE_INTEGRATION | Table Integration | 指定された対応Tableの現在列制約取得、Table全体の確定済み列移動、およびWordPress Undo境界を提供する。 |
+| RESP_COLUMN_TARGET_RESOLUTION | Reorder Target Resolution | active DnD成立前に現在列制約から論理列の開始可否を二段階で解決し、開始可能時は開始時制約を返す。 |
+| RESP_COLUMN_DND_INTERACTION | DnD Interaction | 解決済みReorder Targetから始まる列DnD Session、論理移動先の有効性、確定、cancel、終了後モード解決を所有する。 |
+| RESP_COLUMN_PRESENTATION | Reorder Presentation | 開始不可、移動対象、垂直挿入位置、周囲列移動、終了通知をColumn Reorderの独立表示として表現する。 |
 
 ### Ownership Boundaries
 
@@ -121,44 +124,53 @@ EditorまたはTableの外部状態変化によってactiveな列DnDを継続ま
 | --- | --- | --- |
 | BOUNDARY_REORDER_COMMON | Reorder Common | RESP_REORDER_MODE RESP_REORDER_GUIDANCE |
 | BOUNDARY_EDITOR_INTEGRATION | Editor Integration | RESP_EDITOR_DOM_CONTEXT |
-| BOUNDARY_COLUMN_REORDER | Column Reorder | RESP_COLUMN_INPUT_INTERACTION RESP_COLUMN_TABLE_INTEGRATION RESP_COLUMN_TARGET_RESOLUTION RESP_COLUMN_DND_INTERACTION RESP_COLUMN_PRESENTATION |
-| BOUNDARY_WORDPRESS_INTEGRATION | WordPress Integration | EXT_WORDPRESS_EDITOR EXT_SUPPORTED_TABLE_BLOCK EXT_WORDPRESS_UNDO EXT_SCROLL_AREA |
+| BOUNDARY_WORDPRESS_REORDER | WordPress Reorder Integration | RESP_WORDPRESS_REORDER_INTEGRATION RESP_REORDER_GUIDANCE_INTEGRATION |
+| BOUNDARY_COLUMN_REORDER | Column Reorder | RESP_COLUMN_INPUT_INTERACTION RESP_COLUMN_DND_ENGINE_INTEGRATION RESP_COLUMN_DESTINATION_RESOLUTION RESP_COLUMN_TABLE_INTEGRATION RESP_COLUMN_TARGET_RESOLUTION RESP_COLUMN_DND_INTERACTION RESP_COLUMN_PRESENTATION |
+| BOUNDARY_WORDPRESS_EXTERNAL | WordPress External | EXT_WORDPRESS_EDITOR EXT_SUPPORTED_TABLE_BLOCK EXT_WORDPRESS_UNDO EXT_WORDPRESS_PREFERENCES EXT_SCROLL_AREA |
 
 ### Dependencies
 
 | Dependent | Depends on | Reason |
 | --- | --- | --- |
-| RESP_REORDER_MODE | EXT_WORDPRESS_EDITOR | WordPress Editor上のTableツールバー入口、通常編集と行・列並び替えの排他、および対象Table単位のモードLifecycleを扱うために必要とする。 |
-| RESP_REORDER_GUIDANCE | EXT_WORDPRESS_EDITOR | 初回案内の表示契機、および行・列の入口をまとめて提示する編集環境を必要とする。 |
-| RESP_REORDER_GUIDANCE | RESP_EDITOR_DOM_CONTEXT | 共通入口案内を現在のeditor contextで表現するために必要とする。 |
-| RESP_REORDER_GUIDANCE | RESP_REORDER_MODE | Reorder Modeが所有する行・列入口の案内と、入口選択による案内終了を整合させるために必要とする。 |
-| RESP_EDITOR_DOM_CONTEXT | EXT_WORDPRESS_EDITOR | 現在のeditor contextを解決するために現在のWordPress Editorを必要とする。 |
-| RESP_COLUMN_INPUT_INTERACTION | EXT_WORDPRESS_EDITOR | PCまたはタッチ端末の開始入力を判断するために必要とする。 |
-| RESP_COLUMN_INPUT_INTERACTION | RESP_EDITOR_DOM_CONTEXT | 入力開始時の現在のeditor contextを利用するために必要とする。 |
-| RESP_COLUMN_INPUT_INTERACTION | RESP_REORDER_MODE | 列並び替えが有効な期間だけ列入力を受理するために必要とする。 |
-| RESP_COLUMN_INPUT_INTERACTION | RESP_COLUMN_TARGET_RESOLUTION | 入力開始候補を現在制約で事前解決し、開始可能な列だけをDnD Engineへ接続するために必要とする。 |
-| RESP_COLUMN_INPUT_INTERACTION | EXT_DND_ENGINE | 開始可能と解決された列だけを物理的なDnD開始候補へ接続し、DnD終了またはcancelを検知して自身の一時状態を終了するために必要とする。 |
-| RESP_COLUMN_TABLE_INTEGRATION | EXT_SUPPORTED_TABLE_BLOCK | 対応Table Block固有のTable全体の列構造取得と列順更新を行うために必要とする。 |
-| RESP_COLUMN_TABLE_INTEGRATION | EXT_WORDPRESS_UNDO | 成立した1回の列並び替えを1回のUndoで戻せる更新単位を維持するために必要とする。 |
-| RESP_COLUMN_TARGET_RESOLUTION | RESP_COLUMN_TABLE_INTEGRATION | active DnD成立前の各解決時点で現在列制約を取得し、論理列が列単位の移動対象として成立するか解決するために必要とする。 |
-| RESP_COLUMN_DND_INTERACTION | EXT_DND_ENGINE | 物理的なDnD開始成立後の進行と現在の物理入力位置をColumn ReorderのSession意味状態へ変換するために必要とする。 |
-| RESP_COLUMN_DND_INTERACTION | RESP_REORDER_MODE | DnD Interactionがモード状態を所有せず、DnD終了後のモードLifecycle判断をReorder Modeの責務として成立させるために必要とする。 |
-| RESP_COLUMN_DND_INTERACTION | RESP_COLUMN_TABLE_INTEGRATION | complete時の現在構造への再照合、および確定したTable全体の列移動の反映に必要とする。 |
-| RESP_COLUMN_PRESENTATION | RESP_EDITOR_DOM_CONTEXT | 現在のeditor contextで列DnDの表示を行うために必要とする。 |
-| RESP_COLUMN_PRESENTATION | EXT_DND_ENGINE | 列DnDの表示に必要な物理的なDnD情報をSessionへ取り込まず利用するために必要とする。 |
-| RESP_COLUMN_PRESENTATION | RESP_COLUMN_TARGET_RESOLUTION | Designで利用者へ提示する開始不可理由を、制約判定を重複させず表示へ反映するために必要とする。 |
-| RESP_COLUMN_PRESENTATION | RESP_COLUMN_DND_INTERACTION | 現在の有効な移動先、終了時の表示解除、およびDesign上の終了通知要否を表示状態へ反映するために必要とする。 |
+| RESP_EDITOR_DOM_CONTEXT | EXT_WORDPRESS_EDITOR | 現在のEditor DOM基準と同じ表示環境のcontextを解決するために必要とする。 |
+| RESP_WORDPRESS_REORDER_INTEGRATION | EXT_WORDPRESS_EDITOR | Tableツールバー、現在Tableの編集面、WordPress側Lifecycleへ接続するために必要とする。 |
+| RESP_WORDPRESS_REORDER_INTEGRATION | RESP_REORDER_MODE | ツールバー選択、通常編集抑止、対象Table単位の現在モードを接続するために必要とする。 |
+| RESP_WORDPRESS_REORDER_INTEGRATION | RESP_COLUMN_DND_ENGINE_INTEGRATION | 対象Tableの列並び替え有効状態を方向固有DnD境界へ接続するために必要とする。 |
+| RESP_REORDER_GUIDANCE_INTEGRATION | EXT_WORDPRESS_EDITOR | 初回案内の表示契機とWordPress Editor上の表示位置を接続するために必要とする。 |
+| RESP_REORDER_GUIDANCE_INTEGRATION | EXT_WORDPRESS_PREFERENCES | PC / タッチごとの初回案内表示済み状態を永続化するために必要とする。 |
+| RESP_REORDER_GUIDANCE_INTEGRATION | RESP_EDITOR_DOM_CONTEXT | 現在のEditor DOMに対する操作環境を解決するために必要とする。 |
+| RESP_REORDER_GUIDANCE_INTEGRATION | RESP_REORDER_GUIDANCE | 現在の共通入口案内状態を開始・終了するために必要とする。 |
+| RESP_REORDER_GUIDANCE_INTEGRATION | RESP_REORDER_MODE | いずれかの並び替え入口選択を案内終了条件として扱うために必要とする。 |
+| RESP_COLUMN_INPUT_INTERACTION | RESP_COLUMN_TARGET_RESOLUTION | 入力開始候補を第一段階の現在制約で解決するために必要とする。 |
+| RESP_COLUMN_INPUT_INTERACTION | EXT_DND_ENGINE | 開始可能な候補だけを物理DnD開始候補として一時登録するために必要とする。 |
+| RESP_COLUMN_INPUT_INTERACTION | RESP_COLUMN_PRESENTATION | 第一段階でDesign上の開始拒否理由が返った場合に一回性の利用者向け通知へ接続するために必要とする。 |
+| RESP_COLUMN_DND_ENGINE_INTEGRATION | RESP_COLUMN_INPUT_INTERACTION | DnD Engine境界の配下で列開始入力を有効化し、開始候補登録を接続するために必要とする。 |
+| RESP_COLUMN_DND_ENGINE_INTEGRATION | EXT_DND_ENGINE | 物理DnDの開始前、開始、移動、終了Lifecycleを受け取るために必要とする。 |
+| RESP_COLUMN_DND_ENGINE_INTEGRATION | RESP_COLUMN_TARGET_RESOLUTION | active DnD成立直前の第二段階開始可否を解決するために必要とする。 |
+| RESP_COLUMN_DND_ENGINE_INTEGRATION | RESP_COLUMN_DESTINATION_RESOLUTION | 物理DnD移動を論理列間境界へ変換するために必要とする。 |
+| RESP_COLUMN_DND_ENGINE_INTEGRATION | RESP_COLUMN_DND_INTERACTION | 解決済み開始情報、論理移動先、終了種別を列DnD Sessionへ接続するために必要とする。 |
+| RESP_COLUMN_DND_ENGINE_INTEGRATION | RESP_COLUMN_PRESENTATION | 同じDnD Engine境界で独立したColumn Reorder表示を活動させるために必要とする。 |
+| RESP_COLUMN_DESTINATION_RESOLUTION | EXT_DND_ENGINE | 現在の物理入力位置を論理列間境界へ変換するためにDnD Engineの移動情報を必要とする。 |
+| RESP_COLUMN_TABLE_INTEGRATION | EXT_SUPPORTED_TABLE_BLOCK | 対応Table Block固有の列構造取得と列順更新を行うために必要とする。 |
+| RESP_COLUMN_TABLE_INTEGRATION | EXT_WORDPRESS_UNDO | 成立した1回の列移動を1回のUndo単位として維持するために必要とする。 |
+| RESP_COLUMN_TARGET_RESOLUTION | RESP_COLUMN_TABLE_INTEGRATION | 要求時点の現在列制約から論理列の開始可否と開始時制約を解決するために必要とする。 |
+| RESP_COLUMN_DND_INTERACTION | RESP_COLUMN_TABLE_INTEGRATION | complete時の現在構造再照合、確定済み列移動、終了後の対象Table継続可否確認に必要とする。 |
+| RESP_COLUMN_DND_INTERACTION | RESP_REORDER_MODE | Session終了後に対象Tableで列並び替えを安全に継続できるかだけを現在モードへ反映するために必要とする。 |
+| RESP_COLUMN_PRESENTATION | RESP_EDITOR_DOM_CONTEXT | 現在のEditor DOM contextで一時表示を配置するために必要とする。 |
+| RESP_COLUMN_PRESENTATION | EXT_DND_ENGINE | 移動対象表示等に必要な物理DnD情報をSessionへ複製せず利用するために必要とする。 |
+| RESP_COLUMN_PRESENTATION | RESP_COLUMN_TARGET_RESOLUTION | 操作可能列の事前表示等で開始可否の意味を重複判定せず利用するために必要とする。 |
+| RESP_COLUMN_PRESENTATION | RESP_COLUMN_DND_INTERACTION | active状態と現在の有効移動先を購読し、終了通知を受け取るために必要とする。 |
 | EXT_DND_ENGINE | EXT_SCROLL_AREA | 列DnD中に横方向の自動スクロールを実行する対象領域として必要とする。 |
 
 ### Dependency Views
 
 | ID | Name | Includes |
 | --- | --- | --- |
-| DV_COLUMN_RESPONSIBILITY | Responsibility View | EXT_WORDPRESS_EDITOR EXT_SUPPORTED_TABLE_BLOCK EXT_WORDPRESS_UNDO EXT_SCROLL_AREA EXT_DND_ENGINE RESP_REORDER_MODE RESP_REORDER_GUIDANCE RESP_EDITOR_DOM_CONTEXT RESP_COLUMN_INPUT_INTERACTION RESP_COLUMN_TABLE_INTEGRATION RESP_COLUMN_TARGET_RESOLUTION RESP_COLUMN_DND_INTERACTION RESP_COLUMN_PRESENTATION |
-| DV_COLUMN_EDITOR_INTERACTION | Editor Interaction | EXT_WORDPRESS_EDITOR EXT_DND_ENGINE RESP_REORDER_MODE RESP_REORDER_GUIDANCE RESP_EDITOR_DOM_CONTEXT RESP_COLUMN_INPUT_INTERACTION RESP_COLUMN_TARGET_RESOLUTION |
-| DV_COLUMN_DND_CORE | DnD Core | EXT_SUPPORTED_TABLE_BLOCK EXT_DND_ENGINE RESP_REORDER_MODE RESP_COLUMN_INPUT_INTERACTION RESP_COLUMN_TABLE_INTEGRATION RESP_COLUMN_TARGET_RESOLUTION RESP_COLUMN_DND_INTERACTION |
-| DV_COLUMN_FEEDBACK | DnD Feedback | EXT_SCROLL_AREA EXT_DND_ENGINE RESP_EDITOR_DOM_CONTEXT RESP_COLUMN_TARGET_RESOLUTION RESP_COLUMN_DND_INTERACTION RESP_COLUMN_PRESENTATION |
-| DV_COLUMN_DATA_UPDATE | Table Update | EXT_SUPPORTED_TABLE_BLOCK EXT_WORDPRESS_UNDO RESP_COLUMN_DND_INTERACTION RESP_COLUMN_TABLE_INTEGRATION |
+| DV_COLUMN_RESPONSIBILITY | Responsibility View | EXT_WORDPRESS_EDITOR EXT_SUPPORTED_TABLE_BLOCK EXT_WORDPRESS_UNDO EXT_WORDPRESS_PREFERENCES EXT_SCROLL_AREA EXT_DND_ENGINE RESP_REORDER_MODE RESP_REORDER_GUIDANCE RESP_EDITOR_DOM_CONTEXT RESP_WORDPRESS_REORDER_INTEGRATION RESP_REORDER_GUIDANCE_INTEGRATION RESP_COLUMN_INPUT_INTERACTION RESP_COLUMN_DND_ENGINE_INTEGRATION RESP_COLUMN_DESTINATION_RESOLUTION RESP_COLUMN_TABLE_INTEGRATION RESP_COLUMN_TARGET_RESOLUTION RESP_COLUMN_DND_INTERACTION RESP_COLUMN_PRESENTATION |
+| DV_COLUMN_EDITOR_INTEGRATION | Editor Integration | EXT_WORDPRESS_EDITOR EXT_WORDPRESS_PREFERENCES RESP_REORDER_MODE RESP_REORDER_GUIDANCE RESP_EDITOR_DOM_CONTEXT RESP_WORDPRESS_REORDER_INTEGRATION RESP_REORDER_GUIDANCE_INTEGRATION RESP_COLUMN_DND_ENGINE_INTEGRATION |
+| DV_COLUMN_DND_CORE | DnD Core | EXT_DND_ENGINE RESP_COLUMN_INPUT_INTERACTION RESP_COLUMN_DND_ENGINE_INTEGRATION RESP_COLUMN_DESTINATION_RESOLUTION RESP_COLUMN_TABLE_INTEGRATION RESP_COLUMN_TARGET_RESOLUTION RESP_COLUMN_DND_INTERACTION |
+| DV_COLUMN_FEEDBACK | DnD Feedback | EXT_DND_ENGINE RESP_EDITOR_DOM_CONTEXT RESP_COLUMN_TARGET_RESOLUTION RESP_COLUMN_DND_INTERACTION RESP_COLUMN_PRESENTATION |
+| DV_COLUMN_DATA_UPDATE | Table Update | EXT_SUPPORTED_TABLE_BLOCK EXT_WORDPRESS_UNDO RESP_COLUMN_TABLE_INTEGRATION RESP_COLUMN_DND_INTERACTION |
 
 ### Responsibility Details
 
@@ -166,344 +178,470 @@ EditorまたはTableの外部状態変化によってactiveな列DnDを継続ま
 
 ##### Responsibility
 
-Tableツールバーの「行を並び替え」「列を並び替え」の入口、入口選択、および`edit | row | column`の排他状態を所有する。Column Reorderへは列並び替えが有効であることだけを提供する。
+通常編集、行並び替え、列並び替えの排他状態と、その並び替えモードが有効なTableを所有する。WordPress UI自体は所有しない。
 
 ##### State ownership
 
-`edit | row | column`の排他状態と、`row | column`が現在どのTableに対して有効かを識別するための最小限のTable Identityを所有する。Table内容、行・列構造、移動対象、移動先、列DnD Session、Row Reorder内部状態は所有しない。
+`edit | row | column`の排他状態と、`row | column`が関連付くTable Identityを所有する。Table内容、方向固有制約、DnD Session、ツールバー表示状態、WordPress Editor状態を所有しない。
 
 ##### Contract
 
-入口選択を選択時のTable Identityへ関連付ける。選択中の入口を再選択した場合は`edit`へ戻し、別方向の入口を選択した場合は同じTableに対する選択方向を切り替える。Column Reorderへは対象Tableで列並び替えが有効であることだけを提供する。
+外側のWordPress Reorder Integrationから入口選択、現在Table観測、Table非アクティブ化を受ける。同じTableの選択中入口を再選択した場合は`edit`へ戻し、別方向を選択した場合は方向を切り替える。方向固有DnD終了後は、そのSession対象Tableで次の並び替えを安全に受けられるかという結果だけを受け取る。
 
 ##### Lifecycle
 
-`edit`から開始し、入口選択により`row`または`column`へ移行する。同じTable内では現在のモードを維持し、別Blockを選択した場合は`edit`へ戻る。DnDのcomplete、cancel、成立しないdropだけではReorder Modeを終了しない。
+`edit`から入口選択により`row`または`column`へ移行する。別Tableが操作対象になった場合は`edit`へ戻る。ツールバー統合境界の再生成だけでは状態を終了しない。complete、cancel、成立しないdropだけでも終了しない。
 
 ##### Invariants
 
 - 同時に有効なモードは一つだけとする。
 - `row | column`は必ず一つのTable Identityへ関連付ける。
-- Column ReorderへRow Reorderの内部状態、責務、Contractを公開しない。
-- Table内容、行・列構造、移動対象、移動先、DnD Sessionを所有しない。
+- WordPress UIと方向固有DnD Sessionを所有しない。
+- 過去のDnD終了結果で、すでに別モードまたは別Tableへ遷移した現在状態を上書きしない。
 
 #### Reorder Guidance {#RESP_REORDER_GUIDANCE}
 
 ##### Responsibility
 
-初めて利用する人への案内について、Reorder Modeが所有する「行を並び替え」と「列を並び替え」の入口をまとめて提示する外側の案内境界を所有する。
+現在表示中の初回共通案内について、対象Tableと操作環境だけを共通状態として所有する。
 
 ##### State ownership
 
-利用者についてPCとタッチ端末ごとの初回案内表示済み状態と、現在の共通入口案内状態を所有する。入口の選択状態、列DnD Session、Row Reorder内部状態は所有しない。
+現在表示中の案内のTable Identityと`pc | touch`だけを所有する。PC / タッチごとの永続的な表示済み状態、WordPress preferences、Reorder Mode、DnD Sessionは所有しない。
 
 ##### Contract
 
-設計で定義された初回案内条件を受け取り、必要な場合だけ行・列両方の入口を確認できる共通案内を提示する。いずれかの入口選択または案内終了で、その操作環境では表示済みとして扱う。
+Reorder Guidance Integrationから案内開始・終了を受け、現在表示中の共通案内状態だけを更新する。別Tableからの終了要求で現在の案内を誤って終了しない。
 
 ##### Lifecycle
 
-各操作環境で未表示の状態から表示契機により案内状態となり、入口選択または案内終了で表示済みとなる。
+案内開始で一時状態を生成し、利用者による案内終了またはいずれかのReorder入口選択をReorder Guidance Integrationが検出した時点で終了する。
 
 ##### Invariants
 
-- 初回案内では行・列両方の入口をまとめて提示する。
-- 初回案内表示済み状態をRow ReorderとColumn Reorderへ重複して所有させない。
-- 行または列固有のDnD Sessionや内部状態を共通案内状態として保持しない。
+- 永続的な表示済み状態を所有しない。
+- 行または列固有状態を共通案内状態へ保持しない。
+- 同じTable・同じ操作環境の案内を重複開始しない。
 
 #### Editor DOM Context {#RESP_EDITOR_DOM_CONTEXT}
 
 ##### Responsibility
 
-現在のWordPress Editorに属する基準から、その時点でDOM / Web APIを利用するためのeditor contextを解決する。
+現在のEditor DOMに属する基準要素から、その表示環境でDOM / Web APIを利用するためのcontextを解決する。
 
 ##### State ownership
 
-解決したcontextをeditor lifecycleをまたぐ永続状態として所有しない。Reorder Mode、Reorder Guidance、列DnD Session、Tableデータ、移動対象、移動先を所有しない。
+解決結果をeditor lifecycleをまたぐcacheとして所有しない。Reorder Mode、Guidance、DnD Session、Tableデータを所有しない。
 
 ##### Contract
 
-現在のeditor contextを安全に提供できる場合だけ、そのcontextを必要な責務へ提供する。現在のcontextを解決できない場合は、以前のcontextへfallbackせず正常な不在を返す。
+基準要素の現在の`ownerDocument`と対応する`window`を安全に提供できる場合だけcontextを返す。解決できない場合は以前のcontextまたは別Editor contextへfallbackしない。
 
 ##### Lifecycle
 
-DOM / Web APIを必要とする時点で現在のeditor contextを解決する。Editor lifecycleが変化した場合は現在の基準から解決し直す。
+DOM / Web APIを必要とする時点で現在の基準要素から解決する。
 
 ##### Invariants
 
-- 現在のWordPress Editorとは異なるcontextをfallbackとして提供しない。
 - iframe / non-iframeというEditor方式を利用側へ判定させない。
-- 現在のcontextを解決できない状態をColumn Reorder内部のInvariant違反として扱わない。
+- 現在の基準とは異なるcontextをfallbackとして提供しない。
+- context利用不能をColumn Reorder内部Errorへ変換しない。
+
+#### WordPress Reorder Integration {#RESP_WORDPRESS_REORDER_INTEGRATION}
+
+##### Responsibility
+
+Reorder Modeと方向固有DnD境界をWordPress EditorのTableツールバー、現在Tableの編集面、通常編集開始へ接続する。
+
+##### State ownership
+
+WordPress統合Lifecycleに必要な一時参照だけを扱い、Reorder Mode状態、列DnD Session、Table制約を重複所有しない。
+
+##### Contract
+
+対応Tableのツールバー入口をReorder Modeの状態変更へ接続する。現在Tableに対するモードを購読し、`column`の場合だけColumn DnD Engine Integrationを有効化する。`row | column`では通常編集開始を抑止し、`edit`ではWordPress本来の編集入力へ戻す。
+
+##### Lifecycle
+
+対応TableのWordPress統合境界が存在する間、現在モードを反映する。componentの再mountだけをモード終了条件にしない。
+
+##### Invariants
+
+- Reorder Mode状態をWordPress component内へ別正本として複製しない。
+- 行・列の排他をWordPress UI側だけで独自管理しない。
+- WordPress Editorの表示構造を方向固有状態の正本にしない。
+
+#### Reorder Guidance Integration {#RESP_REORDER_GUIDANCE_INTEGRATION}
+
+##### Responsibility
+
+初回共通案内をWordPress Editor、Editor DOM Context、WordPress preferences、Reorder Modeへ接続する。
+
+##### State ownership
+
+PC / タッチごとの表示済み状態はWordPress Preferencesへ永続化し、自身は永続状態の別copyを所有しない。現在表示中状態はReorder Guidanceに委ねる。
+
+##### Contract
+
+現在のEditor DOMから操作環境を解決し、その操作環境で未表示の場合だけReorder Guidanceを開始する。利用者が案内を閉じる、またはいずれかのReorder入口を選択した場合は該当操作環境を表示済みとして保存して案内を終了する。
+
+##### Lifecycle
+
+案内の表示基準を現在のEditor環境で解決できる時点で表示条件を評価する。並び替えモード中に新しい案内を開始しない。
+
+##### Invariants
+
+- PC / タッチの表示済み状態を分離する。
+- WordPress preferencesの永続状態をReorder Guidance本体へ持ち込まない。
+- Editor DOMを解決できない場合は誤った操作環境を推測して案内を開始しない。
 
 #### Input Interaction {#RESP_COLUMN_INPUT_INTERACTION}
 
 ##### Responsibility
 
-PCとタッチ端末の入力方式固有のDnD開始条件を判断し、開始候補をReorder Target Resolutionで事前解決したうえで、開始可能な候補を物理的なDnD開始境界へ接続する。DnD開始後の物理入力の継続、移動、終了、cancelの検出はDnD Engineへ委ねる。
+PC / タッチの入力方式固有の列DnD開始条件を判断し、開始候補を第一段階Reorder Target Resolutionで事前解決したうえで、開始可能な候補だけをDnD Engineへ一時登録する。
 
 ##### State ownership
 
-入力方式固有の開始前一時状態と、その開始試行に必要なDnD Engine接続だけを所有する。列DnD Session、構造制約判定、移動先判定、active DnDの物理状態、Tableデータを所有しない。
+一回の開始入力を解釈するための局所的な入力状態だけを扱う。Reorder Mode、Editor DOM Context、DnD Session、第二段階解決結果、移動先、Table制約の正本を所有しない。
 
 ##### Contract
 
-Reorder Modeから対象Tableで列並び替えが有効であることを受け取り、その期間だけ列DnD開始入力を受理する。開始条件が成立した場合は開始候補をReorder Target Resolutionへ渡し、現在制約で開始可能と解決された場合だけDnD Engineへ一時的に接続する。開始不可理由が定義された場合はReorder Presentationへ渡す。
+Column DnD Engine Integrationから有効化された入力境界として開始入力を受ける。対象Tableと論理列の開始候補をReorder Target Resolutionへ渡し、`resolved`の場合だけDnD Engineへ登録する。Designで利用者へ示す`rejected`理由の場合は、その操作位置と理由をReorder Presentationの一回性通知へ渡す。通常の`unavailable`では通知しない。
 
 ##### Lifecycle
 
-列並び替えが有効な期間にだけ活動する。開始試行では開始候補を事前解決し、開始可能な場合だけDnD Engineへ一時的に接続する。DnDが成立しなかった場合、DnD終了、cancel、モード終了、外部環境変化では自身の一時状態と接続を破棄する。
+列DnD境界が有効な期間だけ開始入力を受ける。一回の開始試行で第一段階解決と必要なDnD Engine登録を行い、登録の長期LifecycleはColumn DnD Engine Integrationの終了処理に従う。
 
 ##### Invariants
 
-- 行DnDを開始しない。
-- 列並び替えモード開始時にTable全体の開始候補を固定的に準備しない。
-- 開始可能と解決されていない候補をDnD Engineへ接続しない。
-- active DnDの物理状態、移動先判定、自動スクロールを所有しない。
+- DnD Interactionを直接開始・終了しない。
+- Reorder ModeやEditor DOM Contextを直接参照しない。
+- 第一段階で開始可能と解決されていない候補をDnD Engineへ登録しない。
+- 開始不可の構造判定をInput Interaction内で重複実装しない。
+
+#### DnD Engine Integration {#RESP_COLUMN_DND_ENGINE_INTEGRATION}
+
+##### Responsibility
+
+DnD Engineの物理LifecycleをColumn Reorderの意味責務へ接続する。第二段階Target Resolution、Destination Resolution、DnD Interactionへの橋渡しと、そのDnDにだけ必要な一時接続状態の破棄を所有する。
+
+##### State ownership
+
+active DnD成立前に第二段階で解決した開始情報、当該DnDのDestination Resolution境界、および一時的なDnD Engine接続参照だけを接続状態として保持できる。列DnD Sessionの正本、Table制約の永続cache、Presentation状態は所有しない。
+
+##### Contract
+
+物理DnD成立直前にDnD Engineが示す開始対象をReorder Target Resolutionで再解決する。第二段階が`resolved`でなければ物理DnDを成立させず、一時接続状態を破棄する。物理DnD開始時は解決済みTargetと開始時制約をDnD Interactionへ渡し、Destination Resolutionを開始時Table配置へ接続する。moveではDestination Resolutionが返した論理列間境界だけをDnD Interactionへ渡す。endではcancelかcompleteかをDnD Interactionへ通知する。
+
+##### Lifecycle
+
+TableのDnD接続境界として安定して存在し、Column Reorderが有効な期間だけInput Interactionを活動させる。一回のDnD開始前に第二段階解決結果を一時保持し、startでSessionへ引き渡す。DnD終了、モード無効化、接続境界終了では次の操作へ持ち越せない一時状態を破棄する。
+
+##### Invariants
+
+- 第一段階の解決結果だけでactive DnDを開始しない。
+- 第二段階解決結果をDnD Sessionと重複する長期状態として保持しない。
+- DnD Engine固有イベントをDnD Interactionの公開状態として持ち込まない。
+- 一回の物理DnDと一つのColumn DnD Sessionを対応させる。
+
+#### Destination Resolution {#RESP_COLUMN_DESTINATION_RESOLUTION}
+
+##### Responsibility
+
+active DnD中の現在の物理入力位置を、DnD開始時のTable配置に対する論理列間境界へ変換する。
+
+##### State ownership
+
+一回のDnDで移動先解決に必要な対象Tableの表示参照と開始時の論理列境界計測だけを一時的に保持できる。Tableデータ、構造制約、DnD Session、Presentationによる表示変位は所有しない。
+
+##### Contract
+
+DnD開始時の移動対象から対象Tableと論理列境界の配置を確定する。moveごとにDnD Engineの現在物理位置を受け、スクロールによるTable自体の現在位置変化を反映しつつ、DnD開始時の論理列境界に対応する0-based列間境界または`null`を返す。対象Table外の位置から移動先を推測しない。
+
+##### Lifecycle
+
+active DnD開始時に生成し、DnD中のmoveで再利用し、DnD終了時に破棄する。開始時に成立できない場合は後続moveから再解決してよい。
+
+##### Invariants
+
+- Table構造上その境界へ移動できるかを判定しない。
+- Presentationで動いた列の見かけ上の位置を論理境界の正本にしない。
+- DnD Engineの物理イベントをDnD Interactionへそのまま渡さない。
+- `progress`ごとにSupported Table Blockの列構造を取得しない。
 
 #### Table Integration {#RESP_COLUMN_TABLE_INTEGRATION}
 
 ##### Responsibility
 
-Supported Table Blockとの差を吸収し、列並び替えに必要なTable同一性、Table全体の現在列構造、Table全体への列更新境界、およびWordPress Undoとの境界を提供する。
+指定されたSupported Table Blockとの差を吸収し、Column Reorderへ現在のTable全体の列制約と、再照合済みの確定済み列移動をTable全体へ反映する境界を提供する。
 
 ##### State ownership
 
-DnD Sessionや入力状態を所有しない。外部TableデータをColumn Reorder独自の永続状態として複製しない。
+Table Identity、DnD Session、入力状態を所有しない。外部Tableデータや算出済み制約を監視用の永続状態として複製しない。
 
 ##### Contract
 
-現在の対応Tableについて、論理列の制約判定と更新に必要な情報を同一Table由来の情報として提供する。`thead`、`tbody`、`tfoot`を通じた論理列、`colspan`により単独移動できない列、およびTable全体の構造を保てる挿入境界を判断できる現在構造を提供する。
+呼び出し側からTable Identityを受け、その要求時点の対応Tableから論理列数、`colspan`で単独移動できない列、結合セルを分断するため挿入できない列間境界を判断できるColumn Reorder用制約を返す。対応Tableを安全に解釈できない場合は正常な利用不能を返す。
 
-DnD Interactionから、現在構造で成立することを確認済みの移動対象、移動先、対象Table同一性を受け取る。セル内容・属性・装飾その他の保持対象を変えずにTable全体の列順だけを更新する。1回の成立した列移動は`thead`、`tbody`、`tfoot`を部分的に個別確定せず、Table全体への1回の確定済み更新として反映する。WordPress Undo上も1回の更新単位として維持する。
-
-対応Tableが現在存在しない、外部Table状態を安全に取得できない、または更新開始前に現在更新できない場合は正常な不在または更新不能結果として返し、新しい列順を部分的に確定しない。
+DnD Interactionから再照合済みの移動元論理列と移動先境界を受け、要求時点のTableでも更新範囲が成立する場合だけ、`thead`、`tbody`、`tfoot`を含むTable全体の列順を一つの確定済み更新として反映する。更新要求時点で安全に反映できない場合は部分更新せず利用不能結果を返す。
 
 ##### Lifecycle
 
-要求時点のSupported Table Blockから現在情報を取得または更新する。取得した情報を外部状態監視用の永続状態として保持しない。確定済み列移動の更新不能時に独自のretryまたはsection単位rollbackを開始しない。
+各要求時点のSupported Table Blockを直接参照して制約取得または更新を行う。独自のTable監視、retry、section単位rollbackを開始しない。
 
 ##### Invariants
 
-- Table全体の論理列をsectionごとに別の移動対象として扱わない。
-- `thead`、`tbody`、`tfoot`を一つの列移動で部分的に個別確定しない。
+- Table Identityを発行または所有しない。
+- sectionごとに別の移動対象または別の確定を作らない。
+- `thead`、`tbody`、`tfoot`を部分的に個別確定しない。
 - 列順以外を並び替え結果として変更しない。
-- 一つの確定済み列移動の反映要求を複数回適用しない。
-- 1回の成立した列並び替えを複数の独立したUndo単位へ分割しない。
-- Supported Table Block固有の列構造表現を他のColumn Reorder責務へ漏らさない。
+- 1回の成立した列移動を複数のUndo単位へ分割しない。
+- Supported Table Block固有の保存表現を他のColumn Reorder責務へ漏らさない。
 
 #### Reorder Target Resolution {#RESP_COLUMN_TARGET_RESOLUTION}
 
 ##### Responsibility
 
-active DnD成立前に、現在のTable制約に対してReorder TargetがTable全体の論理列として単独移動可能かを二段階で解決する。第二段階で開始可能な場合は、その開始試行でDnD Sessionへ引き継ぐ開始時制約を導出する。
+active DnD成立前に、要求時点のTable制約に対してReorder TargetがTable全体の論理列として単独移動可能かを解決し、開始可能な場合は同じ解決結果として開始時制約を返す。
 
 ##### State ownership
 
-開始試行を越える共有状態、DnD Session、入力状態、表示状態、Tableデータを所有しない。第一段階と第二段階の解決結果を外部Table状態のcacheとして保持しない。
+開始試行を越える共有状態、DnD Session、入力状態、表示状態、Tableデータを所有しない。
 
 ##### Contract
 
-開始候補として識別された論理列を受け取り、Table Integrationから要求時点の列制約を取得する。対象が現在のTable全体の論理列として存在し、`colspan`による結合範囲に含まれず列単位で移動可能な場合は、Reorder Targetと開始時制約を解決結果として返す。`rowspan`だけを理由に開始不可とはしない。
-
-第一段階で`colspan`により列単位で移動できない場合は、Designで利用者へ提示できる開始不可理由を解決結果として返す。現在Tableまたは対象列を安全に解釈できない場合は開始不可理由を生成せず正常な利用不能結果とする。第二段階で開始不能または利用不能となった場合はactive DnDを成立させない。
+Reorder Targetを受け取り、Table Integrationから指定Tableの要求時点の列制約を取得する。対象列が存在し、`colspan`で単独移動できない範囲に含まれず、列単位の移動対象として成立する場合は`resolved`としてReorder Targetと開始時制約を返す。`colspan`による開始不可はDesign上の`rejected`理由を返す。Tableまたは対象列を安全に解釈できない場合は`unavailable`を返す。`rowspan`だけを開始拒否理由にしない。
 
 ##### Lifecycle
 
-入力開始候補ごとに第一段階を解決し、開始可能な場合だけDnD Engineへの接続へ進める。active DnD成立直前に第二段階を現在のTable制約から解決し直し、開始可能な解決結果だけをDnD Interactionへ引き継ぐ。
+Input Interactionから第一段階、DnD Engine Integrationから第二段階をそれぞれ独立した要求として受ける。解決結果を共有状態として保持しない。
 
 ##### Invariants
 
-- Reorder Targetの意味を「移動する論理列」から拡張しない。
-- 開始時制約や開始不可理由をReorder Targetへ含めない。
-- 第一段階の解決結果だけを根拠にactive DnDを成立させない。
-- `colspan`により単独移動で構造を保てない論理列を開始可能として解決しない。
-- `rowspan`だけを開始不可理由として扱わない。
-- 開始可否判定のためにTableデータを変更しない。
+- Reorder Targetへ開始時制約や拒否理由を埋め込まない。
+- 第一段階と第二段階で同じ解決Contractを使う。
+- `colspan`で単独移動できない列を`resolved`にしない。
+- `rowspan`だけを理由に`rejected`にしない。
+- 判定のためにTableデータを変更しない。
 
 #### DnD Interaction {#RESP_COLUMN_DND_INTERACTION}
 
 ##### Responsibility
 
-DnD Engineが提供する物理的なDnD進行をColumn Reorderの意味へ変換し、物理的なDnD開始成立後の列DnD Sessionを所有する。Session開始、現在の物理入力位置からの移動先判定と更新、現在構造への再照合、確定、正常中止、外部環境変化による終了を一つの列専用Lifecycleとして管理する。
+第二段階で解決済みのReorder Targetから始まるColumn DnD Sessionを所有し、論理列間境界の有効性、complete、cancel、外部Table変化による確定不能、およびSession終了後のReorder Mode解決を管理する。
 
 ##### State ownership
 
-activeな列DnD Sessionを所有する。SessionはReorder Target、対象Table同一性、Reorder Target Resolutionの第二段階で確定した開始時列制約、現在の有効移動先だけをColumn Reorderの意味状態として保持する。DnD Engineが所有する入力位置、物理的なDnD状態、自動スクロール状態、表示位置、外部参照、計測結果は保持しない。
+idleまたは一つのactive Sessionを所有する。active Sessionは対象Table Identity、移動元論理列、第二段階で得た開始時制約、現在の有効な論理移動先だけを保持する。DnD Engineの物理入力位置、物理イベント、表示参照、計測結果、自動スクロール状態を保持しない。
 
 ##### Contract
 
-第二段階で開始可能と解決されたReorder Targetと開始時制約を受け取り、物理的なDnD開始成立を受けたstartでColumn DnD Sessionを開始する。
+`start`では第二段階で`resolved`となったReorder Targetと開始時制約を受けてactive Sessionを開始する。
 
-`progress`ではDnD Engineが示す現在の物理入力位置から対象Table全体の移動先候補を解決し、列内の位置関係を列間の挿入位置へ変換する。Session開始時の列制約で有効な場合だけ現在の有効移動先として保持する。結合セルを分断するなどTable全体の構造を壊す位置は有効な移動先としない。`progress`ごとにTable Integrationから現在のTable構造を取得し直さない。
+`progress`ではDestination Resolutionで解決済みの0-based論理列間境界または`null`を受け、Session開始時制約に対して構造を保て、かつ実際に列順が変化する境界だけを現在の有効移動先として保持する。現在のTable構造を取得し直さない。
 
-`complete`では有効な最終移動先がある場合でも、Table Integrationから現在のTable情報を取得し直し、SessionのReorder Target、最終有効移動先、Table同一性が現在のTable構造でも成立することを再照合する。成立を確認でき、実際に列順が変化する場合だけTable IntegrationへTable全体の確定済み列移動の反映を要求する。再照合できない、現在は成立しない、有効な最終移動先がない、または列順が変化しない場合はTableを更新せず終了する。
+`complete`では有効移動先がある場合でもTable Integrationから現在制約を取得し直し、移動元と移動先が現在も成立する場合だけ確定済み列移動を要求する。現在構造で成立しない、Table利用不能、更新不能の場合は新しい列順を確定せず安全終了し、Designで通知対象となる場合だけReorder Presentationへ一回性終了通知を発行する。
 
-cancelまたはその他の継続不能でもTableデータを新たに確定しない。外部環境変化による継続不能は内部Errorとして扱わない。
+`cancel`または有効移動先のないdropはTableを更新せず正常終了する。Sessionを破棄した後、Table Integrationから対象Tableの現在利用可否を取得し直し、Reorder Modeへ「次の列並び替えを安全に受けられるか」だけを渡す。
 
 ##### Lifecycle
 
-idleから、第二段階で開始可能と解決された物理DnDのstartを受けてactiveとなる。Session開始時は解決結果の開始時制約を保持する。`progress`はactive Sessionだけを更新し、開始時制約に対して有効な移動先だけを保持する。`complete`では現在のTable構造を取得し直して再照合し、成立して列順が変化する場合だけ更新へ進む。complete成功、cancel、成立しないdrop、外部環境変化による正常終了ではSessionを破棄してidleへ戻る。
+idleから`start`でactiveとなり、`progress`で有効移動先だけを更新する。`complete`または`cancel`では必ずSessionを破棄してidleへ戻す。Session終了後に現在Tableの継続可否を解決する。
 
 ##### Invariants
 
 - active Sessionは同時に一つだけ存在する。
-- Sessionが参照するReorder Targetと開始時制約は同じ開始試行の第二段階Target Resolution結果から成立した値である。
-- SessionにはColumn Reorderの意味状態だけを保持する。
-- `progress`ではSession開始時に取得した列制約を基準とし、現在のTable構造を都度取得して置き換えない。
-- 結合セルを分断するなどTable全体の構造を壊す位置を有効な移動先として成立させない。
-- Sessionが保持する最終有効移動先だけを根拠に`complete`を確定しない。
-- `complete`はReorder Target、最終移動先、Table同一性が現在のTable構造でも成立し、実際に列順が変化することを確認できた場合だけ新しい列順を確定する。
-- cancel、成立しないdrop、外部環境変化による終了は新しい列順を確定しない。
-- Reorder Modeの排他状態または対象Table IdentityをSession状態として所有しない。
+- Session開始時制約は同じ開始試行の第二段階Target Resolution結果である。
+- 物理入力位置、表示参照、計測結果をSessionへ保持しない。
+- `progress`では現在Table構造を再取得しない。
+- `complete`は現在構造への再照合なしに確定しない。
+- cancel、有効移動先なし、現在構造での確定不能では新しい列順を確定しない。
+- Reorder Mode状態そのものをSessionへ複製しない。
 
 #### Reorder Presentation {#RESP_COLUMN_PRESENTATION}
 
 ##### Responsibility
 
-列並び替えに必要な利用者向け一時表示を表現する。移動対象列の強調、垂直挿入線、周囲列の移動、開始不可理由、およびDesignで定義された通知をColumn Reorderが所有する範囲で扱う。DnD Engine標準の移動表示は利用しない。
+Column Reorderの開始可否、active DnD意味状態、および必要なDnD Engine物理情報から、移動対象列、垂直挿入位置、周囲列移動、開始拒否、終了通知を独立した表示として表現する。
 
 ##### State ownership
 
-列DnD表示と一時的な通知に必要な状態だけを所有し、Tableデータ、列DnD確定状態、列DnD Session、DnD Engineの物理状態を所有しない。
+表示と一回性通知に必要な一時状態だけを所有する。Tableデータ、DnD Session、Target Resolution結果の正本、DnD Engine物理状態を所有しない。
 
 ##### Contract
 
-Reorder Target Resolutionの第一段階の解決結果からDesignで表示対象となる開始不可理由を受け取り、構造判定を重複させず利用者向け通知へ反映する。DnD Interactionから現在の有効な移動先と終了時の通知要否を受け取る。移動対象は元Tableの列幅とセル高さの配置関係を保ち、Tableの縦方向から不必要にはみ出さない一時表示とする。現在の有効移動先はTable全体の列間に垂直挿入線で示し、実際に位置が変わる周囲列だけを移動表示する。
+Input InteractionからDesign上の開始拒否理由と操作位置を一回性通知として受ける。操作可能列の事前表示等ではReorder Target Resolutionを利用し、構造制約を重複判定しない。DnD Interactionのactive状態と現在有効移動先を購読し、DnD Engineの物理情報は表示に必要な時点だけ利用する。
+
+移動対象列は元Tableの列幅とセル高さの配置関係を保ち、Tableの縦方向から不必要にはみ出さない。現在の有効移動先はTable全体の列間に垂直挿入線で示し、実際に位置が変わる周囲列だけを移動表示する。
 
 ##### Lifecycle
 
-開始不可理由または列DnD中の各表示理由が成立した期間だけ有効となり、Designで定義された期間またはcomplete、cancel、継続不能に応じて該当する一時表示を破棄する。
+開始拒否通知はDesignで定義された期間だけ表示する。active DnD表示はDnD InteractionのSession開始と終了に追従する。cancelまたは成立しないdropでは異常終了通知を表示しない。安全に確定できない終了でDesignが通知を要求する場合だけ短い終了通知を表示する。
 
 ##### Invariants
 
-- 表示状態をTableデータの正本として扱わない。
-- 開始可否または移動先の構造制約をPresentation内で重複判定しない。
+- 表示状態をTableデータまたはDnD Sessionの正本にしない。
+- 開始可否や構造上の移動可否をPresentation独自に再実装しない。
 - DnD中の表示のために実Tableの列順を変更しない。
-- 無効な移動先を確定可能な垂直挿入位置として表示しない。
-- 移動対象列の表示で列幅とセル高さの配置関係を不自然に崩さない。
+- DnD Engine標準の移動表示とColumn Reorder独自表示を重ねて利用しない。
 - Row Reorderの表示状態を共有しない。
 
 ## 6. Runtime View
 
 ### Column DnD start attempt {#RV_COLUMN_DND_START}
 
-列並び替えが有効な状態で、入力開始候補を現在制約で事前解決し、開始可能な候補だけをDnD Engineへ接続する。active DnD成立直前に同じ対象を現在制約で再解決し、第二段階も開始可能な場合だけColumn DnD Sessionを開始する。
+第一段階で開始可能な列だけをDnD Engineへ登録し、active DnD成立直前に第二段階で再解決してからColumn DnD Sessionを開始する。
 
 | Step | Source | Target | Interaction |
 | ---: | --- | --- | --- |
-| 1 | RESP_COLUMN_INPUT_INTERACTION | RESP_COLUMN_TARGET_RESOLUTION | 入力開始候補を現在のTable制約で事前解決する。 |
-| 2 | RESP_COLUMN_TARGET_RESOLUTION | RESP_COLUMN_TABLE_INTEGRATION | 第一段階の現在列制約を要求する。 |
-| 3 | RESP_COLUMN_TABLE_INTEGRATION | EXT_SUPPORTED_TABLE_BLOCK | 現在の対応Table BlockからTable全体の列構造を取得する。 |
-| 4 | RESP_COLUMN_TARGET_RESOLUTION | RESP_COLUMN_PRESENTATION | `colspan`によりDesignの表示対象となる開始不可理由がある場合だけ理由を渡す。 |
-| 5 | RESP_COLUMN_INPUT_INTERACTION | EXT_DND_ENGINE | 第一段階で開始可能な列だけをDnD開始候補として一時的に接続する。 |
-| 6 | EXT_DND_ENGINE | RESP_COLUMN_TARGET_RESOLUTION | active DnD成立直前に同じReorder Targetを現在制約で再解決する。 |
-| 7 | RESP_COLUMN_TARGET_RESOLUTION | RESP_COLUMN_TABLE_INTEGRATION | 第二段階の現在列制約を要求する。 |
-| 8 | RESP_COLUMN_TABLE_INTEGRATION | EXT_SUPPORTED_TABLE_BLOCK | 現在の対応Table BlockからTable全体の列構造を取得する。 |
-| 9 | RESP_COLUMN_TARGET_RESOLUTION | EXT_DND_ENGINE | 第二段階の開始可否結果を返し、開始不能な場合は物理的なDnDを成立させない。 |
-| 10 | EXT_DND_ENGINE | RESP_COLUMN_DND_INTERACTION | 第二段階で開始可能な場合だけ物理的なDnD開始成立と、解決済みReorder Target・開始時制約をstart境界へ渡す。 |
-| 11 | RESP_COLUMN_DND_INTERACTION | RESP_COLUMN_PRESENTATION | Session開始時は移動対象列のDnD表示を開始する。 |
+| 1 | EXT_WORDPRESS_EDITOR | RESP_WORDPRESS_REORDER_INTEGRATION | 対象Tableの既存Block wrapper上で開始入力が発生する。 |
+| 2 | RESP_WORDPRESS_REORDER_INTEGRATION | RESP_COLUMN_DND_ENGINE_INTEGRATION | 対象Tableの列並び替え有効状態と開始入力接続を方向固有DnD境界へ反映する。 |
+| 3 | RESP_COLUMN_DND_ENGINE_INTEGRATION | RESP_COLUMN_INPUT_INTERACTION | 列開始入力を入力境界へ渡す。 |
+| 4 | RESP_COLUMN_INPUT_INTERACTION | RESP_COLUMN_TARGET_RESOLUTION | 開始候補を第一段階の現在制約で解決する。 |
+| 5 | RESP_COLUMN_TARGET_RESOLUTION | RESP_COLUMN_TABLE_INTEGRATION | 指定Tableの現在列制約を要求する。 |
+| 6 | RESP_COLUMN_TABLE_INTEGRATION | EXT_SUPPORTED_TABLE_BLOCK | 要求時点の対応Tableから列制約を取得する。 |
+| 7 | RESP_COLUMN_TARGET_RESOLUTION | RESP_COLUMN_INPUT_INTERACTION | `resolved`、Design上の`rejected`、または`unavailable`を返す。 |
+| 8 | RESP_COLUMN_INPUT_INTERACTION | RESP_COLUMN_PRESENTATION | 第一段階がDesign上の`rejected`の場合だけ理由と操作位置を通知する。 |
+| 9 | RESP_COLUMN_INPUT_INTERACTION | EXT_DND_ENGINE | 第一段階が`resolved`の場合だけ開始候補を一時登録する。 |
+| 10 | EXT_DND_ENGINE | RESP_COLUMN_DND_ENGINE_INTEGRATION | active DnD成立直前の開始通知を渡す。 |
+| 11 | RESP_COLUMN_DND_ENGINE_INTEGRATION | RESP_COLUMN_TARGET_RESOLUTION | 同じReorder Targetを第二段階の現在制約で再解決する。 |
+| 12 | RESP_COLUMN_TARGET_RESOLUTION | RESP_COLUMN_TABLE_INTEGRATION | 第二段階の現在列制約を要求する。 |
+| 13 | RESP_COLUMN_TABLE_INTEGRATION | EXT_SUPPORTED_TABLE_BLOCK | 要求時点の対応Tableから列制約を取得する。 |
+| 14 | RESP_COLUMN_TARGET_RESOLUTION | RESP_COLUMN_DND_ENGINE_INTEGRATION | 第二段階の解決結果を返す。 |
+| 15 | RESP_COLUMN_DND_ENGINE_INTEGRATION | EXT_DND_ENGINE | 第二段階が`resolved`でなければ物理DnD開始を成立させない。 |
+| 16 | EXT_DND_ENGINE | RESP_COLUMN_DND_ENGINE_INTEGRATION | 第二段階成立後の物理DnD startを通知する。 |
+| 17 | RESP_COLUMN_DND_ENGINE_INTEGRATION | RESP_COLUMN_DESTINATION_RESOLUTION | 当該DnDの開始時Table配置から移動先解決境界を生成する。 |
+| 18 | RESP_COLUMN_DND_ENGINE_INTEGRATION | RESP_COLUMN_DND_INTERACTION | 解決済みReorder Targetと開始時制約でColumn DnD Sessionを開始する。 |
+| 19 | RESP_COLUMN_DND_INTERACTION | RESP_COLUMN_PRESENTATION | active状態への遷移を表示購読へ反映する。 |
 
 ### Column DnD progress {#RV_COLUMN_DND_PROGRESS}
 
-activeな列Session中に、DnD Engineの現在位置をTable全体の列間挿入位置へ変換し、Session開始時制約で有効な移動先だけを保持して表示する。
+DnD Engineの物理位置をDestination Resolutionで論理列間境界へ変換してから、DnD InteractionがSession開始時制約へ照合する。
 
 | Step | Source | Target | Interaction |
 | ---: | --- | --- | --- |
-| 1 | EXT_DND_ENGINE | RESP_COLUMN_DND_INTERACTION | 現在の物理入力位置を提供する。 |
-| 2 | RESP_COLUMN_DND_INTERACTION | RESP_COLUMN_DND_INTERACTION | 現在位置を論理的な列間挿入位置へ変換し、開始時制約でTable全体の構造を保てるか判定する。 |
-| 3 | RESP_COLUMN_DND_INTERACTION | RESP_COLUMN_PRESENTATION | 現在の有効移動先を表示状態へ反映する。 |
-| 4 | RESP_COLUMN_PRESENTATION | EXT_DND_ENGINE | 移動対象表示に必要な物理的DnD情報を必要な時点で利用する。 |
-| 5 | EXT_DND_ENGINE | EXT_SCROLL_AREA | 必要な場合だけ横方向へ自動スクロールする。 |
+| 1 | EXT_DND_ENGINE | RESP_COLUMN_DND_ENGINE_INTEGRATION | 現在の物理DnD移動を通知する。 |
+| 2 | RESP_COLUMN_DND_ENGINE_INTEGRATION | RESP_COLUMN_DESTINATION_RESOLUTION | 現在の物理入力位置から論理列間境界を要求する。 |
+| 3 | RESP_COLUMN_DESTINATION_RESOLUTION | RESP_COLUMN_DND_ENGINE_INTEGRATION | 0-based論理列間境界または`null`を返す。 |
+| 4 | RESP_COLUMN_DND_ENGINE_INTEGRATION | RESP_COLUMN_DND_INTERACTION | 解決済み論理列間境界を現在Sessionへ渡す。 |
+| 5 | RESP_COLUMN_DND_INTERACTION | RESP_COLUMN_PRESENTATION | 開始時制約に対して成立した現在の有効移動先を表示購読へ反映する。 |
+| 6 | RESP_COLUMN_PRESENTATION | EXT_DND_ENGINE | 移動対象表示に必要な物理DnD情報を必要な時点だけ利用する。 |
+| 7 | EXT_DND_ENGINE | EXT_SCROLL_AREA | 必要な場合だけ横方向へ自動スクロールする。 |
 
 ### Column DnD complete {#RV_COLUMN_DND_COMPLETE}
 
-最終有効移動先がある場合でも、現在のTable全体の構造へ再照合し、現在も成立して列順が変化する場合だけTable全体を1回で更新する。
+物理DnD終了をDnD Engine IntegrationがDnD Interactionへ接続し、現在Tableへ再照合できた場合だけTable全体の列順を一回で更新する。
 
 | Step | Source | Target | Interaction |
 | ---: | --- | --- | --- |
-| 1 | EXT_DND_ENGINE | RESP_COLUMN_DND_INTERACTION | 物理的なDnD完了を通知する。 |
-| 2 | RESP_COLUMN_DND_INTERACTION | RESP_COLUMN_TABLE_INTEGRATION | 現在のTable全体の列構造を要求する。 |
-| 3 | RESP_COLUMN_TABLE_INTEGRATION | EXT_SUPPORTED_TABLE_BLOCK | 現在のTable全体の列構造を取得する。 |
-| 4 | RESP_COLUMN_DND_INTERACTION | RESP_COLUMN_DND_INTERACTION | Reorder Target、最終移動先、Table同一性を現在構造へ再照合する。 |
-| 5 | RESP_COLUMN_DND_INTERACTION | RESP_COLUMN_TABLE_INTEGRATION | 現在も成立し列順が変化する場合だけ確定済み列移動の反映を要求する。 |
-| 6 | RESP_COLUMN_TABLE_INTEGRATION | EXT_SUPPORTED_TABLE_BLOCK | `thead`、`tbody`、`tfoot`を含むTable全体の列順を1回の確定済み更新として反映する。 |
-| 7 | RESP_COLUMN_TABLE_INTEGRATION | EXT_WORDPRESS_UNDO | 成立した列並び替えを1回のUndo単位として成立させる。 |
-| 8 | RESP_COLUMN_DND_INTERACTION | RESP_COLUMN_PRESENTATION | DnD中だけの表示を終了する。 |
-| 9 | RESP_COLUMN_DND_INTERACTION | RESP_REORDER_MODE | 現在のTableで列並び替えモードを継続できる結果を渡す。 |
+| 1 | EXT_DND_ENGINE | RESP_COLUMN_DND_ENGINE_INTEGRATION | cancelされていない物理DnD endを通知する。 |
+| 2 | RESP_COLUMN_DND_ENGINE_INTEGRATION | RESP_COLUMN_DND_INTERACTION | active Sessionのcompleteを要求する。 |
+| 3 | RESP_COLUMN_DND_INTERACTION | RESP_COLUMN_TABLE_INTEGRATION | 現在のTable全体の列制約を要求する。 |
+| 4 | RESP_COLUMN_TABLE_INTEGRATION | EXT_SUPPORTED_TABLE_BLOCK | 要求時点の対応Tableから現在列制約を取得する。 |
+| 5 | RESP_COLUMN_TABLE_INTEGRATION | RESP_COLUMN_DND_INTERACTION | 現在列制約または利用不能結果を返す。 |
+| 6 | RESP_COLUMN_DND_INTERACTION | RESP_COLUMN_TABLE_INTEGRATION | 現在も移動元と移動先が成立し列順が変化する場合だけ確定済み列移動を要求する。 |
+| 7 | RESP_COLUMN_TABLE_INTEGRATION | EXT_SUPPORTED_TABLE_BLOCK | `thead`、`tbody`、`tfoot`を含むTable全体の列順を一回の更新として反映する。 |
+| 8 | RESP_COLUMN_TABLE_INTEGRATION | EXT_WORDPRESS_UNDO | 成立した列移動を一回のUndo単位として成立させる。 |
+| 9 | RESP_COLUMN_DND_INTERACTION | RESP_COLUMN_PRESENTATION | Session終了を表示購読へ反映する。 |
+| 10 | RESP_COLUMN_DND_INTERACTION | RESP_COLUMN_TABLE_INTEGRATION | Session破棄後、対象Tableが次の列並び替えを安全に受けられるか現在状態を取得し直す。 |
+| 11 | RESP_COLUMN_DND_INTERACTION | RESP_REORDER_MODE | 対象Tableの継続可否だけを現在モードへ反映する。 |
 
 ### Column DnD cancel or invalid drop {#RV_COLUMN_DND_CANCEL}
 
-cancel、有効な移動先がないdrop、または列順が変化しないdropではTableを更新せず、DnD表示だけを終了して列並び替えモードを維持する。
+cancel、有効移動先がないdrop、または列順が変化しないdropではTableを更新せずSessionを終了する。
 
 | Step | Source | Target | Interaction |
 | ---: | --- | --- | --- |
-| 1 | EXT_DND_ENGINE | RESP_COLUMN_DND_INTERACTION | cancelまたはDnD終了を通知する。 |
-| 2 | RESP_COLUMN_DND_INTERACTION | RESP_COLUMN_PRESENTATION | DnD中だけの表示を終了し、異常終了メッセージを要求しない。 |
-| 3 | RESP_COLUMN_DND_INTERACTION | RESP_REORDER_MODE | 列並び替えモードを維持できる結果を渡す。 |
+| 1 | EXT_DND_ENGINE | RESP_COLUMN_DND_ENGINE_INTEGRATION | cancelまたは物理DnD endを通知する。 |
+| 2 | RESP_COLUMN_DND_ENGINE_INTEGRATION | RESP_COLUMN_DND_INTERACTION | cancel、またはcomplete時の有効移動先なしとしてSession終了へ接続する。 |
+| 3 | RESP_COLUMN_DND_INTERACTION | RESP_COLUMN_PRESENTATION | DnD中表示を終了し、異常終了通知を要求しない。 |
+| 4 | RESP_COLUMN_DND_INTERACTION | RESP_COLUMN_TABLE_INTEGRATION | Session破棄後、対象Tableが次の列並び替えを安全に受けられるか現在状態を取得し直す。 |
+| 5 | RESP_COLUMN_DND_INTERACTION | RESP_REORDER_MODE | 対象Tableの継続可否だけを現在モードへ反映する。 |
 
-### Column DnD external change recovery {#RV_COLUMN_EXTERNAL_CHANGE_RECOVERY}
+### Column DnD current-state recovery {#RV_COLUMN_CURRENT_STATE_RECOVERY}
 
-DnD中にEditorまたはTableの外部状態が変化し、安全に継続または確定できない場合は、新しい列順を確定せずDnDを終了する。現在のTableで列並び替えを継続できる場合はモードを維持し、継続できない場合だけ通常編集へ戻る。
+complete時に現在Tableを安全に再照合または更新できない場合は、新しい列順を確定せずSessionを終了する。
 
 | Step | Source | Target | Interaction |
 | ---: | --- | --- | --- |
-| 1 | RESP_COLUMN_INPUT_INTERACTION | RESP_COLUMN_DND_INTERACTION | Editor contextの利用不能など外部環境変化による継続不能を通常の終了結果として渡す。 |
-| 2 | RESP_COLUMN_TABLE_INTEGRATION | RESP_COLUMN_DND_INTERACTION | 現在Tableの利用不能または更新不能を通常の終了結果として返す。 |
-| 3 | RESP_COLUMN_DND_INTERACTION | RESP_COLUMN_PRESENTATION | DnD中だけの表示を解除し、Designで通知対象となる場合だけ終了通知を要求する。 |
-| 4 | RESP_COLUMN_DND_INTERACTION | RESP_REORDER_MODE | 現在Tableで列並び替えモードを安全に継続できるかという結果を渡す。 |
+| 1 | RESP_COLUMN_DND_INTERACTION | RESP_COLUMN_TABLE_INTEGRATION | complete時の現在列制約または確定済み列移動の反映を要求する。 |
+| 2 | RESP_COLUMN_TABLE_INTEGRATION | RESP_COLUMN_DND_INTERACTION | 現在Table利用不能または更新不能を安全な確定不能結果として返す。 |
+| 3 | RESP_COLUMN_DND_INTERACTION | RESP_COLUMN_PRESENTATION | Sessionを終了し、Designで通知対象となる場合だけ一回性終了通知を発行する。 |
+| 4 | RESP_COLUMN_DND_INTERACTION | RESP_COLUMN_TABLE_INTEGRATION | Session破棄後の対象Table利用可否を取得し直す。 |
+| 5 | RESP_COLUMN_DND_INTERACTION | RESP_REORDER_MODE | 対象Tableで次の列並び替えを安全に受けられるかだけを現在モードへ反映する。 |
 
 ## 8. Crosscutting Concepts
 
+### Integration boundaries
+
+共通状態責務、WordPress Integration、DnD Engine Integration、Column Reorderの意味責務を分離する。WordPress固有UI、DnD Engine固有イベント、物理座標はDnD Interactionの意味状態へ直接持ち込まない。
+
 ### Table identity and current structure
 
-Table IdentityはReorder Modeがモード対象を識別するための最小限の値と、Column ReorderがDnD対象Tableの同一性を確認する値を混同しない。Column Reorderは開始時制約を外部Tableの現在構造そのものとして扱わず、`complete`時には現在構造を取得し直す。
+Table IdentityはReorder Modeと方向固有DnD Sessionが対象Tableを照合するために外側から渡される識別値であり、Table Integrationが発行または所有しない。Table Integrationは指定されたTable Identityに対する要求時点の制約と更新能力を提供する。
 
 ### Logical columns and structural constraints
 
-Column Reorderが扱う列はTable全体の論理列である。`colspan`による結合範囲の内部にある列は単独移動対象として成立させない。移動先は、論理列を移動した後も`thead`、`tbody`、`tfoot`を含むTable全体で結合セルを分断せず構造を維持できる列間だけを成立させる。`rowspan`だけを理由に列の開始または移動を禁止しない。
+Column Reorderが扱う列は`thead`、`tbody`、`tfoot`を通じたTable全体の論理列である。`colspan`により単独移動できない論理列は開始対象として成立させない。移動先は結合セルを分断せずTable全体の構造を維持できる列間だけを成立させる。`rowspan`だけを開始拒否理由にしない。
+
+### Physical-to-logical destination separation
+
+Destination Resolutionは物理入力位置を論理列間境界へ変換するだけとし、DnD Interactionはその論理境界をSession開始時制約へ照合する。この分離により、DnD EngineやDOM geometryをDnD Sessionへ持ち込まず、Presentationによる見かけ上の列移動を論理移動先へ混入させない。
 
 ### Session snapshot and current-state revalidation
 
-第二段階のReorder Target Resolutionで得た列制約をSession開始時制約とする。`progress`ではこの開始時制約を使い、外部Table構造を毎回取得しない。`complete`では現在構造を取得し直し、開始時制約ではなく現在のTable構造を最終確定の基準とする。
+第二段階Target Resolutionで得た列制約をSession開始時制約とする。`progress`では開始時制約を使い、外部Table構造を毎回取得しない。`complete`では現在構造を取得し直し、現在状態だけを最終確定の基準とする。
 
 ### Atomic Table-wide update
 
-1回の成立した列移動はTable全体への1回の更新として扱う。section単位の途中状態を利用者または他責務から観測可能にせず、WordPress Undo上も1回のUndo単位とする。
+1回の成立した列移動はTable全体への1回の更新として扱う。section単位の途中状態を確定せず、WordPress Undo上も1回のUndo単位とする。
 
 ### Error and recovery boundary
 
-外部環境変化による正常な継続不能と、Column Reorder内部のContractまたはruntime invariant違反を区別する。外部環境変化は安全な終了へ合流し、内部Errorは正常結果へ変換しない。内部Errorそのものを利用者向け通知理由としない。
+開始前の通常利用不能、物理DnDのcancel、有効移動先なしは正常終了であり異常通知を要求しない。complete時の外部Table変化等で安全に確定できない場合は内部Errorへ変換せず安全終了し、Designで通知対象となる場合だけ通知する。内部Contractまたはruntime invariant違反はErrorとして扱い、正常結果へ変換しない。
 
 ## 9. Architecture Decisions
 
-- Row ReorderとColumn Reorderは同名責務を持っても独立実装・独立状態とし、共通の並び替え抽象化を設けない。
-- Reorder Target Resolutionはactive DnD成立前に二段階で現在制約を確認する。
+- Requirements / Designに反しない範囲では、正式v1 Row Reorderで成立している責務境界をColumn Reorderの参照モデルとする。
+- Reorder Mode本体とWordPress UI接続を分離し、Reorder Modeは排他状態とTable単位Lifecycleだけを所有する。
+- Reorder Guidance本体は現在表示中状態だけを所有し、初回案内表示済み状態とWordPress依存はReorder Guidance Integrationへ分離する。
+- Input InteractionはReorder Mode、Editor DOM Context、DnD Interactionへ直接依存しない。
+- DnD Engine Integrationを独立責務とし、第二段階Target Resolutionと物理DnD LifecycleからDnD Interactionへの接続を所有する。
+- Destination Resolutionを独立責務とし、物理位置から論理列間境界への変換をDnD Interactionから分離する。
+- Column専用のDrop Target Resolution責務は設けない。Destination Resolutionは物理位置の意味変換だけを担い、構造制約に対する移動先の有効性はDnD Interactionが所有する。
+- 開始拒否通知は第一段階解決結果を受けたInput InteractionからReorder Presentationへ渡す。
 - Reorder Targetは移動する論理列だけを表し、開始時制約や開始不可理由を含めない。
 - Session中の移動先判定は第二段階で得た開始時制約を基準とし、`progress`ごとに現在構造を取得し直さない。
 - `complete`だけは現在構造へ再照合してから確定する。
-- Column Reorder専用のDrop Target Resolution責務は設けず、Session開始後の移動先判定はDnD Interactionが所有する。
+- Table IntegrationはTable Identityを提供せず、指定Tableに対する現在制約と確定済み更新能力を提供する。
 - `thead`、`tbody`、`tfoot`を含むTable全体の列移動を1回の確定済み更新・1回のUndo単位として扱う。
 - 自動スクロールはDnD Engineの機能とし、列DnDでは横方向だけを有効にする。
 
 ## 10. Quality Requirements
 
-- 大規模Tableでも`progress`ごとにSupported Table Blockの現在構造を再取得せず、Session開始時制約を使って移動先を判断する。
+- DnD InteractionはDnD Engine固有の物理イベント、表示参照、計測結果をSession状態へ保持しない。
+- 大規模Tableでも`progress`ごとにSupported Table Blockの現在構造を再取得せず、Destination Resolutionの論理境界とSession開始時制約で移動先を判断する。
+- Presentationによる列の表示変位をDestination Resolutionの論理配置へ混入させない。
 - DnD中は実Tableの列順を変更せず、表示更新と確定更新を分離する。
-- 移動先変更時は実際に表示位置が変わる周囲列だけを移動表示し、無関係な列を一斉に動かす必要のあるArchitectureを前提としない。
 - 1回の成立した列移動はTable全体に対する1回の更新境界を通り、部分確定や複数Undo単位を作らない。
-- 対応Table Block固有の列構造表現、Editor方式、DnD Engine固有の物理状態をColumn Reorderの意味状態へ漏らさない。
+- WordPress固有UI、WordPress preferences、Supported Table Block固有表現、DnD Engine固有物理状態を、それぞれを所有する統合境界の外へ漏らさない。
 
 ## 11. Risks and Technical Debt
 
-- Table全体の論理列と結合セル制約の導出は、対応Table Blockごとの保存表現差を正しく吸収できない場合に構造破壊へつながるため、Table IntegrationのContract境界を維持する必要がある。
-- 大規模TableではTable全体の列更新自体が対応Table Blockの再描画性能に影響される。Column ReorderはDnD中の追加コストを抑えるが、外部Block本体の確定時再描画コストまでは所有しない。
-- 列幅とセル高さを保持した移動対象表示は実装時の計測方法に依存し得るが、Architectureでは計測結果をSession状態へ持ち込まない境界を維持する。
+- Row Reorderの現行実装で成立した責務境界を参照するため、Row Architecture文書が実装より古い責務モデルを保持している間はRow / Column文書間に見かけ上の差が残る。Row Architectureは別作業で現行実装へ同期する必要がある。
+- Columnの論理列配置計測は行と異なるため、Destination Resolutionの具体的な計測戦略はColumn実装時に検証が必要である。ただし物理位置→論理境界と構造制約判定の責務分離は維持する。
+- Table全体の列更新自体は対応Table Blockの再描画性能に影響される。Column ReorderはDnD中の追加コストを抑えるが、外部Block本体の確定時再描画コストまでは所有しない。
+- 列幅とセル高さを保持した移動対象表示は実装時の計測方法に依存し得るが、計測結果をDnD Sessionへ持ち込まない境界を維持する。
 
 ## 12. Glossary
 
+- **Reorder Mode**: 通常編集、行並び替え、列並び替えの排他状態と対象Table単位Lifecycleを所有する共通状態責務。
+- **DnD Engine Integration**: DnD Engine固有の物理LifecycleをColumn ReorderのTarget Resolution、Destination Resolution、DnD Interactionへ接続する責務。
+- **Destination Resolution**: active DnDの物理入力位置をDnD開始時配置に対する論理列間境界へ変換する責務。構造制約上の移動可否は判定しない。
 - **Logical Column**: `thead`、`tbody`、`tfoot`を通じて同じTable全体の列位置を表す論理的な列。
 - **Reorder Target**: 一つのDnD開始試行で移動対象となる論理列。開始時制約や開始不可理由は含まない。
 - **Start Constraints**: Reorder Target Resolutionの第二段階で現在Tableから解決され、active DnD Session中の移動先判定基準として保持される列制約。
-- **Insertion Boundary**: Table全体の構造を保ったまま論理列を挿入できる列間位置。
-- **Column DnD Session**: active DnD成立後からcomplete、cancel、または継続不能による終了まで、Column Reorderが所有する一回の列DnD意味状態。
+- **Insertion Boundary**: DnD開始時のTable配置に対して論理列を挿入する0-based列間位置。構造上有効かはDnD Interactionが開始時制約へ照合する。
+- **Column DnD Session**: active DnD成立後からcompleteまたはcancelまで、DnD Interactionが所有する一回の列DnD意味状態。
 - **Atomic Table-wide Update**: `thead`、`tbody`、`tfoot`を部分的に個別確定せず、一回の成立した列移動をTable全体への一回の更新として反映すること。
