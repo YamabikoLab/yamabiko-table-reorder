@@ -128,7 +128,7 @@ describe( 'Column destination resolution', () => {
 	 * 概要:
 	 * - Table外の物理位置を移動先として扱わないことを確認する。
 	 * 事前条件:
-	 * - Tableの描画範囲を取得でき、ポインターが横方向または縦方向の外側にある。
+	 * - Tableの描画範囲を取得でき、ポインターが左右または上下の外側にある。
 	 * 操作:
 	 * - 各Table外位置を解決する。
 	 * 期待結果:
@@ -138,7 +138,9 @@ describe( 'Column destination resolution', () => {
 		const { cells } = createThreeColumnTable();
 		const resolver = createColumnDestinationResolver( cells[ 0 ] );
 
+		expect( resolver?.resolve( createMoveEvent( -10 ) ) ).toBeNull();
 		expect( resolver?.resolve( createMoveEvent( 350 ) ) ).toBeNull();
+		expect( resolver?.resolve( createMoveEvent( 100, 0 ) ) ).toBeNull();
 		expect( resolver?.resolve( createMoveEvent( 100, 120 ) ) ).toBeNull();
 	} );
 
