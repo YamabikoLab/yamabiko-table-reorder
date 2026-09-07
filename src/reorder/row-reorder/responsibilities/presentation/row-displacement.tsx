@@ -3,7 +3,8 @@
  *
  * DnD中のDOM順は変更せず、DnD Engineから移動対象行とLifecycleを直接受け取り、DnD Interactionが示す
  * 現在の有効な移動先に応じて移動元行の高さ分だけ対象行の表示位置を上下へ移動する。
- * DnD終了時または表示境界の終了時には、このPresentationが追加した状態をすべて解除する。
+ * 有効なdrop後はTable更新が完了するまで最後の押しのけ配置を維持し、確定処理中も移動完了後の見た目を保つ。
+ * 有効な移動先がない終了または表示境界の終了時には、このPresentationが追加した状態をすべて解除する。
  */
 
 import { useDragDropMonitor } from '@dnd-kit/react';
@@ -33,7 +34,8 @@ type DisplacementRange = {
  * Row Reorderの押しのけ表示をDnD EngineとDnD Interactionへ直接接続する。
  *
  * 物理DnD開始時の移動対象行だけをそのDnD中の表示対象として保持し、現在の有効な移動先が変わるたびに
- * 必要な周囲行だけを移動する。表示固有状態はこのPresentation内だけで所有する。
+ * 必要な周囲行だけを移動する。有効dropでは物理DnD終了後も最後の配置を確定完了まで維持する。
+ * 表示固有状態はこのPresentation内だけで所有する。
  *
  * @return DOM要素を追加せず、実Tableの行へ一時的な表示状態だけを適用するためnull。
  */
@@ -42,6 +44,7 @@ export const RowDisplacement = () => {
 	const sourceRow = useRef< HTMLTableRowElement | null >( null );
 	const touchedRows = useRef( new Set< HTMLTableRowElement >() );
 	const currentRange = useRef< DisplacementRange | null >( null );
+	const physicalDragEnded = useRef( false );
 
 	/**
 	 * 指定範囲の行を元位置へ戻す。
@@ -189,6 +192,7 @@ export const RowDisplacement = () => {
 		touchedRows.current.clear();
 		currentRange.current = null;
 		sourceRow.current = null;
+		physicalDragEnded.current = false;
 	}, [] );
 
 	useDragDropMonitor( {
@@ -209,14 +213,28 @@ export const RowDisplacement = () => {
 
 			sourceRow.current = candidate;
 		},
-		onDragEnd: clear,
+		onDragEnd: () => {
+			physicalDragEnded.current = true;
+
+			/* 有効な移動先がない終了では確定表示を維持する必要がないため、従来どおり直ちに解除する。 */
+			if ( destinationBoundaryIndex === null ) {
+				clear();
+			}
+		},
 	} );
 
 	useEffect( () => {
 		const currentSourceRow = sourceRow.current;
-		/* 移動対象行または有効な移動先がない期間は、押しのけ表示を成立させない。 */
+		/*
+		 * 有効drop後にDnD Interactionがidleへ戻ると移動先がnullになるため、その時点で確定表示を解除する。
+		 * ドラッグ中に一時的に移動先がなくなった場合はSession自体を維持し、後続の有効移動先へ再開できる状態を残す。
+		 */
 		if ( currentSourceRow === null || destinationBoundaryIndex === null ) {
-			updateRange( null );
+			if ( physicalDragEnded.current ) {
+				clear();
+			} else {
+				updateRange( null );
+			}
 			return;
 		}
 
