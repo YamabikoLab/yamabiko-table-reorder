@@ -175,7 +175,7 @@ export const RowDnd = ( props: {
 			return;
 		}
 
-		const sourceElement = event.operation.source?.element;
+		const sourceElement = event.operation?.source?.element;
 		const editorWindow = sourceElement?.ownerDocument.defaultView ?? null;
 		/* editorの描画周期を取得できない環境では、従来どおり同じ終了通知内で確定する。 */
 		if ( editorWindow === null ) {
