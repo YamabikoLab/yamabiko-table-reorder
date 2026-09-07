@@ -4,14 +4,18 @@
  * 周囲行の押しのけによって生じる空間をTable本来の行境界から独立して覆い、可変高さの移動対象でも複数の空行ではなく
  * 移動対象1行が入る空間として示す。表示位置は押しのけ前の論理的な行境界を基準とし、スクロールによる現在位置だけへ追従する。
  * 挿入空間には移動対象行のセル境界を反映し、押しのけ後もTableの罫線が途切れないようにする。
+ * 有効drop後はTable更新が完了するまで最後の挿入空間を維持し、確定処理中も移動完了後の配置を保つ。
  */
 
 import { useDragDropMonitor } from '@dnd-kit/react';
-import { createPortal, useEffect, useState } from '@wordpress/element';
+import { createPortal, useEffect, useRef, useState } from '@wordpress/element';
 import type { CSSProperties } from 'react';
 
 import { resolveEditorDomContext } from '@/reorder/editor-dom-context';
-import { useRowDndDestinationBoundaryIndex } from '@/reorder/row-reorder/integration/dnd-interaction-react';
+import {
+	useRowDndDestinationBoundaryIndex,
+	useRowDndPhase,
+} from '@/reorder/row-reorder/integration/dnd-interaction-react';
 import {
 	measureTableBodyRowGeometry,
 	resolveRowBoundaryOffsets,
@@ -164,12 +168,14 @@ const resolveInsertionGapLayout = (
  * DnD Interactionが示す現在の有効な移動先へ、移動対象1行分の独立した挿入空間を描画する。
  *
  * DnD開始時に押しのけ前の論理境界とセル境界を確定し、その後の物理移動ではTableの現在位置だけを再計測する。
- * 表示は入力を遮らず、DnD終了時にそのSessionの一時情報を破棄する。
+ * 有効drop後は最後の挿入空間をTable更新完了まで維持し、確定完了後に破棄する。
  *
  * @return 現在の有効な移動先を覆う1行分の挿入空間。表示条件が成立しない場合はnull。
  */
 export const RowInsertionGap = () => {
+	const phase = useRowDndPhase();
 	const destinationBoundaryIndex = useRowDndDestinationBoundaryIndex();
+	const physicalDragEnded = useRef( false );
 	const [ sessionLayout, setSessionLayout ] = useState< RowInsertionGapSessionLayout | null >(
 		null
 	);
@@ -178,6 +184,7 @@ export const RowInsertionGap = () => {
 
 	useDragDropMonitor( {
 		onDragStart: ( event ) => {
+			physicalDragEnded.current = false;
 			setSessionLayout( resolveInsertionGapSessionLayout( event.operation.source?.element ) );
 		},
 		onDragMove: () => {
@@ -185,20 +192,38 @@ export const RowInsertionGap = () => {
 			setMeasurementRevision( ( current ) => current + 1 );
 		},
 		onDragEnd: () => {
-			setSessionLayout( null );
-			setLayout( null );
+			physicalDragEnded.current = true;
+
+			/* 有効な移動先がない終了では確定表示を維持する必要がないため、従来どおり直ちに破棄する。 */
+			if ( destinationBoundaryIndex === null ) {
+				setSessionLayout( null );
+				setLayout( null );
+			}
 		},
 	} );
 
 	useEffect( () => {
+		/* 有効dropの確定処理が終了してidleへ戻った時点で、最後の挿入空間を実Table表示へ引き継ぐ。 */
+		if ( physicalDragEnded.current && phase === 'idle' ) {
+			physicalDragEnded.current = false;
+			setSessionLayout( null );
+			setLayout( null );
+			return;
+		}
+
 		/* DnD開始時の論理配置がない期間は、直前の挿入空間を表示へ残さない。 */
 		if ( sessionLayout === null ) {
 			setLayout( null );
 			return;
 		}
 
+		/* 有効drop後はInteractionの移動先が消えても、確定完了まで最後の配置を変更しない。 */
+		if ( physicalDragEnded.current ) {
+			return;
+		}
+
 		setLayout( resolveInsertionGapLayout( sessionLayout, destinationBoundaryIndex ) );
-	}, [ destinationBoundaryIndex, measurementRevision, sessionLayout ] );
+	}, [ destinationBoundaryIndex, measurementRevision, phase, sessionLayout ] );
 
 	/* 現在描画できる挿入空間がない期間は、表示要素自体を生成しない。 */
 	if ( layout === null ) {
