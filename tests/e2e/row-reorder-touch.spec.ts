@@ -18,7 +18,24 @@ test.beforeEach( async ( { admin, page } ) => {
 	await setPreferences( page );
 } );
 
-test( 'touch long press starts row drag and commits the visible destination', async ( {
+/**
+ * タッチの長押しで行のDnDを開始し、表示された移動先へ確定できることを確認する。
+ *
+ * 事前条件:
+ * - タッチ入力を利用できる環境でTableが表示されている。
+ * - 行の並び替えモードを利用できる。
+ *
+ * 操作:
+ * - 行の並び替えモードを有効にする。
+ * - 先頭行を長押ししてDnDを開始し、末尾の移動先へ移動する。
+ * - 指を離して移動を確定する。
+ *
+ * 期待結果:
+ * - 長押し後に移動中の行と移動先が表示される。
+ * - 先頭行が末尾へ移動する。
+ * - 確定後は移動中の表示が終了する。
+ */
+test( 'when a row is long-pressed and dragged by touch, should move it to the visible destination', async ( {
 	page,
 	editor,
 } ) => {
@@ -39,7 +56,23 @@ test( 'touch long press starts row drag and commits the visible destination', as
 	}
 } );
 
-test( 'touch scroll remains available before a drag starts in row mode', async ( {
+/**
+ * 行の並び替えモード中でもDnD開始前の通常タッチスクロールを利用できることを確認する。
+ *
+ * 事前条件:
+ * - タッチ入力を利用できる環境で、画面内に収まらないTableが表示されている。
+ * - 行の並び替えモードが有効である。
+ *
+ * 操作:
+ * - DnDを開始せずTable上を通常のタッチ操作でスクロールする。
+ *
+ * 期待結果:
+ * - Tableを縦方向へスクロールできる。
+ * - 行のDnDは開始されない。
+ * - Tableの編集データは変更されない。
+ * - 行の並び替えモードは維持される。
+ */
+test( 'when the user scrolls by touch before drag starts, should scroll normally without changing the Table or leaving row mode', async ( {
 	page,
 	editor,
 } ) => {
