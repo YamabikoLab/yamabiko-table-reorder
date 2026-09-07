@@ -35,7 +35,11 @@ const hideDuringCommit = (
 	activeDisplay: ActiveCommitDisplay,
 	element: HTMLElement | null
 ): void => {
-	if ( element === null || element === activeDisplay.display || activeDisplay.hiddenElements.has( element ) ) {
+	if (
+		element === null ||
+		element === activeDisplay.display ||
+		activeDisplay.hiddenElements.has( element )
+	) {
 		return;
 	}
 
@@ -121,39 +125,42 @@ export const RowCommitDisplay = () => {
 			display.style.transform = 'none';
 			editorDocument.body.append( display );
 
-		const current: ActiveCommitDisplay = {
-			display,
-			hiddenElements: new Map(),
-		};
-		activeDisplay.current = current;
+			const current: ActiveCommitDisplay = {
+				display,
+				hiddenElements: new Map(),
+			};
+			activeDisplay.current = current;
 
-		/*
-		 * 確定中は移動元、DnD中のMoving Row、Insertion Gapを表示せず、押しのけ済みTableと静止した移動行だけで
-		 * 移動完了後の配置を示す。これにより固定座標のDnD表示をスクロール後へ持ち越さない。
-		 */
-		hideDuringCommit( current, editorDocument.querySelector< HTMLElement >( SOURCE_ROW_SELECTOR ) );
-		hideDuringCommit( current, movingDisplay );
-		hideDuringCommit( current, insertionGap );
+			/*
+			 * 確定中は移動元、DnD中のMoving Row、Insertion Gapを表示せず、押しのけ済みTableと静止した移動行だけで
+			 * 移動完了後の配置を示す。これにより固定座標のDnD表示をスクロール後へ持ち越さない。
+			 */
+			hideDuringCommit(
+				current,
+				editorDocument.querySelector< HTMLElement >( SOURCE_ROW_SELECTOR )
+			);
+			hideDuringCommit( current, movingDisplay );
+			hideDuringCommit( current, insertionGap );
 
-		/*
-		 * 同じ物理DnD終了で後から生成されるDrop Animationの複製も、Core Table更新前の最初の描画周期で隠す。
-		 * 静止確定表示だけを残すことで、重いTable更新中にアニメーション途中の表示を凍結して見せない。
-		 */
-		const requestId = editorWindow.requestAnimationFrame( () => {
-			cleanupFrame.current = null;
-			const active = activeDisplay.current;
-			if ( active === null || active.display !== display ) {
-				return;
-			}
+			/*
+			 * 同じ物理DnD終了で後から生成されるDrop Animationの複製も、Core Table更新前の最初の描画周期で隠す。
+			 * 静止確定表示だけを残すことで、重いTable更新中にアニメーション途中の表示を凍結して見せない。
+			 */
+			const requestId = editorWindow.requestAnimationFrame( () => {
+				cleanupFrame.current = null;
+				const active = activeDisplay.current;
+				if ( active === null || active.display !== display ) {
+					return;
+				}
 
-			editorDocument
-				.querySelectorAll< HTMLElement >( COMMIT_PRESENTATION_SELECTOR )
-				.forEach( ( element ) => {
-					hideDuringCommit( active, element );
-				} );
-		} );
-		cleanupFrame.current = { editorWindow, requestId };
-	},
+				editorDocument
+					.querySelectorAll< HTMLElement >( COMMIT_PRESENTATION_SELECTOR )
+					.forEach( ( element ) => {
+						hideDuringCommit( active, element );
+					} );
+			} );
+			cleanupFrame.current = { editorWindow, requestId };
+		},
 	} );
 
 	useEffect( () => {

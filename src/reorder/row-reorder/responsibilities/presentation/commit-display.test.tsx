@@ -65,16 +65,16 @@ const createPresentation = () => {
 
 	const insertionGap = document.createElement( 'div' );
 	insertionGap.className = 'yamabiko-table-reorder-insertion-gap';
-	jest.spyOn( insertionGap, 'getBoundingClientRect' ).mockReturnValue(
-		rectangle( { top: 100, left: 120, width: 400, height: 40 } )
-	);
+	jest
+		.spyOn( insertionGap, 'getBoundingClientRect' )
+		.mockReturnValue( rectangle( { top: 100, left: 120, width: 400, height: 40 } ) );
 
 	const movingDisplay = document.createElement( 'div' );
 	movingDisplay.className = 'yamabiko-table-reorder-moving-row';
 	movingDisplay.textContent = 'Moved row';
-	jest.spyOn( movingDisplay, 'getBoundingClientRect' ).mockReturnValue(
-		rectangle( { top: 300, left: 450, width: 400, height: 40 } )
-	);
+	jest
+		.spyOn( movingDisplay, 'getBoundingClientRect' )
+		.mockReturnValue( rectangle( { top: 300, left: 450, width: 400, height: 40 } ) );
 
 	document.body.append( insertionGap, movingDisplay );
 	return { sourceRow, movingDisplay, insertionGap };
@@ -198,9 +198,7 @@ describe( 'Row commit display', () => {
 				operation: { source: { element: sourceRow } },
 			} );
 		} );
-		expect(
-			document.querySelector( '.yamabiko-table-reorder-row-commit-display' )
-		).not.toBeNull();
+		expect( document.querySelector( '.yamabiko-table-reorder-row-commit-display' ) ).not.toBeNull();
 
 		mockRowDndPhase = 'idle';
 		rerender( <RowCommitDisplay /> );
@@ -297,9 +295,7 @@ describe( 'Row commit display', () => {
 				operation: { source: { element: sourceRow } },
 			} );
 		} );
-		expect(
-			document.querySelector( '.yamabiko-table-reorder-row-commit-display' )
-		).not.toBeNull();
+		expect( document.querySelector( '.yamabiko-table-reorder-row-commit-display' ) ).not.toBeNull();
 
 		unmount();
 
