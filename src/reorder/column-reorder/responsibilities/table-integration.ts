@@ -172,7 +172,7 @@ const parseSection = (
 		return { rows: [], columnCount: null };
 	}
 
-	const occupied: boolean[][] = Array.from( { length: sectionRows.length }, () => [] );
+	let occupied: boolean[][] | undefined;
 	const parsedRows: ParsedRow[] = [];
 
 	/* section内の全行を同一の論理Table gridへ配置し、rowspanによる後続行の占有も含めて列位置を確定する。 */
@@ -198,6 +198,9 @@ const parseSection = (
 				return null;
 			}
 
+			if ( occupied === undefined ) {
+				occupied = Array.from( { length: sectionRows.length }, () => [] );
+			}
 			const columnStart = findAvailableColumnStart( occupied[ rowIndex ], searchFrom, columnSpan );
 
 			/* セルが占有する全行・全列を予約し、後続セルおよび後続行が同じ論理位置へ重ならないようにする。 */
@@ -231,6 +234,10 @@ const parseSection = (
 		}
 
 		parsedRows.push( { row, cells: parsedCells } );
+	}
+
+	if ( occupied === undefined ) {
+		return null;
 	}
 
 	const firstRowColumnCount = occupied[ 0 ].length;
