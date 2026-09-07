@@ -5,7 +5,7 @@
  * 移動先更新、確定、cancelのLifecycleを所有する。開始可否判定は所有しない。
  * active Sessionだけを共有状態として保持し、DnD Engine固有の物理状態やSession開始前の候補を状態として複製しない。
  * DnD終了後はSessionを破棄してから対象Tableの現在行制約を取得し直し、Reorder Modeへ継続可否だけを通知する。
- * DnD Interaction外部へStoreを公開せず、Reorder PresentationやAuto Scrollに必要な状態だけを購読境界と一回性イベントで公開する。
+ * DnD Interaction外部へStoreを公開せず、Reorder Presentationに必要な状態だけを購読境界と一回性イベントで公開する。
  */
 
 import { devtools } from 'zustand/middleware';
@@ -304,16 +304,6 @@ export const subscribeRowDndState = ( listener: RowDndStateListener ): ( () => v
 export const getRowDndPhase = (): RowDndStoreState[ 'phase' ] => {
 	const phase = rowDndStore.getState().phase;
 	return phase;
-};
-
-/**
- * Auto Scrollが行DnD中だけ自動スクロール許可状態を有効にするため、現在のactive状態を取得する。
- *
- * @return 行DnD Sessionがactiveな場合はtrue。それ以外はfalse。
- */
-export const getRowDndActive = (): boolean => {
-	const active = rowDndStore.getState().phase === 'active';
-	return active;
 };
 
 /**

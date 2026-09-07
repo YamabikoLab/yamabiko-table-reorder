@@ -311,16 +311,6 @@ export const getColumnDndPhase = (): ColumnDndStoreState[ 'phase' ] => {
 };
 
 /**
- * DnD Engine IntegrationやAuto Scrollが列DnDのactive状態を確認するために利用する。
- *
- * @return Column DnD Sessionがactiveな場合はtrue。それ以外はfalse。
- */
-export const getColumnDndActive = (): boolean => {
-	const active = columnDndStore.getState().phase === 'active';
-	return active;
-};
-
-/**
  * Reorder Presentationが現在の有効な挿入位置を追従するため、現在の移動先境界を取得する。
  *
  * @return 実際に列順を変更できる現在の0-based移動先境界。idleまたは有効な移動先がない場合はnull。
