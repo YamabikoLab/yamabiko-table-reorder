@@ -11,7 +11,24 @@ import {
 	tableAttributes,
 } from './row-reorder';
 
-test( 'vertical auto scroll carries a drag to an initially offscreen destination without horizontal drift', async ( {
+/**
+ * 行のDnD中に縦Auto Scrollで画面外の移動先まで到達し、横位置を崩さず確定できることを確認する。
+ *
+ * 事前条件:
+ * - 画面内に収まらない行数のCore Tableが存在する。
+ * - 行の並び替えモードを利用できる。
+ *
+ * 操作:
+ * - 先頭行のDnDを開始する。
+ * - 画面下端へドラッグして縦Auto Scrollを発生させる。
+ * - 当初画面外だった移動先へ行をドロップする。
+ *
+ * 期待結果:
+ * - Auto Scrollによって移動先が画面内へ到達する。
+ * - 行が指定した位置へ移動する。
+ * - Tableの横位置は変化しない。
+ */
+test( 'when a row is dragged toward an offscreen destination, should auto-scroll vertically and commit without horizontal drift', async ( {
 	admin,
 	page,
 	editor,
