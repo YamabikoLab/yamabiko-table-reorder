@@ -466,10 +466,10 @@ workspace "YTR Reorder v1 Architecture" {
 				"runtime.RV_ROW_DND_CANCEL.step.1" "cancelまたは物理DnD endを通知する。"
 			}
 		}
-		RT_037 = RESP_ROW_DND_ENGINE_INTEGRATION -> RESP_ROW_DND_INTERACTION "cancel、またはcomplete時の有効移動先なしとしてSession終了へ接続する。" {
+		RT_037 = RESP_ROW_DND_ENGINE_INTEGRATION -> RESP_ROW_DND_INTERACTION "cancelまたはcompleteという物理終了種別をSessionへ渡す。" {
 			tags "Runtime Interaction,Runtime_RV_ROW_DND_CANCEL"
 			properties {
-				"runtime.RV_ROW_DND_CANCEL.step.2" "cancel、またはcomplete時の有効移動先なしとしてSession終了へ接続する。"
+				"runtime.RV_ROW_DND_CANCEL.step.2" "cancelまたはcompleteという物理終了種別をSessionへ渡す。"
 			}
 		}
 		RT_038 = RESP_ROW_DND_INTERACTION -> RESP_ROW_PRESENTATION "DnD中表示を終了し、異常終了通知を要求しない。" {
