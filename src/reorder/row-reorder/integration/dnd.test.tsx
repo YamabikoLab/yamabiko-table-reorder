@@ -5,8 +5,13 @@
  * 移動先解決結果の接続、終了種別、Auto Scroll方向、および行並び替え無効化時を含む一時状態破棄だけを検証する。
  */
 
-import type { BeforeDragStartEvent, DragEndEvent, DragMoveEvent, Draggable } from '@dnd-kit/dom';
-import { AutoScroller } from '@dnd-kit/dom';
+import {
+	AutoScroller,
+	type BeforeDragStartEvent,
+	type DragEndEvent,
+	type DragMoveEvent,
+	type Draggable,
+} from '@dnd-kit/dom';
 import { DragDropProvider } from '@dnd-kit/react';
 import { render } from '@testing-library/react';
 import type { ReactNode } from 'react';
@@ -16,11 +21,9 @@ import { RowDnd } from './dnd';
 import { createRowDestinationResolver } from '@/reorder/row-reorder/integration/destination-resolution';
 import { rowReorderTargetResolution } from '@/reorder/row-reorder/responsibilities/target-resolution';
 
-const autoScrollerConfiguredPlugin = {};
-
 jest.mock( '@dnd-kit/dom', () => ( {
 	AutoScroller: {
-		configure: jest.fn( () => autoScrollerConfiguredPlugin ),
+		configure: jest.fn( () => ( { configured: true } ) ),
 	},
 	Cursor: {},
 	PreventSelection: {},
@@ -135,7 +138,10 @@ describe( 'Row DnD engine connection', () => {
 		expect( autoScrollerConfigureMock ).toHaveBeenCalledWith( {
 			threshold: { x: 0, y: 0.2 },
 		} );
-		expect( plugins ).toEqual( [ unrelatedPlugin, autoScrollerConfiguredPlugin ] );
+		expect( plugins ).toEqual( [
+			unrelatedPlugin,
+			autoScrollerConfigureMock.mock.results[ 0 ]?.value,
+		] );
 	} );
 
 	/**
