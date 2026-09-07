@@ -77,6 +77,7 @@ When reviewing React code, focus on React-specific correctness, lifecycle behavi
 ## Jest tests
 
 - When creating or changing Jest tests under `src/`, follow `../docs/development/jest-test-guidelines.md`.
+- When creating or changing Jest tests under `src/`, also follow the shared test case documentation rules in `../docs/development/test-case-documentation.md`.
 - Keep test files adjacent to the implementation they verify as `*.test.ts` or `*.test.tsx`; this issue does not change test placement.
 - Do not add exports to production code solely for tests.
 
