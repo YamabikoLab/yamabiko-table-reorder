@@ -10,6 +10,7 @@ import { RowInsertionGap } from './insertion-gap';
 import { RowInsertionLine } from './insertion-line';
 import { RowMovingDisplay } from './moving-row';
 import { RowDisplacement } from './row-displacement';
+import { RowSourceCommitPresentation } from './source-row-commit-presentation';
 import { RowStartRejectionNotice } from './start-rejection-notice';
 import { RowTerminationNotice } from './termination-notice';
 
@@ -24,6 +25,7 @@ export const RowPresentation = () => (
 		<RowInsertionGap />
 		<RowMovingDisplay />
 		<RowDropAnimation />
+		<RowSourceCommitPresentation />
 		<RowInsertionLine />
 		<RowStartRejectionNotice />
 		<RowTerminationNotice />
