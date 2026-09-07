@@ -77,13 +77,14 @@ const resolveDestinationLayout = (
 	}
 
 	const typedTable = table as HTMLTableElement;
-	const inlineDirection = resolveTableColumnInlineDirection( typedTable );
 	const boundaries = measureTableColumnBoundaryGeometry( typedTable );
 
 	/* 物理位置を論理列間境界へ対応付ける基準がないTableでは、不完全なResolverを生成しない。 */
 	if ( boundaries.length < 2 ) {
 		return null;
 	}
+
+	const inlineDirection = resolveTableColumnInlineDirection( typedTable );
 
 	return {
 		table: typedTable,
