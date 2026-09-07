@@ -5,10 +5,12 @@
  * PCとタッチ端末の開始条件判定は入力境界へ委ね、dnd-kitが通知する物理DnDの進行を、
  * Reorder Target Resolution、移動先解決境界、DnD Interactionへ接続する。
  * Reorder Presentationは同じDnD Engine境界の配下へ独立して接続し、表示Lifecycleと表示状態を自身で所有する。
+ * 行DnDのAuto Scrollは縦方向だけを許可し、Tableの横位置を利用者の操作なく変更しない。
  * 行並び替えの無効化または境界の終了時には、次の通常編集や別モードへ持ち越せない解決結果と物理DnD登録を破棄する。
  */
 
 import {
+	AutoScroller,
 	Cursor,
 	PreventSelection,
 	Feedback,
@@ -47,6 +49,7 @@ export type { RowDndPointerDownHandler } from '@/reorder/row-reorder/responsibil
  * 接続自体はTableの描画中に安定して維持し、行並び替えが有効な期間だけ入力境界から開始対象を登録する。
  * 物理DnD成立前にReorder Target Resolutionで開始対象を再確認し、成立後は解決済みのTargetと開始時制約だけをDnD Interactionへ渡す。
  * Reorder Presentationは同じDnD Engine境界を利用する独立した表示境界として接続する。
+ * Auto Scrollは縦方向だけを有効にし、行DnDによって横方向のスクロール位置を変更しない。
  * 行並び替えが無効になった場合と接続自体が終了する場合は、未使用の解決結果とDraggable登録を破棄する。
  *
  * @param props               行DnD接続に必要な値。
@@ -141,12 +144,19 @@ export const RowDnd = ( props: {
 
 	return (
 		<DragDropProvider
-			plugins={ ( defaults ) =>
-				/* 行DnDは入力境界と独自Presentationで必要な操作・表示状態を管理するため、dnd-kit既定の補助処理は重ねて接続しない。 */
-				defaults.filter(
-					( plugin ) => plugin !== Cursor && plugin !== PreventSelection && plugin !== Feedback
-				)
-			}
+			plugins={ ( defaults ) => [
+				/* 行DnDは入力境界と独自Presentationで必要な操作・表示状態を管理し、Auto Scrollは縦方向だけを許可する。 */
+				...defaults.filter(
+					( plugin ) =>
+						plugin !== Cursor &&
+						plugin !== PreventSelection &&
+						plugin !== Feedback &&
+						plugin !== AutoScroller
+				),
+				AutoScroller.configure( {
+					threshold: { x: 0, y: 0.2 },
+				} ),
+			] }
 			onBeforeDragStart={ onBeforeDragStart }
 			onDragStart={ onDragStart }
 			onDragMove={ onDragMove }
