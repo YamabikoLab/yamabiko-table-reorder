@@ -51,7 +51,9 @@ test( 'when a row is dragged toward an offscreen destination, should auto-scroll
 	await page.mouse.move( edge.x, viewport.height / 2 );
 	await expect( canvas.locator( '.yamabiko-table-reorder-insertion-line' ) ).toBeVisible();
 	await page.mouse.up();
-	await expect.poll( async () => ( await rowOrder( rows ) ).indexOf( 'Row 1' ) ).toBeGreaterThan( 5 );
+	await expect
+		.poll( async () => ( await rowOrder( rows ) ).indexOf( 'Row 1' ) )
+		.toBeGreaterThan( 5 );
 	expect( ( await rows.first().boundingBox() )!.x ).toBeCloseTo( originalX, 0 );
 	await expect( canvas.locator( '.yamabiko-table-reorder-moving-row' ) ).toBeHidden();
 } );
