@@ -14,8 +14,10 @@ import {
 	type TableName,
 } from './row-reorder';
 
-const TABLE_ROWS = 100;
-const TABLE_COLUMNS = 5;
+const REPRESENTATIVE_TABLE_SIZE = { rows: 100, columns: 5 } as const;
+const STRESS_TABLE_SIZE = { rows: 1000, columns: 20 } as const;
+const IS_STRESS_MEASUREMENT = process.env.E2E_PERFORMANCE_STRESS === '1';
+const TABLE_SIZE = IS_STRESS_MEASUREMENT ? STRESS_TABLE_SIZE : REPRESENTATIVE_TABLE_SIZE;
 const DESTINATION_ROW_INDEX = 3;
 const CPU_SAMPLING_INTERVAL_US = 1000;
 
@@ -45,7 +47,7 @@ function frameOwner( frame: { url: string; functionName: string } ) {
 }
 
 for ( const name of [ 'core/table', 'flexible-table-block/table' ] as TableName[] ) {
-	test( `${ name } ${ TABLE_ROWS } x ${ TABLE_COLUMNS } separates block updates from YTR drag phases`, async ( {
+	test( `${ name } ${ TABLE_SIZE.rows } x ${ TABLE_SIZE.columns } separates block updates from YTR drag phases`, async ( {
 		admin,
 		page,
 		editor,
@@ -58,9 +60,9 @@ for ( const name of [ 'core/table', 'flexible-table-block/table' ] as TableName[
 			page,
 			editor,
 			name,
-			tableAttributes( TABLE_ROWS, TABLE_COLUMNS )
+			tableAttributes( TABLE_SIZE.rows, TABLE_SIZE.columns )
 		);
-		await expect( rows ).toHaveCount( TABLE_ROWS );
+		await expect( rows ).toHaveCount( TABLE_SIZE.rows );
 		const clientId = ( await block.getAttribute( 'data-block' ) )!;
 		const session = await page.context().newCDPSession( page );
 		await session.send( 'Profiler.enable' );
@@ -149,8 +151,9 @@ for ( const name of [ 'core/table', 'flexible-table-block/table' ] as TableName[
 				JSON.stringify(
 					{
 						block: name,
-						rows: TABLE_ROWS,
-						columns: TABLE_COLUMNS,
+						scenario: IS_STRESS_MEASUREMENT ? 'stress' : 'representative',
+						rows: TABLE_SIZE.rows,
+						columns: TABLE_SIZE.columns,
 						cpuSamplingIntervalUs: CPU_SAMPLING_INTERVAL_US,
 						browser: browser.version(),
 						editorMode:
