@@ -50,9 +50,7 @@ test( 'when a row is dragged toward an offscreen destination, should auto-scroll
 		.and( canvas.locator( 'figure.wp-block-table' ) )
 		.or( block.locator( 'figure.wp-block-table' ) );
 	await expect
-		.poll( () =>
-			tableFigure.evaluate( ( element ) => element.scrollWidth - element.clientWidth )
-		)
+		.poll( () => tableFigure.evaluate( ( element ) => element.scrollWidth - element.clientWidth ) )
 		.toBeGreaterThan( 100 );
 	await tableFigure.evaluate( ( element ) => {
 		element.scrollLeft = ( element.scrollWidth - element.clientWidth ) / 2;
