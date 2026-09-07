@@ -83,7 +83,13 @@ const createTableTarget = () => {
 	return { currentTarget, target, next };
 };
 
-/** 列DnD開始処理へ渡すPCポインターイベントを生成する。 */
+/**
+ * 列DnD開始処理へ渡すPCポインターイベントを生成する。
+ * @param options
+ * @param options.target
+ * @param options.currentTarget
+ * @param options.pointerType
+ */
 const createPointerEvent = ( options: {
 	target: Element;
 	currentTarget: Element;

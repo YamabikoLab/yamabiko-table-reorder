@@ -10,10 +10,7 @@ import { Draggable, PointerActivationConstraints, PointerSensor } from '@dnd-kit
 import { useDragDropManager } from '@dnd-kit/react';
 import type { PointerEvent, ReactNode } from 'react';
 
-import {
-	columnReorderTargetResolution,
-	type ColumnReorderTarget,
-} from './target-resolution';
+import { columnReorderTargetResolution, type ColumnReorderTarget } from './target-resolution';
 
 /** 列DnDを既存DOMのPCポインター入力へ接続する開始処理。 */
 export type ColumnDndPointerDownHandler = ( event: PointerEvent< Element > ) => void;

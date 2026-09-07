@@ -110,7 +110,9 @@ export const ColumnDnd = ( props: {
 		}
 
 		resolvedStart.current = null;
-		destinationResolver.current = createColumnDestinationResolver( event?.operation.source?.element );
+		destinationResolver.current = createColumnDestinationResolver(
+			event?.operation.source?.element
+		);
 		columnDndInteraction.start( resolution.target, resolution.initialConstraints );
 	};
 
