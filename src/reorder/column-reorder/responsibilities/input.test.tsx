@@ -44,12 +44,17 @@ const targetResolutionMock = columnReorderTargetResolution as jest.Mocked<
 	typeof columnReorderTargetResolution
 >;
 
-/** PC入力境界へ渡す最小限のDnD Engine状態を生成する。 */
-const createManager = () =>
+/**
+ * PC入力境界へ渡す最小限のDnD Engine状態を生成する。
+ *
+ * @param idle 新しい物理DnD開始候補を受け付けられる場合はtrue。
+ * @return テストで利用するDnD Engine状態。
+ */
+const createManager = ( idle = true ) =>
 	( {
 		dragOperation: {
 			status: {
-				idle: true,
+				idle,
 			},
 		},
 	} ) as ReturnType< typeof useDragDropManager >;
@@ -83,12 +88,36 @@ const createTableTarget = () => {
 	return { currentTarget, target, next };
 };
 
+/** 横結合の後続セルでDOM上のcellIndexと論理列位置が異なるTableを生成する。 */
+const createColspanTableTarget = () => {
+	const currentTarget = document.createElement( 'div' );
+	currentTarget.innerHTML = `
+		<table>
+			<tbody>
+				<tr>
+					<td colspan="2">A</td>
+					<td data-testid="target">B</td>
+				</tr>
+			</tbody>
+		</table>
+	`;
+
+	const target = currentTarget.querySelector( '[data-testid="target"]' );
+	if ( ! target ) {
+		throw new Error( 'Column colspan input test target could not be created.' );
+	}
+
+	return { currentTarget, target };
+};
+
 /**
  * 列DnD開始処理へ渡すPCポインターイベントを生成する。
- * @param options
- * @param options.target
- * @param options.currentTarget
- * @param options.pointerType
+ *
+ * @param options               入力条件。
+ * @param options.target        PC入力が開始されたDOM要素。
+ * @param options.currentTarget 現在Tableの基準要素。
+ * @param options.pointerType   ポインター入力方式。
+ * @return 列DnD開始処理へ渡すReactポインターイベント。
  */
 const createPointerEvent = ( options: {
 	target: Element;
@@ -195,6 +224,38 @@ describe( 'Column PC input boundary', () => {
 
 	/**
 	 * 概要:
+	 * - 横結合セルの後ろにあるセルを、DOM上の位置ではなくTable全体の論理列位置で開始候補にすることを確認する。
+	 *
+	 * 事前条件:
+	 * - 対象セルの直前に2論理列を占有する横結合セルが存在する。
+	 *
+	 * 操作:
+	 * - 横結合セルの後続セルへ主マウス入力を行う。
+	 *
+	 * 期待結果:
+	 * - 対象セルは論理列2として第一段階解決され、同じ論理列を表すDraggableが登録される。
+	 */
+	it( 'when mouse input targets a cell after a colspan, should resolve its table-wide logical column before registration', () => {
+		const { currentTarget, target } = createColspanTableTarget();
+		const { pointerDownHandler } = renderColumnInput();
+
+		pointerDownHandler( createPointerEvent( { target, currentTarget } ) );
+
+		expect( targetResolutionMock.resolve ).toHaveBeenCalledWith( {
+			tableIdentity: 'table-1',
+			sourceColumnIndex: 2,
+		} );
+		expect( draggableConstructorMock ).toHaveBeenCalledWith(
+			expect.objectContaining( {
+				id: 'ytr-column:table-1:2',
+				element: target,
+			} ),
+			expect.anything()
+		);
+	} );
+
+	/**
+	 * 概要:
 	 * - 第一段階で開始不可となった列は物理DnD開始候補へ登録されないことを確認する。
 	 *
 	 * 事前条件:
@@ -216,6 +277,62 @@ describe( 'Column PC input boundary', () => {
 
 		pointerDownHandler( createPointerEvent( { target, currentTarget } ) );
 
+		expect( draggableConstructorMock ).not.toHaveBeenCalled();
+	} );
+
+	/**
+	 * 概要:
+	 * - 新しい開始試行が開始不可になった場合、前回入力で登録した開始候補を次の物理DnDへ持ち越さないことを確認する。
+	 *
+	 * 事前条件:
+	 * - 1回目の入力は開始可能でDraggableが登録される。
+	 * - 2回目の入力は第一段階Target Resolutionで開始拒否となる。
+	 *
+	 * 操作:
+	 * - 開始可能なセルへ入力した後、開始不可となる別セルへ入力する。
+	 *
+	 * 期待結果:
+	 * - 前回のDraggableは破棄され、新しいDraggableは登録されない。
+	 */
+	it( 'when a new mouse input is rejected after a previous candidate was registered, should discard the previous candidate without replacing it', () => {
+		const { currentTarget, target, next } = createTableTarget();
+		const { pointerDownHandler, activeDraggable } = renderColumnInput();
+
+		pointerDownHandler( createPointerEvent( { target, currentTarget } ) );
+		const firstDraggable = activeDraggable.current;
+		targetResolutionMock.resolve.mockReturnValue( {
+			status: 'rejected',
+			reason: 'merged-range',
+		} );
+
+		pointerDownHandler( createPointerEvent( { target: next, currentTarget } ) );
+
+		expect( firstDraggable?.destroy ).toHaveBeenCalledTimes( 1 );
+		expect( activeDraggable.current ).toBeNull();
+		expect( draggableConstructorMock ).toHaveBeenCalledTimes( 1 );
+	} );
+
+	/**
+	 * 概要:
+	 * - activeな物理DnD中は追加のPC入力から別の開始候補を生成しないことを確認する。
+	 *
+	 * 事前条件:
+	 * - DnD Engineは既にactiveな物理DnDを処理している。
+	 *
+	 * 操作:
+	 * - 現在Tableのセルへ主マウス入力を行う。
+	 *
+	 * 期待結果:
+	 * - 第一段階Target ResolutionもDraggable登録も行われない。
+	 */
+	it( 'when a physical drag is already active, should ignore additional mouse input without resolving or registering another candidate', () => {
+		useDragDropManagerMock.mockReturnValue( createManager( false ) );
+		const { currentTarget, target } = createTableTarget();
+		const { pointerDownHandler } = renderColumnInput();
+
+		pointerDownHandler( createPointerEvent( { target, currentTarget } ) );
+
+		expect( targetResolutionMock.resolve ).not.toHaveBeenCalled();
 		expect( draggableConstructorMock ).not.toHaveBeenCalled();
 	} );
 
