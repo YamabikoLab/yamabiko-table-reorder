@@ -3,13 +3,25 @@ import { expect, test } from '@wordpress/e2e-test-utils-playwright';
 import {
 	insertTable,
 	moveMouse,
-	pointIn,
 	ROW_BUTTON,
 	rowOrder,
 	setPreferences,
 	startMouseDrag,
 	tableAttributes,
 } from './row-reorder';
+
+/** 横方向にもスクロール可能なAuto Scroll検証用Core Table属性を生成する。 */
+function wideTableAttributes() {
+	const attributes = tableAttributes( 40, 12 );
+	attributes.hasFixedLayout = false;
+	for ( const row of attributes.body ) {
+		for ( const [ column, cell ] of row.cells.entries() ) {
+			cell.content =
+				column === 0 ? cell.content : `Column${ column + 1 }${ 'Wide'.repeat( 12 ) }`;
+		}
+	}
+	return attributes;
+}
 
 /**
  * 行のDnD中に縦Auto Scrollで画面外の移動先まで到達し、横方向へAuto Scrollせず確定できることを確認する。
@@ -36,16 +48,12 @@ test( 'when a row is dragged toward an offscreen destination, should auto-scroll
 } ) => {
 	await admin.createNewPost();
 	await setPreferences( page );
-	const attributes = tableAttributes( 40, 12 );
-	attributes.hasFixedLayout = false;
-	for ( const row of attributes.body ) {
-		for ( const [ column, cell ] of row.cells.entries() ) {
-			if ( column > 0 ) {
-				cell.content = `Column${ column + 1 }${ 'Wide'.repeat( 12 ) }`;
-			}
-		}
-	}
-	const { canvas, block, rows } = await insertTable( page, editor, 'core/table', attributes );
+	const { canvas, block, rows } = await insertTable(
+		page,
+		editor,
+		'core/table',
+		wideTableAttributes()
+	);
 	const tableFigure = block
 		.and( canvas.locator( 'figure.wp-block-table' ) )
 		.or( block.locator( 'figure.wp-block-table' ) );
