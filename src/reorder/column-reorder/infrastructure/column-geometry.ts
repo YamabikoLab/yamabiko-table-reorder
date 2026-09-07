@@ -87,32 +87,18 @@ export const measureTableColumnBoundaryGeometry = (
 		let nextColumnIndex = 0;
 
 		Array.from( row.cells ).forEach( ( cell ) => {
-			const columnStart = resolveNextAvailableColumnIndex(
-				remainingRowSpans,
-				nextColumnIndex
-			);
+			const columnStart = resolveNextAvailableColumnIndex( remainingRowSpans, nextColumnIndex );
 			const columnSpan = Math.max( cell.colSpan, 1 );
 			const columnEnd = columnStart + columnSpan;
 			const rectangle = cell.getBoundingClientRect();
 
-			recordBoundary(
-				boundaries,
-				columnStart,
-				rectangle.left - tableRectangle.left
-			);
-			recordBoundary(
-				boundaries,
-				columnEnd,
-				rectangle.right - tableRectangle.left
-			);
+			recordBoundary( boundaries, columnStart, rectangle.left - tableRectangle.left );
+			recordBoundary( boundaries, columnEnd, rectangle.right - tableRectangle.left );
 
 			const rowSpan = Math.max( cell.rowSpan, 1 );
 			if ( rowSpan > 1 ) {
 				for ( let index = columnStart; index < columnEnd; index += 1 ) {
-					remainingRowSpans[ index ] = Math.max(
-						remainingRowSpans[ index ] ?? 0,
-						rowSpan
-					);
+					remainingRowSpans[ index ] = Math.max( remainingRowSpans[ index ] ?? 0, rowSpan );
 				}
 			}
 

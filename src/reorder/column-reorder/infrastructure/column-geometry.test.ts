@@ -13,11 +13,7 @@ import { measureTableColumnBoundaryGeometry } from '@/reorder/column-reorder/inf
  * @param left  Table左端を基準とするセル左端位置。
  * @param right Table左端を基準とするセル右端位置。
  */
-const setCellRectangle = (
-	cell: HTMLTableCellElement,
-	left: number,
-	right: number
-): void => {
+const setCellRectangle = ( cell: HTMLTableCellElement, left: number, right: number ): void => {
 	jest.spyOn( cell, 'getBoundingClientRect' ).mockReturnValue( {
 		left,
 		right,

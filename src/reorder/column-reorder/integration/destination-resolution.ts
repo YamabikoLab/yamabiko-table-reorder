@@ -126,8 +126,7 @@ const resolveNearestBoundaryIndex = (
 			return next.index;
 		}
 
-		const nextSwitchOffset =
-			next.offset + ( following.offset - next.offset ) / 2;
+		const nextSwitchOffset = next.offset + ( following.offset - next.offset ) / 2;
 		if ( localX < nextSwitchOffset ) {
 			return next.index;
 		}
@@ -173,10 +172,7 @@ const resolveDestinationBoundaryIndex = (
 	}
 
 	const localX = x - tableRectangle.left;
-	const destinationBoundaryIndex = resolveNearestBoundaryIndex(
-		localX,
-		layout.boundaries
-	);
+	const destinationBoundaryIndex = resolveNearestBoundaryIndex( localX, layout.boundaries );
 	return destinationBoundaryIndex;
 };
 
