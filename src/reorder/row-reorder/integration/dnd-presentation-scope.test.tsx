@@ -82,8 +82,8 @@ describe( 'Row DnD presentation ownership', () => {
 			</>
 		);
 
-		expect( screen.getByTestId( 'table-a' ) ).toBeInTheDocument();
-		expect( screen.getByTestId( 'table-b' ) ).toBeInTheDocument();
+		expect( screen.queryByTestId( 'table-a' ) ).not.toBeNull();
+		expect( screen.queryByTestId( 'table-b' ) ).not.toBeNull();
 		expect( screen.getAllByTestId( 'row-presentation' ) ).toHaveLength( 1 );
 	} );
 } );
