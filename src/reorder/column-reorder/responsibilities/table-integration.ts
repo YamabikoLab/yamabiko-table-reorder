@@ -2,7 +2,7 @@
  * 列専用Table Integrationとして、対応Table Block固有の表現差とWordPress Block Editor Storeとの接続を吸収し、Column Reorderへ現在の列制約取得と確定済み列移動の反映を提供する。
  *
  * このファイルはCore TableとFlexible Table Blockの結合セル属性差、Table全体の論理列解釈、および対応Tableへの列順反映を所有する。
- * Column Reorderへは論理列数、単独移動できない列、結合セルを分断する挿入位置だけを公開し、Tableデータや対応Block固有の表現は外へ公開しない。
+ * Column Reorderへは論理列数と結合セルを分断する挿入位置だけを公開し、Tableデータや対応Block固有の表現は外へ公開しない。
  * Tableデータや構造結果は保持せず、各要求時点のWordPress Blockを直接参照する。
  */
 
@@ -13,8 +13,6 @@ import { dispatch, select } from '@wordpress/data';
 export type ColumnReorderConstraints = {
 	/** Table全体で共通する現在の論理列数。 */
 	columnCount: number;
-	/** colspanに含まれるため単独移動できない0-based論理列位置。重複なく昇順で提供する。 */
-	blockedColumnIndexes: readonly number[];
 	/** 結合セルを分断するため移動先にできない0-based列間境界。重複なく昇順で提供する。 */
 	blockedBoundaries: readonly number[];
 };
@@ -58,7 +56,6 @@ type ParsedSection = {
 type ParsedTable = {
 	sections: Record< TableSectionName, ParsedSection >;
 	columnCount: number;
-	blockedColumnIndexes: readonly number[];
 	blockedBoundaries: readonly number[];
 };
 
@@ -156,16 +153,14 @@ const findAvailableColumnStart = (
  *
  * rowspanによって後続行から物理セルが省略される場合も同じ論理列位置へ復元し、各行が同一列数の欠けのないTable gridとして成立することを要求する。
  *
- * @param tableName            対応Table Block種別。
- * @param sectionRows          対象sectionの未検証行集合。
- * @param blockedColumnIndexes colspanにより単独移動できない列を集約する集合。
- * @param blockedBoundaries    colspanを分断する列間境界を集約する集合。
+ * @param tableName         対応Table Block種別。
+ * @param sectionRows       対象sectionの未検証行集合。
+ * @param blockedBoundaries colspanを分断する列間境界を集約する集合。
  * @return 論理列位置を解釈済みのsection。安全に解釈できない場合はnull。
  */
 const parseSection = (
 	tableName: SupportedTable,
 	sectionRows: readonly unknown[],
-	blockedColumnIndexes: Set< number >,
 	blockedBoundaries: Set< number >
 ): ParsedSection | null => {
 	if ( sectionRows.length === 0 ) {
@@ -214,19 +209,9 @@ const parseSection = (
 				}
 			}
 
-			if ( columnSpan > 1 ) {
-				/* colspanに含まれる各論理列は、結合セルを保ったまま単独で移動できない。 */
-				for (
-					let columnIndex = columnStart;
-					columnIndex < columnStart + columnSpan;
-					columnIndex++
-				) {
-					blockedColumnIndexes.add( columnIndex );
-				}
-				/* colspan内部の列間境界へ挿入すると結合セルを分断するため、移動先として禁止する。 */
-				for ( let boundary = columnStart + 1; boundary < columnStart + columnSpan; boundary++ ) {
-					blockedBoundaries.add( boundary );
-				}
+			/* colspan内部の列間境界へ挿入すると結合セルを分断するため、移動先として禁止する。 */
+			for ( let boundary = columnStart + 1; boundary < columnStart + columnSpan; boundary++ ) {
+				blockedBoundaries.add( boundary );
 			}
 
 			parsedCells.push( { cell, columnStart, columnSpan } );
@@ -297,7 +282,6 @@ const parseTable = (
 		rawSections[ optionalSection ] = rawSection;
 	}
 
-	const blockedColumnIndexes = new Set< number >();
 	const blockedBoundaries = new Set< number >();
 	const sections = {} as Record< TableSectionName, ParsedSection >;
 	let columnCount: number | null = null;
@@ -307,7 +291,6 @@ const parseTable = (
 		const parsedSection = parseSection(
 			tableName,
 			rawSections[ sectionName ],
-			blockedColumnIndexes,
 			blockedBoundaries
 		);
 		if ( parsedSection === null ) {
@@ -334,7 +317,6 @@ const parseTable = (
 	return {
 		sections,
 		columnCount,
-		blockedColumnIndexes: [ ...blockedColumnIndexes ].sort( ( left, right ) => left - right ),
 		blockedBoundaries: [ ...blockedBoundaries ].sort( ( left, right ) => left - right ),
 	};
 };
@@ -345,7 +327,7 @@ const parseTable = (
  * 対象Blockの不在、非対応、またはTable全体を安全に一つの論理列構造として解釈できない状態は外部状態による正常な利用不能として扱い、nullを返す。
  *
  * @param clientId 対象Table個体を識別するclientId。
- * @return 現在の論理列数、単独移動不可列、分断不可境界。現在のTableを安全に解釈できない場合はnull。
+ * @return 現在の論理列数と分断不可境界。現在のTableを安全に解釈できない場合はnull。
  */
 const getConstraints = ( clientId: string ): ColumnReorderConstraints | null => {
 	const block = select( blockEditorStore ).getBlock( clientId );
@@ -361,7 +343,6 @@ const getConstraints = ( clientId: string ): ColumnReorderConstraints | null => 
 
 	return {
 		columnCount: parsedTable.columnCount,
-		blockedColumnIndexes: parsedTable.blockedColumnIndexes,
 		blockedBoundaries: parsedTable.blockedBoundaries,
 	};
 };
@@ -446,11 +427,14 @@ const applyColumnMove = ( move: ColumnMove ): boolean => {
 		Number.isInteger( move.destinationBoundaryIndex ) &&
 		move.destinationBoundaryIndex >= 0 &&
 		move.destinationBoundaryIndex <= parsedTable.columnCount;
+	const sourceBlockedByMergedRange =
+		parsedTable.blockedBoundaries.includes( move.sourceColumnIndex ) ||
+		parsedTable.blockedBoundaries.includes( move.sourceColumnIndex + 1 );
 	/* 確定後に列範囲または結合セル制約が変化した場合は、現在Tableへ確定済み移動を反映しない。 */
 	if (
 		! sourceInRange ||
 		! destinationInRange ||
-		parsedTable.blockedColumnIndexes.includes( move.sourceColumnIndex ) ||
+		sourceBlockedByMergedRange ||
 		parsedTable.blockedBoundaries.includes( move.destinationBoundaryIndex )
 	) {
 		return false;
