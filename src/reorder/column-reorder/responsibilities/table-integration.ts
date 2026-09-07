@@ -288,11 +288,7 @@ const parseTable = (
 
 	/* head・body・footを同じ論理列基準へ解釈し、Table全体で列数と結合セル制約が一致して利用できる状態を確定する。 */
 	for ( const sectionName of TABLE_SECTIONS ) {
-		const parsedSection = parseSection(
-			tableName,
-			rawSections[ sectionName ],
-			blockedBoundaries
-		);
+		const parsedSection = parseSection( tableName, rawSections[ sectionName ], blockedBoundaries );
 		if ( parsedSection === null ) {
 			return null;
 		}
