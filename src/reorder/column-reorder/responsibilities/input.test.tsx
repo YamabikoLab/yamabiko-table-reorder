@@ -314,42 +314,56 @@ describe( 'Column PC input boundary', () => {
 
 	/**
 	 * 概要:
-	 * - activeな物理DnD中は追加のPC入力から別の開始候補を生成しないことを確認する。
+	 * - activeな物理DnD中は現在の開始候補を維持し、追加のPC入力から別候補へ置き換えないことを確認する。
 	 *
 	 * 事前条件:
-	 * - DnD Engineは既にactiveな物理DnDを処理している。
+	 * - idle中のPC入力でDraggableが登録されている。
+	 * - その後、DnD Engineがactiveな物理DnDを処理している。
 	 *
 	 * 操作:
-	 * - 現在Tableのセルへ主マウス入力を行う。
+	 * - active DnD中に別セルへ主マウス入力を行う。
 	 *
 	 * 期待結果:
-	 * - 第一段階Target ResolutionもDraggable登録も行われない。
+	 * - 現在のDraggableは破棄されない。
+	 * - 新しい第一段階Target ResolutionもDraggable登録も行われない。
 	 */
-	it( 'when a physical drag is already active, should ignore additional mouse input without resolving or registering another candidate', () => {
-		useDragDropManagerMock.mockReturnValue( createManager( false ) );
-		const { currentTarget, target } = createTableTarget();
-		const { pointerDownHandler } = renderColumnInput();
+	it( 'when a physical drag is already active, should preserve the current draggable and ignore additional mouse input', () => {
+		const manager = createManager();
+		useDragDropManagerMock.mockReturnValue( manager );
+		const { currentTarget, target, next } = createTableTarget();
+		const { pointerDownHandler, activeDraggable } = renderColumnInput();
 
 		pointerDownHandler( createPointerEvent( { target, currentTarget } ) );
+		const currentDraggable = activeDraggable.current;
+		manager.dragOperation.status.idle = false;
+		pointerDownHandler( createPointerEvent( { target: next, currentTarget } ) );
 
-		expect( targetResolutionMock.resolve ).not.toHaveBeenCalled();
-		expect( draggableConstructorMock ).not.toHaveBeenCalled();
+		expect( currentDraggable?.destroy ).not.toHaveBeenCalled();
+		expect( activeDraggable.current ).toBe( currentDraggable );
+		expect( targetResolutionMock.resolve ).toHaveBeenCalledTimes( 1 );
+		expect( draggableConstructorMock ).toHaveBeenCalledTimes( 1 );
 	} );
 
 	/**
 	 * 概要:
-	 * - Phase 5ではタッチ入力をPC入力経路へ混入させないことを確認する。
+	 * - Phase 5で受理しないタッチ入力が、前回のPC開始候補を物理DnDとして起動できないことを確認する。
+	 *
+	 * 事前条件:
+	 * - idle中のマウス入力でDraggableが登録されているが、DnDは開始していない。
 	 *
 	 * 操作:
-	 * - 対象セルへタッチポインター入力を行う。
+	 * - 同じTableへタッチポインター入力を行う。
 	 *
 	 * 期待結果:
-	 * - 第一段階解決もDraggable登録も行われない。
+	 * - 前回のDraggableは破棄される。
+	 * - タッチ入力では第一段階Target Resolutionも新しいDraggable登録も行われない。
 	 */
-	it( 'when pointer input is not from a mouse, should leave the candidate unresolved for the later touch phase', () => {
+	it( 'when touch input follows an unused mouse candidate, should discard the stale draggable without registering a touch candidate', () => {
 		const { currentTarget, target } = createTableTarget();
-		const { pointerDownHandler } = renderColumnInput();
+		const { pointerDownHandler, activeDraggable } = renderColumnInput();
 
+		pointerDownHandler( createPointerEvent( { target, currentTarget } ) );
+		const mouseDraggable = activeDraggable.current;
 		pointerDownHandler(
 			createPointerEvent( {
 				target,
@@ -358,8 +372,10 @@ describe( 'Column PC input boundary', () => {
 			} )
 		);
 
-		expect( targetResolutionMock.resolve ).not.toHaveBeenCalled();
-		expect( draggableConstructorMock ).not.toHaveBeenCalled();
+		expect( mouseDraggable?.destroy ).toHaveBeenCalledTimes( 1 );
+		expect( activeDraggable.current ).toBeNull();
+		expect( targetResolutionMock.resolve ).toHaveBeenCalledTimes( 1 );
+		expect( draggableConstructorMock ).toHaveBeenCalledTimes( 1 );
 	} );
 
 	/**
