@@ -11,12 +11,15 @@ import type { DragMoveEvent } from '@dnd-kit/dom';
 
 import {
 	measureTableColumnBoundaryGeometry,
+	resolveTableColumnInlineDirection,
 	type ColumnBoundaryGeometry,
+	type ColumnInlineDirection,
 } from '@/reorder/column-reorder/infrastructure/column-geometry';
 
-/** DnD中に利用する、対象Tableと開始時に確定した論理列境界。 */
+/** DnD中に利用する、対象Table、論理進行方向、開始時に確定した論理列境界。 */
 type ColumnDestinationLayout = {
 	table: HTMLTableElement;
+	inlineDirection: ColumnInlineDirection;
 	boundaries: readonly ColumnBoundaryGeometry[];
 };
 
@@ -36,11 +39,11 @@ export type ColumnDestinationResolver = {
 /**
  * DnD Engineが示す移動対象から、列DnD中の移動先判定に利用するTable配置を取得する。
  *
- * 列境界はTableからの相対位置として保持し、スクロールによる画面上の位置変化は固定しない。
+ * 列境界はTableの論理開始端からの相対位置として保持し、スクロールによる画面上の位置変化は固定しない。
  * 対象Tableや開始時境界を安全に確認できない場合は、不完全なResolverを成立させない。
  *
  * @param sourceElement DnD Engineが現在の移動対象として管理するDOM要素。
- * @return 対象Tableと開始時の論理列境界。Column Reorder対象として成立しない場合はnull。
+ * @return 対象Table、論理進行方向、開始時の論理列境界。Column Reorder対象として成立しない場合はnull。
  */
 const resolveDestinationLayout = (
 	sourceElement: Element | undefined
@@ -74,6 +77,7 @@ const resolveDestinationLayout = (
 	}
 
 	const typedTable = table as HTMLTableElement;
+	const inlineDirection = resolveTableColumnInlineDirection( typedTable );
 	const boundaries = measureTableColumnBoundaryGeometry( typedTable );
 
 	/* 物理位置を論理列間境界へ対応付ける基準がないTableでは、不完全なResolverを生成しない。 */
@@ -83,22 +87,23 @@ const resolveDestinationLayout = (
 
 	return {
 		table: typedTable,
+		inlineDirection,
 		boundaries,
 	};
 };
 
 /**
- * 開始時に観測した論理列境界のうち、現在の横位置に最も対応する境界を解決する。
+ * 開始時に観測した論理列境界のうち、現在の論理進行方向上の位置に最も対応する境界を解決する。
  *
- * 隣接する観測境界の中点を切り替え位置とし、各論理列の左半分では直前境界、右半分では直後境界を返す。
+ * 隣接する観測境界の中点を切り替え位置とし、論理列の前半では直前境界、後半では直後境界を返す。
  * 横結合内部などDOMから観測できない境界は推測せず、観測できた境界だけを候補とする。
  *
- * @param localX     現在のTable左端を基準とするポインター横位置。
- * @param boundaries DnD開始時に観測した論理列境界。
+ * @param localInlineOffset 現在のTable論理開始端を基準とするポインター位置。
+ * @param boundaries        DnD開始時に観測した論理列境界。
  * @return 現在位置に対応する0-based論理列間境界。
  */
 const resolveNearestBoundaryIndex = (
-	localX: number,
+	localInlineOffset: number,
 	boundaries: readonly ColumnBoundaryGeometry[]
 ): number | null => {
 	let lower = 0;
@@ -117,8 +122,8 @@ const resolveNearestBoundaryIndex = (
 
 		const switchOffset = current.offset + ( next.offset - current.offset ) / 2;
 
-		/* 現在区間の左半分では直前境界を候補とし、それより左の区間だけを探索対象に残す。 */
-		if ( localX < switchOffset ) {
+		/* 現在区間の論理前半では直前境界を候補とし、それ以前の区間だけを探索対象に残す。 */
+		if ( localInlineOffset < switchOffset ) {
 			if ( middle === 0 ) {
 				return current.index;
 			}
@@ -128,15 +133,15 @@ const resolveNearestBoundaryIndex = (
 
 		const following = boundaries[ middle + 2 ];
 
-		/* 現在区間が末尾区間なら、右半分は末尾直後境界として確定する。 */
+		/* 現在区間が末尾区間なら、論理後半は末尾直後境界として確定する。 */
 		if ( following === undefined ) {
 			return next.index;
 		}
 
 		const nextSwitchOffset = next.offset + ( following.offset - next.offset ) / 2;
 
-		/* 隣接区間の切り替え位置より左では、両区間に共通する現在境界を移動先として確定する。 */
-		if ( localX < nextSwitchOffset ) {
+		/* 隣接区間の切り替え位置より前では、両区間に共通する現在境界を移動先として確定する。 */
+		if ( localInlineOffset < nextSwitchOffset ) {
 			return next.index;
 		}
 
@@ -150,10 +155,11 @@ const resolveNearestBoundaryIndex = (
  * 現在のポインター位置から、DnD開始時の論理列配置に対する0-based移動先列間境界を解決する。
  *
  * DnD中の表示上の列位置変化は判定へ反映せず、スクロール等によるTable自体の現在位置だけを反映する。
+ * LTR / RTLの物理位置は開始時に確定した論理進行方向へ正規化し、同じ論理列境界解決規則を利用する。
  * Table外の物理位置やポインター座標を取得できない移動通知からは移動先を推測しない。
  *
  * @param event  現在の物理DnD位置を示す移動イベント。
- * @param layout DnD開始時に確定した対象Tableと論理列境界。
+ * @param layout DnD開始時に確定した対象Table、論理進行方向、論理列境界。
  * @return 現在の移動先列間境界。対象Table内の移動先を解決できない場合はnull。
  */
 const resolveDestinationBoundaryIndex = (
@@ -180,15 +186,24 @@ const resolveDestinationBoundaryIndex = (
 		return null;
 	}
 
-	const localX = x - tableRectangle.left;
-	const destinationBoundaryIndex = resolveNearestBoundaryIndex( localX, layout.boundaries );
+	let localInlineOffset = x - tableRectangle.left;
+
+	/* RTLでは現在のTable右端を論理開始位置として、開始時geometryと同じ論理進行方向へ物理位置を正規化する。 */
+	if ( layout.inlineDirection === 'rtl' ) {
+		localInlineOffset = tableRectangle.right - x;
+	}
+
+	const destinationBoundaryIndex = resolveNearestBoundaryIndex(
+		localInlineOffset,
+		layout.boundaries
+	);
 	return destinationBoundaryIndex;
 };
 
 /**
  * 1回の列DnDで利用する移動先解決境界を、移動対象セルの開始時Table配置から生成する。
  *
- * DnD開始時の列境界を固定することで、押しのけ表示等による列の見かけ上の移動を移動先判定へ混入させない。
+ * DnD開始時の列境界と論理進行方向を固定することで、押しのけ表示等による列の見かけ上の移動を移動先判定へ混入させない。
  * Resolverの生成、再試行、参照保持、破棄のLifecycleはDnD Engine Integrationが所有し、この境界は共有状態を持たない。
  *
  * @param sourceElement DnD Engineが現在の移動対象として管理するDOM要素。
