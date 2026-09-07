@@ -54,7 +54,11 @@ export const RowCommitDisplay = () => {
 				element.style.visibility = visibility;
 			}
 		} );
-		if ( current.sourceRow !== null && current.sourceVisibility !== null && current.sourceRow.isConnected ) {
+		if (
+			current.sourceRow !== null &&
+			current.sourceVisibility !== null &&
+			current.sourceRow.isConnected
+		) {
 			current.sourceRow.style.visibility = current.sourceVisibility;
 		}
 	}, [] );
@@ -104,44 +108,46 @@ export const RowCommitDisplay = () => {
 			display.style.transform = 'none';
 			editorDocument.body.append( display );
 
-		const sourceRow = editorDocument.querySelector< HTMLElement >( SOURCE_ROW_SELECTOR );
-		const sourceVisibility = sourceRow?.style.visibility ?? null;
-		if ( sourceRow !== null ) {
-			/* 元行はレイアウトを維持したまま隠し、押しのけ表示で埋まった移動元位置との二重表示を防ぐ。 */
-			sourceRow.style.visibility = 'hidden';
-		}
-
-		activeDisplay.current = {
-			display,
-			hiddenElements: [],
-			sourceRow,
-			sourceVisibility,
-		};
-
-		/*
-		 * 同じ物理DnD終了で既存Drop Animationが生成する複製を含め、静止確定表示以外のMoving Rowを
-		 * 最初の描画前に隠す。これにより重いTable更新でアニメーション途中の表示が凍結して見えないようにする。
-		 */
-		const requestId = editorWindow.requestAnimationFrame( () => {
-			cleanupFrame.current = null;
-			const current = activeDisplay.current;
-			if ( current === null || current.display !== display ) {
-				return;
+			const sourceRow = editorDocument.querySelector< HTMLElement >( SOURCE_ROW_SELECTOR );
+			const sourceVisibility = sourceRow?.style.visibility ?? null;
+			if ( sourceRow !== null ) {
+				/* 元行はレイアウトを維持したまま隠し、押しのけ表示で埋まった移動元位置との二重表示を防ぐ。 */
+				sourceRow.style.visibility = 'hidden';
 			}
 
-			editorDocument.querySelectorAll< HTMLElement >( MOVING_DISPLAY_SELECTOR ).forEach( ( element ) => {
-				if ( element === display ) {
+			activeDisplay.current = {
+				display,
+				hiddenElements: [],
+				sourceRow,
+				sourceVisibility,
+			};
+
+			/*
+			 * 同じ物理DnD終了で既存Drop Animationが生成する複製を含め、静止確定表示以外のMoving Rowを
+			 * 最初の描画前に隠す。これにより重いTable更新でアニメーション途中の表示が凍結して見えないようにする。
+			 */
+			const requestId = editorWindow.requestAnimationFrame( () => {
+				cleanupFrame.current = null;
+				const current = activeDisplay.current;
+				if ( current === null || current.display !== display ) {
 					return;
 				}
-				current.hiddenElements.push( {
-					element,
-					visibility: element.style.visibility,
-				} );
-				element.style.visibility = 'hidden';
+
+				editorDocument
+					.querySelectorAll< HTMLElement >( MOVING_DISPLAY_SELECTOR )
+					.forEach( ( element ) => {
+						if ( element === display ) {
+							return;
+						}
+						current.hiddenElements.push( {
+							element,
+							visibility: element.style.visibility,
+						} );
+						element.style.visibility = 'hidden';
+					} );
 			} );
-		} );
-		cleanupFrame.current = { editorWindow, requestId };
-	},
+			cleanupFrame.current = { editorWindow, requestId };
+		},
 	} );
 
 	useEffect( () => {
