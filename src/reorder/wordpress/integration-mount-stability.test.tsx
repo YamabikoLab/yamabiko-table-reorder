@@ -6,16 +6,30 @@
  */
 
 import { render } from '@testing-library/react';
-import { useEffect } from '@wordpress/element';
+import { useEffect } from 'react';
 
 import { withReorderModeBlockListBlock } from '@/reorder/wordpress/integration';
 
-jest.mock( '@/reorder/row-reorder/integration/dnd', () => ( {
-	RowDnd: ( {
-		children,
+jest.mock( '@wordpress/block-editor', () => ( {
+	store: Symbol( 'block-editor-store' ),
+} ) );
+
+jest.mock( '@wordpress/data', () => ( {
+	select: jest.fn(),
+} ) );
+
+jest.mock( '@/reorder/wordpress/components/edit', () => ( {
+	ReorderModeEdit: () => null,
+} ) );
+
+jest.mock( '@/reorder/wordpress/components/block-list-block', () => ( {
+	ReorderModeBlockListBlock: ( {
+		BlockListBlock,
+		blockProps,
 	}: {
-		children: ( handler: React.PointerEventHandler< Element > ) => React.ReactNode;
-	} ) => children( () => undefined ),
+		BlockListBlock: React.ComponentType< BlockListBlockProps >;
+		blockProps: BlockListBlockProps;
+	} ) => <BlockListBlock { ...blockProps } />,
 } ) );
 
 type BlockListBlockProps = {
