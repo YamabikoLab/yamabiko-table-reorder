@@ -22,6 +22,8 @@ WordPress Playgroundで、**現在公開中のYamabiko Table ReorderのRow Reord
 
 Prototype v0.4.0の実装や設計を参照する場合は`prototype-final` tagを使用してください。
 
+<img width="1897" height="824" alt="demo" src="https://github.com/user-attachments/assets/1e8b19e5-e2db-4c55-9c51-bc6c2c548a1f" />
+
 ## Versioning
 
 0.4.0までの配布履歴はそのまま維持しています。formal v1は新しい設計・実装世代を表す呼称であり、配布バージョンを`1.0.0`へ変更する意味ではありません。
