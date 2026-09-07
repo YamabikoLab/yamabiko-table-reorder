@@ -328,8 +328,16 @@ describe( 'Column PC input boundary', () => {
 	 * - 新しい第一段階Target ResolutionもDraggable登録も行われない。
 	 */
 	it( 'when a physical drag is already active, should preserve the current draggable and ignore additional mouse input', () => {
-		const manager = createManager();
-		useDragDropManagerMock.mockReturnValue( manager );
+		const manager = {
+			dragOperation: {
+				status: {
+					idle: true,
+				},
+			},
+		};
+		useDragDropManagerMock.mockReturnValue(
+			manager as ReturnType< typeof useDragDropManager >
+		);
 		const { currentTarget, target, next } = createTableTarget();
 		const { pointerDownHandler, activeDraggable } = renderColumnInput();
 
