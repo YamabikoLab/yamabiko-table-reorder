@@ -6,6 +6,7 @@
  * Reorder Target Resolution、移動先解決境界、DnD Interactionへ接続する。
  * Reorder Presentationは現在操作中のTableだけを同じDnD Engine境界へ接続し、表示Lifecycleと表示状態を自身で所有する。
  * 行DnDのAuto Scrollは縦方向だけを許可し、Tableの横位置を利用者の操作なく変更しない。
+ * 有効dropではPresentationの終了表示を先に描画できるよう、確定処理を次の描画周期へ送り、その間は同じTableの新しい開始を受け付けない。
  * 行並び替えの無効化または境界の終了時には、次の通常編集や別モードへ持ち越せない解決結果と物理DnD登録を破棄する。
  */
 
@@ -43,12 +44,19 @@ import {
 /** 行DnDを既存DOMのポインター入力へ接続する開始処理型を、DnD接続境界から公開する。 */
 export type { RowDndPointerDownHandler } from '@/reorder/row-reorder/responsibilities/input';
 
+/** drop後にPresentationを先に描画するため、次の描画周期まで保持する確定要求。 */
+type PendingRowCommit = {
+	editorWindow: Window;
+	requestId: number;
+};
+
 /**
  * 対象Tableへdnd-kitの物理DnD進行を接続する。
  *
  * 接続自体はTableの描画中に安定して維持し、行並び替えが有効な期間だけ入力境界から開始対象を登録する。
  * 物理DnD成立前にReorder Target Resolutionで開始対象を再確認し、成立後は解決済みのTargetと開始時制約だけをDnD Interactionへ渡す。
  * Reorder Presentationは現在操作中のTableだけに接続し、複数Tableが存在しても共有通知や共有状態へ複数のPresentationが反応しない状態を維持する。
+ * 有効dropではDnD中のPresentationを終了表示へ引き継ぐ描画機会を確保してからTable更新を確定し、その確定要求が残る間は同じTableの新しいDnDを開始しない。
  * Auto Scrollは縦方向だけを有効にし、行DnDによって横方向のスクロール位置を変更しない。
  * 行並び替えが無効になった場合と接続自体が終了する場合は、未使用の解決結果とDraggable登録を破棄する。
  *
@@ -68,6 +76,7 @@ export const RowDnd = ( props: {
 	const { enabled, presentationEnabled = true, tableIdentity, children } = props;
 	const activeDraggable = useRef< Draggable | null >( null );
 	const destinationResolver = useRef< RowDestinationResolver | null >( null );
+	const pendingCommit = useRef< PendingRowCommit | null >( null );
 	const resolvedStart = useRef< Extract<
 		RowReorderTargetResolution,
 		{ status: 'resolved' }
@@ -81,19 +90,44 @@ export const RowDnd = ( props: {
 		activeDraggable.current = null;
 	}, [] );
 
+	/** 未実行の確定要求を破棄し、必要な場合はactive Sessionも安全終了する。 */
+	const cancelPendingCommit = useCallback( ( cancelSession: boolean ): void => {
+		const currentPendingCommit = pendingCommit.current;
+		pendingCommit.current = null;
+
+		if ( currentPendingCommit === null ) {
+			return;
+		}
+
+		currentPendingCommit.editorWindow.cancelAnimationFrame( currentPendingCommit.requestId );
+		if ( cancelSession ) {
+			rowDndInteraction.cancel();
+		}
+	}, [] );
+
 	useEffect( () => {
-		/* 行並び替えが無効になった時点で、通常編集や別モードへ一時状態を持ち越さない。 */
+		/* 行並び替えが無効になった時点で、通常編集や別モードへ一時状態と未実行の確定要求を持ち越さない。 */
 		if ( ! enabled ) {
 			clearTransientDndState();
+			cancelPendingCommit( true );
 		}
-	}, [ enabled, clearTransientDndState ] );
+	}, [ enabled, clearTransientDndState, cancelPendingCommit ] );
 
 	useEffect( () => {
-		/* TableのDnD接続終了時は、未使用の解決結果、移動先解決境界、物理DnD登録を残さない。 */
-		return clearTransientDndState;
-	}, [ clearTransientDndState ] );
+		/* TableのDnD接続終了時は、未使用の解決結果、移動先解決境界、物理DnD登録、未実行の確定要求を残さない。 */
+		return () => {
+			clearTransientDndState();
+			cancelPendingCommit( true );
+		};
+	}, [ clearTransientDndState, cancelPendingCommit ] );
 
 	const onBeforeDragStart = ( event: BeforeDragStartEvent ) => {
+		/* 直前のdrop確定要求が残るTableでは、その結果がTableへ反映されるまで次の物理DnDを開始しない。 */
+		if ( pendingCommit.current !== null ) {
+			event.preventDefault();
+			return;
+		}
+
 		const target = event?.operation?.source?.data as RowReorderTarget;
 		const resolution = rowReorderTargetResolution.resolve( target );
 
@@ -141,7 +175,22 @@ export const RowDnd = ( props: {
 			return;
 		}
 
-		rowDndInteraction.complete();
+		const sourceElement = event.operation.source?.element;
+		const editorWindow = sourceElement?.ownerDocument.defaultView ?? null;
+		/* editorの描画周期を取得できない環境では、従来どおり同じ終了通知内で確定する。 */
+		if ( editorWindow === null ) {
+			rowDndInteraction.complete();
+			return;
+		}
+
+		/*
+		 * drop終了表示を現在フレームで成立させてからTable更新を開始し、重い再描画中も既存の終了Presentationが最終位置を保持できるようにする。
+		 */
+		const requestId = editorWindow.requestAnimationFrame( () => {
+			pendingCommit.current = null;
+			rowDndInteraction.complete();
+		} );
+		pendingCommit.current = { editorWindow, requestId };
 	};
 
 	return (
