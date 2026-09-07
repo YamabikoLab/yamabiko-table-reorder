@@ -45,11 +45,14 @@ export type ColumnDestinationResolver = {
 const resolveDestinationLayout = (
 	sourceElement: Element | undefined
 ): ColumnDestinationLayout | null => {
+	/* 移動対象DOM自体を確認できない場合は、別のTableを探索して配置を補完しない。 */
 	if ( ! sourceElement ) {
 		return null;
 	}
 
 	const sourceCell = sourceElement.closest( 'th, td' );
+
+	/* 移動対象をTableセルとして確認できない場合は、列位置を推測してResolverを成立させない。 */
 	if ( ! sourceCell ) {
 		return null;
 	}
@@ -107,12 +110,14 @@ const resolveNearestBoundaryIndex = (
 		const current = boundaries[ middle ];
 		const next = boundaries[ middle + 1 ];
 
+		/* 開始時境界の連続性が成立しない場合は、誤った論理境界を返さず利用不能として扱う。 */
 		if ( current === undefined || next === undefined ) {
 			return null;
 		}
 
 		const switchOffset = current.offset + ( next.offset - current.offset ) / 2;
 
+		/* 現在区間の左半分では直前境界を候補とし、それより左の区間だけを探索対象に残す。 */
 		if ( localX < switchOffset ) {
 			if ( middle === 0 ) {
 				return current.index;
@@ -122,11 +127,15 @@ const resolveNearestBoundaryIndex = (
 		}
 
 		const following = boundaries[ middle + 2 ];
+
+		/* 現在区間が末尾区間なら、右半分は末尾直後境界として確定する。 */
 		if ( following === undefined ) {
 			return next.index;
 		}
 
 		const nextSwitchOffset = next.offset + ( following.offset - next.offset ) / 2;
+
+		/* 隣接区間の切り替え位置より左では、両区間に共通する現在境界を移動先として確定する。 */
 		if ( localX < nextSwitchOffset ) {
 			return next.index;
 		}
@@ -190,6 +199,7 @@ export const createColumnDestinationResolver = (
 ): ColumnDestinationResolver | null => {
 	const layout = resolveDestinationLayout( sourceElement );
 
+	/* 開始時Table配置を安全に確定できない場合は、部分的な情報を持つResolverを生成しない。 */
 	if ( layout === null ) {
 		return null;
 	}
