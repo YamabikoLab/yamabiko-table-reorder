@@ -146,11 +146,11 @@ PR Validation uses the CI-only environment defined in `tests/e2e/compose.ci.yaml
 
 CI checks the smoke test and major Row Reorder suite against these representative supported environments:
 
-- WordPress 6.8.3: non-iframe editor
-- WordPress 7.0.4: iframe editor
-- WordPress 7.1.0: iframe editor
+- WordPress 6.8.3: non-iframe editor, Flexible Table Block 3.6.0
+- WordPress 7.0.4: iframe editor, Flexible Table Block 3.9.0
+- WordPress 7.1.0: iframe editor, Flexible Table Block 3.9.0
 
-Each environment installs Flexible Table Block 3.9.0. The CI-only `tests/e2e/fixtures/non-iframe.php` adds a classic meta box when `E2E_EDITOR_MODE=non-iframe`; this makes the WordPress 6.8 compatibility scenario exercise the non-iframe editing surface. Authentication setup verifies the expected editor mode before the suite runs. This representative matrix covers both editor contexts without duplicating every version/context combination. The fixture is not installed in local WordPress or included in the plugin distribution.
+The CI-only `tests/e2e/fixtures/non-iframe.php` adds a classic meta box when `E2E_EDITOR_MODE=non-iframe`; this makes the WordPress 6.8 compatibility scenario exercise the non-iframe editing surface. Authentication setup verifies the expected editor mode before the suite runs. This representative matrix covers both editor contexts without duplicating every version/context combination. The fixture is not installed in local WordPress or included in the plugin distribution.
 
 The CI E2E job uses the pinned Playwright Docker image matching `@playwright/test`. Failed runs upload `playwright-report/`, `test-results/`, and `docker-compose.log` when available.
 
