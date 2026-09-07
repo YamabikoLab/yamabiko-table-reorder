@@ -170,6 +170,62 @@ describe( 'Column DnD Engine Integration', () => {
 
 	/**
 	 * 概要:
+	 * - Destination Resolutionを開始時に生成できなくても、最初のmoveで再解決して論理移動先へ接続できることを確認する。
+	 *
+	 * 事前条件:
+	 * - 第二段階Target Resolutionは開始可能である。
+	 * - DnD開始時はDestination Resolverを生成できないが、最初のmoveでは生成できる。
+	 *
+	 * 操作:
+	 * - before start、start、moveの順に物理DnD通知を行う。
+	 *
+	 * 期待結果:
+	 * - move時にResolver生成が再試行され、解決された論理列間境界がDnD Interactionへ渡される。
+	 */
+	it( 'when destination resolution is unavailable at drag start but available on move, should retry once and forward the resolved logical boundary', () => {
+		const resolver = {
+			resolve: jest.fn().mockReturnValue( 2 ),
+		};
+		destinationResolverFactoryMock.mockReturnValueOnce( null ).mockReturnValueOnce( resolver );
+		render(
+			<ColumnDnd enabled tableIdentity="table-1">
+				{ () => <div /> }
+			</ColumnDnd>
+		);
+		const provider = getProviderProps();
+		const sourceElement = document.createElement( 'td' );
+
+		provider.onBeforeDragStart( {
+			operation: {
+				source: {
+					data: target,
+				},
+			},
+			preventDefault: jest.fn(),
+		} as unknown as BeforeDragStartEvent );
+		provider.onDragStart( {
+			operation: {
+				source: {
+					element: sourceElement,
+				},
+			},
+		} as unknown as DragStartEvent );
+		const moveEvent = {
+			operation: {
+				source: {
+					element: sourceElement,
+				},
+			},
+		} as unknown as DragMoveEvent;
+		provider.onDragMove( moveEvent );
+
+		expect( destinationResolverFactoryMock ).toHaveBeenCalledTimes( 2 );
+		expect( resolver.resolve ).toHaveBeenCalledWith( moveEvent );
+		expect( dndInteractionMock.updateDestination ).toHaveBeenCalledWith( 2 );
+	} );
+
+	/**
+	 * 概要:
 	 * - 第一段階後のTable変化で第二段階が成立しない場合にColumn DnD Sessionを開始しないことを確認する。
 	 *
 	 * 事前条件:
