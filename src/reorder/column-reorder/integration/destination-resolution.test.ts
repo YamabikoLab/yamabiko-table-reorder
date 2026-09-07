@@ -61,6 +61,55 @@ const createThreeColumnTable = ( tableLeft = 0 ) => {
 };
 
 /**
+ * RTLの論理列順に不等幅の3列Tableを生成する。
+ *
+ * @return 右端を論理先頭列とする移動元候補セルとTable。
+ */
+const createRtlThreeColumnTable = () => {
+	const table = document.createElement( 'table' );
+	const tbody = document.createElement( 'tbody' );
+	const row = document.createElement( 'tr' );
+	const physicalRanges = [
+		{ left: 240, right: 320 },
+		{ left: 120, right: 240 },
+		{ left: 0, right: 120 },
+	];
+	const cells = physicalRanges.map( ( range ) => {
+		const cell = document.createElement( 'td' );
+		jest.spyOn( cell, 'getBoundingClientRect' ).mockReturnValue( {
+			left: range.left,
+			right: range.right,
+			top: 10,
+			bottom: 90,
+			width: range.right - range.left,
+			height: 80,
+			x: range.left,
+			y: 10,
+			toJSON: () => ( {} ),
+		} );
+		return cell;
+	} );
+
+	table.style.direction = 'rtl';
+	row.append( ...cells );
+	tbody.appendChild( row );
+	table.appendChild( tbody );
+	jest.spyOn( table, 'getBoundingClientRect' ).mockReturnValue( {
+		left: 0,
+		right: 320,
+		top: 10,
+		bottom: 90,
+		width: 320,
+		height: 80,
+		x: 0,
+		y: 10,
+		toJSON: () => ( {} ),
+	} );
+
+	return { cells };
+};
+
+/**
  * 現在のポインター位置を持つDnD移動イベントを生成する。
  *
  * @param clientX ポインターの画面上の横位置。
@@ -122,6 +171,25 @@ describe( 'Column destination resolution', () => {
 		const resolver = createColumnDestinationResolver( cells[ 0 ] );
 
 		expect( resolver?.resolve( createMoveEvent( 290 ) ) ).toBe( 3 );
+	} );
+
+	/**
+	 * 概要:
+	 * - RTL Tableでも物理的な右から左の配置を論理列順の境界へ解決できることを確認する。
+	 * 事前条件:
+	 * - RTLの不等幅3列Tableがあり、論理先頭列はTable右端に描画されている。
+	 * 操作:
+	 * - 論理先頭、中間、末尾に対応する物理位置を同じResolverで解決する。
+	 * 期待結果:
+	 * - 物理的な左右順に依存せず、論理境界0、2、3が返される。
+	 */
+	it( 'when table direction is rtl, should resolve boundaries in logical column order', () => {
+		const { cells } = createRtlThreeColumnTable();
+		const resolver = createColumnDestinationResolver( cells[ 0 ] );
+
+		expect( resolver?.resolve( createMoveEvent( 300 ) ) ).toBe( 0 );
+		expect( resolver?.resolve( createMoveEvent( 150 ) ) ).toBe( 2 );
+		expect( resolver?.resolve( createMoveEvent( 30 ) ) ).toBe( 3 );
 	} );
 
 	/**
