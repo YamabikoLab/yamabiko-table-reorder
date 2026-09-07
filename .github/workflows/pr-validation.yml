@@ -208,7 +208,9 @@ jobs:
             wp plugin activate yamabiko-table-reorder
 
           docker compose -f "${E2E_COMPOSE_FILE}" run --rm cli \
-            wp plugin install flexible-table-block --version=3.9.0 --activate
+            wp plugin install flexible-table-block \
+            --version="${{ matrix.flexible_table_block_version }}" \
+            --activate
 
       - name: Run Playwright E2E
         run: |
