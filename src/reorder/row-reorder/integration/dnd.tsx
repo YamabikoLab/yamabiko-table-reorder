@@ -4,7 +4,7 @@
  * 行DnD境界はTableの描画中に安定して存在し、行並び替えが有効な期間だけ開始入力を受け付ける。
  * PCとタッチ端末の開始条件判定は入力境界へ委ね、dnd-kitが通知する物理DnDの進行を、
  * Reorder Target Resolution、移動先解決境界、DnD Interactionへ接続する。
- * Reorder Presentationは同じDnD Engine境界の配下へ独立して接続し、表示Lifecycleと表示状態を自身で所有する。
+ * Reorder Presentationは現在操作中のTableだけを同じDnD Engine境界へ接続し、表示Lifecycleと表示状態を自身で所有する。
  * 行DnDのAuto Scrollは縦方向だけを許可し、Tableの横位置を利用者の操作なく変更しない。
  * 行並び替えの無効化または境界の終了時には、次の通常編集や別モードへ持ち越せない解決結果と物理DnD登録を破棄する。
  */
@@ -48,22 +48,24 @@ export type { RowDndPointerDownHandler } from '@/reorder/row-reorder/responsibil
  *
  * 接続自体はTableの描画中に安定して維持し、行並び替えが有効な期間だけ入力境界から開始対象を登録する。
  * 物理DnD成立前にReorder Target Resolutionで開始対象を再確認し、成立後は解決済みのTargetと開始時制約だけをDnD Interactionへ渡す。
- * Reorder Presentationは同じDnD Engine境界を利用する独立した表示境界として接続する。
+ * Reorder Presentationは現在操作中のTableだけに接続し、複数Tableが存在しても共有通知や共有状態へ複数のPresentationが反応しない状態を維持する。
  * Auto Scrollは縦方向だけを有効にし、行DnDによって横方向のスクロール位置を変更しない。
  * 行並び替えが無効になった場合と接続自体が終了する場合は、未使用の解決結果とDraggable登録を破棄する。
  *
- * @param props               行DnD接続に必要な値。
- * @param props.enabled       現在のTableで行並び替え開始入力を受け付ける場合はtrue。
- * @param props.tableIdentity 行並び替え対象のTable Identity。
- * @param props.children      既存DOMへポインター開始処理を接続する描画処理。
- * @return dnd-kitの行DnD進行と表示境界へ接続された子要素。
+ * @param props                     行DnD接続に必要な値。
+ * @param props.enabled             現在のTableで行並び替え開始入力を受け付ける場合はtrue。
+ * @param props.presentationEnabled 現在の操作対象としてReorder Presentationを接続する場合はtrue。
+ * @param props.tableIdentity       行並び替え対象のTable Identity。
+ * @param props.children            既存DOMへポインター開始処理を接続する描画処理。
+ * @return dnd-kitの行DnD進行と必要な表示境界へ接続された子要素。
  */
 export const RowDnd = ( props: {
 	enabled: boolean;
+	presentationEnabled?: boolean;
 	tableIdentity: string;
 	children: ( onPointerDownCapture: RowDndPointerDownHandler ) => ReactNode;
 } ) => {
-	const { enabled, tableIdentity, children } = props;
+	const { enabled, presentationEnabled = true, tableIdentity, children } = props;
 	const activeDraggable = useRef< Draggable | null >( null );
 	const destinationResolver = useRef< RowDestinationResolver | null >( null );
 	const resolvedStart = useRef< Extract<
@@ -162,7 +164,7 @@ export const RowDnd = ( props: {
 			onDragMove={ onDragMove }
 			onDragEnd={ onDragEnd }
 		>
-			<RowPresentation />
+			{ presentationEnabled && <RowPresentation /> }
 			<RowInput
 				enabled={ enabled }
 				tableIdentity={ tableIdentity }
