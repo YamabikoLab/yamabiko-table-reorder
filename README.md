@@ -2,11 +2,11 @@
 
 WordPressブロックエディターのTable並び替えを扱うプラグインです。
 
+<img width="1897" height="824" alt="demo" src="https://github.com/user-attachments/assets/1e8b19e5-e2db-4c55-9c51-bc6c2c548a1f" />
+
 ## 現在の状態
 
 0.6.1では、WordPress Core TableとFlexible Table Blockの**行並び替え**を提供します。
-
-<img width="1897" height="824" alt="demo" src="https://github.com/user-attachments/assets/1e8b19e5-e2db-4c55-9c51-bc6c2c548a1f" />
 
 Tableツールバーから行並び替えモードへ切り替え、Mouse / TouchによるDnDでtbodyの行を並び替えられます。DnD中は移動対象・移動先・周囲の行の移動を視覚的に確認でき、結合セルを含むTableでは構造を壊さない範囲だけを移動先として扱います。
 
