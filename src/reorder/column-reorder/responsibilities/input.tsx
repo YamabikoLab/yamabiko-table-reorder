@@ -12,7 +12,11 @@ import type { PointerEvent, ReactNode } from 'react';
 
 import { columnReorderTargetResolution, type ColumnReorderTarget } from './target-resolution';
 
-/** 列DnDを既存DOMのPCポインター入力へ接続する開始処理。 */
+/**
+ * 列DnDを既存DOMのPCポインター入力へ接続する開始処理。
+ *
+ * @param event 現在Table内で列DnD開始候補を判定するPCポインター入力。
+ */
 export type ColumnDndPointerDownHandler = ( event: PointerEvent< Element > ) => void;
 
 /** 各論理列で、前の行から継続するrowspanが残っている行数。 */
@@ -75,6 +79,7 @@ const resolveSourceColumnIndex = (
 	for ( const row of Array.from( section.rows ) ) {
 		let nextColumnIndex = 0;
 
+		/* 現在行の各セルを横結合幅と継続中の縦結合へ照合し、Table全体の論理列位置へ対応付ける。 */
 		for ( const cell of Array.from( row.cells ) ) {
 			const columnStart = resolveNextAvailableColumnIndex( remainingRowSpans, nextColumnIndex );
 			const columnSpan = Math.max( cell.colSpan, 1 );
@@ -88,6 +93,7 @@ const resolveSourceColumnIndex = (
 
 			/* 後続行でも占有される論理列を保持し、同じ位置へ別セルを割り当てない。 */
 			if ( rowSpan > 1 ) {
+				/* 縦結合セルが覆うすべての論理列を、後続行で利用できない占有範囲として記録する。 */
 				for ( let index = columnStart; index < columnEnd; index += 1 ) {
 					remainingRowSpans[ index ] = Math.max( remainingRowSpans[ index ] ?? 0, rowSpan );
 				}
