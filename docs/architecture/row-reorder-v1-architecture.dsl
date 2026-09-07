@@ -228,7 +228,7 @@ workspace "YTR Reorder v1 Architecture" {
 		PF_010 = RESP_ROW_DND_INTERACTION -> RESP_ROW_TABLE_INTEGRATION "complete時に現在構造の再照合と確定済み行移動の反映へ進む。" {
 			tags "Process Flow,ProcessFlow_PV_ROW_REORDER_END_TO_END,normal"
 		}
-		PF_011 = RESP_ROW_TABLE_INTEGRATION -> EXT_SUPPORTED_TABLE_BLOCK "現在行制約を取得し、確定時は`tbody`の行順を反映する。" {
+		PF_011 = RESP_ROW_TABLE_INTEGRATION -> EXT_SUPPORTED_TABLE_BLOCK "現在行制約を取得し、確定時はtbodyの行順を反映する。" {
 			tags "Process Flow,ProcessFlow_PV_ROW_REORDER_END_TO_END,normal"
 		}
 		PF_012 = EXT_DND_ENGINE -> RESP_ROW_DND_ENGINE_INTEGRATION "[failure] 物理DnDがcancelまたは継続不能として終了する。" {
@@ -284,22 +284,22 @@ workspace "YTR Reorder v1 Architecture" {
 				"runtime.RV_ROW_DND_START.step.13" "要求時点の対応Tableから行制約を取得する。"
 			}
 		}
-		RT_007 = RESP_ROW_TARGET_RESOLUTION -> RESP_ROW_INPUT_INTERACTION "`resolved`、Design上の`rejected`、または`unavailable`を返す。" {
+		RT_007 = RESP_ROW_TARGET_RESOLUTION -> RESP_ROW_INPUT_INTERACTION "resolved、Design上のrejected、またはunavailableを返す。" {
 			tags "Runtime Interaction,Runtime_RV_ROW_DND_START"
 			properties {
-				"runtime.RV_ROW_DND_START.step.7" "`resolved`、Design上の`rejected`、または`unavailable`を返す。"
+				"runtime.RV_ROW_DND_START.step.7" "resolved、Design上のrejected、またはunavailableを返す。"
 			}
 		}
-		RT_008 = RESP_ROW_INPUT_INTERACTION -> RESP_ROW_PRESENTATION "第一段階がDesign上の`rejected`の場合だけ開始不可理由を通知する。" {
+		RT_008 = RESP_ROW_INPUT_INTERACTION -> RESP_ROW_PRESENTATION "第一段階がDesign上のrejectedの場合だけ開始不可理由を通知する。" {
 			tags "Runtime Interaction,Runtime_RV_ROW_DND_START"
 			properties {
-				"runtime.RV_ROW_DND_START.step.8" "第一段階がDesign上の`rejected`の場合だけ開始不可理由を通知する。"
+				"runtime.RV_ROW_DND_START.step.8" "第一段階がDesign上のrejectedの場合だけ開始不可理由を通知する。"
 			}
 		}
-		RT_009 = RESP_ROW_INPUT_INTERACTION -> EXT_DND_ENGINE "第一段階が`resolved`の場合だけ開始候補を一時登録する。" {
+		RT_009 = RESP_ROW_INPUT_INTERACTION -> EXT_DND_ENGINE "第一段階がresolvedの場合だけ開始候補を一時登録する。" {
 			tags "Runtime Interaction,Runtime_RV_ROW_DND_START"
 			properties {
-				"runtime.RV_ROW_DND_START.step.9" "第一段階が`resolved`の場合だけ開始候補を一時登録する。"
+				"runtime.RV_ROW_DND_START.step.9" "第一段階がresolvedの場合だけ開始候補を一時登録する。"
 			}
 		}
 		RT_010 = EXT_DND_ENGINE -> RESP_ROW_DND_ENGINE_INTEGRATION "active DnD成立直前の開始通知を渡す。" {
@@ -326,10 +326,10 @@ workspace "YTR Reorder v1 Architecture" {
 				"runtime.RV_ROW_DND_START.step.14" "第二段階の解決結果を返す。"
 			}
 		}
-		RT_014 = RESP_ROW_DND_ENGINE_INTEGRATION -> EXT_DND_ENGINE "第二段階が`resolved`でなければ物理DnD開始を成立させない。" {
+		RT_014 = RESP_ROW_DND_ENGINE_INTEGRATION -> EXT_DND_ENGINE "第二段階がresolvedでなければ物理DnD開始を成立させない。" {
 			tags "Runtime Interaction,Runtime_RV_ROW_DND_START"
 			properties {
-				"runtime.RV_ROW_DND_START.step.15" "第二段階が`resolved`でなければ物理DnD開始を成立させない。"
+				"runtime.RV_ROW_DND_START.step.15" "第二段階がresolvedでなければ物理DnD開始を成立させない。"
 			}
 		}
 		RT_015 = EXT_DND_ENGINE -> RESP_ROW_DND_ENGINE_INTEGRATION "第二段階成立後の物理DnD startを通知する。" {
@@ -362,10 +362,10 @@ workspace "YTR Reorder v1 Architecture" {
 				"runtime.RV_ROW_DND_PROGRESS.step.2" "現在の物理入力位置から論理行間境界を要求する。未成立なら当該DnDの解決境界を再び成立させる。"
 			}
 		}
-		RT_020 = RESP_ROW_DESTINATION_RESOLUTION -> RESP_ROW_DND_ENGINE_INTEGRATION "0-based論理行間境界または`null`を返す。" {
+		RT_020 = RESP_ROW_DESTINATION_RESOLUTION -> RESP_ROW_DND_ENGINE_INTEGRATION "0-based論理行間境界またはnullを返す。" {
 			tags "Runtime Interaction,Runtime_RV_ROW_DND_PROGRESS"
 			properties {
-				"runtime.RV_ROW_DND_PROGRESS.step.3" "0-based論理行間境界または`null`を返す。"
+				"runtime.RV_ROW_DND_PROGRESS.step.3" "0-based論理行間境界またはnullを返す。"
 			}
 		}
 		RT_021 = RESP_ROW_DND_ENGINE_INTEGRATION -> RESP_ROW_DND_INTERACTION "解決済み論理行間境界を現在Sessionへ渡す。" {
@@ -428,10 +428,10 @@ workspace "YTR Reorder v1 Architecture" {
 				"runtime.RV_ROW_DND_COMPLETE.step.6" "現在も移動元と移動先が成立し行順が変化する場合だけ確定済み行移動を要求する。"
 			}
 		}
-		RT_031 = RESP_ROW_TABLE_INTEGRATION -> EXT_SUPPORTED_TABLE_BLOCK "`tbody`の行順を一回の更新として反映する。" {
+		RT_031 = RESP_ROW_TABLE_INTEGRATION -> EXT_SUPPORTED_TABLE_BLOCK "tbodyの行順を一回の更新として反映する。" {
 			tags "Runtime Interaction,Runtime_RV_ROW_DND_COMPLETE"
 			properties {
-				"runtime.RV_ROW_DND_COMPLETE.step.7" "`tbody`の行順を一回の更新として反映する。"
+				"runtime.RV_ROW_DND_COMPLETE.step.7" "tbodyの行順を一回の更新として反映する。"
 			}
 		}
 		RT_032 = RESP_ROW_TABLE_INTEGRATION -> EXT_WORDPRESS_UNDO "成立した行移動を一回のUndo単位として成立させる。" {
