@@ -26,7 +26,7 @@ export default defineConfig( {
 		},
 		{
 			name: 'chromium',
-			testMatch: '**/*.spec.ts',
+			testMatch: process.env.E2E_PERFORMANCE === '1' ? '**/*.performance.ts' : '**/*.spec.ts',
 			dependencies: [ 'setup' ],
 			use: {
 				browserName: 'chromium',
