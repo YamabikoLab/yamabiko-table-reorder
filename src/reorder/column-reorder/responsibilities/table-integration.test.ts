@@ -88,6 +88,36 @@ describe( 'Column Table Integration', () => {
 	} );
 
 	/**
+	 * 複数sectionの横結合セルが同じ境界または異なる境界を塞ぐ場合でも、Table全体の列制約を一意な昇順で取得できることを確認する。
+	 *
+	 * 事前条件:
+	 * - headは境界2、bodyは境界1、footは再び境界2を横結合セルで塞ぐ4列Tableである。
+	 *
+	 * 操作:
+	 * - 公開されたTable IntegrationからgetConstraints()を実行する。
+	 *
+	 * 期待結果:
+	 * - 分断不可境界はsectionの出現順や重複に依存せず、境界1、2が一度ずつ昇順で返る。
+	 */
+	it( 'when merged cells block boundaries across sections, should return unique boundaries in ascending order', () => {
+		selectMock.mockReturnValue( {
+			getBlock: jest.fn().mockReturnValue( {
+				name: 'core/table',
+				attributes: {
+					head: [ { cells: [ {}, { colspan: 2 }, {} ] } ],
+					body: [ { cells: [ { colspan: 2 }, {}, {} ] } ],
+					foot: [ { cells: [ {}, { colspan: 2 }, {} ] } ],
+				},
+			} ),
+		} );
+
+		expect( columnTableIntegration.getConstraints( 'table-a' ) ).toEqual( {
+			columnCount: 4,
+			blockedBoundaries: [ 1, 2 ],
+		} );
+	} );
+
+	/**
 	 * 行間またはsection間で論理列数が一致しないTableでは列制約を提供しないことを確認する。
 	 *
 	 * 事前条件:
@@ -268,6 +298,47 @@ describe( 'Column Table Integration', () => {
 	} );
 
 	/**
+	 * 横結合セルを分断しない移動先であれば、通常列を横結合範囲の反対側へ移動できることを確認する。
+	 *
+	 * 事前条件:
+	 * - bodyは、先頭2列を占有する横結合セルと、C列、D列で構成される4列Tableである。
+	 * - D列をTable先頭へ移動する確定済みColumnMoveを受け取る。
+	 *
+	 * 操作:
+	 * - applyColumnMove()を実行する。
+	 *
+	 * 期待結果:
+	 * - D列は横結合セルを分断せず、その前へ移動する。
+	 * - 横結合セルは一つのセルとして保持され、colspanも変更されない。
+	 */
+	it( 'when a column crosses a merged range without splitting it, should preserve the merged cell as one unit', () => {
+		const updateBlockAttributes = jest.fn();
+		const merged = { content: 'AB', colspan: 2 };
+		const c = { content: 'C' };
+		const d = { content: 'D' };
+		selectMock.mockReturnValue( {
+			getBlock: jest.fn().mockReturnValue( {
+				name: 'core/table',
+				attributes: {
+					body: [ { cells: [ merged, c, d ] } ],
+				},
+			} ),
+		} );
+		dispatchMock.mockReturnValue( { updateBlockAttributes } );
+
+		expect(
+			columnTableIntegration.applyColumnMove( {
+				clientId: 'table-a',
+				sourceColumnIndex: 3,
+				destinationBoundaryIndex: 0,
+			} )
+		).toBe( true );
+		expect( updateBlockAttributes ).toHaveBeenCalledWith( 'table-a', {
+			body: [ { cells: [ d, merged, c ] } ],
+		} );
+	} );
+
+	/**
 	 * 現在の結合セル制約と矛盾する確定済み列移動ではTableを更新しないことを確認する。
 	 *
 	 * 事前条件:
@@ -313,6 +384,49 @@ describe( 'Column Table Integration', () => {
 				clientId: 'table-a',
 				sourceColumnIndex: 2,
 				destinationBoundaryIndex: 1,
+			} )
+		).toBe( false );
+		expect( updateBlockAttributes ).not.toHaveBeenCalled();
+	} );
+
+	/**
+	 * 確定後に現在Tableの列範囲が変化した場合は列移動を反映しないことを確認する。
+	 *
+	 * 事前条件:
+	 * - 現在Tableは3列である。
+	 * - 現在の移動元範囲外を指す要求と、現在の移動先境界範囲外を指す要求を順に受け取る。
+	 *
+	 * 操作:
+	 * - 各要求についてapplyColumnMove()を実行する。
+	 *
+	 * 期待結果:
+	 * - どちらも外部状態変化による確定不能としてfalseになる。
+	 * - Table属性は更新されない。
+	 */
+	it( 'when the current Table no longer matches the confirmed column range, should not update it', () => {
+		const updateBlockAttributes = jest.fn();
+		selectMock.mockReturnValue( {
+			getBlock: jest.fn().mockReturnValue( {
+				name: 'core/table',
+				attributes: {
+					body: [ { cells: [ {}, {}, {} ] } ],
+				},
+			} ),
+		} );
+		dispatchMock.mockReturnValue( { updateBlockAttributes } );
+
+		expect(
+			columnTableIntegration.applyColumnMove( {
+				clientId: 'table-a',
+				sourceColumnIndex: 3,
+				destinationBoundaryIndex: 0,
+			} )
+		).toBe( false );
+		expect(
+			columnTableIntegration.applyColumnMove( {
+				clientId: 'table-a',
+				sourceColumnIndex: 0,
+				destinationBoundaryIndex: 4,
 			} )
 		).toBe( false );
 		expect( updateBlockAttributes ).not.toHaveBeenCalled();

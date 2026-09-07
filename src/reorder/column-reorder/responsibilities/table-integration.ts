@@ -163,6 +163,7 @@ const parseSection = (
 	sectionRows: readonly unknown[],
 	blockedBoundaries: Set< number >
 ): ParsedSection | null => {
+	/* 空sectionは列数を定義せず、Table全体の列数と列制約にも影響しない。 */
 	if ( sectionRows.length === 0 ) {
 		return { rows: [], columnCount: null };
 	}
@@ -173,6 +174,7 @@ const parseSection = (
 	/* section内の全行を同一の論理Table gridへ配置し、rowspanによる後続行の占有も含めて列位置を確定する。 */
 	for ( let rowIndex = 0; rowIndex < sectionRows.length; rowIndex++ ) {
 		const row = sectionRows[ rowIndex ];
+		/* 各行はセル集合を持つTable行として解釈できることを要求する。 */
 		if ( ! isRecord( row ) || ! Array.isArray( row.cells ) ) {
 			return null;
 		}
@@ -182,6 +184,7 @@ const parseSection = (
 
 		/* 物理セル順を保ったまま、既存の縦結合を避けて各セルの論理列範囲を確定する。 */
 		for ( const cell of row.cells ) {
+			/* 各セルは結合情報と保持対象データを参照できるTableセルとして解釈できることを要求する。 */
 			if ( ! isRecord( cell ) ) {
 				return null;
 			}
@@ -221,6 +224,7 @@ const parseSection = (
 		parsedRows.push( { row, cells: parsedCells } );
 	}
 
+	/* 行が存在してもセルを一つも持たないsectionは、1列以上の論理Tableとして成立しない。 */
 	if ( occupied === undefined ) {
 		return null;
 	}
@@ -261,6 +265,7 @@ const parseTable = (
 	attributes: Record< string, unknown >
 ): ParsedTable | null => {
 	const body = attributes.body;
+	/* bodyは対応Tableの必須sectionであり、行集合として解釈できることを要求する。 */
 	if ( ! Array.isArray( body ) ) {
 		return null;
 	}
@@ -271,6 +276,7 @@ const parseTable = (
 		foot: [],
 	};
 
+	/* 省略可能なhead・footは、存在する場合だけTable sectionとして解釈可能な行集合であることを要求する。 */
 	for ( const optionalSection of [ 'head', 'foot' ] as const ) {
 		const rawSection = attributes[ optionalSection ];
 		if ( rawSection === undefined ) {
@@ -306,6 +312,7 @@ const parseTable = (
 		}
 	}
 
+	/* すべてのsectionが空で論理列数を確定できないTableは、列並び替えの対象として利用できない。 */
 	if ( columnCount === null ) {
 		return null;
 	}
@@ -333,6 +340,7 @@ const getConstraints = ( clientId: string ): ColumnReorderConstraints | null => 
 	}
 
 	const parsedTable = parseTable( block.name, block.attributes );
+	/* 対応Tableであっても現在構造を安全に一つの論理列構造として解釈できない場合は、正常な利用不能として扱う。 */
 	if ( parsedTable === null ) {
 		return null;
 	}
@@ -358,6 +366,7 @@ const createColumnPositionMap = (
 ): readonly number[] => {
 	const reorderedColumns = Array.from( { length: columnCount }, ( _, index ) => index );
 	const [ sourceColumn ] = reorderedColumns.splice( sourceColumnIndex, 1 );
+	/* 右方向への移動でも、移動前に確定した列間境界が同じ移動先を表すよう、移動元列を除いた後の挿入位置へ読み替える。 */
 	const insertionIndex =
 		destinationBoundaryIndex > sourceColumnIndex
 			? destinationBoundaryIndex - 1
@@ -365,6 +374,7 @@ const createColumnPositionMap = (
 	reorderedColumns.splice( insertionIndex, 0, sourceColumn );
 
 	const positionMap = Array< number >( columnCount );
+	/* 移動後の列順から、各移動前論理列が到達する論理列位置を確定する。 */
 	reorderedColumns.forEach( ( originalColumnIndex, newColumnIndex ) => {
 		positionMap[ originalColumnIndex ] = newColumnIndex;
 	} );
@@ -382,6 +392,7 @@ const reorderRow = (
 	parsedRow: ParsedRow,
 	positionMap: readonly number[]
 ): Record< string, unknown > => {
+	/* 横結合セルを分断せずセル単位で保持したまま、各セルの移動後論理位置に従って物理セル順を決定する。 */
 	const reorderedCells = [ ...parsedRow.cells ].sort( ( left, right ) => {
 		const leftPosition = positionMap[ left.columnStart ];
 		const rightPosition = positionMap[ right.columnStart ];
@@ -411,6 +422,7 @@ const applyColumnMove = ( move: ColumnMove ): boolean => {
 	}
 
 	const parsedTable = parseTable( block.name, block.attributes );
+	/* 確定後にTable全体を安全に解釈できなくなった場合は、外部状態変化として列順を更新しない。 */
 	if ( parsedTable === null ) {
 		return false;
 	}
@@ -423,6 +435,7 @@ const applyColumnMove = ( move: ColumnMove ): boolean => {
 		Number.isInteger( move.destinationBoundaryIndex ) &&
 		move.destinationBoundaryIndex >= 0 &&
 		move.destinationBoundaryIndex <= parsedTable.columnCount;
+	/* 横結合範囲に含まれる列は、その直前または直後にある分断不可境界から単独移動不可と判断する。 */
 	const sourceBlockedByMergedRange =
 		parsedTable.blockedBoundaries.includes( move.sourceColumnIndex ) ||
 		parsedTable.blockedBoundaries.includes( move.sourceColumnIndex + 1 );
@@ -446,6 +459,7 @@ const applyColumnMove = ( move: ColumnMove ): boolean => {
 	/* Table全体の各sectionを同じ列移動へ変換し、すべて成立した結果だけを単一更新へまとめる。 */
 	for ( const sectionName of TABLE_SECTIONS ) {
 		const rawSection = block.attributes[ sectionName ];
+		/* 省略されている任意sectionは新たに生成せず、現在Tableの省略状態を保持する。 */
 		if ( rawSection === undefined ) {
 			continue;
 		}
