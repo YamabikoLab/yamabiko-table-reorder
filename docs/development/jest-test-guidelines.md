@@ -35,14 +35,13 @@ Jest tests should be structured so that their purpose and expected behavior can 
 
 ## Test case documentation
 
-- Add a Japanese comment immediately before each test case so that the purpose of the test can be understood without reading the implementation.
-- Include the following information:
-  - 概要: 何を確認するテストなのか
-  - 事前条件: テスト実行前に成立している状態
-  - 操作: テスト対象に対して何を行うのか
-  - 期待結果: 操作の結果として何が成立すべきか
-- Keep the explanation focused on the behavior being verified and avoid repeating implementation details that are already obvious from the test code.
-- Follow the Japanese spacing rule in `src/AGENTS.md` for these comments.
+Follow [`test-case-documentation.md`](./test-case-documentation.md) for the common test case documentation format.
+
+For Jest tests:
+
+- Describe conditions and expected results at the responsibility or externally observable behavior boundary being tested.
+- Do not document mocks, test doubles, helper calls, or internal state transitions unless they are themselves part of the responsibility contract being verified.
+- Follow the Japanese spacing rule in `src/AGENTS.md` for test comments under `src/`.
 
 Example:
 
@@ -55,7 +54,7 @@ Example:
  * - editor iframe内には対象ブロックが存在する。
  *
  * 操作:
- * - resolveEditorEnvironment()を実行する。
+ * - 対象ブロックからEditor環境の解決を要求する。
  *
  * 期待結果:
  * - 対象ブロックを含むiframeのdocumentとwindowが返される。
