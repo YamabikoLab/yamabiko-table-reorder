@@ -123,9 +123,9 @@ const getCellSpan = (
 /**
  * 一行内で、既存の縦結合を分断せず新しいセルを配置できる次の論理列位置を解決する。
  *
- * @param occupied         現在行で既に他セルが占有している論理列。
- * @param searchFrom       現在行で次のセル探索を開始する論理列位置。
- * @param requiredColumns  配置するセルが連続して必要とする論理列数。
+ * @param occupied        現在行で既に他セルが占有している論理列。
+ * @param searchFrom      現在行で次のセル探索を開始する論理列位置。
+ * @param requiredColumns 配置するセルが連続して必要とする論理列数。
  * @return 必要な連続列を確保できる最初の論理列位置。
  */
 const findAvailableColumnStart = (
@@ -198,22 +198,26 @@ const parseSection = (
 				return null;
 			}
 
-			const columnStart = findAvailableColumnStart(
-				occupied[ rowIndex ],
-				searchFrom,
-				columnSpan
-			);
+			const columnStart = findAvailableColumnStart( occupied[ rowIndex ], searchFrom, columnSpan );
 
 			/* セルが占有する全行・全列を予約し、後続セルおよび後続行が同じ論理位置へ重ならないようにする。 */
 			for ( let occupiedRow = rowIndex; occupiedRow < rowIndex + rowSpan; occupiedRow++ ) {
-				for ( let occupiedColumn = columnStart; occupiedColumn < columnStart + columnSpan; occupiedColumn++ ) {
+				for (
+					let occupiedColumn = columnStart;
+					occupiedColumn < columnStart + columnSpan;
+					occupiedColumn++
+				) {
 					occupied[ occupiedRow ][ occupiedColumn ] = true;
 				}
 			}
 
 			if ( columnSpan > 1 ) {
 				/* colspanに含まれる各論理列は、結合セルを保ったまま単独で移動できない。 */
-				for ( let columnIndex = columnStart; columnIndex < columnStart + columnSpan; columnIndex++ ) {
+				for (
+					let columnIndex = columnStart;
+					columnIndex < columnStart + columnSpan;
+					columnIndex++
+				) {
 					blockedColumnIndexes.add( columnIndex );
 				}
 				/* colspan内部の列間境界へ挿入すると結合セルを分断するため、移動先として禁止する。 */
@@ -386,7 +390,7 @@ const createColumnPositionMap = (
 /**
  * 一つの行について、各セルが占有する論理列の移動後位置に従って物理セル順を並べ替える。
  *
- * @param parsedRow  移動前の論理列位置を解釈済みの行。
+ * @param parsedRow   移動前の論理列位置を解釈済みの行。
  * @param positionMap 移動前から移動後への論理列位置対応。
  * @return セル内容・属性を保持したまま列順だけを変更した行。
  */

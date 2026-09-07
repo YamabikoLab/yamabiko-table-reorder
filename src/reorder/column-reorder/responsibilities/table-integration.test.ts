@@ -46,10 +46,7 @@ describe( 'Column Table Integration', () => {
 				name: 'core/table',
 				attributes: {
 					head: [ { cells: [ {}, {}, {}, {} ] } ],
-					body: [
-						{ cells: [ { colspan: 2 }, { rowspan: 2 }, {} ] },
-						{ cells: [ {}, {}, {} ] },
-					],
+					body: [ { cells: [ { colspan: 2 }, { rowspan: 2 }, {} ] }, { cells: [ {}, {}, {} ] } ],
 					foot: [ { cells: [ {}, {}, {}, {} ] } ],
 				},
 			} ),
@@ -81,10 +78,7 @@ describe( 'Column Table Integration', () => {
 			getBlock: jest.fn().mockReturnValue( {
 				name: 'flexible-table-block/table',
 				attributes: {
-					body: [
-						{ cells: [ { colSpan: 2 }, { rowSpan: 2 } ] },
-						{ cells: [ {}, {} ] },
-					],
+					body: [ { cells: [ { colSpan: 2 }, { rowSpan: 2 } ] }, { cells: [ {}, {} ] } ],
 				},
 			} ),
 		} );
@@ -211,9 +205,24 @@ describe( 'Column Table Integration', () => {
 
 		expect( updateBlockAttributes ).toHaveBeenCalledTimes( 1 );
 		expect( updateBlockAttributes ).toHaveBeenCalledWith( 'table-a', {
-			head: [ { ...head.row, cells: [ head.cells[ 0 ], head.cells[ 2 ], head.cells[ 3 ], head.cells[ 1 ] ] } ],
-			body: [ { ...body.row, cells: [ body.cells[ 0 ], body.cells[ 2 ], body.cells[ 3 ], body.cells[ 1 ] ] } ],
-			foot: [ { ...foot.row, cells: [ foot.cells[ 0 ], foot.cells[ 2 ], foot.cells[ 3 ], foot.cells[ 1 ] ] } ],
+			head: [
+				{
+					...head.row,
+					cells: [ head.cells[ 0 ], head.cells[ 2 ], head.cells[ 3 ], head.cells[ 1 ] ],
+				},
+			],
+			body: [
+				{
+					...body.row,
+					cells: [ body.cells[ 0 ], body.cells[ 2 ], body.cells[ 3 ], body.cells[ 1 ] ],
+				},
+			],
+			foot: [
+				{
+					...foot.row,
+					cells: [ foot.cells[ 0 ], foot.cells[ 2 ], foot.cells[ 3 ], foot.cells[ 1 ] ],
+				},
+			],
 		} );
 	} );
 
