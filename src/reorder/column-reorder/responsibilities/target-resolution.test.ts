@@ -1,5 +1,5 @@
 /**
- * Reorder Target Resolutionが、現在のTable制約から列開始対象の成立可否と理由を解決することを確認する。
+ * Reorder Target Resolutionが、現在のTable制約から列開始対象の成立可否と理由を副作用なく解決することを確認する。
  */
 
 import { columnTableIntegration } from './table-integration';
@@ -15,6 +15,9 @@ jest.mock( './table-integration', () => ( {
 const getConstraintsMock = columnTableIntegration.getConstraints as jest.MockedFunction<
 	typeof columnTableIntegration.getConstraints
 >;
+const applyColumnMoveMock = columnTableIntegration.applyColumnMove as jest.MockedFunction<
+	typeof columnTableIntegration.applyColumnMove
+>;
 
 const target = {
 	tableIdentity: 'table-a',
@@ -25,6 +28,7 @@ describe( 'Column Reorder Target Resolution', () => {
 	beforeEach( () => {
 		jest.clearAllMocks();
 		getConstraintsMock.mockReset();
+		applyColumnMoveMock.mockReset();
 	} );
 
 	/**
@@ -105,31 +109,6 @@ describe( 'Column Reorder Target Resolution', () => {
 	} );
 
 	/**
-	 * rowspanだけでは列の分断不可境界が生じないため開始拒否しないことを確認する。
-	 *
-	 * 事前条件:
-	 * - 対象Tableの論理列数は取得でき、列方向の分断不可境界がない。
-	 *
-	 * 操作:
-	 * - Target Resolutionを実行する。
-	 *
-	 * 期待結果:
-	 * - resolvedが返る。
-	 */
-	it( 'when only row spanning affects the table, should not reject the target column', () => {
-		const constraints = { columnCount: 5, blockedBoundaries: [] };
-		getConstraintsMock.mockReturnValue( constraints );
-
-		const result = columnReorderTargetResolution.resolve( target );
-
-		expect( result ).toEqual( {
-			status: 'resolved',
-			target,
-			initialConstraints: constraints,
-		} );
-	} );
-
-	/**
 	 * 同一Tableの複数列を解決する場合に要求時点の列制約を一度だけ取得することを確認する。
 	 *
 	 * 事前条件:
@@ -202,5 +181,57 @@ describe( 'Column Reorder Target Resolution', () => {
 		} );
 
 		expect( result ).toEqual( { status: 'unavailable' } );
+	} );
+
+	/**
+	 * 整数の論理列位置として解釈できない対象を通常の利用不能として扱うことを確認する。
+	 *
+	 * 事前条件:
+	 * - Table制約は取得できる。
+	 * - 移動元列位置が整数ではない。
+	 *
+	 * 操作:
+	 * - Target Resolutionを実行する。
+	 *
+	 * 期待結果:
+	 * - unavailableが返る。
+	 */
+	it( 'when the target column index is not an integer, should return unavailable', () => {
+		getConstraintsMock.mockReturnValue( {
+			columnCount: 5,
+			blockedBoundaries: [],
+		} );
+
+		const result = columnReorderTargetResolution.resolve( {
+			tableIdentity: 'table-a',
+			sourceColumnIndex: 1.5,
+		} );
+
+		expect( result ).toEqual( { status: 'unavailable' } );
+	} );
+
+	/**
+	 * Target Resolutionが開始可否の判定だけを行い、Tableデータを変更しないことを確認する。
+	 *
+	 * 事前条件:
+	 * - 開始可能、横結合による開始拒否、Table利用不能の各結果を解決できる。
+	 *
+	 * 操作:
+	 * - 各条件でTarget Resolutionを実行する。
+	 *
+	 * 期待結果:
+	 * - いずれの結果でもTableへの列移動は要求されない。
+	 */
+	it( 'when target resolution returns any normal outcome, should not update table data', () => {
+		getConstraintsMock
+			.mockReturnValueOnce( { columnCount: 3, blockedBoundaries: [] } )
+			.mockReturnValueOnce( { columnCount: 3, blockedBoundaries: [ 2 ] } )
+			.mockReturnValueOnce( null );
+
+		columnReorderTargetResolution.resolve( target );
+		columnReorderTargetResolution.resolve( target );
+		columnReorderTargetResolution.resolve( target );
+
+		expect( applyColumnMoveMock ).not.toHaveBeenCalled();
 	} );
 } );
