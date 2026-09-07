@@ -27,7 +27,9 @@ test.use( { viewport: { width: 1920, height: 1080 } } );
  * CPU profileのsampleを、性能確認で比較する大まかな実行主体へ分類する。
  * script self timeは処理全体の責任割合ではなく、調査対象を絞るためのsample evidenceとして扱う。
  *
- * @param frame Chrome Profilerが返すcall frame。
+ * @param frame              Chrome Profilerが返すcall frame。
+ * @param frame.url
+ * @param frame.functionName
  * @return 集計先の実行主体。
  */
 function frameOwner( frame: { url: string; functionName: string } ) {
@@ -92,8 +94,7 @@ for ( const name of [ 'core/table', 'flexible-table-block/table' ] as TableName[
 					}
 					const owner = frameOwner( frame );
 					cpuSelfMs[ owner ] =
-						( cpuSelfMs[ owner ] ?? 0 ) +
-						( profile.timeDeltas?.[ index ] ?? 0 ) / 1000;
+						( cpuSelfMs[ owner ] ?? 0 ) + ( profile.timeDeltas?.[ index ] ?? 0 ) / 1000;
 				}
 				measurements.push( { phase, wallMs, cpuSelfMs } );
 				const profilePath = testInfo.outputPath( `${ phase }.cpuprofile` );
