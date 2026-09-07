@@ -43,7 +43,23 @@ async function verifyEditorMode( page: Page ): Promise< void > {
 		.toBe( expectedMode );
 }
 
-setup( 'authenticate as the WordPress administrator', async ( { page } ) => {
+/**
+ * WordPress管理者として認証し、後続E2Eが利用する認証状態を準備できることを確認する。
+ *
+ * 事前条件:
+ * - WordPress管理者の認証情報がE2E環境に設定されている。
+ *
+ * 操作:
+ * - 管理者としてWordPressへログインする。
+ *
+ * 期待結果:
+ * - WordPress管理画面へ遷移する。
+ * - 指定されている場合はEditorのiframe / non-iframeモードが一致する。
+ * - 後続E2Eで再利用できる認証状態が保存される。
+ */
+setup( 'when valid administrator credentials are used, should authenticate and save reusable WordPress state', async ( {
+	page,
+} ) => {
 	const username = requiredEnvironment( 'WP_USERNAME' );
 	const password = requiredEnvironment( 'WP_PASSWORD' );
 
