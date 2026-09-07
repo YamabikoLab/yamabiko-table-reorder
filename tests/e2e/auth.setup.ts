@@ -57,20 +57,21 @@ async function verifyEditorMode( page: Page ): Promise< void > {
  * - 指定されている場合はEditorのiframe / non-iframeモードが一致する。
  * - 後続E2Eで再利用できる認証状態が保存される。
  */
-setup( 'when valid administrator credentials are used, should authenticate and save reusable WordPress state', async ( {
-	page,
-} ) => {
-	const username = requiredEnvironment( 'WP_USERNAME' );
-	const password = requiredEnvironment( 'WP_PASSWORD' );
+setup(
+	'when valid administrator credentials are used, should authenticate and save reusable WordPress state',
+	async ( { page } ) => {
+		const username = requiredEnvironment( 'WP_USERNAME' );
+		const password = requiredEnvironment( 'WP_PASSWORD' );
 
-	await page.goto( '/wp-login.php' );
-	await page.getByLabel( /username|ユーザー名|メールアドレス/i ).fill( username );
-	await page.getByLabel( /^(Password|パスワード)$/i ).fill( password );
-	await page.getByRole( 'button', { name: /log in|ログイン/i } ).click();
+		await page.goto( '/wp-login.php' );
+		await page.getByLabel( /username|ユーザー名|メールアドレス/i ).fill( username );
+		await page.getByLabel( /^(Password|パスワード)$/i ).fill( password );
+		await page.getByRole( 'button', { name: /log in|ログイン/i } ).click();
 
-	await expect( page ).toHaveURL( /\/wp-admin(?:\/|$|\?)/ );
-	await verifyEditorMode( page );
+		await expect( page ).toHaveURL( /\/wp-admin(?:\/|$|\?)/ );
+		await verifyEditorMode( page );
 
-	await mkdir( dirname( authFile ), { recursive: true } );
-	await page.context().storageState( { path: authFile } );
-} );
+		await mkdir( dirname( authFile ), { recursive: true } );
+		await page.context().storageState( { path: authFile } );
+	}
+);
