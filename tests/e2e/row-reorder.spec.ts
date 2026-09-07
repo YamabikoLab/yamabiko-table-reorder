@@ -183,8 +183,9 @@ test.describe( 'merged cells', () => {
 		const point = await pointIn( rows.first().locator( 'td' ).last() );
 		await page.mouse.move( point.x, point.y );
 		await page.mouse.down();
-		const notice = canvas.getByText( REJECTION );
+		const notice = canvas.getByTestId( 'snackbar' ).filter( { hasText: REJECTION } );
 		await expect( notice ).toBeVisible();
+		await expect( notice ).toHaveText( REJECTION );
 		const shown = Date.now();
 		const box = ( await notice.boundingBox() )!;
 		expect( Math.abs( box.x - point.x ) ).toBeLessThan( 100 );
