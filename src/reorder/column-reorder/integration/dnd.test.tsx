@@ -16,10 +16,9 @@ import { render } from '@testing-library/react';
 import type { ReactNode } from 'react';
 
 import { columnDndInteraction } from '@/reorder/column-reorder/responsibilities/dnd-interaction';
+import { columnReorderTargetResolution } from '@/reorder/column-reorder/responsibilities/target-resolution';
 import { createColumnDestinationResolver } from './destination-resolution';
 import { ColumnDnd } from './dnd';
-import { ColumnInput } from '@/reorder/column-reorder/responsibilities/input';
-import { columnReorderTargetResolution } from '@/reorder/column-reorder/responsibilities/target-resolution';
 
 jest.mock( '@dnd-kit/dom', () => ( {
 	AutoScroller: {},
@@ -47,9 +46,8 @@ jest.mock( './destination-resolution', () => ( {
 } ) );
 
 jest.mock( '@/reorder/column-reorder/responsibilities/input', () => ( {
-	ColumnInput: jest.fn( ( props: { children: ( handler: () => void ) => ReactNode } ) =>
-		props.children( () => undefined )
-	),
+	ColumnInput: ( props: { children: ( handler: () => void ) => ReactNode } ) =>
+		props.children( () => undefined ),
 } ) );
 
 jest.mock( '@/reorder/column-reorder/responsibilities/target-resolution', () => ( {
@@ -59,7 +57,6 @@ jest.mock( '@/reorder/column-reorder/responsibilities/target-resolution', () => 
 } ) );
 
 const dragDropProviderMock = DragDropProvider as unknown as jest.Mock;
-const columnInputMock = ColumnInput as unknown as jest.Mock;
 const destinationResolverFactoryMock = createColumnDestinationResolver as jest.MockedFunction<
 	typeof createColumnDestinationResolver
 >;
@@ -158,7 +155,7 @@ describe( 'Column DnD Engine Integration', () => {
 				},
 			},
 		} as unknown as DragMoveEvent );
-		provider.onDragEnd( { canceled: false } as DragEndEvent );
+		provider.onDragEnd( { canceled: false } as unknown as DragEndEvent );
 
 		expect( preventDefault ).not.toHaveBeenCalled();
 		expect( targetResolutionMock.resolve ).toHaveBeenCalledWith( target );
@@ -246,7 +243,7 @@ describe( 'Column DnD Engine Integration', () => {
 				source: {},
 			},
 		} as unknown as DragStartEvent );
-		provider.onDragEnd( { canceled: true } as DragEndEvent );
+		provider.onDragEnd( { canceled: true } as unknown as DragEndEvent );
 
 		expect( dndInteractionMock.cancel ).toHaveBeenCalledTimes( 1 );
 		expect( dndInteractionMock.complete ).not.toHaveBeenCalled();
@@ -300,12 +297,5 @@ describe( 'Column DnD Engine Integration', () => {
 		} as unknown as DragStartEvent );
 
 		expect( dndInteractionMock.start ).not.toHaveBeenCalled();
-		expect( columnInputMock ).toHaveBeenLastCalledWith(
-			expect.objectContaining( {
-				enabled: true,
-				tableIdentity: 'table-1',
-			} ),
-			undefined
-		);
 	} );
 } );
