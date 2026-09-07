@@ -1,7 +1,7 @@
 <?php
 /**
  * Plugin Name: YTR E2E non-iframe editor fixture
- * Description: Registers a Block API v2 block only for the non-iframe compatibility scenario.
+ * Description: Registers a Block API v2 block on the server and editor client only for the non-iframe compatibility scenario.
  *
  * @package YamabikoTableReorderE2E
  */
@@ -26,6 +26,32 @@ add_action(
 					'inserter' => false,
 				),
 			)
+		);
+	}
+);
+
+add_action(
+	'enqueue_block_editor_assets',
+	static function () {
+		wp_add_inline_script(
+			'wp-blocks',
+			<<<'JS'
+wp.blocks.registerBlockType( 'ytr-e2e/non-iframe', {
+	apiVersion: 2,
+	title: 'YTR E2E non-iframe',
+	category: 'text',
+	supports: {
+		inserter: false,
+	},
+	edit: function () {
+		return null;
+	},
+	save: function () {
+		return null;
+	},
+} );
+JS,
+			'after'
 		);
 	}
 );
