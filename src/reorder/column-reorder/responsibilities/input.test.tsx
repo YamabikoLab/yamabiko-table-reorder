@@ -335,9 +335,7 @@ describe( 'Column PC input boundary', () => {
 				},
 			},
 		};
-		useDragDropManagerMock.mockReturnValue(
-			manager as ReturnType< typeof useDragDropManager >
-		);
+		useDragDropManagerMock.mockReturnValue( manager as ReturnType< typeof useDragDropManager > );
 		const { currentTarget, target, next } = createTableTarget();
 		const { pointerDownHandler, activeDraggable } = renderColumnInput();
 
