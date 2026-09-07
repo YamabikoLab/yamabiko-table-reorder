@@ -6,16 +6,36 @@
  * DnD状態、表示状態、Lifecycleは所有せず、呼び出された時点のDOMだけを計測する。
  */
 
-/** Table内で観測できた論理列境界のTable相対横位置。 */
+/** Table内の論理列進行方向。 */
+export type ColumnInlineDirection = 'ltr' | 'rtl';
+
+/** Table内で観測できた論理列境界の論理進行方向上の位置。 */
 export type ColumnBoundaryGeometry = {
 	/** Table全体の0-based論理列間境界。 */
 	index: number;
-	/** Table左端を基準とする境界の横位置。 */
+	/** Tableの論理開始端を基準として、論理列進行方向へ増加する境界位置。 */
 	offset: number;
 };
 
 /** 各論理列で、前の行から継続するrowspanが残っている行数。 */
 type RemainingRowSpan = number[];
+
+/**
+ * 対象Tableの論理列進行方向を現在のEditor DOMから解決する。
+ *
+ * 継承された`direction`も含めて実際の描画方向を利用し、RTL Editorでも論理列番号と物理配置を同じ基準へ正規化する。
+ *
+ * @param table 列DnDの対象となるTable要素。
+ * @return Tableの論理列進行方向。
+ */
+export const resolveTableColumnInlineDirection = (
+	table: HTMLTableElement
+): ColumnInlineDirection => {
+	const editorWindow = table.ownerDocument.defaultView;
+	const computedDirection = editorWindow?.getComputedStyle( table ).direction;
+	const inlineDirection: ColumnInlineDirection = computedDirection === 'rtl' ? 'rtl' : 'ltr';
+	return inlineDirection;
+};
 
 /**
  * 現在行でセルを配置できる次の論理列位置を解決する。
@@ -44,9 +64,9 @@ const resolveNextAvailableColumnIndex = (
  * 同じ論理境界はTable内の複数行から観測できる。開始時Table配置の列境界として最初に観測した位置を採用し、
  * 行ごとの装飾差や小さな描画差によって同一境界の基準が揺れないようにする。
  *
- * @param boundaries 論理列間境界ごとのTable相対横位置。
+ * @param boundaries 論理列間境界ごとの論理進行方向上の位置。
  * @param index      記録する0-based論理列間境界。
- * @param offset     Table左端を基準とする境界の横位置。
+ * @param offset     Tableの論理開始端を基準とする境界位置。
  */
 const recordBoundary = (
 	boundaries: Map< number, number >,
@@ -60,18 +80,20 @@ const recordBoundary = (
 };
 
 /**
- * 現在のTableに描画されたセルから、観測可能な論理列境界をTable相対位置として計測する。
+ * 現在のTableに描画されたセルから、観測可能な論理列境界を論理進行方向上の位置として計測する。
  *
  * 横結合セルの内部境界はDOMから実測できないため推測しない。別の行で同じ論理境界を観測できる場合だけ境界として返す。
+ * LTRでは左端、RTLでは右端を論理開始位置0として正規化し、論理列番号が増える方向とoffsetが増える方向を一致させる。
  * これにより不等幅列や結合セルを含むTableでも、実際の描画位置にない境界を人工的に生成しない。
  *
  * @param table 列DnDの対象となるTable要素。
- * @return 論理列間境界順に並んだ、観測可能なTable相対横位置。
+ * @return 論理列間境界順に並んだ、観測可能な論理進行方向上の位置。
  */
 export const measureTableColumnBoundaryGeometry = (
 	table: HTMLTableElement
 ): readonly ColumnBoundaryGeometry[] => {
 	const tableRectangle = table.getBoundingClientRect();
+	const inlineDirection = resolveTableColumnInlineDirection( table );
 	const boundaries = new Map< number, number >();
 	const remainingRowSpans: RemainingRowSpan = [];
 	const rows = Array.from( table.rows );
@@ -93,9 +115,17 @@ export const measureTableColumnBoundaryGeometry = (
 			const columnSpan = Math.max( cell.colSpan, 1 );
 			const columnEnd = columnStart + columnSpan;
 			const rectangle = cell.getBoundingClientRect();
+			let columnStartOffset = rectangle.left - tableRectangle.left;
+			let columnEndOffset = rectangle.right - tableRectangle.left;
 
-			recordBoundary( boundaries, columnStart, rectangle.left - tableRectangle.left );
-			recordBoundary( boundaries, columnEnd, rectangle.right - tableRectangle.left );
+			/* RTLでは右端を論理開始位置とし、論理列番号と境界offsetが同じ向きに増えるよう物理位置を正規化する。 */
+			if ( inlineDirection === 'rtl' ) {
+				columnStartOffset = tableRectangle.right - rectangle.right;
+				columnEndOffset = tableRectangle.right - rectangle.left;
+			}
+
+			recordBoundary( boundaries, columnStart, columnStartOffset );
+			recordBoundary( boundaries, columnEnd, columnEndOffset );
 
 			const rowSpan = Math.max( cell.rowSpan, 1 );
 
