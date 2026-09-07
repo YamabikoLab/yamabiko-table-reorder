@@ -80,7 +80,22 @@ function cpuSelfTimeByOwner( profile: CpuProfile ) {
 }
 
 for ( const name of [ 'core/table', 'flexible-table-block/table' ] as TableName[] ) {
-	test( `${ name } ${ TABLE_SIZE.rows } x ${ TABLE_SIZE.columns } separates block updates from YTR drag phases`, async ( {
+	/**
+	 * 対応Table Blockで行DnDの各段階と通常のBlock更新を分離して計測できることを確認する。
+	 *
+	 * 事前条件:
+	 * - 性能計測対象のTable規模が選択されている。
+	 * - 行の並び替えモードを利用できる。
+	 *
+	 * 操作:
+	 * - 同じ行移動を通常のBlock更新で実行して基準値を計測する。
+	 * - 行の並び替えモード開始、DnD開始、移動中、確定をそれぞれ計測する。
+	 *
+	 * 期待結果:
+	 * - 各段階の経過時間とCPU profileを個別に記録できる。
+	 * - DnD確定後に対象行が指定した位置へ移動する。
+	 */
+	test( `when ${ name } is measured at ${ TABLE_SIZE.rows } x ${ TABLE_SIZE.columns }, should separate the block-update baseline from YTR drag phases`, async ( {
 		admin,
 		page,
 		editor,
