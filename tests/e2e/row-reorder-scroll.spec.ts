@@ -16,8 +16,7 @@ function wideTableAttributes() {
 	attributes.hasFixedLayout = false;
 	for ( const row of attributes.body ) {
 		for ( const [ column, cell ] of row.cells.entries() ) {
-			cell.content =
-				column === 0 ? cell.content : `Column${ column + 1 }${ 'Wide'.repeat( 12 ) }`;
+			cell.content = column === 0 ? cell.content : `Column${ column + 1 }${ 'Wide'.repeat( 12 ) }`;
 		}
 	}
 	return attributes;
