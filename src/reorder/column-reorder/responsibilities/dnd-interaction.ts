@@ -18,7 +18,12 @@ import {
 
 import { columnTableIntegration, type ColumnReorderConstraints } from './table-integration';
 
-/** activeな列DnD中にDnD Interactionが所有する意味状態。 */
+/**
+ * activeな列DnD中にDnD Interactionが所有する意味状態を表す。
+ *
+ * Session開始時に成立した対象Table、移動元論理列、開始時制約、および現在の有効移動先だけを保持する。
+ * DnD Engine固有の物理状態、開始前候補、終了結果は保持しない。
+ */
 type ColumnDndSession = {
 	/** 列DnDの対象となるTable個体を識別する値。 */
 	tableIdentity: string;
@@ -45,7 +50,11 @@ type ColumnDndStoreState =
 			session: ColumnDndSession;
 	  };
 
-/** DnD Interactionが状態遷移のために提供する操作。 */
+/**
+ * DnD InteractionがColumn DnD Sessionの状態遷移として受け付ける操作を表す。
+ *
+ * 開始可否の解決や物理入力の解釈は受け持たず、解決済みTargetから始まるSession Lifecycleだけを変更する。
+ */
 type ColumnDndStoreActions = {
 	/**
 	 * 物理DnD開始成立後に、解決済みの移動対象と開始時制約を引き継いでactive Sessionを開始する。
@@ -69,10 +78,10 @@ type ColumnDndStoreActions = {
 /** DnD Interactionが所有する意味状態とLifecycle操作をまとめたStore境界。 */
 type ColumnDndStore = ColumnDndStoreState & ColumnDndStoreActions;
 
-/** DnD Interactionの共有状態変更をReact非依存で受け取る購読listener。 */
+/** DnD Interactionの共有状態変更をReact非依存で受け取る通知先。 */
 type ColumnDndStateListener = () => void;
 
-/** Reorder PresentationがDnD異常終了通知を受け取るための購読listener。 */
+/** Reorder PresentationがDnD異常終了通知を受け取る通知先。 */
 type ColumnDndTerminationNoticeListener = () => void;
 
 /**
@@ -283,7 +292,7 @@ const columnDndStore = createStore< ColumnDndStore >()(
 /**
  * DnD Interactionの共有状態が変化したことを、Store内部を公開せず外部利用者へ通知する。
  *
- * @param listener 共有状態が変化したときに呼び出す購読listener。
+ * @param listener 共有状態が変化したときに呼び出す通知先。
  * @return 購読を解除する関数。
  */
 export const subscribeColumnDndState = ( listener: ColumnDndStateListener ): ( () => void ) => {
@@ -332,7 +341,7 @@ export const getColumnDndDestinationBoundaryIndex = (): number | null => {
  *
  * 通知表示そのものの状態や終了理由は公開せず、通知対象となる終了が発生したことだけを伝える。
  *
- * @param listener 通知対象のDnD終了時に呼び出す購読listener。
+ * @param listener 通知対象のDnD終了時に呼び出す通知先。
  * @return 購読を解除する関数。
  */
 export const subscribeColumnDndTerminationNotice = (
