@@ -567,7 +567,7 @@ cancel、有効移動先がないdrop、または行順が変化しないdropで
 | Step | Source | Target | Interaction |
 | ---: | --- | --- | --- |
 | 1 | EXT_DND_ENGINE | RESP_ROW_DND_ENGINE_INTEGRATION | cancelまたは物理DnD endを通知する。 |
-| 2 | RESP_ROW_DND_ENGINE_INTEGRATION | RESP_ROW_DND_INTERACTION | cancel、またはcomplete時の有効移動先なしとしてSession終了へ接続する。 |
+| 2 | RESP_ROW_DND_ENGINE_INTEGRATION | RESP_ROW_DND_INTERACTION | cancelまたはcompleteという物理終了種別をSessionへ渡す。 |
 | 3 | RESP_ROW_DND_INTERACTION | RESP_ROW_PRESENTATION | DnD中表示を終了し、異常終了通知を要求しない。 |
 | 4 | RESP_ROW_DND_INTERACTION | RESP_ROW_TABLE_INTEGRATION | Session破棄後、対象Tableが次の行並び替えを安全に受けられるか現在状態を取得し直す。 |
 | 5 | RESP_ROW_DND_INTERACTION | RESP_REORDER_MODE | 対象Tableの継続可否だけを現在モードへ反映する。 |
