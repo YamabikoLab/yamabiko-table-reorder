@@ -26,7 +26,22 @@ test.describe( 'Reorder Mode Table alignment', () => {
 		await editor.setContent( TABLE_CONTENT );
 	} );
 
-	test( 'keeps Core Table normal, wide, and full widths working while Reorder Mode is active', async ( {
+	/**
+	 * 行の並び替えモード中でもCore Tableの配置変更を利用できることを確認する。
+	 *
+	 * 事前条件:
+	 * - Core Tableが通常幅で配置されている。
+	 * - 行の並び替えモードを利用できる。
+	 *
+	 * 操作:
+	 * - 行の並び替えモードを有効にする。
+	 * - Tableの配置を幅広、全幅、通常幅の順に変更する。
+	 *
+	 * 期待結果:
+	 * - 各配置に応じたTable幅が反映される。
+	 * - 配置変更後も行の並び替えモードが維持される。
+	 */
+	test( 'when Core Table alignment changes while reorder mode is active, should preserve each width and keep reorder mode active', async ( {
 		editor,
 		page,
 	} ) => {
