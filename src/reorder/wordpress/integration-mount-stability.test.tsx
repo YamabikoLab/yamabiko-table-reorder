@@ -62,9 +62,7 @@ describe( 'Reorder Mode WordPress integration mount stability', () => {
 		);
 
 		rerender( <WrappedBlockListBlock clientId="table-a" isSelected name="core/table" /> );
-		rerender(
-			<WrappedBlockListBlock clientId="table-a" isSelected={ false } name="core/table" />
-		);
+		rerender( <WrappedBlockListBlock clientId="table-a" isSelected={ false } name="core/table" /> );
 
 		expect( mountCount ).toBe( 1 );
 		expect( unmountCount ).toBe( 0 );
