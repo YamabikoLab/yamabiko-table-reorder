@@ -120,7 +120,9 @@ const resolveSourceColumnIndex = (
  * PCポインター入力から列DnD開始候補を解決し、現在の入力で必要な列だけをDraggableへ登録する。
  *
  * 第一段階のReorder Target Resolutionで開始可能な列だけを物理DnDへ接続する。
- * 入力ごとに登録したDraggableは次の開始候補へ持ち越さず、常に現在の開始候補だけを有効にする。
+ * DnD Engineがidleで新しいポインター入力を受け付けられる場合は、入力種別や対象可否の判定より先に前回の開始候補を破棄し、
+ * Phase 5で受理しないtouch / pen入力や開始不可入力から残存Draggableが起動しない状態を維持する。
+ * active DnD中は現在のDraggableを破棄せず、新しい開始候補も受け付けない。
  * タッチ入力はPhase 6で同じ入力責務へ接続するため、このPhaseでは受理しない。
  *
  * @param props                         PC入力接続に必要な値。
@@ -143,13 +145,27 @@ export const ColumnInput = ( props: {
 	const manager = useDragDropManager();
 
 	const onPointerDownCapture: ColumnDndPointerDownHandler = ( event ) => {
-		/* 列並び替えが無効、物理DnD接続を利用できない、またはPC以外の入力では開始候補を受け付けない。 */
-		if ( ! enabled || ! manager || event.pointerType !== 'mouse' ) {
+		/* 列並び替えが無効、または物理DnD接続を利用できない場合は開始入力を扱わない。 */
+		if ( ! enabled || ! manager ) {
 			return;
 		}
 
-		/* 新しいDnDを開始できる主ポインターの左ボタン入力だけを受け入れる。 */
-		if ( ! event.isPrimary || event.button !== 0 || ! manager.dragOperation.status.idle ) {
+		/* active DnD中は現在の物理DnD登録を維持し、新しい開始入力で置き換えない。 */
+		if ( ! manager.dragOperation.status.idle ) {
+			return;
+		}
+
+		/* idle中の新しいポインター入力は前回候補を失効させ、受理しない入力から残存Draggableが起動しない状態にする。 */
+		activeDraggable.current?.destroy();
+		activeDraggable.current = null;
+
+		/* Phase 5ではPCマウス入力だけを開始候補として受け付ける。 */
+		if ( event.pointerType !== 'mouse' ) {
+			return;
+		}
+
+		/* 主ポインターの左ボタン入力だけを新しい列DnD開始試行として受け入れる。 */
+		if ( ! event.isPrimary || event.button !== 0 ) {
 			return;
 		}
 
@@ -177,10 +193,6 @@ export const ColumnInput = ( props: {
 		}
 
 		event.preventDefault();
-
-		/* 開始候補は現在のPC入力だけに対応させ、前回入力の一時登録を残さない。 */
-		activeDraggable.current?.destroy();
-		activeDraggable.current = null;
 
 		const source: ColumnReorderTarget = {
 			tableIdentity,
