@@ -43,6 +43,12 @@ import {
 /** 行DnDを既存DOMのポインター入力へ接続する開始処理型を、DnD接続境界から公開する。 */
 export type { RowDndPointerDownHandler } from '@/reorder/row-reorder/responsibilities/input';
 
+/** 確定処理を開始する次のeditor描画周期。 */
+type PendingRowCommit = {
+	editorWindow: Window;
+	requestId: number;
+};
+
 /**
  * 対象Tableへdnd-kitの物理DnD進行を接続する。
  *
@@ -50,7 +56,7 @@ export type { RowDndPointerDownHandler } from '@/reorder/row-reorder/responsibil
  * 物理DnD成立前にReorder Target Resolutionで開始対象を再確認し、成立後は解決済みのTargetと開始時制約だけをDnD Interactionへ渡す。
  * Reorder Presentationは現在操作中のTableだけに接続し、複数Tableが存在しても共有通知や共有状態へ複数のPresentationが反応しない状態を維持する。
  * Auto Scrollは縦方向だけを有効にし、行DnDによって横方向のスクロール位置を変更しない。
- * 行並び替えが無効になった場合と接続自体が終了する場合は、未使用の解決結果とDraggable登録を破棄する。
+ * 有効dropでは移動完了後のPresentationを一度描画してからTable更新を開始する。
  *
  * @param props                     行DnD接続に必要な値。
  * @param props.enabled             現在のTableで行並び替え開始入力を受け付ける場合はtrue。
@@ -68,12 +74,12 @@ export const RowDnd = ( props: {
 	const { enabled, presentationEnabled = true, tableIdentity, children } = props;
 	const activeDraggable = useRef< Draggable | null >( null );
 	const destinationResolver = useRef< RowDestinationResolver | null >( null );
+	const pendingCommit = useRef< PendingRowCommit | null >( null );
 	const resolvedStart = useRef< Extract<
 		RowReorderTargetResolution,
 		{ status: 'resolved' }
 	> | null >( null );
 
-	/** 次の開始入力や通常編集へ持ち越せないDnD接続境界の一時状態をまとめて破棄する。 */
 	const clearTransientDndState = useCallback( (): void => {
 		resolvedStart.current = null;
 		destinationResolver.current = null;
@@ -81,73 +87,95 @@ export const RowDnd = ( props: {
 		activeDraggable.current = null;
 	}, [] );
 
+	const cancelPendingCommit = useCallback( ( cancelSession: boolean ): void => {
+		const current = pendingCommit.current;
+		pendingCommit.current = null;
+		if ( current === null ) {
+			return;
+		}
+		current.editorWindow.cancelAnimationFrame( current.requestId );
+		if ( cancelSession ) {
+			rowDndInteraction.cancel();
+		}
+	}, [] );
+
 	useEffect( () => {
-		/* 行並び替えが無効になった時点で、通常編集や別モードへ一時状態を持ち越さない。 */
 		if ( ! enabled ) {
 			clearTransientDndState();
+			cancelPendingCommit( true );
 		}
-	}, [ enabled, clearTransientDndState ] );
+	}, [ enabled, clearTransientDndState, cancelPendingCommit ] );
 
 	useEffect( () => {
-		/* TableのDnD接続終了時は、未使用の解決結果、移動先解決境界、物理DnD登録を残さない。 */
-		return clearTransientDndState;
-	}, [ clearTransientDndState ] );
+		return () => {
+			clearTransientDndState();
+			cancelPendingCommit( true );
+		};
+	}, [ clearTransientDndState, cancelPendingCommit ] );
 
 	const onBeforeDragStart = ( event: BeforeDragStartEvent ) => {
+		if ( pendingCommit.current !== null ) {
+			event.preventDefault();
+			return;
+		}
+
 		const target = event?.operation?.source?.data as RowReorderTarget;
 		const resolution = rowReorderTargetResolution.resolve( target );
-
-		/* 開始入力後のTable状態変化で開始対象が成立しなくなった場合は、利用者向け通知を重複させず物理DnDだけを開始しない。 */
 		if ( resolution.status !== 'resolved' ) {
 			event.preventDefault();
 			clearTransientDndState();
 			return;
 		}
-
 		resolvedStart.current = resolution;
 	};
 
 	const onDragStart = ( event?: DragStartEvent ) => {
 		const resolution = resolvedStart.current;
-
-		/* 開始対象の解決が成立していない物理DnD通知からは、行DnD Sessionを開始しない。 */
 		if ( resolution === null ) {
 			return;
 		}
-
 		resolvedStart.current = null;
 		destinationResolver.current = createRowDestinationResolver( event?.operation.source?.element );
 		rowDndInteraction.start( resolution.target, resolution.initialConstraints );
 	};
 
 	const onDragMove = ( event: DragMoveEvent ) => {
-		/* 開始通知から移動先解決境界を生成できない場合は、最初の移動通知から一度だけ補完する。 */
 		const resolver =
 			destinationResolver.current ??
 			createRowDestinationResolver( event.operation.source?.element );
 		destinationResolver.current = resolver;
-
 		const destinationBoundaryIndex = resolver?.resolve( event ) ?? null;
 		rowDndInteraction.updateDestination( destinationBoundaryIndex );
 	};
 
 	const onDragEnd = ( event: DragEndEvent ) => {
-		/* 物理DnD終了時は、次回入力へ持ち越してはならない一時状態を破棄する。 */
 		clearTransientDndState();
-
-		/* 物理DnDが取消で終了した場合は、行並び替えを確定せずSessionを取消する。 */
 		if ( event.canceled ) {
 			rowDndInteraction.cancel();
 			return;
 		}
 
-		rowDndInteraction.complete();
+		const sourceElement = event.operation?.source?.element;
+		const editorWindow = sourceElement?.ownerDocument.defaultView ?? null;
+		if ( editorWindow === null ) {
+			rowDndInteraction.complete();
+			return;
+		}
+
+		/* 確定表示を描画した次の描画周期からTable更新を開始し、重い再描画の前に移動完了後の見た目を成立させる。 */
+		const presentationRequestId = editorWindow.requestAnimationFrame( () => {
+			const commitRequestId = editorWindow.requestAnimationFrame( () => {
+				pendingCommit.current = null;
+				rowDndInteraction.complete();
+			} );
+			pendingCommit.current = { editorWindow, requestId: commitRequestId };
+		} );
+		pendingCommit.current = { editorWindow, requestId: presentationRequestId };
 	};
 
 	return (
 		<DragDropProvider
 			plugins={ ( defaults ) => [
-				/* 行DnDは入力境界と独自Presentationで必要な操作・表示状態を管理し、Auto Scrollは縦方向だけを許可する。 */
 				...defaults.filter(
 					( plugin ) =>
 						plugin !== Cursor &&
@@ -155,9 +183,7 @@ export const RowDnd = ( props: {
 						plugin !== Feedback &&
 						plugin !== AutoScroller
 				),
-				AutoScroller.configure( {
-					threshold: { x: 0, y: 0.2 },
-				} ),
+				AutoScroller.configure( { threshold: { x: 0, y: 0.2 } } ),
 			] }
 			onBeforeDragStart={ onBeforeDragStart }
 			onDragStart={ onDragStart }
