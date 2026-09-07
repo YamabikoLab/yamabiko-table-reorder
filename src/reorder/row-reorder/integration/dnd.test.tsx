@@ -2,10 +2,11 @@
  * 行並び替えのDnD境界が、物理DnDのLifecycleを各責務へ正しく接続することを確認する。
  *
  * Reorder Target Resolutionと移動先解決は独立責務としてmockし、この境界では開始前解決、開始成立、
- * 移動先解決結果の接続、終了種別、および行並び替え無効化時を含む一時状態破棄だけを検証する。
+ * 移動先解決結果の接続、終了種別、Auto Scroll方向、および行並び替え無効化時を含む一時状態破棄だけを検証する。
  */
 
 import type { BeforeDragStartEvent, DragEndEvent, DragMoveEvent, Draggable } from '@dnd-kit/dom';
+import { AutoScroller } from '@dnd-kit/dom';
 import { DragDropProvider } from '@dnd-kit/react';
 import { render } from '@testing-library/react';
 import type { ReactNode } from 'react';
@@ -15,7 +16,12 @@ import { RowDnd } from './dnd';
 import { createRowDestinationResolver } from '@/reorder/row-reorder/integration/destination-resolution';
 import { rowReorderTargetResolution } from '@/reorder/row-reorder/responsibilities/target-resolution';
 
+const autoScrollerConfiguredPlugin = {};
+
 jest.mock( '@dnd-kit/dom', () => ( {
+	AutoScroller: {
+		configure: jest.fn( () => autoScrollerConfiguredPlugin ),
+	},
 	Cursor: {},
 	PreventSelection: {},
 	Feedback: {},
@@ -62,6 +68,7 @@ jest.mock( '@dnd-kit/react', () => ( {
 } ) );
 
 const dragDropProviderMock = DragDropProvider as unknown as jest.Mock;
+const autoScrollerConfigureMock = AutoScroller.configure as jest.Mock;
 const interactionMock = rowDndInteraction as jest.Mocked< typeof rowDndInteraction >;
 const targetResolutionMock = rowReorderTargetResolution as jest.Mocked<
 	typeof rowReorderTargetResolution
@@ -99,6 +106,36 @@ describe( 'Row DnD engine connection', () => {
 		jest.clearAllMocks();
 		activeDraggableRef = null;
 		destinationResolverFactoryMock.mockReturnValue( null );
+	} );
+
+	/**
+	 * 行DnDでは縦方向だけAuto Scrollを許可することを確認する。
+	 *
+	 * 事前条件:
+	 * - DnD Engineの既定plugin群にAutoScrollerが含まれる。
+	 *
+	 * 操作:
+	 * - Row DnD境界を描画し、plugin構成を解決する。
+	 *
+	 * 期待結果:
+	 * - 横方向のAuto Scrollは無効化される。
+	 * - 縦方向のAuto Scrollは既定の有効範囲で利用できる。
+	 * - 既定AutoScrollerは重複して残らない。
+	 */
+	it( 'when row DnD plugins are resolved, should enable auto scroll only on the vertical axis', () => {
+		render(
+			<RowDnd enabled tableIdentity="table-1">
+				{ () => <div /> }
+			</RowDnd>
+		);
+		const props = getProviderProps();
+		const unrelatedPlugin = {};
+		const plugins = props.plugins( [ unrelatedPlugin, AutoScroller ] );
+
+		expect( autoScrollerConfigureMock ).toHaveBeenCalledWith( {
+			threshold: { x: 0, y: 0.2 },
+		} );
+		expect( plugins ).toEqual( [ unrelatedPlugin, autoScrollerConfiguredPlugin ] );
 	} );
 
 	/**
