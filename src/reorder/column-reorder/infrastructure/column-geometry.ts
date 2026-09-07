@@ -53,6 +53,7 @@ const recordBoundary = (
 	index: number,
 	offset: number
 ): void => {
+	/* 同一論理境界はDnD開始時に最初に観測した位置を基準とし、別行の観測値で開始時配置を揺らさない。 */
 	if ( ! boundaries.has( index ) ) {
 		boundaries.set( index, offset );
 	}
@@ -86,6 +87,7 @@ export const measureTableColumnBoundaryGeometry = (
 
 		let nextColumnIndex = 0;
 
+		/* 現在行の各セルを論理列へ対応付け、DOMから直接観測できる左右境界だけを開始時配置へ記録する。 */
 		Array.from( row.cells ).forEach( ( cell ) => {
 			const columnStart = resolveNextAvailableColumnIndex( remainingRowSpans, nextColumnIndex );
 			const columnSpan = Math.max( cell.colSpan, 1 );
@@ -96,6 +98,8 @@ export const measureTableColumnBoundaryGeometry = (
 			recordBoundary( boundaries, columnEnd, rectangle.right - tableRectangle.left );
 
 			const rowSpan = Math.max( cell.rowSpan, 1 );
+
+			/* 縦結合セルが後続行でも占有する論理列を記録し、次行のセルを同じ列へ重ねて解釈しない。 */
 			if ( rowSpan > 1 ) {
 				for ( let index = columnStart; index < columnEnd; index += 1 ) {
 					remainingRowSpans[ index ] = Math.max( remainingRowSpans[ index ] ?? 0, rowSpan );
@@ -112,6 +116,7 @@ export const measureTableColumnBoundaryGeometry = (
 		}
 	} );
 
+	/* 呼び出し側がTable内の論理順だけを基準に扱えるよう、観測順ではなく列間境界順で返す。 */
 	return Array.from( boundaries, ( [ index, offset ] ) => ( {
 		index,
 		offset,
