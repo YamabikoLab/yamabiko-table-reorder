@@ -154,10 +154,31 @@ describe( 'Column DnD Interaction lifecycle', () => {
 			blockedBoundaries: [ 4 ],
 		} );
 
+		/* 列順を変更できない代表的な移動先を同じSession条件で確認する。 */
 		for ( const destination of [ 1, 2, -1, 6, 4 ] ) {
 			columnDndInteraction.updateDestination( destination );
 			expect( getColumnDndDestinationBoundaryIndex() ).toBeNull();
 		}
+	} );
+
+	/**
+	 * 概要:
+	 * - 一度成立した移動先が、その後成立しない候補へ変わった場合に保持され続けないことを確認する。
+	 * 事前条件:
+	 * - 境界3は有効な移動先である。
+	 * 操作:
+	 * - 境界3を有効移動先として保持した後、移動先候補なしを通知する。
+	 * 期待結果:
+	 * - 以前の有効移動先を破棄し、現在の移動先はnullになる。
+	 */
+	it( 'when a valid destination is followed by no destination, should clear the previous destination', () => {
+		startActiveSession();
+		columnDndInteraction.updateDestination( 3 );
+		expect( getColumnDndDestinationBoundaryIndex() ).toBe( 3 );
+
+		columnDndInteraction.updateDestination( null );
+
+		expect( getColumnDndDestinationBoundaryIndex() ).toBeNull();
 	} );
 
 	/**
@@ -298,6 +319,30 @@ describe( 'Column DnD Interaction lifecycle', () => {
 		expect( applyColumnMoveMock ).toHaveBeenCalledTimes( 1 );
 		expect( terminationNoticeListener ).toHaveBeenCalledTimes( 1 );
 		expect( getColumnDndPhase() ).toBe( 'idle' );
+	} );
+
+	/**
+	 * 概要:
+	 * - Table Integrationの内部Errorを通常の安全終了へ変換しないことを確認する。
+	 * 事前条件:
+	 * - active Sessionには有効移動先があり、complete時の現在制約取得で内部Errorが発生する。
+	 * 操作:
+	 * - complete()する。
+	 * 期待結果:
+	 * - Errorがそのまま伝播し、利用者向けの異常終了通知やReorder Modeの終了後解決は行わない。
+	 */
+	it( 'when table integration throws during complete, should propagate the internal error without a termination notice', () => {
+		startActiveSession();
+		columnDndInteraction.updateDestination( 4 );
+		getConstraintsMock.mockImplementationOnce( () => {
+			throw new Error( 'Column Table Integration invariant violation.' );
+		} );
+
+		expect( () => columnDndInteraction.complete() ).toThrow(
+			'Column Table Integration invariant violation.'
+		);
+		expect( terminationNoticeListener ).not.toHaveBeenCalled();
+		expect( resolveAfterDndMock ).not.toHaveBeenCalled();
 	} );
 
 	/**
