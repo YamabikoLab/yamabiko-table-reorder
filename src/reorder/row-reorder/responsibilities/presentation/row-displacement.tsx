@@ -3,17 +3,14 @@
  *
  * DnD中のDOM順は変更せず、DnD Engineから移動対象行とLifecycleを直接受け取り、DnD Interactionが示す
  * 現在の有効な移動先に応じて移動元行の高さ分だけ対象行の表示位置を上下へ移動する。
- * 有効drop後はTable更新が完了するまで最後の押しのけ配置を維持し、確定処理中も移動完了後の見た目を保つ。
+ * 有効drop後はTable更新を開始する描画周期を越えるまで最後の押しのけ配置を維持し、確定処理中も移動完了後の見た目を保つ。
  * 有効な移動先がない終了または表示境界の終了時には、このPresentationが追加した状態をすべて解除する。
  */
 
 import { useDragDropMonitor } from '@dnd-kit/react';
 import { useCallback, useEffect, useRef } from '@wordpress/element';
 
-import {
-	useRowDndDestinationBoundaryIndex,
-	useRowDndPhase,
-} from '@/reorder/row-reorder/integration/dnd-interaction-react';
+import { useRowDndDestinationBoundaryIndex } from '@/reorder/row-reorder/integration/dnd-interaction-react';
 
 import './row-displacement.scss';
 
@@ -27,21 +24,33 @@ type DisplacementRange = {
 	displacement: number;
 };
 
+type PendingClear = {
+	editorWindow: Window;
+	requestId: number;
+};
+
 /**
  * Row Reorderの押しのけ表示をDnD EngineとDnD Interactionへ直接接続する。
  *
  * 物理DnD開始時の移動対象行だけをそのDnD中の表示対象として保持し、現在の有効な移動先が変わるたびに
- * 必要な周囲行だけを移動する。有効dropでは確定完了まで最後の配置を維持する。
+ * 必要な周囲行だけを移動する。有効dropではTable更新開始後の次の描画機会まで最後の配置を維持する。
  *
  * @return DOM要素を追加せず、実Tableの行へ一時的な表示状態だけを適用するためnull。
  */
 export const RowDisplacement = () => {
-	const phase = useRowDndPhase();
 	const destinationBoundaryIndex = useRowDndDestinationBoundaryIndex();
 	const sourceRow = useRef< HTMLTableRowElement | null >( null );
 	const touchedRows = useRef( new Set< HTMLTableRowElement >() );
 	const currentRange = useRef< DisplacementRange | null >( null );
-	const physicalDragEnded = useRef( false );
+	const pendingClear = useRef< PendingClear | null >( null );
+
+	const cancelPendingClear = useCallback( (): void => {
+		const current = pendingClear.current;
+		pendingClear.current = null;
+		if ( current !== null ) {
+			current.editorWindow.cancelAnimationFrame( current.requestId );
+		}
+	}, [] );
 
 	const restoreRows = useCallback(
 		( tableBody: HTMLTableSectionElement, firstIndex: number, lastIndex: number ): void => {
@@ -90,7 +99,6 @@ export const RowDisplacement = () => {
 				currentRange.current = nextRange;
 				return;
 			}
-
 			if ( nextRange === null ) {
 				restoreRows( previousRange.tableBody, previousRange.firstIndex, previousRange.lastIndex );
 				currentRange.current = null;
@@ -153,11 +161,11 @@ export const RowDisplacement = () => {
 		touchedRows.current.clear();
 		currentRange.current = null;
 		sourceRow.current = null;
-		physicalDragEnded.current = false;
 	}, [] );
 
 	useDragDropMonitor( {
 		onDragStart: ( event ) => {
+			cancelPendingClear();
 			clear();
 			const sourceElement = event.operation.source?.element;
 			if ( ! sourceElement || sourceElement.tagName !== 'TR' ) {
@@ -170,44 +178,49 @@ export const RowDisplacement = () => {
 			sourceRow.current = candidate;
 		},
 		onDragEnd: () => {
-			physicalDragEnded.current = true;
 			if ( destinationBoundaryIndex === null ) {
 				clear();
+				return;
 			}
+
+			const editorWindow = sourceRow.current?.ownerDocument.defaultView ?? null;
+			if ( editorWindow === null ) {
+				clear();
+				return;
+			}
+
+			/* Table更新を開始する2段階の描画要求より後まで押しのけ表示を維持し、更新後の実Tableへ切り替える。 */
+			const firstRequestId = editorWindow.requestAnimationFrame( () => {
+				const secondRequestId = editorWindow.requestAnimationFrame( () => {
+					const thirdRequestId = editorWindow.requestAnimationFrame( () => {
+						pendingClear.current = null;
+						clear();
+					} );
+					pendingClear.current = { editorWindow, requestId: thirdRequestId };
+				} );
+				pendingClear.current = { editorWindow, requestId: secondRequestId };
+			} );
+			pendingClear.current = { editorWindow, requestId: firstRequestId };
 		},
 	} );
 
 	useEffect( () => {
-		if ( physicalDragEnded.current && phase === 'idle' ) {
-			clear();
-			return;
-		}
-
 		const currentSourceRow = sourceRow.current;
 		if ( currentSourceRow === null || destinationBoundaryIndex === null ) {
-			if ( ! physicalDragEnded.current ) {
-				updateRange( null );
-			}
+			updateRange( null );
 			return;
 		}
-
-		if ( physicalDragEnded.current ) {
-			return;
-		}
-
 		const tableBody = currentSourceRow.parentElement as HTMLTableSectionElement | null;
 		if ( tableBody === null || tableBody.tagName !== 'TBODY' ) {
 			clear();
 			return;
 		}
-
 		const sourceRowIndex = currentSourceRow.sectionRowIndex;
 		const sourceRowHeight = currentSourceRow.getBoundingClientRect().height;
 		if ( sourceRowHeight <= 0 ) {
 			updateRange( null );
 			return;
 		}
-
 		let firstDisplacedIndex: number;
 		let lastDisplacedIndex: number;
 		let displacement: number;
@@ -220,16 +233,20 @@ export const RowDisplacement = () => {
 			lastDisplacedIndex = destinationBoundaryIndex - 1;
 			displacement = -sourceRowHeight;
 		}
-
 		updateRange( {
 			tableBody,
 			firstIndex: firstDisplacedIndex,
 			lastIndex: lastDisplacedIndex,
 			displacement,
 		} );
-	}, [ clear, destinationBoundaryIndex, phase, updateRange ] );
+	}, [ clear, destinationBoundaryIndex, updateRange ] );
 
-	useEffect( () => clear, [ clear ] );
+	useEffect( () => {
+		return () => {
+			cancelPendingClear();
+			clear();
+		};
+	}, [ cancelPendingClear, clear ] );
 
 	return null;
 };
