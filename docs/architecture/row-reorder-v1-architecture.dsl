@@ -1,473 +1,105 @@
-// Generated from docs/architecture/reorder-v1-architecture.md. Do not edit manually.
-workspace "YTR Reorder v1 Architecture" {
+// Generated from docs/architecture/row-reorder-v1-architecture.md. Do not edit manually.
+workspace "YTR Row Reorder v1 Architecture" {
 	!impliedRelationships false
-
 	model {
-		EXT_WORDPRESS_EDITOR = element "WordPress Editor" "External System" "QR-02で保証対象とする編集環境を提供し、Row Reorderの入力と表示が存在する。" {
-			tags "External Context,External System"
-			!script groovy {
-				element.setGroup("WordPress Integration")
-			}
-		}
-		EXT_SUPPORTED_TABLE_BLOCK = element "Supported Table Block" "External Block" "FR-13で定義されるCore TableまたはFlexible Table Blockであり、Table Integrationを介して行構造の取得と行順更新を行う対象。" {
-			tags "External Context,External Block"
-			!script groovy {
-				element.setGroup("WordPress Integration")
-			}
-		}
-		EXT_WORDPRESS_UNDO = element "WordPress Undo" "External Capability" "成立した1回の行並び替えを1回のUndoで戻せる更新単位を提供する。" {
-			tags "External Context,External Capability"
-			!script groovy {
-				element.setGroup("WordPress Integration")
-			}
-		}
-		EXT_SCROLL_AREA = element "Editor Scroll Area" "External Environment" "行DnD中に縦方向へ自動スクロールする対象領域を提供する。" {
-			tags "External Context,External Environment"
-			!script groovy {
-				element.setGroup("WordPress Integration")
-			}
-		}
-		EXT_DND_ENGINE = element "DnD Engine" "External Library" "物理入力の継続、物理的なDnD状態、現在の物理入力位置、および自動スクロール実行を提供する。" {
-			tags "External Context,External Library"
-		}
-
-		RESP_REORDER_MODE = element "Reorder Mode" "Responsibility" "Tableツールバーの行・列入口、`edit" {
-			tags "Responsibility"
-			!script groovy {
-				element.setGroup("Reorder Common")
-			}
-		}
-		RESP_REORDER_GUIDANCE = element "Reorder Guidance" "Responsibility" "PC / タッチごとの初回案内表示済み状態と、Reorder Modeが所有する行・列入口をまとめて提示する共通案内状態を所有する外側の境界。" {
-			tags "Responsibility"
-			!script groovy {
-				element.setGroup("Reorder Common")
-			}
-		}
-		RESP_EDITOR_DOM_CONTEXT = element "Editor DOM Context" "Responsibility" "現在のWordPress Editorに属するDOM / Web API contextを必要な時点で解決する。" {
-			tags "Responsibility"
-			!script groovy {
-				element.setGroup("Editor Integration")
-			}
-		}
-		RESP_ROW_INPUT_INTERACTION = element "Input Interaction" "Responsibility" "PCとタッチ端末の開始条件を解釈し、DnD開始候補と入力方式固有の一時状態を所有してDnD Engineへ接続する。" {
-			tags "Responsibility"
-			!script groovy {
-				element.setGroup("Row Reorder")
-			}
-		}
-		RESP_ROW_TABLE_INTEGRATION = element "Table Integration" "Responsibility" "対応Table Blockとの差を吸収し、行並び替えに必要なTable同一性、現在構造、行更新境界、およびWordPress Undoとの境界を提供する。" {
-			tags "Responsibility"
-			!script groovy {
-				element.setGroup("Row Reorder")
-			}
-		}
-		RESP_ROW_TARGET_RESOLUTION = element "Reorder Target Resolution" "Responsibility" "DnD開始試行時に現在の行制約からReorder Targetの成立可否を解決し、開始可能な場合はそのDnDで利用する開始時制約を導出する。" {
-			tags "Responsibility"
-			!script groovy {
-				element.setGroup("Row Reorder")
-			}
-		}
-		RESP_ROW_DND_INTERACTION = element "DnD Interaction" "Responsibility" "DnD Engineの物理的なDnD進行をRow Reorderの意味状態へ変換し、行DnD Session、移動先判定、確定、中止のLifecycleを所有する。" {
-			tags "Responsibility"
-			!script groovy {
-				element.setGroup("Row Reorder")
-			}
-		}
-		RESP_ROW_PRESENTATION = element "Reorder Presentation" "Responsibility" "Row Reorderの意味状態と必要な物理的DnD情報から、行DnD中の独立した視覚フィードバックとDesignで定義された通知を表現する。" {
-			tags "Responsibility"
-			!script groovy {
-				element.setGroup("Row Reorder")
-			}
-		}
-
-		DEP_001 = RESP_REORDER_MODE -> EXT_WORDPRESS_EDITOR "WordPress Editor上のTableツールバー入口、通常編集と行・列並び替えの排他、および対象Table単位のモードLifecycleを扱うために必要とする。" {
-			tags "Structural Dependency"
-		}
-		DEP_002 = RESP_REORDER_GUIDANCE -> EXT_WORDPRESS_EDITOR "初回案内の表示契機、および行・列の入口をまとめて提示する編集環境を必要とする。" {
-			tags "Structural Dependency"
-		}
-		DEP_003 = RESP_REORDER_GUIDANCE -> RESP_EDITOR_DOM_CONTEXT "共通入口案内を現在のeditor contextで表現するために必要とする。" {
-			tags "Structural Dependency"
-		}
-		DEP_004 = RESP_REORDER_GUIDANCE -> RESP_REORDER_MODE "Reorder Modeが所有する行・列入口の案内と、入口選択による案内終了を整合させるために必要とする。" {
-			tags "Structural Dependency"
-		}
-		DEP_005 = RESP_EDITOR_DOM_CONTEXT -> EXT_WORDPRESS_EDITOR "現在のeditor contextを解決するために現在のWordPress Editorを必要とする。" {
-			tags "Structural Dependency"
-		}
-		DEP_006 = RESP_ROW_INPUT_INTERACTION -> EXT_WORDPRESS_EDITOR "PCまたはタッチ端末の開始入力を判断するために必要とする。" {
-			tags "Structural Dependency"
-		}
-		DEP_007 = RESP_ROW_INPUT_INTERACTION -> RESP_EDITOR_DOM_CONTEXT "入力開始時の現在のeditor contextを利用するために必要とする。" {
-			tags "Structural Dependency"
-		}
-		DEP_008 = RESP_ROW_INPUT_INTERACTION -> RESP_REORDER_MODE "行並び替えが有効な期間だけ行入力を受理するために必要とする。" {
-			tags "Structural Dependency"
-		}
-		DEP_009 = RESP_ROW_INPUT_INTERACTION -> EXT_DND_ENGINE "開始条件が成立した行だけを物理的なDnD開始候補へ接続し、DnD終了またはcancelを検知して自身の一時状態を終了するために必要とする。" {
-			tags "Structural Dependency"
-		}
-		DEP_010 = RESP_ROW_TABLE_INTEGRATION -> EXT_SUPPORTED_TABLE_BLOCK "対応Table Block固有の行構造取得と行順更新を行うために必要とする。" {
-			tags "Structural Dependency"
-		}
-		DEP_011 = RESP_ROW_TABLE_INTEGRATION -> EXT_WORDPRESS_UNDO "成立した1回の行並び替えを1回のUndoで戻せる更新単位を維持するために必要とする。" {
-			tags "Structural Dependency"
-		}
-		DEP_012 = RESP_ROW_TARGET_RESOLUTION -> RESP_ROW_TABLE_INTEGRATION "開始試行時の現在行制約を取得し、Reorder Targetが行単位の移動対象として成立するか解決するために必要とする。" {
-			tags "Structural Dependency"
-		}
-		DEP_013 = RESP_ROW_DND_INTERACTION -> EXT_DND_ENGINE "物理的なDnD開始成立後の進行と現在の物理入力位置をRow ReorderのSession意味状態へ変換するために必要とする。" {
-			tags "Structural Dependency"
-		}
-		DEP_014 = RESP_ROW_DND_INTERACTION -> RESP_REORDER_MODE "DnD Interactionがモード状態を所有せず、DnD終了後のモードLifecycle判断をReorder Modeの責務として成立させるために必要とする。" {
-			tags "Structural Dependency"
-		}
-		DEP_015 = RESP_ROW_DND_INTERACTION -> RESP_ROW_TABLE_INTEGRATION "complete時の現在構造への再照合、および確定した行移動の反映に必要とする。" {
-			tags "Structural Dependency"
-		}
-		DEP_016 = RESP_ROW_PRESENTATION -> RESP_EDITOR_DOM_CONTEXT "現在のeditor contextで行DnDの表示を行うために必要とする。" {
-			tags "Structural Dependency"
-		}
-		DEP_017 = RESP_ROW_PRESENTATION -> EXT_DND_ENGINE "行DnDの表示に必要な物理的なDnD情報をSessionへ取り込まず利用するために必要とする。" {
-			tags "Structural Dependency"
-		}
-		DEP_018 = RESP_ROW_PRESENTATION -> RESP_ROW_TARGET_RESOLUTION "Designで利用者へ提示する開始不可理由を、制約判定を重複させず表示へ反映するために必要とする。" {
-			tags "Structural Dependency"
-		}
-		DEP_019 = RESP_ROW_PRESENTATION -> RESP_ROW_DND_INTERACTION "現在の有効な移動先、終了時の表示解除、およびDesign上の終了通知要否を表示状態へ反映するために必要とする。" {
-			tags "Structural Dependency"
-		}
-		DEP_020 = EXT_DND_ENGINE -> EXT_SCROLL_AREA "行DnD中に縦方向の自動スクロールを実行する対象領域として必要とする。" {
-			tags "Structural Dependency"
-		}
-
-		PF_001 = EXT_WORDPRESS_EDITOR -> RESP_ROW_INPUT_INTERACTION "WordPress Editorの入力が行並び替えの入力境界へ入る。" {
-			tags "Process Flow,ProcessFlow_PV_ROW_REORDER_END_TO_END,normal"
-		}
-		PF_002 = RESP_ROW_INPUT_INTERACTION -> EXT_DND_ENGINE "入力方式固有の開始条件が成立した開始候補を物理的なDnD開始境界へ接続する。" {
-			tags "Process Flow,ProcessFlow_PV_ROW_REORDER_END_TO_END,normal"
-		}
-		PF_003 = EXT_DND_ENGINE -> RESP_ROW_TARGET_RESOLUTION "active DnD成立前の開始試行をReorder Targetの解決境界へ渡す。" {
-			tags "Process Flow,ProcessFlow_PV_ROW_REORDER_END_TO_END,normal"
-		}
-		PF_004 = RESP_ROW_TARGET_RESOLUTION -> RESP_ROW_TABLE_INTEGRATION "開始試行時の現在行制約を取得し、Reorder Targetの成立可否を解決する。" {
-			tags "Process Flow,ProcessFlow_PV_ROW_REORDER_END_TO_END,normal"
-		}
-		PF_005 = RESP_ROW_TARGET_RESOLUTION -> RESP_ROW_DND_INTERACTION "開始可能な場合だけReorder Targetと開始時制約をSession開始境界へ渡す。" {
-			tags "Process Flow,ProcessFlow_PV_ROW_REORDER_END_TO_END,normal"
-		}
-		PF_006 = RESP_ROW_DND_INTERACTION -> RESP_ROW_TABLE_INTEGRATION "complete時の現在構造取得と確定済み行移動の反映へ進む。" {
-			tags "Process Flow,ProcessFlow_PV_ROW_REORDER_END_TO_END,normal"
-		}
-		PF_007 = RESP_ROW_TABLE_INTEGRATION -> EXT_SUPPORTED_TABLE_BLOCK "対応Table Blockから行構造を取得し、確定時はtbodyの行順だけを反映する。" {
-			tags "Process Flow,ProcessFlow_PV_ROW_REORDER_END_TO_END,normal"
-		}
-		PF_008 = RESP_ROW_INPUT_INTERACTION -> RESP_ROW_DND_INTERACTION "[failure] 現在のEditor contextを利用できないなど、外部環境変化による継続不能を通常の終了結果として渡す。" {
-			tags "Process Flow,ProcessFlow_PV_ROW_EXTERNAL_CHANGE_RECOVERY,failure"
-		}
-		PF_009 = RESP_ROW_TABLE_INTEGRATION -> RESP_ROW_DND_INTERACTION "[failure] 対象Tableが現在利用できない、または更新開始前に現在更新できないなど、外部Table状態の変化による継続不能・確定不能を通常の結果として返す。" {
-			tags "Process Flow,ProcessFlow_PV_ROW_EXTERNAL_CHANGE_RECOVERY,failure"
-		}
-		PF_010 = RESP_ROW_DND_INTERACTION -> RESP_ROW_PRESENTATION "[recovery] DnD中だけの表示状態を解除し、安全な操作継続不能による終了ではDesignで定義された通知を要求する。" {
-			tags "Process Flow,ProcessFlow_PV_ROW_EXTERNAL_CHANGE_RECOVERY,recovery"
-		}
-		PF_011 = RESP_ROW_DND_INTERACTION -> RESP_REORDER_MODE "[recovery] DnD終了後に現在のTableで行並び替えモードを安全に継続できるかを外側のモード境界へ渡す。" {
-			tags "Process Flow,ProcessFlow_PV_ROW_EXTERNAL_CHANGE_RECOVERY,recovery"
-		}
-
-		RT_001 = RESP_ROW_INPUT_INTERACTION -> EXT_DND_ENGINE "開始条件が成立した行だけをDnD開始候補として一時的に接続する。" {
-			tags "Runtime Interaction,Runtime_RV_ROW_DND_START"
-			properties {
-				"runtime.RV_ROW_DND_START.step.1" "開始条件が成立した行だけをDnD開始候補として一時的に接続する。"
-			}
-		}
-		RT_002 = EXT_DND_ENGINE -> RESP_ROW_TARGET_RESOLUTION "active DnD成立前の開始試行とReorder Targetを開始対象解決へ渡す。" {
-			tags "Runtime Interaction,Runtime_RV_ROW_DND_START"
-			properties {
-				"runtime.RV_ROW_DND_START.step.2" "active DnD成立前の開始試行とReorder Targetを開始対象解決へ渡す。"
-			}
-		}
-		RT_003 = RESP_ROW_TARGET_RESOLUTION -> RESP_ROW_TABLE_INTEGRATION "現在の対象Tableの行制約を要求する。" {
-			tags "Runtime Interaction,Runtime_RV_ROW_DND_START"
-			properties {
-				"runtime.RV_ROW_DND_START.step.3" "現在の対象Tableの行制約を要求する。"
-			}
-		}
-		RT_004 = RESP_ROW_TABLE_INTEGRATION -> EXT_SUPPORTED_TABLE_BLOCK "現在の対応Table Blockから行構造を取得する。" {
-			tags "Runtime Interaction,Runtime_RV_ROW_DND_START"
-			properties {
-				"runtime.RV_ROW_DND_START.step.4" "現在の対応Table Blockから行構造を取得する。"
-			}
-		}
-		RT_005 = RESP_ROW_TARGET_RESOLUTION -> EXT_DND_ENGINE "開始可否結果を返し、開始不能な場合は物理的なDnDを成立させない。" {
-			tags "Runtime Interaction,Runtime_RV_ROW_DND_START"
-			properties {
-				"runtime.RV_ROW_DND_START.step.5" "開始可否結果を返し、開始不能な場合は物理的なDnDを成立させない。"
-			}
-		}
-		RT_006 = RESP_ROW_TARGET_RESOLUTION -> RESP_ROW_PRESENTATION "Designで表示対象となる開始不可理由がある場合だけ理由を渡す。" {
-			tags "Runtime Interaction,Runtime_RV_ROW_DND_START"
-			properties {
-				"runtime.RV_ROW_DND_START.step.6" "Designで表示対象となる開始不可理由がある場合だけ理由を渡す。"
-			}
-		}
-		RT_007 = EXT_DND_ENGINE -> RESP_ROW_DND_INTERACTION "開始可能な場合だけ物理的なDnD開始成立と、解決済みReorder Target・開始時制約をstart境界へ渡す。" {
-			tags "Runtime Interaction,Runtime_RV_ROW_DND_START"
-			properties {
-				"runtime.RV_ROW_DND_START.step.7" "開始可能な場合だけ物理的なDnD開始成立と、解決済みReorder Target・開始時制約をstart境界へ渡す。"
-			}
-		}
-		RT_008 = RESP_ROW_DND_INTERACTION -> RESP_ROW_PRESENTATION "Session開始時は移動対象行のDnD表示を開始する。" {
-			tags "Runtime Interaction,Runtime_RV_ROW_DND_START"
-			properties {
-				"runtime.RV_ROW_DND_START.step.8" "Session開始時は移動対象行のDnD表示を開始する。"
-			}
-		}
-		RT_009 = EXT_DND_ENGINE -> RESP_ROW_DND_INTERACTION "現在の物理入力位置をprogress境界へ渡す。" {
-			tags "Runtime Interaction,Runtime_RV_ROW_DND_PROGRESS"
-			properties {
-				"runtime.RV_ROW_DND_PROGRESS.step.1" "現在の物理入力位置をprogress境界へ渡す。"
-			}
-		}
-		RT_010 = RESP_ROW_DND_INTERACTION -> RESP_ROW_PRESENTATION "現在の有効な移動先とRow Reorderの表示意味を更新する。" {
-			tags "Runtime Interaction,Runtime_RV_ROW_DND_PROGRESS"
-			properties {
-				"runtime.RV_ROW_DND_PROGRESS.step.2" "現在の有効な移動先とRow Reorderの表示意味を更新する。"
-			}
-		}
-		RT_011 = EXT_DND_ENGINE -> EXT_SCROLL_AREA "行DnDの移動に必要な場合だけ縦方向へ自動スクロールする。" {
-			tags "Runtime Interaction,Runtime_RV_ROW_DND_PROGRESS"
-			properties {
-				"runtime.RV_ROW_DND_PROGRESS.step.3" "行DnDの移動に必要な場合だけ縦方向へ自動スクロールする。"
-			}
-		}
-		RT_012 = EXT_DND_ENGINE -> RESP_ROW_DND_INTERACTION "物理的なDnD終了をcompleteまたはcancelとして解釈する境界へ渡す。" {
-			tags "Runtime Interaction,Runtime_RV_ROW_DND_COMPLETE"
-			properties {
-				"runtime.RV_ROW_DND_COMPLETE.step.1" "物理的なDnD終了をcompleteまたはcancelとして解釈する境界へ渡す。"
-			}
-		}
-		RT_013 = RESP_ROW_DND_INTERACTION -> RESP_ROW_TABLE_INTEGRATION "completeでは現在のTable同一性と行構造を要求する。" {
-			tags "Runtime Interaction,Runtime_RV_ROW_DND_COMPLETE"
-			properties {
-				"runtime.RV_ROW_DND_COMPLETE.step.2" "completeでは現在のTable同一性と行構造を要求する。"
-			}
-		}
-		RT_014 = RESP_ROW_TABLE_INTEGRATION -> EXT_SUPPORTED_TABLE_BLOCK "現在の対応Table Blockから行構造とTable同一性を取得する。" {
-			tags "Runtime Interaction,Runtime_RV_ROW_DND_COMPLETE"
-			properties {
-				"runtime.RV_ROW_DND_COMPLETE.step.3" "現在の対応Table Blockから行構造とTable同一性を取得する。"
-			}
-		}
-		RT_015 = RESP_ROW_DND_INTERACTION -> RESP_ROW_TABLE_INTEGRATION "現在も成立し、実際に行順が変化することを確認できた場合だけ確定済み行移動の反映を要求する。" {
-			tags "Runtime Interaction,Runtime_RV_ROW_DND_COMPLETE"
-			properties {
-				"runtime.RV_ROW_DND_COMPLETE.step.4" "現在も成立し、実際に行順が変化することを確認できた場合だけ確定済み行移動の反映を要求する。"
-			}
-		}
-		RT_016 = RESP_ROW_TABLE_INTEGRATION -> EXT_SUPPORTED_TABLE_BLOCK "tbodyの行順だけを確定結果として更新する。" {
-			tags "Runtime Interaction,Runtime_RV_ROW_DND_COMPLETE"
-			properties {
-				"runtime.RV_ROW_DND_COMPLETE.step.5" "tbodyの行順だけを確定結果として更新する。"
-			}
-		}
-		RT_017 = RESP_ROW_TABLE_INTEGRATION -> EXT_WORDPRESS_UNDO "成立した行並び替えを1回のUndoで戻せる更新単位として維持する。" {
-			tags "Runtime Interaction,Runtime_RV_ROW_DND_COMPLETE"
-			properties {
-				"runtime.RV_ROW_DND_COMPLETE.step.6" "成立した行並び替えを1回のUndoで戻せる更新単位として維持する。"
-			}
-		}
-		RT_018 = RESP_ROW_DND_INTERACTION -> RESP_ROW_PRESENTATION "DnD中だけの表示を終了する。" {
-			tags "Runtime Interaction,Runtime_RV_ROW_DND_COMPLETE"
-			properties {
-				"runtime.RV_ROW_DND_COMPLETE.step.7" "DnD中だけの表示を終了する。"
-			}
-		}
-		RT_019 = EXT_DND_ENGINE -> RESP_ROW_INPUT_INTERACTION "DnD終了またはcancelのLifecycleを通知し、Input Interactionが自身の開始候補と入力一時状態を破棄する。" {
-			tags "Runtime Interaction,Runtime_RV_ROW_DND_COMPLETE,Runtime_RV_ROW_DND_EXTERNAL_ABORT"
-			properties {
-				"runtime.RV_ROW_DND_COMPLETE.step.8" "DnD終了またはcancelのLifecycleを通知し、Input Interactionが自身の開始候補と入力一時状態を破棄する。"
-				"runtime.RV_ROW_DND_EXTERNAL_ABORT.step.4" "DnD終了またはcancelのLifecycleを通知し、Input Interactionが自身の開始候補と入力一時状態を破棄する。"
-			}
-		}
-		RT_020 = RESP_ROW_DND_INTERACTION -> RESP_REORDER_MODE "complete終了後も現在のTableで行並び替えモードを維持できる結果を渡す。" {
-			tags "Runtime Interaction,Runtime_RV_ROW_DND_COMPLETE"
-			properties {
-				"runtime.RV_ROW_DND_COMPLETE.step.9" "complete終了後も現在のTableで行並び替えモードを維持できる結果を渡す。"
-			}
-		}
-		RT_021 = RESP_ROW_DND_INTERACTION -> RESP_ROW_TABLE_INTEGRATION "complete時は現在の対象Table情報を要求する。" {
-			tags "Runtime Interaction,Runtime_RV_ROW_DND_EXTERNAL_ABORT"
-			properties {
-				"runtime.RV_ROW_DND_EXTERNAL_ABORT.step.1" "complete時は現在の対象Table情報を要求する。"
-			}
-		}
-		RT_022 = RESP_ROW_TABLE_INTEGRATION -> RESP_ROW_DND_INTERACTION "現在のTable情報、または対象Tableが利用できない正常な不在を返す。" {
-			tags "Runtime Interaction,Runtime_RV_ROW_DND_EXTERNAL_ABORT"
-			properties {
-				"runtime.RV_ROW_DND_EXTERNAL_ABORT.step.2" "現在のTable情報、または対象Tableが利用できない正常な不在を返す。"
-			}
-		}
-		RT_023 = RESP_ROW_DND_INTERACTION -> RESP_ROW_PRESENTATION "DnD中だけの表示を解除し、安全な操作継続不能による終了としてDesignで定義された通知を要求する。" {
-			tags "Runtime Interaction,Runtime_RV_ROW_DND_EXTERNAL_ABORT"
-			properties {
-				"runtime.RV_ROW_DND_EXTERNAL_ABORT.step.3" "DnD中だけの表示を解除し、安全な操作継続不能による終了としてDesignで定義された通知を要求する。"
-			}
-		}
-		RT_024 = RESP_ROW_DND_INTERACTION -> RESP_REORDER_MODE "現在のTableで行並び替えモードを安全に継続できるかという結果を渡す。" {
-			tags "Runtime Interaction,Runtime_RV_ROW_DND_EXTERNAL_ABORT"
-			properties {
-				"runtime.RV_ROW_DND_EXTERNAL_ABORT.step.5" "現在のTableで行並び替えモードを安全に継続できるかという結果を渡す。"
-			}
-		}
+		EXT_WORDPRESS_EDITOR = element "WordPress Editor" "External System" "対応Tableのツールバー、既存Block wrapper、入力、および行DnD表示が存在する編集環境を提供する。" { tags "External Context,External System" }
+		EXT_SUPPORTED_TABLE_BLOCK = element "Supported Table Block" "External Block" "Core TableまたはFlexible Table Blockとして、Table Integrationが行制約取得と行順更新を行う対象を提供する。" { tags "External Context,External Block" }
+		EXT_WORDPRESS_UNDO = element "WordPress Undo" "External Capability" "成立した1回の行並び替えを1回のUndoで戻せる更新単位を提供する。" { tags "External Context,External Capability" }
+		EXT_WORDPRESS_PREFERENCES = element "WordPress Preferences" "External Capability" "PC / タッチごとの初回案内表示済み状態を永続化する。" { tags "External Context,External Capability" }
+		EXT_SCROLL_AREA = element "Editor Scroll Area" "External Environment" "行DnD中に縦方向へ自動スクロールする対象領域を提供する。" { tags "External Context,External Environment" }
+		EXT_DND_ENGINE = element "DnD Engine" "External Library" "物理DnDの開始候補登録、開始・移動・終了Lifecycle、物理入力情報、および自動スクロールを提供する。" { tags "External Context,External Library" }
+		RESP_REORDER_MODE = element "Reorder Mode" "Responsibility" "`edit / row / column`の排他状態、対象Table Identity、およびTable単位のモードLifecycleを所有する共通状態責務。" { tags "Responsibility" }
+		RESP_REORDER_GUIDANCE = element "Reorder Guidance" "Responsibility" "現在どのTableへどの操作環境の共通入口案内を表示しているかという一時状態だけを所有する共通状態責務。" { tags "Responsibility" }
+		RESP_EDITOR_DOM_CONTEXT = element "Editor DOM Context" "Responsibility" "現在のEditor DOM基準から、その表示環境に属するDOM / Web API contextを要求時点で解決する。" { tags "Responsibility" }
+		RESP_WORDPRESS_REORDER_INTEGRATION = element "WordPress Reorder Integration" "Responsibility" "Tableツールバー入口、通常編集抑止、現在TableとReorder Mode、および方向固有DnD境界をWordPress Editorへ接続する。" { tags "Responsibility" }
+		RESP_REORDER_GUIDANCE_INTEGRATION = element "Reorder Guidance Integration" "Responsibility" "初回案内の表示契機、操作環境判定、WordPress preferences永続化、Reorder Mode選択による案内終了を接続する。" { tags "Responsibility" }
+		RESP_ROW_INPUT_INTERACTION = element "Input Interaction" "Responsibility" "PC / タッチの開始条件を解釈し、開始候補を第一段階Target Resolutionで事前解決して、開始可能な候補だけをDnD Engineへ登録する。" { tags "Responsibility" }
+		RESP_ROW_DND_ENGINE_INTEGRATION = element "DnD Engine Integration" "Responsibility" "DnD Engineの物理Lifecycleを第二段階Target Resolution、Destination Resolution、DnD Interactionへ接続し、そのDnDだけの接続一時状態を所有する。" { tags "Responsibility" }
+		RESP_ROW_DESTINATION_RESOLUTION = element "Destination Resolution" "Responsibility" "DnD Engineの物理入力位置をDnD開始時のTable配置に対する論理行間境界へ変換する。" { tags "Responsibility" }
+		RESP_ROW_TABLE_INTEGRATION = element "Table Integration" "Responsibility" "指定された対応Tableの現在行制約取得、確定済み行移動、およびWordPress Undo境界を提供する。" { tags "Responsibility" }
+		RESP_ROW_TARGET_RESOLUTION = element "Reorder Target Resolution" "Responsibility" "active DnD成立前に現在行制約から行の開始可否を二段階で解決し、開始可能時は開始時制約を返す。" { tags "Responsibility" }
+		RESP_ROW_DND_INTERACTION = element "DnD Interaction" "Responsibility" "解決済みReorder Targetから始まる行DnD Session、論理移動先の有効性、確定、cancel、終了後モード解決を所有する。" { tags "Responsibility" }
+		RESP_ROW_PRESENTATION = element "Reorder Presentation" "Responsibility" "開始不可、操作可能 / 移動不可、移動対象、水平挿入位置、周囲行移動、終了通知をRow Reorderの独立表示として表現する。" { tags "Responsibility" }
+		DEP_001 = RESP_EDITOR_DOM_CONTEXT -> EXT_WORDPRESS_EDITOR "現在のEditor DOM基準と同じ表示環境のcontextを解決するために必要とする。" { tags "Structural Dependency" }
+		DEP_002 = RESP_WORDPRESS_REORDER_INTEGRATION -> EXT_WORDPRESS_EDITOR "Tableツールバー、現在Tableの編集面、WordPress側Lifecycleへ接続するために必要とする。" { tags "Structural Dependency" }
+		DEP_003 = RESP_WORDPRESS_REORDER_INTEGRATION -> RESP_REORDER_MODE "ツールバー選択、通常編集抑止、対象Table単位の現在モードを接続するために必要とする。" { tags "Structural Dependency" }
+		DEP_004 = RESP_WORDPRESS_REORDER_INTEGRATION -> RESP_ROW_DND_ENGINE_INTEGRATION "対象Tableの行並び替え有効状態を方向固有DnD境界へ接続するために必要とする。" { tags "Structural Dependency" }
+		DEP_005 = RESP_REORDER_GUIDANCE_INTEGRATION -> EXT_WORDPRESS_EDITOR "初回案内の表示契機とWordPress Editor上の表示位置を接続するために必要とする。" { tags "Structural Dependency" }
+		DEP_006 = RESP_REORDER_GUIDANCE_INTEGRATION -> EXT_WORDPRESS_PREFERENCES "PC / タッチごとの初回案内表示済み状態を永続化するために必要とする。" { tags "Structural Dependency" }
+		DEP_007 = RESP_REORDER_GUIDANCE_INTEGRATION -> RESP_EDITOR_DOM_CONTEXT "現在のEditor DOMに対する操作環境を解決するために必要とする。" { tags "Structural Dependency" }
+		DEP_008 = RESP_REORDER_GUIDANCE_INTEGRATION -> RESP_REORDER_GUIDANCE "現在の共通入口案内状態を開始・終了するために必要とする。" { tags "Structural Dependency" }
+		DEP_009 = RESP_REORDER_GUIDANCE_INTEGRATION -> RESP_REORDER_MODE "いずれかの並び替え入口選択を案内終了条件として扱うために必要とする。" { tags "Structural Dependency" }
+		DEP_010 = RESP_ROW_INPUT_INTERACTION -> RESP_ROW_TARGET_RESOLUTION "入力開始候補を第一段階の現在制約で解決するために必要とする。" { tags "Structural Dependency" }
+		DEP_011 = RESP_ROW_INPUT_INTERACTION -> EXT_DND_ENGINE "開始可能な候補だけを物理DnD開始候補として一時登録するために必要とする。" { tags "Structural Dependency" }
+		DEP_012 = RESP_ROW_INPUT_INTERACTION -> RESP_ROW_PRESENTATION "第一段階でDesign上の開始拒否理由が返った場合に一回性の利用者向け通知へ接続するために必要とする。" { tags "Structural Dependency" }
+		DEP_013 = RESP_ROW_DND_ENGINE_INTEGRATION -> RESP_ROW_INPUT_INTERACTION "DnD Engine境界の配下で行開始入力を有効化し、開始候補登録を接続するために必要とする。" { tags "Structural Dependency" }
+		DEP_014 = RESP_ROW_DND_ENGINE_INTEGRATION -> EXT_DND_ENGINE "物理DnDの開始前、開始、移動、終了Lifecycleを受け取るために必要とする。" { tags "Structural Dependency" }
+		DEP_015 = RESP_ROW_DND_ENGINE_INTEGRATION -> RESP_ROW_TARGET_RESOLUTION "active DnD成立直前の第二段階開始可否を解決するために必要とする。" { tags "Structural Dependency" }
+		DEP_016 = RESP_ROW_DND_ENGINE_INTEGRATION -> RESP_ROW_DESTINATION_RESOLUTION "物理DnD移動を論理行間境界へ変換するために必要とする。" { tags "Structural Dependency" }
+		DEP_017 = RESP_ROW_DND_ENGINE_INTEGRATION -> RESP_ROW_DND_INTERACTION "解決済み開始情報、論理移動先、終了種別を行DnD Sessionへ接続するために必要とする。" { tags "Structural Dependency" }
+		DEP_018 = RESP_ROW_DND_ENGINE_INTEGRATION -> RESP_ROW_PRESENTATION "同じDnD Engine境界で独立したRow Reorder表示を活動させるために必要とする。" { tags "Structural Dependency" }
+		DEP_019 = RESP_ROW_DESTINATION_RESOLUTION -> EXT_DND_ENGINE "現在の物理入力位置を論理行間境界へ変換するためにDnD Engineの移動情報を必要とする。" { tags "Structural Dependency" }
+		DEP_020 = RESP_ROW_TABLE_INTEGRATION -> EXT_SUPPORTED_TABLE_BLOCK "対応Table Block固有の行構造取得と行順更新を行うために必要とする。" { tags "Structural Dependency" }
+		DEP_021 = RESP_ROW_TABLE_INTEGRATION -> EXT_WORDPRESS_UNDO "成立した1回の行移動を1回のUndo単位として維持するために必要とする。" { tags "Structural Dependency" }
+		DEP_022 = RESP_ROW_TARGET_RESOLUTION -> RESP_ROW_TABLE_INTEGRATION "要求時点の現在行制約から行の開始可否と開始時制約を解決するために必要とする。" { tags "Structural Dependency" }
+		DEP_023 = RESP_ROW_DND_INTERACTION -> RESP_ROW_TABLE_INTEGRATION "complete時の現在構造再照合、確定済み行移動、終了後の対象Table継続可否確認に必要とする。" { tags "Structural Dependency" }
+		DEP_024 = RESP_ROW_DND_INTERACTION -> RESP_REORDER_MODE "Session終了後に対象Tableで行並び替えを安全に継続できるかだけを現在モードへ反映するために必要とする。" { tags "Structural Dependency" }
+		DEP_025 = RESP_ROW_PRESENTATION -> RESP_EDITOR_DOM_CONTEXT "現在のEditor DOM contextで一時表示を配置するために必要とする。" { tags "Structural Dependency" }
+		DEP_026 = RESP_ROW_PRESENTATION -> EXT_DND_ENGINE "移動対象表示等に必要な物理DnD情報をSessionへ複製せず利用するために必要とする。" { tags "Structural Dependency" }
+		DEP_027 = RESP_ROW_PRESENTATION -> RESP_ROW_TARGET_RESOLUTION "操作可能 / 移動不可表示で開始可否の意味を重複判定せず利用するために必要とする。" { tags "Structural Dependency" }
+		DEP_028 = RESP_ROW_PRESENTATION -> RESP_ROW_DND_INTERACTION "active状態と現在の有効移動先を購読し、終了通知を受け取るために必要とする。" { tags "Structural Dependency" }
+		DEP_029 = EXT_DND_ENGINE -> EXT_SCROLL_AREA "行DnD中に縦方向の自動スクロールを実行する対象領域として必要とする。" { tags "Structural Dependency" }
+		PF_001 = EXT_WORDPRESS_EDITOR -> RESP_WORDPRESS_REORDER_INTEGRATION "対応Tableの選択、ツールバー操作、既存Block wrapper上の入力がWordPress接続境界へ入る。" { tags "Process Flow,ProcessFlow_PV_ROW_REORDER_END_TO_END,normal" }
+		PF_002 = RESP_WORDPRESS_REORDER_INTEGRATION -> RESP_ROW_DND_ENGINE_INTEGRATION "対象TableのRow Reorder有効状態をDnD Engine接続境界へ反映する。" { tags "Process Flow,ProcessFlow_PV_ROW_REORDER_END_TO_END,normal" }
+		PF_003 = RESP_ROW_DND_ENGINE_INTEGRATION -> RESP_ROW_INPUT_INTERACTION "有効なRow DnD境界から開始入力処理へ進む。" { tags "Process Flow,ProcessFlow_PV_ROW_REORDER_END_TO_END,normal" }
+		PF_004 = RESP_ROW_INPUT_INTERACTION -> RESP_ROW_TARGET_RESOLUTION "開始候補を第一段階の現在制約で事前解決する。" { tags "Process Flow,ProcessFlow_PV_ROW_REORDER_END_TO_END,normal" }
+		PF_005 = RESP_ROW_INPUT_INTERACTION -> EXT_DND_ENGINE "第一段階で開始可能な候補だけを物理DnD開始候補として一時登録する。" { tags "Process Flow,ProcessFlow_PV_ROW_REORDER_END_TO_END,normal" }
+		PF_006 = EXT_DND_ENGINE -> RESP_ROW_DND_ENGINE_INTEGRATION "active DnD成立前後の物理LifecycleをRow Reorder接続境界へ通知する。" { tags "Process Flow,ProcessFlow_PV_ROW_REORDER_END_TO_END,normal" }
+		PF_007 = RESP_ROW_DND_ENGINE_INTEGRATION -> RESP_ROW_TARGET_RESOLUTION "active DnD成立直前に同じReorder Targetを第二段階の現在制約で再解決する。" { tags "Process Flow,ProcessFlow_PV_ROW_REORDER_END_TO_END,normal" }
+		PF_008 = RESP_ROW_DND_ENGINE_INTEGRATION -> RESP_ROW_DESTINATION_RESOLUTION "active DnDの物理移動を論理行間境界の解決へ進める。" { tags "Process Flow,ProcessFlow_PV_ROW_REORDER_END_TO_END,normal" }
+		PF_009 = RESP_ROW_DND_ENGINE_INTEGRATION -> RESP_ROW_DND_INTERACTION "解決済み開始情報、論理行間境界、終了種別を行DnD Sessionへ渡す。" { tags "Process Flow,ProcessFlow_PV_ROW_REORDER_END_TO_END,normal" }
+		PF_010 = RESP_ROW_DND_INTERACTION -> RESP_ROW_TABLE_INTEGRATION "complete時に現在構造の再照合と確定済み行移動の反映へ進む。" { tags "Process Flow,ProcessFlow_PV_ROW_REORDER_END_TO_END,normal" }
+		PF_011 = RESP_ROW_TABLE_INTEGRATION -> EXT_SUPPORTED_TABLE_BLOCK "現在行制約を取得し、確定時は`tbody`の行順を反映する。" { tags "Process Flow,ProcessFlow_PV_ROW_REORDER_END_TO_END,normal" }
+		PF_012 = EXT_DND_ENGINE -> RESP_ROW_DND_ENGINE_INTEGRATION "物理DnDがcancelまたは継続不能として終了する。" { tags "Process Flow,ProcessFlow_PV_ROW_EXTERNAL_CHANGE_RECOVERY,failure" }
+		PF_013 = RESP_ROW_DND_ENGINE_INTEGRATION -> RESP_ROW_DND_INTERACTION "物理DnDの終了種別を行DnD Sessionのcancelへ接続する。" { tags "Process Flow,ProcessFlow_PV_ROW_EXTERNAL_CHANGE_RECOVERY,recovery" }
+		PF_014 = RESP_ROW_TABLE_INTEGRATION -> RESP_ROW_DND_INTERACTION "complete時の現在Table利用不能または更新不能を安全な確定不能結果として返す。" { tags "Process Flow,ProcessFlow_PV_ROW_EXTERNAL_CHANGE_RECOVERY,failure" }
+		PF_015 = RESP_ROW_DND_INTERACTION -> RESP_ROW_PRESENTATION "DnD中表示を終了し、Designで通知対象となる確定不能だけを一回性通知へ反映する。" { tags "Process Flow,ProcessFlow_PV_ROW_EXTERNAL_CHANGE_RECOVERY,recovery" }
+		PF_016 = RESP_ROW_DND_INTERACTION -> RESP_REORDER_MODE "Session終了後に対象Tableで行並び替えを継続できるかだけを共通モード状態へ反映する。" { tags "Process Flow,ProcessFlow_PV_ROW_EXTERNAL_CHANGE_RECOVERY,recovery" }
+		RT_001 = EXT_DND_ENGINE -> RESP_ROW_DND_ENGINE_INTEGRATION "active DnD成立直前の物理Lifecycleを通知する。" { tags "Runtime Interaction,Runtime_RV_ROW_DND_START" properties { "runtime.RV_ROW_DND_START.step.1" "active DnD成立直前の物理Lifecycleを通知する。" } }
+		RT_002 = RESP_ROW_DND_ENGINE_INTEGRATION -> RESP_ROW_TARGET_RESOLUTION "同じReorder Targetを現在制約で第二段階解決する。" { tags "Runtime Interaction,Runtime_RV_ROW_DND_START" properties { "runtime.RV_ROW_DND_START.step.2" "同じReorder Targetを現在制約で第二段階解決する。" } }
+		RT_003 = RESP_ROW_TARGET_RESOLUTION -> RESP_ROW_TABLE_INTEGRATION "現在行制約を要求する。" { tags "Runtime Interaction,Runtime_RV_ROW_DND_START" properties { "runtime.RV_ROW_DND_START.step.3" "現在行制約を要求する。" } }
+		RT_004 = RESP_ROW_TABLE_INTEGRATION -> EXT_SUPPORTED_TABLE_BLOCK "対応Table Blockから現在行制約を取得する。" { tags "Runtime Interaction,Runtime_RV_ROW_DND_START" properties { "runtime.RV_ROW_DND_START.step.4" "対応Table Blockから現在行制約を取得する。" } }
+		RT_005 = RESP_ROW_DND_ENGINE_INTEGRATION -> RESP_ROW_DND_INTERACTION "第二段階が成立した場合だけ解決済みReorder Targetと開始時制約でSessionを開始する。" { tags "Runtime Interaction,Runtime_RV_ROW_DND_START" properties { "runtime.RV_ROW_DND_START.step.5" "第二段階が成立した場合だけ解決済みReorder Targetと開始時制約でSessionを開始する。" } }
+		RT_006 = EXT_DND_ENGINE -> RESP_ROW_DND_ENGINE_INTEGRATION "現在の物理DnD移動を通知する。" { tags "Runtime Interaction,Runtime_RV_ROW_DND_PROGRESS" properties { "runtime.RV_ROW_DND_PROGRESS.step.1" "現在の物理DnD移動を通知する。" } }
+		RT_007 = RESP_ROW_DND_ENGINE_INTEGRATION -> RESP_ROW_DESTINATION_RESOLUTION "物理入力位置を論理行間境界へ変換する。" { tags "Runtime Interaction,Runtime_RV_ROW_DND_PROGRESS" properties { "runtime.RV_ROW_DND_PROGRESS.step.2" "物理入力位置を論理行間境界へ変換する。" } }
+		RT_008 = RESP_ROW_DND_ENGINE_INTEGRATION -> RESP_ROW_DND_INTERACTION "解決済み論理行間境界をprogressへ渡す。" { tags "Runtime Interaction,Runtime_RV_ROW_DND_PROGRESS" properties { "runtime.RV_ROW_DND_PROGRESS.step.3" "解決済み論理行間境界をprogressへ渡す。" } }
+		RT_009 = RESP_ROW_DND_INTERACTION -> RESP_ROW_PRESENTATION "現在の有効移動先に対応する表示意味を更新する。" { tags "Runtime Interaction,Runtime_RV_ROW_DND_PROGRESS" properties { "runtime.RV_ROW_DND_PROGRESS.step.4" "現在の有効移動先に対応する表示意味を更新する。" } }
+		RT_010 = EXT_DND_ENGINE -> EXT_SCROLL_AREA "必要な場合だけ縦方向へ自動スクロールする。" { tags "Runtime Interaction,Runtime_RV_ROW_DND_PROGRESS" properties { "runtime.RV_ROW_DND_PROGRESS.step.5" "必要な場合だけ縦方向へ自動スクロールする。" } }
+		RT_011 = EXT_DND_ENGINE -> RESP_ROW_DND_ENGINE_INTEGRATION "物理的なcompleteを通知する。" { tags "Runtime Interaction,Runtime_RV_ROW_DND_COMPLETE" properties { "runtime.RV_ROW_DND_COMPLETE.step.1" "物理的なcompleteを通知する。" } }
+		RT_012 = RESP_ROW_DND_ENGINE_INTEGRATION -> RESP_ROW_DND_INTERACTION "completeを行DnD Sessionへ渡す。" { tags "Runtime Interaction,Runtime_RV_ROW_DND_COMPLETE" properties { "runtime.RV_ROW_DND_COMPLETE.step.2" "completeを行DnD Sessionへ渡す。" } }
+		RT_013 = RESP_ROW_DND_INTERACTION -> RESP_ROW_TABLE_INTEGRATION "現在構造を取得してReorder Targetと最終移動先を再照合する。" { tags "Runtime Interaction,Runtime_RV_ROW_DND_COMPLETE" properties { "runtime.RV_ROW_DND_COMPLETE.step.3" "現在構造を取得してReorder Targetと最終移動先を再照合する。" } }
+		RT_014 = RESP_ROW_TABLE_INTEGRATION -> EXT_SUPPORTED_TABLE_BLOCK "現在行制約を取得する。" { tags "Runtime Interaction,Runtime_RV_ROW_DND_COMPLETE" properties { "runtime.RV_ROW_DND_COMPLETE.step.4" "現在行制約を取得する。" } }
+		RT_015 = RESP_ROW_DND_INTERACTION -> RESP_ROW_TABLE_INTEGRATION "現在も成立し行順が変化する場合だけ確定済み行移動を要求する。" { tags "Runtime Interaction,Runtime_RV_ROW_DND_COMPLETE" properties { "runtime.RV_ROW_DND_COMPLETE.step.5" "現在も成立し行順が変化する場合だけ確定済み行移動を要求する。" } }
+		RT_016 = RESP_ROW_TABLE_INTEGRATION -> EXT_SUPPORTED_TABLE_BLOCK "`tbody`の行順だけを更新する。" { tags "Runtime Interaction,Runtime_RV_ROW_DND_COMPLETE" properties { "runtime.RV_ROW_DND_COMPLETE.step.6" "`tbody`の行順だけを更新する。" } }
+		RT_017 = RESP_ROW_TABLE_INTEGRATION -> EXT_WORDPRESS_UNDO "成立した1回の行移動を1回のUndo単位として維持する。" { tags "Runtime Interaction,Runtime_RV_ROW_DND_COMPLETE" properties { "runtime.RV_ROW_DND_COMPLETE.step.7" "成立した1回の行移動を1回のUndo単位として維持する。" } }
+		RT_018 = RESP_ROW_DND_INTERACTION -> RESP_ROW_PRESENTATION "DnD中表示を終了する。" { tags "Runtime Interaction,Runtime_RV_ROW_DND_COMPLETE" properties { "runtime.RV_ROW_DND_COMPLETE.step.8" "DnD中表示を終了する。" } }
+		RT_019 = RESP_ROW_DND_INTERACTION -> RESP_REORDER_MODE "対象Tableで行並び替えを継続できるかだけを通知する。" { tags "Runtime Interaction,Runtime_RV_ROW_DND_COMPLETE" properties { "runtime.RV_ROW_DND_COMPLETE.step.9" "対象Tableで行並び替えを継続できるかだけを通知する。" } }
+		RT_020 = EXT_DND_ENGINE -> RESP_ROW_DND_ENGINE_INTEGRATION "cancelまたは継続不能として物理DnDを終了する。" { tags "Runtime Interaction,Runtime_RV_ROW_DND_EXTERNAL_ABORT" properties { "runtime.RV_ROW_DND_EXTERNAL_ABORT.step.1" "cancelまたは継続不能として物理DnDを終了する。" } }
+		RT_021 = RESP_ROW_DND_ENGINE_INTEGRATION -> RESP_ROW_DND_INTERACTION "cancelまたは継続不能をSessionへ渡す。" { tags "Runtime Interaction,Runtime_RV_ROW_DND_EXTERNAL_ABORT" properties { "runtime.RV_ROW_DND_EXTERNAL_ABORT.step.2" "cancelまたは継続不能をSessionへ渡す。" } }
+		RT_022 = RESP_ROW_DND_INTERACTION -> RESP_ROW_PRESENTATION "DnD中表示を終了し、Designで通知対象の場合だけ一時通知を要求する。" { tags "Runtime Interaction,Runtime_RV_ROW_DND_EXTERNAL_ABORT" properties { "runtime.RV_ROW_DND_EXTERNAL_ABORT.step.3" "DnD中表示を終了し、Designで通知対象の場合だけ一時通知を要求する。" } }
+		RT_023 = RESP_ROW_DND_INTERACTION -> RESP_REORDER_MODE "対象Tableで行並び替えを継続できるかだけを通知する。" { tags "Runtime Interaction,Runtime_RV_ROW_DND_EXTERNAL_ABORT" properties { "runtime.RV_ROW_DND_EXTERNAL_ABORT.step.4" "対象Tableで行並び替えを継続できるかだけを通知する。" } }
 	}
-
 	views {
-		systemLandscape "DV_ROW_RESPONSIBILITY" {
-			title "Structural Dependencies - Responsibility View"
-			include EXT_WORDPRESS_EDITOR EXT_SUPPORTED_TABLE_BLOCK EXT_WORDPRESS_UNDO EXT_SCROLL_AREA EXT_DND_ENGINE RESP_REORDER_MODE RESP_REORDER_GUIDANCE RESP_EDITOR_DOM_CONTEXT RESP_ROW_INPUT_INTERACTION RESP_ROW_TABLE_INTEGRATION RESP_ROW_TARGET_RESOLUTION RESP_ROW_DND_INTERACTION RESP_ROW_PRESENTATION
-			exclude "relationship.tag!=Structural Dependency"
-			autoLayout lr
-		}
-
-		systemLandscape "DV_ROW_EDITOR_INTERACTION" {
-			title "Structural Dependencies - Editor Interaction"
-			include EXT_WORDPRESS_EDITOR EXT_DND_ENGINE RESP_REORDER_MODE RESP_REORDER_GUIDANCE RESP_EDITOR_DOM_CONTEXT RESP_ROW_INPUT_INTERACTION RESP_ROW_TARGET_RESOLUTION
-			exclude "relationship.tag!=Structural Dependency"
-			autoLayout lr
-		}
-
-		systemLandscape "DV_ROW_DND_CORE" {
-			title "Structural Dependencies - DnD Core"
-			include EXT_SUPPORTED_TABLE_BLOCK EXT_DND_ENGINE RESP_REORDER_MODE RESP_ROW_INPUT_INTERACTION RESP_ROW_TABLE_INTEGRATION RESP_ROW_TARGET_RESOLUTION RESP_ROW_DND_INTERACTION
-			exclude "relationship.tag!=Structural Dependency"
-			autoLayout lr
-		}
-
-		systemLandscape "DV_ROW_FEEDBACK" {
-			title "Structural Dependencies - DnD Feedback"
-			include EXT_SCROLL_AREA EXT_DND_ENGINE RESP_EDITOR_DOM_CONTEXT RESP_ROW_TARGET_RESOLUTION RESP_ROW_DND_INTERACTION RESP_ROW_PRESENTATION
-			exclude "relationship.tag!=Structural Dependency"
-			autoLayout lr
-		}
-
-		systemLandscape "DV_ROW_DATA_UPDATE" {
-			title "Structural Dependencies - Table Update"
-			include EXT_SUPPORTED_TABLE_BLOCK EXT_WORDPRESS_UNDO RESP_ROW_DND_INTERACTION RESP_ROW_TABLE_INTEGRATION
-			exclude "relationship.tag!=Structural Dependency"
-			autoLayout lr
-		}
-
-		custom "PV_ROW_REORDER_END_TO_END" {
-			title "Process Flow - Row Reorder End-to-End"
-			include EXT_WORDPRESS_EDITOR RESP_ROW_INPUT_INTERACTION EXT_DND_ENGINE RESP_ROW_TARGET_RESOLUTION RESP_ROW_TABLE_INTEGRATION RESP_ROW_DND_INTERACTION EXT_SUPPORTED_TABLE_BLOCK
-			exclude "relationship.tag!=ProcessFlow_PV_ROW_REORDER_END_TO_END"
-			autoLayout lr
-		}
-
-		custom "PV_ROW_EXTERNAL_CHANGE_RECOVERY" {
-			title "Process Flow [Failure / Recovery] - External Environment Change and Recovery"
-			include RESP_ROW_INPUT_INTERACTION RESP_ROW_DND_INTERACTION RESP_ROW_TABLE_INTEGRATION RESP_ROW_PRESENTATION RESP_REORDER_MODE
-			exclude "relationship.tag!=ProcessFlow_PV_ROW_EXTERNAL_CHANGE_RECOVERY"
-			autoLayout lr
-		}
-
-		custom "RV_ROW_DND_START" {
-			title "Runtime - Row DnD start attempt"
-			include RESP_ROW_INPUT_INTERACTION EXT_DND_ENGINE RESP_ROW_TARGET_RESOLUTION RESP_ROW_TABLE_INTEGRATION EXT_SUPPORTED_TABLE_BLOCK RESP_ROW_PRESENTATION RESP_ROW_DND_INTERACTION
-			exclude "relationship.tag!=Runtime_RV_ROW_DND_START"
-			properties {
-				"runtime.steps" "1=RT_001;2=RT_002;3=RT_003;4=RT_004;5=RT_005;6=RT_006;7=RT_007;8=RT_008"
-			}
-			autoLayout lr
-		}
-
-		custom "RV_ROW_DND_PROGRESS" {
-			title "Runtime - Row DnD progress"
-			include EXT_DND_ENGINE RESP_ROW_DND_INTERACTION RESP_ROW_PRESENTATION EXT_SCROLL_AREA
-			exclude "relationship.tag!=Runtime_RV_ROW_DND_PROGRESS"
-			properties {
-				"runtime.steps" "1=RT_009;2=RT_010;3=RT_011"
-			}
-			autoLayout lr
-		}
-
-		custom "RV_ROW_DND_COMPLETE" {
-			title "Runtime - Row DnD complete"
-			include EXT_DND_ENGINE RESP_ROW_DND_INTERACTION RESP_ROW_TABLE_INTEGRATION EXT_SUPPORTED_TABLE_BLOCK EXT_WORDPRESS_UNDO RESP_ROW_PRESENTATION RESP_ROW_INPUT_INTERACTION RESP_REORDER_MODE
-			exclude "relationship.tag!=Runtime_RV_ROW_DND_COMPLETE"
-			properties {
-				"runtime.steps" "1=RT_012;2=RT_013;3=RT_014;4=RT_015;5=RT_016;6=RT_017;7=RT_018;8=RT_019;9=RT_020"
-			}
-			autoLayout lr
-		}
-
-		custom "RV_ROW_DND_EXTERNAL_ABORT" {
-			title "Runtime - Row DnD external change abort"
-			include RESP_ROW_DND_INTERACTION RESP_ROW_TABLE_INTEGRATION RESP_ROW_PRESENTATION EXT_DND_ENGINE RESP_ROW_INPUT_INTERACTION RESP_REORDER_MODE
-			exclude "relationship.tag!=Runtime_RV_ROW_DND_EXTERNAL_ABORT"
-			properties {
-				"runtime.steps" "1=RT_021;2=RT_022;3=RT_023;4=RT_019;5=RT_024"
-			}
-			autoLayout lr
-		}
-
-		styles {
-			element "Responsibility" {
-				shape Box
-			}
-			element "External System" {
-				shape RoundedBox
-				background #f8fafc
-				color #344054
-				stroke #667085
-				border solid
-			}
-			element "External Block" {
-				shape Component
-				background #eef4ff
-				color #344054
-				stroke #6172f3
-			}
-			element "External Capability" {
-				shape Hexagon
-				background #f4f3ff
-				color #344054
-				stroke #7f56d9
-			}
-			element "External Environment" {
-				shape Box
-				background #f2f4f7
-				color #344054
-				stroke #98a2b3
-				border dashed
-			}
-			element "External Library" {
-				shape Box
-				background #fff7ed
-				color #344054
-				stroke #f79009
-				border dashed
-			}
-			relationship "Structural Dependency" {
-				style solid
-			}
-			relationship "Runtime Interaction" {
-				style solid
-			}
-			relationship "normal" {
-				style solid
-			}
-			relationship "failure" {
-				color #b42318
-				style dashed
-				thickness 3
-			}
-			relationship "recovery" {
-				color #b54708
-				style dotted
-				thickness 3
-			}
-		}
+		systemLandscape "DV_ROW_RESPONSIBILITY" { title "Structural Dependencies - Responsibility View" include EXT_WORDPRESS_EDITOR EXT_SUPPORTED_TABLE_BLOCK EXT_WORDPRESS_UNDO EXT_WORDPRESS_PREFERENCES EXT_SCROLL_AREA EXT_DND_ENGINE RESP_REORDER_MODE RESP_REORDER_GUIDANCE RESP_EDITOR_DOM_CONTEXT RESP_WORDPRESS_REORDER_INTEGRATION RESP_REORDER_GUIDANCE_INTEGRATION RESP_ROW_INPUT_INTERACTION RESP_ROW_DND_ENGINE_INTEGRATION RESP_ROW_DESTINATION_RESOLUTION RESP_ROW_TABLE_INTEGRATION RESP_ROW_TARGET_RESOLUTION RESP_ROW_DND_INTERACTION RESP_ROW_PRESENTATION exclude "relationship.tag!=Structural Dependency" autoLayout lr }
+		systemLandscape "DV_ROW_EDITOR_INTEGRATION" { title "Structural Dependencies - Editor Integration" include EXT_WORDPRESS_EDITOR EXT_WORDPRESS_PREFERENCES RESP_REORDER_MODE RESP_REORDER_GUIDANCE RESP_EDITOR_DOM_CONTEXT RESP_WORDPRESS_REORDER_INTEGRATION RESP_REORDER_GUIDANCE_INTEGRATION RESP_ROW_DND_ENGINE_INTEGRATION exclude "relationship.tag!=Structural Dependency" autoLayout lr }
+		systemLandscape "DV_ROW_DND_CORE" { title "Structural Dependencies - DnD Core" include EXT_DND_ENGINE RESP_ROW_INPUT_INTERACTION RESP_ROW_DND_ENGINE_INTEGRATION RESP_ROW_DESTINATION_RESOLUTION RESP_ROW_TABLE_INTEGRATION RESP_ROW_TARGET_RESOLUTION RESP_ROW_DND_INTERACTION exclude "relationship.tag!=Structural Dependency" autoLayout lr }
+		systemLandscape "DV_ROW_FEEDBACK" { title "Structural Dependencies - DnD Feedback" include EXT_DND_ENGINE RESP_EDITOR_DOM_CONTEXT RESP_ROW_TARGET_RESOLUTION RESP_ROW_DND_INTERACTION RESP_ROW_PRESENTATION exclude "relationship.tag!=Structural Dependency" autoLayout lr }
+		systemLandscape "DV_ROW_DATA_UPDATE" { title "Structural Dependencies - Table Update" include EXT_SUPPORTED_TABLE_BLOCK EXT_WORDPRESS_UNDO RESP_ROW_TABLE_INTEGRATION RESP_ROW_DND_INTERACTION exclude "relationship.tag!=Structural Dependency" autoLayout lr }
+		custom "PV_ROW_REORDER_END_TO_END" { title "Process Flow - Row Reorder End-to-End" include EXT_WORDPRESS_EDITOR RESP_WORDPRESS_REORDER_INTEGRATION RESP_ROW_DND_ENGINE_INTEGRATION RESP_ROW_INPUT_INTERACTION RESP_ROW_TARGET_RESOLUTION EXT_DND_ENGINE RESP_ROW_DESTINATION_RESOLUTION RESP_ROW_DND_INTERACTION RESP_ROW_TABLE_INTEGRATION EXT_SUPPORTED_TABLE_BLOCK exclude "relationship.tag!=ProcessFlow_PV_ROW_REORDER_END_TO_END" autoLayout lr }
+		custom "PV_ROW_EXTERNAL_CHANGE_RECOVERY" { title "Process Flow [Failure / Recovery] - External Environment Change and Recovery" include EXT_DND_ENGINE RESP_ROW_DND_ENGINE_INTEGRATION RESP_ROW_DND_INTERACTION RESP_ROW_TABLE_INTEGRATION RESP_ROW_PRESENTATION RESP_REORDER_MODE exclude "relationship.tag!=ProcessFlow_PV_ROW_EXTERNAL_CHANGE_RECOVERY" autoLayout lr }
+		custom "RV_ROW_DND_START" { title "Runtime - Row DnD start" include EXT_DND_ENGINE RESP_ROW_DND_ENGINE_INTEGRATION RESP_ROW_TARGET_RESOLUTION RESP_ROW_TABLE_INTEGRATION EXT_SUPPORTED_TABLE_BLOCK RESP_ROW_DND_INTERACTION exclude "relationship.tag!=Runtime_RV_ROW_DND_START" properties { "runtime.steps" "1=RT_001;2=RT_002;3=RT_003;4=RT_004;5=RT_005" } autoLayout lr }
+		custom "RV_ROW_DND_PROGRESS" { title "Runtime - Row DnD progress" include EXT_DND_ENGINE RESP_ROW_DND_ENGINE_INTEGRATION RESP_ROW_DESTINATION_RESOLUTION RESP_ROW_DND_INTERACTION RESP_ROW_PRESENTATION EXT_SCROLL_AREA exclude "relationship.tag!=Runtime_RV_ROW_DND_PROGRESS" properties { "runtime.steps" "1=RT_006;2=RT_007;3=RT_008;4=RT_009;5=RT_010" } autoLayout lr }
+		custom "RV_ROW_DND_COMPLETE" { title "Runtime - Row DnD complete" include EXT_DND_ENGINE RESP_ROW_DND_ENGINE_INTEGRATION RESP_ROW_DND_INTERACTION RESP_ROW_TABLE_INTEGRATION EXT_SUPPORTED_TABLE_BLOCK EXT_WORDPRESS_UNDO RESP_ROW_PRESENTATION RESP_REORDER_MODE exclude "relationship.tag!=Runtime_RV_ROW_DND_COMPLETE" properties { "runtime.steps" "1=RT_011;2=RT_012;3=RT_013;4=RT_014;5=RT_015;6=RT_016;7=RT_017;8=RT_018;9=RT_019" } autoLayout lr }
+		custom "RV_ROW_DND_EXTERNAL_ABORT" { title "Runtime - Row DnD external change abort" include EXT_DND_ENGINE RESP_ROW_DND_ENGINE_INTEGRATION RESP_ROW_DND_INTERACTION RESP_ROW_PRESENTATION RESP_REORDER_MODE exclude "relationship.tag!=Runtime_RV_ROW_DND_EXTERNAL_ABORT" properties { "runtime.steps" "1=RT_020;2=RT_021;3=RT_022;4=RT_023" } autoLayout lr }
 	}
 }
