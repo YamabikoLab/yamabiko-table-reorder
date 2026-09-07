@@ -19,6 +19,7 @@ const getTableWidth = async ( tableFigure: Locator ) =>
 
 test.describe( 'Reorder Mode Table alignment', () => {
 	test.use( { viewport: { width: 1920, height: 1080 } } );
+
 	test.beforeEach( async ( { admin, editor, page } ) => {
 		await admin.createNewPost();
 		await setPreferences( page );
