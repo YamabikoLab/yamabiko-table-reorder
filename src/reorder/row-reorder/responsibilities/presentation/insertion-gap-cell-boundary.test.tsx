@@ -14,6 +14,7 @@ let mockDragDropMonitor: {
 } = {};
 
 jest.mock( '@/reorder/row-reorder/integration/dnd-interaction-react', () => ( {
+	useRowDndPhase: () => 'active',
 	useRowDndDestinationBoundaryIndex: () => mockDestinationBoundaryIndex,
 } ) );
 
@@ -63,8 +64,7 @@ describe( 'Row insertion gap cell boundaries', () => {
 	} );
 
 	/**
-	 * 概要:
-	 * - 挿入空間内の列区切りが移動対象行のセル右境界と一致することを確認する。
+	 * 挿入空間内の列区切りが移動対象行のセル右境界と一致することを確認する。
 	 *
 	 * 事前条件:
 	 * - Table左端は画面上50pxで、移動対象行は幅100px、150px、200pxの3セルを持つ。
