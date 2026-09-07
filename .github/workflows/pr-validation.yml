@@ -7,7 +7,7 @@ on:
         description: 'Run E2E tests'
         required: true
         type: boolean
-        default: false
+        default: true
       run_knip:
         description: 'Run Knip'
         required: true
