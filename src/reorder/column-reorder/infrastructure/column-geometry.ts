@@ -74,9 +74,16 @@ export const measureTableColumnBoundaryGeometry = (
 	const boundaries = new Map< number, number >();
 	const remainingRowSpans: RemainingRowSpan = [];
 	const rows = Array.from( table.rows );
+	let currentSection: Element | null = null;
 
-	/* Table全体で同じ論理列番号を維持するため、縦結合による占有状態を引き継ぎながら各行のセル位置を解釈する。 */
+	/* Table全体で同じ論理列番号を維持するため、同一section内では縦結合による占有状態を引き継ぎながら各行を解釈する。 */
 	rows.forEach( ( row ) => {
+		/* rowspanは行グループを跨がないため、sectionが変わった時点で前sectionの占有状態を持ち越さない。 */
+		if ( row.parentElement !== currentSection ) {
+			remainingRowSpans.length = 0;
+			currentSection = row.parentElement;
+		}
+
 		let nextColumnIndex = 0;
 
 		Array.from( row.cells ).forEach( ( cell ) => {
