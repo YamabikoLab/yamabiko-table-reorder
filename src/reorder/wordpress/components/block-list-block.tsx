@@ -14,6 +14,7 @@ import {
 } from '@/reorder/column-reorder/integration/dnd';
 import {
 	ColumnHighlight,
+	type ColumnHighlightPointerOutHandler,
 	type ColumnHighlightPointerOverHandler,
 } from '@/reorder/column-reorder/responsibilities/presentation/column-highlight';
 import { RowDnd, type RowDndPointerDownHandler } from '@/reorder/row-reorder/integration/dnd';
@@ -87,6 +88,28 @@ const preservePointerOverHandler = (
 };
 
 /**
+ * Gutenberg既存のpointerout処理を維持したまま、Column HighlightへBlock境界から離れた入力を通知する。
+ *
+ * 物理イベントがBlock内部の移動か境界外への移動かという判断はColumn Highlightへ委ね、この境界では既存handlerとの合成だけを行う。
+ *
+ * @param existingHandler        Gutenberg本体または他のfilterが設定した既存handler。
+ * @param columnHighlightHandler 列ホバー表示が提供する終了判定handler。
+ * @return 既存処理の後にColumn Highlightへ終了入力を通知するhandler。
+ */
+const preservePointerOutHandler = (
+	existingHandler: unknown,
+	columnHighlightHandler: ColumnHighlightPointerOutHandler
+): ColumnHighlightPointerOutHandler => {
+	const handler: ColumnHighlightPointerOutHandler = ( event ) => {
+		if ( typeof existingHandler === 'function' ) {
+			( existingHandler as ColumnHighlightPointerOutHandler )( event );
+		}
+		columnHighlightHandler( event );
+	};
+	return handler;
+};
+
+/**
  * Gutenberg既存のwrapper classを維持したまま、行並び替えモード中の表示対象を識別できるclassを追加する。
  *
  * @param existingClassName Gutenberg本体または他のfilterが設定した既存className。
@@ -142,7 +165,7 @@ export const ReorderModeBlockListBlock = ( props: {
 		<RowHighlight enabled={ rowReorderEnabled } tableIdentity={ clientId }>
 			{ ( rowHighlightPointerOverCapture ) => (
 				<ColumnHighlight enabled={ columnReorderEnabled } tableIdentity={ clientId }>
-					{ ( columnHighlightPointerOverCapture ) => (
+					{ ( columnHighlightPointerOverCapture, columnHighlightPointerOutCapture ) => (
 						<RowDnd
 							enabled={ rowReorderEnabled }
 							presentationEnabled={ isSelected }
@@ -163,6 +186,10 @@ export const ReorderModeBlockListBlock = ( props: {
 													wrapperProps?.onPointerOverCapture,
 													rowHighlightPointerOverCapture,
 													columnHighlightPointerOverCapture
+												),
+												onPointerOutCapture: preservePointerOutHandler(
+													wrapperProps?.onPointerOutCapture,
+													columnHighlightPointerOutCapture
 												),
 												onPointerDownCapture: preservePointerDownHandler(
 													wrapperProps?.onPointerDownCapture,
