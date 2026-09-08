@@ -43,6 +43,7 @@ type ColumnMovingDisplayLayout = {
 	columnWidth: number;
 	snapshotTop: number;
 	snapshotHeight: number;
+	tableBackgroundColor: string | null;
 	initialPositionX: number;
 	initialPositionY: number;
 	initialLeft: number;
@@ -92,7 +93,7 @@ const isTransparentBackground = ( backgroundColor: string ): boolean => {
 /**
  * 元Tableで実際に見えている背景を、セル背景、行背景の優先順位で解決する。
  *
- * セル背景と行背景の両方が透明な場合はnullを返し、複製したTable自身の背景を透過させる。
+ * セル背景と行背景の両方が透明な場合はnullを返し、複製したTable自身の背景レイヤーへ委ねる。
  *
  * @param cell         移動対象列として描画する元セル。
  * @param editorWindow 現在のeditor contextに対応するwindow。
@@ -329,11 +330,10 @@ const collectMovingColumnCells = (
 	const previousRow = firstRow ? table.rows.item( firstRow.rowIndex - 1 ) : null;
 	const nextRow = lastRow ? table.rows.item( lastRow.rowIndex + 1 ) : null;
 	const previousCell = previousRow ? resolveCellInRowAtX( previousRow, table, probeX ) : null;
-	const nextCell = lastRow ? table.rows.item( lastRow.rowIndex + 1 ) : null;
-	const nextCellAtX = nextCell ? resolveCellInRowAtX( nextCell, table, probeX ) : null;
+	const nextCell = nextRow ? resolveCellInRowAtX( nextRow, table, probeX ) : null;
 
 	/* 小さな縦移動で内容が直ちに欠けないよう、可視範囲の前後一行で同じ列位置を覆うセルだけを余白として加える。 */
-	for ( const cell of [ previousCell, nextCellAtX ] ) {
+	for ( const cell of [ previousCell, nextCell ] ) {
 		if ( cell !== null && ! seenCells.has( cell ) ) {
 			seenCells.add( cell );
 			visibleCells.push( cell );
@@ -409,6 +409,7 @@ const resolveMovingDisplayLayout = (
 
 	const snapshotTop = Math.min( ...cells.map( ( cell ) => cell.top ) );
 	const snapshotBottom = Math.max( ...cells.map( ( cell ) => cell.top + cell.height ) );
+	const tableBackgroundColor = editorContext.window.getComputedStyle( sourceTable ).backgroundColor;
 
 	return {
 		sourceTable,
@@ -416,6 +417,9 @@ const resolveMovingDisplayLayout = (
 		columnWidth: sourceRectangle.width,
 		snapshotTop,
 		snapshotHeight: snapshotBottom - snapshotTop,
+		tableBackgroundColor: isTransparentBackground( tableBackgroundColor )
+			? null
+			: tableBackgroundColor,
 		initialPositionX,
 		initialPositionY,
 		initialLeft: sourceRectangle.left,
@@ -495,6 +499,10 @@ const renderMovingColumn = (
 		if ( snapshot.backgroundColor !== null ) {
 			row.style.setProperty( 'background-color', snapshot.backgroundColor, 'important' );
 			clonedCell.style.setProperty( 'background-color', snapshot.backgroundColor, 'important' );
+		} else if ( layout.tableBackgroundColor === null ) {
+			/* Tableまで透明な場合だけ、背後の実Table内容を透過しない最終fallbackとして白を固定する。 */
+			row.style.setProperty( 'background-color', '#fff', 'important' );
+			clonedCell.style.setProperty( 'background-color', '#fff', 'important' );
 		}
 
 		applyHorizontalBorder( clonedCell, 'top', snapshot.borderTop );
