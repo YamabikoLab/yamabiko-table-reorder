@@ -39,6 +39,12 @@ type CachedSourceResolver = {
 	resolver: ColumnSourceIndexResolver;
 };
 
+/** 現在列の一時表示中だけ保持するeditor内スクロール監視。 */
+type ScrollObservation = {
+	document: Document;
+	listener: EventListener;
+};
+
 /**
  * 列の操作可否表示が既存Block wrapperのポインター入力へ接続する処理。
  *
@@ -126,6 +132,7 @@ const createHighlightOverlay = (
  * 列DnD Lifecycleまたは同一Tableのデータrevisionが変化した場合はResolverを破棄し、次の開始前表示では現在構造から再生成する。
  * マウスポインターがBlock境界を離れた場合は現在列の一時表示だけを終了する。
  * タッチ入力では、指を離しただけでは現在列を解除せず、次に認識した列または意味のあるLifecycle変更まで表示する。
+ * 操作可否表示中にTableまたはeditorが実際にスクロールした場合は、画面位置へ固定した列表示を現在列として維持できないため一時表示だけを終了する。
  * DnD開始時はTarget Resolutionが要求時点の現在構造を再取得して最終判断するため、この表示は開始可否の権威を持たない。
  *
  * @param props               列表示に必要な値。
@@ -153,29 +160,59 @@ export const ColumnHighlight = ( props: {
 	const currentState = useRef< ColumnHighlightState | null >( null );
 	const currentCell = useRef< HTMLTableCellElement | null >( null );
 	const currentOverlay = useRef< HTMLDivElement | null >( null );
+	const scrollObservation = useRef< ScrollObservation | null >( null );
 
-	/** 現在の一時表示とTable構造を基準にした全Resolver snapshotを破棄する。 */
-	const clearHighlightSnapshot = useCallback( (): void => {
+	/** 現在列の一時表示に対応するeditor内スクロール監視を終了する。 */
+	const stopScrollObservation = useCallback( (): void => {
+		const observation = scrollObservation.current;
+		if ( observation === null ) {
+			return;
+		}
+
+		observation.document.removeEventListener( 'scroll', observation.listener, true );
+		scrollObservation.current = null;
+	}, [] );
+
+	/** 現在列に属する一時表示と表示判断を終了し、Table単位の解決基準は次の操作対象へ再利用する。 */
+	const clearCurrentHighlight = useCallback( (): void => {
+		stopScrollObservation();
 		clearVisualState( currentCell.current, currentOverlay.current );
 		currentCell.current = null;
 		currentOverlay.current = null;
 		currentState.current = null;
+	}, [ stopScrollObservation ] );
+
+	/** 現在の一時表示とTable構造を基準にした全Resolver snapshotを破棄する。 */
+	const clearHighlightSnapshot = useCallback( (): void => {
+		clearCurrentHighlight();
 		targetResolver.current = null;
 		sourceResolver.current = null;
-	}, [] );
+	}, [ clearCurrentHighlight ] );
 
 	useEffect( () => {
 		/* モード終了、対象Table変更、同一Tableデータ更新、DnD Lifecycle変更、またはPresentation境界終了時に一時表示と解決基準を持ち越さない。 */
 		return clearHighlightSnapshot;
 	}, [ enabled, tableIdentity, tableRevision, dndPhase, clearHighlightSnapshot ] );
 
-	/** 現在列に属する一時表示と表示判断を終了し、Table単位の解決基準は次の操作対象へ再利用する。 */
-	const clearCurrentHighlight = (): void => {
-		clearVisualState( currentCell.current, currentOverlay.current );
-		currentCell.current = null;
-		currentOverlay.current = null;
-		currentState.current = null;
-	};
+	/**
+	 * 現在列の表示位置を無効にするeditor内スクロールを、表示中だけ監視する。
+	 *
+	 * @param editorDocument 現在列を表示しているeditorのdocument。
+	 */
+	const observeScroll = useCallback(
+		( editorDocument: Document ): void => {
+			stopScrollObservation();
+			const listener: EventListener = () => {
+				clearCurrentHighlight();
+			};
+			editorDocument.addEventListener( 'scroll', listener, true );
+			scrollObservation.current = {
+				document: editorDocument,
+				listener,
+			};
+		},
+		[ clearCurrentHighlight, stopScrollObservation ]
+	);
 
 	/**
 	 * 現在の開始可否判断を、ポインター下のセルとeditor上の列表示へ反映する。
@@ -189,11 +226,13 @@ export const ColumnHighlight = ( props: {
 		cell: HTMLTableCellElement,
 		status: Exclude< ColumnHighlightStatus, 'unavailable' >
 	): void => {
+		stopScrollObservation();
 		clearVisualState( currentCell.current, currentOverlay.current );
 		const cellClass = status === 'resolved' ? HIGHLIGHTABLE_CELL_CLASS : UNAVAILABLE_CELL_CLASS;
 		cell.classList.add( cellClass );
 		currentCell.current = cell;
 		currentOverlay.current = createHighlightOverlay( table, cell, status );
+		observeScroll( cell.ownerDocument );
 	};
 
 	const onPointerOverCapture: ColumnHighlightPointerOverHandler = ( event ) => {
@@ -239,9 +278,7 @@ export const ColumnHighlight = ( props: {
 			return;
 		}
 
-		clearVisualState( currentCell.current, currentOverlay.current );
-		currentCell.current = null;
-		currentOverlay.current = null;
+		clearCurrentHighlight();
 
 		/* 同一Tableの開始可否判定は一つのResolverを利用し、操作対象変更ごとにTable制約を取得し直さない。 */
 		if ( targetResolver.current === null ) {
