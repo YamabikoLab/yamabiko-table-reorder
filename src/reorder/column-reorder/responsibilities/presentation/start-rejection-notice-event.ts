@@ -14,7 +14,11 @@ export type ColumnStartRejectionNoticeEvent = {
 	clientY: number;
 };
 
-/** Reorder Target Resolutionの開始拒否通知を受け取る購読listener。 */
+/**
+ * Reorder Target Resolutionの開始拒否通知を受け取る購読処理。
+ *
+ * @param event 利用者へ提示する開始拒否理由と、その表示基準となる操作位置。
+ */
 type ColumnStartRejectionListener = ( event: ColumnStartRejectionNoticeEvent ) => void;
 
 /** 現在の開始拒否通知購読をPresentation境界内で保持する。 */
@@ -26,6 +30,7 @@ const columnStartRejectionListeners = new Set< ColumnStartRejectionListener >();
  * @param event Designで利用者へ提示する開始拒否理由と、その表示基準となる操作位置。
  */
 export const notifyColumnStartRejection = ( event: ColumnStartRejectionNoticeEvent ): void => {
+	/* 現在生存しているPresentation購読だけへ同じ開始拒否を一回ずつ伝える。 */
 	columnStartRejectionListeners.forEach( ( listener ) => {
 		listener( event );
 	} );
@@ -34,7 +39,7 @@ export const notifyColumnStartRejection = ( event: ColumnStartRejectionNoticeEve
 /**
  * Reorder Presentationが開始拒否を一回性イベントとして受け取るために利用する。
  *
- * @param listener 開始拒否時に呼び出す購読listener。
+ * @param listener 開始拒否時に呼び出す購読処理。
  * @return 購読を解除する関数。
  */
 export const subscribeColumnStartRejection = (
