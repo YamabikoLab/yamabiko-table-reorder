@@ -2,7 +2,7 @@
  * Column Reorderの列ホバー表示が、Block境界を離れたときだけ現在列の一時表示を終了することを確認する。
  */
 
-import { fireEvent, render } from '@testing-library/react';
+import { createEvent, fireEvent, render } from '@testing-library/react';
 
 import { columnReorderTargetResolution } from '@/reorder/column-reorder/responsibilities/target-resolution';
 
@@ -40,6 +40,23 @@ const createRectangle = ( left: number ): DOMRect =>
 		y: 20,
 		toJSON: () => ( {} ),
 	} ) as DOMRect;
+
+/**
+ * ポインター終了入力の移動先を明示して通知する。
+ *
+ * Jest環境でも実ブラウザと同じ境界判定を確認できるよう、終了入力へ移動先要素を明示する。
+ *
+ * @param target        ポインターが離れる要素。
+ * @param relatedTarget ポインターの移動先。
+ */
+const firePointerOut = ( target: Element, relatedTarget: EventTarget | null ): void => {
+	const event = createEvent.pointerOut( target );
+	Object.defineProperty( event, 'relatedTarget', {
+		configurable: true,
+		value: relatedTarget,
+	} );
+	fireEvent( target, event );
+};
 
 /**
  * Block境界の開始・終了入力をColumn Highlightへ接続したTableを描画する。
@@ -112,11 +129,11 @@ describe( 'Column highlight boundary lifecycle', () => {
 		expect( firstCell.className ).toBe( 'yamabiko-table-reorder-column-highlightable-cell' );
 		expect( document.querySelector( '.yamabiko-table-reorder-column-highlight' ) ).not.toBeNull();
 
-		fireEvent.pointerOut( firstCell, { relatedTarget: secondCell } );
+		firePointerOut( firstCell, secondCell );
 		expect( firstCell.className ).toBe( 'yamabiko-table-reorder-column-highlightable-cell' );
 		expect( document.querySelector( '.yamabiko-table-reorder-column-highlight' ) ).not.toBeNull();
 
-		fireEvent.pointerOut( wrapper, { relatedTarget: document.body } );
+		firePointerOut( wrapper, document.body );
 		expect( firstCell.className ).toBe( '' );
 		expect( document.querySelector( '.yamabiko-table-reorder-column-highlight' ) ).toBeNull();
 	} );
