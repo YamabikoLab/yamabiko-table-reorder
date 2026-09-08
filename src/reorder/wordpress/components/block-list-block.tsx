@@ -41,9 +41,9 @@ export type ReorderModeBlockListBlockProps = {
  *
  * Row / Column両DnD境界へ入力を通知し、Reorder Modeで有効な方向だけが開始候補を受理する。
  *
- * @param existingHandler    Gutenberg本体または他のfilterが設定した既存handler。
- * @param rowDndHandler      Row DnDが提供する開始入力handler。
- * @param columnDndHandler   Column DnDが提供する開始入力handler。
+ * @param existingHandler  Gutenberg本体または他のfilterが設定した既存handler。
+ * @param rowDndHandler    Row DnDが提供する開始入力handler。
+ * @param columnDndHandler Column DnDが提供する開始入力handler。
  * @return 既存処理の後に方向固有DnDへ開始入力を通知するhandler。
  */
 const preservePointerDownHandler = (
