@@ -92,7 +92,7 @@ const isTransparentBackground = ( backgroundColor: string ): boolean => {
 /**
  * 元Tableで実際に見えている背景を、セル背景、行背景の優先順位で解決する。
  *
- * セル背景と行背景の両方が透明な場合はnullを返し、描画時にOverlayの白背景を明示的なfallbackとして適用する。
+ * セル背景と行背景の両方が透明な場合はnullを返し、複製したTable自身の背景を透過させる。
  *
  * @param cell         移動対象列として描画する元セル。
  * @param editorWindow 現在のeditor contextに対応するwindow。
@@ -329,10 +329,11 @@ const collectMovingColumnCells = (
 	const previousRow = firstRow ? table.rows.item( firstRow.rowIndex - 1 ) : null;
 	const nextRow = lastRow ? table.rows.item( lastRow.rowIndex + 1 ) : null;
 	const previousCell = previousRow ? resolveCellInRowAtX( previousRow, table, probeX ) : null;
-	const nextCell = nextRow ? resolveCellInRowAtX( nextRow, table, probeX ) : null;
+	const nextCell = lastRow ? table.rows.item( lastRow.rowIndex + 1 ) : null;
+	const nextCellAtX = nextCell ? resolveCellInRowAtX( nextCell, table, probeX ) : null;
 
 	/* 小さな縦移動で内容が直ちに欠けないよう、可視範囲の前後一行で同じ列位置を覆うセルだけを余白として加える。 */
-	for ( const cell of [ previousCell, nextCell ] ) {
+	for ( const cell of [ previousCell, nextCellAtX ] ) {
 		if ( cell !== null && ! seenCells.has( cell ) ) {
 			seenCells.add( cell );
 			visibleCells.push( cell );
@@ -459,27 +460,6 @@ const applyHorizontalBorder = (
 };
 
 /**
- * 実ブラウザで最終的に成立した背景描画状態をDevToolsから比較できる診断情報としてDOMへ記録する。
- *
- * @param element      診断対象となる移動表示のTable構成要素。
- * @param role         1セルTable内での描画上の役割。
- * @param editorWindow 現在のeditor contextに対応するwindow。
- */
-const annotateBackgroundDebugState = (
-	element: HTMLElement,
-	role: 'table' | 'section' | 'row' | 'cell',
-	editorWindow: Window
-): void => {
-	const style = editorWindow.getComputedStyle( element );
-	const prefix = 'data-ytr-debug-';
-
-	element.setAttribute( `${ prefix }role`, role );
-	element.setAttribute( `${ prefix }computed-background-color`, style.backgroundColor );
-	element.setAttribute( `${ prefix }computed-background-image`, style.backgroundImage );
-	element.setAttribute( `${ prefix }computed-opacity`, style.opacity );
-};
-
-/**
  * DnD開始時のセル表示を、移動対象列の開始時配置を保つ独立した表示へ構成する。
  *
  * @param layout    DnD開始時に確定した移動対象列の表示配置。
@@ -492,7 +472,7 @@ const renderMovingColumn = (
 	const fragment = layout.editorDocument.createDocumentFragment();
 
 	/* 可視範囲と少量の余白だけを独立したセル表示へ変換し、Table全行の複製を発生させない。 */
-	layout.cells.forEach( ( snapshot, index ) => {
+	layout.cells.forEach( ( snapshot ) => {
 		const sourceRow = snapshot.sourceCell.parentElement as HTMLTableRowElement | null;
 		const sourceSection = sourceRow?.parentElement as HTMLTableSectionElement | null;
 		const table = layout.editorDocument.createElement( 'table' );
@@ -502,7 +482,6 @@ const renderMovingColumn = (
 		);
 		const row = layout.editorDocument.createElement( 'tr' );
 		const clonedCell = snapshot.sourceCell.cloneNode( true ) as HTMLTableCellElement;
-		const backgroundColor = snapshot.backgroundColor ?? '#fff';
 
 		removeDuplicatedIds( clonedCell );
 		clonedCell.classList.remove( SOURCE_CELL_CLASS );
@@ -512,9 +491,11 @@ const renderMovingColumn = (
 		clonedCell.style.maxWidth = `${ layout.columnWidth }px`;
 		clonedCell.style.height = `${ snapshot.height }px`;
 
-		/* 1セルTableへ分解しても元Tableの背景レイヤーを失わないよう、解決済みの最終背景を行とセルの両方へ固定する。 */
-		row.style.setProperty( 'background-color', backgroundColor, 'important' );
-		clonedCell.style.setProperty( 'background-color', backgroundColor, 'important' );
+		/* セルまたは元行に実背景がある場合だけ固定し、両方が透明なら複製Table自身の背景レイヤーを透過させる。 */
+		if ( snapshot.backgroundColor !== null ) {
+			row.style.setProperty( 'background-color', snapshot.backgroundColor, 'important' );
+			clonedCell.style.setProperty( 'background-color', snapshot.backgroundColor, 'important' );
+		}
 
 		applyHorizontalBorder( clonedCell, 'top', snapshot.borderTop );
 		applyHorizontalBorder( clonedCell, 'bottom', snapshot.borderBottom );
@@ -528,77 +509,10 @@ const renderMovingColumn = (
 		table.style.top = `${ snapshot.top - layout.snapshotTop }px`;
 		table.style.width = `${ layout.columnWidth }px`;
 		table.style.height = `${ snapshot.height }px`;
-		table.setAttribute( 'data-ytr-debug-index', String( index ) );
 		fragment.appendChild( table );
 	} );
 
 	container.replaceChildren( fragment );
-
-	const editorWindow = layout.editorDocument.defaultView;
-	if ( editorWindow === null ) {
-		return;
-	}
-
-	/* 実DOMへ接続した後の計算済みスタイルを記録し、snapshot値とブラウザ最終表示の差をDevToolsだけで確認できるようにする。 */
-	Array.from(
-		container.querySelectorAll< HTMLTableElement >( '.yamabiko-table-reorder-moving-column-cell-table' )
-	).forEach( ( table ) => {
-		const index = Number.parseInt( table.getAttribute( 'data-ytr-debug-index' ) ?? '', 10 );
-		const snapshot = layout.cells[ index ];
-		const section = table.querySelector( 'thead, tbody, tfoot' ) as HTMLTableSectionElement | null;
-		const row = table.rows.item( 0 );
-		const clonedCell = row?.cells.item( 0 ) ?? null;
-
-		if ( snapshot === undefined || section === null || row === null || clonedCell === null ) {
-			return;
-		}
-
-		const sourceRow = snapshot.sourceCell.parentElement as HTMLTableRowElement | null;
-		const sourceSection = sourceRow?.parentElement as HTMLTableSectionElement | null;
-		const sourceCellStyle = editorWindow.getComputedStyle( snapshot.sourceCell );
-		const sourceRowStyle = sourceRow ? editorWindow.getComputedStyle( sourceRow ) : null;
-		const sourceSectionStyle = sourceSection ? editorWindow.getComputedStyle( sourceSection ) : null;
-		const sourceTableStyle = editorWindow.getComputedStyle( layout.sourceTable );
-		const appliedBackgroundColor = snapshot.backgroundColor ?? '#fff';
-
-		clonedCell.setAttribute(
-			'data-ytr-debug-source-cell-inline-background-color',
-			snapshot.sourceCell.style.backgroundColor
-		);
-		clonedCell.setAttribute(
-			'data-ytr-debug-source-cell-computed-background-color',
-			sourceCellStyle.backgroundColor
-		);
-		clonedCell.setAttribute(
-			'data-ytr-debug-source-cell-computed-background-image',
-			sourceCellStyle.backgroundImage
-		);
-		clonedCell.setAttribute(
-			'data-ytr-debug-source-row-computed-background-color',
-			sourceRowStyle?.backgroundColor ?? ''
-		);
-		clonedCell.setAttribute(
-			'data-ytr-debug-source-section-computed-background-color',
-			sourceSectionStyle?.backgroundColor ?? ''
-		);
-		clonedCell.setAttribute(
-			'data-ytr-debug-source-table-computed-background-color',
-			sourceTableStyle.backgroundColor
-		);
-		clonedCell.setAttribute(
-			'data-ytr-debug-snapshot-background-color',
-			snapshot.backgroundColor ?? 'transparent -> overlay white fallback'
-		);
-		clonedCell.setAttribute(
-			'data-ytr-debug-applied-background-color',
-			appliedBackgroundColor
-		);
-
-		annotateBackgroundDebugState( table, 'table', editorWindow );
-		annotateBackgroundDebugState( section, 'section', editorWindow );
-		annotateBackgroundDebugState( row, 'row', editorWindow );
-		annotateBackgroundDebugState( clonedCell, 'cell', editorWindow );
-	} );
 };
 
 /**
