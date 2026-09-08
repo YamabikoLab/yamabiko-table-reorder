@@ -40,16 +40,16 @@ type CachedSourceResolver = {
 };
 
 /**
- * 列ホバー表示が既存Block wrapperのポインター入力へ接続する処理。
+ * 列の操作可否表示が既存Block wrapperのポインター入力へ接続する処理。
  *
  * @param event 現在の操作可否表示対象を解決するポインター入力。
  */
 export type ColumnHighlightPointerOverHandler = ( event: PointerEvent< Element > ) => void;
 
 /**
- * 列ホバー表示が既存Block wrapperの終了入力へ接続する処理。
+ * マウスの列ホバー表示が既存Block wrapperの終了入力へ接続する処理。
  *
- * @param event 現在の操作可否表示対象から離れたことを判断するポインター入力。
+ * @param event マウスポインターが現在の操作可否表示対象から離れたことを判断する入力。
  */
 export type ColumnHighlightPointerOutHandler = ( event: PointerEvent< Element > ) => void;
 
@@ -122,16 +122,17 @@ const createHighlightOverlay = (
  * 現在のTarget Resolution結果に応じて、列へ操作可能または移動不可の表示状態を反映する。
  *
  * Target Resolutionとセル→論理列対応は同一TableのDnD開始前状態で一度生成したResolverを再利用する。
- * これにより、ホバー対象変更ごとにTable構造または対象行までのDOMを走査し直さない。
+ * これにより、操作対象変更ごとにTable構造または対象行までのDOMを走査し直さない。
  * 列DnD Lifecycleまたは同一Tableのデータrevisionが変化した場合はResolverを破棄し、次の開始前表示では現在構造から再生成する。
- * ポインターがBlock境界を離れた場合は現在列の一時表示だけを終了し、同一Table内で再利用できる解決基準は保持する。
+ * マウスポインターがBlock境界を離れた場合は現在列の一時表示だけを終了する。
+ * タッチ入力では、指を離しただけでは現在列を解除せず、次に認識した列または意味のあるLifecycle変更まで表示する。
  * DnD開始時はTarget Resolutionが要求時点の現在構造を再取得して最終判断するため、この表示は開始可否の権威を持たない。
  *
  * @param props               列表示に必要な値。
  * @param props.enabled       現在のTableで列並び替えモードが有効な場合はtrue。
  * @param props.tableIdentity 列並び替え対象のTable Identity。
  * @param props.tableRevision WordPress Integrationが提供する、同一Tableデータ更新を識別する不透明なrevision。
- * @param props.children      既存DOMへホバー判定と表示終了処理を接続する描画処理。
+ * @param props.children      既存DOMへ操作対象判定とマウスホバー終了処理を接続する描画処理。
  * @return 列の操作可否表示へ接続された子要素。
  */
 export const ColumnHighlight = ( props: {
@@ -168,7 +169,7 @@ export const ColumnHighlight = ( props: {
 		return clearHighlightSnapshot;
 	}, [ enabled, tableIdentity, tableRevision, dndPhase, clearHighlightSnapshot ] );
 
-	/** 現在列に属する一時表示と表示判断を終了し、Table単位の解決基準は次のホバーへ再利用する。 */
+	/** 現在列に属する一時表示と表示判断を終了し、Table単位の解決基準は次の操作対象へ再利用する。 */
 	const clearCurrentHighlight = (): void => {
 		clearVisualState( currentCell.current, currentOverlay.current );
 		currentCell.current = null;
@@ -213,7 +214,7 @@ export const ColumnHighlight = ( props: {
 			return;
 		}
 
-		/* 現在Tableのセル対応は最初の表示判定時に一度だけ解釈し、その後のホバー判定で再利用する。 */
+		/* 現在Tableのセル対応は最初の表示判定時に一度だけ解釈し、その後の操作対象判定で再利用する。 */
 		if ( sourceResolver.current === null || sourceResolver.current.table !== table ) {
 			sourceResolver.current = {
 				table,
@@ -242,7 +243,7 @@ export const ColumnHighlight = ( props: {
 		currentCell.current = null;
 		currentOverlay.current = null;
 
-		/* 同一Tableの開始可否判定は一つのResolverを利用し、ホバー対象変更ごとにTable制約を取得し直さない。 */
+		/* 同一Tableの開始可否判定は一つのResolverを利用し、操作対象変更ごとにTable制約を取得し直さない。 */
 		if ( targetResolver.current === null ) {
 			targetResolver.current = columnReorderTargetResolution.createResolver( tableIdentity );
 		}
@@ -266,6 +267,11 @@ export const ColumnHighlight = ( props: {
 	};
 
 	const onPointerOutCapture: ColumnHighlightPointerOutHandler = ( event ) => {
+		/* タッチでは指を離した後も現在操作対象として認識した列を維持し、マウスだけhover終了として扱う。 */
+		if ( event.pointerType !== 'mouse' ) {
+			return;
+		}
+
 		const currentTarget = event.currentTarget;
 		const relatedTarget = event.relatedTarget;
 		const relatedNode =
@@ -274,7 +280,7 @@ export const ColumnHighlight = ( props: {
 				: null;
 		const remainsInsideBlock = relatedNode !== null && currentTarget.contains( relatedNode );
 
-		/* Block内部の要素間移動では現在列の表示を維持し、Block境界を離れた場合だけ一時表示を終了する。 */
+		/* Block内部の要素間移動では現在列の表示を維持し、マウスポインターがBlock境界を離れた場合だけ一時表示を終了する。 */
 		if ( remainsInsideBlock ) {
 			return;
 		}
