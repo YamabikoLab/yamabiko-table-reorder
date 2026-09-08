@@ -264,9 +264,7 @@ export const ColumnHighlight = ( props: {
 		const currentTarget = event.currentTarget;
 		const relatedTarget = event.relatedTarget;
 		const relatedNode =
-			typeof relatedTarget === 'object' &&
-			relatedTarget !== null &&
-			'nodeType' in relatedTarget
+			typeof relatedTarget === 'object' && relatedTarget !== null && 'nodeType' in relatedTarget
 				? ( relatedTarget as Node )
 				: null;
 		const remainsInsideBlock = relatedNode !== null && currentTarget.contains( relatedNode );

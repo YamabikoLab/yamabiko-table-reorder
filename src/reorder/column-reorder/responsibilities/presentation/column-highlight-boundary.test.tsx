@@ -100,13 +100,11 @@ describe( 'Column highlight boundary lifecycle', () => {
 		const firstCell = getByTestId( 'column-0' );
 		const secondCell = getByTestId( 'column-1' );
 
-		jest.spyOn( table, 'getBoundingClientRect' ).mockReturnValue(
-			( {
-				...createRectangle( 10 ),
-				height: 200,
-				bottom: 220,
-			} ) as DOMRect
-		);
+		jest.spyOn( table, 'getBoundingClientRect' ).mockReturnValue( {
+			...createRectangle( 10 ),
+			height: 200,
+			bottom: 220,
+		} as DOMRect );
 		jest.spyOn( firstCell, 'getBoundingClientRect' ).mockReturnValue( createRectangle( 10 ) );
 		jest.spyOn( secondCell, 'getBoundingClientRect' ).mockReturnValue( createRectangle( 110 ) );
 
