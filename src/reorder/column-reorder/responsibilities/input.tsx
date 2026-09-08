@@ -1,9 +1,9 @@
 /**
- * 列並び替えのPCポインター入力開始条件とDnD開始対象の接続を所有する。
+ * 列並び替えのポインター入力開始条件とDnD開始対象の接続を所有する。
  *
- * 現在Table内のセルから移動元論理列を解決し、第一段階のReorder Target Resolutionで
- * 開始可能な列だけをdnd-kitのDraggableへ一時登録する。
- * タッチ入力、active DnD成立後の進行、移動先解決、確定、取消はこの責務では扱わない。
+ * PCとタッチ端末の主ポインター入力から現在Table内のセルを移動元論理列へ解決し、
+ * 第一段階のReorder Target Resolutionで開始可能な列だけをdnd-kitのDraggableへ一時登録する。
+ * タッチ入力は通常スクロールと競合しない長押し条件で開始し、DnD開始後の進行、移動先解決、確定、取消はこの責務では扱わない。
  */
 
 import { Draggable, PointerActivationConstraints, PointerSensor } from '@dnd-kit/dom';
@@ -13,9 +13,9 @@ import type { PointerEvent, ReactNode } from 'react';
 import { columnReorderTargetResolution, type ColumnReorderTarget } from './target-resolution';
 
 /**
- * 列DnDを既存DOMのPCポインター入力へ接続する開始処理。
+ * 列DnDを既存DOMのポインター入力へ接続する開始処理。
  *
- * @param event 現在Table内で列DnD開始候補を判定するPCポインター入力。
+ * @param event 現在Table内で列DnD開始候補を判定するポインター入力。
  */
 export type ColumnDndPointerDownHandler = ( event: PointerEvent< Element > ) => void;
 
@@ -51,7 +51,7 @@ const resolveNextAvailableColumnIndex = (
  * 対象セルが現在Table直下のhead / body / footに属さない場合は解決しない。
  *
  * @param table      列並び替え対象のTable。
- * @param targetCell PC入力が開始されたTableセル。
+ * @param targetCell ポインター入力が開始されたTableセル。
  * @return 対象セルが開始する0-based論理列位置。安全に解釈できない場合はnull。
  */
 const resolveSourceColumnIndex = (
@@ -117,21 +117,20 @@ const resolveSourceColumnIndex = (
 };
 
 /**
- * PCポインター入力から列DnD開始候補を解決し、現在の入力で必要な列だけをDraggableへ登録する。
+ * ポインター入力から列DnD開始候補を解決し、現在の入力で必要な列だけをDraggableへ登録する。
  *
- * 第一段階のReorder Target Resolutionで開始可能な列だけを物理DnDへ接続する。
- * DnD Engineがidleで新しいポインター入力を受け付けられる場合は、入力種別や対象可否の判定より先に前回の開始候補を破棄し、
- * Phase 5で受理しないtouch / pen入力や開始不可入力から残存Draggableが起動しない状態を維持する。
+ * PCとタッチ端末の主ポインター入力を共通の第一段階Reorder Target ResolutionとDraggable登録経路へ接続する。
+ * マウスは短い移動距離、タッチは通常スクロールとの競合を避ける長押しを開始条件とする。
+ * DnD Engineがidleで新しいポインター入力を受け付けられる場合は前回の開始候補を破棄し、現在入力だけを有効にする。
  * active DnD中は現在のDraggableを破棄せず、新しい開始候補も受け付けない。
- * タッチ入力はPhase 6で同じ入力責務へ接続するため、このPhaseでは受理しない。
  *
- * @param props                         PC入力接続に必要な値。
+ * @param props                         ポインター入力接続に必要な値。
  * @param props.enabled                 現在のTableで列並び替え開始入力を受け付ける場合はtrue。
  * @param props.tableIdentity           列並び替え対象のTable Identity。
  * @param props.activeDraggable         現在のポインター入力で登録したDraggableを保持する参照。
  * @param props.activeDraggable.current 現在のポインター入力で登録したDraggable。未登録の場合はnull。
  * @param props.children                既存DOMへポインター開始処理を接続する描画処理。
- * @return PCポインター入力による列DnD開始へ接続された子要素。
+ * @return ポインター入力による列DnD開始へ接続された子要素。
  */
 export const ColumnInput = ( props: {
 	enabled: boolean;
@@ -155,16 +154,16 @@ export const ColumnInput = ( props: {
 			return;
 		}
 
-		/* idle中の新しいポインター入力は前回候補を失効させ、受理しない入力から残存Draggableが起動しない状態にする。 */
+		/* idle中の新しいポインター入力は前回候補を失効させ、現在入力だけを開始候補として扱う。 */
 		activeDraggable.current?.destroy();
 		activeDraggable.current = null;
 
-		/* Phase 5ではPCマウス入力だけを開始候補として受け付ける。 */
-		if ( event.pointerType !== 'mouse' ) {
+		/* 列DnDはPCマウスとタッチ端末の入力だけを開始候補として受け付ける。 */
+		if ( event.pointerType !== 'mouse' && event.pointerType !== 'touch' ) {
 			return;
 		}
 
-		/* 主ポインターの左ボタン入力だけを新しい列DnD開始試行として受け入れる。 */
+		/* 主ポインターの左ボタン相当入力だけを新しい列DnD開始試行として受け入れる。 */
 		if ( ! event.isPrimary || event.button !== 0 ) {
 			return;
 		}
@@ -192,7 +191,10 @@ export const ColumnInput = ( props: {
 			return;
 		}
 
-		event.preventDefault();
+		/* マウスDnD開始時だけ既定の文字選択を抑止し、タッチでは通常スクロールを開始時点で妨げない。 */
+		if ( event.pointerType === 'mouse' ) {
+			event.preventDefault();
+		}
 
 		const source: ColumnReorderTarget = {
 			tableIdentity,
@@ -212,12 +214,24 @@ export const ColumnInput = ( props: {
 				data: resolution.target,
 				sensors: [
 					PointerSensor.configure( {
-						activationConstraints: [
-							new PointerActivationConstraints.Distance( {
-								value: 5,
-							} ),
-						],
-						/* Tableセル内部からのPCポインター入力を列DnD開始対象として扱う。 */
+						activationConstraints: ( activationEvent ) => {
+							/* マウスは短い移動距離で開始し、タッチは通常操作との競合を避けるため長押しで開始する。 */
+							if ( activationEvent.pointerType === 'mouse' ) {
+								return [
+									new PointerActivationConstraints.Distance( {
+										value: 5,
+									} ),
+								];
+							}
+
+							return [
+								new PointerActivationConstraints.Delay( {
+									value: 250,
+									tolerance: 5,
+								} ),
+							];
+						},
+						/* Tableセル内部からのポインター入力を列DnD開始対象として扱う。 */
 						preventActivation: () => false,
 					} ),
 				],
