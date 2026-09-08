@@ -47,6 +47,13 @@ type CachedSourceResolver = {
 export type ColumnHighlightPointerOverHandler = ( event: PointerEvent< Element > ) => void;
 
 /**
+ * 列ホバー表示が既存Block wrapperの終了入力へ接続する処理。
+ *
+ * @param event 現在の操作可否表示対象から離れたことを判断するポインター入力。
+ */
+export type ColumnHighlightPointerOutHandler = ( event: PointerEvent< Element > ) => void;
+
+/**
  * 現在の操作可否表示を対象セルとeditor上の列表示から解除する。
  *
  * @param cell    現在ポインター表示を持つセル。
@@ -117,18 +124,22 @@ const createHighlightOverlay = (
  * Target Resolutionとセル→論理列対応は同一TableのDnD開始前状態で一度生成したResolverを再利用する。
  * これにより、ホバー対象変更ごとにTable構造または対象行までのDOMを走査し直さない。
  * 列DnDが開始・終了した場合はTable構造が変化し得るためResolverを破棄し、次の開始前表示では現在構造から再生成する。
+ * ポインターがBlock境界を離れた場合は現在列の一時表示だけを終了し、同一Table内で再利用できる解決基準は保持する。
  * DnD開始時はTarget Resolutionが要求時点の現在構造を再取得して最終判断するため、この表示は開始可否の権威を持たない。
  *
  * @param props               列表示に必要な値。
  * @param props.enabled       現在のTableで列並び替えモードが有効な場合はtrue。
  * @param props.tableIdentity 列並び替え対象のTable Identity。
- * @param props.children      既存DOMへホバー判定処理を接続する描画処理。
+ * @param props.children      既存DOMへホバー判定と表示終了処理を接続する描画処理。
  * @return 列の操作可否表示へ接続された子要素。
  */
 export const ColumnHighlight = ( props: {
 	enabled: boolean;
 	tableIdentity: string;
-	children: ( onPointerOverCapture: ColumnHighlightPointerOverHandler ) => ReactNode;
+	children: (
+		onPointerOverCapture: ColumnHighlightPointerOverHandler,
+		onPointerOutCapture: ColumnHighlightPointerOutHandler
+	) => ReactNode;
 } ) => {
 	const { enabled, tableIdentity, children } = props;
 	const dndPhase = useColumnDndPhase();
@@ -151,6 +162,14 @@ export const ColumnHighlight = ( props: {
 			sourceResolver.current = null;
 		};
 	}, [ enabled, tableIdentity, dndPhase ] );
+
+	/** 現在列に属する一時表示と表示判断を終了し、Table単位の解決基準は次のホバーへ再利用する。 */
+	const clearCurrentHighlight = (): void => {
+		clearVisualState( currentCell.current, currentOverlay.current );
+		currentCell.current = null;
+		currentOverlay.current = null;
+		currentState.current = null;
+	};
 
 	/**
 	 * 現在の開始可否判断を、ポインター下のセルとeditor上の列表示へ反映する。
@@ -185,10 +204,7 @@ export const ColumnHighlight = ( props: {
 			! cell ||
 			cell.closest( 'table' ) !== table
 		) {
-			clearVisualState( currentCell.current, currentOverlay.current );
-			currentCell.current = null;
-			currentOverlay.current = null;
-			currentState.current = null;
+			clearCurrentHighlight();
 			return;
 		}
 
@@ -204,10 +220,7 @@ export const ColumnHighlight = ( props: {
 
 		/* 現在Tableの論理列へ対応付けられないセルでは、開始可否を推測せず既存表示も解除する。 */
 		if ( sourceColumnIndex === null ) {
-			clearVisualState( currentCell.current, currentOverlay.current );
-			currentCell.current = null;
-			currentOverlay.current = null;
-			currentState.current = null;
+			clearCurrentHighlight();
 			return;
 		}
 
@@ -247,5 +260,24 @@ export const ColumnHighlight = ( props: {
 		}
 	};
 
-	return children( onPointerOverCapture );
+	const onPointerOutCapture: ColumnHighlightPointerOutHandler = ( event ) => {
+		const currentTarget = event.currentTarget;
+		const relatedTarget = event.relatedTarget;
+		const relatedNode =
+			typeof relatedTarget === 'object' &&
+			relatedTarget !== null &&
+			'nodeType' in relatedTarget
+				? ( relatedTarget as Node )
+				: null;
+		const remainsInsideBlock = relatedNode !== null && currentTarget.contains( relatedNode );
+
+		/* Block内部の要素間移動では現在列の表示を維持し、Block境界を離れた場合だけ一時表示を終了する。 */
+		if ( remainsInsideBlock ) {
+			return;
+		}
+
+		clearCurrentHighlight();
+	};
+
+	return children( onPointerOverCapture, onPointerOutCapture );
 };
