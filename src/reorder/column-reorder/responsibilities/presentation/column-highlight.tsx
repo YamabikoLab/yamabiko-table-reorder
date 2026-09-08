@@ -9,6 +9,7 @@
 import { useEffect, useRef } from '@wordpress/element';
 import type { PointerEvent, ReactNode } from 'react';
 
+import { useColumnDndPhase } from '@/reorder/column-reorder/integration/dnd-interaction-react';
 import {
 	createColumnSourceIndexResolver,
 	type ColumnSourceIndexResolver,
@@ -113,8 +114,9 @@ const createHighlightOverlay = (
 /**
  * 現在のTarget Resolution結果に応じて、列へ操作可能または移動不可の表示状態を反映する。
  *
- * Target Resolutionとセル→論理列対応は同一Tableで一度生成したResolverを再利用する。
+ * Target Resolutionとセル→論理列対応は同一TableのDnD開始前状態で一度生成したResolverを再利用する。
  * これにより、ホバー対象変更ごとにTable構造または対象行までのDOMを走査し直さない。
+ * 列DnDが開始・終了した場合はTable構造が変化し得るためResolverを破棄し、次の開始前表示では現在構造から再生成する。
  * DnD開始時はTarget Resolutionが要求時点の現在構造を再取得して最終判断するため、この表示は開始可否の権威を持たない。
  *
  * @param props               列表示に必要な値。
@@ -129,6 +131,7 @@ export const ColumnHighlight = ( props: {
 	children: ( onPointerOverCapture: ColumnHighlightPointerOverHandler ) => ReactNode;
 } ) => {
 	const { enabled, tableIdentity, children } = props;
+	const dndPhase = useColumnDndPhase();
 	const targetResolver = useRef< ReturnType<
 		typeof columnReorderTargetResolution.createResolver
 	> | null >( null );
@@ -138,7 +141,7 @@ export const ColumnHighlight = ( props: {
 	const currentOverlay = useRef< HTMLDivElement | null >( null );
 
 	useEffect( () => {
-		/* モード終了、対象Table変更、またはPresentation境界終了時に一時的な操作可否表示と解決基準を残さない。 */
+		/* モード終了、対象Table変更、DnD Lifecycle変更、またはPresentation境界終了時に一時表示と解決基準を持ち越さない。 */
 		return () => {
 			clearVisualState( currentCell.current, currentOverlay.current );
 			currentCell.current = null;
@@ -147,7 +150,7 @@ export const ColumnHighlight = ( props: {
 			targetResolver.current = null;
 			sourceResolver.current = null;
 		};
-	}, [ enabled, tableIdentity ] );
+	}, [ enabled, tableIdentity, dndPhase ] );
 
 	/**
 	 * 現在の開始可否判断を、ポインター下のセルとeditor上の列表示へ反映する。
@@ -174,8 +177,14 @@ export const ColumnHighlight = ( props: {
 		const table = currentTarget.querySelector( 'table' );
 		const cell = target?.closest( 'th, td' ) as HTMLTableCellElement | null;
 
-		/* 列並び替えモード外、または現在Tableへ直接属さないセルは操作可否表示の対象にしない。 */
-		if ( ! enabled || ! table || ! cell || cell.closest( 'table' ) !== table ) {
+		/* 列DnD開始前以外、または現在Tableへ直接属さないセルは操作可否表示の対象にしない。 */
+		if (
+			! enabled ||
+			dndPhase !== 'idle' ||
+			! table ||
+			! cell ||
+			cell.closest( 'table' ) !== table
+		) {
 			clearVisualState( currentCell.current, currentOverlay.current );
 			currentCell.current = null;
 			currentOverlay.current = null;
