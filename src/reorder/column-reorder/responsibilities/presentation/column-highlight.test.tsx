@@ -8,6 +8,12 @@ import { columnReorderTargetResolution } from '@/reorder/column-reorder/responsi
 
 import { ColumnHighlight } from './column-highlight';
 
+let mockColumnDndPhase: 'idle' | 'active' = 'idle';
+
+jest.mock( '@/reorder/column-reorder/integration/dnd-interaction-react', () => ( {
+	useColumnDndPhase: () => mockColumnDndPhase,
+} ) );
+
 jest.mock( '@/reorder/column-reorder/responsibilities/target-resolution', () => ( {
 	columnReorderTargetResolution: {
 		createResolver: jest.fn(),
@@ -111,6 +117,7 @@ describe( 'Column highlight', () => {
 
 	beforeEach( () => {
 		jest.clearAllMocks();
+		mockColumnDndPhase = 'idle';
 		resolveMock = jest.fn( ( sourceColumnIndex: number ) => ( {
 			status: 'resolved',
 			target: { tableIdentity: 'table-a', sourceColumnIndex },
@@ -235,6 +242,52 @@ describe( 'Column highlight', () => {
 		expect( getByTestId( 'row-1-column-1' ).className ).toBe(
 			'yamabiko-table-reorder-column-highlightable-cell'
 		);
+	} );
+
+	/**
+	 * 列DnD終了後も同じTableで並び替えを続ける場合、更新前の開始可否判断を持ち越さないことを確認する。
+	 *
+	 * 事前条件:
+	 * - 列DnD開始前に現在Tableの開始可否表示が解決されている。
+	 * - 列DnDによって同じTableの列構造が変化し得る。
+	 *
+	 * 操作:
+	 * - 列DnDを開始して終了し、同じTable Identityの列へ再度ポインターを移動する。
+	 *
+	 * 期待結果:
+	 * - DnD中は開始可否表示を残さない。
+	 * - DnD終了後は現在Tableを基準に開始可否を新しく解決する。
+	 */
+	it( 'when column DnD ends on the same table, should resolve highlight availability from the current table again', () => {
+		const refreshedResolveMock = jest.fn( () => ( {
+			status: 'rejected' as const,
+			reason: 'merged-range' as const,
+		} ) );
+		createResolverMock
+			.mockReturnValueOnce( { resolve: resolveMock } )
+			.mockReturnValueOnce( { resolve: refreshedResolveMock } );
+		const { getByTestId, rerender } = render( <TestTable /> );
+		const table = getByTestId( 'table' );
+		const cells = Array.from( table.querySelectorAll( 'td' ) );
+		setVisibleRectangles( table, cells );
+		const targetCell = getByTestId( 'row-0-column-1' );
+
+		fireEvent.pointerOver( targetCell );
+		expect( targetCell.className ).toBe( 'yamabiko-table-reorder-column-highlightable-cell' );
+
+		mockColumnDndPhase = 'active';
+		rerender( <TestTable /> );
+
+		expect( targetCell.className ).toBe( '' );
+		expect( document.querySelector( '.yamabiko-table-reorder-column-highlight' ) ).toBeNull();
+
+		mockColumnDndPhase = 'idle';
+		rerender( <TestTable /> );
+		fireEvent.pointerOver( targetCell );
+
+		expect( createResolverMock ).toHaveBeenCalledTimes( 2 );
+		expect( refreshedResolveMock ).toHaveBeenCalledWith( 1 );
+		expect( targetCell.className ).toBe( 'yamabiko-table-reorder-column-unavailable-cell' );
 	} );
 
 	/**
