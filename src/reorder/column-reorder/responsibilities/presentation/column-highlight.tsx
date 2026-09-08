@@ -14,7 +14,6 @@ import {
 	createColumnSourceIndexResolver,
 	type ColumnSourceIndexResolver,
 } from '@/reorder/column-reorder/integration/source-column-resolution';
-import { subscribeColumnTableRevision } from '@/reorder/column-reorder/integration/table-revision';
 import { columnReorderTargetResolution } from '@/reorder/column-reorder/responsibilities/target-resolution';
 
 import './column-highlight.scss';
@@ -124,25 +123,27 @@ const createHighlightOverlay = (
  *
  * Target Resolutionとセル→論理列対応は同一TableのDnD開始前状態で一度生成したResolverを再利用する。
  * これにより、ホバー対象変更ごとにTable構造または対象行までのDOMを走査し直さない。
- * 列DnD Lifecycleまたは同一TableのBlockデータが変化した場合はResolverを破棄し、次の開始前表示では現在構造から再生成する。
+ * 列DnD Lifecycleまたは同一Tableのデータrevisionが変化した場合はResolverを破棄し、次の開始前表示では現在構造から再生成する。
  * ポインターがBlock境界を離れた場合は現在列の一時表示だけを終了し、同一Table内で再利用できる解決基準は保持する。
  * DnD開始時はTarget Resolutionが要求時点の現在構造を再取得して最終判断するため、この表示は開始可否の権威を持たない。
  *
  * @param props               列表示に必要な値。
  * @param props.enabled       現在のTableで列並び替えモードが有効な場合はtrue。
  * @param props.tableIdentity 列並び替え対象のTable Identity。
+ * @param props.tableRevision WordPress Integrationが提供する、同一Tableデータ更新を識別する不透明なrevision。
  * @param props.children      既存DOMへホバー判定と表示終了処理を接続する描画処理。
  * @return 列の操作可否表示へ接続された子要素。
  */
 export const ColumnHighlight = ( props: {
 	enabled: boolean;
 	tableIdentity: string;
+	tableRevision?: unknown;
 	children: (
 		onPointerOverCapture: ColumnHighlightPointerOverHandler,
 		onPointerOutCapture: ColumnHighlightPointerOutHandler
 	) => ReactNode;
 } ) => {
-	const { enabled, tableIdentity, children } = props;
+	const { enabled, tableIdentity, tableRevision, children } = props;
 	const dndPhase = useColumnDndPhase();
 	const targetResolver = useRef< ReturnType<
 		typeof columnReorderTargetResolution.createResolver
@@ -163,17 +164,9 @@ export const ColumnHighlight = ( props: {
 	}, [] );
 
 	useEffect( () => {
-		/* モード終了、対象Table変更、DnD Lifecycle変更、またはPresentation境界終了時に一時表示と解決基準を持ち越さない。 */
+		/* モード終了、対象Table変更、同一Tableデータ更新、DnD Lifecycle変更、またはPresentation境界終了時に一時表示と解決基準を持ち越さない。 */
 		return clearHighlightSnapshot;
-	}, [ enabled, tableIdentity, dndPhase, clearHighlightSnapshot ] );
-
-	useEffect( () => {
-		/* 列並び替え中の対象Tableだけを監視し、Undo等の同一Table更新でも更新前の解決基準を持ち越さない。 */
-		if ( ! enabled ) {
-			return undefined;
-		}
-		return subscribeColumnTableRevision( tableIdentity, clearHighlightSnapshot );
-	}, [ enabled, tableIdentity, clearHighlightSnapshot ] );
+	}, [ enabled, tableIdentity, tableRevision, dndPhase, clearHighlightSnapshot ] );
 
 	/** 現在列に属する一時表示と表示判断を終了し、Table単位の解決基準は次のホバーへ再利用する。 */
 	const clearCurrentHighlight = (): void => {
