@@ -107,23 +107,6 @@ const createHighlightOverlay = (
 };
 
 /**
- * 現在の開始可否判断を、ポインター下のセルとeditor上の列表示へ反映する。
- *
- * 表示を切り替える前に前回セルと前回列表示を解除し、常に現在位置だけを操作可否表示の対象とする。
- *
- * @param table  Column Reorder対象Table。
- * @param cell   現在ポインターがある対象セル。
- * @param status Target Resolutionが返した操作可能または開始拒否の意味状態。
- */
-const applyVisualState = (
-	table: HTMLTableElement,
-	cell: HTMLTableCellElement,
-	status: Exclude< ColumnHighlightStatus, 'unavailable' >
-): void => {
-	clearVisualState( currentCellPlaceholder, null );
-};
-
-/**
  * 現在のTarget Resolution結果に応じて、列へ操作可能または移動不可の表示状態を反映する。
  *
  * Target Resolutionとセル→論理列対応は同一Tableで一度生成したResolverを再利用する。
