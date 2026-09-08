@@ -59,11 +59,15 @@ const TestTable = ( props: { enabled?: boolean } ) => (
 	</ColumnHighlight>
 );
 
-/** Tableと対象セルへ、editor表示領域内の表示矩形を設定する。 */
+/**
+ * Tableと対象セルへ、editor表示領域内の表示矩形を設定する。
+ * @param table
+ * @param cells
+ */
 const setVisibleRectangles = ( table: HTMLElement, cells: HTMLElement[] ) => {
-	jest.spyOn( table, 'getBoundingClientRect' ).mockReturnValue(
-		createRectangle( { left: 10, top: 20, width: 300, height: 200 } )
-	);
+	jest
+		.spyOn( table, 'getBoundingClientRect' )
+		.mockReturnValue( createRectangle( { left: 10, top: 20, width: 300, height: 200 } ) );
 	cells.forEach( ( cell, index ) => {
 		const columnIndex = index % 3;
 		const rowIndex = Math.floor( index / 3 );
@@ -118,7 +122,7 @@ describe( 'Column highlight', () => {
 			'yamabiko-table-reorder-column-highlightable-cell'
 		);
 		expect(
-		document.querySelector( '.yamabiko-table-reorder-column-highlight--highlightable' )
+			document.querySelector( '.yamabiko-table-reorder-column-highlight--highlightable' )
 		).not.toBeNull();
 	} );
 
@@ -148,7 +152,7 @@ describe( 'Column highlight', () => {
 			'yamabiko-table-reorder-column-unavailable-cell'
 		);
 		expect(
-		document.querySelector( '.yamabiko-table-reorder-column-highlight--unavailable' )
+			document.querySelector( '.yamabiko-table-reorder-column-highlight--unavailable' )
 		).not.toBeNull();
 	} );
 
