@@ -240,7 +240,7 @@ describe( 'Column highlight boundary lifecycle', () => {
 	} );
 
 	/**
-	 * マウスポインターが列上に残る間は、editorがスクロールしてもhover表示を終了しないことを確認する。
+	 * マウスポインターが列上に残る間は、editorがスクロールしても現在列の位置へhover表示を追従させることを確認する。
 	 *
 	 * 事前条件:
 	 * - 列並び替えモード中にマウスで1列目へ操作可能表示が出ている。
@@ -249,28 +249,47 @@ describe( 'Column highlight boundary lifecycle', () => {
 	 * - ポインターを移動させずにTableを含むeditor内の要素をスクロールする。
 	 *
 	 * 期待結果:
-	 * - セル状態と列オーバーレイを維持する。
+	 * - 現在列の操作可能状態を維持する。
+	 * - 列オーバーレイをスクロール後の列位置へ更新する。
 	 */
-	it( 'when the editor scrolls while the mouse remains over a column, should keep the hover highlight', () => {
+	it( 'when the editor scrolls while the mouse remains over a column, should reposition the hover highlight to the current column', () => {
 		const { getByTestId } = render( <TestTable /> );
 		const wrapper = getByTestId( 'wrapper' );
 		const table = getByTestId( 'table' );
 		const firstCell = getByTestId( 'column-0' );
-
-		jest.spyOn( table, 'getBoundingClientRect' ).mockReturnValue( {
+		const tableRectangle = {
 			...createRectangle( 10 ),
 			height: 200,
 			bottom: 220,
-		} as DOMRect );
-		jest.spyOn( firstCell, 'getBoundingClientRect' ).mockReturnValue( createRectangle( 10 ) );
+		} as DOMRect;
+		const cellRectangle = createRectangle( 10 );
+		const tableRectangleAfterScroll = {
+			...createRectangle( -20 ),
+			height: 200,
+			bottom: 220,
+		} as DOMRect;
+		const cellRectangleAfterScroll = createRectangle( 40 );
+		const tableRectangles = jest
+			.spyOn( table, 'getBoundingClientRect' )
+			.mockReturnValueOnce( tableRectangle )
+			.mockReturnValue( tableRectangleAfterScroll );
+		const cellRectangles = jest
+			.spyOn( firstCell, 'getBoundingClientRect' )
+			.mockReturnValueOnce( cellRectangle )
+			.mockReturnValue( cellRectangleAfterScroll );
 
 		firePointerOver( firstCell, 'mouse' );
+		const overlay = document.querySelector( '.yamabiko-table-reorder-column-highlight' ) as HTMLDivElement;
 		expect( firstCell.className ).toBe( 'yamabiko-table-reorder-column-highlightable-cell' );
-		expect( document.querySelector( '.yamabiko-table-reorder-column-highlight' ) ).not.toBeNull();
+		expect( overlay ).not.toBeNull();
+		expect( overlay.style.left ).toBe( '10px' );
 
 		fireEvent.scroll( wrapper );
 
 		expect( firstCell.className ).toBe( 'yamabiko-table-reorder-column-highlightable-cell' );
-		expect( document.querySelector( '.yamabiko-table-reorder-column-highlight' ) ).not.toBeNull();
+		expect( document.querySelector( '.yamabiko-table-reorder-column-highlight' ) ).toBe( overlay );
+		expect( overlay.style.left ).toBe( '40px' );
+		expect( tableRectangles ).toHaveBeenCalledTimes( 2 );
+		expect( cellRectangles ).toHaveBeenCalledTimes( 2 );
 	} );
 } );
