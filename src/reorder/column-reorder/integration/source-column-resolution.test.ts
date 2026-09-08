@@ -7,7 +7,11 @@ import {
 	resolveColumnSourceIndex,
 } from './source-column-resolution';
 
-/** 縦結合と横結合を含むTableを生成する。 */
+/**
+ * 縦結合と横結合を含むTableを生成する。
+ *
+ * @return headとbodyで結合セル後の論理列解決を確認できるTableと対象セル。
+ */
 const createMergedTable = () => {
 	const table = document.createElement( 'table' );
 	table.innerHTML = `
@@ -33,6 +37,8 @@ const createMergedTable = () => {
 	const headTarget = table.querySelector( '[data-testid="head-target"]' );
 	const bodyTarget = table.querySelector( '[data-testid="body-target"]' );
 	const bodyNext = table.querySelector( '[data-testid="body-next"]' );
+
+	/* テスト前提となる対象セルを構築できない場合は、列解決の期待結果を評価せずテスト設定の不備として扱う。 */
 	if ( ! headTarget || ! bodyTarget || ! bodyNext ) {
 		throw new Error( 'Column source resolution test table could not be created.' );
 	}
@@ -106,6 +112,8 @@ describe( 'Column source resolution', () => {
 		const otherTable = document.createElement( 'table' );
 		otherTable.innerHTML = '<tbody><tr><td>Other</td></tr></tbody>';
 		const otherCell = otherTable.querySelector( 'td' );
+
+		/* 比較対象となる別Tableのセルを構築できない場合は、対象外判定ではなくテスト設定の不備として扱う。 */
 		if ( ! otherCell ) {
 			throw new Error( 'Other table cell could not be created.' );
 		}
