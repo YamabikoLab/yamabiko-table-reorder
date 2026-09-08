@@ -2,14 +2,18 @@
  * Column DnD Engine Integrationが、二段階Target Resolutionを経て物理DnD LifecycleをColumn DnD Interactionへ接続することを確認する。
  *
  * dnd-kit自体の挙動は再現せず、第二段階解決、Session開始、論理移動先、complete / cancel変換、
- * および無効化時に開始前状態を持ち越さないLifecycleを責務境界から観測できる振る舞いとして検証する。
+ * 横方向だけのAuto Scroll設定、および無効化時に開始前状態を持ち越さないLifecycleを責務境界から観測できる振る舞いとして検証する。
  */
 
-import type {
-	BeforeDragStartEvent,
-	DragEndEvent,
-	DragMoveEvent,
-	DragStartEvent,
+import {
+	AutoScroller,
+	Cursor,
+	Feedback,
+	PreventSelection,
+	type BeforeDragStartEvent,
+	type DragEndEvent,
+	type DragMoveEvent,
+	type DragStartEvent,
 } from '@dnd-kit/dom';
 import { DragDropProvider } from '@dnd-kit/react';
 import { render } from '@testing-library/react';
@@ -21,10 +25,12 @@ import { createColumnDestinationResolver } from './destination-resolution';
 import { ColumnDnd } from './dnd';
 
 jest.mock( '@dnd-kit/dom', () => ( {
-	AutoScroller: {},
-	Cursor: {},
-	PreventSelection: {},
-	Feedback: {},
+	AutoScroller: {
+		configure: jest.fn( () => 'column-auto-scroll' ),
+	},
+	Cursor: { name: 'cursor' },
+	PreventSelection: { name: 'prevent-selection' },
+	Feedback: { name: 'feedback' },
 	Draggable: jest.fn(),
 } ) );
 
@@ -57,6 +63,9 @@ jest.mock( '@/reorder/column-reorder/responsibilities/target-resolution', () => 
 } ) );
 
 const dragDropProviderMock = DragDropProvider as unknown as jest.Mock;
+const autoScrollerConfigureMock = AutoScroller.configure as jest.MockedFunction<
+	typeof AutoScroller.configure
+>;
 const destinationResolverFactoryMock = createColumnDestinationResolver as jest.MockedFunction<
 	typeof createColumnDestinationResolver
 >;
@@ -65,7 +74,7 @@ const targetResolutionMock = columnReorderTargetResolution as jest.Mocked<
 >;
 const dndInteractionMock = columnDndInteraction as jest.Mocked< typeof columnDndInteraction >;
 
-/** 現在のDragDropProviderへ渡された物理DnD Lifecycle処理を取得する。 */
+/** 現在のDragDropProviderへ渡された物理DnD Lifecycle処理とplugin構成処理を取得する。 */
 const getProviderProps = () => {
 	const call = dragDropProviderMock.mock.calls[ dragDropProviderMock.mock.calls.length - 1 ];
 	const props = call?.[ 0 ];
@@ -75,6 +84,7 @@ const getProviderProps = () => {
 	}
 
 	return props as {
+		plugins: ( defaults: unknown[] ) => unknown[];
 		onBeforeDragStart: ( event: BeforeDragStartEvent ) => void;
 		onDragStart: ( event?: DragStartEvent ) => void;
 		onDragMove: ( event: DragMoveEvent ) => void;
@@ -101,6 +111,7 @@ const resolvedTarget = {
 describe( 'Column DnD Engine Integration', () => {
 	beforeEach( () => {
 		jest.clearAllMocks();
+		autoScrollerConfigureMock.mockReturnValue( 'column-auto-scroll' as never );
 		targetResolutionMock.resolve.mockReturnValue( resolvedTarget );
 		destinationResolverFactoryMock.mockReturnValue( {
 			resolve: jest.fn().mockReturnValue( 3 ),
@@ -108,8 +119,7 @@ describe( 'Column DnD Engine Integration', () => {
 	} );
 
 	/**
-	 * 概要:
-	 * - 第二段階解決が成立した物理DnDをColumn DnD Sessionへ接続し、論理移動先だけを進行へ渡すことを確認する。
+	 * 第二段階解決が成立した物理DnDをColumn DnD Sessionへ接続し、論理移動先だけを進行へ渡すことを確認する。
 	 *
 	 * 事前条件:
 	 * - 第一段階で登録されたTargetが第二段階でも開始可能である。
@@ -169,8 +179,43 @@ describe( 'Column DnD Engine Integration', () => {
 	} );
 
 	/**
-	 * 概要:
-	 * - Destination Resolutionを開始時に生成できなくても、最初のmoveで再解決して論理移動先へ接続できることを確認する。
+	 * Column DnD Engine Integrationが既定Auto Scrollを置き換え、横方向だけを許可することを確認する。
+	 *
+	 * 事前条件:
+	 * - DnD Engineの既定pluginにはAutoScrollerとその他の標準pluginが含まれる。
+	 *
+	 * 操作:
+	 * - Column DnD境界のplugin構成を要求する。
+	 *
+	 * 期待結果:
+	 * - 既定AutoScrollerは残らず、Column Reorder用AutoScrollerが1つ追加される。
+	 * - 横方向の閾値だけが有効で、縦方向は無効になる。
+	 */
+	it( 'when DnD engine plugins are configured, should replace the default auto scroller with horizontal-only column auto scroll', () => {
+		render(
+			<ColumnDnd enabled tableIdentity="table-1">
+				{ () => <div /> }
+			</ColumnDnd>
+		);
+		const provider = getProviderProps();
+		const preservedPlugin = { name: 'preserved' };
+
+		const plugins = provider.plugins( [
+			Cursor,
+			PreventSelection,
+			Feedback,
+			AutoScroller,
+			preservedPlugin,
+		] );
+
+		expect( autoScrollerConfigureMock ).toHaveBeenCalledWith( {
+			threshold: { x: 0.2, y: 0 },
+		} );
+		expect( plugins ).toEqual( [ preservedPlugin, 'column-auto-scroll' ] );
+	} );
+
+	/**
+	 * Destination Resolutionを開始時に生成できなくても、最初のmoveで再解決して論理移動先へ接続できることを確認する。
 	 *
 	 * 事前条件:
 	 * - 第二段階Target Resolutionは開始可能である。
@@ -225,8 +270,7 @@ describe( 'Column DnD Engine Integration', () => {
 	} );
 
 	/**
-	 * 概要:
-	 * - 第一段階後のTable変化で第二段階が成立しない場合にColumn DnD Sessionを開始しないことを確認する。
+	 * 第一段階後のTable変化で第二段階が成立しない場合にColumn DnD Sessionを開始しないことを確認する。
 	 *
 	 * 事前条件:
 	 * - active DnD成立直前のTarget Resolutionが利用不能を返す。
@@ -266,8 +310,7 @@ describe( 'Column DnD Engine Integration', () => {
 	} );
 
 	/**
-	 * 概要:
-	 * - 物理DnDの取消終了をColumn DnD Sessionのcancelへ変換することを確認する。
+	 * 物理DnDの取消終了をColumn DnD Sessionのcancelへ変換することを確認する。
 	 *
 	 * 事前条件:
 	 * - 第二段階解決が成立しColumn DnD Sessionが開始している。
@@ -306,14 +349,13 @@ describe( 'Column DnD Engine Integration', () => {
 	} );
 
 	/**
-	 * 概要:
-	 * - Column Reorder無効化後の再有効化で、無効化前の開始候補を持ち越さないことを確認する。
+	 * Column Reorder無効化後の再有効化で、無効化前の開始候補を持ち越さないことを確認する。
 	 *
 	 * 事前条件:
 	 * - 第二段階Target Resolutionだけが成立し、まだSession開始通知は行われていない。
 	 *
 	 * 操作:
-	 * - Column Reorderを無効化してから再度有効化し、新しいPC入力なしでstart通知を行う。
+	 * - Column Reorderを無効化してから再度有効化し、新しい入力なしでstart通知を行う。
 	 *
 	 * 期待結果:
 	 * - 無効化前の解決結果ではColumn DnD Sessionを開始できない。
