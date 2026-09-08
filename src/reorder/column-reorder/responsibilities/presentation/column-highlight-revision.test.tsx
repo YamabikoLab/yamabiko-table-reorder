@@ -1,25 +1,15 @@
 /**
- * Column Highlightが、同一TableのBlockデータ更新後に更新前のResolver snapshotを持ち越さないことを確認する。
+ * Column Highlightが、同一Tableのデータrevision更新後に更新前のResolver snapshotを持ち越さないことを確認する。
  */
 
-import { act, fireEvent, render } from '@testing-library/react';
+import { fireEvent, render } from '@testing-library/react';
 
-import { subscribeColumnTableRevision } from '@/reorder/column-reorder/integration/table-revision';
 import { columnReorderTargetResolution } from '@/reorder/column-reorder/responsibilities/target-resolution';
 
 import { ColumnHighlight } from './column-highlight';
 
-let mockTableRevisionListener: ( () => void ) | null = null;
-
 jest.mock( '@/reorder/column-reorder/integration/dnd-interaction-react', () => ( {
 	useColumnDndPhase: () => 'idle',
-} ) );
-
-jest.mock( '@/reorder/column-reorder/integration/table-revision', () => ( {
-	subscribeColumnTableRevision: jest.fn( ( _tableIdentity: string, listener: () => void ) => {
-		mockTableRevisionListener = listener;
-		return jest.fn();
-	} ),
 } ) );
 
 jest.mock( '@/reorder/column-reorder/responsibilities/target-resolution', () => ( {
@@ -28,16 +18,19 @@ jest.mock( '@/reorder/column-reorder/responsibilities/target-resolution', () => 
 	},
 } ) );
 
-const subscribeColumnTableRevisionMock = subscribeColumnTableRevision as jest.MockedFunction<
-	typeof subscribeColumnTableRevision
->;
 const createResolverMock = columnReorderTargetResolution.createResolver as jest.MockedFunction<
 	typeof columnReorderTargetResolution.createResolver
 >;
 
-/** 同一Table更新時のHighlight Lifecycleを確認する最小Tableを描画する。 */
-const TestTable = () => (
-	<ColumnHighlight enabled tableIdentity="table-a">
+/**
+ * 同一Table更新時のHighlight Lifecycleを確認する最小Tableを描画する。
+ *
+ * @param props               描画条件。
+ * @param props.tableRevision WordPress Integrationが提供する同一Tableデータの不透明なrevision。
+ * @return Column Highlightへ接続されたTable。
+ */
+const TestTable = ( props: { tableRevision: unknown } ) => (
+	<ColumnHighlight enabled tableIdentity="table-a" tableRevision={ props.tableRevision }>
 		{ ( onPointerOverCapture ) => (
 			<div onPointerOverCapture={ onPointerOverCapture }>
 				<table>
@@ -56,7 +49,6 @@ const TestTable = () => (
 describe( 'Column highlight table revision lifecycle', () => {
 	beforeEach( () => {
 		jest.clearAllMocks();
-		mockTableRevisionListener = null;
 	} );
 
 	/**
@@ -68,14 +60,14 @@ describe( 'Column highlight table revision lifecycle', () => {
 	 *
 	 * 操作:
 	 * - 更新前に1列目をホバーしてResolver snapshotを生成する。
-	 * - 同一TableのBlockデータ更新を通知する。
+	 * - 同一Tableのデータrevisionを更新する。
 	 * - 1列目を再度ホバーする。
 	 *
 	 * 期待結果:
-	 * - 更新前の操作可能表示はTable更新時に終了する。
+	 * - 更新前の操作可能表示はrevision更新時に終了する。
 	 * - 次のホバーでは新しいTarget Resolverが生成され、現在構造の開始拒否表示になる。
 	 */
-	it( 'when the same table data changes, should rebuild the target resolver before the next highlight', () => {
+	it( 'when the same table revision changes, should rebuild the target resolver before the next highlight', () => {
 		const initialResolve = jest.fn( () => ( {
 			status: 'resolved' as const,
 			target: { tableIdentity: 'table-a', sourceColumnIndex: 0 },
@@ -88,23 +80,18 @@ describe( 'Column highlight table revision lifecycle', () => {
 		createResolverMock
 			.mockReturnValueOnce( { resolve: initialResolve } )
 			.mockReturnValueOnce( { resolve: refreshedResolve } );
-		const { getByTestId } = render( <TestTable /> );
+		const initialRevision = { body: [] };
+		const { getByTestId, rerender } = render( <TestTable tableRevision={ initialRevision } /> );
 		const cell = getByTestId( 'first-cell' );
 
 		fireEvent.pointerOver( cell );
 		expect( cell.className ).toBe( 'yamabiko-table-reorder-column-highlightable-cell' );
 
-		act( () => {
-			mockTableRevisionListener?.();
-		} );
+		rerender( <TestTable tableRevision={ { body: [ { cells: [] } ] } } /> );
 		expect( cell.className ).toBe( '' );
 
 		fireEvent.pointerOver( cell );
 
-		expect( subscribeColumnTableRevisionMock ).toHaveBeenCalledWith(
-			'table-a',
-		expect.any( Function )
-		);
 		expect( createResolverMock ).toHaveBeenCalledTimes( 2 );
 		expect( initialResolve ).toHaveBeenCalledWith( 0 );
 		expect( refreshedResolve ).toHaveBeenCalledWith( 0 );
