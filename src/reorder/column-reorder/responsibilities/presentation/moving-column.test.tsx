@@ -1,7 +1,7 @@
 /**
  * Column Reorderの移動対象表示が、意味上のDnD Sessionと物理DnD情報を責務どおり組み合わせることを確認する。
  *
- * active Session中だけの表示、可視範囲への限定、縦横追従、背景表示、横罫線、入力対象外、終了時解除を検証する。
+ * active Session中だけの表示、可視範囲への限定、元Tableの表示寸法維持、縦横追従、背景表示、横罫線、入力対象外、終了時解除を検証する。
  */
 
 import { act, render } from '@testing-library/react';
@@ -139,6 +139,38 @@ describe( 'Column moving display', () => {
 	} );
 
 	/**
+	 * 物理DnD情報だけでは移動表示を開始せず、Column DnD Sessionの意味状態を表示Lifecycleの正本とすることを確認する。
+	 *
+	 * 事前条件:
+	 * - DnD Engineから移動対象セルと開始位置を取得できる。
+	 * - Column DnD Sessionはまだidleである。
+	 *
+	 * 操作:
+	 * - 物理DnD開始を通知する。
+	 * - その後Column DnD Sessionをactiveへ遷移させる。
+	 *
+	 * 期待結果:
+	 * - idle中は移動表示も元列の半透明表示も開始しない。
+	 * - activeになった時点で、同じ物理DnDの移動表示と元列表示が開始する。
+	 */
+	it( 'when physical drag information exists before the column session becomes active, should show the moving column only after the session is active', () => {
+		mockColumnDndPhase = 'idle';
+		const { sourceCell } = createSourceTable();
+		const { rerender } = render( <ColumnMovingDisplay /> );
+
+		startPhysicalDrag( sourceCell );
+
+		expect( document.querySelector( '.yamabiko-table-reorder-moving-column' ) ).toBeNull();
+		expect( sourceCell.classList ).not.toContain( 'yamabiko-table-reorder-moving-column-source' );
+
+		mockColumnDndPhase = 'active';
+		rerender( <ColumnMovingDisplay /> );
+
+		expect( document.querySelector( '.yamabiko-table-reorder-moving-column' ) ).not.toBeNull();
+		expect( sourceCell.classList ).toContain( 'yamabiko-table-reorder-moving-column-source' );
+	} );
+
+	/**
 	 * editor表示領域に見えているセルだけを移動表示へ保持し、上下の表示範囲外へ描画対象を広げないことを確認する。
 	 *
 	 * 事前条件:
@@ -166,6 +198,47 @@ describe( 'Column moving display', () => {
 		expect( previousOutsideMeasurement ).not.toHaveBeenCalled();
 		expect( nextOutsideMeasurement ).not.toHaveBeenCalled();
 		expect( overlay?.hasAttribute( 'inert' ) ).toBe( true );
+	} );
+
+	/**
+	 * 結合セルを含む列でも、Table構造を再解釈せず元DOMの表示寸法を移動表示へ維持することを確認する。
+	 *
+	 * 事前条件:
+	 * - 移動対象セルは2行分のrowspanを持つ。
+	 * - 元DOMでは移動対象列幅が100px、結合セル高が80pxとして表示されている。
+	 *
+	 * 操作:
+	 * - activeなColumn DnDで移動表示を開始する。
+	 *
+	 * 期待結果:
+	 * - 移動表示の列幅は元列と同じ100pxである。
+	 * - 結合セルは元DOMと同じ80pxの高さを維持する。
+	 */
+	it( 'when a moving column contains a rowspan cell, should preserve the source column width and the merged cell display height', () => {
+		const { cells, sourceCell } = createSourceTable();
+		sourceCell.rowSpan = 2;
+		( sourceCell.getBoundingClientRect as jest.Mock ).mockReturnValue(
+			rectangle( {
+				top: 40,
+				bottom: 120,
+				left: 100,
+				right: 200,
+				width: 100,
+				height: 80,
+			} )
+		);
+		render( <ColumnMovingDisplay /> );
+
+		startPhysicalDrag( sourceCell );
+
+		const overlay = document.querySelector(
+			'.yamabiko-table-reorder-moving-column'
+		) as HTMLElement | null;
+		const movingSource = getMovingSourceCell();
+		expect( overlay?.style.width ).toBe( '100px' );
+		expect( movingSource?.style.width ).toBe( '100px' );
+		expect( movingSource?.style.height ).toBe( '80px' );
+		expect( cells[ 1 ].getBoundingClientRect ).toHaveBeenCalled();
 	} );
 
 	/**
