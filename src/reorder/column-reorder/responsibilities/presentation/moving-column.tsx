@@ -2,7 +2,7 @@
  * Column Reorderの移動対象列を、実Tableの列順を変えない独立した移動表示として描画する。
  *
  * Column DnDの意味上のLifecycleはDnD InteractionのReact境界から受け取り、表示に必要な移動対象DOMと物理位置だけをDnD Engineから利用する。
- * 大規模Tableでは全行を複製せず、現在のeditor表示領域とその前後の少量だけを開始時表示として保持する。
+ * 大規模Tableでは全行を複製せず、現在のeditor表示領域だけを開始時表示として保持する。
  * 移動表示は物理DnDへ縦横とも追従し、利用者が元Tableからずらしてセル内容を比較できるようにする。
  */
 
@@ -241,41 +241,13 @@ const resolveTableCellAtPoint = (
 };
 
 /**
- * 一つのTable行から、移動対象列の物理位置と重なるセルを解決する。
- *
- * @param row   近傍表示として確認するTable行。
- * @param table Column Reorder対象Table。
- * @param x     移動対象列内の横位置。
- * @return 横位置を覆う対象Tableセル。存在しない場合はnull。
- */
-const resolveCellInRowAtX = (
-	row: HTMLTableRowElement,
-	table: HTMLTableElement,
-	x: number
-): HTMLTableCellElement | null => {
-	/* 近傍一行だけを確認し、Table全行の計測へ処理範囲を広げず移動表示の余白を解決する。 */
-	for ( const cell of Array.from( row.cells ) ) {
-		if ( cell.closest( 'table' ) !== table ) {
-			continue;
-		}
-
-		const rectangle = cell.getBoundingClientRect();
-		if ( x >= rectangle.left && x < rectangle.right ) {
-			return cell;
-		}
-	}
-
-	return null;
-};
-
-/**
- * 現在見えている移動対象列セルと、その直前・直後の少量の近傍セルを開始時snapshotとして取得する。
+ * 現在見えている移動対象列セルだけを開始時snapshotとして取得する。
  *
  * @param table          Column Reorder対象Table。
  * @param sourceCell     DnD Engineが移動対象として管理する開始セル。
  * @param editorDocument 現在のeditor contextに対応するdocument。
  * @param editorWindow   現在のeditor contextに対応するwindow。
- * @return 表示領域と少量の余白に含める移動対象列セル。
+ * @return editor表示領域に見えている移動対象列セル。
  */
 const collectMovingColumnCells = (
 	table: HTMLTableElement,
@@ -319,25 +291,6 @@ const collectMovingColumnCells = (
 	if ( ! seenCells.has( sourceCell ) ) {
 		seenCells.add( sourceCell );
 		visibleCells.push( sourceCell );
-	}
-
-	visibleCells.sort(
-		( first, second ) => first.getBoundingClientRect().top - second.getBoundingClientRect().top
-	);
-	const firstRow = visibleCells[ 0 ]?.parentElement as HTMLTableRowElement | null;
-	const lastRow = visibleCells[ visibleCells.length - 1 ]
-		?.parentElement as HTMLTableRowElement | null;
-	const previousRow = firstRow ? table.rows.item( firstRow.rowIndex - 1 ) : null;
-	const nextRow = lastRow ? table.rows.item( lastRow.rowIndex + 1 ) : null;
-	const previousCell = previousRow ? resolveCellInRowAtX( previousRow, table, probeX ) : null;
-	const nextCell = nextRow ? resolveCellInRowAtX( nextRow, table, probeX ) : null;
-
-	/* 小さな縦移動で内容が直ちに欠けないよう、可視範囲の前後一行で同じ列位置を覆うセルだけを余白として加える。 */
-	for ( const cell of [ previousCell, nextCell ] ) {
-		if ( cell !== null && ! seenCells.has( cell ) ) {
-			seenCells.add( cell );
-			visibleCells.push( cell );
-		}
 	}
 
 	return visibleCells
@@ -475,7 +428,7 @@ const renderMovingColumn = (
 ): void => {
 	const fragment = layout.editorDocument.createDocumentFragment();
 
-	/* 可視範囲と少量の余白だけを独立したセル表示へ変換し、Table全行の複製を発生させない。 */
+	/* 可視範囲だけを独立したセル表示へ変換し、Table全行の複製を発生させない。 */
 	layout.cells.forEach( ( snapshot ) => {
 		const sourceRow = snapshot.sourceCell.parentElement as HTMLTableRowElement | null;
 		const sourceSection = sourceRow?.parentElement as HTMLTableSectionElement | null;
@@ -568,7 +521,7 @@ const ColumnMovingOverlay = ( props: {
 /**
  * Column DnDの意味状態とDnD Engineの物理情報を組み合わせ、移動対象列の独立表示だけを管理する。
  *
- * 元Tableの列順は変更せず、開始時に取得した可視範囲と少量の余白だけをそのDnD中のsnapshotとして維持する。
+ * 元Tableの列順は変更せず、開始時に取得した可視範囲だけをそのDnD中のsnapshotとして維持する。
  * 移動表示は縦横とも物理移動へ追従するが、縦方向の見かけ上の移動を論理移動先判定へ反映しない。
  *
  * @return activeなColumn DnD中は移動対象列表示。それ以外はnull。
