@@ -19,12 +19,21 @@ const SOURCE_CELL_CLASS = 'yamabiko-table-reorder-moving-column-source';
 const DRAGGING_CLASS = 'yamabiko-table-reorder-column-dragging';
 const VIEWPORT_SCAN_STEP = 8;
 
+/** DnD開始時に確定し、移動表示へ保持する横罫線。 */
+type ColumnMovingHorizontalBorderSnapshot = {
+	width: string;
+	style: string;
+	color: string;
+};
+
 /** DnD開始時に確定し、移動表示へ保持する一つの移動対象列セル。 */
 type ColumnMovingCellSnapshot = {
 	sourceCell: HTMLTableCellElement;
 	top: number;
 	height: number;
 	backgroundColor: string;
+	borderTop: ColumnMovingHorizontalBorderSnapshot | null;
+	borderBottom: ColumnMovingHorizontalBorderSnapshot | null;
 };
 
 /** Column DnD開始時に確定し、そのDnD中の移動表示で維持する配置情報。 */
@@ -107,6 +116,100 @@ const resolveCellBackgroundColor = ( cell: HTMLTableCellElement, editorWindow: W
 	}
 
 	return '#fff';
+};
+
+/**
+ * 計算済み罫線から、元Tableで見えている横罫線をsnapshotする。
+ *
+ * @param style 計算済みスタイル。
+ * @param side  上辺または下辺。
+ * @return 表示される横罫線。罫線がない場合はnull。
+ */
+const resolveHorizontalBorder = (
+	style: CSSStyleDeclaration,
+	side: 'top' | 'bottom'
+): ColumnMovingHorizontalBorderSnapshot | null => {
+	const width = side === 'top' ? style.borderTopWidth : style.borderBottomWidth;
+	const borderStyle = side === 'top' ? style.borderTopStyle : style.borderBottomStyle;
+	const color = side === 'top' ? style.borderTopColor : style.borderBottomColor;
+	const numericWidth = Number.parseFloat( width );
+
+	if (
+		! Number.isFinite( numericWidth ) ||
+		numericWidth <= 0 ||
+		borderStyle === 'none' ||
+		borderStyle === 'hidden'
+	) {
+		return null;
+	}
+
+	return { width, style: borderStyle, color };
+};
+
+/**
+ * 同じ境界へ寄与する罫線のうち、元Tableで優先して見える太い罫線を選ぶ。
+ *
+ * @param candidates セル、行、sectionから得た同じ境界の罫線候補。
+ * @return 最も太い罫線。候補がない場合はnull。
+ */
+const resolveStrongestHorizontalBorder = (
+	candidates: Array< ColumnMovingHorizontalBorderSnapshot | null >
+): ColumnMovingHorizontalBorderSnapshot | null => {
+	let strongest: ColumnMovingHorizontalBorderSnapshot | null = null;
+
+	/* セル・行・sectionが同じ境界へ持つ罫線から、見出し区切りなど太い線を失わない候補を選ぶ。 */
+	for ( const candidate of candidates ) {
+		if ( candidate === null ) {
+			continue;
+		}
+
+		if (
+			strongest === null ||
+			Number.parseFloat( candidate.width ) > Number.parseFloat( strongest.width )
+		) {
+			strongest = candidate;
+		}
+	}
+
+	return strongest;
+};
+
+/**
+ * 元セルの上下境界について、セル、行、sectionの計算済み罫線を元Tableの見た目として解決する。
+ *
+ * sectionの罫線は、そのsectionの先頭行または末尾行に接する場合だけ対象とする。
+ *
+ * @param cell         移動対象列として描画する元セル。
+ * @param editorWindow 現在のeditor contextに対応するwindow。
+ * @return 移動表示へ固定する上辺と下辺の横罫線。
+ */
+const resolveCellHorizontalBorders = (
+	cell: HTMLTableCellElement,
+	editorWindow: Window
+): Pick< ColumnMovingCellSnapshot, 'borderTop' | 'borderBottom' > => {
+	const sourceRow = cell.parentElement?.tagName === 'TR' ? cell.parentElement : null;
+	const sourceSection =
+		sourceRow?.parentElement && [ 'THEAD', 'TBODY', 'TFOOT' ].includes( sourceRow.parentElement.tagName )
+			? sourceRow.parentElement
+			: null;
+	const cellStyle = editorWindow.getComputedStyle( cell );
+	const rowStyle = sourceRow ? editorWindow.getComputedStyle( sourceRow ) : null;
+	const sectionStyle = sourceSection ? editorWindow.getComputedStyle( sourceSection ) : null;
+	const isFirstRowInSection = sourceRow !== null && sourceSection?.firstElementChild === sourceRow;
+	const isLastRowInSection = sourceRow !== null && sourceSection?.lastElementChild === sourceRow;
+
+	const borderTop = resolveStrongestHorizontalBorder( [
+		resolveHorizontalBorder( cellStyle, 'top' ),
+		rowStyle ? resolveHorizontalBorder( rowStyle, 'top' ) : null,
+		isFirstRowInSection && sectionStyle ? resolveHorizontalBorder( sectionStyle, 'top' ) : null,
+	] );
+	const borderBottom = resolveStrongestHorizontalBorder( [
+		resolveHorizontalBorder( cellStyle, 'bottom' ),
+		rowStyle ? resolveHorizontalBorder( rowStyle, 'bottom' ) : null,
+		isLastRowInSection && sectionStyle ? resolveHorizontalBorder( sectionStyle, 'bottom' ) : null,
+	] );
+
+	return { borderTop, borderBottom };
 };
 
 /**
@@ -233,11 +336,13 @@ const collectMovingColumnCells = (
 	return visibleCells
 		.map( ( cell ) => {
 			const rectangle = cell.getBoundingClientRect();
+			const horizontalBorders = resolveCellHorizontalBorders( cell, editorWindow );
 			return {
 				sourceCell: cell,
 				top: rectangle.top,
 				height: rectangle.height,
 				backgroundColor: resolveCellBackgroundColor( cell, editorWindow ),
+				...horizontalBorders,
 			};
 		} )
 		.sort( ( first, second ) => first.top - second.top );
@@ -323,6 +428,31 @@ const removeDuplicatedIds = ( element: Element ): void => {
 };
 
 /**
+ * 元Tableの横罫線を、複製先のCSS再評価に左右されない開始時表示として固定する。
+ *
+ * @param cell   移動表示として描画する複製セル。
+ * @param side   上辺または下辺。
+ * @param border DnD開始時に確定した横罫線。元Tableに罫線がない場合はnull。
+ */
+const applyHorizontalBorder = (
+	cell: HTMLTableCellElement,
+	side: 'top' | 'bottom',
+	border: ColumnMovingHorizontalBorderSnapshot | null
+): void => {
+	const property = `border-${ side }`;
+	if ( border === null ) {
+		cell.style.setProperty( property, 'none', 'important' );
+		return;
+	}
+
+	cell.style.setProperty(
+		property,
+		`${ border.width } ${ border.style } ${ border.color }`,
+		'important'
+	);
+};
+
+/**
  * DnD開始時のセル表示を、移動対象列の開始時配置を保つ独立した表示へ構成する。
  *
  * @param layout    DnD開始時に確定した移動対象列の表示配置。
@@ -353,8 +483,11 @@ const renderMovingColumn = (
 		clonedCell.style.minWidth = `${ layout.columnWidth }px`;
 		clonedCell.style.maxWidth = `${ layout.columnWidth }px`;
 		clonedCell.style.height = `${ snapshot.height }px`;
-		clonedCell.style.backgroundColor = snapshot.backgroundColor;
+		clonedCell.style.setProperty( 'background-color', snapshot.backgroundColor, 'important' );
+		applyHorizontalBorder( clonedCell, 'top', snapshot.borderTop );
+		applyHorizontalBorder( clonedCell, 'bottom', snapshot.borderBottom );
 		row.className = sourceRow?.className ?? '';
+		section.className = sourceSection?.className ?? '';
 		row.appendChild( clonedCell );
 		section.appendChild( row );
 		table.appendChild( section );
