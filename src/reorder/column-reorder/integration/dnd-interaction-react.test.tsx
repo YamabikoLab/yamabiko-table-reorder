@@ -23,9 +23,7 @@ jest.mock( '@/reorder/column-reorder/responsibilities/dnd-interaction', () => ( 
 	subscribeColumnDndState: jest.fn(),
 } ) );
 
-const getColumnDndPhaseMock = getColumnDndPhase as jest.MockedFunction<
-	typeof getColumnDndPhase
->;
+const getColumnDndPhaseMock = getColumnDndPhase as jest.MockedFunction< typeof getColumnDndPhase >;
 const getColumnDndDestinationBoundaryIndexMock =
 	getColumnDndDestinationBoundaryIndex as jest.MockedFunction<
 		typeof getColumnDndDestinationBoundaryIndex
