@@ -38,7 +38,11 @@ type CachedSourceResolver = {
 	resolver: ColumnSourceIndexResolver;
 };
 
-/** 列ホバー表示が既存Block wrapperのポインター入力へ接続する処理。 */
+/**
+ * 列ホバー表示が既存Block wrapperのポインター入力へ接続する処理。
+ *
+ * @param event 現在の操作可否表示対象を解決するポインター入力。
+ */
 export type ColumnHighlightPointerOverHandler = ( event: PointerEvent< Element > ) => void;
 
 /**
