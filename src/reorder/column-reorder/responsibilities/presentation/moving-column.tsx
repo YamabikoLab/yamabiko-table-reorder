@@ -92,12 +92,11 @@ const isTransparentBackground = ( backgroundColor: string ): boolean => {
 /**
  * 元Tableで実際に見えている背景を、セル背景、行背景の優先順位で解決する。
  *
- * 背景色を解決できない場合はnullを返し、複製セルが元々持つインライン背景を上書きせず、
- * 最終的な透明背景はOverlay自体の白背景へ委ねる。
+ * セル背景と行背景の両方が透明な場合はnullを返し、描画時にOverlayの白背景を明示的なfallbackとして適用する。
  *
  * @param cell         移動対象列として描画する元セル。
  * @param editorWindow 現在のeditor contextに対応するwindow。
- * @return 移動表示へ固定する背景色。明示的に固定しない場合はnull。
+ * @return 移動表示へ固定する背景色。セル背景と行背景の両方が透明な場合はnull。
  */
 const resolveCellBackgroundColor = (
 	cell: HTMLTableCellElement,
@@ -482,6 +481,7 @@ const renderMovingColumn = (
 		);
 		const row = layout.editorDocument.createElement( 'tr' );
 		const clonedCell = snapshot.sourceCell.cloneNode( true ) as HTMLTableCellElement;
+		const backgroundColor = snapshot.backgroundColor ?? '#fff';
 
 		removeDuplicatedIds( clonedCell );
 		clonedCell.classList.remove( SOURCE_CELL_CLASS );
@@ -491,10 +491,9 @@ const renderMovingColumn = (
 		clonedCell.style.maxWidth = `${ layout.columnWidth }px`;
 		clonedCell.style.height = `${ snapshot.height }px`;
 
-		/* 元セルや元行から計算済み背景を確定できる場合だけ上書きし、それ以外ではcloneが保持するセル固有背景を壊さない。 */
-		if ( snapshot.backgroundColor !== null ) {
-			clonedCell.style.setProperty( 'background-color', snapshot.backgroundColor, 'important' );
-		}
+		/* 1セルTableへ分解しても元Tableの背景レイヤーを失わないよう、解決済みの最終背景を行とセルの両方へ固定する。 */
+		row.style.setProperty( 'background-color', backgroundColor, 'important' );
+		clonedCell.style.setProperty( 'background-color', backgroundColor, 'important' );
 
 		applyHorizontalBorder( clonedCell, 'top', snapshot.borderTop );
 		applyHorizontalBorder( clonedCell, 'bottom', snapshot.borderBottom );
