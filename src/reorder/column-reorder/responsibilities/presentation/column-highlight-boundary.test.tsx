@@ -42,6 +42,21 @@ const createRectangle = ( left: number ): DOMRect =>
 	} ) as DOMRect;
 
 /**
+ * ポインター開始入力の入力種別を明示して通知する。
+ *
+ * @param target      ポインターが入る要素。
+ * @param pointerType 入力手段を識別するPointer Eventsの種別。
+ */
+const firePointerOver = ( target: Element, pointerType: 'mouse' | 'touch' ): void => {
+	const event = createEvent.pointerOver( target, { pointerType } );
+	Object.defineProperty( event, 'pointerType', {
+		configurable: true,
+		value: pointerType,
+	} );
+	fireEvent( target, event );
+};
+
+/**
  * ポインター終了入力の入力種別と移動先を明示して通知する。
  *
  * @param target        ポインターが離れる要素。
@@ -132,7 +147,7 @@ describe( 'Column highlight boundary lifecycle', () => {
 		jest.spyOn( firstCell, 'getBoundingClientRect' ).mockReturnValue( createRectangle( 10 ) );
 		jest.spyOn( secondCell, 'getBoundingClientRect' ).mockReturnValue( createRectangle( 110 ) );
 
-		fireEvent.pointerOver( firstCell, { pointerType: 'mouse' } );
+		firePointerOver( firstCell, 'mouse' );
 		expect( firstCell.className ).toBe( 'yamabiko-table-reorder-column-highlightable-cell' );
 		expect( document.querySelector( '.yamabiko-table-reorder-column-highlight' ) ).not.toBeNull();
 
@@ -175,14 +190,14 @@ describe( 'Column highlight boundary lifecycle', () => {
 		jest.spyOn( firstCell, 'getBoundingClientRect' ).mockReturnValue( createRectangle( 10 ) );
 		jest.spyOn( secondCell, 'getBoundingClientRect' ).mockReturnValue( createRectangle( 110 ) );
 
-		fireEvent.pointerOver( firstCell, { pointerType: 'touch' } );
+		firePointerOver( firstCell, 'touch' );
 		fireEvent.pointerUp( firstCell, { pointerType: 'touch' } );
 		firePointerOut( wrapper, document.body, 'touch' );
 
 		expect( firstCell.className ).toBe( 'yamabiko-table-reorder-column-highlightable-cell' );
 		expect( document.querySelector( '.yamabiko-table-reorder-column-highlight' ) ).not.toBeNull();
 
-		fireEvent.pointerOver( secondCell, { pointerType: 'touch' } );
+		firePointerOver( secondCell, 'touch' );
 
 		expect( firstCell.className ).toBe( '' );
 		expect( secondCell.className ).toBe( 'yamabiko-table-reorder-column-highlightable-cell' );
@@ -214,7 +229,7 @@ describe( 'Column highlight boundary lifecycle', () => {
 		} as DOMRect );
 		jest.spyOn( firstCell, 'getBoundingClientRect' ).mockReturnValue( createRectangle( 10 ) );
 
-		fireEvent.pointerOver( firstCell, { pointerType: 'touch' } );
+		firePointerOver( firstCell, 'touch' );
 		expect( firstCell.className ).toBe( 'yamabiko-table-reorder-column-highlightable-cell' );
 		expect( document.querySelector( '.yamabiko-table-reorder-column-highlight' ) ).not.toBeNull();
 
@@ -249,7 +264,7 @@ describe( 'Column highlight boundary lifecycle', () => {
 		} as DOMRect );
 		jest.spyOn( firstCell, 'getBoundingClientRect' ).mockReturnValue( createRectangle( 10 ) );
 
-		fireEvent.pointerOver( firstCell, { pointerType: 'mouse' } );
+		firePointerOver( firstCell, 'mouse' );
 		expect( firstCell.className ).toBe( 'yamabiko-table-reorder-column-highlightable-cell' );
 		expect( document.querySelector( '.yamabiko-table-reorder-column-highlight' ) ).not.toBeNull();
 
