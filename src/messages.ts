@@ -32,6 +32,14 @@ export const getRowDndStartRejectionMessage = () =>
 	__( 'Cannot move because cells are merged.', 'yamabiko-table-reorder' );
 
 /**
+ * 結合セルにより列DnDを開始できない理由を知らせる文言を取得する。
+ *
+ * @return 現在の言語に対応した列DnD開始拒否メッセージ。
+ */
+export const getColumnDndStartRejectionMessage = () =>
+	__( 'Cannot move because cells are merged.', 'yamabiko-table-reorder' );
+
+/**
  * 行DnDを安全に継続できず終了したことを知らせる文言を取得する。
  *
  * @return 現在の言語に対応した行DnD異常終了メッセージ。
