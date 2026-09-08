@@ -192,7 +192,11 @@ const collectMovingColumnCells = (
 		}
 
 		const rectangle = cell.getBoundingClientRect();
-		if ( ! seenCells.has( cell ) && rectangle.bottom > visibleTop && rectangle.top < visibleBottom ) {
+		if (
+			! seenCells.has( cell ) &&
+			rectangle.bottom > visibleTop &&
+			rectangle.top < visibleBottom
+		) {
 			seenCells.add( cell );
 			visibleCells.push( cell );
 		}
@@ -211,7 +215,8 @@ const collectMovingColumnCells = (
 		( first, second ) => first.getBoundingClientRect().top - second.getBoundingClientRect().top
 	);
 	const firstRow = visibleCells[ 0 ]?.parentElement as HTMLTableRowElement | null;
-	const lastRow = visibleCells[ visibleCells.length - 1 ]?.parentElement as HTMLTableRowElement | null;
+	const lastRow = visibleCells[ visibleCells.length - 1 ]
+		?.parentElement as HTMLTableRowElement | null;
 	const previousRow = firstRow ? table.rows.item( firstRow.rowIndex - 1 ) : null;
 	const nextRow = lastRow ? table.rows.item( lastRow.rowIndex + 1 ) : null;
 	const previousCell = previousRow ? resolveCellInRowAtX( previousRow, table, probeX ) : null;
@@ -323,7 +328,10 @@ const removeDuplicatedIds = ( element: Element ): void => {
  * @param layout    DnD開始時に確定した移動対象列の表示配置。
  * @param container 移動対象列セルを描画する境界。
  */
-const renderMovingColumn = ( layout: ColumnMovingDisplayLayout, container: HTMLDivElement ): void => {
+const renderMovingColumn = (
+	layout: ColumnMovingDisplayLayout,
+	container: HTMLDivElement
+): void => {
 	const fragment = layout.editorDocument.createDocumentFragment();
 
 	/* 可視範囲と少量の余白だけを独立したセル表示へ変換し、Table全行の複製を発生させない。 */
@@ -350,7 +358,8 @@ const renderMovingColumn = ( layout: ColumnMovingDisplayLayout, container: HTMLD
 		row.appendChild( clonedCell );
 		section.appendChild( row );
 		table.appendChild( section );
-		table.className = `${ layout.sourceTable.className } yamabiko-table-reorder-moving-column-cell-table`.trim();
+		table.className =
+			`${ layout.sourceTable.className } yamabiko-table-reorder-moving-column-cell-table`.trim();
 		table.style.top = `${ snapshot.top - layout.snapshotTop }px`;
 		table.style.width = `${ layout.columnWidth }px`;
 		table.style.height = `${ snapshot.height }px`;
@@ -478,12 +487,16 @@ export const ColumnMovingDisplay = () => {
 		layout.cells.forEach( ( snapshot ) => snapshot.sourceCell.classList.add( SOURCE_CELL_CLASS ) );
 		layout.editorDocument.body.classList.add( DRAGGING_CLASS );
 		return () => {
-			layout.cells.forEach( ( snapshot ) => snapshot.sourceCell.classList.remove( SOURCE_CELL_CLASS ) );
+			layout.cells.forEach( ( snapshot ) =>
+				snapshot.sourceCell.classList.remove( SOURCE_CELL_CLASS )
+			);
 			layout.editorDocument.body.classList.remove( DRAGGING_CLASS );
 		};
 	}, [ phase, layout ] );
 
 	const visible = phase === 'active' && layout !== null;
-	const movingDisplay = visible ? <ColumnMovingOverlay layout={ layout } position={ position } /> : null;
+	const movingDisplay = visible ? (
+		<ColumnMovingOverlay layout={ layout } position={ position } />
+	) : null;
 	return movingDisplay;
 };

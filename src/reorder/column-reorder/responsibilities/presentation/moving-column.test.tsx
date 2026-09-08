@@ -105,7 +105,10 @@ const createSourceTable = () => {
 	return { table, rows, cells, sourceCell: cells[ 2 ] };
 };
 
-/** DnD Engineから移動対象列の物理DnD開始を通知する。 */
+/**
+ * DnD Engineから移動対象列の物理DnD開始を通知する。
+ * @param sourceCell
+ */
 const startPhysicalDrag = ( sourceCell: HTMLTableCellElement ) => {
 	act( () => {
 		mockDragDropMonitor.onDragStart?.( {
