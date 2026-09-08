@@ -162,8 +162,7 @@ export const ColumnHighlight = ( props: {
 		status: Exclude< ColumnHighlightStatus, 'unavailable' >
 	): void => {
 		clearVisualState( currentCell.current, currentOverlay.current );
-		const cellClass =
-			status === 'resolved' ? HIGHLIGHTABLE_CELL_CLASS : UNAVAILABLE_CELL_CLASS;
+		const cellClass = status === 'resolved' ? HIGHLIGHTABLE_CELL_CLASS : UNAVAILABLE_CELL_CLASS;
 		cell.classList.add( cellClass );
 		currentCell.current = cell;
 		currentOverlay.current = createHighlightOverlay( table, cell, status );
