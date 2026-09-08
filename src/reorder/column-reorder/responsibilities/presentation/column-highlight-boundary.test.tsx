@@ -188,4 +188,39 @@ describe( 'Column highlight boundary lifecycle', () => {
 		expect( secondCell.className ).toBe( 'yamabiko-table-reorder-column-highlightable-cell' );
 		expect( document.querySelector( '.yamabiko-table-reorder-column-highlight' ) ).not.toBeNull();
 	} );
+
+	/**
+	 * 操作可否表示中にeditor内で実際のスクロールが発生した場合は、画面位置へ固定された列表示を残さないことを確認する。
+	 *
+	 * 事前条件:
+	 * - 列並び替えモード中に1列目へ操作可能表示が出ている。
+	 *
+	 * 操作:
+	 * - Tableを含むeditor内の要素でスクロールが発生する。
+	 *
+	 * 期待結果:
+	 * - セル状態と列オーバーレイを解除する。
+	 */
+	it( 'when the editor scrolls while a column highlight is visible, should clear the temporary column highlight', () => {
+		const { getByTestId } = render( <TestTable /> );
+		const wrapper = getByTestId( 'wrapper' );
+		const table = getByTestId( 'table' );
+		const firstCell = getByTestId( 'column-0' );
+
+		jest.spyOn( table, 'getBoundingClientRect' ).mockReturnValue( {
+			...createRectangle( 10 ),
+			height: 200,
+			bottom: 220,
+		} as DOMRect );
+		jest.spyOn( firstCell, 'getBoundingClientRect' ).mockReturnValue( createRectangle( 10 ) );
+
+		fireEvent.pointerOver( firstCell, { pointerType: 'touch' } );
+		expect( firstCell.className ).toBe( 'yamabiko-table-reorder-column-highlightable-cell' );
+		expect( document.querySelector( '.yamabiko-table-reorder-column-highlight' ) ).not.toBeNull();
+
+		fireEvent.scroll( wrapper );
+
+		expect( firstCell.className ).toBe( '' );
+		expect( document.querySelector( '.yamabiko-table-reorder-column-highlight' ) ).toBeNull();
+	} );
 } );
