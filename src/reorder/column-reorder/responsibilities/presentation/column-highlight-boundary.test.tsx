@@ -269,15 +269,19 @@ describe( 'Column highlight boundary lifecycle', () => {
 			bottom: 220,
 		} as DOMRect;
 		const cellRectangleAfterScroll = createRectangle( 40 );
-		jest.spyOn( table, 'getBoundingClientRect' )
+		jest
+			.spyOn( table, 'getBoundingClientRect' )
 			.mockReturnValueOnce( tableRectangle )
 			.mockReturnValue( tableRectangleAfterScroll );
-		jest.spyOn( firstCell, 'getBoundingClientRect' )
+		jest
+			.spyOn( firstCell, 'getBoundingClientRect' )
 			.mockReturnValueOnce( cellRectangle )
 			.mockReturnValue( cellRectangleAfterScroll );
 
 		firePointerOver( firstCell, 'mouse' );
-		const overlay = document.querySelector( '.yamabiko-table-reorder-column-highlight' ) as HTMLDivElement;
+		const overlay = document.querySelector(
+			'.yamabiko-table-reorder-column-highlight'
+		) as HTMLDivElement;
 		expect( firstCell.className ).toBe( 'yamabiko-table-reorder-column-highlightable-cell' );
 		expect( overlay ).not.toBeNull();
 		expect( overlay.style.left ).toBe( '10px' );
