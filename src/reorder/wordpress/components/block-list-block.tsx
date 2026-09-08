@@ -37,6 +37,7 @@ export type ReorderModeBlockListBlockProps = {
 	clientId: string;
 	isSelected: boolean;
 	name: string;
+	attributes?: unknown;
 	wrapperProps?: EditingStartWrapperProps;
 	[ key: string ]: unknown;
 };
@@ -126,11 +127,12 @@ const createRowReorderModeClassName = ( existingClassName: unknown ): string => 
  *
  * このcomponentは対応Tableの生存期間中、選択状態にかかわらず同じ位置に維持され、Reorder Modeの購読を所有する。
  * Row / Column DnD境界はBlockListBlockを再mountしないよう常に同じ位置に維持し、Reorder Modeで選択中の方向だけ開始入力を有効化する。
+ * WordPressから渡されるBlock属性参照を同一Tableデータ更新の不透明なrevisionとしてPresentationへ渡す。
  * 現在選択中のTableだけへ方向固有Reorder Presentationを接続し、行並び替えモード中だけ表示識別用classを付与する。
  *
  * @param props                Gutenbergから渡されるBlockListBlock propsと元のcomponent。
  * @param props.BlockListBlock Gutenberg本来のBlock wrapperを描画するcomponent。
- * @param props.blockProps     現在Blockの識別・選択状態・既存wrapper propsを含む値。
+ * @param props.blockProps     現在Blockの識別・選択状態・属性・既存wrapper propsを含む値。
  * @return Gutenberg本来のBlock wrapper構造を維持したBlockListBlock。
  */
 export const ReorderModeBlockListBlock = ( props: {
@@ -138,7 +140,7 @@ export const ReorderModeBlockListBlock = ( props: {
 	blockProps: ReorderModeBlockListBlockProps;
 } ) => {
 	const { BlockListBlock, blockProps } = props;
-	const { clientId, isSelected, wrapperProps } = blockProps;
+	const { clientId, isSelected, attributes, wrapperProps } = blockProps;
 	const { selectedKind } = useReorderMode( clientId );
 	const rowReorderEnabled = selectedKind === 'row';
 	const columnReorderEnabled = selectedKind === 'column';
@@ -164,7 +166,11 @@ export const ReorderModeBlockListBlock = ( props: {
 	return (
 		<RowHighlight enabled={ rowReorderEnabled } tableIdentity={ clientId }>
 			{ ( rowHighlightPointerOverCapture ) => (
-				<ColumnHighlight enabled={ columnReorderEnabled } tableIdentity={ clientId }>
+				<ColumnHighlight
+					enabled={ columnReorderEnabled }
+					tableIdentity={ clientId }
+					tableRevision={ attributes }
+				>
 					{ ( columnHighlightPointerOverCapture, columnHighlightPointerOutCapture ) => (
 						<RowDnd
 							enabled={ rowReorderEnabled }
