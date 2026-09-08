@@ -1,5 +1,5 @@
 /**
- * Column Reorderの列ホバー表示が、Block境界を離れたときだけ現在列の一時表示を終了することを確認する。
+ * Column Reorderの列操作可否表示が、入力手段に応じた終了Lifecycleを持つことを確認する。
  */
 
 import { createEvent, fireEvent, render } from '@testing-library/react';
@@ -42,15 +42,22 @@ const createRectangle = ( left: number ): DOMRect =>
 	} ) as DOMRect;
 
 /**
- * ポインター終了入力の移動先を明示して通知する。
- *
- * Jest環境でも実ブラウザと同じ境界判定を確認できるよう、終了入力へ移動先要素を明示する。
+ * ポインター終了入力の入力種別と移動先を明示して通知する。
  *
  * @param target        ポインターが離れる要素。
  * @param relatedTarget ポインターの移動先。
+ * @param pointerType   入力手段を識別するPointer Eventsの種別。
  */
-const firePointerOut = ( target: Element, relatedTarget: EventTarget | null ): void => {
-	const event = createEvent.pointerOut( target );
+const firePointerOut = (
+	target: Element,
+	relatedTarget: EventTarget | null,
+	pointerType: 'mouse' | 'touch'
+): void => {
+	const event = createEvent.pointerOut( target, { pointerType } );
+	Object.defineProperty( event, 'pointerType', {
+		configurable: true,
+		value: pointerType,
+	} );
 	Object.defineProperty( event, 'relatedTarget', {
 		configurable: true,
 		value: relatedTarget,
@@ -97,20 +104,20 @@ describe( 'Column highlight boundary lifecycle', () => {
 	} );
 
 	/**
-	 * Block内部の要素間移動では表示を維持し、Block境界を離れた場合だけ一時表示を終了することを確認する。
+	 * マウスポインターがBlock境界を離れた場合だけhover表示を終了することを確認する。
 	 *
 	 * 事前条件:
 	 * - 列並び替えモード中に1列目へ操作可能表示が出ている。
 	 *
 	 * 操作:
-	 * - Block内部の別セルへポインターを移動する。
-	 * - 続いてBlock外へポインターを移動する。
+	 * - マウスポインターをBlock内部の別セルへ移動する。
+	 * - 続いてBlock外へ移動する。
 	 *
 	 * 期待結果:
-	 * - Block内部の移動では現在列の一時表示を維持する。
+	 * - Block内部の移動では現在列の表示を維持する。
 	 * - Block外へ移動した時点でセル状態と列オーバーレイを解除する。
 	 */
-	it( 'when the pointer leaves the block boundary, should clear the temporary column highlight', () => {
+	it( 'when the mouse pointer leaves the block boundary, should clear the temporary column highlight', () => {
 		const { getByTestId } = render( <TestTable /> );
 		const wrapper = getByTestId( 'wrapper' );
 		const table = getByTestId( 'table' );
@@ -125,16 +132,60 @@ describe( 'Column highlight boundary lifecycle', () => {
 		jest.spyOn( firstCell, 'getBoundingClientRect' ).mockReturnValue( createRectangle( 10 ) );
 		jest.spyOn( secondCell, 'getBoundingClientRect' ).mockReturnValue( createRectangle( 110 ) );
 
-		fireEvent.pointerOver( firstCell );
+		fireEvent.pointerOver( firstCell, { pointerType: 'mouse' } );
 		expect( firstCell.className ).toBe( 'yamabiko-table-reorder-column-highlightable-cell' );
 		expect( document.querySelector( '.yamabiko-table-reorder-column-highlight' ) ).not.toBeNull();
 
-		firePointerOut( firstCell, secondCell );
+		firePointerOut( firstCell, secondCell, 'mouse' );
 		expect( firstCell.className ).toBe( 'yamabiko-table-reorder-column-highlightable-cell' );
 		expect( document.querySelector( '.yamabiko-table-reorder-column-highlight' ) ).not.toBeNull();
 
-		firePointerOut( wrapper, document.body );
+		firePointerOut( wrapper, document.body, 'mouse' );
 		expect( firstCell.className ).toBe( '' );
 		expect( document.querySelector( '.yamabiko-table-reorder-column-highlight' ) ).toBeNull();
+	} );
+
+	/**
+	 * タッチで認識した列は指を離しただけでは解除せず、次に操作した列へ表示を移すことを確認する。
+	 *
+	 * 事前条件:
+	 * - 列並び替えモード中で、各列は移動可能と解決される。
+	 *
+	 * 操作:
+	 * - 1列目へ触れてから指を離す。
+	 * - タッチ入力の終了に伴ってBlock境界外への終了入力が発生する。
+	 * - その後2列目へ触れる。
+	 *
+	 * 期待結果:
+	 * - 指を離した後も1列目の操作可否表示を維持する。
+	 * - 次に2列目へ触れた時点で表示を2列目へ移す。
+	 */
+	it( 'when touch input ends, should keep the current column highlight until another column is recognized', () => {
+		const { getByTestId } = render( <TestTable /> );
+		const wrapper = getByTestId( 'wrapper' );
+		const table = getByTestId( 'table' );
+		const firstCell = getByTestId( 'column-0' );
+		const secondCell = getByTestId( 'column-1' );
+
+		jest.spyOn( table, 'getBoundingClientRect' ).mockReturnValue( {
+			...createRectangle( 10 ),
+			height: 200,
+			bottom: 220,
+		} as DOMRect );
+		jest.spyOn( firstCell, 'getBoundingClientRect' ).mockReturnValue( createRectangle( 10 ) );
+		jest.spyOn( secondCell, 'getBoundingClientRect' ).mockReturnValue( createRectangle( 110 ) );
+
+		fireEvent.pointerOver( firstCell, { pointerType: 'touch' } );
+		fireEvent.pointerUp( firstCell, { pointerType: 'touch' } );
+		firePointerOut( wrapper, document.body, 'touch' );
+
+		expect( firstCell.className ).toBe( 'yamabiko-table-reorder-column-highlightable-cell' );
+		expect( document.querySelector( '.yamabiko-table-reorder-column-highlight' ) ).not.toBeNull();
+
+		fireEvent.pointerOver( secondCell, { pointerType: 'touch' } );
+
+		expect( firstCell.className ).toBe( '' );
+		expect( secondCell.className ).toBe( 'yamabiko-table-reorder-column-highlightable-cell' );
+		expect( document.querySelector( '.yamabiko-table-reorder-column-highlight' ) ).not.toBeNull();
 	} );
 } );
