@@ -31,7 +31,7 @@ type ColumnMovingCellSnapshot = {
 	sourceCell: HTMLTableCellElement;
 	top: number;
 	height: number;
-	backgroundColor: string;
+	backgroundColor: string | null;
 	borderTop: ColumnMovingHorizontalBorderSnapshot | null;
 	borderBottom: ColumnMovingHorizontalBorderSnapshot | null;
 };
@@ -43,6 +43,7 @@ type ColumnMovingDisplayLayout = {
 	columnWidth: number;
 	snapshotTop: number;
 	snapshotHeight: number;
+	tableBackgroundColor: string | null;
 	initialPositionX: number;
 	initialPositionY: number;
 	initialLeft: number;
@@ -90,13 +91,18 @@ const isTransparentBackground = ( backgroundColor: string ): boolean => {
 };
 
 /**
- * 元Tableで実際に見えている背景を、セル背景、行背景、白背景の優先順位で解決する。
+ * 元Tableで実際に見えている背景を、セル背景、行背景の優先順位で解決する。
+ *
+ * セル背景と行背景の両方が透明な場合はnullを返し、複製したTable自身の背景レイヤーへ委ねる。
  *
  * @param cell         移動対象列として描画する元セル。
  * @param editorWindow 現在のeditor contextに対応するwindow。
- * @return 移動表示へ固定する背景色。
+ * @return 移動表示へ固定する背景色。セル背景と行背景の両方が透明な場合はnull。
  */
-const resolveCellBackgroundColor = ( cell: HTMLTableCellElement, editorWindow: Window ): string => {
+const resolveCellBackgroundColor = (
+	cell: HTMLTableCellElement,
+	editorWindow: Window
+): string | null => {
 	const cellBackgroundColor = editorWindow.getComputedStyle( cell ).backgroundColor;
 
 	/* セル自身が背景を持つ場合は、元Table上で最も手前に見えている背景をそのまま維持する。 */
@@ -115,7 +121,7 @@ const resolveCellBackgroundColor = ( cell: HTMLTableCellElement, editorWindow: W
 		return rowBackgroundColor;
 	}
 
-	return '#fff';
+	return null;
 };
 
 /**
@@ -403,6 +409,7 @@ const resolveMovingDisplayLayout = (
 
 	const snapshotTop = Math.min( ...cells.map( ( cell ) => cell.top ) );
 	const snapshotBottom = Math.max( ...cells.map( ( cell ) => cell.top + cell.height ) );
+	const tableBackgroundColor = editorContext.window.getComputedStyle( sourceTable ).backgroundColor;
 
 	return {
 		sourceTable,
@@ -410,6 +417,9 @@ const resolveMovingDisplayLayout = (
 		columnWidth: sourceRectangle.width,
 		snapshotTop,
 		snapshotHeight: snapshotBottom - snapshotTop,
+		tableBackgroundColor: isTransparentBackground( tableBackgroundColor )
+			? null
+			: tableBackgroundColor,
 		initialPositionX,
 		initialPositionY,
 		initialLeft: sourceRectangle.left,
@@ -484,7 +494,17 @@ const renderMovingColumn = (
 		clonedCell.style.minWidth = `${ layout.columnWidth }px`;
 		clonedCell.style.maxWidth = `${ layout.columnWidth }px`;
 		clonedCell.style.height = `${ snapshot.height }px`;
-		clonedCell.style.setProperty( 'background-color', snapshot.backgroundColor, 'important' );
+
+		/* セルまたは元行に実背景がある場合だけ固定し、両方が透明なら複製Table自身の背景レイヤーを透過させる。 */
+		if ( snapshot.backgroundColor !== null ) {
+			row.style.setProperty( 'background-color', snapshot.backgroundColor, 'important' );
+			clonedCell.style.setProperty( 'background-color', snapshot.backgroundColor, 'important' );
+		} else if ( layout.tableBackgroundColor === null ) {
+			/* Tableまで透明な場合だけ、背後の実Table内容を透過しない最終fallbackとして白を固定する。 */
+			row.style.setProperty( 'background-color', '#fff', 'important' );
+			clonedCell.style.setProperty( 'background-color', '#fff', 'important' );
+		}
+
 		applyHorizontalBorder( clonedCell, 'top', snapshot.borderTop );
 		applyHorizontalBorder( clonedCell, 'bottom', snapshot.borderBottom );
 		row.className = sourceRow?.className ?? '';
@@ -507,7 +527,7 @@ const renderMovingColumn = (
  * DnD開始時に確定した列表示を、現在の物理ドラッグ位置へ縦横とも追従する独立表示として描画する。
  *
  * @param props          移動表示に必要な配置と現在位置。
- * @param props.layout   DnD開始時に確定した移動対象列の配置情報。
+ * @param props.layout   DnD開始時に確定した元行とTableの配置情報。
  * @param props.position 現在の移動表示位置。
  * @return 現在のeditor contextへ描画する移動対象列表示。
  */

@@ -124,11 +124,18 @@ const startPhysicalDrag = ( sourceCell: HTMLTableCellElement ) => {
 	} );
 };
 
+/** 移動表示内のDnD開始セルを取得する。 */
+const getMovingSourceCell = (): HTMLTableCellElement | undefined =>
+	Array.from( document.querySelectorAll( '.yamabiko-table-reorder-moving-column td' ) ).find(
+		( cell ) => cell.textContent === 'Source'
+	) as HTMLTableCellElement | undefined;
+
 describe( 'Column moving display', () => {
 	beforeEach( () => {
 		mockColumnDndPhase = 'active';
 		mockDragDropMonitor = {};
 		document.body.replaceChildren();
+		jest.restoreAllMocks();
 	} );
 
 	/**
@@ -160,6 +167,58 @@ describe( 'Column moving display', () => {
 	} );
 
 	/**
+	 * Core Tableのセル自身に表示されている背景色を移動表示へ維持することを確認する。
+	 *
+	 * 事前条件:
+	 * - 移動対象セル自身に非透明な背景色がある。
+	 * - 元行にも別の背景色がある。
+	 *
+	 * 操作:
+	 * - 移動対象列のDnDを開始する。
+	 *
+	 * 期待結果:
+	 * - セル自身の計算済み背景色が元行背景より優先される。
+	 * - 1セルTableへ再構成された行とセルの両方で同じ背景色が維持される。
+	 */
+	it( 'when a Core Table cell has its own background, should preserve the cell background across the reconstructed table layers', () => {
+		const { rows, sourceCell } = createSourceTable();
+		rows[ 2 ].style.backgroundColor = 'rgb(90, 91, 92)';
+		sourceCell.style.backgroundColor = 'rgb(12, 34, 56)';
+		render( <ColumnMovingDisplay /> );
+
+		startPhysicalDrag( sourceCell );
+
+		const movingSource = getMovingSourceCell();
+		expect( movingSource?.style.backgroundColor ).toBe( 'rgb(12, 34, 56)' );
+		expect( movingSource?.parentElement?.style.backgroundColor ).toBe( 'rgb(12, 34, 56)' );
+		expect( movingSource?.style.getPropertyPriority( 'background-color' ) ).toBe( 'important' );
+	} );
+
+	/**
+	 * FTB相当のセルインライン背景色を、元DOMの実際の表示から取得して移動表示へ維持することを確認する。
+	 *
+	 * 事前条件:
+	 * - FTBと同様に、移動対象セルのインラインstyleへ背景色が設定されている。
+	 *
+	 * 操作:
+	 * - 移動対象列のDnDを開始する。
+	 *
+	 * 期待結果:
+	 * - セルの計算済み背景色がsnapshotされ、移動表示の行とセルへ同じ色が固定される。
+	 */
+	it( 'when an FTB-style cell has an inline background color, should preserve its computed background in the moving display', () => {
+		const { sourceCell } = createSourceTable();
+		sourceCell.style.backgroundColor = 'rgb(21, 43, 65)';
+		render( <ColumnMovingDisplay /> );
+
+		startPhysicalDrag( sourceCell );
+
+		const movingSource = getMovingSourceCell();
+		expect( movingSource?.style.backgroundColor ).toBe( 'rgb(21, 43, 65)' );
+		expect( movingSource?.parentElement?.style.backgroundColor ).toBe( 'rgb(21, 43, 65)' );
+	} );
+
+	/**
 	 * セル自身が透明で元行に背景色がある場合、元Tableで見えていた行背景を移動表示へ維持することを確認する。
 	 *
 	 * 事前条件:
@@ -170,20 +229,75 @@ describe( 'Column moving display', () => {
 	 * - 移動対象列のDnDを開始する。
 	 *
 	 * 期待結果:
-	 * - 移動表示の対象セルには元行の計算済み背景色が優先度付きで固定される。
+	 * - 移動表示の行とセルには元行の計算済み背景色が固定される。
 	 */
 	it( 'when a source cell is transparent and its row has a background, should preserve the row background in the moving cell', () => {
 		const { rows, sourceCell } = createSourceTable();
-		rows[ 2 ].style.backgroundColor = 'rgb(12, 34, 56)';
+		rows[ 2 ].style.backgroundColor = 'rgb(34, 56, 78)';
 		render( <ColumnMovingDisplay /> );
 
 		startPhysicalDrag( sourceCell );
 
-		const movingSource = Array.from(
-			document.querySelectorAll( '.yamabiko-table-reorder-moving-column td' )
-		).find( ( cell ) => cell.textContent === 'Source' ) as HTMLTableCellElement | undefined;
-		expect( movingSource?.style.backgroundColor ).toBe( 'rgb(12, 34, 56)' );
-		expect( movingSource?.style.getPropertyPriority( 'background-color' ) ).toBe( 'important' );
+		const movingSource = getMovingSourceCell();
+		expect( movingSource?.style.backgroundColor ).toBe( 'rgb(34, 56, 78)' );
+		expect( movingSource?.parentElement?.style.backgroundColor ).toBe( 'rgb(34, 56, 78)' );
+	} );
+
+	/**
+	 * セルと元行が透明でも、元Table自身に背景色がある場合はTable背景レイヤーを移動表示へ維持することを確認する。
+	 *
+	 * 事前条件:
+	 * - 移動対象セルと元行の背景は透明である。
+	 * - 元Tableにはクラス経由の非透明な背景色がある。
+	 *
+	 * 操作:
+	 * - 移動対象列のDnDを開始する。
+	 *
+	 * 期待結果:
+	 * - 再構成した行とセルへ白背景を固定しない。
+	 * - 複製Tableでは元Tableと同じ背景色が計算済み背景として維持される。
+	 */
+	it( 'when a source table has a background and its row and cell are transparent, should preserve the table background layer', () => {
+		const { table, sourceCell } = createSourceTable();
+		const style = document.createElement( 'style' );
+		style.textContent = '.ytr-test-table-background { background-color: rgb(255, 238, 88); }';
+		document.head.appendChild( style );
+		table.classList.add( 'ytr-test-table-background' );
+		render( <ColumnMovingDisplay /> );
+
+		startPhysicalDrag( sourceCell );
+
+		const movingSource = getMovingSourceCell();
+		const movingTable = movingSource?.closest( 'table' );
+		expect( movingSource?.style.backgroundColor ).toBe( '' );
+		expect( movingSource?.parentElement?.style.backgroundColor ).toBe( '' );
+		expect( movingTable ? window.getComputedStyle( movingTable ).backgroundColor : '' ).toBe(
+			'rgb(255, 238, 88)'
+		);
+		style.remove();
+	} );
+
+	/**
+	 * セル、元行、元Tableのすべてが透明な場合、Overlayの白背景をセル単位のfallbackとして維持することを確認する。
+	 *
+	 * 事前条件:
+	 * - 移動対象セル、元行、元Tableの背景がすべて透明である。
+	 *
+	 * 操作:
+	 * - 移動対象列のDnDを開始する。
+	 *
+	 * 期待結果:
+	 * - 再構成した行とセルの背景は白となり、背後のTable内容を透過しない。
+	 */
+	it( 'when the source cell, row, and table backgrounds are transparent, should use white as the moving cell fallback', () => {
+		const { sourceCell } = createSourceTable();
+		render( <ColumnMovingDisplay /> );
+
+		startPhysicalDrag( sourceCell );
+
+		const movingSource = getMovingSourceCell();
+		expect( movingSource?.style.backgroundColor ).toBe( 'rgb(255, 255, 255)' );
+		expect( movingSource?.parentElement?.style.backgroundColor ).toBe( 'rgb(255, 255, 255)' );
 	} );
 
 	/**
@@ -249,6 +363,33 @@ describe( 'Column moving display', () => {
 		expect( movingHeader?.style.borderBottom ).toContain( '4px' );
 		expect( movingHeader?.style.borderBottom ).toContain( 'rgb(10, 20, 30)' );
 		expect( movingHeader?.style.getPropertyPriority( 'border-bottom' ) ).toBe( 'important' );
+	} );
+
+	/**
+	 * 通常行の横罫線を背景対応後も維持することを確認する。
+	 *
+	 * 事前条件:
+	 * - 移動対象セル下辺に通常の横罫線が設定されている。
+	 * - 移動対象セルには背景色も設定されている。
+	 *
+	 * 操作:
+	 * - 移動対象列のDnDを開始する。
+	 *
+	 * 期待結果:
+	 * - 背景色と横罫線の両方が移動表示へ維持される。
+	 */
+	it( 'when a moving cell has a background and a horizontal border, should preserve both appearances', () => {
+		const { sourceCell } = createSourceTable();
+		sourceCell.style.backgroundColor = 'rgb(70, 80, 90)';
+		sourceCell.style.borderBottom = '2px solid rgb(40, 50, 60)';
+		render( <ColumnMovingDisplay /> );
+
+		startPhysicalDrag( sourceCell );
+
+		const movingSource = getMovingSourceCell();
+		expect( movingSource?.style.backgroundColor ).toBe( 'rgb(70, 80, 90)' );
+		expect( movingSource?.style.borderBottom ).toContain( '2px' );
+		expect( movingSource?.style.borderBottom ).toContain( 'rgb(40, 50, 60)' );
 	} );
 
 	/**
