@@ -8,7 +8,13 @@
 /** 各論理列で、前の行から継続するrowspanが残っている行数。 */
 type RemainingRowSpan = number[];
 
-/** 論理列へ対応付けたセルを受け取り、同じsectionの解釈を続けるか決める処理。 */
+/**
+ * 論理列へ対応付けたセルを受け取り、同じsectionの解釈を続けるか決める処理。
+ *
+ * @param cell        現在論理列へ対応付けたTableセル。
+ * @param columnStart セルが開始する0-based論理列位置。
+ * @return 同じsectionの後続セルも解釈する場合はtrue。
+ */
 type LogicalCellVisitor = ( cell: HTMLTableCellElement, columnStart: number ) => boolean;
 
 /**
@@ -65,6 +71,7 @@ const visitSectionLogicalCells = (
 			const columnEnd = columnStart + columnSpan;
 			const shouldContinue = visitor( cell, columnStart );
 
+			/* 呼び出し側が必要な対象まで解釈できた場合は、同じsectionの残りを走査しない。 */
 			if ( ! shouldContinue ) {
 				return;
 			}
@@ -131,6 +138,8 @@ export const resolveColumnSourceIndex = (
 	targetCell: HTMLTableCellElement
 ): number | null => {
 	const section = resolveDirectTableSection( table, targetCell );
+
+	/* 対象セルが現在Tableの標準sectionへ直接属さない場合は、論理列を推測しない。 */
 	if ( section === null ) {
 		return null;
 	}
@@ -149,6 +158,8 @@ export const resolveColumnSourceIndex = (
 /** 同一Tableで複数セルの論理列位置を再利用する解決境界。 */
 export type ColumnSourceIndexResolver = {
 	/**
+	 * 現在Tableのセルが開始する論理列位置を、Resolver生成時の対応関係から取得する。
+	 *
 	 * @param cell 現在Table内のセル。
 	 * @return セルが開始する0-based論理列位置。対象外のセルではnull。
 	 */
@@ -170,6 +181,7 @@ export const createColumnSourceIndexResolver = (
 
 	/* Table直下の各sectionを独立したrowspan範囲として解釈し、現在DOMのセル位置を一度だけ記録する。 */
 	for ( const child of Array.from( table.children ) ) {
+		/* 標準Table section以外の直下要素は、列位置の解決基準に含めない。 */
 		if ( ! [ 'THEAD', 'TBODY', 'TFOOT' ].includes( child.tagName ) ) {
 			continue;
 		}
