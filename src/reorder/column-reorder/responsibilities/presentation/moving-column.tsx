@@ -31,7 +31,7 @@ type ColumnMovingCellSnapshot = {
 	sourceCell: HTMLTableCellElement;
 	top: number;
 	height: number;
-	backgroundColor: string;
+	backgroundColor: string | null;
 	borderTop: ColumnMovingHorizontalBorderSnapshot | null;
 	borderBottom: ColumnMovingHorizontalBorderSnapshot | null;
 };
@@ -90,13 +90,19 @@ const isTransparentBackground = ( backgroundColor: string ): boolean => {
 };
 
 /**
- * 元Tableで実際に見えている背景を、セル背景、行背景、白背景の優先順位で解決する。
+ * 元Tableで実際に見えている背景を、セル背景、行背景の優先順位で解決する。
+ *
+ * 背景色を解決できない場合はnullを返し、複製セルが元々持つインライン背景を上書きせず、
+ * 最終的な透明背景はOverlay自体の白背景へ委ねる。
  *
  * @param cell         移動対象列として描画する元セル。
  * @param editorWindow 現在のeditor contextに対応するwindow。
- * @return 移動表示へ固定する背景色。
+ * @return 移動表示へ固定する背景色。明示的に固定しない場合はnull。
  */
-const resolveCellBackgroundColor = ( cell: HTMLTableCellElement, editorWindow: Window ): string => {
+const resolveCellBackgroundColor = (
+	cell: HTMLTableCellElement,
+	editorWindow: Window
+): string | null => {
 	const cellBackgroundColor = editorWindow.getComputedStyle( cell ).backgroundColor;
 
 	/* セル自身が背景を持つ場合は、元Table上で最も手前に見えている背景をそのまま維持する。 */
@@ -115,7 +121,7 @@ const resolveCellBackgroundColor = ( cell: HTMLTableCellElement, editorWindow: W
 		return rowBackgroundColor;
 	}
 
-	return '#fff';
+	return null;
 };
 
 /**
@@ -484,7 +490,12 @@ const renderMovingColumn = (
 		clonedCell.style.minWidth = `${ layout.columnWidth }px`;
 		clonedCell.style.maxWidth = `${ layout.columnWidth }px`;
 		clonedCell.style.height = `${ snapshot.height }px`;
-		clonedCell.style.setProperty( 'background-color', snapshot.backgroundColor, 'important' );
+
+		/* 元セルや元行から計算済み背景を確定できる場合だけ上書きし、それ以外ではcloneが保持するセル固有背景を壊さない。 */
+		if ( snapshot.backgroundColor !== null ) {
+			clonedCell.style.setProperty( 'background-color', snapshot.backgroundColor, 'important' );
+		}
+
 		applyHorizontalBorder( clonedCell, 'top', snapshot.borderTop );
 		applyHorizontalBorder( clonedCell, 'bottom', snapshot.borderBottom );
 		row.className = sourceRow?.className ?? '';
@@ -507,7 +518,7 @@ const renderMovingColumn = (
  * DnD開始時に確定した列表示を、現在の物理ドラッグ位置へ縦横とも追従する独立表示として描画する。
  *
  * @param props          移動表示に必要な配置と現在位置。
- * @param props.layout   DnD開始時に確定した移動対象列の配置情報。
+ * @param props.layout   DnD開始時に確定した元行とTableの配置情報。
  * @param props.position 現在の移動表示位置。
  * @return 現在のeditor contextへ描画する移動対象列表示。
  */
