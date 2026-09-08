@@ -97,7 +97,7 @@ const resolveCellBackgroundColor = ( cell: HTMLTableCellElement, editorWindow: W
 
 	const sourceRow = cell.parentElement;
 	const rowBackgroundColor =
-		sourceRow instanceof HTMLTableRowElement
+		sourceRow?.tagName === 'TR'
 			? editorWindow.getComputedStyle( sourceRow ).backgroundColor
 			: 'transparent';
 
