@@ -18,6 +18,16 @@ const createResolverMock = columnReorderTargetResolution.createResolver as jest.
 	typeof columnReorderTargetResolution.createResolver
 >;
 
+/**
+ * 列表示の可視範囲を表す矩形を生成する。
+ *
+ * @param options        矩形の位置と大きさ。
+ * @param options.left   editor左端からの横位置。
+ * @param options.top    editor上端からの縦位置。
+ * @param options.width  表示幅。
+ * @param options.height 表示高。
+ * @return 指定範囲を表す矩形。
+ */
 const createRectangle = ( options: {
 	left: number;
 	top: number;
@@ -36,8 +46,19 @@ const createRectangle = ( options: {
 		toJSON: () => ( {} ),
 	} ) as DOMRect;
 
-const TestTable = ( props: { enabled?: boolean } ) => (
-	<ColumnHighlight enabled={ props.enabled ?? true } tableIdentity="table-a">
+/**
+ * 列ホバー表示を確認するためのTableを描画する。
+ *
+ * @param props               描画条件。
+ * @param props.enabled       列並び替えモードを有効にする場合はtrue。
+ * @param props.tableIdentity 現在Tableの識別値。
+ * @return Column Highlightへ接続されたTable。
+ */
+const TestTable = ( props: { enabled?: boolean; tableIdentity?: string } ) => (
+	<ColumnHighlight
+		enabled={ props.enabled ?? true }
+		tableIdentity={ props.tableIdentity ?? 'table-a' }
+	>
 		{ ( onPointerOverCapture ) => (
 			<div data-testid="wrapper" onPointerOverCapture={ onPointerOverCapture }>
 				<table data-testid="table">
@@ -61,13 +82,16 @@ const TestTable = ( props: { enabled?: boolean } ) => (
 
 /**
  * Tableと対象セルへ、editor表示領域内の表示矩形を設定する。
- * @param table
- * @param cells
+ *
+ * @param table Column Reorder対象Table。
+ * @param cells 表示位置を持つTableセル。
  */
 const setVisibleRectangles = ( table: HTMLElement, cells: HTMLElement[] ) => {
 	jest
 		.spyOn( table, 'getBoundingClientRect' )
 		.mockReturnValue( createRectangle( { left: 10, top: 20, width: 300, height: 200 } ) );
+
+	/* 各セルをTable上の論理列位置に対応する可視領域へ配置し、列表示の追従を確認できる状態にする。 */
 	cells.forEach( ( cell, index ) => {
 		const columnIndex = index % 3;
 		const rowIndex = Math.floor( index / 3 );
@@ -242,5 +266,68 @@ describe( 'Column highlight', () => {
 
 		fireEvent.pointerOver( getByTestId( 'row-0-column-2' ) );
 		expect( getByTestId( 'row-0-column-2' ).className ).toBe( '' );
+	} );
+
+	/**
+	 * 操作対象Tableが変わった場合、前のTableを基準にした表示と開始可否判断を引き継がないことを確認する。
+	 *
+	 * 事前条件:
+	 * - Table Aの2列目へ操作可能表示が出ている。
+	 *
+	 * 操作:
+	 * - Presentationへ渡すTable IdentityをTable Bへ切り替え、2列目へ再度ポインターを移動する。
+	 *
+	 * 期待結果:
+	 * - Table Aの一時表示は切替時に解除される。
+	 * - Table Bの識別値を基準に新しいTarget Resolverが生成される。
+	 */
+	it( 'when the target table identity changes, should clear the previous state and resolve against the new table', () => {
+		const { getByTestId, rerender } = render( <TestTable tableIdentity="table-a" /> );
+		const table = getByTestId( 'table' );
+		const cells = Array.from( table.querySelectorAll( 'td' ) );
+		setVisibleRectangles( table, cells );
+
+		fireEvent.pointerOver( getByTestId( 'row-0-column-1' ) );
+		expect( document.querySelector( '.yamabiko-table-reorder-column-highlight' ) ).not.toBeNull();
+
+		rerender( <TestTable tableIdentity="table-b" /> );
+
+		expect( getByTestId( 'row-0-column-1' ).className ).toBe( '' );
+		expect( document.querySelector( '.yamabiko-table-reorder-column-highlight' ) ).toBeNull();
+
+		fireEvent.pointerOver( getByTestId( 'row-0-column-1' ) );
+
+		expect( createResolverMock ).toHaveBeenNthCalledWith( 1, 'table-a' );
+		expect( createResolverMock ).toHaveBeenNthCalledWith( 2, 'table-b' );
+	} );
+
+	/**
+	 * Presentation境界が終了した場合、editorへ追加した一時表示を残さないことを確認する。
+	 *
+	 * 事前条件:
+	 * - 移動可能な列へ操作可能表示が出ている。
+	 *
+	 * 操作:
+	 * - Column Highlightをunmountする。
+	 *
+	 * 期待結果:
+	 * - 対象セルの操作可能状態が解除される。
+	 * - editor上の列強調表示が除去される。
+	 */
+	it( 'when the presentation boundary unmounts, should remove the temporary column state', () => {
+		const { getByTestId, unmount } = render( <TestTable /> );
+		const table = getByTestId( 'table' );
+		const cells = Array.from( table.querySelectorAll( 'td' ) );
+		setVisibleRectangles( table, cells );
+		const targetCell = getByTestId( 'row-0-column-1' );
+
+		fireEvent.pointerOver( targetCell );
+		expect( targetCell.className ).toBe( 'yamabiko-table-reorder-column-highlightable-cell' );
+		expect( document.querySelector( '.yamabiko-table-reorder-column-highlight' ) ).not.toBeNull();
+
+		unmount();
+
+		expect( targetCell.className ).toBe( '' );
+		expect( document.querySelector( '.yamabiko-table-reorder-column-highlight' ) ).toBeNull();
 	} );
 } );
