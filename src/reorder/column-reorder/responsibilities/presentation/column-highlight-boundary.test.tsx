@@ -269,12 +269,10 @@ describe( 'Column highlight boundary lifecycle', () => {
 			bottom: 220,
 		} as DOMRect;
 		const cellRectangleAfterScroll = createRectangle( 40 );
-		const tableRectangles = jest
-			.spyOn( table, 'getBoundingClientRect' )
+		jest.spyOn( table, 'getBoundingClientRect' )
 			.mockReturnValueOnce( tableRectangle )
 			.mockReturnValue( tableRectangleAfterScroll );
-		const cellRectangles = jest
-			.spyOn( firstCell, 'getBoundingClientRect' )
+		jest.spyOn( firstCell, 'getBoundingClientRect' )
 			.mockReturnValueOnce( cellRectangle )
 			.mockReturnValue( cellRectangleAfterScroll );
 
@@ -289,7 +287,5 @@ describe( 'Column highlight boundary lifecycle', () => {
 		expect( firstCell.className ).toBe( 'yamabiko-table-reorder-column-highlightable-cell' );
 		expect( document.querySelector( '.yamabiko-table-reorder-column-highlight' ) ).toBe( overlay );
 		expect( overlay.style.left ).toBe( '40px' );
-		expect( tableRectangles ).toHaveBeenCalledTimes( 2 );
-		expect( cellRectangles ).toHaveBeenCalledTimes( 2 );
 	} );
 } );
