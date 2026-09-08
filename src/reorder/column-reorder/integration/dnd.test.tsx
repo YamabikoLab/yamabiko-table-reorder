@@ -56,6 +56,10 @@ jest.mock( '@/reorder/column-reorder/responsibilities/input', () => ( {
 		props.children( () => undefined ),
 } ) );
 
+jest.mock( '@/reorder/column-reorder/responsibilities/presentation/column-presentation', () => ( {
+	ColumnPresentation: () => null,
+} ) );
+
 jest.mock( '@/reorder/column-reorder/responsibilities/target-resolution', () => ( {
 	columnReorderTargetResolution: {
 		resolve: jest.fn(),
