@@ -83,10 +83,12 @@ jest.mock( '@/reorder/row-reorder/integration/dnd', () => ( {
 
 jest.mock( '@/reorder/column-reorder/integration/dnd', () => ( {
 	ColumnDnd: ( {
+		enabled,
 		children,
 	}: {
+		enabled: boolean;
 		children: ( handler: React.PointerEventHandler< Element > ) => React.ReactNode;
-	} ) => children( mockColumnDndPointerDown ),
+	} ) => children( enabled ? mockColumnDndPointerDown : () => undefined ),
 } ) );
 
 type TableBlockEditProps = BlockEditProps< Record< string, unknown > > & {
