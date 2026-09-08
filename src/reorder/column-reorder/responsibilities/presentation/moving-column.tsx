@@ -189,7 +189,8 @@ const resolveCellHorizontalBorders = (
 ): Pick< ColumnMovingCellSnapshot, 'borderTop' | 'borderBottom' > => {
 	const sourceRow = cell.parentElement?.tagName === 'TR' ? cell.parentElement : null;
 	const sourceSection =
-		sourceRow?.parentElement && [ 'THEAD', 'TBODY', 'TFOOT' ].includes( sourceRow.parentElement.tagName )
+		sourceRow?.parentElement &&
+		[ 'THEAD', 'TBODY', 'TFOOT' ].includes( sourceRow.parentElement.tagName )
 			? sourceRow.parentElement
 			: null;
 	const cellStyle = editorWindow.getComputedStyle( cell );
