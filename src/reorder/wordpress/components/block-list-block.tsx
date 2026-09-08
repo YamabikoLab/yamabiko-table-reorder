@@ -3,7 +3,7 @@
  *
  * 新しいDOM階層は追加せず、Gutenberg既存のwrapper propsへ必要な入力抑止とRow / Column DnD開始入力を合成する。
  * dnd-kitの物理Lifecycleは方向固有DnD境界へ委譲し、この境界はReorder Modeを正本として有効な方向を切り替える。
- * 現在選択中のTableだけへ行Reorder Presentationを接続する。
+ * 現在選択中のTableだけへ方向固有Reorder Presentationを接続する。
  */
 
 import type { ComponentType } from '@wordpress/element';
@@ -96,7 +96,7 @@ const createRowReorderModeClassName = ( existingClassName: unknown ): string => 
  *
  * このcomponentは対応Tableの生存期間中、選択状態にかかわらず同じ位置に維持され、Reorder Modeの購読を所有する。
  * Row / Column DnD境界はBlockListBlockを再mountしないよう常に同じ位置に維持し、Reorder Modeで選択中の方向だけ開始入力を有効化する。
- * 現在選択中のTableだけへ行Reorder Presentationを接続し、行並び替えモード中だけ表示識別用classを付与する。
+ * 現在選択中のTableだけへ方向固有Reorder Presentationを接続し、行並び替えモード中だけ表示識別用classを付与する。
  *
  * @param props                Gutenbergから渡されるBlockListBlock propsと元のcomponent。
  * @param props.BlockListBlock
@@ -140,7 +140,11 @@ export const ReorderModeBlockListBlock = ( props: {
 					tableIdentity={ clientId }
 				>
 					{ ( rowDndPointerDownCapture ) => (
-						<ColumnDnd enabled={ columnReorderEnabled } tableIdentity={ clientId }>
+						<ColumnDnd
+							enabled={ columnReorderEnabled }
+							presentationEnabled={ isSelected }
+							tableIdentity={ clientId }
+						>
 							{ ( columnDndPointerDownCapture ) => (
 								<BlockListBlock
 									{ ...blockProps }
