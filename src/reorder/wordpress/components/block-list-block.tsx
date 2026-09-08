@@ -106,8 +106,8 @@ const createRowReorderModeClassName = ( existingClassName: unknown ): string => 
  * 現在選択中のTableだけへ方向固有Reorder Presentationを接続し、行並び替えモード中だけ表示識別用classを付与する。
  *
  * @param props                Gutenbergから渡されるBlockListBlock propsと元のcomponent。
- * @param props.BlockListBlock
- * @param props.blockProps
+ * @param props.BlockListBlock Gutenberg本来のBlock wrapperを描画するcomponent。
+ * @param props.blockProps     現在Blockの識別・選択状態・既存wrapper propsを含む値。
  * @return Gutenberg本来のBlock wrapper構造を維持したBlockListBlock。
  */
 export const ReorderModeBlockListBlock = ( props: {
