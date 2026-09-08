@@ -1,0 +1,42 @@
+/**
+ * Column Reorderモード中、列単位の移動可否をポインター表示と軽い強調で示す。
+ *
+ * 移動可能な列は掴める状態として示し、結合範囲により移動できない列は控えめなグレー表示と通常カーソルで区別する。
+ * 移動不可理由はドラッグ開始試行時のメッセージでも提示し、色だけに意味を依存させない。
+ */
+
+/* 操作可否表示はTable入力を遮らず、現在のeditor表示領域へ一つだけ重ねる。 */
+.yamabiko-table-reorder-column-highlight {
+	position: fixed;
+	z-index: 99999;
+	pointer-events: none;
+	box-sizing: border-box;
+}
+
+/* 移動可能な列はTable本来の内容を隠さない軽い強調で示す。 */
+.yamabiko-table-reorder-column-highlight--highlightable {
+	box-shadow: inset 0 0 0 9999px rgb(56 88 233 / 5%);
+}
+
+/* 結合範囲により移動できない列は、操作可能列と区別できる控えめなグレー表示にする。 */
+.yamabiko-table-reorder-column-highlight--unavailable {
+	box-shadow: inset 0 0 0 9999px rgb(0 0 0 / 6%);
+}
+
+/* 移動可能な列の現在セルと内部要素を掴めるポインター表示にする。 */
+.yamabiko-table-reorder-column-highlightable-cell,
+.yamabiko-table-reorder-column-highlightable-cell * {
+	cursor: grab !important;
+}
+
+/* 押下中は、移動可能な列を現在掴んでいる状態として示す。 */
+.yamabiko-table-reorder-column-highlightable-cell:active,
+.yamabiko-table-reorder-column-highlightable-cell:active * {
+	cursor: grabbing !important;
+}
+
+/* 移動不可列では、並び替え可能に見えるポインター表示を出さない。 */
+.yamabiko-table-reorder-column-unavailable-cell,
+.yamabiko-table-reorder-column-unavailable-cell * {
+	cursor: default !important;
+}
