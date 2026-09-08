@@ -348,7 +348,10 @@ describe( 'Column DnD input boundary', () => {
 			throw new Error( 'Column touch activation constraints were not configured.' );
 		}
 
-		activationConstraints( { pointerType: 'touch' } as globalThis.PointerEvent );
+		activationConstraints(
+			{ pointerType: 'touch' } as globalThis.PointerEvent,
+			{} as Draggable
+		);
 		expect( delayConstraintMock ).toHaveBeenCalledWith( {
 			value: 250,
 			tolerance: 5,
@@ -382,7 +385,10 @@ describe( 'Column DnD input boundary', () => {
 			throw new Error( 'Column mouse activation constraints were not configured.' );
 		}
 
-		activationConstraints( { pointerType: 'mouse' } as globalThis.PointerEvent );
+		activationConstraints(
+			{ pointerType: 'mouse' } as globalThis.PointerEvent,
+			{} as Draggable
+		);
 		expect( distanceConstraintMock ).toHaveBeenCalledWith( { value: 5 } );
 	} );
 
