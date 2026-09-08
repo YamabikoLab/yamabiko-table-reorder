@@ -12,6 +12,10 @@ import {
 	ColumnDnd,
 	type ColumnDndPointerDownHandler,
 } from '@/reorder/column-reorder/integration/dnd';
+import {
+	ColumnHighlight,
+	type ColumnHighlightPointerOverHandler,
+} from '@/reorder/column-reorder/responsibilities/presentation/column-highlight';
 import { RowDnd, type RowDndPointerDownHandler } from '@/reorder/row-reorder/integration/dnd';
 import {
 	RowHighlight,
@@ -60,21 +64,24 @@ const preservePointerDownHandler = (
 };
 
 /**
- * Gutenberg既存のpointerover処理を維持したまま、行ホバー表示へ現在位置を通知する。
+ * Gutenberg既存のpointerover処理を維持したまま、方向固有の操作可否表示へ現在位置を通知する。
  *
- * @param existingHandler     Gutenberg本体または他のfilterが設定した既存handler。
- * @param rowHighlightHandler 行ホバー表示が提供する判定handler。
- * @return 既存処理の後に行ホバー表示へ入力を通知するhandler。
+ * @param existingHandler        Gutenberg本体または他のfilterが設定した既存handler。
+ * @param rowHighlightHandler    行ホバー表示が提供する判定handler。
+ * @param columnHighlightHandler 列ホバー表示が提供する判定handler。
+ * @return 既存処理の後に方向固有ホバー表示へ入力を通知するhandler。
  */
 const preservePointerOverHandler = (
 	existingHandler: unknown,
-	rowHighlightHandler: RowHighlightPointerOverHandler
+	rowHighlightHandler: RowHighlightPointerOverHandler,
+	columnHighlightHandler: ColumnHighlightPointerOverHandler
 ): RowHighlightPointerOverHandler => {
 	const handler: RowHighlightPointerOverHandler = ( event ) => {
 		if ( typeof existingHandler === 'function' ) {
 			( existingHandler as RowHighlightPointerOverHandler )( event );
 		}
 		rowHighlightHandler( event );
+		columnHighlightHandler( event );
 	};
 	return handler;
 };
@@ -134,37 +141,42 @@ export const ReorderModeBlockListBlock = ( props: {
 	return (
 		<RowHighlight enabled={ rowReorderEnabled } tableIdentity={ clientId }>
 			{ ( rowHighlightPointerOverCapture ) => (
-				<RowDnd
-					enabled={ rowReorderEnabled }
-					presentationEnabled={ isSelected }
-					tableIdentity={ clientId }
-				>
-					{ ( rowDndPointerDownCapture ) => (
-						<ColumnDnd
-							enabled={ columnReorderEnabled }
+				<ColumnHighlight enabled={ columnReorderEnabled } tableIdentity={ clientId }>
+					{ ( columnHighlightPointerOverCapture ) => (
+						<RowDnd
+							enabled={ rowReorderEnabled }
 							presentationEnabled={ isSelected }
 							tableIdentity={ clientId }
 						>
-							{ ( columnDndPointerDownCapture ) => (
-								<BlockListBlock
-									{ ...blockProps }
-									wrapperProps={ {
-										...reorderWrapperProps,
-										onPointerOverCapture: preservePointerOverHandler(
-											wrapperProps?.onPointerOverCapture,
-											rowHighlightPointerOverCapture
-										),
-										onPointerDownCapture: preservePointerDownHandler(
-											wrapperProps?.onPointerDownCapture,
-											rowDndPointerDownCapture,
-											columnDndPointerDownCapture
-										),
-									} }
-								/>
+							{ ( rowDndPointerDownCapture ) => (
+								<ColumnDnd
+									enabled={ columnReorderEnabled }
+									presentationEnabled={ isSelected }
+									tableIdentity={ clientId }
+								>
+									{ ( columnDndPointerDownCapture ) => (
+										<BlockListBlock
+											{ ...blockProps }
+											wrapperProps={ {
+												...reorderWrapperProps,
+												onPointerOverCapture: preservePointerOverHandler(
+													wrapperProps?.onPointerOverCapture,
+													rowHighlightPointerOverCapture,
+													columnHighlightPointerOverCapture
+												),
+												onPointerDownCapture: preservePointerDownHandler(
+													wrapperProps?.onPointerDownCapture,
+													rowDndPointerDownCapture,
+													columnDndPointerDownCapture
+												),
+											} }
+										/>
+									) }
+								</ColumnDnd>
 							) }
-						</ColumnDnd>
+						</RowDnd>
 					) }
-				</RowDnd>
+				</ColumnHighlight>
 			) }
 		</RowHighlight>
 	);
