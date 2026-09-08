@@ -3,7 +3,7 @@
  *
  * Column Input Interactionを配下へ接続し、active DnD成立直前の第二段階Target Resolution、
  * DnD開始、移動先解決、complete / cancel変換をColumn DnD Interactionへ接続する。
- * Reorder Presentationは現在操作中のTableだけを同じDnD Engine境界へ接続し、表示Lifecycleと表示状態を自身で所有する。
+ * Reorder PresentationはColumn Reorder有効中の現在操作対象Tableだけを同じDnD Engine境界へ接続し、表示Lifecycleと表示状態を自身で所有する。
  * 列DnDのAuto Scrollは横方向だけを許可し、Tableの縦位置を利用者の操作なく変更しない。
  * 列並び替えの無効化または境界終了時には、次の操作へ持ち越せない解決結果と物理DnD登録を破棄する。
  */
@@ -47,7 +47,7 @@ export type { ColumnDndPointerDownHandler } from '@/reorder/column-reorder/respo
  *
  * 第一段階の開始候補登録はColumn Input Interactionへ委ね、active DnD成立直前に同じTargetを現在制約で再解決する。
  * 第二段階が成立した場合だけColumn DnD Sessionを開始し、moveではDestination Resolutionが返す論理列間境界だけを渡す。
- * Reorder Presentationは現在操作中のTableだけに接続し、複数Tableが存在しても共有状態へ複数のPresentationが反応しない状態を維持する。
+ * Reorder PresentationはColumn Reorder有効中の現在操作対象Tableだけに接続し、通常編集時のレイアウト変更へDnD表示監視を残さない。
  * Auto ScrollはDnD Engineのactive drag lifecycleへ委ね、横方向だけを有効にする。
  * complete / cancel / 開始不成立 / 無効化 / unmountでは次の操作へ持ち越せない一時状態を破棄する。
  *
@@ -71,6 +71,7 @@ export const ColumnDnd = ( props: {
 		ColumnReorderTargetResolution,
 		{ status: 'resolved' }
 	> | null >( null );
+	const presentationActive = enabled && presentationEnabled;
 
 	/** 次の開始入力や通常編集へ持ち越せないDnD接続境界の一時状態をまとめて破棄する。 */
 	const clearTransientDndState = useCallback( (): void => {
@@ -165,7 +166,7 @@ export const ColumnDnd = ( props: {
 			onDragMove={ onDragMove }
 			onDragEnd={ onDragEnd }
 		>
-			{ presentationEnabled && <ColumnPresentation /> }
+			{ presentationActive && <ColumnPresentation /> }
 			<ColumnInput
 				enabled={ enabled }
 				tableIdentity={ tableIdentity }
