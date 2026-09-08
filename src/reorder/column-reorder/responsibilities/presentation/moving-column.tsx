@@ -243,30 +243,35 @@ const resolveTableCellAtPoint = (
 /**
  * 現在見えている移動対象列セルだけを開始時snapshotとして取得する。
  *
- * @param table          Column Reorder対象Table。
- * @param sourceCell     DnD Engineが移動対象として管理する開始セル。
- * @param editorDocument 現在のeditor contextに対応するdocument。
- * @param editorWindow   現在のeditor contextに対応するwindow。
+ * @param table            Column Reorder対象Table。
+ * @param sourceCell       DnD Engineが移動対象として管理する開始セル。
+ * @param initialPositionX DnD開始時に利用者が指した移動対象列内の横位置。
+ * @param editorDocument   現在のeditor contextに対応するdocument。
+ * @param editorWindow     現在のeditor contextに対応するwindow。
  * @return editor表示領域に見えている移動対象列セル。
  */
 const collectMovingColumnCells = (
 	table: HTMLTableElement,
 	sourceCell: HTMLTableCellElement,
+	initialPositionX: number,
 	editorDocument: Document,
 	editorWindow: Window
 ): ColumnMovingCellSnapshot[] => {
 	const tableRectangle = table.getBoundingClientRect();
-	const sourceRectangle = sourceCell.getBoundingClientRect();
 	const visibleTop = Math.max( tableRectangle.top, 0 );
 	const visibleBottom = Math.min( tableRectangle.bottom, editorWindow.innerHeight );
-	const probeX = sourceRectangle.left + sourceRectangle.width / 2;
 	const visibleCells: HTMLTableCellElement[] = [];
 	const seenCells = new Set< HTMLTableCellElement >();
 	let y = visibleTop + 0.5;
 
-	/* Table行数ではなく現在のeditor表示領域を基準に走査し、画面上で実際に見えている移動対象列セルだけを収集する。 */
+	/* Table行数ではなく現在のeditor表示領域とDnD開始位置を基準に、画面上で実際に見えている移動対象列セルだけを収集する。 */
 	while ( y < visibleBottom ) {
-		const cell = resolveTableCellAtPoint( editorDocument, table, probeX, y );
+		const cell = resolveTableCellAtPoint(
+			editorDocument,
+			table,
+			initialPositionX,
+			y
+		);
 
 		if ( cell === null ) {
 			y += VIEWPORT_SCAN_STEP;
@@ -353,6 +358,7 @@ const resolveMovingDisplayLayout = (
 	const cells = collectMovingColumnCells(
 		sourceTable,
 		sourceCell,
+		initialPositionX,
 		editorContext.document,
 		editorContext.window
 	);
@@ -448,7 +454,7 @@ const renderMovingColumn = (
 		clonedCell.style.maxWidth = `${ layout.columnWidth }px`;
 		clonedCell.style.height = `${ snapshot.height }px`;
 
-		/* セルまたは元行に実背景がある場合だけ固定し、両方が透明なら複製Table自身の背景レイヤーを透過させる。 */
+		/* セルまたは元行に実背景がある場合だけ固定し、両方が透明なら複製Table自身の開始時背景を表示する。 */
 		if ( snapshot.backgroundColor !== null ) {
 			row.style.setProperty( 'background-color', snapshot.backgroundColor, 'important' );
 			clonedCell.style.setProperty( 'background-color', snapshot.backgroundColor, 'important' );
@@ -467,6 +473,14 @@ const renderMovingColumn = (
 		table.appendChild( section );
 		table.className =
 			`${ layout.sourceTable.className } yamabiko-table-reorder-moving-column-cell-table`.trim();
+		if ( layout.tableBackgroundColor !== null ) {
+			/* Portal内のCSS再評価に依存せず、DnD開始時に見えていたTable背景レイヤーを維持する。 */
+			table.style.setProperty(
+				'background-color',
+				layout.tableBackgroundColor,
+				'important'
+			);
+		}
 		table.style.top = `${ snapshot.top - layout.snapshotTop }px`;
 		table.style.width = `${ layout.columnWidth }px`;
 		table.style.height = `${ snapshot.height }px`;
