@@ -244,10 +244,44 @@ describe( 'Column moving display', () => {
 	} );
 
 	/**
-	 * セルと元行の両方が透明な場合、Overlayの白背景をセル単位のfallbackとして維持することを確認する。
+	 * セルと元行が透明でも、元Table自身に背景色がある場合はTable背景レイヤーを移動表示へ維持することを確認する。
 	 *
 	 * 事前条件:
-	 * - 移動対象セルと元行の背景がどちらも透明である。
+	 * - 移動対象セルと元行の背景は透明である。
+	 * - 元Tableにはクラス経由の非透明な背景色がある。
+	 *
+	 * 操作:
+	 * - 移動対象列のDnDを開始する。
+	 *
+	 * 期待結果:
+	 * - 再構成した行とセルへ白背景を固定しない。
+	 * - 複製Tableでは元Tableと同じ背景色が計算済み背景として維持される。
+	 */
+	it( 'when a source table has a background and its row and cell are transparent, should preserve the table background layer', () => {
+		const { table, sourceCell } = createSourceTable();
+		const style = document.createElement( 'style' );
+		style.textContent = '.ytr-test-table-background { background-color: rgb(255, 238, 88); }';
+		document.head.appendChild( style );
+		table.classList.add( 'ytr-test-table-background' );
+		render( <ColumnMovingDisplay /> );
+
+		startPhysicalDrag( sourceCell );
+
+		const movingSource = getMovingSourceCell();
+		const movingTable = movingSource?.closest( 'table' );
+		expect( movingSource?.style.backgroundColor ).toBe( '' );
+		expect( movingSource?.parentElement?.style.backgroundColor ).toBe( '' );
+		expect( movingTable ? window.getComputedStyle( movingTable ).backgroundColor : '' ).toBe(
+			'rgb(255, 238, 88)'
+		);
+		style.remove();
+	} );
+
+	/**
+	 * セル、元行、元Tableのすべてが透明な場合、Overlayの白背景をセル単位のfallbackとして維持することを確認する。
+	 *
+	 * 事前条件:
+	 * - 移動対象セル、元行、元Tableの背景がすべて透明である。
 	 *
 	 * 操作:
 	 * - 移動対象列のDnDを開始する。
@@ -255,7 +289,7 @@ describe( 'Column moving display', () => {
 	 * 期待結果:
 	 * - 再構成した行とセルの背景は白となり、背後のTable内容を透過しない。
 	 */
-	it( 'when both the source cell and row backgrounds are transparent, should use white as the moving cell fallback', () => {
+	it( 'when the source cell, row, and table backgrounds are transparent, should use white as the moving cell fallback', () => {
 		const { sourceCell } = createSourceTable();
 		render( <ColumnMovingDisplay /> );
 
