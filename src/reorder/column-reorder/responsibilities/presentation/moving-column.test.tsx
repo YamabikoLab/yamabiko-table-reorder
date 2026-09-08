@@ -1,7 +1,7 @@
 /**
  * Column Reorderの移動対象表示が、意味上のDnD Sessionと物理DnD情報を責務どおり組み合わせることを確認する。
  *
- * active Session中だけの表示、可視範囲と少量の余白への限定、縦横追従、背景表示、入力対象外、終了時解除を検証する。
+ * active Session中だけの表示、可視範囲と少量の余白への限定、縦横追従、背景表示、横罫線、入力対象外、終了時解除を検証する。
  */
 
 import { act, render } from '@testing-library/react';
@@ -107,7 +107,8 @@ const createSourceTable = () => {
 
 /**
  * DnD Engineから移動対象列の物理DnD開始を通知する。
- * @param sourceCell
+ *
+ * @param sourceCell DnD Engineが移動対象として管理する開始セル。
  */
 const startPhysicalDrag = ( sourceCell: HTMLTableCellElement ) => {
 	act( () => {
@@ -169,7 +170,7 @@ describe( 'Column moving display', () => {
 	 * - 移動対象列のDnDを開始する。
 	 *
 	 * 期待結果:
-	 * - 移動表示の対象セルには元行の計算済み背景色が適用される。
+	 * - 移動表示の対象セルには元行の計算済み背景色が優先度付きで固定される。
 	 */
 	it( 'when a source cell is transparent and its row has a background, should preserve the row background in the moving cell', () => {
 		const { rows, sourceCell } = createSourceTable();
@@ -182,6 +183,72 @@ describe( 'Column moving display', () => {
 			document.querySelectorAll( '.yamabiko-table-reorder-moving-column td' )
 		).find( ( cell ) => cell.textContent === 'Source' ) as HTMLTableCellElement | undefined;
 		expect( movingSource?.style.backgroundColor ).toBe( 'rgb(12, 34, 56)' );
+		expect( movingSource?.style.getPropertyPriority( 'background-color' ) ).toBe( 'important' );
+	} );
+
+	/**
+	 * 見出し区切りがsectionの太い罫線として設定されている場合も、移動表示へ同じ横罫線を維持することを確認する。
+	 *
+	 * 事前条件:
+	 * - 移動対象はtheadの唯一の見出し行にある。
+	 * - 見出しsectionの下辺に通常セルより太い罫線が設定されている。
+	 *
+	 * 操作:
+	 * - 見出し列のDnDを開始する。
+	 *
+	 * 期待結果:
+	 * - 移動表示の見出しセル下辺には元sectionの太い罫線が固定される。
+	 */
+	it( 'when a header section has a thick bottom border, should preserve that horizontal border in the moving header cell', () => {
+		const table = document.createElement( 'table' );
+		const thead = document.createElement( 'thead' );
+		const row = document.createElement( 'tr' );
+		const sourceCell = document.createElement( 'th' );
+		sourceCell.textContent = 'Header';
+		thead.style.borderBottom = '4px solid rgb(10, 20, 30)';
+		sourceCell.style.borderBottom = '1px solid rgb(100, 100, 100)';
+		row.appendChild( sourceCell );
+		thead.appendChild( row );
+		table.appendChild( thead );
+		document.body.appendChild( table );
+		jest.spyOn( sourceCell, 'getBoundingClientRect' ).mockReturnValue(
+			rectangle( {
+				top: 0,
+				bottom: 40,
+				left: 100,
+				right: 200,
+				width: 100,
+				height: 40,
+			} )
+		);
+		jest.spyOn( table, 'getBoundingClientRect' ).mockReturnValue(
+			rectangle( {
+				top: 0,
+				bottom: 40,
+				left: 100,
+				right: 200,
+				width: 100,
+				height: 40,
+			} )
+		);
+		Object.defineProperty( window, 'innerHeight', {
+			configurable: true,
+			value: 80,
+		} );
+		Object.defineProperty( document, 'elementFromPoint', {
+			configurable: true,
+			value: jest.fn( () => sourceCell ),
+		} );
+		render( <ColumnMovingDisplay /> );
+
+		startPhysicalDrag( sourceCell );
+
+		const movingHeader = document.querySelector(
+			'.yamabiko-table-reorder-moving-column th'
+		) as HTMLTableCellElement | null;
+		expect( movingHeader?.style.borderBottom ).toContain( '4px' );
+		expect( movingHeader?.style.borderBottom ).toContain( 'rgb(10, 20, 30)' );
+		expect( movingHeader?.style.getPropertyPriority( 'border-bottom' ) ).toBe( 'important' );
 	} );
 
 	/**
