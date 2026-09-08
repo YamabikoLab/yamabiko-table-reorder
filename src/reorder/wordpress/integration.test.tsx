@@ -14,6 +14,7 @@ import { withReorderMode, withReorderModeBlockListBlock } from '@/reorder/wordpr
 
 let mockSelectedBlockClientId: string | null = null;
 const mockBlocks = new Map< string, { name: string } >();
+const mockColumnDndPointerDown = jest.fn();
 
 jest.mock( '@wordpress/block-editor', () => ( {
 	BlockControls: ( { children }: { children: React.ReactNode } ) => (
@@ -80,6 +81,16 @@ jest.mock( '@/reorder/row-reorder/integration/dnd', () => ( {
 	} ) => children( () => undefined ),
 } ) );
 
+jest.mock( '@/reorder/column-reorder/integration/dnd', () => ( {
+	ColumnDnd: ( {
+		enabled,
+		children,
+	}: {
+		enabled: boolean;
+		children: ( handler: React.PointerEventHandler< Element > ) => React.ReactNode;
+	} ) => children( enabled ? mockColumnDndPointerDown : () => undefined ),
+} ) );
+
 type TableBlockEditProps = BlockEditProps< Record< string, unknown > > & {
 	name: string;
 };
@@ -138,6 +149,7 @@ describe( 'Reorder Mode WordPress integration', () => {
 
 	beforeEach( () => {
 		setSelectedBlock( null );
+		mockColumnDndPointerDown.mockClear();
 		reorderMode.notifyTableInactive( 'table-a' );
 		container = document.createElement( 'div' );
 		document.body.appendChild( container );
@@ -251,6 +263,52 @@ describe( 'Reorder Mode WordPress integration', () => {
 		expect( existingPointerDownCapture ).toHaveBeenCalledTimes( 1 );
 		expect( pointerDown.defaultPrevented ).toBe( false );
 		expect( mouseDown.defaultPrevented ).toBe( true );
+	} );
+
+	/**
+	 * 概要:
+	 * - 列のToolbar入口からColumn DnD開始入力までWordPress製品経路が接続されることを確認する。
+	 *
+	 * 事前条件:
+	 * - Core Tableが選択され、並び替えモードは未選択である。
+	 *
+	 * 操作:
+	 * - 列を並び替えるToolbar入口を選択し、選択中Tableへpointerdownを送出する。
+	 *
+	 * 期待結果:
+	 * - Block wrapperからColumn DnD境界へ開始入力が通知される。
+	 */
+	it( 'when column toolbar entry is selected, should route pointer input to Column DnD', () => {
+		const props = {
+			attributes: {},
+			clientId: 'table-a',
+			isSelected: true,
+			name: 'core/table',
+			setAttributes: jest.fn(),
+		} as unknown as TableBlockEditProps;
+		setSelectedBlock( 'table-a', 'core/table' );
+
+		act( () => {
+			root.render( <Wrapped { ...props } /> );
+		} );
+		act( () => {
+			getToolbarButton( container, 'Reorder columns' ).click();
+		} );
+		act( () => {
+			root.render(
+				<WrappedBlockListBlock clientId="table-a" isSelected={ true } name="core/table" />
+			);
+		} );
+
+		const blockWrapper = container.querySelector< HTMLDivElement >(
+			'[data-testid="block-wrapper"]'
+		);
+		if ( ! blockWrapper ) {
+			throw new Error( 'Expected Gutenberg Block wrapper was not rendered.' );
+		}
+		blockWrapper.dispatchEvent( new Event( 'pointerdown', { bubbles: true, cancelable: true } ) );
+
+		expect( mockColumnDndPointerDown ).toHaveBeenCalledTimes( 1 );
 	} );
 
 	/**

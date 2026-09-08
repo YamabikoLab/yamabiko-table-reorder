@@ -1,12 +1,17 @@
 /**
- * 対応Tableの既存Block wrapperへReorder Mode中の通常編集抑止、行DnD接続、Presentation対象識別を反映するReact componentを所有する。
+ * 対応Tableの既存Block wrapperへReorder Mode中の通常編集抑止、行・列DnD接続、Presentation対象識別を反映するReact componentを所有する。
  *
- * 新しいDOM階層は追加せず、Gutenberg既存のwrapper propsへ必要な入力抑止とRow DnD開始入力だけを合成する。
- * dnd-kitの物理LifecycleとRow DnD Sessionの接続はRow Reorder側へ委譲し、この境界は現在選択中のTableだけへReorder Presentationを接続する。
+ * 新しいDOM階層は追加せず、Gutenberg既存のwrapper propsへ必要な入力抑止とRow / Column DnD開始入力を合成する。
+ * dnd-kitの物理Lifecycleは方向固有DnD境界へ委譲し、この境界はReorder Modeを正本として有効な方向を切り替える。
+ * 現在選択中のTableだけへ行Reorder Presentationを接続する。
  */
 
 import type { ComponentType } from '@wordpress/element';
 
+import {
+	ColumnDnd,
+	type ColumnDndPointerDownHandler,
+} from '@/reorder/column-reorder/integration/dnd';
 import { RowDnd, type RowDndPointerDownHandler } from '@/reorder/row-reorder/integration/dnd';
 import {
 	RowHighlight,
@@ -32,19 +37,24 @@ export type ReorderModeBlockListBlockProps = {
 };
 
 /**
- * Gutenberg既存のpointerdown処理を維持したまま、Row DnD開始入力を追加する。
+ * Gutenberg既存のpointerdown処理を維持したまま、方向固有DnDの開始入力を追加する。
  *
- * @param existingHandler Gutenberg本体または他のfilterが設定した既存handler。
- * @param rowDndHandler   Row DnDが提供する開始入力handler。
- * @return 既存処理の後にRow DnD開始入力を通知するhandler。
+ * Row / Column両DnD境界へ入力を通知し、Reorder Modeで有効な方向だけが開始候補を受理する。
+ *
+ * @param existingHandler  Gutenberg本体または他のfilterが設定した既存handler。
+ * @param rowDndHandler    Row DnDが提供する開始入力handler。
+ * @param columnDndHandler Column DnDが提供する開始入力handler。
+ * @return 既存処理の後に方向固有DnDへ開始入力を通知するhandler。
  */
 const preservePointerDownHandler = (
 	existingHandler: EditingStartWrapperProps[ 'onPointerDownCapture' ],
-	rowDndHandler: RowDndPointerDownHandler
+	rowDndHandler: RowDndPointerDownHandler,
+	columnDndHandler: ColumnDndPointerDownHandler
 ): RowDndPointerDownHandler => {
 	const handler: RowDndPointerDownHandler = ( event ) => {
 		existingHandler?.( event );
 		rowDndHandler( event );
+		columnDndHandler( event );
 	};
 	return handler;
 };
@@ -82,11 +92,11 @@ const createRowReorderModeClassName = ( existingClassName: unknown ): string => 
 };
 
 /**
- * 対応Tableの既存Block wrapperへReorder Modeの編集可否とRow DnD接続を反映する。
+ * 対応Tableの既存Block wrapperへReorder Modeの編集可否と方向固有DnD接続を反映する。
  *
  * このcomponentは対応Tableの生存期間中、選択状態にかかわらず同じ位置に維持され、Reorder Modeの購読を所有する。
- * Row DnD境界はBlockListBlockを再mountしないよう常に同じ位置に維持し、現在選択中のTableだけへReorder Presentationを接続する。
- * 行並び替えモード中だけ開始入力を有効化し、既存Block wrapperへ表示識別用classを付与する。
+ * Row / Column DnD境界はBlockListBlockを再mountしないよう常に同じ位置に維持し、Reorder Modeで選択中の方向だけ開始入力を有効化する。
+ * 現在選択中のTableだけへ行Reorder Presentationを接続し、行並び替えモード中だけ表示識別用classを付与する。
  *
  * @param props                Gutenbergから渡されるBlockListBlock propsと元のcomponent。
  * @param props.BlockListBlock
@@ -101,6 +111,7 @@ export const ReorderModeBlockListBlock = ( props: {
 	const { clientId, isSelected, wrapperProps } = blockProps;
 	const { selectedKind } = useReorderMode( clientId );
 	const rowReorderEnabled = selectedKind === 'row';
+	const columnReorderEnabled = selectedKind === 'column';
 	const editingAllowed = selectedKind === null;
 
 	/* 行並び替えモード中だけ対象TableをPresentationから識別できるclassを既存wrapperへ加える。 */
@@ -129,20 +140,25 @@ export const ReorderModeBlockListBlock = ( props: {
 					tableIdentity={ clientId }
 				>
 					{ ( rowDndPointerDownCapture ) => (
-						<BlockListBlock
-							{ ...blockProps }
-							wrapperProps={ {
-								...reorderWrapperProps,
-								onPointerOverCapture: preservePointerOverHandler(
-									wrapperProps?.onPointerOverCapture,
-									rowHighlightPointerOverCapture
-								),
-								onPointerDownCapture: preservePointerDownHandler(
-									wrapperProps?.onPointerDownCapture,
-									rowDndPointerDownCapture
-								),
-							} }
-						/>
+						<ColumnDnd enabled={ columnReorderEnabled } tableIdentity={ clientId }>
+							{ ( columnDndPointerDownCapture ) => (
+								<BlockListBlock
+									{ ...blockProps }
+									wrapperProps={ {
+										...reorderWrapperProps,
+										onPointerOverCapture: preservePointerOverHandler(
+											wrapperProps?.onPointerOverCapture,
+											rowHighlightPointerOverCapture
+										),
+										onPointerDownCapture: preservePointerDownHandler(
+											wrapperProps?.onPointerDownCapture,
+											rowDndPointerDownCapture,
+											columnDndPointerDownCapture
+										),
+									} }
+								/>
+							) }
+						</ColumnDnd>
 					) }
 				</RowDnd>
 			) }

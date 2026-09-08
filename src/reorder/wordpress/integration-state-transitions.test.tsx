@@ -80,6 +80,14 @@ jest.mock( '@/reorder/row-reorder/integration/dnd', () => ( {
 	} ) => children( () => undefined ),
 } ) );
 
+jest.mock( '@/reorder/column-reorder/integration/dnd', () => ( {
+	ColumnDnd: ( {
+		children,
+	}: {
+		children: ( handler: React.PointerEventHandler< Element > ) => React.ReactNode;
+	} ) => children( () => undefined ),
+} ) );
+
 type TableBlockEditProps = BlockEditProps< Record< string, unknown > > & {
 	name: string;
 };
