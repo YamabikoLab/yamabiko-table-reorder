@@ -25,9 +25,7 @@ const columnStartRejectionListeners = new Set< ColumnStartRejectionListener >();
  *
  * @param event Designで利用者へ提示する開始拒否理由と、その表示基準となる操作位置。
  */
-export const notifyColumnStartRejection = (
-	event: ColumnStartRejectionNoticeEvent
-): void => {
+export const notifyColumnStartRejection = ( event: ColumnStartRejectionNoticeEvent ): void => {
 	columnStartRejectionListeners.forEach( ( listener ) => {
 		listener( event );
 	} );
