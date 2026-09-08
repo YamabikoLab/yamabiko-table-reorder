@@ -266,12 +266,7 @@ const collectMovingColumnCells = (
 
 	/* Table行数ではなく現在のeditor表示領域とDnD開始位置を基準に、画面上で実際に見えている移動対象列セルだけを収集する。 */
 	while ( y < visibleBottom ) {
-		const cell = resolveTableCellAtPoint(
-			editorDocument,
-			table,
-			initialPositionX,
-			y
-		);
+		const cell = resolveTableCellAtPoint( editorDocument, table, initialPositionX, y );
 
 		if ( cell === null ) {
 			y += VIEWPORT_SCAN_STEP;
@@ -475,11 +470,7 @@ const renderMovingColumn = (
 			`${ layout.sourceTable.className } yamabiko-table-reorder-moving-column-cell-table`.trim();
 		if ( layout.tableBackgroundColor !== null ) {
 			/* Portal内のCSS再評価に依存せず、DnD開始時に見えていたTable背景レイヤーを維持する。 */
-			table.style.setProperty(
-				'background-color',
-				layout.tableBackgroundColor,
-				'important'
-			);
+			table.style.setProperty( 'background-color', layout.tableBackgroundColor, 'important' );
 		}
 		table.style.top = `${ snapshot.top - layout.snapshotTop }px`;
 		table.style.width = `${ layout.columnWidth }px`;

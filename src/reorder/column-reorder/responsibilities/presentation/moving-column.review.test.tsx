@@ -113,12 +113,12 @@ describe( 'Column moving display snapshot', () => {
 		jest.spyOn( table, 'getBoundingClientRect' ).mockReturnValue(
 			rectangle( {
 				top: 0,
-					bottom: 80,
-					left: -100,
-					right: 20,
-					width: 120,
-					height: 80,
-				} )
+				bottom: 80,
+				left: -100,
+				right: 20,
+				width: 120,
+				height: 80,
+			} )
 		);
 		Object.defineProperty( document, 'elementFromPoint', {
 			configurable: true,
@@ -166,22 +166,22 @@ describe( 'Column moving display snapshot', () => {
 		jest.spyOn( sourceCell, 'getBoundingClientRect' ).mockReturnValue(
 			rectangle( {
 				top: 0,
-					bottom: 40,
-					left: 100,
-					right: 200,
-					width: 100,
-					height: 40,
-				} )
+				bottom: 40,
+				left: 100,
+				right: 200,
+				width: 100,
+				height: 40,
+			} )
 		);
 		jest.spyOn( table, 'getBoundingClientRect' ).mockReturnValue(
 			rectangle( {
 				top: 0,
-					bottom: 40,
-					left: 100,
-					right: 200,
-					width: 100,
-					height: 40,
-				} )
+				bottom: 40,
+				left: 100,
+				right: 200,
+				width: 100,
+				height: 40,
+			} )
 		);
 		Object.defineProperty( document, 'elementFromPoint', {
 			configurable: true,
