@@ -12,6 +12,11 @@ import {
 	ColumnDnd,
 	type ColumnDndPointerDownHandler,
 } from '@/reorder/column-reorder/integration/dnd';
+import {
+	ColumnHighlight,
+	type ColumnHighlightPointerOutHandler,
+	type ColumnHighlightPointerOverHandler,
+} from '@/reorder/column-reorder/responsibilities/presentation/column-highlight';
 import { RowDnd, type RowDndPointerDownHandler } from '@/reorder/row-reorder/integration/dnd';
 import {
 	RowHighlight,
@@ -32,6 +37,7 @@ export type ReorderModeBlockListBlockProps = {
 	clientId: string;
 	isSelected: boolean;
 	name: string;
+	attributes?: unknown;
 	wrapperProps?: EditingStartWrapperProps;
 	[ key: string ]: unknown;
 };
@@ -60,21 +66,46 @@ const preservePointerDownHandler = (
 };
 
 /**
- * Gutenberg既存のpointerover処理を維持したまま、行ホバー表示へ現在位置を通知する。
+ * Gutenberg既存のpointerover処理を維持したまま、方向固有の操作可否表示へ現在位置を通知する。
  *
- * @param existingHandler     Gutenberg本体または他のfilterが設定した既存handler。
- * @param rowHighlightHandler 行ホバー表示が提供する判定handler。
- * @return 既存処理の後に行ホバー表示へ入力を通知するhandler。
+ * @param existingHandler        Gutenberg本体または他のfilterが設定した既存handler。
+ * @param rowHighlightHandler    行ホバー表示が提供する判定handler。
+ * @param columnHighlightHandler 列ホバー表示が提供する判定handler。
+ * @return 既存処理の後に方向固有ホバー表示へ入力を通知するhandler。
  */
 const preservePointerOverHandler = (
 	existingHandler: unknown,
-	rowHighlightHandler: RowHighlightPointerOverHandler
+	rowHighlightHandler: RowHighlightPointerOverHandler,
+	columnHighlightHandler: ColumnHighlightPointerOverHandler
 ): RowHighlightPointerOverHandler => {
 	const handler: RowHighlightPointerOverHandler = ( event ) => {
 		if ( typeof existingHandler === 'function' ) {
 			( existingHandler as RowHighlightPointerOverHandler )( event );
 		}
 		rowHighlightHandler( event );
+		columnHighlightHandler( event );
+	};
+	return handler;
+};
+
+/**
+ * Gutenberg既存のpointerout処理を維持したまま、Column HighlightへBlock境界から離れた入力を通知する。
+ *
+ * 物理イベントがBlock内部の移動か境界外への移動かという判断はColumn Highlightへ委ね、この境界では既存handlerとの合成だけを行う。
+ *
+ * @param existingHandler        Gutenberg本体または他のfilterが設定した既存handler。
+ * @param columnHighlightHandler 列ホバー表示が提供する終了判定handler。
+ * @return 既存処理の後にColumn Highlightへ終了入力を通知するhandler。
+ */
+const preservePointerOutHandler = (
+	existingHandler: unknown,
+	columnHighlightHandler: ColumnHighlightPointerOutHandler
+): ColumnHighlightPointerOutHandler => {
+	const handler: ColumnHighlightPointerOutHandler = ( event ) => {
+		if ( typeof existingHandler === 'function' ) {
+			( existingHandler as ColumnHighlightPointerOutHandler )( event );
+		}
+		columnHighlightHandler( event );
 	};
 	return handler;
 };
@@ -96,11 +127,12 @@ const createRowReorderModeClassName = ( existingClassName: unknown ): string => 
  *
  * このcomponentは対応Tableの生存期間中、選択状態にかかわらず同じ位置に維持され、Reorder Modeの購読を所有する。
  * Row / Column DnD境界はBlockListBlockを再mountしないよう常に同じ位置に維持し、Reorder Modeで選択中の方向だけ開始入力を有効化する。
+ * WordPressから渡されるBlock属性参照を同一Tableデータ更新の不透明なrevisionとしてPresentationへ渡す。
  * 現在選択中のTableだけへ方向固有Reorder Presentationを接続し、行並び替えモード中だけ表示識別用classを付与する。
  *
  * @param props                Gutenbergから渡されるBlockListBlock propsと元のcomponent。
- * @param props.BlockListBlock
- * @param props.blockProps
+ * @param props.BlockListBlock Gutenberg本来のBlock wrapperを描画するcomponent。
+ * @param props.blockProps     現在Blockの識別・選択状態・属性・既存wrapper propsを含む値。
  * @return Gutenberg本来のBlock wrapper構造を維持したBlockListBlock。
  */
 export const ReorderModeBlockListBlock = ( props: {
@@ -108,7 +140,7 @@ export const ReorderModeBlockListBlock = ( props: {
 	blockProps: ReorderModeBlockListBlockProps;
 } ) => {
 	const { BlockListBlock, blockProps } = props;
-	const { clientId, isSelected, wrapperProps } = blockProps;
+	const { clientId, isSelected, attributes, wrapperProps } = blockProps;
 	const { selectedKind } = useReorderMode( clientId );
 	const rowReorderEnabled = selectedKind === 'row';
 	const columnReorderEnabled = selectedKind === 'column';
@@ -134,37 +166,50 @@ export const ReorderModeBlockListBlock = ( props: {
 	return (
 		<RowHighlight enabled={ rowReorderEnabled } tableIdentity={ clientId }>
 			{ ( rowHighlightPointerOverCapture ) => (
-				<RowDnd
-					enabled={ rowReorderEnabled }
-					presentationEnabled={ isSelected }
+				<ColumnHighlight
+					enabled={ columnReorderEnabled }
 					tableIdentity={ clientId }
+					tableRevision={ attributes }
 				>
-					{ ( rowDndPointerDownCapture ) => (
-						<ColumnDnd
-							enabled={ columnReorderEnabled }
+					{ ( columnHighlightPointerOverCapture, columnHighlightPointerOutCapture ) => (
+						<RowDnd
+							enabled={ rowReorderEnabled }
 							presentationEnabled={ isSelected }
 							tableIdentity={ clientId }
 						>
-							{ ( columnDndPointerDownCapture ) => (
-								<BlockListBlock
-									{ ...blockProps }
-									wrapperProps={ {
-										...reorderWrapperProps,
-										onPointerOverCapture: preservePointerOverHandler(
-											wrapperProps?.onPointerOverCapture,
-											rowHighlightPointerOverCapture
-										),
-										onPointerDownCapture: preservePointerDownHandler(
-											wrapperProps?.onPointerDownCapture,
-											rowDndPointerDownCapture,
-											columnDndPointerDownCapture
-										),
-									} }
-								/>
+							{ ( rowDndPointerDownCapture ) => (
+								<ColumnDnd
+									enabled={ columnReorderEnabled }
+									presentationEnabled={ isSelected }
+									tableIdentity={ clientId }
+								>
+									{ ( columnDndPointerDownCapture ) => (
+										<BlockListBlock
+											{ ...blockProps }
+											wrapperProps={ {
+												...reorderWrapperProps,
+												onPointerOverCapture: preservePointerOverHandler(
+													wrapperProps?.onPointerOverCapture,
+													rowHighlightPointerOverCapture,
+													columnHighlightPointerOverCapture
+												),
+												onPointerOutCapture: preservePointerOutHandler(
+													wrapperProps?.onPointerOutCapture,
+													columnHighlightPointerOutCapture
+												),
+												onPointerDownCapture: preservePointerDownHandler(
+													wrapperProps?.onPointerDownCapture,
+													rowDndPointerDownCapture,
+													columnDndPointerDownCapture
+												),
+											} }
+										/>
+									) }
+								</ColumnDnd>
 							) }
-						</ColumnDnd>
+						</RowDnd>
 					) }
-				</RowDnd>
+				</ColumnHighlight>
 			) }
 		</RowHighlight>
 	);

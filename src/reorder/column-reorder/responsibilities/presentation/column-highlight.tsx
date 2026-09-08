@@ -1,0 +1,377 @@
+/**
+ * Column Reorderモード中、現在のTarget Resolution結果に応じて列の操作可否を表示する。
+ *
+ * 移動可能な列は操作可能表示とし、結合範囲により移動できない列は移動不可表示として区別する。
+ * Presentation自身では列構造制約を解釈せず、Reorder Target Resolutionが返す開始可否だけを表示へ反映する。
+ * 大規模Tableではホバーごとに全行を更新せず、現在のeditor表示領域へ一つの列表示を重ねる。
+ */
+
+import { useCallback, useEffect, useRef } from '@wordpress/element';
+import type { PointerEvent, ReactNode } from 'react';
+
+import { useColumnDndPhase } from '@/reorder/column-reorder/integration/dnd-interaction-react';
+import {
+	createColumnSourceIndexResolver,
+	type ColumnSourceIndexResolver,
+} from '@/reorder/column-reorder/integration/source-column-resolution';
+import { columnReorderTargetResolution } from '@/reorder/column-reorder/responsibilities/target-resolution';
+
+import './column-highlight.scss';
+
+const HIGHLIGHTABLE_CELL_CLASS = 'yamabiko-table-reorder-column-highlightable-cell';
+const UNAVAILABLE_CELL_CLASS = 'yamabiko-table-reorder-column-unavailable-cell';
+const HIGHLIGHT_OVERLAY_CLASS = 'yamabiko-table-reorder-column-highlight';
+const HIGHLIGHTABLE_OVERLAY_CLASS = 'yamabiko-table-reorder-column-highlight--highlightable';
+const UNAVAILABLE_OVERLAY_CLASS = 'yamabiko-table-reorder-column-highlight--unavailable';
+
+/** Reorder Target Resolutionの意味状態を操作可否表示へ反映するための表示状態。 */
+type ColumnHighlightStatus = 'resolved' | 'rejected' | 'unavailable';
+
+/** 同じ論理列内で開始可否の再判定を避けるために保持する現在の表示判断。 */
+type ColumnHighlightState = {
+	sourceColumnIndex: number;
+	status: ColumnHighlightStatus;
+};
+
+/** 現在Tableのセルと論理列位置の対応を、そのTableと組にして保持する一時的な解決基準。 */
+type CachedSourceResolver = {
+	table: HTMLTableElement;
+	resolver: ColumnSourceIndexResolver;
+};
+
+/** 現在列の一時表示中だけ保持するeditor内スクロール監視。 */
+type ScrollObservation = {
+	document: Document;
+	listener: EventListener;
+};
+
+/**
+ * 列の操作可否表示が既存Block wrapperのポインター入力へ接続する処理。
+ *
+ * @param event 現在の操作可否表示対象を解決するポインター入力。
+ */
+export type ColumnHighlightPointerOverHandler = ( event: PointerEvent< Element > ) => void;
+
+/**
+ * マウスの列ホバー表示が既存Block wrapperの終了入力へ接続する処理。
+ *
+ * @param event マウスポインターが現在の操作可否表示対象から離れたことを判断する入力。
+ */
+export type ColumnHighlightPointerOutHandler = ( event: PointerEvent< Element > ) => void;
+
+/**
+ * 現在の操作可否表示を対象セルとeditor上の列表示から解除する。
+ *
+ * @param cell    現在ポインター表示を持つセル。
+ * @param overlay 現在editorへ重ねている列表示。
+ */
+const clearVisualState = (
+	cell: HTMLTableCellElement | null,
+	overlay: HTMLDivElement | null
+): void => {
+	cell?.classList.remove( HIGHLIGHTABLE_CELL_CLASS, UNAVAILABLE_CELL_CLASS );
+	overlay?.remove();
+};
+
+/**
+ * 現在のTableと対象セルの画面位置へ列表示を合わせる。
+ *
+ * Table全行のセルを更新せず、現在のeditor表示領域と対象セルの表示矩形だけから一つの表示領域を決定する。
+ * スクロールで画面位置が変化した場合も、マウスホバー中の列表示を現在位置へ追従させる。
+ *
+ * @param table   Column Reorder対象Table。
+ * @param cell    現在ポインターがある対象セル。
+ * @param overlay editorへ重ねている列表示。
+ * @return editor表示領域内に対象列を示せる場合はtrue。
+ */
+const updateHighlightOverlayPosition = (
+	table: HTMLTableElement,
+	cell: HTMLTableCellElement,
+	overlay: HTMLDivElement
+): boolean => {
+	const editorWindow = cell.ownerDocument.defaultView;
+
+	/* 現在のeditor表示領域を取得できない場合は、安全な列表示位置を決定しない。 */
+	if ( editorWindow === null ) {
+		return false;
+	}
+
+	const tableRectangle = table.getBoundingClientRect();
+	const cellRectangle = cell.getBoundingClientRect();
+	const top = Math.max( tableRectangle.top, 0 );
+	const bottom = Math.min( tableRectangle.bottom, editorWindow.innerHeight );
+	const left = Math.max( cellRectangle.left, 0 );
+	const right = Math.min( cellRectangle.right, editorWindow.innerWidth );
+	const width = right - left;
+	const height = bottom - top;
+
+	/* editor表示領域内に対象列を示せる範囲がない場合は、一時表示を成立させない。 */
+	if ( width <= 0 || height <= 0 ) {
+		return false;
+	}
+
+	overlay.style.left = `${ left }px`;
+	overlay.style.top = `${ top }px`;
+	overlay.style.width = `${ width }px`;
+	overlay.style.height = `${ height }px`;
+	return true;
+};
+
+/**
+ * 現在表示中のTable範囲へ、対象セルの横位置を基準とした列表示を生成する。
+ *
+ * 結合セル上では対象セル全体を示し、移動不可となる結合範囲を視覚的に確認できるようにする。
+ *
+ * @param table  Column Reorder対象Table。
+ * @param cell   現在ポインターがある対象セル。
+ * @param status Target Resolutionが返した利用者向け表示状態。
+ * @return editorへ追加した列表示。表示領域を成立させられない場合はnull。
+ */
+const createHighlightOverlay = (
+	table: HTMLTableElement,
+	cell: HTMLTableCellElement,
+	status: Exclude< ColumnHighlightStatus, 'unavailable' >
+): HTMLDivElement | null => {
+	const editorDocument = cell.ownerDocument;
+
+	/* 現在のeditorへ列表示を追加できない場合は、一時表示を生成しない。 */
+	if ( editorDocument.body === null ) {
+		return null;
+	}
+
+	const overlay = editorDocument.createElement( 'div' );
+	const statusClass =
+		status === 'resolved' ? HIGHLIGHTABLE_OVERLAY_CLASS : UNAVAILABLE_OVERLAY_CLASS;
+	overlay.className = `${ HIGHLIGHT_OVERLAY_CLASS } ${ statusClass }`;
+	overlay.setAttribute( 'aria-hidden', 'true' );
+
+	if ( ! updateHighlightOverlayPosition( table, cell, overlay ) ) {
+		return null;
+	}
+
+	editorDocument.body.append( overlay );
+	return overlay;
+};
+
+/**
+ * 現在のTarget Resolution結果に応じて、列へ操作可能または移動不可の表示状態を反映する。
+ *
+ * Target Resolutionとセル→論理列対応は同一TableのDnD開始前状態で一度生成したResolverを再利用する。
+ * これにより、操作対象変更ごとにTable構造または対象行までのDOMを走査し直さない。
+ * 列DnD Lifecycleまたは同一Tableのデータrevisionが変化した場合はResolverを破棄し、次の開始前表示では現在構造から再生成する。
+ * マウスポインターがBlock境界を離れた場合は現在列の一時表示だけを終了する。
+ * マウスホバー中にTableまたはeditorがスクロールした場合は、現在列を維持したまま列表示を現在位置へ追従させる。
+ * タッチ入力では、指を離しただけでは現在列を解除せず、次に認識した列または意味のあるLifecycle変更まで表示する。
+ * タッチの操作可否表示中にTableまたはeditorが実際にスクロールした場合は、画面位置へ固定した列表示を現在列として維持できないため一時表示だけを終了する。
+ * DnD開始時はTarget Resolutionが要求時点の現在構造を再取得して最終判断するため、この表示は開始可否の権威を持たない。
+ *
+ * @param props               列表示に必要な値。
+ * @param props.enabled       現在のTableで列並び替えモードが有効な場合はtrue。
+ * @param props.tableIdentity 列並び替え対象のTable Identity。
+ * @param props.tableRevision WordPress Integrationが提供する、同一Tableデータ更新を識別する不透明なrevision。
+ * @param props.children      既存DOMへ操作対象判定とマウスホバー終了処理を接続する描画処理。
+ * @return 列の操作可否表示へ接続された子要素。
+ */
+export const ColumnHighlight = ( props: {
+	enabled: boolean;
+	tableIdentity: string;
+	tableRevision?: unknown;
+	children: (
+		onPointerOverCapture: ColumnHighlightPointerOverHandler,
+		onPointerOutCapture: ColumnHighlightPointerOutHandler
+	) => ReactNode;
+} ) => {
+	const { enabled, tableIdentity, tableRevision, children } = props;
+	const dndPhase = useColumnDndPhase();
+	const targetResolver = useRef< ReturnType<
+		typeof columnReorderTargetResolution.createResolver
+	> | null >( null );
+	const sourceResolver = useRef< CachedSourceResolver | null >( null );
+	const currentState = useRef< ColumnHighlightState | null >( null );
+	const currentCell = useRef< HTMLTableCellElement | null >( null );
+	const currentOverlay = useRef< HTMLDivElement | null >( null );
+	const scrollObservation = useRef< ScrollObservation | null >( null );
+
+	/** 現在列の一時表示に対応するeditor内スクロール監視を終了する。 */
+	const stopScrollObservation = useCallback( (): void => {
+		const observation = scrollObservation.current;
+		if ( observation === null ) {
+			return;
+		}
+
+		observation.document.removeEventListener( 'scroll', observation.listener, true );
+		scrollObservation.current = null;
+	}, [] );
+
+	/** 現在列に属する一時表示と表示判断を終了し、Table単位の解決基準は次の操作対象へ再利用する。 */
+	const clearCurrentHighlight = useCallback( (): void => {
+		stopScrollObservation();
+		clearVisualState( currentCell.current, currentOverlay.current );
+		currentCell.current = null;
+		currentOverlay.current = null;
+		currentState.current = null;
+	}, [ stopScrollObservation ] );
+
+	/** 現在の一時表示とTable構造を基準にした全Resolver snapshotを破棄する。 */
+	const clearHighlightSnapshot = useCallback( (): void => {
+		clearCurrentHighlight();
+		targetResolver.current = null;
+		sourceResolver.current = null;
+	}, [ clearCurrentHighlight ] );
+
+	useEffect( () => {
+		/* モード終了、対象Table変更、同一Tableデータ更新、DnD Lifecycle変更、またはPresentation境界終了時に一時表示と解決基準を持ち越さない。 */
+		return clearHighlightSnapshot;
+	}, [ enabled, tableIdentity, tableRevision, dndPhase, clearHighlightSnapshot ] );
+
+	/**
+	 * 現在列の一時表示に必要なeditor内スクロールLifecycleを、表示中だけ監視する。
+	 *
+	 * @param editorDocument 現在列を表示しているeditorのdocument。
+	 * @param listener       現在の入力手段に応じてスクロール時に行う表示処理。
+	 */
+	const observeScroll = useCallback(
+		( editorDocument: Document, listener: EventListener ): void => {
+			stopScrollObservation();
+			editorDocument.addEventListener( 'scroll', listener, true );
+			scrollObservation.current = {
+				document: editorDocument,
+				listener,
+			};
+		},
+		[ stopScrollObservation ]
+	);
+
+	/**
+	 * 現在の開始可否判断を、ポインター下のセルとeditor上の列表示へ反映する。
+	 *
+	 * @param table             Column Reorder対象Table。
+	 * @param cell              現在ポインターがある対象セル。
+	 * @param status            Target Resolutionが返した操作可能または開始拒否の意味状態。
+	 * @param shouldEndOnScroll タッチ操作としてスクロール時に一時表示を終了する場合はtrue。
+	 */
+	const applyVisualState = (
+		table: HTMLTableElement,
+		cell: HTMLTableCellElement,
+		status: Exclude< ColumnHighlightStatus, 'unavailable' >,
+		shouldEndOnScroll: boolean
+	): void => {
+		stopScrollObservation();
+		clearVisualState( currentCell.current, currentOverlay.current );
+		const cellClass = status === 'resolved' ? HIGHLIGHTABLE_CELL_CLASS : UNAVAILABLE_CELL_CLASS;
+		cell.classList.add( cellClass );
+		currentCell.current = cell;
+		const overlay = createHighlightOverlay( table, cell, status );
+		currentOverlay.current = overlay;
+
+		if ( shouldEndOnScroll ) {
+			observeScroll( cell.ownerDocument, clearCurrentHighlight );
+			return;
+		}
+
+		if ( overlay === null ) {
+			return;
+		}
+
+		const repositionOnScroll: EventListener = () => {
+			/* マウスポインターが現在列を操作対象としている間は、スクロール後の画面位置へ列表示を追従させる。 */
+			if ( ! updateHighlightOverlayPosition( table, cell, overlay ) ) {
+				clearCurrentHighlight();
+			}
+		};
+		observeScroll( cell.ownerDocument, repositionOnScroll );
+	};
+
+	const onPointerOverCapture: ColumnHighlightPointerOverHandler = ( event ) => {
+		const target = event.target as Element | null;
+		const currentTarget = event.currentTarget;
+		const table = currentTarget.querySelector( 'table' );
+		const cell = target?.closest( 'th, td' ) as HTMLTableCellElement | null;
+		const shouldEndOnScroll = event.pointerType === 'touch';
+
+		/* 列DnD開始前以外、または現在Tableへ直接属さないセルは操作可否表示の対象にしない。 */
+		if (
+			! enabled ||
+			dndPhase !== 'idle' ||
+			! table ||
+			! cell ||
+			cell.closest( 'table' ) !== table
+		) {
+			clearCurrentHighlight();
+			return;
+		}
+
+		/* 現在Tableのセル対応は最初の表示判定時に一度だけ解釈し、その後の操作対象判定で再利用する。 */
+		if ( sourceResolver.current === null || sourceResolver.current.table !== table ) {
+			sourceResolver.current = {
+				table,
+				resolver: createColumnSourceIndexResolver( table ),
+			};
+		}
+
+		const sourceColumnIndex = sourceResolver.current.resolver.resolve( cell );
+
+		/* 現在Tableの論理列へ対応付けられないセルでは、開始可否を推測せず既存表示も解除する。 */
+		if ( sourceColumnIndex === null ) {
+			clearCurrentHighlight();
+			return;
+		}
+
+		/* 同じ論理列内では開始可否を再判定せず、現在ポインター下のセルへ表示だけを追従させる。 */
+		if ( currentState.current?.sourceColumnIndex === sourceColumnIndex ) {
+			const status = currentState.current.status;
+			if ( status === 'resolved' || status === 'rejected' ) {
+				applyVisualState( table, cell, status, shouldEndOnScroll );
+			}
+			return;
+		}
+
+		clearCurrentHighlight();
+
+		/* 同一Tableの開始可否判定は一つのResolverを利用し、操作対象変更ごとにTable制約を取得し直さない。 */
+		if ( targetResolver.current === null ) {
+			targetResolver.current = columnReorderTargetResolution.createResolver( tableIdentity );
+		}
+
+		const resolution = targetResolver.current.resolve( sourceColumnIndex );
+		currentState.current = {
+			sourceColumnIndex,
+			status: resolution.status,
+		};
+
+		/* 開始可能な列だけを操作可能として示す。 */
+		if ( resolution.status === 'resolved' ) {
+			applyVisualState( table, cell, 'resolved', shouldEndOnScroll );
+			return;
+		}
+
+		/* Designで理由を提示する開始拒否だけを、利用者が事前に識別できる移動不可表示として示す。 */
+		if ( resolution.status === 'rejected' ) {
+			applyVisualState( table, cell, 'rejected', shouldEndOnScroll );
+		}
+	};
+
+	const onPointerOutCapture: ColumnHighlightPointerOutHandler = ( event ) => {
+		/* タッチでは指を離した後も現在操作対象として認識した列を維持し、マウスだけhover終了として扱う。 */
+		if ( event.pointerType !== 'mouse' ) {
+			return;
+		}
+
+		const currentTarget = event.currentTarget;
+		const relatedTarget = event.relatedTarget;
+		const relatedNode =
+			typeof relatedTarget === 'object' && relatedTarget !== null && 'nodeType' in relatedTarget
+				? ( relatedTarget as Node )
+				: null;
+		const remainsInsideBlock = relatedNode !== null && currentTarget.contains( relatedNode );
+
+		/* Block内部の要素間移動では現在列の表示を維持し、マウスポインターがBlock境界を離れた場合だけ一時表示を終了する。 */
+		if ( remainsInsideBlock ) {
+			return;
+		}
+
+		clearCurrentHighlight();
+	};
+
+	return children( onPointerOverCapture, onPointerOutCapture );
+};
