@@ -6,7 +6,7 @@
  * 大規模Tableではホバーごとに全行を更新せず、現在のeditor表示領域へ一つの列表示を重ねる。
  */
 
-import { useEffect, useRef } from '@wordpress/element';
+import { useCallback, useEffect, useRef } from '@wordpress/element';
 import type { PointerEvent, ReactNode } from 'react';
 
 import { useColumnDndPhase } from '@/reorder/column-reorder/integration/dnd-interaction-react';
@@ -14,6 +14,7 @@ import {
 	createColumnSourceIndexResolver,
 	type ColumnSourceIndexResolver,
 } from '@/reorder/column-reorder/integration/source-column-resolution';
+import { subscribeColumnTableRevision } from '@/reorder/column-reorder/integration/table-revision';
 import { columnReorderTargetResolution } from '@/reorder/column-reorder/responsibilities/target-resolution';
 
 import './column-highlight.scss';
@@ -123,7 +124,7 @@ const createHighlightOverlay = (
  *
  * Target Resolutionとセル→論理列対応は同一TableのDnD開始前状態で一度生成したResolverを再利用する。
  * これにより、ホバー対象変更ごとにTable構造または対象行までのDOMを走査し直さない。
- * 列DnDが開始・終了した場合はTable構造が変化し得るためResolverを破棄し、次の開始前表示では現在構造から再生成する。
+ * 列DnD Lifecycleまたは同一TableのBlockデータが変化した場合はResolverを破棄し、次の開始前表示では現在構造から再生成する。
  * ポインターがBlock境界を離れた場合は現在列の一時表示だけを終了し、同一Table内で再利用できる解決基準は保持する。
  * DnD開始時はTarget Resolutionが要求時点の現在構造を再取得して最終判断するため、この表示は開始可否の権威を持たない。
  *
@@ -151,17 +152,28 @@ export const ColumnHighlight = ( props: {
 	const currentCell = useRef< HTMLTableCellElement | null >( null );
 	const currentOverlay = useRef< HTMLDivElement | null >( null );
 
+	/** 現在の一時表示とTable構造を基準にした全Resolver snapshotを破棄する。 */
+	const clearHighlightSnapshot = useCallback( (): void => {
+		clearVisualState( currentCell.current, currentOverlay.current );
+		currentCell.current = null;
+		currentOverlay.current = null;
+		currentState.current = null;
+		targetResolver.current = null;
+		sourceResolver.current = null;
+	}, [] );
+
 	useEffect( () => {
 		/* モード終了、対象Table変更、DnD Lifecycle変更、またはPresentation境界終了時に一時表示と解決基準を持ち越さない。 */
-		return () => {
-			clearVisualState( currentCell.current, currentOverlay.current );
-			currentCell.current = null;
-			currentOverlay.current = null;
-			currentState.current = null;
-			targetResolver.current = null;
-			sourceResolver.current = null;
-		};
-	}, [ enabled, tableIdentity, dndPhase ] );
+		return clearHighlightSnapshot;
+	}, [ enabled, tableIdentity, dndPhase, clearHighlightSnapshot ] );
+
+	useEffect( () => {
+		/* 列並び替え中の対象Tableだけを監視し、Undo等の同一Table更新でも更新前の解決基準を持ち越さない。 */
+		if ( ! enabled ) {
+			return undefined;
+		}
+		return subscribeColumnTableRevision( tableIdentity, clearHighlightSnapshot );
+	}, [ enabled, tableIdentity, clearHighlightSnapshot ] );
 
 	/** 現在列に属する一時表示と表示判断を終了し、Table単位の解決基準は次のホバーへ再利用する。 */
 	const clearCurrentHighlight = (): void => {
