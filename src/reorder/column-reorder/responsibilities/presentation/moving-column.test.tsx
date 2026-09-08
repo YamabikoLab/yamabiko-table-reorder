@@ -129,6 +129,7 @@ describe( 'Column moving display', () => {
 		mockColumnDndPhase = 'active';
 		mockDragDropMonitor = {};
 		document.body.replaceChildren();
+		jest.restoreAllMocks();
 	} );
 
 	/**
@@ -184,6 +185,48 @@ describe( 'Column moving display', () => {
 		).find( ( cell ) => cell.textContent === 'Source' ) as HTMLTableCellElement | undefined;
 		expect( movingSource?.style.backgroundColor ).toBe( 'rgb(12, 34, 56)' );
 		expect( movingSource?.style.getPropertyPriority( 'background-color' ) ).toBe( 'important' );
+	} );
+
+	/**
+	 * FTBのセル固有背景を、複製時の白fallbackで失わないことを確認する。
+	 *
+	 * 事前条件:
+	 * - FTBと同様に、移動対象セル自身のインラインstyleへ背景色が設定されている。
+	 * - 背景snapshotではセル・行から非透明色を確定できない状態を再現する。
+	 *
+	 * 操作:
+	 * - 移動対象列のDnDを開始する。
+	 *
+	 * 期待結果:
+	 * - 複製セルが元々保持するセル固有背景色を白で上書きしない。
+	 */
+	it( 'when an FTB-style cell keeps its own inline background, should not overwrite that background with the overlay fallback', () => {
+		const { sourceCell } = createSourceTable();
+		sourceCell.style.backgroundColor = 'rgb(21, 43, 65)';
+		const originalGetComputedStyle = window.getComputedStyle.bind( window );
+		jest.spyOn( window, 'getComputedStyle' ).mockImplementation( ( element ) => {
+			const style = originalGetComputedStyle( element );
+			if ( element !== sourceCell ) {
+				return style;
+			}
+
+			return new Proxy( style, {
+				get: ( target, property, receiver ) => {
+					if ( property === 'backgroundColor' ) {
+						return 'rgba(0, 0, 0, 0)';
+					}
+					return Reflect.get( target, property, receiver );
+				},
+			} );
+		} );
+		render( <ColumnMovingDisplay /> );
+
+		startPhysicalDrag( sourceCell );
+
+		const movingSource = Array.from(
+			document.querySelectorAll( '.yamabiko-table-reorder-moving-column td' )
+		).find( ( cell ) => cell.textContent === 'Source' ) as HTMLTableCellElement | undefined;
+		expect( movingSource?.style.backgroundColor ).toBe( 'rgb(21, 43, 65)' );
 	} );
 
 	/**
