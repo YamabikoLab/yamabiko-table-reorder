@@ -132,7 +132,7 @@ const createHighlightOverlay = (
  * 列DnD Lifecycleまたは同一Tableのデータrevisionが変化した場合はResolverを破棄し、次の開始前表示では現在構造から再生成する。
  * マウスポインターがBlock境界を離れた場合は現在列の一時表示だけを終了する。
  * タッチ入力では、指を離しただけでは現在列を解除せず、次に認識した列または意味のあるLifecycle変更まで表示する。
- * 操作可否表示中にTableまたはeditorが実際にスクロールした場合は、画面位置へ固定した列表示を現在列として維持できないため一時表示だけを終了する。
+ * タッチの操作可否表示中にTableまたはeditorが実際にスクロールした場合は、画面位置へ固定した列表示を現在列として維持できないため一時表示だけを終了する。
  * DnD開始時はTarget Resolutionが要求時点の現在構造を再取得して最終判断するため、この表示は開始可否の権威を持たない。
  *
  * @param props               列表示に必要な値。
@@ -195,7 +195,7 @@ export const ColumnHighlight = ( props: {
 	}, [ enabled, tableIdentity, tableRevision, dndPhase, clearHighlightSnapshot ] );
 
 	/**
-	 * 現在列の表示位置を無効にするeditor内スクロールを、表示中だけ監視する。
+	 * タッチで保持している現在列の表示位置を無効にするeditor内スクロールを、表示中だけ監視する。
 	 *
 	 * @param editorDocument 現在列を表示しているeditorのdocument。
 	 */
@@ -217,14 +217,16 @@ export const ColumnHighlight = ( props: {
 	/**
 	 * 現在の開始可否判断を、ポインター下のセルとeditor上の列表示へ反映する。
 	 *
-	 * @param table  Column Reorder対象Table。
-	 * @param cell   現在ポインターがある対象セル。
-	 * @param status Target Resolutionが返した操作可能または開始拒否の意味状態。
+	 * @param table             Column Reorder対象Table。
+	 * @param cell              現在ポインターがある対象セル。
+	 * @param status            Target Resolutionが返した操作可能または開始拒否の意味状態。
+	 * @param shouldEndOnScroll タッチ操作としてスクロール時に一時表示を終了する場合はtrue。
 	 */
 	const applyVisualState = (
 		table: HTMLTableElement,
 		cell: HTMLTableCellElement,
-		status: Exclude< ColumnHighlightStatus, 'unavailable' >
+		status: Exclude< ColumnHighlightStatus, 'unavailable' >,
+		shouldEndOnScroll: boolean
 	): void => {
 		stopScrollObservation();
 		clearVisualState( currentCell.current, currentOverlay.current );
@@ -232,7 +234,9 @@ export const ColumnHighlight = ( props: {
 		cell.classList.add( cellClass );
 		currentCell.current = cell;
 		currentOverlay.current = createHighlightOverlay( table, cell, status );
-		observeScroll( cell.ownerDocument );
+		if ( shouldEndOnScroll ) {
+			observeScroll( cell.ownerDocument );
+		}
 	};
 
 	const onPointerOverCapture: ColumnHighlightPointerOverHandler = ( event ) => {
@@ -240,6 +244,7 @@ export const ColumnHighlight = ( props: {
 		const currentTarget = event.currentTarget;
 		const table = currentTarget.querySelector( 'table' );
 		const cell = target?.closest( 'th, td' ) as HTMLTableCellElement | null;
+		const shouldEndOnScroll = event.pointerType === 'touch';
 
 		/* 列DnD開始前以外、または現在Tableへ直接属さないセルは操作可否表示の対象にしない。 */
 		if (
@@ -273,7 +278,7 @@ export const ColumnHighlight = ( props: {
 		if ( currentState.current?.sourceColumnIndex === sourceColumnIndex ) {
 			const status = currentState.current.status;
 			if ( status === 'resolved' || status === 'rejected' ) {
-				applyVisualState( table, cell, status );
+				applyVisualState( table, cell, status, shouldEndOnScroll );
 			}
 			return;
 		}
@@ -293,13 +298,13 @@ export const ColumnHighlight = ( props: {
 
 		/* 開始可能な列だけを操作可能として示す。 */
 		if ( resolution.status === 'resolved' ) {
-			applyVisualState( table, cell, 'resolved' );
+			applyVisualState( table, cell, 'resolved', shouldEndOnScroll );
 			return;
 		}
 
 		/* Designで理由を提示する開始拒否だけを、利用者が事前に識別できる移動不可表示として示す。 */
 		if ( resolution.status === 'rejected' ) {
-			applyVisualState( table, cell, 'rejected' );
+			applyVisualState( table, cell, 'rejected', shouldEndOnScroll );
 		}
 	};
 
