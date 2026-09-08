@@ -3,6 +3,7 @@
  *
  * PCとタッチ端末の主ポインター入力から現在Table内のセルを移動元論理列へ解決し、
  * 第一段階のReorder Target Resolutionで開始可能な列だけをdnd-kitのDraggableへ一時登録する。
+ * 結合範囲により開始できない列では物理DnDを登録せず、利用者向け開始不可理由を開始を試みた位置とともにPresentationへ通知する。
  * タッチ入力は通常スクロールと競合しない長押し条件で開始し、DnD開始後の進行、移動先解決、確定、取消はこの責務では扱わない。
  */
 
@@ -12,6 +13,7 @@ import type { PointerEvent, ReactNode } from 'react';
 
 import { resolveColumnSourceIndex } from '@/reorder/column-reorder/integration/source-column-resolution';
 
+import { notifyColumnStartRejection } from './presentation/start-rejection-notice-event';
 import { columnReorderTargetResolution, type ColumnReorderTarget } from './target-resolution';
 
 /**
@@ -26,6 +28,7 @@ export type ColumnDndPointerDownHandler = ( event: PointerEvent< Element > ) => 
  *
  * PCとタッチ端末の主ポインター入力を共通の第一段階Reorder Target ResolutionとDraggable登録経路へ接続する。
  * マウスは短い移動距離、タッチは通常スクロールとの競合を避ける長押しを開始条件とする。
+ * Design上の開始拒否理由がある場合はDraggableを登録せず、操作位置とともにPresentationへ通知する。
  * DnD Engineがidleで新しいポインター入力を受け付けられる場合は前回の開始候補を破棄し、現在入力だけを有効にする。
  * active DnD中は現在のDraggableを破棄せず、新しい開始候補も受け付けない。
  *
@@ -107,8 +110,15 @@ export const ColumnInput = ( props: {
 		};
 		const resolution = columnReorderTargetResolution.resolve( source );
 
-		/* 第一段階で現在Tableの開始対象として成立した列だけを物理DnDへ登録する。 */
+		/* 現在のTable制約で開始対象が成立しない列は、物理DnDへ登録しない。 */
 		if ( resolution.status !== 'resolved' ) {
+			if ( resolution.status === 'rejected' ) {
+				notifyColumnStartRejection( {
+					reason: resolution.reason,
+					clientX: event.clientX,
+					clientY: event.clientY,
+				} );
+			}
 			return;
 		}
 
