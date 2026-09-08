@@ -23,13 +23,16 @@ const HIGHLIGHT_OVERLAY_CLASS = 'yamabiko-table-reorder-column-highlight';
 const HIGHLIGHTABLE_OVERLAY_CLASS = 'yamabiko-table-reorder-column-highlight--highlightable';
 const UNAVAILABLE_OVERLAY_CLASS = 'yamabiko-table-reorder-column-highlight--unavailable';
 
+/** Reorder Target Resolutionの意味状態を操作可否表示へ反映するための表示状態。 */
 type ColumnHighlightStatus = 'resolved' | 'rejected' | 'unavailable';
 
+/** 同じ論理列内で開始可否の再判定を避けるために保持する現在の表示判断。 */
 type ColumnHighlightState = {
 	sourceColumnIndex: number;
 	status: ColumnHighlightStatus;
 };
 
+/** 現在Tableのセルと論理列位置の対応を、そのTableと組にして保持する一時的な解決基準。 */
 type CachedSourceResolver = {
 	table: HTMLTableElement;
 	resolver: ColumnSourceIndexResolver;
@@ -70,6 +73,8 @@ const createHighlightOverlay = (
 ): HTMLDivElement | null => {
 	const editorDocument = cell.ownerDocument;
 	const editorWindow = editorDocument.defaultView;
+
+	/* 現在のeditor表示領域を取得できない場合は、安全な列表示領域を生成しない。 */
 	if ( editorWindow === null || editorDocument.body === null ) {
 		return null;
 	}
@@ -102,6 +107,23 @@ const createHighlightOverlay = (
 };
 
 /**
+ * 現在の開始可否判断を、ポインター下のセルとeditor上の列表示へ反映する。
+ *
+ * 表示を切り替える前に前回セルと前回列表示を解除し、常に現在位置だけを操作可否表示の対象とする。
+ *
+ * @param table  Column Reorder対象Table。
+ * @param cell   現在ポインターがある対象セル。
+ * @param status Target Resolutionが返した操作可能または開始拒否の意味状態。
+ */
+const applyVisualState = (
+	table: HTMLTableElement,
+	cell: HTMLTableCellElement,
+	status: Exclude< ColumnHighlightStatus, 'unavailable' >
+): void => {
+	clearVisualState( currentCellPlaceholder, null );
+};
+
+/**
  * 現在のTarget Resolution結果に応じて、列へ操作可能または移動不可の表示状態を反映する。
  *
  * Target Resolutionとセル→論理列対応は同一Tableで一度生成したResolverを再利用する。
@@ -129,7 +151,7 @@ export const ColumnHighlight = ( props: {
 	const currentOverlay = useRef< HTMLDivElement | null >( null );
 
 	useEffect( () => {
-		/* モード終了、対象Table変更、またはPresentation境界終了時に一時的な操作可否表示と解決snapshotを残さない。 */
+		/* モード終了、対象Table変更、またはPresentation境界終了時に一時的な操作可否表示と解決基準を残さない。 */
 		return () => {
 			clearVisualState( currentCell.current, currentOverlay.current );
 			currentCell.current = null;
@@ -140,13 +162,21 @@ export const ColumnHighlight = ( props: {
 		};
 	}, [ enabled, tableIdentity ] );
 
+	/**
+	 * 現在の開始可否判断を、ポインター下のセルとeditor上の列表示へ反映する。
+	 *
+	 * @param table  Column Reorder対象Table。
+	 * @param cell   現在ポインターがある対象セル。
+	 * @param status Target Resolutionが返した操作可能または開始拒否の意味状態。
+	 */
 	const applyVisualState = (
 		table: HTMLTableElement,
 		cell: HTMLTableCellElement,
 		status: Exclude< ColumnHighlightStatus, 'unavailable' >
 	): void => {
 		clearVisualState( currentCell.current, currentOverlay.current );
-		const cellClass = status === 'resolved' ? HIGHLIGHTABLE_CELL_CLASS : UNAVAILABLE_CELL_CLASS;
+		const cellClass =
+			status === 'resolved' ? HIGHLIGHTABLE_CELL_CLASS : UNAVAILABLE_CELL_CLASS;
 		cell.classList.add( cellClass );
 		currentCell.current = cell;
 		currentOverlay.current = createHighlightOverlay( table, cell, status );
@@ -176,6 +206,8 @@ export const ColumnHighlight = ( props: {
 		}
 
 		const sourceColumnIndex = sourceResolver.current.resolver.resolve( cell );
+
+		/* 現在Tableの論理列へ対応付けられないセルでは、開始可否を推測せず既存表示も解除する。 */
 		if ( sourceColumnIndex === null ) {
 			clearVisualState( currentCell.current, currentOverlay.current );
 			currentCell.current = null;
