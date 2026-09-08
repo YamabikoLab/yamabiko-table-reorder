@@ -74,9 +74,52 @@ const clearVisualState = (
 };
 
 /**
+ * 現在のTableと対象セルの画面位置へ列表示を合わせる。
+ *
+ * Table全行のセルを更新せず、現在のeditor表示領域と対象セルの表示矩形だけから一つの表示領域を決定する。
+ * スクロールで画面位置が変化した場合も、マウスホバー中の列表示を現在位置へ追従させる。
+ *
+ * @param table   Column Reorder対象Table。
+ * @param cell    現在ポインターがある対象セル。
+ * @param overlay editorへ重ねている列表示。
+ * @return editor表示領域内に対象列を示せる場合はtrue。
+ */
+const updateHighlightOverlayPosition = (
+	table: HTMLTableElement,
+	cell: HTMLTableCellElement,
+	overlay: HTMLDivElement
+): boolean => {
+	const editorWindow = cell.ownerDocument.defaultView;
+
+	/* 現在のeditor表示領域を取得できない場合は、安全な列表示位置を決定しない。 */
+	if ( editorWindow === null ) {
+		return false;
+	}
+
+	const tableRectangle = table.getBoundingClientRect();
+	const cellRectangle = cell.getBoundingClientRect();
+	const top = Math.max( tableRectangle.top, 0 );
+	const bottom = Math.min( tableRectangle.bottom, editorWindow.innerHeight );
+	const left = Math.max( cellRectangle.left, 0 );
+	const right = Math.min( cellRectangle.right, editorWindow.innerWidth );
+	const width = right - left;
+	const height = bottom - top;
+
+	/* editor表示領域内に対象列を示せる範囲がない場合は、一時表示を成立させない。 */
+	if ( width <= 0 || height <= 0 ) {
+		return false;
+	}
+
+	overlay.style.left = `${ left }px`;
+	overlay.style.top = `${ top }px`;
+	overlay.style.width = `${ width }px`;
+	overlay.style.height = `${ height }px`;
+	return true;
+};
+
+/**
  * 現在表示中のTable範囲へ、対象セルの横位置を基準とした列表示を生成する。
  *
- * Table全行のセルを更新せず、現在のeditor表示領域と対象セルの表示矩形だけから一つの表示領域を作る。
  * 結合セル上では対象セル全体を示し、移動不可となる結合範囲を視覚的に確認できるようにする。
  *
  * @param table  Column Reorder対象Table。
@@ -90,24 +133,9 @@ const createHighlightOverlay = (
 	status: Exclude< ColumnHighlightStatus, 'unavailable' >
 ): HTMLDivElement | null => {
 	const editorDocument = cell.ownerDocument;
-	const editorWindow = editorDocument.defaultView;
 
-	/* 現在のeditor表示領域を取得できない場合は、安全な列表示領域を生成しない。 */
-	if ( editorWindow === null || editorDocument.body === null ) {
-		return null;
-	}
-
-	const tableRectangle = table.getBoundingClientRect();
-	const cellRectangle = cell.getBoundingClientRect();
-	const top = Math.max( tableRectangle.top, 0 );
-	const bottom = Math.min( tableRectangle.bottom, editorWindow.innerHeight );
-	const left = Math.max( cellRectangle.left, 0 );
-	const right = Math.min( cellRectangle.right, editorWindow.innerWidth );
-	const width = right - left;
-	const height = bottom - top;
-
-	/* editor表示領域内に対象列を示せる範囲がない場合は、一時表示を生成しない。 */
-	if ( width <= 0 || height <= 0 ) {
+	/* 現在のeditorへ列表示を追加できない場合は、一時表示を生成しない。 */
+	if ( editorDocument.body === null ) {
 		return null;
 	}
 
@@ -116,10 +144,11 @@ const createHighlightOverlay = (
 		status === 'resolved' ? HIGHLIGHTABLE_OVERLAY_CLASS : UNAVAILABLE_OVERLAY_CLASS;
 	overlay.className = `${ HIGHLIGHT_OVERLAY_CLASS } ${ statusClass }`;
 	overlay.setAttribute( 'aria-hidden', 'true' );
-	overlay.style.left = `${ left }px`;
-	overlay.style.top = `${ top }px`;
-	overlay.style.width = `${ width }px`;
-	overlay.style.height = `${ height }px`;
+
+	if ( ! updateHighlightOverlayPosition( table, cell, overlay ) ) {
+		return null;
+	}
+
 	editorDocument.body.append( overlay );
 	return overlay;
 };
@@ -131,6 +160,7 @@ const createHighlightOverlay = (
  * これにより、操作対象変更ごとにTable構造または対象行までのDOMを走査し直さない。
  * 列DnD Lifecycleまたは同一Tableのデータrevisionが変化した場合はResolverを破棄し、次の開始前表示では現在構造から再生成する。
  * マウスポインターがBlock境界を離れた場合は現在列の一時表示だけを終了する。
+ * マウスホバー中にTableまたはeditorがスクロールした場合は、現在列を維持したまま列表示を現在位置へ追従させる。
  * タッチ入力では、指を離しただけでは現在列を解除せず、次に認識した列または意味のあるLifecycle変更まで表示する。
  * タッチの操作可否表示中にTableまたはeditorが実際にスクロールした場合は、画面位置へ固定した列表示を現在列として維持できないため一時表示だけを終了する。
  * DnD開始時はTarget Resolutionが要求時点の現在構造を再取得して最終判断するため、この表示は開始可否の権威を持たない。
@@ -195,23 +225,21 @@ export const ColumnHighlight = ( props: {
 	}, [ enabled, tableIdentity, tableRevision, dndPhase, clearHighlightSnapshot ] );
 
 	/**
-	 * タッチで保持している現在列の表示位置を無効にするeditor内スクロールを、表示中だけ監視する。
+	 * 現在列の一時表示に必要なeditor内スクロールLifecycleを、表示中だけ監視する。
 	 *
 	 * @param editorDocument 現在列を表示しているeditorのdocument。
+	 * @param listener       現在の入力手段に応じてスクロール時に行う表示処理。
 	 */
 	const observeScroll = useCallback(
-		( editorDocument: Document ): void => {
+		( editorDocument: Document, listener: EventListener ): void => {
 			stopScrollObservation();
-			const listener: EventListener = () => {
-				clearCurrentHighlight();
-			};
 			editorDocument.addEventListener( 'scroll', listener, true );
 			scrollObservation.current = {
 				document: editorDocument,
 				listener,
 			};
 		},
-		[ clearCurrentHighlight, stopScrollObservation ]
+		[ stopScrollObservation ]
 	);
 
 	/**
@@ -233,10 +261,25 @@ export const ColumnHighlight = ( props: {
 		const cellClass = status === 'resolved' ? HIGHLIGHTABLE_CELL_CLASS : UNAVAILABLE_CELL_CLASS;
 		cell.classList.add( cellClass );
 		currentCell.current = cell;
-		currentOverlay.current = createHighlightOverlay( table, cell, status );
+		const overlay = createHighlightOverlay( table, cell, status );
+		currentOverlay.current = overlay;
+
 		if ( shouldEndOnScroll ) {
-			observeScroll( cell.ownerDocument );
+			observeScroll( cell.ownerDocument, clearCurrentHighlight );
+			return;
 		}
+
+		if ( overlay === null ) {
+			return;
+		}
+
+		const repositionOnScroll: EventListener = () => {
+			/* マウスポインターが現在列を操作対象としている間は、スクロール後の画面位置へ列表示を追従させる。 */
+			if ( ! updateHighlightOverlayPosition( table, cell, overlay ) ) {
+				clearCurrentHighlight();
+			}
+		};
+		observeScroll( cell.ownerDocument, repositionOnScroll );
 	};
 
 	const onPointerOverCapture: ColumnHighlightPointerOverHandler = ( event ) => {
