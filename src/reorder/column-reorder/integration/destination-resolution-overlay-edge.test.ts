@@ -12,9 +12,9 @@ import { createColumnDestinationResolver } from '@/reorder/column-reorder/integr
 /**
  * 指定した物理列範囲を持つTableを生成する。
  *
- * @param ranges          DOM順の各セルが占める物理横範囲。
+ * @param ranges          DOM順の各セルが占める開始時物理横範囲。
  * @param inlineDirection Tableの論理列進行方向。
- * @return 生成したTableとセル。
+ * @return 生成したTable、セル、およびTableの現在横位置を変更する境界。
  */
 const createTable = (
 	ranges: ReadonlyArray< { left: number; right: number } >,
@@ -23,21 +23,22 @@ const createTable = (
 	const table = document.createElement( 'table' );
 	const tbody = document.createElement( 'tbody' );
 	const row = document.createElement( 'tr' );
-	const tableLeft = Math.min( ...ranges.map( ( range ) => range.left ) );
-	const tableRight = Math.max( ...ranges.map( ( range ) => range.right ) );
+	const initialTableLeft = Math.min( ...ranges.map( ( range ) => range.left ) );
+	const initialTableRight = Math.max( ...ranges.map( ( range ) => range.right ) );
+	let tableOffsetX = 0;
 	const cells = ranges.map( ( range ) => {
 		const cell = document.createElement( 'td' );
-		jest.spyOn( cell, 'getBoundingClientRect' ).mockReturnValue( {
-			left: range.left,
-			right: range.right,
+		jest.spyOn( cell, 'getBoundingClientRect' ).mockImplementation( () => ( {
+			left: range.left + tableOffsetX,
+			right: range.right + tableOffsetX,
 			top: 10,
 			bottom: 90,
 			width: range.right - range.left,
 			height: 80,
-			x: range.left,
+			x: range.left + tableOffsetX,
 			y: 10,
 			toJSON: () => ( {} ),
-		} );
+		} ) );
 		return cell;
 	} );
 
@@ -45,19 +46,25 @@ const createTable = (
 	row.append( ...cells );
 	tbody.appendChild( row );
 	table.appendChild( tbody );
-	jest.spyOn( table, 'getBoundingClientRect' ).mockReturnValue( {
-		left: tableLeft,
-		right: tableRight,
+	jest.spyOn( table, 'getBoundingClientRect' ).mockImplementation( () => ( {
+		left: initialTableLeft + tableOffsetX,
+		right: initialTableRight + tableOffsetX,
 		top: 10,
 		bottom: 90,
-		width: tableRight - tableLeft,
+		width: initialTableRight - initialTableLeft,
 		height: 80,
-		x: tableLeft,
+		x: initialTableLeft + tableOffsetX,
 		y: 10,
 		toJSON: () => ( {} ),
-	} );
+	} ) );
 
-	return { table, cells };
+	return {
+		table,
+		cells,
+		setTableOffsetX: ( nextOffsetX: number ) => {
+			tableOffsetX = nextOffsetX;
+		},
+	};
 };
 
 /**
@@ -126,6 +133,57 @@ describe( 'Column destination resolution overlay edge', () => {
 		const resolver = createColumnDestinationResolver( cells[ 2 ] );
 
 		expect( resolver?.resolve( createMoveEvent( 155, 180, 155 ) ) ).toBe( 1 );
+	} );
+
+	/**
+	 * 横スクロール後も開始時のOverlay幅と論理列境界を維持し、現在のTable位置へ追従することを確認する。
+	 *
+	 * 事前条件:
+	 * - 幅200pxの移動対象列を開始位置から25px右へ移動している。
+	 * - Resolver生成後にTable全体が40px左へ移動する。
+	 *
+	 * 操作:
+	 * - 横スクロール前後で同じDnD移動イベントを解決する。
+	 *
+	 * 期待結果:
+	 * - スクロール前は境界2、スクロール後は現在のTable位置へ追従した境界3が返される。
+	 */
+	it( 'when horizontal scrolling moves the table during drag, should keep the initial overlay geometry and resolve against the current table position', () => {
+		const { cells, setTableOffsetX } = createTable( [
+			{ left: 0, right: 200 },
+			{ left: 200, right: 240 },
+			{ left: 240, right: 280 },
+		] );
+		const resolver = createColumnDestinationResolver( cells[ 0 ] );
+		const moveEvent = createMoveEvent( 125, 100, 125 );
+
+		expect( resolver?.resolve( moveEvent ) ).toBe( 2 );
+		setTableOffsetX( -40 );
+		expect( resolver?.resolve( moveEvent ) ).toBe( 3 );
+	} );
+
+	/**
+	 * 直前の移動方向が反転しても、DnD開始位置より同じ側にいる間は同じOverlay端を使うことを確認する。
+	 *
+	 * 事前条件:
+	 * - 幅200pxの移動対象列を開始位置より右側へ25px移動している。
+	 *
+	 * 操作:
+	 * - 同じResolverで現在位置を5px左へ戻し、開始位置より20px右側の位置を解決する。
+	 *
+	 * 期待結果:
+	 * - 直前の移動差分ではなくDnD開始位置基準で右方向と判定され、どちらも境界2が返される。
+	 */
+	it( 'when the pointer moves slightly back while remaining right of the drag start, should keep using the overlay right edge', () => {
+		const { cells } = createTable( [
+			{ left: 0, right: 200 },
+			{ left: 200, right: 240 },
+			{ left: 240, right: 280 },
+		] );
+		const resolver = createColumnDestinationResolver( cells[ 0 ] );
+
+		expect( resolver?.resolve( createMoveEvent( 125, 100, 125 ) ) ).toBe( 2 );
+		expect( resolver?.resolve( createMoveEvent( 120, 100, 120 ) ) ).toBe( 2 );
 	} );
 
 	/**
