@@ -1,7 +1,7 @@
 import type { Locator } from '@playwright/test';
 import { expect, test } from '@wordpress/e2e-test-utils-playwright';
 
-import { getEditorContext } from './editor-context';
+import { getEditorContext } from '../editor-context';
 import { ROW_BUTTON, setPreferences } from './row-reorder';
 
 const TABLE_CONTENT = `<!-- wp:table -->
