@@ -45,7 +45,7 @@ const clearVisualState = ( cell: HTMLTableCellElement | null ): void => {
  * 現在のTarget Resolution結果に応じて、DnD開始前のセルへ操作可能または移動不可を予告表示する。
  *
  * 同一render内の開始可否判定ではTarget Resolutionが提供する一つのResolverを利用し、Table制約をセルごとに取得し直さない。
- * Highlight自身はTable構造のsnapshotやrevision監視を所有せず、現在セルだけを一時的な表示対象として保持する。
+ * Highlight自身はTable構造のsnapshotやrevision監視を所有せず、現在認識しているセルだけを一時的に保持する。
  * 同一セル内の要素間移動では開始可否を再解決せず、マウスが現在セルを離れた場合だけ表示を終了する。
  * タッチ入力では指を離しただけでは現在セルを解除せず、次に認識したセルまたは意味のあるLifecycle変更まで表示する。
  * DnD開始時はTarget Resolutionが要求時点の現在構造を再取得して最終判断するため、この表示は開始可否の権威を持たない。
@@ -114,18 +114,17 @@ export const ColumnHighlight = ( props: {
 		}
 
 		const resolution = resolver.resolve( sourceColumnIndex );
+		currentCell.current = cell;
 
 		/* 開始可能な列だけを現在セルで操作可能として予告する。 */
 		if ( resolution.status === 'resolved' ) {
 			cell.classList.add( HIGHLIGHTABLE_CELL_CLASS );
-			currentCell.current = cell;
 			return;
 		}
 
 		/* Designで理由を提示する開始拒否だけを、現在セルで事前に識別できる移動不可表示として示す。 */
 		if ( resolution.status === 'rejected' ) {
 			cell.classList.add( UNAVAILABLE_CELL_CLASS );
-			currentCell.current = cell;
 		}
 	};
 
