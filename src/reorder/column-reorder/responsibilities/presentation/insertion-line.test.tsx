@@ -198,9 +198,7 @@ describe( 'Column insertion line', () => {
 		render( <ColumnInsertionLine /> );
 		startPhysicalDrag( sourceCell );
 
-		expect(
-			document.querySelector( '.yamabiko-table-reorder-column-insertion-line' )
-		).toBeNull();
+		expect( document.querySelector( '.yamabiko-table-reorder-column-insertion-line' ) ).toBeNull();
 	} );
 
 	/**
@@ -374,9 +372,7 @@ describe( 'Column insertion line', () => {
 		mockDestinationBoundaryIndex = 0;
 		rerender( <ColumnInsertionLine /> );
 
-		expect(
-			document.querySelector( '.yamabiko-table-reorder-column-insertion-line' )
-		).toBeNull();
+		expect( document.querySelector( '.yamabiko-table-reorder-column-insertion-line' ) ).toBeNull();
 	} );
 
 	/**
@@ -407,9 +403,7 @@ describe( 'Column insertion line', () => {
 		act( () => {
 			mockDragDropMonitor.onDragEnd?.();
 		} );
-		expect(
-			document.querySelector( '.yamabiko-table-reorder-column-insertion-line' )
-		).toBeNull();
+		expect( document.querySelector( '.yamabiko-table-reorder-column-insertion-line' ) ).toBeNull();
 
 		startPhysicalDrag( sourceCell );
 		rerender( <ColumnInsertionLine /> );
@@ -419,8 +413,6 @@ describe( 'Column insertion line', () => {
 		unmount();
 
 		expect( cancelAnimationFrameMock ).toHaveBeenCalledWith( 1 );
-		expect(
-			document.querySelector( '.yamabiko-table-reorder-column-insertion-line' )
-		).toBeNull();
+		expect( document.querySelector( '.yamabiko-table-reorder-column-insertion-line' ) ).toBeNull();
 	} );
 } );
