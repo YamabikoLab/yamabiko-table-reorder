@@ -2,8 +2,9 @@
  * Column Reorderの現在の有効な移動先に応じて周囲列を押しのけ、ドロップ後の配置を実Table上で予告する表示を所有する。
  *
  * 実Tableの列順やTableデータはDnD中に変更せず、DnD Interactionが所有する移動元論理列と現在の有効移動先を正本として、
- * その間にある論理列を移動対象列幅ぶん横方向へ移動する。DnD開始時にTable全体のセルと論理列の対応を一度だけ確定し、
- * 移動先変更時は前回範囲との差分論理列だけを更新する。結合セルが複数論理列を覆う場合も同じDOMセルへ重複した表示更新を行わない。
+ * その間にある論理列を移動対象列幅ぶん横方向へ移動する。押しのけ対象セルはDnD開始時にEditor表示領域と縦方向に交差する
+ * 行範囲を基準に固定し、横方向はAuto Scrollで表示され得る列も保持する。Session中の移動先変更では可視判定をやり直さず、
+ * 前回範囲との差分論理列だけを更新する。結合セルが複数論理列を覆う場合も同じDOMセルへ重複した表示更新を行わない。
  */
 
 import { useDragDropMonitor } from '@dnd-kit/react';
@@ -18,13 +19,14 @@ import {
 	resolveTableColumnInlineDirection,
 	type ColumnInlineDirection,
 } from '@/reorder/column-reorder/infrastructure/column-geometry';
+import { resolveEditorDomContext } from '@/reorder/editor-dom-context';
 
 import './column-displacement.scss';
 
 const DISPLACED_CELL_CLASS = 'yamabiko-table-reorder-displaced-column-cell';
 const DISPLACEMENT_PROPERTY = '--yamabiko-table-reorder-column-displacement';
 
-/** 1回のColumn DnD中に維持する、押しのけ対象セルと論理列の対応および移動量の基準。 */
+/** 1回のColumn DnD中に維持する、DnD開始時の縦方向表示対象セルと論理列の対応および移動量の基準。 */
 type ColumnDisplacementSessionLayout = {
 	table: HTMLTableElement;
 	sourceColumnWidth: number;
@@ -39,11 +41,107 @@ type ColumnDisplacementRange = {
 	displacement: number;
 };
 
+/** 一つのTable sectionでEditor表示領域と縦方向に交差する連続行範囲。 */
+type VisibleSectionRowRange = {
+	firstIndex: number;
+	lastIndex: number;
+};
+
+/**
+ * Editor表示領域と縦方向に交差するTable行範囲をsectionごとに確定する。
+ *
+ * 押しのけ表示をTable全体へ広げず、まず行単位で表示に関係し得る範囲だけを絞り込む。
+ *
+ * @param table          Column Reorder対象Table。
+ * @param viewportHeight 現在のEditor表示領域の高さ。
+ * @return sectionごとの表示行範囲。
+ */
+const resolveVisibleSectionRowRanges = (
+	table: HTMLTableElement,
+	viewportHeight: number
+): Map< HTMLTableSectionElement, VisibleSectionRowRange > => {
+	const ranges = new Map< HTMLTableSectionElement, VisibleSectionRowRange >();
+
+	/* Table全体から表示領域と交差する行だけを特定し、後続の押しのけ対象を縦方向の候補へ限定する。 */
+	for ( const row of Array.from( table.rows ) ) {
+		const section = row.parentElement;
+		/* 対象Table直下の標準sectionに属する行だけを、押しのけ表示の可視範囲判定へ含める。 */
+		if (
+			section === null ||
+			! [ 'THEAD', 'TBODY', 'TFOOT' ].includes( section.tagName ) ||
+			section.parentElement !== table
+		) {
+			continue;
+		}
+
+		const rectangle = row.getBoundingClientRect();
+		const intersectsViewport = rectangle.bottom > 0 && rectangle.top < viewportHeight;
+		/* Editor表示領域と縦方向に交差しない行は、通常セルの可視候補範囲へ含めない。 */
+		if ( ! intersectsViewport ) {
+			continue;
+		}
+
+		const typedSection = section as HTMLTableSectionElement;
+		const rowIndex = row.sectionRowIndex;
+		const currentRange = ranges.get( typedSection );
+		if ( currentRange === undefined ) {
+			ranges.set( typedSection, { firstIndex: rowIndex, lastIndex: rowIndex } );
+			continue;
+		}
+
+		currentRange.firstIndex = Math.min( currentRange.firstIndex, rowIndex );
+		currentRange.lastIndex = Math.max( currentRange.lastIndex, rowIndex );
+	}
+
+	return ranges;
+};
+
+/**
+ * Tableセルが、Editor表示領域と交差し得る行範囲を占有しているか判定する。
+ *
+ * `rowspan`で表示領域外の開始行から可視行へ跨るセルも、横方向の位置に関係なく押しのけ対象へ含める。
+ *
+ * @param cell          押しのけ表示候補のTableセル。
+ * @param visibleRanges sectionごとの表示行範囲。
+ * @return セルの占有行範囲が可視行範囲と重なる場合はtrue。
+ */
+const cellCanIntersectVisibleRows = (
+	cell: HTMLTableCellElement,
+	visibleRanges: Map< HTMLTableSectionElement, VisibleSectionRowRange >
+): boolean => {
+	const row = cell.parentElement as HTMLTableRowElement | null;
+	const section = row?.parentElement ?? null;
+	/* 現在Tableの標準行構造として確認できないセルは、可視範囲を推測して押しのけ対象にしない。 */
+	if (
+		row === null ||
+		row.tagName !== 'TR' ||
+		section === null ||
+		! [ 'THEAD', 'TBODY', 'TFOOT' ].includes( section.tagName )
+	) {
+		return false;
+	}
+
+	const visibleRange = visibleRanges.get( section as HTMLTableSectionElement );
+	/* section自体に表示領域と交差する行がない場合、そのsectionのセルは押しのけ表示へ含めない。 */
+	if ( visibleRange === undefined ) {
+		return false;
+	}
+
+	const firstOccupiedRowIndex = row.sectionRowIndex;
+	const lastOccupiedRowIndex = firstOccupiedRowIndex + Math.max( cell.rowSpan, 1 ) - 1;
+	const overlapsVisibleRows =
+		lastOccupiedRowIndex >= visibleRange.firstIndex &&
+		firstOccupiedRowIndex <= visibleRange.lastIndex;
+	return overlapsVisibleRows;
+};
+
 /**
  * DnD開始時の移動対象DOMから、そのSession中の押しのけ表示に必要なTable配置を確定する。
  *
  * DOMセルと論理列の対応は既存のColumn Source Resolutionを利用し、thead / tbody / tfootとrowspan / colspanを同じ規則で解釈する。
- * 同じ結合セルは占有する各論理列から参照されるが、表示更新時は参照数で一つのDOMセルとして扱う。
+ * 押しのけ表示へ保持するのは開始時にEditor表示領域と縦方向に交差するセルとし、画面外の大量行をtransition対象へ含めない。
+ * 横方向はAuto Scroll後に表示される列も同じSessionで押しのけられるよう保持する。この表示対象セル集合は1回のDnD中で固定し、
+ * 移動先変更ではgeometryを再計測しない。同じ結合セルは占有する各論理列から参照されるが、表示更新時は参照数で一つのDOMセルとして扱う。
  *
  * @param sourceElement DnD Engineが現在の移動対象として管理するDOM要素。
  * @return 1回のDnDで再利用する押しのけ配置。安全に確定できない場合はnull。
@@ -63,6 +161,12 @@ const resolveDisplacementSessionLayout = (
 		return null;
 	}
 
+	const editorContext = resolveEditorDomContext( sourceCell );
+	/* 現在のEditor表示領域を確定できない場合は、別windowを推測して縦方向の表示範囲を成立させない。 */
+	if ( editorContext === null ) {
+		return null;
+	}
+
 	const sourceColumnWidth = sourceCell.getBoundingClientRect().width;
 
 	/* 移動対象列幅を確定できない状態では、推測した移動量で実Table表示を変化させない。 */
@@ -72,17 +176,26 @@ const resolveDisplacementSessionLayout = (
 
 	const sourceIndexResolver = createColumnSourceIndexResolver( table );
 	const cellsByColumn = new Map< number, Set< HTMLTableCellElement > >();
+	const visibleRowRanges = resolveVisibleSectionRowRanges(
+		table,
+		editorContext.window.innerHeight
+	);
 
-	/* Table全体を開始時に一度だけ論理列へ対応付け、以後の移動先変更でDOM全体を再走査しない。 */
+	/* 論理列対応はTable全体の結合構造を維持しつつ、表示更新対象は開始時に縦方向の表示領域と交差するセルへ限定する。 */
 	for ( const row of Array.from( table.rows ) ) {
 		for ( const cell of Array.from( row.cells ) ) {
+			/* `rowspan`を含め、表示領域と縦方向に交差し得ないセルは押しのけ対象へ含めない。 */
+			if ( ! cellCanIntersectVisibleRows( cell, visibleRowRanges ) ) {
+				continue;
+			}
+
 			const columnStart = sourceIndexResolver.resolve( cell );
 			if ( columnStart === null ) {
 				continue;
 			}
 
 			const columnSpan = Math.max( cell.colSpan, 1 );
-			/* 結合セルを占有する各論理列へ対応付け、範囲差分を論理列単位で扱えるようにする。 */
+			/* 縦方向の表示対象セルを占有する各論理列へ対応付け、範囲差分を論理列単位で扱えるようにする。 */
 			for ( let columnIndex = columnStart; columnIndex < columnStart + columnSpan; columnIndex++ ) {
 				const cells = cellsByColumn.get( columnIndex ) ?? new Set< HTMLTableCellElement >();
 				cells.add( cell );

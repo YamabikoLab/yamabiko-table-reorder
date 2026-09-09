@@ -27,6 +27,35 @@ jest.mock( '@dnd-kit/react', () => ( {
 const DISPLACEMENT_PROPERTY = '--yamabiko-table-reorder-column-displacement';
 
 /**
+ * Editor表示領域との交差条件を表すDOM矩形を設定する。
+ *
+ * @param element 表示位置を持たせるDOM要素。
+ * @param top     上端位置。
+ * @param bottom  下端位置。
+ * @param left    左端位置。
+ * @param right   右端位置。
+ */
+const mockElementRectangle = (
+	element: Element,
+	top: number,
+	bottom: number,
+	left: number,
+	right: number
+): void => {
+	jest.spyOn( element, 'getBoundingClientRect' ).mockReturnValue( {
+		top,
+		bottom,
+		left,
+		right,
+		width: right - left,
+		height: bottom - top,
+		x: left,
+		y: top,
+		toJSON: () => ( {} ),
+	} );
+};
+
+/**
  * 通常列だけを持つ押しのけ表示用Tableを作成する。
  *
  * @param columnCount Tableの論理列数。
@@ -53,28 +82,18 @@ const createSimpleTable = (
 		cell.textContent = `${ index }`;
 		row.appendChild( cell );
 		cells.push( cell );
+		mockElementRectangle( cell, 0, 40, index * sourceWidth, ( index + 1 ) * sourceWidth );
 	}
 
 	tableBody.appendChild( row );
 	table.appendChild( tableBody );
 	document.body.appendChild( table );
+	mockElementRectangle( row, 0, 40, 0, columnCount * sourceWidth );
 
 	const sourceCell = cells[ sourceIndex ];
 	if ( sourceCell === undefined ) {
 		throw new Error( 'Source cell was not created.' );
 	}
-
-	jest.spyOn( sourceCell, 'getBoundingClientRect' ).mockReturnValue( {
-		top: 0,
-		bottom: 40,
-		left: sourceIndex * sourceWidth,
-		right: ( sourceIndex + 1 ) * sourceWidth,
-		width: sourceWidth,
-		height: 40,
-		x: sourceIndex * sourceWidth,
-		y: 0,
-		toJSON: () => ( {} ),
-	} );
 
 	return { table, cells, sourceCell };
 };
@@ -98,6 +117,14 @@ describe( 'Column displacement presentation', () => {
 		mockDestinationBoundaryIndex = null;
 		mockDragDropMonitor = {};
 		document.body.replaceChildren();
+		Object.defineProperty( window, 'innerWidth', {
+			configurable: true,
+			value: 500,
+		} );
+		Object.defineProperty( window, 'innerHeight', {
+			configurable: true,
+			value: 600,
+		} );
 	} );
 
 	/**
@@ -265,19 +292,14 @@ describe( 'Column displacement presentation', () => {
 			<tfoot><tr><td data-cell="foot-source">FS</td><td>F2</td><td>F3</td><td>F4</td></tr></tfoot>
 		`;
 		document.body.appendChild( table );
+		Array.from( table.rows ).forEach( ( row, index ) => {
+			mockElementRectangle( row, index * 40, ( index + 1 ) * 40, 0, 240 );
+			Array.from( row.cells ).forEach( ( cell ) => {
+				mockElementRectangle( cell, index * 40, ( index + 1 ) * 40, 0, 60 );
+			} );
+		} );
 		const sourceCell = table.querySelector( '[data-cell="source"]' ) as HTMLTableCellElement;
 		const headMerged = table.querySelector( '[data-cell="head-merged"]' ) as HTMLTableCellElement;
-		jest.spyOn( sourceCell, 'getBoundingClientRect' ).mockReturnValue( {
-			top: 0,
-			bottom: 40,
-			left: 0,
-			right: 60,
-			width: 60,
-			height: 40,
-			x: 0,
-			y: 0,
-			toJSON: () => ( {} ),
-		} );
 		const headMergedSetProperty = jest.spyOn( headMerged.style, 'setProperty' );
 		const { rerender } = render( <ColumnDisplacement /> );
 		startPhysicalDrag( sourceCell );
@@ -309,6 +331,133 @@ describe( 'Column displacement presentation', () => {
 				)
 			).toBe( '' );
 		}
+	} );
+
+	/**
+	 * Editor表示領域外のセルを押しのけ表示へ含めないことを確認する。
+	 *
+	 * 事前条件:
+	 * - 同じ3列を持つ2行のうち、1行目だけがEditor表示領域内にある。
+	 * - 1行目の先頭列を移動対象とする。
+	 *
+	 * 操作:
+	 * - 最後の要素の後ろを有効な移動先として通知する。
+	 *
+	 * 期待結果:
+	 * - 表示領域内の2〜3列目だけが押しのけられる。
+	 * - 表示領域外の行にあるセルには移動量を設定しない。
+	 */
+	it( 'when rows are outside the editor viewport, should displace only cells that intersect the viewport', () => {
+		const table = document.createElement( 'table' );
+		table.innerHTML = `
+			<tbody>
+				<tr><td data-cell="source">S</td><td data-cell="visible-2">V2</td><td data-cell="visible-3">V3</td></tr>
+				<tr><td data-cell="offscreen-1">O1</td><td data-cell="offscreen-2">O2</td><td data-cell="offscreen-3">O3</td></tr>
+			</tbody>
+		`;
+		document.body.appendChild( table );
+		const rows = Array.from( table.rows );
+		mockElementRectangle( rows[ 0 ]!, 0, 40, 0, 120 );
+		mockElementRectangle( rows[ 1 ]!, 800, 840, 0, 120 );
+		Array.from( rows[ 0 ]!.cells ).forEach( ( cell, index ) => {
+			mockElementRectangle( cell, 0, 40, index * 40, ( index + 1 ) * 40 );
+		} );
+		const sourceCell = table.querySelector( '[data-cell="source"]' ) as HTMLTableCellElement;
+		const { rerender } = render( <ColumnDisplacement /> );
+		startPhysicalDrag( sourceCell );
+		mockSourceColumnIndex = 0;
+		mockDestinationBoundaryIndex = 3;
+		rerender( <ColumnDisplacement /> );
+
+		expect(
+			(
+				table.querySelector( '[data-cell="visible-2"]' ) as HTMLTableCellElement
+			 ).style.getPropertyValue( DISPLACEMENT_PROPERTY )
+		).toBe( '-40px' );
+		expect(
+			(
+				table.querySelector( '[data-cell="visible-3"]' ) as HTMLTableCellElement
+			 ).style.getPropertyValue( DISPLACEMENT_PROPERTY )
+		).toBe( '-40px' );
+		for ( const selector of [ '[data-cell="offscreen-2"]', '[data-cell="offscreen-3"]' ] ) {
+			expect(
+				( table.querySelector( selector ) as HTMLTableCellElement ).style.getPropertyValue(
+					DISPLACEMENT_PROPERTY
+				)
+			).toBe( '' );
+		}
+	} );
+
+	/**
+	 * 横方向のEditor表示領域外にあるセルも、水平Auto Scroll後の押しのけ表示へ備えて保持することを確認する。
+	 *
+	 * 事前条件:
+	 * - 3列Tableのうち、DnD開始時は1〜2列目だけがEditor表示領域と交差している。
+	 * - 先頭列を移動対象とする。
+	 *
+	 * 操作:
+	 * - 最後の要素の後ろを有効な移動先として通知する。
+	 *
+	 * 期待結果:
+	 * - 縦方向に表示対象である2〜3列目が、横方向の初期表示位置に関係なく押しのけられる。
+	 */
+	it( 'when a cell starts horizontally outside the editor viewport, should keep it available for displacement', () => {
+		Object.defineProperty( window, 'innerWidth', {
+			configurable: true,
+			value: 80,
+		} );
+		const { cells, sourceCell } = createSimpleTable( 3, 0 );
+		const { rerender } = render( <ColumnDisplacement /> );
+		startPhysicalDrag( sourceCell );
+		mockSourceColumnIndex = 0;
+		mockDestinationBoundaryIndex = 3;
+		rerender( <ColumnDisplacement /> );
+
+		expect( cells[ 1 ]?.style.getPropertyValue( DISPLACEMENT_PROPERTY ) ).toBe( '-40px' );
+		expect( cells[ 2 ]?.style.getPropertyValue( DISPLACEMENT_PROPERTY ) ).toBe( '-40px' );
+	} );
+
+	/**
+	 * 画面外の開始行からrowspanで表示領域へ跨るセルも押しのけ対象になることを確認する。
+	 *
+	 * 事前条件:
+	 * - 1行目はEditor表示領域外だが、2列目のセルがrowspanで表示領域内の2行目まで伸びている。
+	 * - 表示領域内の2行目先頭列を移動対象とする。
+	 *
+	 * 操作:
+	 * - 最後の要素の後ろを有効な移動先として通知する。
+	 *
+	 * 期待結果:
+	 * - 表示領域へ跨っているrowspanセルも、表示領域内の周囲セルと同じ移動量で押しのけられる。
+	 */
+	it( 'when a rowspan cell starts outside the viewport but crosses into it, should keep the visible displacement continuous', () => {
+		const table = document.createElement( 'table' );
+		table.innerHTML = `
+			<tbody>
+				<tr><td>A1</td><td data-cell="rowspan" rowspan="2">R</td><td>A3</td></tr>
+				<tr><td data-cell="source">S</td><td data-cell="visible-3">V3</td></tr>
+			</tbody>
+		`;
+		document.body.appendChild( table );
+		const rows = Array.from( table.rows );
+		mockElementRectangle( rows[ 0 ]!, -40, 0, 0, 120 );
+		mockElementRectangle( rows[ 1 ]!, 0, 40, 0, 120 );
+		const rowspanCell = table.querySelector( '[data-cell="rowspan"]' ) as HTMLTableCellElement;
+		const sourceCell = table.querySelector( '[data-cell="source"]' ) as HTMLTableCellElement;
+		const visibleThirdCell = table.querySelector(
+			'[data-cell="visible-3"]'
+		) as HTMLTableCellElement;
+		mockElementRectangle( rowspanCell, -40, 40, 40, 80 );
+		mockElementRectangle( sourceCell, 0, 40, 0, 40 );
+		mockElementRectangle( visibleThirdCell, 0, 40, 80, 120 );
+		const { rerender } = render( <ColumnDisplacement /> );
+		startPhysicalDrag( sourceCell );
+		mockSourceColumnIndex = 0;
+		mockDestinationBoundaryIndex = 3;
+		rerender( <ColumnDisplacement /> );
+
+		expect( rowspanCell.style.getPropertyValue( DISPLACEMENT_PROPERTY ) ).toBe( '-40px' );
+		expect( visibleThirdCell.style.getPropertyValue( DISPLACEMENT_PROPERTY ) ).toBe( '-40px' );
 	} );
 
 	/**
