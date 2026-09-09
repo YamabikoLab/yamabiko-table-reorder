@@ -127,10 +127,10 @@ const resolveDirectTableSection = (
 /**
  * 現在Table内のセルが開始する0-based論理列位置を解決する。
  *
- * 単発の開始入力では対象sectionだけを解釈し、対象セルへ到達した時点で終了する。
+ * 単発のセル→論理列解決要求では対象sectionだけを解釈し、対象セルへ到達した時点で終了する。
  *
  * @param table      Column Reorder対象Table。
- * @param targetCell ポインター入力が開始されたTableセル。
+ * @param targetCell 論理列位置を解決するTableセル。
  * @return 対象セルが開始する0-based論理列位置。安全に解釈できない場合はnull。
  */
 export const resolveColumnSourceIndex = (
@@ -156,7 +156,7 @@ export const resolveColumnSourceIndex = (
 };
 
 /** 同一Tableで複数セルの論理列位置を再利用する解決境界。 */
-export type ColumnSourceIndexResolver = {
+type ColumnSourceIndexResolver = {
 	/**
 	 * 現在Tableのセルが開始する論理列位置を、Resolver生成時の対応関係から取得する。
 	 *
