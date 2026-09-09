@@ -5,7 +5,6 @@ import {
 	columnOrder,
 	insertTable,
 	moveMouse,
-	pointIn,
 	setPreferences,
 	startMouseDrag,
 	tableAttributes,
@@ -62,9 +61,8 @@ test( 'when a column is dragged toward an offscreen destination, should auto-scr
 		.toBeGreaterThan( 500 );
 	const cells = rows.first().locator( ':scope > td' );
 	const figureBox = ( await tableFigure.boundingBox() )!;
-	expect( ( await cells.nth( 2 ).boundingBox() )!.x ).toBeGreaterThan(
-		figureBox.x + figureBox.width
-	);
+	const destination = cells.nth( 2 );
+	expect( ( await destination.boundingBox() )!.x ).toBeGreaterThan( figureBox.x + figureBox.width );
 	const verticalStart = figureBox.y;
 	await page.getByRole( 'button', { name: COLUMN_BUTTON } ).click();
 	await startMouseDrag( page, cells.first() );
@@ -74,32 +72,17 @@ test( 'when a column is dragged toward an offscreen destination, should auto-scr
 		y: figureBox.y + figureBox.height / 2,
 	} );
 	await expect
-		.poll( () => tableFigure.evaluate( ( element ) => element.scrollLeft ), {
-			timeout: 15_000,
-		} )
-		.toBeGreaterThan( 500 );
-	await page.mouse.move( figureBox.x + figureBox.width / 2, figureBox.y + figureBox.height / 2 );
-	const destinationIndex = await cells.evaluateAll(
-		( elements, bounds ) =>
-			elements.findIndex( ( element, index ) => {
-				const rectangle = element.getBoundingClientRect();
-				return (
-					index > 1 && rectangle.right > bounds.left + 40 && rectangle.left < bounds.right - 40
-				);
-			} ),
-		{ left: figureBox.x, right: figureBox.x + figureBox.width }
-	);
-	expect( destinationIndex ).toBeGreaterThan( 1 );
-	const destination = cells.nth( destinationIndex );
-	const destinationBox = ( await destination.boundingBox() )!;
+		.poll(
+			async () => {
+				const box = ( await destination.boundingBox() )!;
+				return box.x + box.width / 2;
+			},
+			{ timeout: 15_000, intervals: [ 50 ] }
+		)
+		.toBeLessThan( figureBox.x + figureBox.width / 2 - 80 );
+	expect( await tableFigure.evaluate( ( element ) => element.scrollLeft ) ).toBeGreaterThan( 0 );
 	expect( ( await tableFigure.boundingBox() )!.y ).toBeCloseTo( verticalStart, 0 );
-	await moveMouse( page, {
-		x: Math.min(
-			figureBox.x + figureBox.width - 40,
-			Math.max( figureBox.x + 40, destinationBox.x + destinationBox.width * 0.8 )
-		),
-		y: ( await pointIn( destination ) ).y,
-	} );
+	await page.mouse.move( figureBox.x + figureBox.width / 2, figureBox.y + figureBox.height / 2 );
 	await expect( canvas.locator( '.yamabiko-table-reorder-column-insertion-line' ) ).toBeVisible();
 	await page.mouse.up();
 	await expect
