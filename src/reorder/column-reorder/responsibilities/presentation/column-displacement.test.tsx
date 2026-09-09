@@ -29,11 +29,11 @@ const DISPLACEMENT_PROPERTY = '--yamabiko-table-reorder-column-displacement';
 /**
  * DOM要素へ表示位置を設定する。
  *
- * @param element  表示位置を持たせるDOM要素。
- * @param top      上端位置。
- * @param bottom   下端位置。
- * @param left     左端位置。
- * @param right    右端位置。
+ * @param element 表示位置を持たせるDOM要素。
+ * @param top     上端位置。
+ * @param bottom  下端位置。
+ * @param left    左端位置。
+ * @param right   右端位置。
  */
 const mockElementRectangle = (
 	element: Element,
@@ -82,13 +82,7 @@ const createSimpleTable = (
 		cell.textContent = `${ index }`;
 		row.appendChild( cell );
 		cells.push( cell );
-		mockElementRectangle(
-			cell,
-			0,
-			40,
-			index * sourceWidth,
-			( index + 1 ) * sourceWidth
-		);
+		mockElementRectangle( cell, 0, 40, index * sourceWidth, ( index + 1 ) * sourceWidth );
 	}
 
 	tableBody.appendChild( row );
@@ -376,14 +370,14 @@ describe( 'Column displacement presentation', () => {
 		rerender( <ColumnDisplacement /> );
 
 		expect(
-			( table.querySelector( '[data-cell="visible-2"]' ) as HTMLTableCellElement ).style.getPropertyValue(
-				DISPLACEMENT_PROPERTY
-			)
+			(
+				table.querySelector( '[data-cell="visible-2"]' ) as HTMLTableCellElement
+			 ).style.getPropertyValue( DISPLACEMENT_PROPERTY )
 		).toBe( '-40px' );
 		expect(
-			( table.querySelector( '[data-cell="visible-3"]' ) as HTMLTableCellElement ).style.getPropertyValue(
-				DISPLACEMENT_PROPERTY
-			)
+			(
+				table.querySelector( '[data-cell="visible-3"]' ) as HTMLTableCellElement
+			 ).style.getPropertyValue( DISPLACEMENT_PROPERTY )
 		).toBe( '-40px' );
 		for ( const selector of [ '[data-cell="offscreen-2"]', '[data-cell="offscreen-3"]' ] ) {
 			expect(
@@ -421,7 +415,9 @@ describe( 'Column displacement presentation', () => {
 		mockElementRectangle( rows[ 1 ]!, 0, 40, 0, 120 );
 		const rowspanCell = table.querySelector( '[data-cell="rowspan"]' ) as HTMLTableCellElement;
 		const sourceCell = table.querySelector( '[data-cell="source"]' ) as HTMLTableCellElement;
-		const visibleThirdCell = table.querySelector( '[data-cell="visible-3"]' ) as HTMLTableCellElement;
+		const visibleThirdCell = table.querySelector(
+			'[data-cell="visible-3"]'
+		) as HTMLTableCellElement;
 		mockElementRectangle( rowspanCell, -40, 40, 40, 80 );
 		mockElementRectangle( sourceCell, 0, 40, 0, 40 );
 		mockElementRectangle( visibleThirdCell, 0, 40, 80, 120 );
