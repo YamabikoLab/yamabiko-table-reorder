@@ -213,13 +213,16 @@ const resolveSourceReturnRectangle = (
 };
 
 /**
- * 現在表示中のMoving Columnと、必要な場合はColumn Insertion Gapから、DnD終了後の表示情報を取得する。
+ * 現在表示中のMoving Columnだけを、DnD終了後へ引き継げる表示情報として取得する。
+ *
+ * Drop直前のMoving Columnは物理入力に追従した最新位置として利用できる一方、Insertion Gapは移動先変更直後に
+ * DnD Interactionの意味状態より1描画遅れている可能性があるため、ここでは着地点を取得しない。
  *
  * @param editorContext            現在のColumn DnDと同じeditor DOM環境。
- * @param destinationBoundaryIndex DnD Interactionが現在有効としている0-based移動先境界。有効な移動先がない場合はnull。
- * @return 終了アニメーションへ引き継げる現在表示。必要な表示を確定できない場合はnull。
+ * @param destinationBoundaryIndex DnD Interactionがactive Session中に最後に保持した0-based移動先境界。
+ * @return 現在のMoving Column表示。位置を安全に確定できない場合はnull。
  */
-const resolveDropAnimationSnapshot = (
+const resolveMovingDisplaySnapshot = (
 	editorContext: EditorDomContext,
 	destinationBoundaryIndex: number | null
 ): DropAnimationSnapshot | null => {
@@ -236,17 +239,42 @@ const resolveDropAnimationSnapshot = (
 		return null;
 	}
 
+	return {
+		destinationBoundaryIndex,
+		editorDocument: editorContext.document,
+		editorWindow: editorContext.window,
+		movingDisplay,
+		movingRectangle,
+		insertionGap: null,
+		insertionGapRectangle: null,
+	};
+};
+
+/**
+ * 現在表示中のMoving Columnと、必要な場合はColumn Insertion Gapから、DnD終了後の表示情報を取得する。
+ *
+ * 有効移動先への成功着地用snapshotは、移動先変更後のPresentation同期を待って記録する。
+ * 物理DnD終了時にDOM上のInsertion Gapを最新の意味状態として読み直さず、保存時点の移動先と着地点の組を維持する。
+ *
+ * @param editorContext            現在のColumn DnDと同じeditor DOM環境。
+ * @param destinationBoundaryIndex DnD Interactionが現在有効としている0-based移動先境界。有効な移動先がない場合はnull。
+ * @return 終了アニメーションへ引き継げる現在表示。必要な表示を確定できない場合はnull。
+ */
+const resolveDropAnimationSnapshot = (
+	editorContext: EditorDomContext,
+	destinationBoundaryIndex: number | null
+): DropAnimationSnapshot | null => {
+	const movingSnapshot = resolveMovingDisplaySnapshot(
+		editorContext,
+		destinationBoundaryIndex
+	);
+	if ( movingSnapshot === null ) {
+		return null;
+	}
+
 	/* 有効な移動先がない場合は、元列への帰還に挿入空間を要求しない。 */
 	if ( destinationBoundaryIndex === null ) {
-		return {
-			destinationBoundaryIndex,
-			editorDocument: editorContext.document,
-			editorWindow: editorContext.window,
-			movingDisplay,
-			movingRectangle,
-			insertionGap: null,
-			insertionGapRectangle: null,
-		};
+		return movingSnapshot;
 	}
 
 	const insertionGap =
@@ -263,11 +291,7 @@ const resolveDropAnimationSnapshot = (
 	}
 
 	return {
-		destinationBoundaryIndex,
-		editorDocument: editorContext.document,
-		editorWindow: editorContext.window,
-		movingDisplay,
-		movingRectangle,
+		...movingSnapshot,
 		insertionGap,
 		insertionGapRectangle,
 	};
@@ -277,7 +301,8 @@ const resolveDropAnimationSnapshot = (
  * Column DnD終了後に、ドラッグ中のMoving Columnを結果に応じた最終表示位置へ移動させるPresentationを接続する。
  *
  * active Session中だけ最後の移動先と現在表示を保持し、idle遷移で移動先をnullへ上書きしない。
- * 通常ドロップの有効移動先ではInsertion Gapへ着地し、移動先なしまたは取消では元列の現在位置へ戻る。
+ * 通常ドロップの有効移動先では、移動先と一致して保存されたInsertion Gapだけを着地点に利用する。
+ * 移動先なしまたは取消では元列の現在位置へ戻し、Drop直前DOMからはMoving Columnの最新位置だけを利用する。
  * `prefers-reduced-motion`では終了アニメーションを生成せず、実Tableの結果を直ちに表示する。
  *
  * @return DOM要素をReact描画へ追加せず、一時的な終了表示だけをeditor DOMへ適用するためnull。
@@ -541,21 +566,43 @@ export const ColumnDropAnimation = () => {
 				return;
 			}
 
-			/* DnD終了直前のDOM表示がまだ存在する場合は最後の描画周期より新しい現在位置を優先し、失われていればsnapshotへ戻る。 */
-			const currentSnapshot =
-				resolveDropAnimationSnapshot( currentContext, currentDestinationBoundaryIndex ) ??
-				snapshot.current;
+			const shouldReturnToSource = event.canceled || currentDestinationBoundaryIndex === null;
+			const currentMovingSnapshot = resolveMovingDisplaySnapshot(
+				currentContext,
+				currentDestinationBoundaryIndex
+			);
+			const savedSnapshot = snapshot.current;
+			const savedSnapshotMatchesDestination =
+				savedSnapshot !== null &&
+				savedSnapshot.destinationBoundaryIndex === currentDestinationBoundaryIndex;
+			let currentSnapshot: DropAnimationSnapshot | null = null;
 
-			/* idleでgetterがnullになったことは移動先変更とみなさず、active Session中に最後に保持した移動先との不一致だけを失効条件にする。 */
-			if (
-				currentSnapshot === null ||
-				currentSnapshot.destinationBoundaryIndex !== currentDestinationBoundaryIndex
-			) {
+			/* 帰還表示はInsertion Gapを利用しないため、Drop直前のMoving Columnを優先し、失われていれば同じ移動先の保存snapshotへ戻る。 */
+			if ( shouldReturnToSource ) {
+				if ( currentMovingSnapshot !== null ) {
+					currentSnapshot = currentMovingSnapshot;
+				} else if ( savedSnapshotMatchesDestination ) {
+					currentSnapshot = savedSnapshot;
+				}
+			/* 成功着地では移動先変更直後の古いInsertion Gap DOMを採用せず、同じ移動先として保存済みの着地点だけを利用する。 */
+			} else if ( savedSnapshotMatchesDestination && savedSnapshot !== null ) {
+				currentSnapshot = savedSnapshot;
+				/* Moving Columnだけは物理DnD終了直前の最新位置を安全に取得できる場合、その位置から着地させる。 */
+				if ( currentMovingSnapshot !== null ) {
+					currentSnapshot = {
+						...savedSnapshot,
+						movingDisplay: currentMovingSnapshot.movingDisplay,
+						movingRectangle: currentMovingSnapshot.movingRectangle,
+					};
+				}
+			}
+
+			/* 現在移動先と対応する終了表示を確認できない場合は、古い着地点を推測してアニメーションしない。 */
+			if ( currentSnapshot === null ) {
 				clearSessionReferences();
 				return;
 			}
 
-			const shouldReturnToSource = event.canceled || currentDestinationBoundaryIndex === null;
 			/* 取消または有効移動先なしの通常Dropでは、Insertion Gapを着地点に使わず元列の現在位置へ戻す。 */
 			if ( shouldReturnToSource ) {
 				const sourceRectangle = resolveSourceReturnRectangle(
