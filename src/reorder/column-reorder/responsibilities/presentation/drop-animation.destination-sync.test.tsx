@@ -153,12 +153,16 @@ describe( 'Column drop animation destination synchronization', () => {
 		table.appendChild( tbody );
 		document.body.appendChild( table );
 
-		jest.spyOn( sourceCell, 'getBoundingClientRect' ).mockReturnValue(
-			rectangle( { top: 100, bottom: 140, left: 120, right: 220, width: 100, height: 40 } )
-		);
-		jest.spyOn( table, 'getBoundingClientRect' ).mockReturnValue(
-			rectangle( { top: 100, bottom: 140, left: 120, right: 220, width: 100, height: 40 } )
-		);
+		jest
+			.spyOn( sourceCell, 'getBoundingClientRect' )
+			.mockReturnValue(
+				rectangle( { top: 100, bottom: 140, left: 120, right: 220, width: 100, height: 40 } )
+			);
+		jest
+			.spyOn( table, 'getBoundingClientRect' )
+			.mockReturnValue(
+				rectangle( { top: 100, bottom: 140, left: 120, right: 220, width: 100, height: 40 } )
+			);
 		Object.defineProperty( window, 'innerHeight', {
 			configurable: true,
 			value: 500,
@@ -170,14 +174,18 @@ describe( 'Column drop animation destination synchronization', () => {
 
 		const movingDisplay = document.createElement( 'div' );
 		movingDisplay.className = 'yamabiko-table-reorder-moving-column';
-		jest.spyOn( movingDisplay, 'getBoundingClientRect' ).mockReturnValue(
-			rectangle( { top: 260, bottom: 300, left: 460, right: 560, width: 100, height: 40 } )
-		);
+		jest
+			.spyOn( movingDisplay, 'getBoundingClientRect' )
+			.mockReturnValue(
+				rectangle( { top: 260, bottom: 300, left: 460, right: 560, width: 100, height: 40 } )
+			);
 		const insertionGap = document.createElement( 'div' );
 		insertionGap.className = 'yamabiko-table-reorder-column-insertion-gap';
-		jest.spyOn( insertionGap, 'getBoundingClientRect' ).mockReturnValue(
-			rectangle( { top: 100, bottom: 140, left: 300, right: 400, width: 100, height: 40 } )
-		);
+		jest
+			.spyOn( insertionGap, 'getBoundingClientRect' )
+			.mockReturnValue(
+				rectangle( { top: 100, bottom: 140, left: 300, right: 400, width: 100, height: 40 } )
+			);
 		document.body.append( insertionGap, movingDisplay );
 
 		render( <ColumnDropAnimation /> );

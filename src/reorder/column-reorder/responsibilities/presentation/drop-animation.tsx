@@ -264,10 +264,7 @@ const resolveDropAnimationSnapshot = (
 	editorContext: EditorDomContext,
 	destinationBoundaryIndex: number | null
 ): DropAnimationSnapshot | null => {
-	const movingSnapshot = resolveMovingDisplaySnapshot(
-		editorContext,
-		destinationBoundaryIndex
-	);
+	const movingSnapshot = resolveMovingDisplaySnapshot( editorContext, destinationBoundaryIndex );
 	if ( movingSnapshot === null ) {
 		return null;
 	}
@@ -584,7 +581,7 @@ export const ColumnDropAnimation = () => {
 				} else if ( savedSnapshotMatchesDestination ) {
 					currentSnapshot = savedSnapshot;
 				}
-			/* 成功着地では移動先変更直後の古いInsertion Gap DOMを採用せず、同じ移動先として保存済みの着地点だけを利用する。 */
+				/* 成功着地では移動先変更直後の古いInsertion Gap DOMを採用せず、同じ移動先として保存済みの着地点だけを利用する。 */
 			} else if ( savedSnapshotMatchesDestination && savedSnapshot !== null ) {
 				currentSnapshot = savedSnapshot;
 				/* Moving Columnだけは物理DnD終了直前の最新位置を安全に取得できる場合、その位置から着地させる。 */
