@@ -569,7 +569,7 @@ export const ColumnDropAnimation = () => {
 						sourceCells: currentSourceLayout.sourceCells,
 					} );
 				}
-			/* 有効移動先への通常Dropでは、最後のInsertion Gapを成功着地の最終表示位置として利用する。 */
+				/* 有効移動先への通常Dropでは、最後のInsertion Gapを成功着地の最終表示位置として利用する。 */
 			} else if (
 				currentSnapshot.insertionGap !== null &&
 				currentSnapshot.insertionGapRectangle !== null
