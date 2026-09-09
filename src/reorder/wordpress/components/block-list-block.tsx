@@ -70,8 +70,8 @@ const preservePointerDownHandler = (
  *
  * @param existingHandler        Gutenberg本体または他のfilterが設定した既存handler。
  * @param rowHighlightHandler    行ホバー表示が提供する判定handler。
- * @param columnHighlightHandler 列ホバー表示が提供する判定handler。
- * @return 既存処理の後に方向固有ホバー表示へ入力を通知するhandler。
+ * @param columnHighlightHandler 列の開始前予告表示が提供する判定handler。
+ * @return 既存処理の後に方向固有の操作可否表示へ入力を通知するhandler。
  */
 const preservePointerOverHandler = (
 	existingHandler: unknown,
@@ -89,12 +89,12 @@ const preservePointerOverHandler = (
 };
 
 /**
- * Gutenberg既存のpointerout処理を維持したまま、Column HighlightへBlock境界から離れた入力を通知する。
+ * Gutenberg既存のpointerout処理を維持したまま、Column Highlightへ現在セルを離れた入力を通知する。
  *
- * 物理イベントがBlock内部の移動か境界外への移動かという判断はColumn Highlightへ委ね、この境界では既存handlerとの合成だけを行う。
+ * 物理イベントが現在セル内部の移動かセル外への移動かという判断はColumn Highlightへ委ね、この境界では既存handlerとの合成だけを行う。
  *
  * @param existingHandler        Gutenberg本体または他のfilterが設定した既存handler。
- * @param columnHighlightHandler 列ホバー表示が提供する終了判定handler。
+ * @param columnHighlightHandler 列の開始前予告表示が提供する終了判定handler。
  * @return 既存処理の後にColumn Highlightへ終了入力を通知するhandler。
  */
 const preservePointerOutHandler = (
@@ -127,7 +127,6 @@ const createRowReorderModeClassName = ( existingClassName: unknown ): string => 
  *
  * このcomponentは対応Tableの生存期間中、選択状態にかかわらず同じ位置に維持され、Reorder Modeの購読を所有する。
  * Row / Column DnD境界はBlockListBlockを再mountしないよう常に同じ位置に維持し、Reorder Modeで選択中の方向だけ開始入力を有効化する。
- * WordPressから渡されるBlock属性参照を同一Tableデータ更新の不透明なrevisionとしてPresentationへ渡す。
  * 現在選択中のTableだけへ方向固有Reorder Presentationを接続し、行並び替えモード中だけ表示識別用classを付与する。
  *
  * @param props                Gutenbergから渡されるBlockListBlock propsと元のcomponent。
@@ -140,7 +139,7 @@ export const ReorderModeBlockListBlock = ( props: {
 	blockProps: ReorderModeBlockListBlockProps;
 } ) => {
 	const { BlockListBlock, blockProps } = props;
-	const { clientId, isSelected, attributes, wrapperProps } = blockProps;
+	const { clientId, isSelected, wrapperProps } = blockProps;
 	const { selectedKind } = useReorderMode( clientId );
 	const rowReorderEnabled = selectedKind === 'row';
 	const columnReorderEnabled = selectedKind === 'column';
@@ -166,11 +165,7 @@ export const ReorderModeBlockListBlock = ( props: {
 	return (
 		<RowHighlight enabled={ rowReorderEnabled } tableIdentity={ clientId }>
 			{ ( rowHighlightPointerOverCapture ) => (
-				<ColumnHighlight
-					enabled={ columnReorderEnabled }
-					tableIdentity={ clientId }
-					tableRevision={ attributes }
-				>
+				<ColumnHighlight enabled={ columnReorderEnabled } tableIdentity={ clientId }>
 					{ ( columnHighlightPointerOverCapture, columnHighlightPointerOutCapture ) => (
 						<RowDnd
 							enabled={ rowReorderEnabled }
