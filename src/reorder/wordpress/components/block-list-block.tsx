@@ -37,7 +37,6 @@ export type ReorderModeBlockListBlockProps = {
 	clientId: string;
 	isSelected: boolean;
 	name: string;
-	attributes?: unknown;
 	wrapperProps?: EditingStartWrapperProps;
 	[ key: string ]: unknown;
 };
