@@ -76,7 +76,7 @@ const rectangle = ( values: Partial< DOMRect > ): DOMRect =>
  * 開始時の論理列境界を持つColumn Reorder対象Tableを作成する。
  *
  * @param sourceWidth 移動対象列の開始時表示幅。
- * @return 対象Table、DnD開始セル、Table位置を変更できる矩形mock。
+ * @return 対象Table、DnD開始セル、Table位置を変更できる矩形のテスト用差し替え。
  */
 const createSourceTable = ( sourceWidth = 80 ) => {
 	const table = document.createElement( 'table' );
@@ -291,6 +291,63 @@ describe( 'Column insertion gap', () => {
 		) as HTMLElement | null;
 		expect( gap?.style.top ).toBe( '0px' );
 		expect( gap?.style.height ).toBe( '600px' );
+	} );
+
+	/**
+	 * DnD Interactionが移動元論理列を所有していない場合に、source DOMから移動方向を推測しないことを確認する。
+	 *
+	 * 事前条件:
+	 * - 物理DnDの開始対象と有効な移動先境界は存在する。
+	 * - DnD Interactionには移動元論理列が存在しない。
+	 *
+	 * 操作:
+	 * - 有効な移動先境界を挿入空間表示へ反映する。
+	 *
+	 * 期待結果:
+	 * - 移動方向をPresentation側で補完せず、挿入空間を表示しない。
+	 */
+	it( 'when DnD Interaction has no source column, should not infer a gap direction from the source DOM', () => {
+		const { sourceCell } = createSourceTable( 80 );
+		const { rerender } = render( <ColumnInsertionGap /> );
+		startPhysicalDrag( sourceCell );
+		mockDestinationBoundaryIndex = 4;
+		rerender( <ColumnInsertionGap /> );
+
+		expect( document.querySelector( '.yamabiko-table-reorder-column-insertion-gap' ) ).toBeNull();
+	} );
+
+	/**
+	 * 現在の移動先に対応する挿入空間がeditor表示領域と重ならない場合は、画面外の表示要素を生成しないことを確認する。
+	 *
+	 * 事前条件:
+	 * - DnD Interactionは有効な移動元と移動先を保持している。
+	 * - 対象Tableはeditor表示領域の右側へ完全に外れている。
+	 *
+	 * 操作:
+	 * - 現在の有効移動先を挿入空間表示へ反映する。
+	 *
+	 * 期待結果:
+	 * - viewport外の挿入空間を描画しない。
+	 */
+	it( 'when the insertion gap is outside the viewport, should not render an offscreen gap element', () => {
+		const { sourceCell, tableRectangleMock } = createSourceTable( 80 );
+		tableRectangleMock.mockReturnValue(
+			rectangle( {
+				top: 100,
+				bottom: 500,
+				left: 600,
+				right: 1000,
+				width: 400,
+				height: 400,
+			} )
+		);
+		const { rerender } = render( <ColumnInsertionGap /> );
+		startPhysicalDrag( sourceCell );
+		mockSourceColumnIndex = 0;
+		mockDestinationBoundaryIndex = 4;
+		rerender( <ColumnInsertionGap /> );
+
+		expect( document.querySelector( '.yamabiko-table-reorder-column-insertion-gap' ) ).toBeNull();
 	} );
 
 	/**
