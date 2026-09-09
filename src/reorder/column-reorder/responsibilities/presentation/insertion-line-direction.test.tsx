@@ -100,9 +100,7 @@ const createSourceTable = () => {
 			height: 400,
 		} )
 	);
-	jest
-		.spyOn( sourceCell, 'getBoundingClientRect' )
-		.mockReturnValue( rectangle( { width: 80 } ) );
+	jest.spyOn( sourceCell, 'getBoundingClientRect' ).mockReturnValue( rectangle( { width: 80 } ) );
 
 	return { sourceCell };
 };
