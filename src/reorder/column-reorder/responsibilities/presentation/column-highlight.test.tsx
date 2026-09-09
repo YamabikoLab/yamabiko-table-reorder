@@ -293,31 +293,34 @@ describe( 'Column highlight', () => {
 	} );
 
 	/**
-	 * モード終了と対象Table変更で開始前表示を持ち越さないことを確認する。
+	 * 対象Table変更とモード終了で開始前表示を持ち越さないことを確認する。
 	 *
 	 * 事前条件:
 	 * - Table Aの2列目へ操作可能表示が付いている。
 	 *
 	 * 操作:
+	 * - 表示中のままTable IdentityをTable Bへ変更する。
+	 * - Table Bで2列目を再び操作対象として認識する。
 	 * - 列並び替えモードを終了する。
-	 * - 再度有効化してTable IdentityをTable Bへ変更する。
 	 *
 	 * 期待結果:
-	 * - 各Lifecycle変更で以前のセル予告表示を残さない。
+	 * - Table変更時にTable Aのセル予告表示を解除する。
 	 * - Table Bでは新しいTarget Resolverを利用する。
+	 * - モード終了時にもTable Bのセル予告表示を解除する。
 	 */
-	it( 'when the mode or target table changes, should not carry the previous cell preview forward', () => {
+	it( 'when the target table or mode changes, should not carry the previous cell preview forward', () => {
 		const { getByTestId, rerender } = render( <TestTable tableIdentity="table-a" /> );
 		const currentCell = getByTestId( 'column-1' );
 
 		fireEvent.pointerOver( currentCell, { pointerType: 'mouse' } );
-		rerender( <TestTable enabled={ false } tableIdentity="table-a" /> );
+		rerender( <TestTable tableIdentity="table-b" /> );
 		expect( currentCell.className ).toBe( '' );
 
-		rerender( <TestTable tableIdentity="table-b" /> );
 		fireEvent.pointerOver( currentCell, { pointerType: 'mouse' } );
-
 		expect( createResolverMock ).toHaveBeenCalledWith( 'table-b' );
+
+		rerender( <TestTable enabled={ false } tableIdentity="table-b" /> );
+		expect( currentCell.className ).toBe( '' );
 	} );
 
 	/**
