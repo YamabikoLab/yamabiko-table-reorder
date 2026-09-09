@@ -1,0 +1,15 @@
+/**
+ * Column Reorderの挿入空間を、移動対象1列分の空きとしてTable上へ独立表示する。
+ *
+ * 周囲列の押しのけ表示とは別要素として白背景の空間を示し、DnD中の入力を遮らずTable上の空き位置だけを表現する。
+ */
+
+.yamabiko-table-reorder-column-insertion-gap {
+	position: fixed;
+	z-index: 99999;
+	pointer-events: none;
+	box-sizing: border-box;
+	overflow: hidden;
+	background: #fff;
+	border: 1px solid currentcolor;
+}
