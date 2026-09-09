@@ -218,9 +218,7 @@ describe( 'Column highlight', () => {
 		fireEvent.pointerOver( currentCell, { pointerType: 'touch' } );
 		fireEvent.pointerOut( currentCell, { pointerType: 'touch' } );
 
-		expect( currentCell.className ).toBe(
-			'yamabiko-table-reorder-column-highlightable-cell'
-		);
+		expect( currentCell.className ).toBe( 'yamabiko-table-reorder-column-highlightable-cell' );
 	} );
 
 	/**
@@ -244,9 +242,7 @@ describe( 'Column highlight', () => {
 		fireEvent.pointerOver( nextCell, { pointerType: 'touch' } );
 
 		expect( previousCell.className ).toBe( '' );
-		expect( nextCell.className ).toBe(
-			'yamabiko-table-reorder-column-highlightable-cell'
-		);
+		expect( nextCell.className ).toBe( 'yamabiko-table-reorder-column-highlightable-cell' );
 	} );
 
 	/**
