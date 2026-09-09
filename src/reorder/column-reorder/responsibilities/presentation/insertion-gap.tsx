@@ -23,27 +23,50 @@ import { resolveEditorDomContext } from '@/reorder/editor-dom-context';
 
 import './insertion-gap.scss';
 
-/** 1回のColumn DnD中に維持する、押しのけ前の挿入空間配置。 */
+/**
+ * 1回のColumn DnD開始時に確定し、そのDnD中の挿入空間表示で維持する論理配置。
+ *
+ * 論理列境界と移動対象列幅は押しのけ前の開始時配置として固定し、DnD中は再計測しない。
+ * 対象Tableの参照はスクロール後の現在位置を取得するためだけに保持し、押しのけ後のセル位置を論理配置へ取り込まない。
+ */
 type ColumnInsertionGapSessionLayout = {
+	/** スクロール後の現在位置を追従する対象Table。論理列境界の再計測には使用しない。 */
 	sourceTable: HTMLTableElement;
+	/** DnD開始時に確定した移動対象1列分の表示幅。 */
 	sourceColumnWidth: number;
+	/** DnD開始時にDOMから観測できた論理列境界を、0-based境界位置ごとに固定したTable相対位置。 */
 	boundaryOffsets: ReadonlyMap< number, number >;
+	/** 論理列方向の位置を現在の物理横位置へ変換するためのTable方向。 */
 	inlineDirection: ColumnInlineDirection;
+	/** 挿入空間を現在のeditor contextへ描画するためのdocument。 */
 	editorDocument: Document;
+	/** 現在のeditor表示領域との重なりを判定するためのwindow。 */
 	editorWindow: Window;
 };
 
-/** 現在のeditor表示領域へ描画する挿入空間の配置。 */
+/**
+ * 現在のeditor表示領域へ実際に描画できる、移動対象1列分の挿入空間配置。
+ *
+ * 開始時の論理配置を現在のTable位置へ変換し、表示領域と重なる縦範囲だけを物理座標として保持する。
+ */
 type ColumnInsertionGapLayout = {
+	/** 現在のeditor表示領域内で描画を開始する上端位置。 */
 	top: number;
+	/** 論理移動先を現在のTable位置へ変換した左端位置。 */
 	left: number;
+	/** DnD開始時に固定した移動対象列幅。 */
 	width: number;
+	/** 対象Tableと現在のeditor表示領域が重なる縦方向の表示高。 */
 	height: number;
+	/** 挿入空間を配置する現在のeditor document。 */
 	editorDocument: Document;
 };
 
 /**
- * DnD開始時の移動対象DOMから、そのSession中の挿入空間表示で維持する論理配置を確定する。
+ * DnD開始時の移動対象DOMから、そのDnD中の挿入空間表示で維持する論理配置を確定する。
+ *
+ * ここでは表示に必要なTable参照、移動対象列幅、論理列境界だけを取得する。移動元論理列はDOMから解決せず、
+ * DnD Interactionが所有する`sourceColumnIndex`を表示時の正本とする。
  *
  * @param sourceElement DnD Engineが現在の移動対象として管理するDOM要素。
  * @return 挿入空間の基準となる開始時配置。Column Reorder対象として安全に確定できない場合はnull。
@@ -78,12 +101,15 @@ const resolveInsertionGapSessionLayout = (
 		return null;
 	}
 
+	/* 現在の有効移動先を開始時の論理位置へ直接対応付けられるよう、観測済み境界を境界番号ごとの固定位置として保持する。 */
+	const boundaryOffsets = new Map(
+		boundaryGeometry.map( ( boundary ) => [ boundary.index, boundary.offset ] )
+	);
+
 	return {
 		sourceTable,
 		sourceColumnWidth,
-		boundaryOffsets: new Map(
-			boundaryGeometry.map( ( boundary ) => [ boundary.index, boundary.offset ] )
-		),
+		boundaryOffsets,
 		inlineDirection: resolveTableColumnInlineDirection( sourceTable ),
 		editorDocument: editorContext.document,
 		editorWindow: editorContext.window,
