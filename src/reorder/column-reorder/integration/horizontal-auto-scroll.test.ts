@@ -25,7 +25,11 @@ const createScrollableTable = () => {
 	scrollArea.style.overflowX = 'auto';
 	Object.defineProperty( scrollArea, 'clientWidth', { value: 200, configurable: true } );
 	Object.defineProperty( scrollArea, 'scrollWidth', { value: 500, configurable: true } );
-	Object.defineProperty( scrollArea, 'scrollLeft', { value: 100, writable: true, configurable: true } );
+	Object.defineProperty( scrollArea, 'scrollLeft', {
+		value: 100,
+		writable: true,
+		configurable: true,
+	} );
 	jest.spyOn( scrollArea, 'getBoundingClientRect' ).mockReturnValue( {
 		left: 0,
 		right: 200,
