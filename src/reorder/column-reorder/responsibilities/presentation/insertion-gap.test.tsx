@@ -120,6 +120,7 @@ const startPhysicalDrag = ( sourceCell: HTMLTableCellElement ): void => {
 
 describe( 'Column insertion gap', () => {
 	beforeEach( () => {
+		jest.clearAllMocks();
 		mockSourceColumnIndex = null;
 		mockDestinationBoundaryIndex = null;
 		mockDragDropMonitor = {};
