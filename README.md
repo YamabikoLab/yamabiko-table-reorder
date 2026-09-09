@@ -6,21 +6,19 @@ WordPressブロックエディターのTable並び替えを扱うプラグイン
 
 ## 現在の状態
 
-0.6.2では、WordPress Core TableとFlexible Table Blockの**行並び替え**を提供します。
+0.7.0では、WordPress Core TableとFlexible Table Blockの**行・列並び替え**を提供します。
 
-Tableツールバーから行並び替えモードへ切り替え、Mouse / TouchによるDnDでtbodyの行を並び替えられます。DnD中は移動対象・移動先・周囲の行の移動を視覚的に確認でき、結合セルを含むTableでは構造を壊さない範囲だけを移動先として扱います。
+Tableツールバーから行または列の並び替えモードへ切り替え、Mouse / TouchによるDnDでtbodyの行やTableの列を並び替えられます。DnD中は移動対象・移動先・周囲の行または列の移動を視覚的に確認でき、結合セルを含むTableでは構造を壊さない範囲だけを移動先として扱います。
 
-結合セル制約により移動できない行は事前に識別でき、DnD開始を試みた場合は理由を短時間表示します。DnD中の移動表示では、元行・元セルの背景色を維持します。
-
-列並び替えは0.6.2には含まれません。現在、次の機能として開発中です。
+結合セル制約により移動できない行または列は事前に識別でき、DnD開始を試みた場合は理由を短時間表示します。行・列のDnDでは、対応する方向に必要な自動スクロールを利用できます。
 
 ## デモ
 
-WordPress Playgroundで、**現在公開中のYamabiko Table ReorderのRow Reorder**を試せます。
+WordPress Playgroundで、**現在公開中のYamabiko Table ReorderのRow / Column Reorder**を試せます。
 
 [▶ デモを開く](https://playground.wordpress.net/?blueprint-url=https://raw.githubusercontent.com/YamabikoLab/yamabiko-table-reorder/main/demo/blueprint.json)
 
-デモではWordPress Core TableとFlexible Table Blockを用意しており、Mouse / Touchによる行のDnDと、結合セルを含むTableでの移動制約を確認できます。Yamabiko Table Reorderは公開中のlatest stable releaseを利用します。
+デモではWordPress Core TableとFlexible Table Blockを用意しており、Mouse / Touchによる行・列のDnDと、結合セルを含むTableでの移動制約を確認できます。Yamabiko Table Reorderは公開中のlatest stable releaseを利用します。
 
 Prototype v0.4.0の実装や設計を参照する場合は`prototype-final` tagを使用してください。
 
@@ -28,7 +26,7 @@ Prototype v0.4.0の実装や設計を参照する場合は`prototype-final` tag�
 
 0.4.0までの配布履歴はそのまま維持しています。formal v1は新しい設計・実装世代を表す呼称であり、配布バージョンを`1.0.0`へ変更する意味ではありません。
 
-0.5.0はformal v1 Row Reorderの最初の公開版です。
+0.5.0はformal v1 Row Reorderの最初の公開版です。0.7.0はformal v1 Column Reorderを追加した最初の公開版です。
 
 ## 動作環境
 
