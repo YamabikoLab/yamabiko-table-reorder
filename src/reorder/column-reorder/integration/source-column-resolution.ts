@@ -2,7 +2,7 @@
  * Column Reorderで、現在TableのセルをTable全体の論理列位置へ対応付けるDOM解決境界を所有する。
  *
  * Input InteractionとReorder Presentationが同じ結合セル解釈を利用できるよう、rowspanとcolspanを反映した論理列解決を提供する。
- * 単発入力では対象section内を必要な位置まで解釈し、PresentationではTableごとに一度構築した対応関係を再利用できる。
+ * 単発入力では対象section内を必要な位置まで解釈し、複数セルを繰り返し解決する責務ではTableごとに構築した対応関係も利用できる。
  */
 
 /** 各論理列で、前の行から継続するrowspanが残っている行数。 */
@@ -167,9 +167,9 @@ export type ColumnSourceIndexResolver = {
 };
 
 /**
- * 現在Tableのセルと論理列位置の対応を一度だけ解釈し、複数の表示判定で再利用できるResolverを生成する。
+ * 現在Tableのセルと論理列位置の対応を一度だけ解釈し、複数の解決要求で再利用できるResolverを生成する。
  *
- * HighlightのホットパスではこのResolverを再利用することで、ホバー対象変更ごとに対象行までの走査を繰り返さない。
+ * 同一Tableの多数セルを継続的に解決する責務では、対象変更ごとのsection走査を避けるために利用できる。
  *
  * @param table Column Reorder対象Table。
  * @return 現在DOMを基準とするセル→論理列Resolver。
