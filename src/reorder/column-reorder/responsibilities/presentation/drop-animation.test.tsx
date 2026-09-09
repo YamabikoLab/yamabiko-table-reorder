@@ -91,9 +91,11 @@ const createPresentation = () => {
 	document.body.appendChild( table );
 
 	let sourceTop = 140;
-	jest.spyOn( firstCell, 'getBoundingClientRect' ).mockReturnValue(
-		rectangle( { top: 100, bottom: 140, left: 120, right: 220, width: 100, height: 40 } )
-	);
+	jest
+		.spyOn( firstCell, 'getBoundingClientRect' )
+		.mockReturnValue(
+			rectangle( { top: 100, bottom: 140, left: 120, right: 220, width: 100, height: 40 } )
+		);
 	jest.spyOn( sourceCell, 'getBoundingClientRect' ).mockImplementation( () =>
 		rectangle( {
 			top: sourceTop,
@@ -104,9 +106,11 @@ const createPresentation = () => {
 			height: 40,
 		} )
 	);
-	jest.spyOn( table, 'getBoundingClientRect' ).mockReturnValue(
-		rectangle( { top: 100, bottom: 180, left: 120, right: 220, width: 100, height: 80 } )
-	);
+	jest
+		.spyOn( table, 'getBoundingClientRect' )
+		.mockReturnValue(
+			rectangle( { top: 100, bottom: 180, left: 120, right: 220, width: 100, height: 80 } )
+		);
 	Object.defineProperty( window, 'innerHeight', {
 		configurable: true,
 		value: 500,
@@ -127,15 +131,19 @@ const createPresentation = () => {
 	const movingDisplay = document.createElement( 'div' );
 	movingDisplay.className = 'yamabiko-table-reorder-moving-column';
 	movingDisplay.textContent = 'Moving';
-	jest.spyOn( movingDisplay, 'getBoundingClientRect' ).mockReturnValue(
-		rectangle( { top: 260, bottom: 340, left: 460, right: 560, width: 100, height: 80 } )
-	);
+	jest
+		.spyOn( movingDisplay, 'getBoundingClientRect' )
+		.mockReturnValue(
+			rectangle( { top: 260, bottom: 340, left: 460, right: 560, width: 100, height: 80 } )
+		);
 
 	const insertionGap = document.createElement( 'div' );
 	insertionGap.className = 'yamabiko-table-reorder-column-insertion-gap';
-	jest.spyOn( insertionGap, 'getBoundingClientRect' ).mockReturnValue(
-		rectangle( { top: 120, bottom: 200, left: 300, right: 400, width: 100, height: 80 } )
-	);
+	jest
+		.spyOn( insertionGap, 'getBoundingClientRect' )
+		.mockReturnValue(
+			rectangle( { top: 120, bottom: 200, left: 300, right: 400, width: 100, height: 80 } )
+		);
 	document.body.append( insertionGap, movingDisplay );
 
 	return {

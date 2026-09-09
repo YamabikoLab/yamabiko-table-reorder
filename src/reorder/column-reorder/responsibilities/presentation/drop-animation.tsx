@@ -115,9 +115,9 @@ const resolveTableCellAtPoint = (
  * 元列へ戻す表示はDnD開始時に見えていたMoving Columnと同じ縦配置を維持する必要があるため、
  * Table全行ではなく現在のeditor表示領域に描画されているセルだけを開始時配置として固定する。
  *
- * @param sourceCell     DnD Engineが移動対象として管理する開始セル。
- * @param initialX       DnD開始時に利用者が指した移動対象列内の横位置。
- * @param editorContext  現在のColumn DnDと同じeditor DOM環境。
+ * @param sourceCell    DnD Engineが移動対象として管理する開始セル。
+ * @param initialX      DnD開始時に利用者が指した移動対象列内の横位置。
+ * @param editorContext 現在のColumn DnDと同じeditor DOM環境。
  * @return 元列への帰還位置解決に必要な開始時配置。安全に確定できない場合はnull。
  */
 const resolveSourceColumnLayout = (
@@ -187,7 +187,7 @@ const resolveSourceColumnLayout = (
  * DnD開始時に固定したMoving Columnと開始セルの縦位置関係を、現在の開始セル位置へ移して帰還先を決定する。
  * これによりDnD中にeditorがスクロールしても開始時の絶対座標へ戻さない。
  *
- * @param sourceLayout   DnD開始時に固定した元列表示配置。
+ * @param sourceLayout    DnD開始時に固定した元列表示配置。
  * @param movingRectangle 現在のMoving Columnの表示寸法。
  * @return 現在の元列へ戻るための表示矩形。元列位置を確定できない場合はnull。
  */
@@ -483,12 +483,9 @@ export const ColumnDropAnimation = () => {
 			}
 
 			const sourceRectangle = sourceCell.getBoundingClientRect();
-			const initialX = event.operation.position?.initial.x ?? sourceRectangle.left + sourceRectangle.width / 2;
-			const currentSourceLayout = resolveSourceColumnLayout(
-				sourceCell,
-				initialX,
-				currentContext
-			);
+			const initialX =
+				event.operation.position?.initial.x ?? sourceRectangle.left + sourceRectangle.width / 2;
+			const currentSourceLayout = resolveSourceColumnLayout( sourceCell, initialX, currentContext );
 			if ( currentSourceLayout === null ) {
 				return;
 			}
@@ -513,10 +510,8 @@ export const ColumnDropAnimation = () => {
 
 			/* DnD終了直前のDOM表示がまだ存在する場合は最後の描画周期より新しい現在位置を優先し、失われていればsnapshotへ戻る。 */
 			const currentSnapshot =
-				resolveDropAnimationSnapshot(
-					currentContext,
-					currentDestinationBoundaryIndex
-				) ?? snapshot.current;
+				resolveDropAnimationSnapshot( currentContext, currentDestinationBoundaryIndex ) ??
+				snapshot.current;
 
 			/* idleでgetterがnullになったことは移動先変更とみなさず、active Session中に最後に保持した移動先との不一致だけを失効条件にする。 */
 			if (
