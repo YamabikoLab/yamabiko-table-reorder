@@ -1,7 +1,7 @@
 import type { CDPSession, Locator, Page } from '@playwright/test';
 import type { Editor } from '@wordpress/e2e-test-utils-playwright';
 
-import { getEditorContext } from './editor-context';
+import { getEditorContext } from '../editor-context';
 
 export const ROW_BUTTON = /^(Reorder rows|行を並び替え|行を並べ替え)$/;
 export const GUIDANCE = /^(Reorder rows and columns\.|行と列を並び替えられます。)$/;

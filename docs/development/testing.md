@@ -6,8 +6,9 @@ Run application commands from the repository root. Use the narrowest relevant ch
 
 - Jest verifies Row Reorder responsibilities, React / WordPress integration, editor lifecycle, and i18n source.
 - Node.js architecture tests verify deterministic Markdown parsing, architecture validation, and Structurizr DSL generation.
-- Playwright verifies the administration smoke test, Table alignment, and the major Row Reorder browser contracts (mouse / touch, guidance, merged cells, data preservation / Undo, and scrolling).
+- Playwright verifies the direction-independent administration smoke test, Table alignment, and the major Row / Column Reorder browser contracts (mouse / touch, guidance, merged cells, data preservation / Undo, and direction-specific scrolling).
 - The [Row Reorder validation matrix](../plans/row-reorder-v1-plan.md#698-validation-matrix) assigns contracts to existing Jest tests, major Playwright E2E, and separate performance measurement.
+- The [Column Reorder validation matrix](../plans/column-reorder-v1-plan.md#904-validation-matrix) assigns Column contracts to existing Jest tests, major Playwright E2E, and separate performance measurement.
 - Prototype-specific unit and E2E behavior is available from the `prototype-final` tag and is reference material, not the active formal v1 specification.
 - Add tests as formal v1 responsibilities and user-visible contracts are implemented. Do not restore Prototype tests solely to preserve historical coverage.
 
@@ -128,6 +129,15 @@ With the `wp-dev` Dev Container open and Yamabiko Table Reorder and Flexible Tab
 npm run test:e2e
 ```
 
+The normal suite uses the `common`, `row`, and `column` Playwright projects. Run one direction independently when narrowing local feedback:
+
+```bash
+npm run test:e2e:row
+npm run test:e2e:column
+```
+
+`common` owns only direction-independent contracts. Tests that select a Row / Column entry or perform direction-specific DnD remain in the corresponding direction project.
+
 Refresh authentication only:
 
 ```bash
@@ -140,11 +150,13 @@ Start Playwright UI Mode:
 npm run test:e2e:ui
 ```
 
+UI Mode includes the normal `common`, `row`, and `column` projects.
+
 ### PR Validation E2E
 
-PR Validation uses the CI-only environment defined in `tests/e2e/compose.ci.yaml`. The E2E job is optional and disabled by default for manually triggered validation.
+PR Validation uses the CI-only environment defined in `tests/e2e/compose.ci.yaml`. For manually triggered validation, `Run E2E`, `Row Reorder`, and `Column Reorder` all default to enabled. Disabling `Run E2E` skips the E2E job. When E2E runs, `common` always runs, and the direction checkboxes select `row` and `column` within the existing WordPress environment matrix. If both direction checkboxes are disabled, only `common` runs.
 
-CI checks the smoke test and major Row Reorder suite against these representative supported environments:
+CI checks the smoke test and selected major Row / Column Reorder suites against these representative supported environments:
 
 - WordPress 6.8.3: non-iframe editor, Flexible Table Block 3.6.0
 - WordPress 7.0.4: iframe editor, Flexible Table Block 3.9.0
@@ -158,12 +170,19 @@ Playwright writes authentication state to `.playwright/`, HTML reports to `playw
 
 WordPress-specific browser operations should use `@wordpress/e2e-test-utils-playwright` where it provides an appropriate helper. Use direct browser input when the input path itself is part of the formal v1 behavior under test.
 
-### Row Reorder performance measurement (QR-01)
+### Reorder performance measurement (QR-01)
 
-Run the dedicated Core Table / Flexible Table Block 1,000 × 20 stress measurement separately from the major E2E suite:
+Run the dedicated Core Table / Flexible Table Block 1,000 × 20 Row and Column stress measurements separately from the major E2E suite:
 
 ```bash
 npm run test:e2e:performance
+```
+
+Run one direction's stress measurement independently:
+
+```bash
+npm run test:e2e:performance:row
+npm run test:e2e:performance:column
 ```
 
 For repeated observations on the same machine and environment:
@@ -174,9 +193,9 @@ npm run test:e2e:performance -- --repeat-each=3
 
 `E2E_PERFORMANCE=1` selects only `*.performance.ts` plus authentication; normal E2E selects `*.spec.ts`. PR Validation runs the normal suite. Performance measurements require a dedicated run and do not impose a fixed millisecond gate on normal CI.
 
-The performance report attaches a JSON summary and Chrome CPU profiles for the same Table's ordinary WordPress attribute update, mode entry, physical drag start, progress, and commit. The baseline uses the same row move through the public WordPress update API; Undo restores the initial data outside measurement. The summary records Table size, browser version, editor context, wall time, and sampled CPU self time grouped by script owner. Record WordPress / FTB versions, machine conditions, and the tested SHA alongside the results.
+Each direction's performance report attaches a JSON summary and Chrome CPU profiles for the same Table's ordinary WordPress attribute update, mode entry, physical drag start, progress, and commit. The baseline uses the same row or Table-wide column move through the public WordPress update API; Undo restores the initial data outside measurement. The summary records Table size, browser version, editor context, wall time, and sampled CPU self time grouped by script owner. Record WordPress / FTB versions, machine conditions, and the tested SHA alongside the results.
 
-Review the attached `.cpuprofile` files in browser developer tools when a phase is slow. Distinguish YTR and its bundled dnd-kit code from Table Block code, WordPress / React, browser work, and idle time. Script self-time attribution is sampling evidence, not exact end-to-end ownership: layout and React work triggered by YTR can appear under browser / WordPress frames. Use caller stacks and the baseline to investigate such work; do not subtract whole-operation wall times and call the difference YTR cost. Look for new sustained stalls in YTR calculation, state / presentation updates, and engine connection management. Total Table commit duration is not a QR-01 pass/fail threshold. A passing performance scenario establishes measurement completion and the row result; QR-01 assessment also requires reviewing the measurements. Record inconclusive attribution or unexecuted environments explicitly.
+Review the attached `.cpuprofile` files in browser developer tools when a phase is slow. Distinguish YTR and its bundled dnd-kit code from Table Block code, WordPress / React, browser work, and idle time. Script self-time attribution is sampling evidence, not exact end-to-end ownership: layout and React work triggered by YTR can appear under browser / WordPress frames. Use caller stacks and the baseline to investigate such work; do not subtract whole-operation wall times and call the difference YTR cost. Look for new sustained stalls in YTR calculation, state / presentation updates, and engine connection management. Total Table commit duration is not a QR-01 pass/fail threshold. A passing performance scenario establishes measurement completion and the row or column result; QR-01 assessment also requires reviewing the measurements. Record inconclusive attribution or unexecuted environments explicitly.
 
 ## PHP
 

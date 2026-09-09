@@ -204,6 +204,25 @@ Column Reorder固有処理は`src/reorder/column-reorder/`配下へ独立して�
    - Requirements / Design / Architecture / Quality Requirementsの主要契約を、focused Jest、Playwright、performance確認のどこで保証するか確定する。
    - Row Reorder E2Eの単純な複製ではなく、列固有のTable全体更新、`colspan`、横Auto Scroll、列表示を優先する。
 
+#### #904 validation matrix
+
+以下をColumn Reorder v1の横断検証の責任分担とする。テスト名は`src/reorder/`または`tests/e2e/`からの相対位置。
+
+| 主要契約 | Jest（既存の保護） | Playwright（実ブラウザで追加する保護） | 専用計測・確認 |
+| --- | --- | --- | --- |
+| FR-02 / FR-11、列設計2・4・5、Table Integration | `column-reorder/responsibilities/table-integration.test.ts`、`column-reorder/integration/dnd*.test.tsx` | Coreの物理マウスDnD、先頭・末尾、タッチDnD、drop前後の論理列順 | — |
+| FR-03 / FR-06、共通設計7・8、Atomic Table-wide Update | `column-reorder/responsibilities/table-integration.test.ts`のTable全section・セルオブジェクト保持・単一更新境界 | 内容・装飾・属性・head / body / footを含む編集データの保持、WordPressで1回のUndo | — |
+| FR-04 / FR-05 / FR-17、列設計3・6 | `column-reorder/responsibilities/target-resolution.test.ts`、`column-reorder/integration/destination-resolution*.test.ts`、`column-reorder/responsibilities/dnd-interaction.test.ts`の全分岐・境界 | colspan列から開始しない、理由の表示と自動終了、結合を分断するdropとTable外dropで変更なし、rowspan列の成立 | — |
+| FR-07 / FR-08、共通設計3、Reorder Mode | `reorder-mode*.test.ts`、`wordpress/integration-state-transitions.test.tsx`の排他・編集抑止・別Block選択 | Column入口の表示・選択と、別Table選択後の通常編集への復帰 | Row固有契約は`row` suiteで保護 |
+| FR-09、共通設計3.1、Reorder Guidance | `wordpress/hooks/use-reorder-guidance.test.ts`のPC／タッチ独立、既読、両入口選択。`reorder-guidance.test.ts`のTable範囲 | Column主要E2EでColumn入口から製品経路へ到達すること | 現在Row入口へ依存する案内E2Eは`row` suiteに維持 |
+| FR-10 / FR-14 / FR-15、列設計4・5・6、Presentation | `column-reorder/responsibilities/presentation/*.test.tsx`の表示条件・寸法・列変位・cleanup | 移動列の枠と寸法、垂直挿入線の位置変化、周囲列の位置変化、drop前のデータ不変、確定後の配置 | Overlay内部構造、transform、空セル等の全組合せは既存Jestで保護 |
+| FR-12、列設計5・7、Horizontal Auto Scroll | `column-reorder/responsibilities/input.test.tsx`、`column-reorder/integration/horizontal-auto-scroll.test.ts`、`column-reorder/integration/dnd-auto-scroll.test.tsx` | 開始前のタッチスクロール、横Auto Scrollで画面外の列へdrop、縦位置不変 | — |
+| FR-13 / QR-02、Editor DOM Context | `editor-dom-context.test.ts`、`wordpress/integration*.test.tsx`、Table Integrationの両Block適応 | Coreの主要ケース、FTBの代表DnDと編集データ結果。iframe / non-iframeの代表環境 | 実行したWordPress・FTB・editor方式を結果へ記録 |
+| QR-03、Architecture 6・8・10、Session Lifecycle | `column-reorder/responsibilities/dnd-interaction.test.ts`、`column-reorder/integration/dnd-interaction-react.test.tsx`、`wordpress/integration-state-transitions.test.tsx`の外部変化・終了・再接続・内部Error伝播 | 成立しないdrop後の表示cleanup、別Table選択後もセルを編集できる統合結果 | 内部Error完全復旧を追加保証しない |
+| QR-01、Architecture 2・10 | input / dnd / horizontal-auto-scrollテストの必要時だけの接続・cleanup・scroll時再解決、Sessionテストのprogress中再取得なし | 通常E2Eに巨大Tableを含めない | Core / FTBそれぞれ1,000×20。通常の属性更新をbaselineとし、物理DnDの開始・進行・確定を別々に記録。ブラウザCPU profileでYTR / dnd-kitとBlock本体を分けて確認。全体時間や固定ms値だけで合否を決めない |
+
+実行コマンドと性能結果の読み方は`docs/development/testing.md`を正本とする。既存Jestが保護する列制約、Destination Resolution、二段階Target Resolution、内部状態遷移をE2Eで全面複製しない。
+
 ### Validate during implementation
 
 1. **Column Table Integrationの構造解釈**

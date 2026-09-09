@@ -4,7 +4,17 @@ on:
   workflow_dispatch:
     inputs:
       run_e2e:
-        description: 'Run E2E tests'
+        description: 'Run E2E'
+        required: true
+        type: boolean
+        default: true
+      run_row_e2e:
+        description: 'Row Reorder'
+        required: true
+        type: boolean
+        default: true
+      run_column_e2e:
+        description: 'Column Reorder'
         required: true
         type: boolean
         default: true
@@ -142,6 +152,8 @@ jobs:
       WP_BASE_URL: http://127.0.0.1:8080
       WP_USERNAME: admin
       WP_PASSWORD: admin
+      RUN_ROW_E2E: ${{ inputs.run_row_e2e }}
+      RUN_COLUMN_E2E: ${{ inputs.run_column_e2e }}
 
     steps:
       - name: Check out repository
@@ -214,6 +226,14 @@ jobs:
 
       - name: Run Playwright E2E
         run: |
+          projects=(--project=common)
+          if [[ "${RUN_ROW_E2E}" == "true" ]]; then
+            projects+=(--project=row)
+          fi
+          if [[ "${RUN_COLUMN_E2E}" == "true" ]]; then
+            projects+=(--project=column)
+          fi
+
           docker run --rm \
             --network host \
             --ipc=host \
@@ -224,7 +244,7 @@ jobs:
             --env WP_PASSWORD \
             --env E2E_EDITOR_MODE \
             mcr.microsoft.com/playwright:v1.62.1-noble \
-            npx playwright test
+            npx playwright test "${projects[@]}"
 
       - name: Capture Docker logs
         if: failure()
