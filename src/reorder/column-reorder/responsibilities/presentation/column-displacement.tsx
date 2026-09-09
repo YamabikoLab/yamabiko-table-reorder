@@ -51,7 +51,7 @@ type VisibleSectionRowRange = {
  *
  * セル単位のgeometry計測を全Tableへ広げず、まず行単位で押しのけ表示に関係し得る範囲だけを絞り込む。
  *
- * @param table        Column Reorder対象Table。
+ * @param table          Column Reorder対象Table。
  * @param viewportHeight 現在のEditor表示領域の高さ。
  * @return sectionごとの表示行範囲。
  */
@@ -106,7 +106,7 @@ const cellCanIntersectVisibleRows = (
 	cell: HTMLTableCellElement,
 	visibleRanges: Map< HTMLTableSectionElement, VisibleSectionRowRange >
 ): boolean => {
-	const row = cell.parentElement;
+	const row = cell.parentElement as HTMLTableRowElement | null;
 	const section = row?.parentElement;
 	if (
 		row === null ||
