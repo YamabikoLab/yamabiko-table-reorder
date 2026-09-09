@@ -2,7 +2,7 @@
  * Column DnD Engine Integrationが、二段階Target Resolutionを経て物理DnD LifecycleをColumn DnD Interactionへ接続することを確認する。
  *
  * dnd-kit自体の挙動は再現せず、第二段階解決、Session開始、論理移動先、complete / cancel変換、
- * 横方向だけのAuto Scroll設定、および無効化時に開始前状態を持ち越さないLifecycleを責務境界から観測できる振る舞いとして検証する。
+ * DnD Engine Auto Scrollの無効化、および無効化時に開始前状態を持ち越さないLifecycleを責務境界から観測できる振る舞いとして検証する。
  */
 
 import {
@@ -25,9 +25,7 @@ import { createColumnDestinationResolver } from './destination-resolution';
 import { ColumnDnd } from './dnd';
 
 jest.mock( '@dnd-kit/dom', () => ( {
-	AutoScroller: {
-		configure: jest.fn( () => 'column-auto-scroll' ),
-	},
+	AutoScroller: { name: 'auto-scroller' },
 	Cursor: { name: 'cursor' },
 	PreventSelection: { name: 'prevent-selection' },
 	Feedback: { name: 'feedback' },
@@ -67,9 +65,6 @@ jest.mock( '@/reorder/column-reorder/responsibilities/target-resolution', () => 
 } ) );
 
 const dragDropProviderMock = DragDropProvider as unknown as jest.Mock;
-const autoScrollerConfigureMock = AutoScroller.configure as jest.MockedFunction<
-	typeof AutoScroller.configure
->;
 const destinationResolverFactoryMock = createColumnDestinationResolver as jest.MockedFunction<
 	typeof createColumnDestinationResolver
 >;
@@ -115,7 +110,6 @@ const resolvedTarget = {
 describe( 'Column DnD Engine Integration', () => {
 	beforeEach( () => {
 		jest.clearAllMocks();
-		autoScrollerConfigureMock.mockReturnValue( 'column-auto-scroll' as never );
 		targetResolutionMock.resolve.mockReturnValue( resolvedTarget );
 		destinationResolverFactoryMock.mockReturnValue( {
 			resolve: jest.fn().mockReturnValue( 3 ),
@@ -183,7 +177,7 @@ describe( 'Column DnD Engine Integration', () => {
 	} );
 
 	/**
-	 * Column DnD Engine Integrationが既定Auto Scrollを置き換え、横方向だけを許可することを確認する。
+	 * Column DnD Engine IntegrationがDnD EngineのAuto Scrollを利用しないことを確認する。
 	 *
 	 * 事前条件:
 	 * - DnD Engineの既定pluginにはAutoScrollerとその他の標準pluginが含まれる。
@@ -192,10 +186,10 @@ describe( 'Column DnD Engine Integration', () => {
 	 * - Column DnD境界のplugin構成を要求する。
 	 *
 	 * 期待結果:
-	 * - 既定AutoScrollerは残らず、Column Reorder用AutoScrollerが1つ追加される。
-	 * - 横方向の閾値だけが有効で、縦方向は無効になる。
+	 * - 既定AutoScrollerは除外され、Column Reorderの物理スクロールと競合しない。
+	 * - その他の除外対象外pluginだけが維持される。
 	 */
-	it( 'when DnD engine plugins are configured, should replace the default auto scroller with horizontal-only column auto scroll', () => {
+	it( 'when DnD engine plugins are configured, should disable engine auto scroll for column reorder', () => {
 		render(
 			<ColumnDnd enabled tableIdentity="table-1">
 				{ () => <div /> }
@@ -212,10 +206,7 @@ describe( 'Column DnD Engine Integration', () => {
 			preservedPlugin,
 		] );
 
-		expect( autoScrollerConfigureMock ).toHaveBeenCalledWith( {
-			threshold: { x: 0.2, y: 0 },
-		} );
-		expect( plugins ).toEqual( [ preservedPlugin, 'column-auto-scroll' ] );
+		expect( plugins ).toEqual( [ preservedPlugin ] );
 	} );
 
 	/**
