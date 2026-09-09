@@ -27,7 +27,7 @@ jest.mock( '@dnd-kit/react', () => ( {
 const DISPLACEMENT_PROPERTY = '--yamabiko-table-reorder-column-displacement';
 
 /**
- * DOM要素へ表示位置を設定する。
+ * Editor表示領域との交差条件を表すDOM矩形を設定する。
  *
  * @param element 表示位置を持たせるDOM要素。
  * @param top     上端位置。
@@ -386,6 +386,74 @@ describe( 'Column displacement presentation', () => {
 				)
 			).toBe( '' );
 		}
+	} );
+
+	/**
+	 * 横方向にEditor表示領域外となるセルも押しのけ表示へ含めないことを確認する。
+	 *
+	 * 事前条件:
+	 * - 3列Tableのうち、1〜2列目だけがEditor表示領域と交差している。
+	 * - 先頭列を移動対象とする。
+	 *
+	 * 操作:
+	 * - 最後の要素の後ろを有効な移動先として通知する。
+	 *
+	 * 期待結果:
+	 * - 表示領域と交差する2列目だけが押しのけられる。
+	 * - 横方向に表示領域外の3列目には移動量を設定しない。
+	 */
+	it( 'when a cell is horizontally outside the editor viewport, should exclude it from displacement', () => {
+		Object.defineProperty( window, 'innerWidth', {
+			configurable: true,
+			value: 80,
+		} );
+		const { cells, sourceCell } = createSimpleTable( 3, 0 );
+		const { rerender } = render( <ColumnDisplacement /> );
+		startPhysicalDrag( sourceCell );
+		mockSourceColumnIndex = 0;
+		mockDestinationBoundaryIndex = 3;
+		rerender( <ColumnDisplacement /> );
+
+		expect( cells[ 1 ]?.style.getPropertyValue( DISPLACEMENT_PROPERTY ) ).toBe( '-40px' );
+		expect( cells[ 2 ]?.style.getPropertyValue( DISPLACEMENT_PROPERTY ) ).toBe( '' );
+	} );
+
+	/**
+	 * DnD開始後にEditor表示領域が変化しても、開始時の可視セル集合をそのSession中で維持することを確認する。
+	 *
+	 * 事前条件:
+	 * - 4列Tableのうち、DnD開始時は1〜3列目だけがEditor表示領域と交差している。
+	 * - 先頭列を移動対象とする。
+	 *
+	 * 操作:
+	 * - DnD開始後にEditor表示領域を広げ、移動先を最後の要素の後ろへ変更する。
+	 *
+	 * 期待結果:
+	 * - DnD開始時に表示領域内だった2〜3列目だけが押しのけられる。
+	 * - 開始後に表示領域へ入った4列目は、そのSessionの押しのけ対象へ追加されない。
+	 */
+	it( 'when the editor viewport changes after drag start, should keep the start-time visible cell set for the session', () => {
+		Object.defineProperty( window, 'innerWidth', {
+			configurable: true,
+			value: 120,
+		} );
+		const { cells, sourceCell } = createSimpleTable( 4, 0 );
+		const { rerender } = render( <ColumnDisplacement /> );
+		startPhysicalDrag( sourceCell );
+		mockSourceColumnIndex = 0;
+		mockDestinationBoundaryIndex = 2;
+		rerender( <ColumnDisplacement /> );
+
+		Object.defineProperty( window, 'innerWidth', {
+			configurable: true,
+			value: 160,
+		} );
+		mockDestinationBoundaryIndex = 4;
+		rerender( <ColumnDisplacement /> );
+
+		expect( cells[ 1 ]?.style.getPropertyValue( DISPLACEMENT_PROPERTY ) ).toBe( '-40px' );
+		expect( cells[ 2 ]?.style.getPropertyValue( DISPLACEMENT_PROPERTY ) ).toBe( '-40px' );
+		expect( cells[ 3 ]?.style.getPropertyValue( DISPLACEMENT_PROPERTY ) ).toBe( '' );
 	} );
 
 	/**
