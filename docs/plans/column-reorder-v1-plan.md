@@ -57,7 +57,7 @@ Column Reorder固有処理は`src/reorder/column-reorder/`配下へ独立して�
 
 次にDestination ResolutionとDnD Interactionを実装する。Destination ResolutionはDnD開始時の列配置から物理位置を論理列間境界へ変換し、DnD Interactionは第二段階で解決済みのTargetと開始時制約からSessionを開始する。`progress`では開始時制約だけで移動先の有効性を判断し、`complete`時だけ現在Tableを再照合して確定済み移動へ進む。
 
-意味責務が成立した後、DnD Engine IntegrationとPC / touch Input Interactionを接続する。入力開始時の第一段階Target Resolutionとactive DnD成立直前の第二段階Target Resolutionを分離したまま実装し、DnD Engine固有イベントをDnD Interactionへ漏らさない。Auto ScrollはDnD Engineの機能として横方向だけを有効にする。
+意味責務が成立した後、DnD Engine IntegrationとPC / touch Input Interactionを接続する。入力開始時の第一段階Target Resolutionとactive DnD成立直前の第二段階Target Resolutionを分離したまま実装し、DnD Engine固有イベントをDnD Interactionへ漏らさない。Column Reorderの水平Auto ScrollはDnD Engine標準機能へ委ねず、DnD Engine Integration側で対象Tableの横スクロール領域とnative pointer位置を一回のDnDへ接続し、スクロール後もDestination Resolutionを現在位置へ追従させる。
 
 その後Reorder Presentationを実装し、開始不可通知、移動対象列、垂直挿入線、周囲列の移動表示、確定・cancel・安全終了時の表示Lifecycleを接続する。最後にWordPress Reorder IntegrationへColumn DnD Engine Integrationを組み込み、既存の共通Reorder Mode / Guidanceと接続して列入口を公開する。
 
@@ -126,13 +126,19 @@ Column Reorder固有処理は`src/reorder/column-reorder/`配下へ独立して�
 
 ### Phase 6: Touch Input and horizontal Auto Scroll
 
-- Outcome: 通常スクロールを妨げずにtouch DnDを開始でき、active DnD中は横方向だけAuto Scrollできる。
+- Outcome: 通常スクロールを妨げずにtouch DnDを開始でき、active DnD中は対象Tableを横方向だけAuto Scrollできる。
 - Tasks:
   - touch開始条件をInput Interactionへ接続し、PCと同じ二段階Target Resolution経路へ合流させる。
   - DnD未開始時のTable / Editorの通常スクロールを維持する。
-  - active Column DnDではDnD EngineのAuto Scrollを横方向だけに限定する。
+  - DnD Engine標準のAuto ScrollをColumn Reorderでは利用しない。
+  - DnD開始時に対象Tableの横スクロール領域を一回のDnDへ固定し、同じDocument座標系のnative pointer位置から左右端領域を判定する。
+  - pointerが端領域に留まる間は描画フレーム単位で水平スクロールを継続し、スクロール限界または端領域外では不要な継続処理を停止する。
+  - 実際に横スクロールした場合は、最新の物理入力位置からDestination Resolutionを再実行し、ポインターが停止した状態でも現在の論理移動先を更新する。
+  - complete / cancel / 無効化 / 接続終了でAuto Scrollの一時状態を破棄する。
 - Validation:
-  - 通常touch scroll、touch DnD開始、開始拒否、横Auto Scroll、縦方向へAuto Scrollしないこと、cleanupをfocused / integration testで確認する。
+  - 通常touch scroll、touch DnD開始、開始拒否を既存Input Interactionのfocused / integration testで確認する。
+  - 左右の水平Auto Scroll、端での継続、スクロール限界での停止、再移動後の再開、対象領域外では進行しないこと、縦方向へAuto Scrollしないこと、終了時cleanupをfocused testで確認する。
+  - Auto ScrollによるTable位置変更後にDestination Resolutionが再実行され、現在の論理移動先へ追従することをDnD Engine Integration testで確認する。
 
 ### Phase 7: Reorder Presentation
 
