@@ -268,9 +268,11 @@ describe( 'Column drop animation', () => {
 	 *
 	 * 操作:
 	 * - 現在表示を記録した後、通常ドロップを通知する。
+	 * - 終了アニメーションを完了する。
 	 *
 	 * 期待結果:
 	 * - Moving Columnが現在位置からInsertion GapへX/Y両方向に350msで移動する。
+	 * - 終了アニメーション完了後は、このPresentationが追加した複製表示を残さない。
 	 */
 	it( 'when a valid column drop completes, should animate the moving column to the insertion gap', () => {
 		const { sourceCell } = createPresentation();
@@ -278,6 +280,7 @@ describe( 'Column drop animation', () => {
 		startColumnDrag( sourceCell, 3 );
 		flushAnimationFrame();
 		flushAnimationFrame();
+		const existingBodyChildren = Array.from( document.body.children );
 
 		act( () => {
 			mockDragDropMonitor.onDragEnd?.( { canceled: false } );
@@ -287,6 +290,13 @@ describe( 'Column drop animation', () => {
 			[ { transform: 'translate3d(0, 0, 0)' }, { transform: 'translate3d(-160px, -140px, 0)' } ],
 			{ duration: 350, easing: 'ease-out', fill: 'forwards' }
 		);
+		const landingElements = getAddedBodyChildren( existingBodyChildren );
+		expect( landingElements ).toHaveLength( 2 );
+
+		act( () => {
+			currentAnimation.onfinish?.( new Event( 'finish' ) as AnimationPlaybackEvent );
+		} );
+		expect( landingElements.every( ( element ) => ! element.isConnected ) ).toBe( true );
 	} );
 
 	/**
@@ -367,6 +377,42 @@ describe( 'Column drop animation', () => {
 
 	/**
 	 * 概要:
+	 * - 最後に記録したsnapshotとactive Sessionの現在移動先が一致しない場合は、古い着地点を終了表示へ流用しないことを確認する。
+	 *
+	 * 事前条件:
+	 * - 移動先3のPresentation snapshotが記録されている。
+	 * - その後active Sessionの移動先だけが4へ更新され、移動先4の表示はまだ記録されていない。
+	 * - DnD終了直前のPresentation表示をDOMから取得できない。
+	 *
+	 * 操作:
+	 * - 通常ドロップを通知する。
+	 *
+	 * 期待結果:
+	 * - 移動先3の古いsnapshotを利用せず、成功着地アニメーションを生成しない。
+	 */
+	it( 'when the saved snapshot no longer matches the active destination, should not reuse the stale landing position', () => {
+		const { sourceCell, movingDisplay, insertionGap } = createPresentation();
+		render( <ColumnDropAnimation /> );
+		startColumnDrag( sourceCell, 3 );
+		flushAnimationFrame();
+		flushAnimationFrame();
+
+		mockDestinationBoundaryIndex = 4;
+		act( () => {
+			mockColumnDndStateListener?.();
+		} );
+		movingDisplay.remove();
+		insertionGap.remove();
+
+		act( () => {
+			mockDragDropMonitor.onDragEnd?.( { canceled: false } );
+		} );
+
+		expect( animateMock ).not.toHaveBeenCalled();
+	} );
+
+	/**
+	 * 概要:
 	 * - 確定不能による異常終了では成功した着地表示を生成しないことを確認する。
 	 *
 	 * 事前条件:
@@ -390,6 +436,74 @@ describe( 'Column drop animation', () => {
 		} );
 
 		expect( animateMock ).not.toHaveBeenCalled();
+	} );
+
+	/**
+	 * 概要:
+	 * - 動きを抑制する利用者設定では終了アニメーションを生成せず、実Table表示へ直接切り替えることを確認する。
+	 *
+	 * 事前条件:
+	 * - 有効移動先とPresentation表示が成立している。
+	 * - editor表示環境でprefers-reduced-motionが有効である。
+	 *
+	 * 操作:
+	 * - 通常ドロップを通知する。
+	 *
+	 * 期待結果:
+	 * - Web Animations APIを呼び出さず、このPresentationの一時表示を追加しない。
+	 */
+	it( 'when reduced motion is preferred, should skip the drop animation', () => {
+		Object.defineProperty( window, 'matchMedia', {
+			configurable: true,
+			value: jest.fn( () => ( { matches: true } ) ),
+		} );
+		const { sourceCell } = createPresentation();
+		render( <ColumnDropAnimation /> );
+		startColumnDrag( sourceCell, 3 );
+		flushAnimationFrame();
+		flushAnimationFrame();
+		const existingBodyChildren = Array.from( document.body.children );
+
+		act( () => {
+			mockDragDropMonitor.onDragEnd?.( { canceled: false } );
+		} );
+
+		expect( animateMock ).not.toHaveBeenCalled();
+		expect( getAddedBodyChildren( existingBodyChildren ) ).toHaveLength( 0 );
+	} );
+
+	/**
+	 * 概要:
+	 * - Web Animations APIを利用できない環境では一時表示や元列の変更を残さず実Tableへ戻ることを確認する。
+	 *
+	 * 事前条件:
+	 * - 有効移動先がない通常ドロップで、Moving Columnは元列へ戻る対象である。
+	 * - editor表示環境ではWeb Animations APIを利用できない。
+	 *
+	 * 操作:
+	 * - 通常ドロップを通知する。
+	 *
+	 * 期待結果:
+	 * - 一時的に複製したMoving Columnを残さず、元列セルの表示も変更前へ戻す。
+	 */
+	it( 'when the Web Animations API is unavailable, should leave no temporary return display', () => {
+		Object.defineProperty( HTMLElement.prototype, 'animate', {
+			configurable: true,
+			value: undefined,
+		} );
+		const { sourceCell } = createPresentation();
+		render( <ColumnDropAnimation /> );
+		startColumnDrag( sourceCell, null );
+		flushAnimationFrame();
+		flushAnimationFrame();
+		const existingBodyChildren = Array.from( document.body.children );
+
+		act( () => {
+			mockDragDropMonitor.onDragEnd?.( { canceled: false } );
+		} );
+
+		expect( getAddedBodyChildren( existingBodyChildren ) ).toHaveLength( 0 );
+		expect( sourceCell.style.opacity ).toBe( '' );
 	} );
 
 	/**
