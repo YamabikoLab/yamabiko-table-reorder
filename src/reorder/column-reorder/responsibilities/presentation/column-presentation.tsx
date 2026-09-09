@@ -3,11 +3,12 @@
  *
  * 各PresentationはDnD Interactionが確定した意味状態、Reorder Target Resolutionの開始拒否理由、
  * 表示に必要なDnD Engineの物理情報をそれぞれの境界から利用し、表示Lifecycleと一時表示状態だけを所有する。
- * DnD開始前の開始拒否通知とDnD中の移動対象表示・周囲列移動を同じColumn Presentation境界へ集約する。
+ * DnD開始前の開始拒否通知とDnD中の移動対象表示・周囲列移動・挿入空間を同じColumn Presentation境界へ集約する。
  * 現在操作中のTableだけへ接続する判断はDnD Engine Integrationが所有し、この境界ではTable選択状態を重ねて管理しない。
  */
 
 import { ColumnDisplacement } from './column-displacement';
+import { ColumnInsertionGap } from './insertion-gap';
 import { ColumnMovingDisplay } from './moving-column';
 import { ColumnStartRejectionNotice } from './start-rejection-notice';
 
@@ -21,6 +22,7 @@ import { ColumnStartRejectionNotice } from './start-rejection-notice';
 export const ColumnPresentation = () => (
 	<>
 		<ColumnDisplacement />
+		<ColumnInsertionGap />
 		<ColumnMovingDisplay />
 		<ColumnStartRejectionNotice />
 	</>
