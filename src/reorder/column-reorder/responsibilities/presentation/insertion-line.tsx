@@ -182,7 +182,9 @@ const resolveInsertionLineLayout = (
  * DnD Interactionが示す現在の有効な移動先境界を、対象Table上の挿入線として描画する。
  *
  * DnD開始時の論理境界をそのSession中の表示基準として維持し、DnD Engineの移動通知から現在の横移動方向を更新する。
+ * DnD Interactionが移動元または有効な移動先を持たない期間は表示位置を補完せず、挿入線を表示しない。
  * scrollは現在のeditor documentで監視し、入力位置が変わらないAuto ScrollでもTableの現在位置へ追従する。
+ * DnD終了またはPresentation終了時はscroll監視と予約済み再計測を破棄し、Session表示を次の操作へ持ち越さない。
  *
  * @return 現在の有効な挿入位置を示す垂直線。有効な表示位置がない場合はnull。
  */
