@@ -2,8 +2,9 @@
  * Column Reorderの現在の有効な移動先に応じて周囲列を押しのけ、ドロップ後の配置を実Table上で予告する表示を所有する。
  *
  * 実Tableの列順やTableデータはDnD中に変更せず、DnD Interactionが所有する移動元論理列と現在の有効移動先を正本として、
- * その間にある論理列を移動対象列幅ぶん横方向へ移動する。DnD開始時にEditor表示領域と交差するセルだけを論理列へ対応付け、
- * 移動先変更時は前回範囲との差分論理列だけを更新する。結合セルが複数論理列を覆う場合も同じDOMセルへ重複した表示更新を行わない。
+ * その間にある論理列を移動対象列幅ぶん横方向へ移動する。押しのけ対象セルはDnD開始時のEditor表示領域を基準に固定し、
+ * Session中の移動先変更では可視判定をやり直さず、前回範囲との差分論理列だけを更新する。結合セルが複数論理列を覆う場合も
+ * 同じDOMセルへ重複した表示更新を行わない。
  */
 
 import { useDragDropMonitor } from '@dnd-kit/react';
@@ -25,7 +26,7 @@ import './column-displacement.scss';
 const DISPLACED_CELL_CLASS = 'yamabiko-table-reorder-displaced-column-cell';
 const DISPLACEMENT_PROPERTY = '--yamabiko-table-reorder-column-displacement';
 
-/** 1回のColumn DnD中に維持する、押しのけ対象セルと論理列の対応および移動量の基準。 */
+/** 1回のColumn DnD中に維持する、DnD開始時の可視セルと論理列の対応および移動量の基準。 */
 type ColumnDisplacementSessionLayout = {
 	table: HTMLTableElement;
 	sourceColumnWidth: number;
@@ -64,6 +65,7 @@ const resolveVisibleSectionRowRanges = (
 	/* Table全体から表示領域と交差する行だけを特定し、後続のセルgeometry計測を可視候補へ限定する。 */
 	for ( const row of Array.from( table.rows ) ) {
 		const section = row.parentElement;
+		/* 対象Table直下の標準sectionに属する行だけを、押しのけ表示の可視範囲判定へ含める。 */
 		if (
 			section === null ||
 			! [ 'THEAD', 'TBODY', 'TFOOT' ].includes( section.tagName ) ||
@@ -74,6 +76,7 @@ const resolveVisibleSectionRowRanges = (
 
 		const rectangle = row.getBoundingClientRect();
 		const intersectsViewport = rectangle.bottom > 0 && rectangle.top < viewportHeight;
+		/* Editor表示領域と縦方向に交差しない行は、通常セルの可視候補範囲へ含めない。 */
 		if ( ! intersectsViewport ) {
 			continue;
 		}
@@ -108,6 +111,7 @@ const cellCanIntersectVisibleRows = (
 ): boolean => {
 	const row = cell.parentElement as HTMLTableRowElement | null;
 	const section = row?.parentElement ?? null;
+	/* 現在Tableの標準行構造として確認できないセルは、可視範囲を推測して押しのけ対象にしない。 */
 	if (
 		row === null ||
 		row.tagName !== 'TR' ||
@@ -118,6 +122,7 @@ const cellCanIntersectVisibleRows = (
 	}
 
 	const visibleRange = visibleRanges.get( section as HTMLTableSectionElement );
+	/* section自体に表示領域と交差する行がない場合、そのsectionのセルは押しのけ表示へ含めない。 */
 	if ( visibleRange === undefined ) {
 		return false;
 	}
@@ -157,7 +162,8 @@ const cellIntersectsViewport = (
  *
  * DOMセルと論理列の対応は既存のColumn Source Resolutionを利用し、thead / tbody / tfootとrowspan / colspanを同じ規則で解釈する。
  * 押しのけ表示へ保持するのは開始時にEditor表示領域と実際に交差するセルだけとし、画面外の大量セルをtransition対象へ含めない。
- * 同じ結合セルは占有する各論理列から参照されるが、表示更新時は参照数で一つのDOMセルとして扱う。
+ * この可視セル集合は1回のDnD中で固定し、移動先変更ではgeometryを再計測しない。同じ結合セルは占有する各論理列から参照されるが、
+ * 表示更新時は参照数で一つのDOMセルとして扱う。
  *
  * @param sourceElement DnD Engineが現在の移動対象として管理するDOM要素。
  * @return 1回のDnDで再利用する押しのけ配置。安全に確定できない場合はnull。
@@ -178,6 +184,7 @@ const resolveDisplacementSessionLayout = (
 	}
 
 	const editorContext = resolveEditorDomContext( sourceCell );
+	/* 現在のEditor表示領域を確定できない場合は、別windowを推測して可視セル集合を成立させない。 */
 	if ( editorContext === null ) {
 		return null;
 	}
@@ -199,10 +206,12 @@ const resolveDisplacementSessionLayout = (
 	/* 論理列対応はTable全体の結合構造を維持しつつ、表示更新対象は開始時に実際に見えているセルだけへ限定する。 */
 	for ( const row of Array.from( table.rows ) ) {
 		for ( const cell of Array.from( row.cells ) ) {
+			/* `rowspan`を含め、表示領域と交差し得ないセルでは個別geometry計測を行わない。 */
 			if ( ! cellCanIntersectVisibleRows( cell, visibleRowRanges ) ) {
 				continue;
 			}
 
+			/* 行範囲だけでは確定できない横方向も含め、実際に表示領域と交差するセルだけを押しのけ対象へ固定する。 */
 			if (
 				! cellIntersectsViewport(
 					cell,
