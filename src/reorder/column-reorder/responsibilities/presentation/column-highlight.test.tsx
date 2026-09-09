@@ -2,7 +2,7 @@
  * Column Reorderの開始前予告表示が、Reorder Target Resolutionの開始可否に従って現在セルだけへ反映されることを確認する。
  */
 
-import { fireEvent, render } from '@testing-library/react';
+import { createEvent, fireEvent, render } from '@testing-library/react';
 
 import { resolveColumnSourceIndex } from '@/reorder/column-reorder/integration/source-column-resolution';
 import { columnReorderTargetResolution } from '@/reorder/column-reorder/responsibilities/target-resolution';
@@ -31,6 +31,30 @@ const resolveColumnSourceIndexMock = resolveColumnSourceIndex as jest.MockedFunc
 const createResolverMock = columnReorderTargetResolution.createResolver as jest.MockedFunction<
 	typeof columnReorderTargetResolution.createResolver
 >;
+
+/**
+ * ポインター終了入力の入力手段と移動先を明示して通知する。
+ *
+ * @param target        ポインターが離れる要素。
+ * @param pointerType   入力手段を識別するPointer Eventsの種別。
+ * @param relatedTarget ポインターの移動先。
+ */
+const firePointerOut = (
+	target: Element,
+	pointerType: 'mouse' | 'touch',
+	relatedTarget: EventTarget | null = null
+): void => {
+	const event = createEvent.pointerOut( target );
+	Object.defineProperty( event, 'pointerType', {
+		configurable: true,
+		value: pointerType,
+	} );
+	Object.defineProperty( event, 'relatedTarget', {
+		configurable: true,
+		value: relatedTarget,
+	} );
+	fireEvent( target, event );
+};
 
 /**
  * 開始前のセル予告表示を確認するためのTableを描画する。
@@ -194,7 +218,7 @@ describe( 'Column highlight', () => {
 		const nextCell = getByTestId( 'column-2' );
 
 		fireEvent.pointerOver( currentCell, { pointerType: 'mouse' } );
-		fireEvent.pointerOut( currentCell, { pointerType: 'mouse', relatedTarget: nextCell } );
+		firePointerOut( currentCell, 'mouse', nextCell );
 
 		expect( currentCell.className ).toBe( '' );
 	} );
@@ -216,7 +240,7 @@ describe( 'Column highlight', () => {
 		const currentCell = getByTestId( 'column-1' );
 
 		fireEvent.pointerOver( currentCell, { pointerType: 'touch' } );
-		fireEvent.pointerOut( currentCell, { pointerType: 'touch' } );
+		firePointerOut( currentCell, 'touch' );
 
 		expect( currentCell.className ).toBe( 'yamabiko-table-reorder-column-highlightable-cell' );
 	} );
