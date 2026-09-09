@@ -126,12 +126,14 @@ const resolveSourceColumnLayout = (
 	editorContext: EditorDomContext
 ): SourceColumnLayout | null => {
 	const table = sourceCell.closest( 'table' ) as HTMLTableElement | null;
+	/* Column Reorder対象Tableを確認できない要素から、元列の帰還配置を推測しない。 */
 	if ( table === null ) {
 		return null;
 	}
 
 	const sourceRectangle = sourceCell.getBoundingClientRect();
 	const tableRectangle = table.getBoundingClientRect();
+	/* 元列とTableの表示寸法を開始時に確定できない場合は、別の寸法で帰還表示を成立させない。 */
 	if ( sourceRectangle.width <= 0 || sourceRectangle.height <= 0 || tableRectangle.height <= 0 ) {
 		return null;
 	}
@@ -196,6 +198,7 @@ const resolveSourceReturnRectangle = (
 	movingRectangle: DropAnimationRectangle
 ): DropAnimationRectangle | null => {
 	const sourceRectangle = sourceLayout.sourceCell.getBoundingClientRect();
+	/* Drop時点の元列位置を確定できない場合は、DnD開始時の絶対座標へ戻さない。 */
 	if ( sourceRectangle.width <= 0 || sourceRectangle.height <= 0 ) {
 		return null;
 	}
@@ -222,11 +225,13 @@ const resolveDropAnimationSnapshot = (
 ): DropAnimationSnapshot | null => {
 	const movingDisplay =
 		editorContext.document.querySelector< HTMLElement >( MOVING_DISPLAY_SELECTOR );
+	/* 現在のMoving Columnが既に破棄されている場合は、DOMから新しいsnapshotを生成しない。 */
 	if ( movingDisplay === null ) {
 		return null;
 	}
 
 	const movingRectangle = resolveDisplayRectangle( movingDisplay );
+	/* 現在のMoving Column位置を確定できない場合は、不完全なsnapshotを終了表示へ引き継がない。 */
 	if ( movingRectangle === null ) {
 		return null;
 	}
@@ -246,11 +251,13 @@ const resolveDropAnimationSnapshot = (
 
 	const insertionGap =
 		editorContext.document.querySelector< HTMLElement >( INSERTION_GAP_SELECTOR );
+	/* 有効移動先に対応するInsertion Gapが存在しない表示周期は、成功着地用snapshotとして採用しない。 */
 	if ( insertionGap === null ) {
 		return null;
 	}
 
 	const insertionGapRectangle = resolveDisplayRectangle( insertionGap );
+	/* Insertion Gapの表示位置を確定できない場合は、推測した着地点を終了表示へ利用しない。 */
 	if ( insertionGapRectangle === null ) {
 		return null;
 	}
@@ -284,6 +291,7 @@ export const ColumnDropAnimation = () => {
 	const activeAnimation = useRef< ActiveDropAnimation | null >( null );
 	const terminated = useRef( false );
 
+	/** 物理DnD終了後に次のSessionへ持ち越せないeditor DOM参照、移動先、snapshotを破棄する。 */
 	const clearSessionReferences = useCallback( (): void => {
 		editorContext.current = null;
 		sourceLayout.current = null;
@@ -291,6 +299,7 @@ export const ColumnDropAnimation = () => {
 		snapshot.current = null;
 	}, [] );
 
+	/** 予約済みのsnapshot取得を取消し、DnD終了後に古い表示状態を記録しない。 */
 	const cancelScheduledCapture = useCallback( (): void => {
 		const currentFrame = captureFrame.current;
 		captureFrame.current = null;
@@ -299,9 +308,11 @@ export const ColumnDropAnimation = () => {
 		}
 	}, [] );
 
+	/** 進行中の終了アニメーションと、このPresentationが追加または維持した一時表示をすべて解除する。 */
 	const clearActiveAnimation = useCallback( (): void => {
 		const currentAnimation = activeAnimation.current;
 		activeAnimation.current = null;
+		/* 進行中の終了表示がない場合は、他のPresentationのDOMへ変更を加えない。 */
 		if ( currentAnimation === null ) {
 			return;
 		}
@@ -316,8 +327,10 @@ export const ColumnDropAnimation = () => {
 		} );
 	}, [] );
 
+	/** active Session中の現在移動先と同じPresentation表示を、物理DnD終了後へ引き継げるsnapshotとして記録する。 */
 	const captureCurrentPresentation = useCallback( (): void => {
 		const currentContext = editorContext.current;
+		/* 対象editor DOMが既に失われた場合は、以前のsnapshotを現在表示として残さない。 */
 		if ( currentContext === null ) {
 			snapshot.current = null;
 			return;
@@ -329,8 +342,10 @@ export const ColumnDropAnimation = () => {
 		);
 	}, [] );
 
+	/** Insertion Gapの表示同期後に現在Presentationを取得できるよう、次の描画周期へsnapshot取得を予約する。 */
 	const scheduleCapture = useCallback( (): void => {
 		const currentContext = editorContext.current;
+		/* DnD開始時のeditor DOMを確定できていない操作では、別contextへsnapshot取得を予約しない。 */
 		if ( currentContext === null ) {
 			return;
 		}
@@ -353,17 +368,28 @@ export const ColumnDropAnimation = () => {
 		};
 	}, [ cancelScheduledCapture, captureCurrentPresentation ] );
 
+	/**
+	 * DnD中のMoving Column複製を、確定した最終表示位置へ短時間だけ引き継ぐ。
+	 *
+	 * 成功着地ではInsertion GapをTable更新中の覆いとして複製し、元列へ戻る場合だけ元列セルの半透明表示を維持する。
+	 * animation終了、取消、Presentation境界終了のいずれでも追加した一時表示を解除できる状態として所有する。
+	 *
+	 * @param currentSnapshot 物理DnD終了直前に利用するMoving Columnと必要なInsertion Gapの表示snapshot。
+	 * @param target          終了アニメーションの最終矩形と、終了まで維持する一時表示。
+	 */
 	const startDropAnimation = useCallback(
 		( currentSnapshot: DropAnimationSnapshot, target: DropAnimationTarget ): void => {
 			const reduceMotion =
 				typeof currentSnapshot.editorWindow.matchMedia === 'function' &&
 				currentSnapshot.editorWindow.matchMedia( REDUCED_MOTION_QUERY ).matches;
+			/* 動きを抑制する利用者設定では、一時的な終了表示を追加せず実Tableへ直接切り替える。 */
 			if ( reduceMotion ) {
 				return;
 			}
 
 			const horizontalMovement = target.rectangle.left - currentSnapshot.movingRectangle.left;
 			const verticalMovement = target.rectangle.top - currentSnapshot.movingRectangle.top;
+			/* Moving Columnが既に最終位置へ重なっている場合は、静止した複製表示を時間だけ延長しない。 */
 			if ( Math.abs( horizontalMovement ) < 0.5 && Math.abs( verticalMovement ) < 0.5 ) {
 				return;
 			}
@@ -376,6 +402,7 @@ export const ColumnDropAnimation = () => {
 			movingDisplay.style.width = `${ currentSnapshot.movingRectangle.width }px`;
 			movingDisplay.style.height = `${ currentSnapshot.movingRectangle.height }px`;
 
+			/* 成功着地ではTable更新後の表示が先に現れないよう、最後のInsertion Gap表示も同じ最終位置へ短時間維持する。 */
 			if ( coverElement !== undefined ) {
 				coverElement.style.top = `${ target.rectangle.top }px`;
 				coverElement.style.left = `${ target.rectangle.left }px`;
@@ -416,8 +443,10 @@ export const ColumnDropAnimation = () => {
 				}
 			);
 
+			/** animationの完了または取消時に、そのanimationが所有する一時表示だけを終了する。 */
 			const finish = (): void => {
 				const currentAnimation = activeAnimation.current;
+				/* 新しい終了アニメーションへ切り替わった後の古いcallbackでは、現在表示を破棄しない。 */
 				if ( currentAnimation === null || currentAnimation.animation !== animation ) {
 					return;
 				}
@@ -443,6 +472,7 @@ export const ColumnDropAnimation = () => {
 	);
 
 	useEffect( () => {
+		/** active Session中の移動先だけを終了表示用に同期し、idle遷移では最後の意味状態を維持する。 */
 		const synchronizeDestination = (): void => {
 			/* idleへの遷移では最後のactive Sessionの移動先を保持し、物理DnD終了通知まで終了表示の判定に利用する。 */
 			if ( getColumnDndPhase() !== 'active' ) {
@@ -472,12 +502,14 @@ export const ColumnDropAnimation = () => {
 			clearSessionReferences();
 
 			const sourceElement = event.operation.source?.element;
+			/* Column Reorderの開始セルとして確認できない物理DnDでは、終了アニメーション用のSession参照を作らない。 */
 			if ( ! sourceElement || ! [ 'TD', 'TH' ].includes( sourceElement.tagName ) ) {
 				return;
 			}
 
 			const sourceCell = sourceElement as HTMLTableCellElement;
 			const currentContext = resolveEditorDomContext( sourceCell );
+			/* 現在のeditor DOM環境を解決できない場合は、別contextへ終了表示を生成しない。 */
 			if ( currentContext === null ) {
 				return;
 			}
@@ -486,6 +518,7 @@ export const ColumnDropAnimation = () => {
 			const initialX =
 				event.operation.position?.initial.x ?? sourceRectangle.left + sourceRectangle.width / 2;
 			const currentSourceLayout = resolveSourceColumnLayout( sourceCell, initialX, currentContext );
+			/* 元列の帰還配置を開始時に確定できない操作では、推測した終了アニメーションを生成しない。 */
 			if ( currentSourceLayout === null ) {
 				return;
 			}
@@ -523,6 +556,7 @@ export const ColumnDropAnimation = () => {
 			}
 
 			const shouldReturnToSource = event.canceled || currentDestinationBoundaryIndex === null;
+			/* 取消または有効移動先なしの通常Dropでは、Insertion Gapを着地点に使わず元列の現在位置へ戻す。 */
 			if ( shouldReturnToSource ) {
 				const sourceRectangle = resolveSourceReturnRectangle(
 					currentSourceLayout,
@@ -535,6 +569,7 @@ export const ColumnDropAnimation = () => {
 						sourceCells: currentSourceLayout.sourceCells,
 					} );
 				}
+			/* 有効移動先への通常Dropでは、最後のInsertion Gapを成功着地の最終表示位置として利用する。 */
 			} else if (
 				currentSnapshot.insertionGap !== null &&
 				currentSnapshot.insertionGapRectangle !== null
