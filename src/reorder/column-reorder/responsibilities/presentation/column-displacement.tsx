@@ -115,7 +115,12 @@ export const ColumnDisplacement = () => {
 	const coverageCounts = useRef( new Map< HTMLTableCellElement, number >() );
 	const currentRange = useRef< ColumnDisplacementRange | null >( null );
 
-	/** 指定論理列を現在の押しのけ範囲へ加え、その列を覆うセルへ必要な表示だけを追加する。 */
+	/**
+	 * 指定論理列を現在の押しのけ範囲へ加え、その列を覆うセルへ必要な表示だけを追加する。
+	 *
+	 * @param columnIndex  押しのけ対象へ追加する0-based論理列位置。
+	 * @param displacement 画面上で適用する水平方向の移動量。
+	 */
 	const addColumn = useCallback( ( columnIndex: number, displacement: number ): void => {
 		const layout = activeLayout.current;
 		if ( layout === null ) {
@@ -140,7 +145,11 @@ export const ColumnDisplacement = () => {
 		} );
 	}, [] );
 
-	/** 指定論理列を現在の押しのけ範囲から外し、その列以外にも覆われている結合セルは表示を維持する。 */
+	/**
+	 * 指定論理列を現在の押しのけ範囲から外し、その列以外にも覆われている結合セルは表示を維持する。
+	 *
+	 * @param columnIndex 押しのけ対象から外す0-based論理列位置。
+	 */
 	const removeColumn = useCallback( ( columnIndex: number ): void => {
 		const layout = activeLayout.current;
 		if ( layout === null ) {
@@ -166,7 +175,11 @@ export const ColumnDisplacement = () => {
 		} );
 	}, [] );
 
-	/** 指定範囲の論理列を押しのけ表示へ加える。 */
+	/**
+	 * 指定範囲の論理列を押しのけ表示へ加える。
+	 *
+	 * @param range 新たに押しのけ表示を成立させる連続論理列範囲。
+	 */
 	const addRange = useCallback(
 		( range: ColumnDisplacementRange ): void => {
 			/* 移動元と移動先の間に含まれる論理列だけを対象とし、無関係な列へDOM更新を広げない。 */
@@ -177,7 +190,11 @@ export const ColumnDisplacement = () => {
 		[ addColumn ]
 	);
 
-	/** 指定範囲の論理列を押しのけ表示から外す。 */
+	/**
+	 * 指定範囲の論理列を押しのけ表示から外す。
+	 *
+	 * @param range 押しのけ表示を解除する連続論理列範囲。
+	 */
 	const removeRange = useCallback(
 		( range: ColumnDisplacementRange ): void => {
 			/* 現在の移動先から外れた論理列だけを元位置へ戻し、継続範囲の表示状態は変更しない。 */
@@ -188,7 +205,11 @@ export const ColumnDisplacement = () => {
 		[ removeColumn ]
 	);
 
-	/** 前回の押しのけ範囲を、現在の有効な移動先に必要な範囲へ差分更新する。 */
+	/**
+	 * 前回の押しのけ範囲を、現在の有効な移動先に必要な範囲へ差分更新する。
+	 *
+	 * @param nextRange 現在の有効な移動先に対応する押しのけ範囲。押しのけ不要の場合はnull。
+	 */
 	const updateRange = useCallback(
 		( nextRange: ColumnDisplacementRange | null ): void => {
 			const previousRange = currentRange.current;
@@ -246,6 +267,7 @@ export const ColumnDisplacement = () => {
 		[ addRange, removeRange ]
 	);
 
+	/** 1回のDnDで適用した一時表示と参照状態をすべて破棄し、次のDnDへ持ち越さない。 */
 	const clear = useCallback( (): void => {
 		/* このPresentationが触れたセルだけを対象に、次のDnDへ一時表示を持ち越さないよう完全に解除する。 */
 		touchedCells.current.forEach( ( cell ) => {

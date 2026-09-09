@@ -81,7 +81,8 @@ const createSimpleTable = (
 
 /**
  * DnD EngineからColumnの物理DnD開始が通知された状態を作る。
- * @param sourceCell
+ *
+ * @param sourceCell DnD開始対象として通知するTableセル。
  */
 const startPhysicalDrag = ( sourceCell: HTMLTableCellElement ): void => {
 	act( () => {
@@ -209,6 +210,38 @@ describe( 'Column displacement presentation', () => {
 	} );
 
 	/**
+	 * 移動先が移動元の反対側へ変わった場合、以前の押しのけ範囲を残さず新しい方向へ切り替えることを確認する。
+	 *
+	 * 事前条件:
+	 * - LTRの5列Tableで3列目を移動対象とし、論理終了側への押しのけ表示が成立している。
+	 *
+	 * 操作:
+	 * - 移動先を移動元より論理開始側へ変更する。
+	 *
+	 * 期待結果:
+	 * - 以前の論理終了側は元位置へ戻り、現在の論理開始側だけが反対方向へ押しのけられる。
+	 */
+	it( 'when the destination crosses the source column, should replace the previous displacement with the opposite direction', () => {
+		const { cells, sourceCell } = createSimpleTable( 5, 2 );
+		const { rerender } = render( <ColumnDisplacement /> );
+		startPhysicalDrag( sourceCell );
+		mockSourceColumnIndex = 2;
+		mockDestinationBoundaryIndex = 5;
+		rerender( <ColumnDisplacement /> );
+
+		expect( cells[ 3 ]?.style.getPropertyValue( DISPLACEMENT_PROPERTY ) ).toBe( '-40px' );
+		expect( cells[ 4 ]?.style.getPropertyValue( DISPLACEMENT_PROPERTY ) ).toBe( '-40px' );
+
+		mockDestinationBoundaryIndex = 0;
+		rerender( <ColumnDisplacement /> );
+
+		expect( cells[ 0 ]?.style.getPropertyValue( DISPLACEMENT_PROPERTY ) ).toBe( '40px' );
+		expect( cells[ 1 ]?.style.getPropertyValue( DISPLACEMENT_PROPERTY ) ).toBe( '40px' );
+		expect( cells[ 3 ]?.style.getPropertyValue( DISPLACEMENT_PROPERTY ) ).toBe( '0px' );
+		expect( cells[ 4 ]?.style.getPropertyValue( DISPLACEMENT_PROPERTY ) ).toBe( '0px' );
+	} );
+
+	/**
 	 * Table全sectionと結合セルを論理列として扱い、同じ結合セルを重複して移動しないことを確認する。
 	 *
 	 * 事前条件:
@@ -306,6 +339,37 @@ describe( 'Column displacement presentation', () => {
 		act( () => {
 			mockDragDropMonitor.onDragEnd?.();
 		} );
+
+		expect( displacedCell.style.getPropertyValue( DISPLACEMENT_PROPERTY ) ).toBe( '' );
+		expect(
+			displacedCell.classList.contains( 'yamabiko-table-reorder-displaced-column-cell' )
+		).toBe( false );
+	} );
+
+	/**
+	 * PresentationがDnD中に取り外された場合も、一時的な押しのけ表示を実Tableへ残さないことを確認する。
+	 *
+	 * 事前条件:
+	 * - 周囲列の押しのけ表示が成立している。
+	 *
+	 * 操作:
+	 * - DnD終了通知より先にColumn Displacementをunmountする。
+	 *
+	 * 期待結果:
+	 * - このPresentationが適用した一時classと移動量指定がすべて解除される。
+	 */
+	it( 'when the presentation unmounts during an active drag, should clear all temporary displacement state', () => {
+		const { cells, sourceCell } = createSimpleTable( 4, 0 );
+		const rendered = render( <ColumnDisplacement /> );
+		startPhysicalDrag( sourceCell );
+		mockSourceColumnIndex = 0;
+		mockDestinationBoundaryIndex = 4;
+		rendered.rerender( <ColumnDisplacement /> );
+		const displacedCell = cells[ 1 ]!;
+
+		expect( displacedCell.style.getPropertyValue( DISPLACEMENT_PROPERTY ) ).toBe( '-40px' );
+
+		rendered.unmount();
 
 		expect( displacedCell.style.getPropertyValue( DISPLACEMENT_PROPERTY ) ).toBe( '' );
 		expect(
