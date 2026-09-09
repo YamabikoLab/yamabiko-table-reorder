@@ -14,11 +14,18 @@ import { ColumnInsertionGap } from './insertion-gap';
 
 let mockSourceColumnIndex: number | null = null;
 let mockDestinationBoundaryIndex: number | null = null;
+let mockAnimationFrameCallback: FrameRequestCallback | null = null;
 let mockDragDropMonitor: {
 	onDragStart?: ( event: any ) => void;
 	onDragMove?: () => void;
 	onDragEnd?: () => void;
 } = {};
+
+const requestAnimationFrameMock = jest.fn( ( callback: FrameRequestCallback ): number => {
+	mockAnimationFrameCallback = callback;
+	return 1;
+} );
+const cancelAnimationFrameMock = jest.fn();
 
 jest.mock( '@/reorder/column-reorder/integration/dnd-interaction-react', () => ( {
 	useColumnDndSourceColumnIndex: () => mockSourceColumnIndex,
@@ -118,11 +125,23 @@ const startPhysicalDrag = ( sourceCell: HTMLTableCellElement ): void => {
 	} );
 };
 
+/**
+ * scroll通知で予約された次の描画フレームを実行する。
+ */
+const flushAnimationFrame = (): void => {
+	const callback = mockAnimationFrameCallback;
+	mockAnimationFrameCallback = null;
+	act( () => {
+		callback?.( 0 );
+	} );
+};
+
 describe( 'Column insertion gap', () => {
 	beforeEach( () => {
 		jest.clearAllMocks();
 		mockSourceColumnIndex = null;
 		mockDestinationBoundaryIndex = null;
+		mockAnimationFrameCallback = null;
 		mockDragDropMonitor = {};
 		document.body.replaceChildren();
 		measureTableColumnBoundaryGeometryMock.mockReturnValue( [
@@ -135,7 +154,12 @@ describe( 'Column insertion gap', () => {
 		resolveTableColumnInlineDirectionMock.mockReturnValue( 'ltr' );
 		resolveEditorDomContextMock.mockReturnValue( {
 			document,
-			window: { innerWidth: 500, innerHeight: 600 } as Window,
+			window: {
+				innerWidth: 500,
+				innerHeight: 600,
+				requestAnimationFrame: requestAnimationFrameMock,
+				cancelAnimationFrame: cancelAnimationFrameMock,
+			} as unknown as Window,
 		} );
 	} );
 
@@ -226,19 +250,19 @@ describe( 'Column insertion gap', () => {
 	} );
 
 	/**
-	 * DnD開始時の論理境界を維持しながら、スクロールによるTable全体の現在位置変化へ追従することを確認する。
+	 * DnD開始時の論理境界を維持しながら、入力位置の更新を伴わないスクロールでもTable全体の現在位置変化へ追従することを確認する。
 	 *
 	 * 事前条件:
 	 * - 論理終了側の挿入空間が表示されている。
 	 * - DnD開始後にTable全体が横方向へ30px移動する。
 	 *
 	 * 操作:
-	 * - 移動先境界を変えずに物理移動を通知する。
+	 * - 移動先境界とポインター位置を変えず、editor内のscrollだけを通知する。
 	 *
 	 * 期待結果:
-	 * - 挿入空間も30px移動し、開始時に確定した論理列間隔自体は再計測しない。
+	 * - 次の描画フレームで挿入空間も30px移動し、開始時に確定した論理列間隔自体は再計測しない。
 	 */
-	it( 'when the table position changes during the drag, should follow the current table position without remeasuring displaced columns', () => {
+	it( 'when scrolling moves the table without another drag move, should follow the current table position without remeasuring logical boundaries', () => {
 		const { sourceCell, tableRectangleMock } = createSourceTable( 80 );
 		const { rerender } = render( <ColumnInsertionGap /> );
 		startPhysicalDrag( sourceCell );
@@ -257,8 +281,10 @@ describe( 'Column insertion gap', () => {
 			} )
 		);
 		act( () => {
-			mockDragDropMonitor.onDragMove?.();
+			document.dispatchEvent( new Event( 'scroll' ) );
 		} );
+		expect( requestAnimationFrameMock ).toHaveBeenCalledTimes( 1 );
+		flushAnimationFrame();
 
 		const gap = document.querySelector(
 			'.yamabiko-table-reorder-column-insertion-gap'
