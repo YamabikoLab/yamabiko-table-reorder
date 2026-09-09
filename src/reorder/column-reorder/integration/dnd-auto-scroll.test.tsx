@@ -5,10 +5,6 @@
  */
 
 import {
-	AutoScroller,
-	Cursor,
-	Feedback,
-	PreventSelection,
 	type BeforeDragStartEvent,
 	type DragEndEvent,
 	type DragMoveEvent,
