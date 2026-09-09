@@ -3,21 +3,19 @@ Tags: block editor, gutenberg, table
 Requires at least: 6.8
 Tested up to: 7.1
 Requires PHP: 8.1
-Stable tag: 0.6.2
+Stable tag: 0.7.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
-Reorder table rows in supported blocks in the WordPress block editor.
+Reorder table rows and columns in supported blocks in the WordPress block editor.
 
 == Description ==
 
-Yamabiko Table Reorder 0.6.2 provides Row Reorder for WordPress Core Table and Flexible Table Block.
+Yamabiko Table Reorder 0.7.0 provides Row Reorder and Column Reorder for WordPress Core Table and Flexible Table Block.
 
-Use Row Reorder mode from the Table toolbar, then drag body rows with Mouse or Touch. During DnD, the plugin shows the moving row, the current destination, and the surrounding row displacement so the result remains visible before it is committed.
+Use Row Reorder or Column Reorder mode from the Table toolbar, then drag body rows or Table columns with Mouse or Touch. During DnD, the plugin shows the moving row or column, the current destination, and the surrounding displacement so the result remains visible before it is committed.
 
-Row Reorder preserves supported Table structure, including merged-cell constraints, and updates the row order only when the drop is valid. Rows that cannot be moved because of merged-cell constraints are identified in advance, and a short message explains the reason when a drag is attempted. The moving row also preserves the source row and cell background colors. Automatic scrolling is available while dragging when needed.
-
-Column Reorder is not included in 0.6.2 and is currently under development as the next feature.
+Row and Column Reorder preserve supported Table structure, including merged-cell constraints, and update the order only when the drop is valid. Rows or columns that cannot be moved because of merged-cell constraints are identified in advance, and a short message explains the reason when a drag is attempted. Automatic scrolling follows the active reorder direction when needed.
 
 A WordPress Playground demo is available from the GitHub repository and uses the current latest stable release.
 
@@ -39,6 +37,13 @@ The generated archive is `yamabiko-table-reorder.zip`.
 4. Activate Yamabiko Table Reorder.
 
 == Changelog ==
+
+= 0.7.0 =
+
+* Added: Added Column Reorder for WordPress Core Table and Flexible Table Block with Mouse and Touch DnD.
+* Added: Added visual feedback for the moving column, current destination, surrounding column displacement, and horizontal automatic scrolling during Column Reorder DnD.
+* Changed: Preserved supported Table structure by preventing column moves that would break merged-cell constraints and by committing Table data only for valid drops.
+* Added: Added Undo support for Column Reorder so one committed column move can be reverted with one Undo operation.
 
 = 0.6.2 =
 
