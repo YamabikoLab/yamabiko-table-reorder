@@ -96,7 +96,9 @@ const createTable = ( tableRect: DOMRect, cellRects: DOMRect[] ) => {
 	}
 	table.appendChild( tbody );
 	document.body.appendChild( table );
-	const tableRectangleMock = jest.spyOn( table, 'getBoundingClientRect' ).mockReturnValue( tableRect );
+	const tableRectangleMock = jest
+		.spyOn( table, 'getBoundingClientRect' )
+		.mockReturnValue( tableRect );
 	return { table, sourceCell, cells, tableRectangleMock };
 };
 
@@ -291,4 +293,4 @@ describe( 'Column insertion gap cell boundaries', () => {
 		expect( getBoundaryTops() ).toEqual( [ '70px', '170px' ] );
 		expect( elementFromPointMock ).toHaveBeenCalledTimes( snapshotCalls );
 	} );
-});
+} );
