@@ -311,6 +311,22 @@ export const getColumnDndPhase = (): ColumnDndStoreState[ 'phase' ] => {
 };
 
 /**
+ * Reorder Presentationが押しのけ範囲の移動元を追従するため、Session開始時に確定した移動元論理列を取得する。
+ *
+ * @return active Sessionの0-based移動元論理列位置。idleの場合はnull。
+ */
+export const getColumnDndSourceColumnIndex = (): number | null => {
+	const state = columnDndStore.getState();
+	let sourceColumnIndex: number | null = null;
+
+	if ( state.phase === 'active' ) {
+		sourceColumnIndex = state.session.sourceColumnIndex;
+	}
+
+	return sourceColumnIndex;
+};
+
+/**
  * Reorder Presentationが現在の有効な挿入位置を追従するため、現在の移動先境界を取得する。
  *
  * @return 実際に列順を変更できる現在の0-based移動先境界。idleまたは有効な移動先がない場合はnull。
