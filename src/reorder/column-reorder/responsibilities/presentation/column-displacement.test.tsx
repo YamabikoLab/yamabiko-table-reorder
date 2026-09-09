@@ -79,7 +79,10 @@ const createSimpleTable = (
 	return { table, cells, sourceCell };
 };
 
-/** DnD EngineからColumnの物理DnD開始が通知された状態を作る。 */
+/**
+ * DnD EngineからColumnの物理DnD開始が通知された状態を作る。
+ * @param sourceCell
+ */
 const startPhysicalDrag = ( sourceCell: HTMLTableCellElement ): void => {
 	act( () => {
 		mockDragDropMonitor.onDragStart?.( {
@@ -252,16 +255,21 @@ describe( 'Column displacement presentation', () => {
 		expect( headMerged.style.getPropertyValue( DISPLACEMENT_PROPERTY ) ).toBe( '-60px' );
 		expect( headMergedSetProperty ).toHaveBeenCalledTimes( 1 );
 		expect(
-			( table.querySelector( '[data-cell="body-rowspan"]' ) as HTMLTableCellElement ).style.getPropertyValue(
-				DISPLACEMENT_PROPERTY
-			)
+			(
+				table.querySelector( '[data-cell="body-rowspan"]' ) as HTMLTableCellElement
+			 ).style.getPropertyValue( DISPLACEMENT_PROPERTY )
 		).toBe( '-60px' );
 		expect(
-			( table.querySelector( '[data-cell="body-merged"]' ) as HTMLTableCellElement ).style.getPropertyValue(
-				DISPLACEMENT_PROPERTY
-			)
+			(
+				table.querySelector( '[data-cell="body-merged"]' ) as HTMLTableCellElement
+			 ).style.getPropertyValue( DISPLACEMENT_PROPERTY )
 		).toBe( '-60px' );
-		for ( const selector of [ '[data-cell="source"]', '[data-cell="body-source-a"]', '[data-cell="body-source-b"]', '[data-cell="foot-source"]' ] ) {
+		for ( const selector of [
+			'[data-cell="source"]',
+			'[data-cell="body-source-a"]',
+			'[data-cell="body-source-b"]',
+			'[data-cell="foot-source"]',
+		] ) {
 			expect(
 				( table.querySelector( selector ) as HTMLTableCellElement ).style.getPropertyValue(
 					DISPLACEMENT_PROPERTY
