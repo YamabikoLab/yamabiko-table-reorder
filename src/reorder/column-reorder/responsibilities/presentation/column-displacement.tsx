@@ -107,7 +107,7 @@ const cellCanIntersectVisibleRows = (
 	visibleRanges: Map< HTMLTableSectionElement, VisibleSectionRowRange >
 ): boolean => {
 	const row = cell.parentElement as HTMLTableRowElement | null;
-	const section = row?.parentElement;
+	const section = row?.parentElement ?? null;
 	if (
 		row === null ||
 		row.tagName !== 'TR' ||
