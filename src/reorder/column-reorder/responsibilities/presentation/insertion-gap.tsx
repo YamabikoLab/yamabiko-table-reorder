@@ -210,6 +210,41 @@ export const ColumnInsertionGap = () => {
 	} );
 
 	useEffect( () => {
+		if ( sessionLayout === null ) {
+			return;
+		}
+
+		let animationFrameId: number | null = null;
+
+		/**
+		 * Auto Scrollなど入力位置の更新を伴わないスクロールでも、固定した論理配置を現在のTable位置へ再変換する。
+		 * 連続するスクロール通知は同じ描画フレームで1回にまとめ、Presentation自身が高頻度なReact更新を追加しない。
+		 */
+		const requestScrollMeasurement = (): void => {
+			if ( animationFrameId !== null ) {
+				return;
+			}
+
+			animationFrameId = sessionLayout.editorWindow.requestAnimationFrame( () => {
+				animationFrameId = null;
+				setMeasurementRevision( ( current ) => current + 1 );
+			} );
+		};
+
+		/* editor内のどのスクロール境界が動いてもTableの現在位置へ追従できるよう、documentのcapture段階で通知を受ける。 */
+		sessionLayout.editorDocument.addEventListener( 'scroll', requestScrollMeasurement, true );
+
+		return () => {
+			sessionLayout.editorDocument.removeEventListener( 'scroll', requestScrollMeasurement, true );
+
+			/* DnD終了やPresentation境界終了後に予約済み再計測を実行しない。 */
+			if ( animationFrameId !== null ) {
+				sessionLayout.editorWindow.cancelAnimationFrame( animationFrameId );
+			}
+		};
+	}, [ sessionLayout ] );
+
+	useEffect( () => {
 		/* DnD開始時の論理配置がない期間は、直前の挿入空間を表示へ残さない。 */
 		if ( sessionLayout === null ) {
 			setLayout( null );
