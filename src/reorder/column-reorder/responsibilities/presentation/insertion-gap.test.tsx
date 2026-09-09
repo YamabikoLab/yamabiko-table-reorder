@@ -318,18 +318,14 @@ describe( 'Column insertion gap', () => {
 
 		mockDestinationBoundaryIndex = null;
 		rerender( <ColumnInsertionGap /> );
-		expect(
-			document.querySelector( '.yamabiko-table-reorder-column-insertion-gap' )
-		).toBeNull();
+		expect( document.querySelector( '.yamabiko-table-reorder-column-insertion-gap' ) ).toBeNull();
 
 		mockDestinationBoundaryIndex = 4;
 		rerender( <ColumnInsertionGap /> );
 		act( () => {
 			mockDragDropMonitor.onDragEnd?.();
 		} );
-		expect(
-			document.querySelector( '.yamabiko-table-reorder-column-insertion-gap' )
-		).toBeNull();
+		expect( document.querySelector( '.yamabiko-table-reorder-column-insertion-gap' ) ).toBeNull();
 
 		startPhysicalDrag( sourceCell );
 		rerender( <ColumnInsertionGap /> );
@@ -337,8 +333,6 @@ describe( 'Column insertion gap', () => {
 			document.querySelector( '.yamabiko-table-reorder-column-insertion-gap' )
 		).not.toBeNull();
 		unmount();
-		expect(
-			document.querySelector( '.yamabiko-table-reorder-column-insertion-gap' )
-		).toBeNull();
+		expect( document.querySelector( '.yamabiko-table-reorder-column-insertion-gap' ) ).toBeNull();
 	} );
 } );

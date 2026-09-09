@@ -96,8 +96,8 @@ const resolveInsertionGapSessionLayout = (
  * 論理開始側への移動では移動先境界から論理終了方向へ、論理終了側への移動では移動先境界直前へ移動対象列幅を配置する。
  * Table自体の現在位置だけを再計測し、押しのけ後セルの見かけ上の位置は利用しない。
  *
- * @param sessionLayout          DnD開始時に確定した論理配置。
- * @param sourceColumnIndex      DnD InteractionがSession開始時から所有する0-based移動元論理列位置。
+ * @param sessionLayout            DnD開始時に確定した論理配置。
+ * @param sourceColumnIndex        DnD InteractionがSession開始時から所有する0-based移動元論理列位置。
  * @param destinationBoundaryIndex DnD Interactionが有効とした0-based移動先境界。
  * @return 現在描画できる1列分の挿入空間。表示不要または描画不能の場合はnull。
  */
@@ -111,9 +111,7 @@ const resolveInsertionGapLayout = (
 		return null;
 	}
 
-	const destinationBoundaryOffset = sessionLayout.boundaryOffsets.get(
-		destinationBoundaryIndex
-	);
+	const destinationBoundaryOffset = sessionLayout.boundaryOffsets.get( destinationBoundaryIndex );
 
 	/* DnD開始時に観測できなかった論理境界は、表示側で人工的な位置を生成しない。 */
 	if ( destinationBoundaryOffset === undefined ) {
@@ -141,11 +139,7 @@ const resolveInsertionGapLayout = (
 	const right = left + sessionLayout.sourceColumnWidth;
 
 	/* 現在のTableとeditor表示領域が重ならない場合は、画面外の挿入空間を生成しない。 */
-	if (
-		height <= 0 ||
-		right <= 0 ||
-		left >= sessionLayout.editorWindow.innerWidth
-	) {
+	if ( height <= 0 || right <= 0 || left >= sessionLayout.editorWindow.innerWidth ) {
 		return null;
 	}
 
@@ -169,8 +163,9 @@ const resolveInsertionGapLayout = (
 export const ColumnInsertionGap = () => {
 	const sourceColumnIndex = useColumnDndSourceColumnIndex();
 	const destinationBoundaryIndex = useColumnDndDestinationBoundaryIndex();
-	const [ sessionLayout, setSessionLayout ] =
-		useState< ColumnInsertionGapSessionLayout | null >( null );
+	const [ sessionLayout, setSessionLayout ] = useState< ColumnInsertionGapSessionLayout | null >(
+		null
+	);
 	const [ measurementRevision, setMeasurementRevision ] = useState( 0 );
 	const [ layout, setLayout ] = useState< ColumnInsertionGapLayout | null >( null );
 
@@ -196,11 +191,7 @@ export const ColumnInsertionGap = () => {
 		}
 
 		setLayout(
-			resolveInsertionGapLayout(
-				sessionLayout,
-				sourceColumnIndex,
-				destinationBoundaryIndex
-			)
+			resolveInsertionGapLayout( sessionLayout, sourceColumnIndex, destinationBoundaryIndex )
 		);
 	}, [ destinationBoundaryIndex, measurementRevision, sessionLayout, sourceColumnIndex ] );
 
