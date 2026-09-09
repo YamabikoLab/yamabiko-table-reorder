@@ -19,7 +19,7 @@ Architecture上の責務はソースファイル構成を写したものでは�
 - Reorder Guidanceは現在表示中の共通案内状態だけを所有する。PC / タッチごとの初回案内表示済み状態、操作環境判定、WordPress preferencesへの永続化はReorder Guidance Integrationが所有する。
 - Editor DOM Contextは現在のeditor contextを要求時点で解決し、以前のcontextへfallbackしない。
 - Input Interactionは列DnDの開始入力と第一段階Reorder Target Resolutionだけを扱い、Reorder Mode、Editor DOM Context、DnD Interactionの状態やLifecycleを直接参照しない。
-- Column DnD Engine IntegrationはDnD Engine固有のLifecycleをColumn Reorderへ接続し、第二段階Reorder Target Resolution、Destination Resolution、DnD Interactionへの橋渡しを所有する。
+- Column DnD Engine IntegrationはDnD Engine固有のLifecycleをColumn Reorderへ接続し、第二段階Reorder Target Resolution、Destination Resolution、DnD Interactionへの橋渡し、および対象Tableの水平自動スクロールを所有する。
 - Destination ResolutionはDnD Engineの物理入力位置と対象TableのDnD開始時配置を論理的な列間境界へ変換する。Table構造上その境界へ移動できるかの判定は所有しない。
 - Reorder Target Resolutionはactive DnD成立前に、Input Interactionによる第一段階とColumn DnD Engine Integrationによる第二段階の二回、要求時点のTable制約からReorder Targetの成立可否を解決する。
 - Reorder Target自体は移動する論理列だけを表し、開始時制約や開始不可理由を含めない。
@@ -31,7 +31,7 @@ Architecture上の責務はソースファイル構成を写したものでは�
 - Table Integrationは指定されたTable Identityに対して現在列制約と確定済み列移動の反映能力を提供する。Table Identity自体の所有または発行は行わない。
 - Table Integrationは1回の成立した列移動を`thead`、`tbody`、`tfoot`を含むTable全体への1回の更新として反映し、WordPress Undo上も1回のUndo単位とする。
 - DnD Engineが提供する標準の移動表示は利用せず、列DnD中の利用者向け表示はReorder Presentationが独立して所有する。
-- 列DnDの自動スクロールはDnD Engineの機能として扱い、横方向だけを有効にする。
+- 列DnDの自動スクロールはDnD Engine標準機能へ委ねず、Column DnD Engine Integrationが対象Tableの横スクロール領域と現在の物理入力位置を一回のDnDへ接続して横方向だけを進行する。
 - 対応Table Block固有の保存表現はTable Integration、WordPress固有のUIと永続化はWordPress Integration境界、DnD Engine固有のLifecycleとイベントはColumn DnD Engine IntegrationまたはDestination Resolutionで吸収する。
 - 正常な利用不能、cancel、外部環境変化による継続不能、内部Contractまたはruntime invariant違反を区別する。
 - 内部Errorは原則として握りつぶさず正常結果へ変換しない。内部Errorそのものを利用者向け通知理由としない。
@@ -48,8 +48,8 @@ Architecture上の責務はソースファイル構成を写したものでは�
 | EXT_SUPPORTED_TABLE_BLOCK | Supported Table Block | External Block | Core TableまたはFlexible Table Blockとして、Table Integrationが列制約取得と列順更新を行う対象を提供する。 |
 | EXT_WORDPRESS_UNDO | WordPress Undo | External Capability | 成立した1回の列並び替えを1回のUndoで戻せる更新単位を提供する。 |
 | EXT_WORDPRESS_PREFERENCES | WordPress Preferences | External Capability | PC / タッチごとの初回案内表示済み状態を永続化する。 |
-| EXT_SCROLL_AREA | Editor Scroll Area | External Environment | 列DnD中に横方向へ自動スクロールする対象領域を提供する。 |
-| EXT_DND_ENGINE | DnD Engine | External Library | 物理DnDの開始候補登録、開始・移動・終了Lifecycle、物理入力情報、および自動スクロールを提供する。 |
+| EXT_SCROLL_AREA | Editor Scroll Area | External Environment | 列DnD中にColumn DnD Engine Integrationが横方向へ自動スクロールする対象領域を提供する。 |
+| EXT_DND_ENGINE | DnD Engine | External Library | 物理DnDの開始候補登録、開始・移動・終了Lifecycle、および物理入力情報を提供する。 |
 
 WordPress固有のUI接続と永続化はColumn Reorderの意味責務から分離する。DnD Engine固有のイベントはColumn DnD Engine IntegrationとDestination Resolutionで吸収し、DnD Interactionへは列DnDの意味状態だけを渡す。
 
@@ -61,7 +61,7 @@ Reorder Modeは排他状態とTable単位Lifecycleだけを所有し、WordPress
 
 Input InteractionはWordPress Reorder IntegrationからColumn DnD Engine Integrationを通じて有効化され、入力方式固有の開始条件を判断する。開始候補はReorder Target Resolutionで第一段階解決し、開始可能な場合だけDnD Engineへ一時的に登録する。Designで通知対象となる開始拒否理由はInput InteractionからReorder Presentationへ渡す。
 
-Column DnD Engine IntegrationはDnD Engineのactive DnD成立直前にReorder Target Resolutionの第二段階を要求する。第二段階が成立した場合だけ解決済みReorder Targetと開始時制約をDnD Interactionへ渡し、DnD開始時にDestination ResolutionをそのDnDの論理配置へ接続する。
+Column DnD Engine IntegrationはDnD Engineのactive DnD成立直前にReorder Target Resolutionの第二段階を要求する。第二段階が成立した場合だけ解決済みReorder Targetと開始時制約をDnD Interactionへ渡し、DnD開始時にDestination ResolutionをそのDnDの論理配置へ接続する。同じDnDの対象Tableに対する横スクロール領域を固定し、DnD Engineが変換した位置ではなく対象Editor環境と同じ座標系の現在物理入力位置から水平自動スクロールを判断する。実際にスクロールした場合は、ポインターが停止していても最新の物理入力位置からDestination Resolutionを再要求して現在の論理移動先へ追従させる。
 
 Destination ResolutionはDnD Engineの物理入力位置をDnD開始時のTable配置に対する論理列間境界へ変換する。スクロールによる対象Table全体の現在位置変化には追従してよいが、Presentationによる列の見かけ上の移動を論理移動先判定へ混入させない。結合セル制約による移動可否は判断しない。
 
@@ -111,7 +111,7 @@ active DnDの物理Lifecycleがcancelとなる場合、またはcomplete時の�
 | RESP_WORDPRESS_REORDER_INTEGRATION | WordPress Reorder Integration | Tableツールバー入口、通常編集抑止、現在TableとReorder Mode、および方向固有DnD境界をWordPress Editorへ接続する。 |
 | RESP_REORDER_GUIDANCE_INTEGRATION | Reorder Guidance Integration | 初回案内の表示契機、操作環境判定、WordPress preferences永続化、Reorder Mode選択による案内終了を接続する。 |
 | RESP_COLUMN_INPUT_INTERACTION | Input Interaction | PC / タッチの開始条件を解釈し、開始候補を第一段階Target Resolutionで事前解決して、開始可能な候補だけをDnD Engineへ登録する。 |
-| RESP_COLUMN_DND_ENGINE_INTEGRATION | DnD Engine Integration | DnD Engineの物理Lifecycleを第二段階Target Resolution、Destination Resolution、DnD Interactionへ接続し、そのDnDだけの接続一時状態を所有する。 |
+| RESP_COLUMN_DND_ENGINE_INTEGRATION | DnD Engine Integration | DnD Engineの物理Lifecycleを第二段階Target Resolution、Destination Resolution、DnD Interactionへ接続し、そのDnDだけの接続一時状態と対象Tableの水平自動スクロールを所有する。 |
 | RESP_COLUMN_DESTINATION_RESOLUTION | Destination Resolution | DnD Engineの物理入力位置をDnD開始時のTable配置に対する論理列間境界へ変換する。 |
 | RESP_COLUMN_TABLE_INTEGRATION | Table Integration | 指定された対応Tableの現在列制約取得、Table全体の確定済み列移動、およびWordPress Undo境界を提供する。 |
 | RESP_COLUMN_TARGET_RESOLUTION | Reorder Target Resolution | active DnD成立前に現在列制約から論理列の開始可否を二段階で解決し、開始可能時は開始時制約を返す。 |
@@ -146,8 +146,9 @@ active DnDの物理Lifecycleがcancelとなる場合、またはcomplete時の�
 | RESP_COLUMN_INPUT_INTERACTION | RESP_COLUMN_PRESENTATION | 第一段階でDesign上の開始拒否理由が返った場合に一回性の利用者向け通知へ接続するために必要とする。 |
 | RESP_COLUMN_DND_ENGINE_INTEGRATION | RESP_COLUMN_INPUT_INTERACTION | DnD Engine境界の配下で列開始入力を有効化し、開始候補登録を接続するために必要とする。 |
 | RESP_COLUMN_DND_ENGINE_INTEGRATION | EXT_DND_ENGINE | 物理DnDの開始前、開始、移動、終了Lifecycleを受け取るために必要とする。 |
+| RESP_COLUMN_DND_ENGINE_INTEGRATION | EXT_SCROLL_AREA | active Column DnD中に対象Tableを横方向だけ自動スクロールするために必要とする。 |
 | RESP_COLUMN_DND_ENGINE_INTEGRATION | RESP_COLUMN_TARGET_RESOLUTION | active DnD成立直前の第二段階開始可否を解決するために必要とする。 |
-| RESP_COLUMN_DND_ENGINE_INTEGRATION | RESP_COLUMN_DESTINATION_RESOLUTION | 物理DnD移動を論理列間境界へ変換するために必要とする。 |
+| RESP_COLUMN_DND_ENGINE_INTEGRATION | RESP_COLUMN_DESTINATION_RESOLUTION | 物理DnD移動と水平自動スクロール後の現在位置を論理列間境界へ変換するために必要とする。 |
 | RESP_COLUMN_DND_ENGINE_INTEGRATION | RESP_COLUMN_DND_INTERACTION | 解決済み開始情報、論理移動先、終了種別を列DnD Sessionへ接続するために必要とする。 |
 | RESP_COLUMN_DND_ENGINE_INTEGRATION | RESP_COLUMN_PRESENTATION | 同じDnD Engine境界で独立したColumn Reorder表示を活動させるために必要とする。 |
 | RESP_COLUMN_DESTINATION_RESOLUTION | EXT_DND_ENGINE | 現在の物理入力位置を論理列間境界へ変換するためにDnD Engineの移動情報を必要とする。 |
@@ -160,7 +161,6 @@ active DnDの物理Lifecycleがcancelとなる場合、またはcomplete時の�
 | RESP_COLUMN_PRESENTATION | EXT_DND_ENGINE | 移動対象表示等に必要な物理DnD情報をSessionへ複製せず利用するために必要とする。 |
 | RESP_COLUMN_PRESENTATION | RESP_COLUMN_TARGET_RESOLUTION | 操作可能列の事前表示等で開始可否の意味を重複判定せず利用するために必要とする。 |
 | RESP_COLUMN_PRESENTATION | RESP_COLUMN_DND_INTERACTION | active状態と現在の有効移動先を購読し、終了通知を受け取るために必要とする。 |
-| EXT_DND_ENGINE | EXT_SCROLL_AREA | 列DnD中に横方向の自動スクロールを実行する対象領域として必要とする。 |
 
 ### Dependency Views
 
@@ -168,7 +168,7 @@ active DnDの物理Lifecycleがcancelとなる場合、またはcomplete時の�
 | --- | --- | --- |
 | DV_COLUMN_RESPONSIBILITY | Responsibility View | EXT_WORDPRESS_EDITOR EXT_SUPPORTED_TABLE_BLOCK EXT_WORDPRESS_UNDO EXT_WORDPRESS_PREFERENCES EXT_SCROLL_AREA EXT_DND_ENGINE RESP_REORDER_MODE RESP_REORDER_GUIDANCE RESP_EDITOR_DOM_CONTEXT RESP_WORDPRESS_REORDER_INTEGRATION RESP_REORDER_GUIDANCE_INTEGRATION RESP_COLUMN_INPUT_INTERACTION RESP_COLUMN_DND_ENGINE_INTEGRATION RESP_COLUMN_DESTINATION_RESOLUTION RESP_COLUMN_TABLE_INTEGRATION RESP_COLUMN_TARGET_RESOLUTION RESP_COLUMN_DND_INTERACTION RESP_COLUMN_PRESENTATION |
 | DV_COLUMN_EDITOR_INTEGRATION | Editor Integration | EXT_WORDPRESS_EDITOR EXT_WORDPRESS_PREFERENCES RESP_REORDER_MODE RESP_REORDER_GUIDANCE RESP_EDITOR_DOM_CONTEXT RESP_WORDPRESS_REORDER_INTEGRATION RESP_REORDER_GUIDANCE_INTEGRATION RESP_COLUMN_DND_ENGINE_INTEGRATION |
-| DV_COLUMN_DND_CORE | DnD Core | EXT_DND_ENGINE RESP_COLUMN_INPUT_INTERACTION RESP_COLUMN_DND_ENGINE_INTEGRATION RESP_COLUMN_DESTINATION_RESOLUTION RESP_COLUMN_TABLE_INTEGRATION RESP_COLUMN_TARGET_RESOLUTION RESP_COLUMN_DND_INTERACTION |
+| DV_COLUMN_DND_CORE | DnD Core | EXT_DND_ENGINE EXT_SCROLL_AREA RESP_COLUMN_INPUT_INTERACTION RESP_COLUMN_DND_ENGINE_INTEGRATION RESP_COLUMN_DESTINATION_RESOLUTION RESP_COLUMN_TABLE_INTEGRATION RESP_COLUMN_TARGET_RESOLUTION RESP_COLUMN_DND_INTERACTION |
 | DV_COLUMN_FEEDBACK | DnD Feedback | EXT_DND_ENGINE RESP_EDITOR_DOM_CONTEXT RESP_COLUMN_TARGET_RESOLUTION RESP_COLUMN_DND_INTERACTION RESP_COLUMN_PRESENTATION |
 | DV_COLUMN_DATA_UPDATE | Table Update | EXT_SUPPORTED_TABLE_BLOCK EXT_WORDPRESS_UNDO RESP_COLUMN_TABLE_INTEGRATION RESP_COLUMN_DND_INTERACTION |
 
@@ -324,26 +324,36 @@ Column DnD Engine Integrationから有効化された入力境界として開始
 
 ##### Responsibility
 
-DnD Engineの物理LifecycleをColumn Reorderの意味責務へ接続する。第二段階Target Resolution、Destination Resolution、DnD Interactionへの橋渡しと、そのDnDにだけ必要な一時接続状態の破棄を所有する。
+DnD Engineの物理LifecycleをColumn Reorderの意味責務へ接続する。第二段階Target Resolution、Destination Resolution、DnD Interactionへの橋渡しと、active DnD中の対象Tableに対する水平自動スクロール、およびそのDnDにだけ必要な一時接続状態の破棄を所有する。
 
 ##### State ownership
 
-active DnD成立前に第二段階で解決した開始情報、当該DnDのDestination Resolution境界、および一時的なDnD Engine接続参照だけを接続状態として保持できる。列DnD Sessionの正本、Table制約の永続cache、Presentation状態は所有しない。
+active DnD成立前に第二段階で解決した開始情報、当該DnDのDestination Resolution境界、および一時的なDnD Engine接続参照を保持できる。active DnD中は対象Tableの横スクロール領域、現在の物理入力位置、水平自動スクロールの継続状態を一時接続状態として保持できる。列DnD Sessionの正本、Table制約の永続cache、Presentation状態は所有しない。
 
 ##### Contract
 
-物理DnD成立直前にDnD Engineが示す開始対象をReorder Target Resolutionで再解決する。第二段階が`resolved`でなければ物理DnDを成立させず、一時接続状態を破棄する。物理DnD開始時は解決済みTargetと開始時制約をDnD Interactionへ渡し、Destination Resolutionを開始時Table配置へ接続する。moveではDestination Resolutionが返した論理列間境界だけをDnD Interactionへ渡す。endではcancelかcompleteかをDnD Interactionへ通知する。
+物理DnD成立直前にDnD Engineが示す開始対象をReorder Target Resolutionで再解決する。第二段階が`resolved`でなければ物理DnDを成立させず、一時接続状態を破棄する。
+
+物理DnD開始時は解決済みTargetと開始時制約をDnD Interactionへ渡し、Destination Resolutionを開始時Table配置へ接続する。同じ開始対象から、当該DnDで利用する横スクロール領域を一つ確定する。
+
+moveではDestination Resolutionが返した論理列間境界だけをDnD Interactionへ渡す。同時に、対象Editor環境と同じ座標系の現在物理入力位置が横スクロール領域の左右端にある場合だけ水平自動スクロールを進行する。縦方向の自動スクロールは開始しない。ポインターが端に留まる場合は水平スクロールを継続し、スクロール限界または端領域外では不要な継続を停止する。
+
+水平自動スクロールによって対象Tableの画面位置が変化した場合は、最新の物理入力位置からDestination Resolutionを再要求し、再解決された論理列間境界をDnD Interactionへ渡す。DnD Engine標準のAuto ScrollはColumn Reorderでは利用しない。
+
+endではcancelかcompleteかをDnD Interactionへ通知する。
 
 ##### Lifecycle
 
-TableのDnD接続境界として安定して存在し、Column Reorderが有効な期間だけInput Interactionを活動させる。一回のDnD開始前に第二段階解決結果を一時保持し、startでSessionへ引き渡す。DnD終了、モード無効化、接続境界終了では次の操作へ持ち越せない一時状態を破棄する。
+TableのDnD接続境界として安定して存在し、Column Reorderが有効な期間だけInput Interactionを活動させる。一回のDnD開始前に第二段階解決結果を一時保持し、startでSessionへ引き渡すと同時に横スクロール対象を確定する。active DnD中は現在物理入力位置を更新し、必要な期間だけ水平自動スクロールを進行する。DnD終了、モード無効化、接続境界終了では水平自動スクロールを停止し、次の操作へ持ち越せない一時状態を破棄する。
 
 ##### Invariants
 
 - 第一段階の解決結果だけでactive DnDを開始しない。
 - 第二段階解決結果をDnD Sessionと重複する長期状態として保持しない。
-- DnD Engine固有イベントをDnD Interactionの公開状態として持ち込まない。
-- 一回の物理DnDと一つのColumn DnD Sessionを対応させる。
+- DnD Engine固有イベントまたは水平自動スクロール状態をDnD Interactionの公開状態として持ち込まない。
+- DnD Engine標準のAuto ScrollとColumn Reorderの水平自動スクロールを同時に利用しない。
+- Column Reorderの自動スクロールで縦方向のスクロール位置を変更しない。
+- 一回の物理DnDと一つのColumn DnD Session、および一つの対象Table横スクロール領域を対応させる。
 
 #### Destination Resolution {#RESP_COLUMN_DESTINATION_RESOLUTION}
 
@@ -357,11 +367,11 @@ active DnD中の現在の物理入力位置を、DnD開始時のTable配置に�
 
 ##### Contract
 
-DnD開始時の移動対象から対象Tableと論理列境界の配置を確定する。moveごとにDnD Engineの現在物理位置を受け、スクロールによるTable自体の現在位置変化を反映しつつ、DnD開始時の論理列境界に対応する0-based列間境界または`null`を返す。対象Table外の位置から移動先を推測しない。
+DnD開始時の移動対象から対象Tableと論理列境界の配置を確定する。物理入力位置を受けるたびに、スクロールによるTable自体の現在位置変化を反映しつつ、DnD開始時の論理列境界に対応する0-based列間境界または`null`を返す。対象Table外の位置から移動先を推測しない。物理DnD moveだけでなく、水平自動スクロール後にDnD Engine Integrationから同じ最新物理入力位置で再要求された場合も同じContractで解決する。
 
 ##### Lifecycle
 
-active DnD開始時に生成し、DnD中のmoveで再利用し、DnD終了時に破棄する。開始時に成立できない場合は後続moveから再解決してよい。
+active DnD開始時に生成し、DnD中の物理入力位置解決で再利用し、DnD終了時に破棄する。開始時に成立できない場合は後続moveから再解決してよい。
 
 ##### Invariants
 
@@ -512,22 +522,26 @@ Input InteractionからDesign上の開始拒否理由と操作位置を一回性
 | 15 | RESP_COLUMN_DND_ENGINE_INTEGRATION | EXT_DND_ENGINE | 第二段階が`resolved`でなければ物理DnD開始を成立させない。 |
 | 16 | EXT_DND_ENGINE | RESP_COLUMN_DND_ENGINE_INTEGRATION | 第二段階成立後の物理DnD startを通知する。 |
 | 17 | RESP_COLUMN_DND_ENGINE_INTEGRATION | RESP_COLUMN_DESTINATION_RESOLUTION | 当該DnDの開始時Table配置から移動先解決境界を生成する。 |
-| 18 | RESP_COLUMN_DND_ENGINE_INTEGRATION | RESP_COLUMN_DND_INTERACTION | 解決済みReorder Targetと開始時制約でColumn DnD Sessionを開始する。 |
-| 19 | RESP_COLUMN_DND_INTERACTION | RESP_COLUMN_PRESENTATION | active状態への遷移を表示購読へ反映する。 |
+| 18 | RESP_COLUMN_DND_ENGINE_INTEGRATION | EXT_SCROLL_AREA | 当該DnDの対象Tableに対する横スクロール領域を一つ確定する。 |
+| 19 | RESP_COLUMN_DND_ENGINE_INTEGRATION | RESP_COLUMN_DND_INTERACTION | 解決済みReorder Targetと開始時制約でColumn DnD Sessionを開始する。 |
+| 20 | RESP_COLUMN_DND_INTERACTION | RESP_COLUMN_PRESENTATION | active状態への遷移を表示購読へ反映する。 |
 
 ### Column DnD progress {#RV_COLUMN_DND_PROGRESS}
 
-DnD Engineの物理位置をDestination Resolutionで論理列間境界へ変換してから、DnD InteractionがSession開始時制約へ照合する。
+DnD Engineの物理位置をDestination Resolutionで論理列間境界へ変換してから、DnD InteractionがSession開始時制約へ照合する。現在の物理入力位置が対象Tableの横スクロール領域端にある場合はColumn DnD Engine Integrationが水平自動スクロールを進行し、スクロール後のTable位置でも同じ最新物理入力位置から移動先を再解決する。
 
 | Step | Source | Target | Interaction |
 | ---: | --- | --- | --- |
-| 1 | EXT_DND_ENGINE | RESP_COLUMN_DND_ENGINE_INTEGRATION | 現在の物理DnD移動を通知する。 |
+| 1 | EXT_DND_ENGINE | RESP_COLUMN_DND_ENGINE_INTEGRATION | 現在の物理DnD移動と物理入力位置を通知する。 |
 | 2 | RESP_COLUMN_DND_ENGINE_INTEGRATION | RESP_COLUMN_DESTINATION_RESOLUTION | 現在の物理入力位置から論理列間境界を要求する。 |
 | 3 | RESP_COLUMN_DESTINATION_RESOLUTION | RESP_COLUMN_DND_ENGINE_INTEGRATION | 0-based論理列間境界または`null`を返す。 |
 | 4 | RESP_COLUMN_DND_ENGINE_INTEGRATION | RESP_COLUMN_DND_INTERACTION | 解決済み論理列間境界を現在Sessionへ渡す。 |
 | 5 | RESP_COLUMN_DND_INTERACTION | RESP_COLUMN_PRESENTATION | 開始時制約に対して成立した現在の有効移動先を表示購読へ反映する。 |
 | 6 | RESP_COLUMN_PRESENTATION | EXT_DND_ENGINE | 移動対象表示に必要な物理DnD情報を必要な時点だけ利用する。 |
-| 7 | EXT_DND_ENGINE | EXT_SCROLL_AREA | 必要な場合だけ横方向へ自動スクロールする。 |
+| 7 | RESP_COLUMN_DND_ENGINE_INTEGRATION | EXT_SCROLL_AREA | 現在の物理入力位置が対象領域の左右端にある場合だけ横方向へ自動スクロールする。 |
+| 8 | RESP_COLUMN_DND_ENGINE_INTEGRATION | RESP_COLUMN_DESTINATION_RESOLUTION | 実際に横スクロールした場合、最新の物理入力位置から現在Table位置に対する論理列間境界を再要求する。 |
+| 9 | RESP_COLUMN_DESTINATION_RESOLUTION | RESP_COLUMN_DND_ENGINE_INTEGRATION | スクロール後のTable位置に追従した0-based論理列間境界または`null`を返す。 |
+| 10 | RESP_COLUMN_DND_ENGINE_INTEGRATION | RESP_COLUMN_DND_INTERACTION | 再解決された論理列間境界を現在Sessionへ渡す。 |
 
 ### Column DnD complete {#RV_COLUMN_DND_COMPLETE}
 
@@ -587,7 +601,11 @@ Column Reorderが扱う列は`thead`、`tbody`、`tfoot`を通じたTable全体�
 
 ### Physical-to-logical destination separation
 
-Destination Resolutionは物理入力位置を論理列間境界へ変換するだけとし、DnD Interactionはその論理境界をSession開始時制約へ照合する。この分離により、DnD EngineやDOM geometryをDnD Sessionへ持ち込まず、Presentationによる見かけ上の列移動を論理移動先へ混入させない。
+Destination Resolutionは物理入力位置を論理列間境界へ変換するだけとし、DnD Interactionはその論理境界をSession開始時制約へ照合する。この分離により、DnD EngineやDOM geometryをDnD Sessionへ持ち込まず、Presentationによる見かけ上の列移動を論理移動先へ混入させない。水平自動スクロールでTable位置だけが変化した場合も、DnD Engine Integrationが同じ最新物理入力位置からDestination Resolutionを再要求し、この責務分離を維持したまま現在位置へ追従する。
+
+### Horizontal auto scroll ownership
+
+Column Reorderの水平自動スクロールはDnD Engine Integrationが所有する。対象Tableに対応する横スクロール領域を一回のDnDへ固定し、対象Editor環境と同じ座標系の現在物理入力位置が左右端領域にある場合だけ横方向へ進行する。DnD Engine標準のAuto Scrollは利用せず、縦方向のスクロールを開始しない。スクロール限界または端領域外では不要な継続を停止し、DnD終了時にはスクロール対象と物理入力位置を含む一時状態を破棄する。
 
 ### Session snapshot and current-state revalidation
 
@@ -616,12 +634,14 @@ Destination Resolutionは物理入力位置を論理列間境界へ変換する�
 - `complete`だけは現在構造へ再照合してから確定する。
 - Table IntegrationはTable Identityを提供せず、指定Tableに対する現在制約と確定済み更新能力を提供する。
 - `thead`、`tbody`、`tfoot`を含むTable全体の列移動を1回の確定済み更新・1回のUndo単位として扱う。
-- 自動スクロールはDnD Engineの機能とし、列DnDでは横方向だけを有効にする。
+- Column Reorderの水平自動スクロールはDnD Engine標準機能へ委ねず、DnD Engine Integrationが対象Tableの横スクロール領域と現在物理入力位置を一回のDnDへ接続して所有する。
 
 ## 10. Quality Requirements
 
-- DnD InteractionはDnD Engine固有の物理イベント、表示参照、計測結果をSession状態へ保持しない。
+- DnD InteractionはDnD Engine固有の物理イベント、表示参照、計測結果、自動スクロール状態をSession状態へ保持しない。
 - 大規模Tableでも`progress`ごとにSupported Table Blockの現在構造を再取得せず、Destination Resolutionの論理境界とSession開始時制約で移動先を判断する。
+- 水平自動スクロール中も新しい物理moveを要求せず、実際にスクロールした時だけ最新の物理入力位置からDestination Resolutionを再要求して現在Table位置へ追従する。
+- 水平自動スクロールは対象Tableの横方向だけを変更し、スクロール限界または端領域外で不要な継続処理を残さない。
 - Presentationによる列の表示変位をDestination Resolutionの論理配置へ混入させない。
 - DnD中は実Tableの列順を変更せず、表示更新と確定更新を分離する。
 - 1回の成立した列移動はTable全体に対する1回の更新境界を通り、部分確定や複数Undo単位を作らない。
@@ -637,7 +657,7 @@ Destination Resolutionは物理入力位置を論理列間境界へ変換する�
 ## 12. Glossary
 
 - **Reorder Mode**: 通常編集、行並び替え、列並び替えの排他状態と対象Table単位Lifecycleを所有する共通状態責務。
-- **DnD Engine Integration**: DnD Engine固有の物理LifecycleをColumn ReorderのTarget Resolution、Destination Resolution、DnD Interactionへ接続する責務。
+- **DnD Engine Integration**: DnD Engine固有の物理LifecycleをColumn ReorderのTarget Resolution、Destination Resolution、DnD Interactionへ接続し、active DnD中の対象Tableに対する水平自動スクロールを所有する責務。
 - **Destination Resolution**: active DnDの物理入力位置をDnD開始時配置に対する論理列間境界へ変換する責務。構造制約上の移動可否は判定しない。
 - **Logical Column**: `thead`、`tbody`、`tfoot`を通じて同じTable全体の列位置を表す論理的な列。
 - **Reorder Target**: 一つのDnD開始試行で移動対象となる論理列。開始時制約や開始不可理由は含まない。
