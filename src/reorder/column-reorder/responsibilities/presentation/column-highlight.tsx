@@ -81,18 +81,18 @@ export const ColumnHighlight = ( props: {
 	}, [ enabled, tableIdentity, dndPhase ] );
 
 	const onPointerOverCapture: ColumnHighlightPointerOverHandler = ( event ) => {
-		const target = event.target as Element | null;
-		const cell = target?.closest( 'th, td' ) as HTMLTableCellElement | null;
+		const cell = ( event.target as Element | null )?.closest(
+			'th, td'
+		) as HTMLTableCellElement | null;
 
 		/* 同一セル内の要素間移動では、同じ開始可否判定と表示を繰り返さない。 */
 		if ( cell !== null && cell === currentCell.current ) {
 			return;
 		}
 
-		const currentTarget = event.currentTarget;
-		const table = currentTarget.querySelector( 'table' );
 		clearVisualState( currentCell.current );
 		currentCell.current = null;
+		const table = event.currentTarget.querySelector( 'table' );
 
 		/* 列DnD開始前以外、または現在Tableへ直接属さないセルは操作可否予告の対象にしない。 */
 		if (
