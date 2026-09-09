@@ -255,15 +255,20 @@ describe( 'Column insertion gap', () => {
 	 * 事前条件:
 	 * - 論理終了側の挿入空間が表示されている。
 	 * - DnD開始後にTable全体が横方向へ30px移動する。
+	 * - editor document配下のスクロール境界から、バブリングしないscrollが通知される。
 	 *
 	 * 操作:
-	 * - 移動先境界とポインター位置を変えず、editor内のscrollだけを通知する。
+	 * - 移動先境界とポインター位置を変えず、スクロール境界からscrollだけを通知する。
 	 *
 	 * 期待結果:
-	 * - 次の描画フレームで挿入空間も30px移動し、開始時に確定した論理列間隔自体は再計測しない。
+	 * - documentのcapture経路で通知を受け、次の描画フレームで挿入空間も30px移動する。
+	 * - 開始時に確定した論理列間隔自体は再計測しない。
 	 */
-	it( 'when scrolling moves the table without another drag move, should follow the current table position without remeasuring logical boundaries', () => {
-		const { sourceCell, tableRectangleMock } = createSourceTable( 80 );
+	it( 'when an editor descendant scrolls without another drag move, should follow the current table position through the captured scroll event', () => {
+		const { table, sourceCell, tableRectangleMock } = createSourceTable( 80 );
+		const scrollContainer = document.createElement( 'div' );
+		document.body.appendChild( scrollContainer );
+		scrollContainer.appendChild( table );
 		const { rerender } = render( <ColumnInsertionGap /> );
 		startPhysicalDrag( sourceCell );
 		mockSourceColumnIndex = 0;
@@ -281,7 +286,7 @@ describe( 'Column insertion gap', () => {
 			} )
 		);
 		act( () => {
-			document.dispatchEvent( new Event( 'scroll' ) );
+			scrollContainer.dispatchEvent( new Event( 'scroll' ) );
 		} );
 		expect( requestAnimationFrameMock ).toHaveBeenCalledTimes( 1 );
 		flushAnimationFrame();
