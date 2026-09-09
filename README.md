@@ -2,7 +2,7 @@
 
 WordPressブロックエディターのTable並び替えを扱うプラグインです。
 
-<img width="1897" height="824" alt="demo" src="https://github.com/user-attachments/assets/1e8b19e5-e2db-4c55-9c51-bc6c2c548a1f" />
+<img width="1897" height="824" alt="demo" src="https://github.com/user-attachments/assets/f7439db3-4524-4a8c-93be-c032eb41787e" />
 
 ## 現在の状態
 
