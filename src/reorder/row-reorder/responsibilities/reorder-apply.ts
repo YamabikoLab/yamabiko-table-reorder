@@ -38,7 +38,13 @@ type LargeRowReorderApplyActions = {
 
 type LargeRowReorderApplyStore = LargeRowReorderApplyState & LargeRowReorderApplyActions;
 
-/** 移動先境界が現在の行制約に対して有効か判定する。 */
+/**
+ * 移動先境界が現在の行制約に対して有効か判定する。
+ * @param destinationBoundaryIndex
+ * @param constraints
+ * @param constraints.rowCount
+ * @param constraints.blockedBoundaries
+ */
 const isDestinationValid = (
 	destinationBoundaryIndex: number,
 	constraints: { rowCount: number; blockedBoundaries: readonly number[] }
@@ -71,7 +77,11 @@ const largeRowReorderApplyStore = createStore< LargeRowReorderApplyStore >()(
 				if ( state.phase !== 'confirming' ) {
 					throw new Error( 'Large row reorder confirmation requires a pending move.' );
 				}
-				set( { phase: 'applying', move: state.move, applied: false }, undefined, 'large-row-apply/confirm' );
+				set(
+					{ phase: 'applying', move: state.move, applied: false },
+					undefined,
+					'large-row-apply/confirm'
+				);
 			},
 			cancel: () => {
 				if ( get().phase !== 'confirming' ) {
@@ -102,7 +112,11 @@ const largeRowReorderApplyStore = createStore< LargeRowReorderApplyStore >()(
 						destinationBoundaryIndex: state.move.destinationBoundaryIndex,
 					} );
 				}
-				set( { phase: 'remounting', move: state.move, applied }, undefined, 'large-row-apply/remount' );
+				set(
+					{ phase: 'remounting', move: state.move, applied },
+					undefined,
+					'large-row-apply/remount'
+				);
 			},
 			complete: () => {
 				if ( get().phase !== 'remounting' ) {
@@ -115,11 +129,17 @@ const largeRowReorderApplyStore = createStore< LargeRowReorderApplyStore >()(
 	)
 );
 
-/** 確認付き大規模行反映を開始する。 */
+/**
+ * 確認付き大規模行反映を開始する。
+ * @param move
+ */
 export const requestLargeRowReorderApply = ( move: LargeRowReorderMove ): boolean =>
 	largeRowReorderApplyStore.getState().request( move );
 
-/** 行反映状態変更をReact境界から購読する。 */
+/**
+ * 行反映状態変更をReact境界から購読する。
+ * @param listener
+ */
 export const subscribeLargeRowReorderApply = ( listener: () => void ): ( () => void ) =>
 	largeRowReorderApplyStore.subscribe( listener );
 
@@ -128,7 +148,8 @@ export const getLargeRowReorderApplyState = (): LargeRowReorderApplyState =>
 	largeRowReorderApplyStore.getState();
 
 /** 確認済み行移動を反映開始状態へ進める。 */
-export const confirmLargeRowReorderApply = (): void => largeRowReorderApplyStore.getState().confirm();
+export const confirmLargeRowReorderApply = (): void =>
+	largeRowReorderApplyStore.getState().confirm();
 
 /** 確認待ち行移動を破棄する。 */
 export const cancelLargeRowReorderApply = (): void => largeRowReorderApplyStore.getState().cancel();
@@ -137,4 +158,5 @@ export const cancelLargeRowReorderApply = (): void => largeRowReorderApplyStore.
 export const applyLargeRowReorder = (): void => largeRowReorderApplyStore.getState().apply();
 
 /** 再mountと表示復帰を完了して通常状態へ戻す。 */
-export const completeLargeRowReorderApply = (): void => largeRowReorderApplyStore.getState().complete();
+export const completeLargeRowReorderApply = (): void =>
+	largeRowReorderApplyStore.getState().complete();

@@ -87,7 +87,7 @@ const isSupportedTable = ( blockName: string ): blockName is SupportedTable =>
  * 対応Table Block固有の結合属性を、共通の占有数として解釈する。
  *
  * @param tableName 対応Table Block種別。
- * @param cell 対応Table Blockから取得した未検証のセル属性。
+ * @param cell      対応Table Blockから取得した未検証のセル属性。
  * @param direction 解釈する結合方向。
  * @return セルが占有する行数または列数。結合指定がない場合は1、占有数として解釈できない場合はnull。
  */
@@ -116,8 +116,8 @@ const getCellSpan = (
 /**
  * 一行内で既存の縦結合を分断せず新しいセルを配置できる次の論理列位置を解決する。
  *
- * @param occupied 現在行で既に他セルが占有している論理列。
- * @param searchFrom 現在行で次のセル探索を開始する論理列位置。
+ * @param occupied        現在行で既に他セルが占有している論理列。
+ * @param searchFrom      現在行で次のセル探索を開始する論理列位置。
  * @param requiredColumns 配置するセルが連続して必要とする論理列数。
  * @return 必要な連続列を確保できる最初の論理列位置。
  */
@@ -146,8 +146,8 @@ const findAvailableColumnStart = (
 /**
  * 一つのTable sectionを論理列へ解釈する。
  *
- * @param tableName 対応Table Block種別。
- * @param sectionRows 対象sectionの未検証行集合。
+ * @param tableName         対応Table Block種別。
+ * @param sectionRows       対象sectionの未検証行集合。
  * @param blockedBoundaries colspanを分断する列間境界を集約する集合。
  * @return 論理列位置を解釈済みのsection。安全に解釈できない場合はnull。
  */
@@ -235,7 +235,7 @@ const parseSection = (
 /**
  * 対応Table全体を、すべてのsectionで共通する一つの論理列構造として解釈する。
  *
- * @param tableName 対応Table Block種別。
+ * @param tableName  対応Table Block種別。
  * @param attributes 対応Table Blockの未検証属性。
  * @return Table全体の論理列構造。安全に解釈できない場合はnull。
  */
@@ -388,8 +388,8 @@ const getAffectedCellCount = ( move: ColumnMove ): number | null => {
 /**
  * 移動前の論理列位置から確定済み列移動後の論理列位置への対応を作成する。
  *
- * @param columnCount 更新直前のTable全体の論理列数。
- * @param sourceColumnIndex 更新直前の移動元論理列位置。
+ * @param columnCount              更新直前のTable全体の論理列数。
+ * @param sourceColumnIndex        更新直前の移動元論理列位置。
  * @param destinationBoundaryIndex 更新直前の移動先列間境界。
  * @return 移動前の各論理列位置に対応する移動後の0-based論理列位置。
  */
@@ -416,7 +416,7 @@ const createColumnPositionMap = (
 /**
  * 一つの行について各セルが占有する論理列の移動後位置に従って物理セル順を並べ替える。
  *
- * @param parsedRow 移動前の論理列位置を解釈済みの行。
+ * @param parsedRow   移動前の論理列位置を解釈済みの行。
  * @param positionMap 移動前から移動後への論理列位置対応。
  * @return セル内容・属性を保持したまま列順だけを変更した行。
  */

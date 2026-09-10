@@ -46,8 +46,8 @@ const useLargeColumnReorderApplyState = () =>
  * 行反映後の移動先行をEditor内で表示して、先頭の編集可能セルへfocusする。
  *
  * @param editorDocument 対象Tableが存在するEditor Document。
- * @param clientId 対象Table個体のclientId。
- * @param rowIndex 反映後のtbody内0-based行位置。
+ * @param clientId       対象Table個体のclientId。
+ * @param rowIndex       反映後のtbody内0-based行位置。
  */
 const focusMovedRow = ( editorDocument: Document, clientId: string, rowIndex: number ): void => {
 	const table = editorDocument.querySelector( `[data-block="${ clientId }"] table` );
@@ -67,10 +67,14 @@ const focusMovedRow = ( editorDocument: Document, clientId: string, rowIndex: nu
  * 列反映後の移動先論理列を先頭側のTable行で解決し、該当セルへscroll / focusする。
  *
  * @param editorDocument 対象Tableが存在するEditor Document。
- * @param clientId 対象Table個体のclientId。
- * @param columnIndex 反映後の0-based論理列位置。
+ * @param clientId       対象Table個体のclientId。
+ * @param columnIndex    反映後の0-based論理列位置。
  */
-const focusMovedColumn = ( editorDocument: Document, clientId: string, columnIndex: number ): void => {
+const focusMovedColumn = (
+	editorDocument: Document,
+	clientId: string,
+	columnIndex: number
+): void => {
 	const firstRow = editorDocument.querySelector< HTMLTableRowElement >(
 		`[data-block="${ clientId }"] table tr`
 	);
@@ -102,7 +106,7 @@ const focusMovedColumn = ( editorDocument: Document, clientId: string, columnInd
  * 反映中表示を残したまま2 frame待ち、再mount後の表示を確定してLifecycleを完了する。
  *
  * @param editorWindow 対象EditorのWindow。
- * @param complete 対応方向の反映完了操作。
+ * @param complete     対応方向の反映完了操作。
  * @return 予約したframeを取り消すcleanup。
  */
 const completeAfterVisualPaint = ( editorWindow: Window, complete: () => void ): ( () => void ) => {
@@ -122,7 +126,7 @@ const completeAfterVisualPaint = ( editorWindow: Window, complete: () => void ):
 /**
  * 対象TableのBlockEditへ確認付き大規模反映UIを接続する。
  *
- * @param props 対象Tableと通常表示。
+ * @param props          対象Tableと通常表示。
  * @param props.clientId 対象Table個体のclientId。
  * @param props.children 通常時に表示するGutenberg本来のTable編集UI。
  * @return 通常Table、確認Modal、または反映中表示。

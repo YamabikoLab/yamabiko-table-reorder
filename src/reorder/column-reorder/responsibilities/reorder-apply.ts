@@ -38,7 +38,13 @@ type LargeColumnReorderApplyActions = {
 
 type LargeColumnReorderApplyStore = LargeColumnReorderApplyState & LargeColumnReorderApplyActions;
 
-/** 移動先境界が現在の列制約に対して有効か判定する。 */
+/**
+ * 移動先境界が現在の列制約に対して有効か判定する。
+ * @param destinationBoundaryIndex
+ * @param constraints
+ * @param constraints.columnCount
+ * @param constraints.blockedBoundaries
+ */
 const isDestinationValid = (
 	destinationBoundaryIndex: number,
 	constraints: { columnCount: number; blockedBoundaries: readonly number[] }
@@ -135,11 +141,17 @@ const largeColumnReorderApplyStore = createStore< LargeColumnReorderApplyStore >
 	)
 );
 
-/** 確認付き大規模列反映を開始する。 */
+/**
+ * 確認付き大規模列反映を開始する。
+ * @param move
+ */
 export const requestLargeColumnReorderApply = ( move: LargeColumnReorderMove ): boolean =>
 	largeColumnReorderApplyStore.getState().request( move );
 
-/** 列反映状態変更をReact境界から購読する。 */
+/**
+ * 列反映状態変更をReact境界から購読する。
+ * @param listener
+ */
 export const subscribeLargeColumnReorderApply = ( listener: () => void ): ( () => void ) =>
 	largeColumnReorderApplyStore.subscribe( listener );
 
@@ -152,7 +164,8 @@ export const confirmLargeColumnReorderApply = (): void =>
 	largeColumnReorderApplyStore.getState().confirm();
 
 /** 確認待ち列移動を破棄する。 */
-export const cancelLargeColumnReorderApply = (): void => largeColumnReorderApplyStore.getState().cancel();
+export const cancelLargeColumnReorderApply = (): void =>
+	largeColumnReorderApplyStore.getState().cancel();
 
 /** BlockEdit退避後に現在Tableを再照合して列移動を反映し、再mount状態へ進める。 */
 export const applyLargeColumnReorder = (): void => largeColumnReorderApplyStore.getState().apply();

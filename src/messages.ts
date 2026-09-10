@@ -69,7 +69,10 @@ export const getLargeReorderApplyConfirmTitle = () =>
 
 /** 大規模反映前の確認ダイアログ本文を取得する。 */
 export const getLargeReorderApplyConfirmBody = () =>
-	__( 'Applying this reorder may take some time. Do you want to continue?', 'yamabiko-table-reorder' );
+	__(
+		'Applying this reorder may take some time. Do you want to continue?',
+		'yamabiko-table-reorder'
+	);
 
 /** 大規模反映を続行するボタン表示名を取得する。 */
 export const getLargeReorderContinueLabel = () => __( 'Continue', 'yamabiko-table-reorder' );
