@@ -36,19 +36,23 @@ When writing **Why**:
 
 Use requirement IDs to make individual requirements easy to reference from design, architecture, implementation, tests, Issues, and PRs.
 
-Use the following prefixes unless another category is explicitly defined in this file.
+Use the following prefixes unless another category or requirement scope is explicitly defined in this file.
 
 | Prefix | Meaning | Use for |
 | --- | --- | --- |
 | `FR` | Functional Requirement | Capabilities or behavior that users or the product must be able to achieve. |
 | `QR` | Quality Requirement | Qualities or constraints the product must satisfy, such as performance, reliability, compatibility, usability, or security. |
+| `RF-FR` | Reorder Form Functional Requirement | Functional requirements specific to the Reorder Form requirement scope. |
 
 Examples:
 
 - `FR-01`: A supported table row can be reordered.
 - `QR-01`: YTR does not substantially increase the update cost of the supported table it reorders.
+- `RF-FR-01`: A user can uniquely specify the row or column to move with Reorder Form.
 
-Do not introduce a new requirement prefix only to make a document look more structured. Add another prefix only when a distinct requirement category is actually needed, and define its meaning and intended use here before using it in requirements documents.
+`RF-FR-XX` is a scoped Functional Requirement ID. `RF` identifies the Reorder Form requirement scope, while `FR` keeps the requirement category explicit. Requirements shared by multiple reorder methods continue to use the common `FR-XX` IDs and must not be duplicated under an RF-scoped ID.
+
+Do not introduce a new requirement prefix or scope only to make a document look more structured. Add another prefix or scope only when a distinct requirement category or independently managed requirement scope is actually needed, and define its meaning and intended use here before using it in requirements documents.
 
 ## Readability
 
