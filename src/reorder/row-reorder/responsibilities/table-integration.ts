@@ -2,7 +2,7 @@
  * 行専用Table Integrationとして、対応Table Block固有の表現差とWordPress Block Editor Storeとの接続を吸収し、Row Reorderへ現在のtbody行構造の取得と確定済み行移動の反映を提供する。
  *
  * このファイルはCore TableとFlexible Table Blockの縦結合属性差、および対応Tableへの行順反映を所有する。
- * Row Reorderへは現在行数とrowspanを分断できない挿入位置だけを公開し、Tableデータや対応Block固有の表現は外へ公開しない。
+ * Row Reorderへは現在行数とrowspanを分断できない挿入位置、および確定候補の更新対象セル数だけを公開し、Tableデータや対応Block固有の表現は外へ公開しない。
  * Tableデータや構造結果は保持せず、各要求時点のWordPress Blockを直接参照する。
  */
 
@@ -17,7 +17,7 @@ export type RowReorderConstraints = {
 	blockedBoundaries: readonly number[];
 };
 
-/** Table Integrationが現在のTableへ反映する、再照合済みの確定済み行移動。 */
+/** Table Integrationが解釈または反映する、再照合済みの確定候補となる行移動。 */
 type RowMove = {
 	/** 更新対象のTable個体を識別するclientId。 */
 	clientId: string;
@@ -140,6 +140,62 @@ const getConstraints = ( clientId: string ): RowReorderConstraints | null => {
 };
 
 /**
+ * 行移動によって表示位置が変わる範囲に含まれる物理セル数を取得する。
+ *
+ * colspan / rowspanによる論理占有数へ展開せず、Table属性上に存在するcell objectを1セルとして数える。
+ * 対象Tableまたは移動範囲を安全に解釈できない場合はnullを返し、反映経路の判断を外側へ委ねる。
+ *
+ * @param move 現在のtbodyを基準とする行移動。
+ * @return 今回の移動に含まれる物理セル数。安全に解釈できない場合はnull。
+ */
+const getAffectedCellCount = ( move: RowMove ): number | null => {
+	const block = select( blockEditorStore ).getBlock( move.clientId );
+	if ( ! block || ! isSupportedTable( block.name ) || ! isRecord( block.attributes ) ) {
+		return null;
+	}
+
+	const body = block.attributes.body;
+	if ( ! Array.isArray( body ) ) {
+		return null;
+	}
+
+	const sourceInRange =
+		Number.isInteger( move.sourceRowIndex ) &&
+		move.sourceRowIndex >= 0 &&
+		move.sourceRowIndex < body.length;
+	const destinationInRange =
+		Number.isInteger( move.destinationBoundaryIndex ) &&
+		move.destinationBoundaryIndex >= 0 &&
+		move.destinationBoundaryIndex <= body.length;
+	if ( ! sourceInRange || ! destinationInRange ) {
+		return null;
+	}
+
+	const insertionIndex =
+		move.destinationBoundaryIndex > move.sourceRowIndex
+			? move.destinationBoundaryIndex - 1
+			: move.destinationBoundaryIndex;
+	const start = Math.min( move.sourceRowIndex, insertionIndex );
+	const end = Math.max( move.sourceRowIndex, insertionIndex );
+	let affectedCellCount = 0;
+
+	for ( let rowIndex = start; rowIndex <= end; rowIndex++ ) {
+		const row = body[ rowIndex ];
+		if ( ! isRecord( row ) || ! Array.isArray( row.cells ) ) {
+			return null;
+		}
+		for ( const cell of row.cells ) {
+			if ( ! isRecord( cell ) ) {
+				return null;
+			}
+		}
+		affectedCellCount += row.cells.length;
+	}
+
+	return affectedCellCount;
+};
+
+/**
  * 確定済み行移動を、要求時点の対応Tableへ反映する。
  *
  * 対象Blockの不在、非対応、tbodyの利用不能、または確定後の行範囲変化は外部状態変化として更新しない。
@@ -162,9 +218,7 @@ const applyRowMove = ( move: RowMove ): boolean => {
 	}
 
 	const rowCount = body.length;
-	/*
-	 * 確定後にTableの行数が変化している可能性があるため、移動元行と移動先境界が更新要求時点のtbodyでも有効な範囲にあることを要求する。
-	 */
+	/* 確定後にTableの行数が変化している可能性があるため、移動元行と移動先境界が更新要求時点のtbodyでも有効な範囲にあることを要求する。 */
 	const sourceInRange =
 		Number.isInteger( move.sourceRowIndex ) &&
 		move.sourceRowIndex >= 0 &&
@@ -178,9 +232,7 @@ const applyRowMove = ( move: RowMove ): boolean => {
 		return false;
 	}
 
-	/*
-	 * 移動先境界は移動前のtbodyを基準とするため、移動元行が移動先境界より前にある場合は、移動元行の除去による1行分を補正して同じ境界へ挿入する。
-	 */
+	/* 移動先境界は移動前のtbodyを基準とするため、移動元行が移動先境界より前にある場合は、移動元行の除去による1行分を補正して同じ境界へ挿入する。 */
 	const insertionIndex =
 		move.destinationBoundaryIndex > move.sourceRowIndex
 			? move.destinationBoundaryIndex - 1
@@ -203,5 +255,6 @@ const applyRowMove = ( move: RowMove ): boolean => {
  */
 export const rowTableIntegration = {
 	getConstraints,
+	getAffectedCellCount,
 	applyRowMove,
 };
