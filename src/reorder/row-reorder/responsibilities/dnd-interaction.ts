@@ -256,16 +256,19 @@ const rowDndStore = createStore< RowDndStore >()(
 						return;
 					}
 
-					/* 共通閾値を超える移動はDnD中に更新せず、Session終了後の確認付き反映へ移動意図だけを引き渡す。 */
+					/* 共通閾値を超える移動はDnD Session終了後まで確認状態を公開せず、物理drag-end処理と確認UIを分離する。 */
 					if ( requiresLargeReorderApply( affectedCellCount ) ) {
-						const requested = requestLargeRowReorderApply( {
+						const pendingMove = {
 							tableIdentity: session.tableIdentity,
 							sourceRowIndex: session.sourceRowIndex,
 							destinationBoundaryIndex: session.destinationBoundaryIndex,
+						};
+						queueMicrotask( () => {
+							const requested = requestLargeRowReorderApply( pendingMove );
+							if ( ! requested ) {
+								emitRowDndTerminationNotice();
+							}
 						} );
-						if ( ! requested ) {
-							shouldNotifyTermination = true;
-						}
 						return;
 					}
 
