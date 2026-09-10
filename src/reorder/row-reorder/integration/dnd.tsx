@@ -136,8 +136,6 @@ export const RowDnd = ( props: {
 	};
 
 	const onDragEnd = ( event: DragEndEvent ) => {
-		const runtime = resolveReorderApplyRuntime( event.operation.source?.element );
-
 		/* 物理DnD終了時は、次回入力へ持ち越してはならない一時状態を破棄する。 */
 		clearTransientDndState();
 
@@ -147,6 +145,7 @@ export const RowDnd = ( props: {
 			return;
 		}
 
+		const runtime = resolveReorderApplyRuntime( event.operation.source?.element );
 		const measurement = rowDndInteraction.complete( runtime );
 		/* 正常な直接反映だけを、同じEditor表示環境の表示完了計測へ接続する。 */
 		if ( runtime !== null && measurement !== null ) {
