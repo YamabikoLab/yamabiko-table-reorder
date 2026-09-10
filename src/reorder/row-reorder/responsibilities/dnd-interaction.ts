@@ -248,7 +248,7 @@ const rowDndStore = createStore< RowDndStore >()(
 						destinationBoundaryIndex: session.destinationBoundaryIndex,
 					} );
 
-					/* #910 PoC対象のCore TableはDnD中に更新せず、Session終了後の確認・反映へ移動意図だけを引き渡す。 */
+					/* #912 PoC対象のCore TableはDnD中に更新せず、Session終了後の確認・反映・再mountへ移動意図だけを引き渡す。 */
 					if ( pocHandled ) {
 						return;
 					}
