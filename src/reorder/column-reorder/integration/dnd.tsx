@@ -200,7 +200,7 @@ export const ColumnDnd = ( props: {
 			return;
 		}
 
-		const runtime = resolveReorderApplyRuntime( event.operation.source?.element );
+		const runtime = resolveReorderApplyRuntime( event.operation?.source?.element );
 		const measurement = columnDndInteraction.complete( runtime );
 		/* 正常な直接反映だけを、同じEditor表示環境の表示完了計測へ接続する。 */
 		if ( runtime !== null && measurement !== null ) {
