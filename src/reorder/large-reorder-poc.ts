@@ -1,16 +1,14 @@
 /**
- * #910の大規模Table並び替えPoCとして、確認から反映・保存失敗までの一時的な状態を所有する。
+ * #912の大規模Table並び替えPoCとして、確認から反映中までの一時的な状態を所有する。
  *
- * Row DnD Sessionとは独立して並び替え意図だけを保持し、Core Tableかつ保存済みのcleanな投稿だけをPoC対象として受理する。
- * 正式仕様ではなく方式検証のための境界であり、PoC成立後に#902の正式責務へ置き換える。
+ * Row DnD Sessionとは独立して並び替え意図だけを保持し、Core Tableを強制的にPoC対象として受理する。
+ * 反映完了または通常の反映不能ではidleへ戻し、WordPress接続境界が現在Tableを再mountできる状態にする。
  */
 
 import { store as blockEditorStore } from '@wordpress/block-editor';
-import { dispatch, select } from '@wordpress/data';
+import { select } from '@wordpress/data';
 import { devtools } from 'zustand/middleware';
 import { createStore } from 'zustand/vanilla';
-
-import { getLargeReorderSaveFirstMessage } from '@/messages';
 
 /** PoCが後から再照合して反映する行移動意図。 */
 export type LargeReorderPocRowMove = {
@@ -26,28 +24,15 @@ export type LargeReorderPocRowMove = {
 export type LargeReorderPocState =
 	| { phase: 'idle'; move: null }
 	| { phase: 'confirming'; move: LargeReorderPocRowMove }
-	| { phase: 'applying'; move: LargeReorderPocRowMove }
-	| { phase: 'failed'; move: LargeReorderPocRowMove };
-
-type EditorSelect = {
-	isEditedPostDirty: () => boolean;
-	getCurrentPost: () => { status?: string } | null;
-};
-
-type NoticesDispatch = {
-	createWarningNotice: ( message: string, options?: { type?: string } ) => void;
-};
+	| { phase: 'applying'; move: LargeReorderPocRowMove };
 
 type LargeReorderPocActions = {
 	confirm: () => void;
 	cancel: () => void;
-	fail: () => void;
+	complete: () => void;
 };
 
 type LargeReorderPocStore = LargeReorderPocState & LargeReorderPocActions;
-
-const selectByName = select as unknown as ( storeName: string ) => unknown;
-const dispatchByName = dispatch as unknown as ( storeName: string ) => unknown;
 
 /** PoCの確認・反映状態を、DnD SessionやTable componentのmount状態から独立して保持する。 */
 const largeReorderPocStore = createStore< LargeReorderPocStore >()(
@@ -71,13 +56,13 @@ const largeReorderPocStore = createStore< LargeReorderPocStore >()(
 
 				set( { phase: 'idle', move: null }, undefined, 'large-reorder-poc/cancel' );
 			},
-			fail: () => {
+			complete: () => {
 				const state = get();
 				if ( state.phase !== 'applying' ) {
-					throw new Error( 'Large reorder PoC failure requires an applying move.' );
+					throw new Error( 'Large reorder PoC completion requires an applying move.' );
 				}
 
-				set( { phase: 'failed', move: state.move }, undefined, 'large-reorder-poc/fail' );
+				set( { phase: 'idle', move: null }, undefined, 'large-reorder-poc/complete' );
 			},
 		} ),
 		{ name: 'Yamabiko Table Reorder / Large Reorder PoC' }
@@ -85,9 +70,9 @@ const largeReorderPocStore = createStore< LargeReorderPocStore >()(
 );
 
 /**
- * 行dropを#910 PoCへ引き渡せるか判定し、対象なら確認待ち状態を開始する。
+ * 行dropを#912 PoCへ引き渡せるか判定し、対象なら確認待ち状態を開始する。
  *
- * PoCではCore Tableだけを強制的に大規模扱いする。未保存変更または未保存の新規投稿ではTableを変更せず、先に投稿保存が必要なことを通知する。
+ * PoCではCore Tableだけを強制的に大規模扱いし、投稿保存状態には介入しない。
  *
  * @param move drop時点で再照合済みの行移動意図。
  * @return PoCがdropを処理した場合はtrue。PoC対象外で既存Row Reorder処理を続ける場合はfalse。
@@ -100,15 +85,6 @@ export const requestLargeRowReorderPoc = ( move: LargeReorderPocRowMove ): boole
 
 	const state = largeReorderPocStore.getState();
 	if ( state.phase !== 'idle' ) {
-		return true;
-	}
-
-	const editor = selectByName( 'core/editor' ) as EditorSelect;
-	const currentPost = editor.getCurrentPost();
-	const savedPost = currentPost !== null && currentPost.status !== 'auto-draft';
-	if ( ! savedPost || editor.isEditedPostDirty() ) {
-		const notices = dispatchByName( 'core/notices' ) as NoticesDispatch;
-		notices.createWarningNotice( getLargeReorderSaveFirstMessage(), { type: 'snackbar' } );
 		return true;
 	}
 
@@ -133,5 +109,5 @@ export const confirmLargeReorderPoc = (): void => largeReorderPocStore.getState(
 /** 確認待ちのPoC行移動を破棄して通常状態へ戻す。 */
 export const cancelLargeReorderPoc = (): void => largeReorderPocStore.getState().cancel();
 
-/** 反映または投稿保存に失敗したPoCを終端状態へ進める。 */
-export const failLargeReorderPoc = (): void => largeReorderPocStore.getState().fail();
+/** 反映完了または通常の反映不能後にPoCを終了し、Tableを再mount可能な通常状態へ戻す。 */
+export const completeLargeReorderPoc = (): void => largeReorderPocStore.getState().complete();
