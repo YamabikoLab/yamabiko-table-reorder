@@ -145,7 +145,7 @@ export const RowDnd = ( props: {
 			return;
 		}
 
-		const runtime = resolveReorderApplyRuntime( event.operation.source?.element );
+		const runtime = resolveReorderApplyRuntime( event.operation?.source?.element );
 		const measurement = rowDndInteraction.complete( runtime );
 		/* 正常な直接反映だけを、同じEditor表示環境の表示完了計測へ接続する。 */
 		if ( runtime !== null && measurement !== null ) {
