@@ -11,6 +11,7 @@
 import { devtools } from 'zustand/middleware';
 import { createStore } from 'zustand/vanilla';
 
+import { requestLargeRowReorderPoc } from '@/reorder/large-reorder-poc';
 import { rowReorderMode } from '@/reorder/reorder-mode';
 
 import { rowTableIntegration, type RowReorderConstraints } from './table-integration';
@@ -238,6 +239,17 @@ const rowDndStore = createStore< RowDndStore >()(
 						! isDestinationValid( session.destinationBoundaryIndex, currentConstraints )
 					) {
 						shouldNotifyTermination = true;
+						return;
+					}
+
+					const pocHandled = requestLargeRowReorderPoc( {
+						tableIdentity: session.tableIdentity,
+						sourceRowIndex: session.sourceRowIndex,
+						destinationBoundaryIndex: session.destinationBoundaryIndex,
+					} );
+
+					/* #910 PoC対象のCore TableはDnD中に更新せず、Session終了後の確認・反映へ移動意図だけを引き渡す。 */
+					if ( pocHandled ) {
 						return;
 					}
 
