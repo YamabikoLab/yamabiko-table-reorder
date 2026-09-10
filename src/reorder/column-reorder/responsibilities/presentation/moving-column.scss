@@ -1,12 +1,20 @@
 /**
  * Column Reorderの移動対象列について、実Table上の移動元、独立した移動表示、DnD中のポインター表示を所有する。
  *
- * 移動元の配置を維持したまま半透明化し、移動表示は開始時に取得したeditor表示領域だけを描画する。
+ * 移動元の配置を維持したまま半透明に見せ、移動表示は開始時に取得したeditor表示領域だけを描画する。
  */
 
-/* 移動元は配置を変えず、移動表示との区別に必要な視覚差だけを付ける。 */
+/* 移動元は実セル自体を透明化せず、上に薄い表示を重ねて移動表示との視覚差だけを付ける。 */
 .yamabiko-table-reorder-moving-column-source {
-	opacity: 0.35;
+	position: relative;
+}
+
+.yamabiko-table-reorder-moving-column-source::after {
+	content: '';
+	position: absolute;
+	inset: 0;
+	background: rgb(255 255 255 / 65%);
+	pointer-events: none;
 }
 
 /* 移動表示はDnD入力を遮らず、開始時snapshotの列幅と縦配置を維持する。 */
