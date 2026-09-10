@@ -2,7 +2,7 @@
  * #912の大規模Table並び替えPoCとして、確認UI、Table退避、反映、再mountを接続する。
  *
  * PoC状態はDnD Sessionと分離し、対象Core TableのBlockEditだけを反映開始前に退避する。
- * 反映完了または通常の反映不能後はPoCを終了し、現在Tableを再mountして通常編集へ戻す。
+ * 反映中表示を実際に描画してから更新し、反映完了または通常の反映不能後は現在Tableを再mountして通常編集へ戻す。
  */
 
 import { Button, Modal } from '@wordpress/components';
@@ -34,6 +34,15 @@ export const useLargeReorderPocState = () =>
 
 /** 確認ダイアログのContinueから反映開始までの計測を開始する。 */
 const continueLargeReorderPoc = (): void => {
+	performance.clearMarks( 'ytr-912-continue' );
+	performance.clearMarks( 'ytr-912-block-edit-unmounted' );
+	performance.clearMarks( 'ytr-912-update-start' );
+	performance.clearMarks( 'ytr-912-update-end' );
+	performance.clearMarks( 'ytr-912-remount-start' );
+	performance.clearMarks( 'ytr-912-remount-complete' );
+	performance.clearMeasures( 'ytr-912-update' );
+	performance.clearMeasures( 'ytr-912-remount' );
+	performance.clearMeasures( 'ytr-912-total' );
 	performance.mark( 'ytr-912-continue' );
 	confirmLargeReorderPoc();
 };
@@ -42,15 +51,17 @@ const continueLargeReorderPoc = (): void => {
  * Table退避完了後に現在構造を再照合して行移動を反映し、反映成否にかかわらず通常表示へ戻す。
  *
  * React Strict Mode等でEffectが再実行されても同じPoCを二重反映しない。
+ *
+ * @return 反映成功時は再mount後にfocusする0-based行位置。反映しなかった場合はnull。
  */
-const applyAndRemount = (): void => {
+const applyAndRemount = (): number | null => {
 	if ( applyInFlight ) {
-		return;
+		return null;
 	}
 
 	const state = getLargeReorderPocState();
 	if ( state.phase !== 'applying' ) {
-		return;
+		return null;
 	}
 
 	applyInFlight = true;
@@ -75,7 +86,7 @@ const applyAndRemount = (): void => {
 		if ( ! moveStillValid ) {
 			performance.mark( 'ytr-912-remount-start' );
 			completeLargeReorderPoc();
-			return;
+			return null;
 		}
 
 		performance.mark( 'ytr-912-update-start' );
@@ -91,14 +102,55 @@ const applyAndRemount = (): void => {
 		if ( ! applied ) {
 			performance.mark( 'ytr-912-remount-start' );
 			completeLargeReorderPoc();
-			return;
+			return null;
 		}
+
+		const movedRowIndex =
+			state.move.destinationBoundaryIndex > state.move.sourceRowIndex
+				? state.move.destinationBoundaryIndex - 1
+				: state.move.destinationBoundaryIndex;
 
 		performance.mark( 'ytr-912-remount-start' );
 		completeLargeReorderPoc();
+		return movedRowIndex;
 	} finally {
 		applyInFlight = false;
 	}
+};
+
+/**
+ * 再mountしたCore Tableで移動後の行を表示し、先頭の編集可能セルへfocusを移す。
+ *
+ * @param editorDocument 反映中placeholderから取得した現在のEditor Document。
+ * @param clientId       対象Table個体のclientId。
+ * @param rowIndex       並び替え後のtbody内0-based行位置。
+ */
+const focusMovedRow = ( editorDocument: Document, clientId: string, rowIndex: number ): void => {
+	const block = editorDocument.querySelector( `[data-block="${ clientId }"]` );
+	const tableBody = block?.querySelector( 'table' )?.tBodies.item( 0 ) ?? null;
+	const row = tableBody?.rows.item( rowIndex ) ?? null;
+
+	/* 再mount後の対象行を解決できない場合は、通常編集を妨げずfocus復元だけを行わない。 */
+	if ( ! row ) {
+		return;
+	}
+
+	const editable = row.querySelector< HTMLElement >( '[contenteditable="true"]' );
+	row.scrollIntoView( { block: 'center', inline: 'nearest' } );
+	editable?.focus( { preventScroll: true } );
+};
+
+/** PoCの計測結果を比較しやすい形で開発者consoleへ出力する。 */
+const logPerformanceMeasurements = (): void => {
+	const update = performance.getEntriesByName( 'ytr-912-update' ).at( -1 );
+	const remount = performance.getEntriesByName( 'ytr-912-remount' ).at( -1 );
+	const total = performance.getEntriesByName( 'ytr-912-total' ).at( -1 );
+
+	globalThis.console.info( '[YTR #912 PoC]', {
+		updateMs: update?.duration ?? null,
+		remountMs: remount?.duration ?? null,
+		totalMs: total?.duration ?? null,
+	} );
 };
 
 /**
@@ -116,6 +168,9 @@ export const LargeReorderPocTableBoundary = ( props: {
 	const { clientId, children } = props;
 	const state = useLargeReorderPocState();
 	const wasApplyingForTarget = useRef( false );
+	const applyingPlaceholder = useRef< HTMLDivElement | null >( null );
+	const editorDocument = useRef< Document | null >( null );
+	const movedRowIndex = useRef< number | null >( null );
 	const isTarget = state.phase !== 'idle' && state.move.tableIdentity === clientId;
 	const shouldApply = isTarget && state.phase === 'applying';
 
@@ -125,8 +180,29 @@ export const LargeReorderPocTableBoundary = ( props: {
 		}
 
 		wasApplyingForTarget.current = true;
+		editorDocument.current = applyingPlaceholder.current?.ownerDocument ?? null;
 		performance.mark( 'ytr-912-block-edit-unmounted' );
-		applyAndRemount();
+
+		const editorWindow = editorDocument.current?.defaultView ?? null;
+		if ( ! editorWindow ) {
+			movedRowIndex.current = applyAndRemount();
+			return;
+		}
+
+		let secondFrame = 0;
+		const firstFrame = editorWindow.requestAnimationFrame( () => {
+			/* Modalを閉じた反映中表示を1回paintした後に、Store更新と再mountを開始する。 */
+			secondFrame = editorWindow.requestAnimationFrame( () => {
+				movedRowIndex.current = applyAndRemount();
+			} );
+		} );
+
+		return () => {
+			editorWindow.cancelAnimationFrame( firstFrame );
+			if ( secondFrame !== 0 ) {
+				editorWindow.cancelAnimationFrame( secondFrame );
+			}
+		};
 	}, [ shouldApply ] );
 
 	useEffect( () => {
@@ -142,10 +218,22 @@ export const LargeReorderPocTableBoundary = ( props: {
 			'ytr-912-remount-complete'
 		);
 		performance.measure( 'ytr-912-total', 'ytr-912-continue', 'ytr-912-remount-complete' );
-	}, [ state.phase ] );
+
+		if ( editorDocument.current && movedRowIndex.current !== null ) {
+			focusMovedRow( editorDocument.current, clientId, movedRowIndex.current );
+		}
+
+		logPerformanceMeasurements();
+		editorDocument.current = null;
+		movedRowIndex.current = null;
+	}, [ clientId, state.phase ] );
 
 	if ( shouldApply ) {
-		return <div role="status">{ getLargeReorderApplyingMessage() }</div>;
+		return (
+			<div ref={ applyingPlaceholder } role="status">
+				{ getLargeReorderApplyingMessage() }
+			</div>
+		);
 	}
 
 	return (
