@@ -54,7 +54,10 @@ const useLargeColumnReorderApplyState = () =>
  * @param destinationBoundaryIndex 移動前のTableを基準とする0-based移動先境界。
  * @return 並び替え反映後の0-based位置。
  */
-const resolveDestinationIndex = ( sourceIndex: number, destinationBoundaryIndex: number ): number => {
+const resolveDestinationIndex = (
+	sourceIndex: number,
+	destinationBoundaryIndex: number
+): number => {
 	const destinationIndex =
 		destinationBoundaryIndex > sourceIndex
 			? destinationBoundaryIndex - 1

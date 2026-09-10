@@ -87,9 +87,7 @@ describe( 'Large reorder confirmation UI', () => {
 
 		expect( screen.getByText( 'Table content' ) ).not.toBeNull();
 		expect( screen.getByText( 'Row 1000 → 2' ) ).not.toBeNull();
-		expect(
-			screen.getByRole( 'dialog', { name: 'Apply the new order?' } )
-		).not.toBeNull();
+		expect( screen.getByRole( 'dialog', { name: 'Apply the new order?' } ) ).not.toBeNull();
 	} );
 
 	/**
