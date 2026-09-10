@@ -260,16 +260,19 @@ const columnDndStore = createStore< ColumnDndStore >()(
 						return;
 					}
 
-					/* 共通閾値を超える移動はDnD中に更新せず、Session終了後の確認付き反映へ移動意図だけを引き渡す。 */
+					/* 共通閾値を超える移動はDnD Session終了後まで確認状態を公開せず、物理drag-end処理と確認UIを分離する。 */
 					if ( requiresLargeReorderApply( affectedCellCount ) ) {
-						const requested = requestLargeColumnReorderApply( {
+						const pendingMove = {
 							tableIdentity: session.tableIdentity,
 							sourceColumnIndex: session.sourceColumnIndex,
 							destinationBoundaryIndex: session.destinationBoundaryIndex,
+						};
+						queueMicrotask( () => {
+							const requested = requestLargeColumnReorderApply( pendingMove );
+							if ( ! requested ) {
+								emitColumnDndTerminationNotice();
+							}
 						} );
-						if ( ! requested ) {
-							shouldNotifyTermination = true;
-						}
 						return;
 					}
 
