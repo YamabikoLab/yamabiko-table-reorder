@@ -117,33 +117,56 @@ export const cancelLargeReorderPoc = (): void => largeReorderPocStore.getState()
 export const completeLargeReorderPoc = (): void => largeReorderPocStore.getState().complete();
 
 /**
- * 選択中のCore Tableへ、DnDを使わず1-based行番号で#912 PoCの行移動を要求する。
+ * Console操作対象となるCore Tableを解決する。
  *
- * 長距離DnDを繰り返さずにunmount・更新・再mountの性能比較を行うためのPoC専用入口であり、正式機能には含めない。
+ * 選択中BlockがCore Tableならその個体を優先し、選択状態がない場合でも投稿内のCore Tableが1つだけならPoC反復用に自動選択する。
  *
- * @param sourceRowNumber      移動前の1-based行番号。
- * @param destinationRowNumber 並び替え後に配置したい1-based行番号。
- * @return PoCの確認待ちを開始できた場合はtrue。指定または選択対象が成立しない場合はfalse。
+ * @return 操作対象として一意に解決できたCore TableのclientId。解決できない場合はnull。
  */
-const requestLargeRowReorderPocFromConsole = (
-	sourceRowNumber: number,
-	destinationRowNumber: number
-): boolean => {
+const resolveConsoleCoreTableIdentity = (): string | null => {
 	const blockEditor = select( blockEditorStore );
 	const selectedBlockClientId = blockEditor.getSelectedBlockClientId();
 	const selectedBlock = selectedBlockClientId
 		? blockEditor.getBlock( selectedBlockClientId )
 		: null;
 
-	/* Console入口は現在選択中のCore Tableだけを対象とし、別Blockへ暗黙に作用させない。 */
-	if ( ! selectedBlockClientId || ! selectedBlock || selectedBlock.name !== 'core/table' ) {
-		globalThis.console.warn( '[YTR #912 PoC] Select a Core Table before calling ytr912MoveRow().' );
+	if ( selectedBlockClientId && selectedBlock?.name === 'core/table' ) {
+		return selectedBlockClientId;
+	}
+
+	const coreTableClientIds = blockEditor.getBlocksByName( 'core/table' );
+	const onlyCoreTableClientId = coreTableClientIds.length === 1 ? coreTableClientIds[ 0 ] : null;
+	return onlyCoreTableClientId ?? null;
+};
+
+/**
+ * 選択中または一意に解決できるCore Tableへ、DnDを使わず1-based行番号で#912 PoCの行移動を要求する。
+ *
+ * 長距離DnDを繰り返さずにunmount・更新・再mountの性能比較を行うためのPoC専用入口であり、正式機能には含めない。
+ *
+ * @param sourceRowNumber      移動前の1-based行番号。
+ * @param destinationRowNumber 並び替え後に配置したい1-based行番号。
+ * @return PoCの確認待ちを開始できた場合はtrue。指定または対象Tableが成立しない場合はfalse。
+ */
+const requestLargeRowReorderPocFromConsole = (
+	sourceRowNumber: number,
+	destinationRowNumber: number
+): boolean => {
+	const blockEditor = select( blockEditorStore );
+	const tableIdentity = resolveConsoleCoreTableIdentity();
+	const tableBlock = tableIdentity ? blockEditor.getBlock( tableIdentity ) : null;
+
+	/* 複数のCore Tableがある場合は誤操作を避けるため、対象Tableを明示的に選択してから実行する。 */
+	if ( ! tableIdentity || ! tableBlock ) {
+		globalThis.console.warn(
+			'[YTR #912 PoC] Select a Core Table before calling ytr912MoveRow() when the post contains multiple or no Core Tables.'
+		);
 		return false;
 	}
 
-	const body = ( selectedBlock.attributes as { body?: unknown } ).body;
+	const body = ( tableBlock.attributes as { body?: unknown } ).body;
 	if ( ! Array.isArray( body ) ) {
-		globalThis.console.warn( '[YTR #912 PoC] The selected Core Table body is unavailable.' );
+		globalThis.console.warn( '[YTR #912 PoC] The target Core Table body is unavailable.' );
 		return false;
 	}
 
@@ -175,7 +198,7 @@ const requestLargeRowReorderPocFromConsole = (
 	const destinationBoundaryIndex =
 		destinationRowNumber > sourceRowNumber ? destinationRowNumber : destinationRowNumber - 1;
 	const requested = requestLargeRowReorderPoc( {
-		tableIdentity: selectedBlockClientId,
+		tableIdentity,
 		sourceRowIndex,
 		destinationBoundaryIndex,
 	} );
