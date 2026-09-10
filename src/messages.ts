@@ -62,3 +62,29 @@ export const getReorderGuidanceMessage = () =>
  */
 export const getCloseReorderGuidanceLabel = () =>
 	__( 'Close reorder guidance', 'yamabiko-table-reorder' );
+
+/** #910 PoCで大規模並び替え前に投稿保存が必要なことを知らせる文言を取得する。 */
+export const getLargeReorderSaveFirstMessage = () =>
+	__( 'Save the post before applying this large reorder.', 'yamabiko-table-reorder' );
+
+/** #910 PoCの確認ダイアログタイトルを取得する。 */
+export const getLargeReorderApplyConfirmTitle = () =>
+	__( 'Apply the new order?', 'yamabiko-table-reorder' );
+
+/** #910 PoCの確認ダイアログ本文を取得する。 */
+export const getLargeReorderApplyConfirmBody = () =>
+	__( 'Applying this reorder may take some time. Do you want to continue?', 'yamabiko-table-reorder' );
+
+/** #910 PoCの続行ボタン表示名を取得する。 */
+export const getLargeReorderContinueLabel = () => __( 'Continue', 'yamabiko-table-reorder' );
+
+/** #910 PoCのキャンセルボタン表示名を取得する。 */
+export const getLargeReorderCancelLabel = () => __( 'Cancel', 'yamabiko-table-reorder' );
+
+/** #910 PoCの反映中表示を取得する。 */
+export const getLargeReorderApplyingMessage = () =>
+	__( 'Applying the new order…', 'yamabiko-table-reorder' );
+
+/** #910 PoCで投稿保存まで完了できなかったことを知らせる文言を取得する。 */
+export const getLargeReorderApplyFailedMessage = () =>
+	__( 'The reorder could not be saved. Reload the editor before continuing.', 'yamabiko-table-reorder' );
