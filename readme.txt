@@ -3,7 +3,7 @@ Tags: block editor, gutenberg, table
 Requires at least: 6.8
 Tested up to: 7.1
 Requires PHP: 8.1
-Stable tag: 0.7.0
+Stable tag: 0.8.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -11,11 +11,13 @@ Reorder table rows and columns in supported blocks in the WordPress block editor
 
 == Description ==
 
-Yamabiko Table Reorder 0.7.0 provides Row Reorder and Column Reorder for WordPress Core Table and Flexible Table Block.
+Yamabiko Table Reorder 0.8.0 provides Row Reorder and Column Reorder for WordPress Core Table and Flexible Table Block.
 
 Use Row Reorder or Column Reorder mode from the Table toolbar, then drag body rows or Table columns with Mouse or Touch. During DnD, the plugin shows the moving row or column, the current destination, and the surrounding displacement so the result remains visible before it is committed.
 
 Row and Column Reorder preserve supported Table structure, including merged-cell constraints, and update the order only when the drop is valid. Rows or columns that cannot be moved because of merged-cell constraints are identified in advance, and a short message explains the reason when a drag is attempted. Automatic scrolling follows the active reorder direction when needed.
+
+When a reorder affects enough cells that applying it may take some time, the plugin shows a confirmation before applying the change. If continued, only the target Table enters a temporary applying state, and editing resumes after the update is complete.
 
 A WordPress Playground demo is available from the GitHub repository and uses the current latest stable release.
 
@@ -37,6 +39,13 @@ The generated archive is `yamabiko-table-reorder.zip`.
 4. Activate Yamabiko Table Reorder.
 
 == Changelog ==
+
+= 0.8.0 =
+
+* Added: Added a confirmation flow for Row and Column Reorder operations whose affected range may take time to apply, showing the intended move before the update starts.
+* Changed: During confirmed reorders, only the target Table enters a temporary applying state and returns to editing after the update completes.
+* Changed: Revalidated the current Table immediately before applying a confirmed reorder and left Table data unchanged when the move could no longer be applied safely.
+* Changed: Restored scroll and focus near the reordered result after the confirmed update completes.
 
 = 0.7.0 =
 
