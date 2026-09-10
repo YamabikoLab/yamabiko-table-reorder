@@ -191,7 +191,7 @@ describe( 'Row DnD Interaction lifecycle', () => {
 	} );
 
 	/**
-	 * 大規模な行移動はDnD中に反映せず確認付き反映へ引き渡すことを確認する。
+	 * 大規模な行移動はDnD Session終了後に確認付き反映へ引き渡すことを確認する。
 	 *
 	 * 事前条件:
 	 * - 更新対象セル数が共通閾値を超えている。
@@ -200,22 +200,28 @@ describe( 'Row DnD Interaction lifecycle', () => {
 	 * - 有効な移動先でcomplete()する。
 	 *
 	 * 期待結果:
-	 * - 行移動を直接反映せず、移動意図を確認付き反映へ引き渡してDnD Sessionを終了する。
+	 * - 行移動を直接反映せず、まずDnD Sessionをidleへ戻す。
+	 * - 同期的なcomplete処理を抜けた後に、移動意図を確認付き反映へ1回だけ引き渡す。
 	 */
-	it( 'when affected cell count exceeds the threshold, should defer the move and end the DnD session', () => {
+	it( 'when affected cell count exceeds the threshold, should end the DnD session before requesting confirmation', async () => {
 		getAffectedCellCountMock.mockReturnValue( 2_001 );
 		startActiveSession();
 		rowDndInteraction.updateDestination( 4 );
 
 		rowDndInteraction.complete();
 
+		expect( getRowDndPhase() ).toBe( 'idle' );
+		expect( requestLargeRowReorderApplyMock ).not.toHaveBeenCalled();
+		expect( applyRowMoveMock ).not.toHaveBeenCalled();
+
+		await Promise.resolve();
+
+		expect( requestLargeRowReorderApplyMock ).toHaveBeenCalledTimes( 1 );
 		expect( requestLargeRowReorderApplyMock ).toHaveBeenCalledWith( {
 			tableIdentity: 'table-a',
 			sourceRowIndex: 1,
 			destinationBoundaryIndex: 4,
 		} );
-		expect( applyRowMoveMock ).not.toHaveBeenCalled();
-		expect( getRowDndPhase() ).toBe( 'idle' );
 	} );
 
 	/**
