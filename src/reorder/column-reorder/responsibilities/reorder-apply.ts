@@ -43,9 +43,9 @@ type LargeColumnReorderApplyStore = LargeColumnReorderApplyState & LargeColumnRe
 /**
  * 移動先境界が現在の列制約に対して有効か判定する。
  *
- * @param destinationBoundaryIndex 再照合する0-based移動先境界。
- * @param constraints              要求時点の論理列数と分断不可境界。
- * @param constraints.columnCount  要求時点の論理列数。
+ * @param destinationBoundaryIndex      再照合する0-based移動先境界。
+ * @param constraints                   要求時点の論理列数と分断不可境界。
+ * @param constraints.columnCount       要求時点の論理列数。
  * @param constraints.blockedBoundaries colspan等を分断するため利用できない列間境界。
  * @return 現在Tableで移動先として利用できる場合はtrue。
  */

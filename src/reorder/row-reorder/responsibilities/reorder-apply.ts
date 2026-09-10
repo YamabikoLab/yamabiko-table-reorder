@@ -43,9 +43,9 @@ type LargeRowReorderApplyStore = LargeRowReorderApplyState & LargeRowReorderAppl
 /**
  * 移動先境界が現在の行制約に対して有効か判定する。
  *
- * @param destinationBoundaryIndex 再照合する0-based移動先境界。
- * @param constraints              要求時点の行数と分断不可境界。
- * @param constraints.rowCount     要求時点のtbody行数。
+ * @param destinationBoundaryIndex      再照合する0-based移動先境界。
+ * @param constraints                   要求時点の行数と分断不可境界。
+ * @param constraints.rowCount          要求時点のtbody行数。
  * @param constraints.blockedBoundaries rowspan等を分断するため利用できない行間境界。
  * @return 現在Tableで移動先として利用できる場合はtrue。
  */
