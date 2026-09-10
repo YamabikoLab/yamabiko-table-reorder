@@ -2,6 +2,7 @@
  * 確認付き大規模反映をWordPressのTable編集表示へ接続する。
  *
  * Row / Columnそれぞれが所有する反映Lifecycleを購読し、確認中は通常TableとModalを表示する。
+ * 確認Modalでは実Tableを仮配置せず、移動元と反映後の移動先を利用者向けの位置として明示する。
  * Continue後は対象TableのBlockEditを一度退避し、反映中表示をpaintしてから現在Tableを再照合・更新する。
  * 再mount後は移動結果へscroll / focusを戻し、表示が安定するまで反映中表示を維持する。
  */
@@ -11,11 +12,13 @@ import type { ReactNode } from 'react';
 import { useEffect, useRef, useSyncExternalStore } from 'react';
 
 import {
+	getLargeColumnReorderMoveSummary,
 	getLargeReorderApplyConfirmBody,
 	getLargeReorderApplyConfirmTitle,
 	getLargeReorderApplyingMessage,
 	getLargeReorderCancelLabel,
 	getLargeReorderContinueLabel,
+	getLargeRowReorderMoveSummary,
 } from '@/messages';
 import {
 	applyLargeColumnReorder,
@@ -41,6 +44,23 @@ const useLargeRowReorderApplyState = () =>
 /** Reactから列の確認付き大規模反映状態を購読する。 */
 const useLargeColumnReorderApplyState = () =>
 	useSyncExternalStore( subscribeLargeColumnReorderApply, getLargeColumnReorderApplyState );
+
+/**
+ * 0-based移動先境界を、並び替え反映後の0-based位置へ変換する。
+ *
+ * 移動元より後ろへ挿入する場合は、移動元を取り除いた後に位置が1つ前へ詰まる。
+ *
+ * @param sourceIndex              移動元の0-based位置。
+ * @param destinationBoundaryIndex 移動前のTableを基準とする0-based移動先境界。
+ * @return 並び替え反映後の0-based位置。
+ */
+const resolveDestinationIndex = ( sourceIndex: number, destinationBoundaryIndex: number ): number => {
+	const destinationIndex =
+		destinationBoundaryIndex > sourceIndex
+			? destinationBoundaryIndex - 1
+			: destinationBoundaryIndex;
+	return destinationIndex;
+};
 
 /**
  * 行反映後の移動先行をEditor内で表示して、先頭の編集可能セルへfocusする。
@@ -84,6 +104,7 @@ const focusMovedColumn = (
 
 	let logicalColumnStart = 0;
 	let targetCell: HTMLTableCellElement | null = null;
+	/* 先頭側の行を論理列順に解釈し、結合セルを含めて反映後の移動列を覆う表示セルを特定する。 */
 	for ( const cell of Array.from( firstRow.cells ) ) {
 		const logicalColumnEnd = logicalColumnStart + cell.colSpan;
 		if ( columnIndex >= logicalColumnStart && columnIndex < logicalColumnEnd ) {
@@ -159,6 +180,7 @@ export const ReorderApplyTableBoundary = ( props: { clientId: string; children: 
 		}
 
 		let secondFrame = 0;
+		/* 対象Tableの退避と反映中表示を先に描画し、重いTable更新より前に利用者へ反映開始を伝える。 */
 		const firstFrame = editorWindow.requestAnimationFrame( () => {
 			secondFrame = editorWindow.requestAnimationFrame( apply );
 		} );
@@ -173,10 +195,10 @@ export const ReorderApplyTableBoundary = ( props: { clientId: string; children: 
 	useEffect( () => {
 		if ( rowIsTarget && rowState.phase === 'remounting' ) {
 			if ( rowState.applied && editorDocument.current ) {
-				const insertionIndex =
-					rowState.move.destinationBoundaryIndex > rowState.move.sourceRowIndex
-						? rowState.move.destinationBoundaryIndex - 1
-						: rowState.move.destinationBoundaryIndex;
+				const insertionIndex = resolveDestinationIndex(
+					rowState.move.sourceRowIndex,
+					rowState.move.destinationBoundaryIndex
+				);
 				focusMovedRow( editorDocument.current, clientId, insertionIndex );
 			}
 
@@ -190,10 +212,10 @@ export const ReorderApplyTableBoundary = ( props: { clientId: string; children: 
 
 		if ( columnIsTarget && columnState.phase === 'remounting' ) {
 			if ( columnState.applied && editorDocument.current ) {
-				const insertionIndex =
-					columnState.move.destinationBoundaryIndex > columnState.move.sourceColumnIndex
-						? columnState.move.destinationBoundaryIndex - 1
-						: columnState.move.destinationBoundaryIndex;
+				const insertionIndex = resolveDestinationIndex(
+					columnState.move.sourceColumnIndex,
+					columnState.move.destinationBoundaryIndex
+				);
 				focusMovedColumn( editorDocument.current, clientId, insertionIndex );
 			}
 
@@ -223,12 +245,36 @@ export const ReorderApplyTableBoundary = ( props: { clientId: string; children: 
 	const confirm = rowConfirming ? confirmLargeRowReorderApply : confirmLargeColumnReorderApply;
 	const cancel = rowConfirming ? cancelLargeRowReorderApply : cancelLargeColumnReorderApply;
 
+	let moveSummary: string | null = null;
+	if ( rowConfirming ) {
+		const destinationIndex = resolveDestinationIndex(
+			rowState.move.sourceRowIndex,
+			rowState.move.destinationBoundaryIndex
+		);
+		moveSummary = getLargeRowReorderMoveSummary(
+			rowState.move.sourceRowIndex + 1,
+			destinationIndex + 1
+		);
+	} else if ( columnConfirming ) {
+		const destinationIndex = resolveDestinationIndex(
+			columnState.move.sourceColumnIndex,
+			columnState.move.destinationBoundaryIndex
+		);
+		moveSummary = getLargeColumnReorderMoveSummary(
+			columnState.move.sourceColumnIndex + 1,
+			destinationIndex + 1
+		);
+	}
+
 	return (
 		<>
 			{ children }
 			{ remounting && <div role="status">{ getLargeReorderApplyingMessage() }</div> }
-			{ confirming && (
+			{ confirming && moveSummary !== null && (
 				<Modal title={ getLargeReorderApplyConfirmTitle() } onRequestClose={ cancel }>
+					<p>
+						<strong>{ moveSummary }</strong>
+					</p>
 					<p>{ getLargeReorderApplyConfirmBody() }</p>
 					<Button variant="primary" onClick={ confirm }>
 						{ getLargeReorderContinueLabel() }
