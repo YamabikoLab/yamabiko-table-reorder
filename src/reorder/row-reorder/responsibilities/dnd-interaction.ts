@@ -12,7 +12,7 @@ import { devtools } from 'zustand/middleware';
 import { createStore } from 'zustand/vanilla';
 
 import {
-	type DirectReorderApplyMeasurement,
+	measureDirectReorderApply,
 	type ReorderApplyRuntime,
 } from '@/reorder/reorder-apply-performance';
 import { requiresLargeReorderApply } from '@/reorder/reorder-apply-policy';
@@ -75,9 +75,8 @@ type RowDndStoreActions = {
 	 * active Sessionの最終移動先を現在のTable構造へ再照合し、成立する行移動だけを確定してSessionを終了する。
 	 *
 	 * @param runtime 現在のEditor表示環境で性能学習を行うための境界。解決できない場合はnull。
-	 * @return 正常な直接反映を開始した場合は表示完了計測に必要な値。それ以外はnull。
 	 */
-	complete: ( runtime?: ReorderApplyRuntime | null ) => DirectReorderApplyMeasurement | null;
+	complete: ( runtime?: ReorderApplyRuntime | null ) => void;
 	/** Tableを更新せずactive Sessionを終了する。 */
 	cancel: () => void;
 };
@@ -233,7 +232,7 @@ const rowDndStore = createStore< RowDndStore >()(
 				try {
 					/* 有効な最終移動先が成立していないdropでは、Tableを更新せず正常終了する。 */
 					if ( session.destinationBoundaryIndex === null ) {
-						return null;
+						return;
 					}
 
 					const currentConstraints = rowTableIntegration.getConstraints( session.tableIdentity );
@@ -249,7 +248,7 @@ const rowDndStore = createStore< RowDndStore >()(
 						! isDestinationValid( session.destinationBoundaryIndex, currentConstraints )
 					) {
 						shouldNotifyTermination = true;
-						return null;
+						return;
 					}
 
 					const move = {
@@ -262,7 +261,7 @@ const rowDndStore = createStore< RowDndStore >()(
 					/* 更新対象セル数を安全に算出できない場合は、反映経路を推測せずTableを変更しない。 */
 					if ( affectedCellCount === null ) {
 						shouldNotifyTermination = true;
-						return null;
+						return;
 					}
 
 					const storage = runtime?.storage ?? null;
@@ -280,27 +279,20 @@ const rowDndStore = createStore< RowDndStore >()(
 								emitRowDndTerminationNotice();
 							}
 						} );
-						return null;
+						return;
 					}
 
-					const startedAt = runtime?.performanceNow() ?? null;
-					const rowMoveApplied = rowTableIntegration.applyRowMove( move );
+					const rowMoveApplied = measureDirectReorderApply(
+						'row',
+						affectedCellCount,
+						runtime,
+						() => rowTableIntegration.applyRowMove( move )
+					);
 
 					/* 更新要求時点の外部状態変化等で行移動を反映できない場合は、安全に確定できない通常の終了として扱う。 */
 					if ( ! rowMoveApplied ) {
 						shouldNotifyTermination = true;
-						return null;
 					}
-
-					if ( startedAt === null ) {
-						return null;
-					}
-
-					const measurement: DirectReorderApplyMeasurement = {
-						affectedCellCount,
-						startedAt,
-					};
-					return measurement;
 				} finally {
 					set(
 						{
@@ -373,7 +365,7 @@ export const getRowDndDestinationBoundaryIndex = (): number | null => {
 };
 
 /**
- * Reorder PresentationがDnD異常終了通知を一回性イベントとして受け取るために利用する。
+ * Reorder Presentationが行DnD異常終了通知を一回性イベントとして受け取るために利用する。
  *
  * 通知表示そのものの状態や終了理由は公開せず、通知対象となる終了が発生したことだけを伝える。
  *
@@ -408,13 +400,13 @@ export const rowDndInteraction: RowDndStoreActions = {
 
 		/* completeのLifecycle違反はStore所有の境界で判定させ、終了後解決に存在しないSessionを使用しない。 */
 		if ( state.phase !== 'active' ) {
-			return rowDndStore.getState().complete( runtime );
+			rowDndStore.getState().complete( runtime );
+			return;
 		}
 
 		const tableIdentity = state.session.tableIdentity;
-		const measurement = rowDndStore.getState().complete( runtime );
+		rowDndStore.getState().complete( runtime );
 		resolveReorderModeAfterDnd( tableIdentity );
-		return measurement;
 	},
 	cancel: () => {
 		const state = rowDndStore.getState();
