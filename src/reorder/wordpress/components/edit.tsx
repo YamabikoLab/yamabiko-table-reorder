@@ -2,11 +2,13 @@
  * 対応Tableの編集表示へReorder ModeのLifecycleとToolbar配置を接続するReact componentを所有する。
  *
  * Gutenberg本来のBlockEdit構造を維持し、選択中の対応TableだけへReorder Mode Toolbarを追加する。
+ * #910 PoCでは大規模Row Reorderの反映開始後だけ対象Core TableのBlockEditを退避する。
  */
 
 import type { BlockEditProps } from '@wordpress/blocks';
 import type { ComponentType } from '@wordpress/element';
 
+import { LargeReorderPocTableBoundary } from '@/reorder/wordpress/components/large-reorder-poc';
 import { ReorderModeToolbar } from '@/reorder/wordpress/components/toolbar';
 import {
 	useTableLifecycle,
@@ -38,10 +40,10 @@ export const ReorderModeEdit = ( componentProps: ReorderModeEditProps ) => {
 	useTableLifecycle( clientId, isSelected, getSelectedTableIdentity );
 
 	return (
-		<>
+		<LargeReorderPocTableBoundary clientId={ clientId }>
 			<BlockEdit { ...props } />
 			{ /* Toolbar入口は現在選択中の対応Tableだけに表示する。 */ }
 			{ isSelected && <ReorderModeToolbar tableIdentity={ clientId } /> }
-		</>
+		</LargeReorderPocTableBoundary>
 	);
 };
