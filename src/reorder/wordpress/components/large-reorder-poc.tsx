@@ -5,10 +5,10 @@
  * 保存失敗時はTable退避と編集抑止を維持した終端状態とする。
  */
 
-import { store as blockEditorStore, useBlockEditingMode } from '@wordpress/block-editor';
+import { useBlockEditingMode } from '@wordpress/block-editor';
 import { Button, Modal } from '@wordpress/components';
 import { dispatch, select } from '@wordpress/data';
-import type { ComponentType, ReactNode } from '@wordpress/element';
+import type { ReactNode } from '@wordpress/element';
 import { useEffect, useSyncExternalStore } from 'react';
 
 import {
@@ -26,9 +26,8 @@ import {
 	getLargeReorderPocState,
 	subscribeLargeReorderPoc,
 } from '@/reorder/large-reorder-poc';
+import { isRowReorderTargetMovable } from '@/reorder/row-reorder/domain/target-validity';
 import { rowTableIntegration } from '@/reorder/row-reorder/responsibilities/table-integration';
-
-import type { TableBlockEditProps } from './edit';
 
 type EditorDispatch = {
 	savePost: () => Promise< unknown >;
@@ -58,7 +57,7 @@ export const useLargeReorderPocEditingGuard = (): void => {
 };
 
 /**
- * Table退避完了後に行移動を反映し、WordPress標準の投稿保存と投稿一覧への離脱まで実行する。
+ * Table退避完了後に現在構造を再照合して行移動を反映し、WordPress標準の投稿保存と投稿一覧への離脱まで実行する。
  *
  * React Strict Mode等でEffectが再実行されても同じPoCを二重反映しない。
  */
@@ -74,6 +73,28 @@ const applyAndSave = async (): Promise< void > => {
 
 	applyInFlight = true;
 	try {
+		const constraints = rowTableIntegration.getConstraints( state.move.tableIdentity );
+		const target = {
+			tableIdentity: state.move.tableIdentity,
+			sourceRowIndex: state.move.sourceRowIndex,
+		};
+		const destinationValid =
+			constraints !== null &&
+			Number.isInteger( state.move.destinationBoundaryIndex ) &&
+			state.move.destinationBoundaryIndex >= 0 &&
+			state.move.destinationBoundaryIndex <= constraints.rowCount &&
+			! constraints.blockedBoundaries.includes( state.move.destinationBoundaryIndex );
+		const moveStillValid =
+			constraints !== null &&
+			isRowReorderTargetMovable( target, constraints ) &&
+			destinationValid;
+
+		/* Continue後の外部状態変化で移動が成立しなくなった場合は、Tableを更新せずfailed終端状態へ移る。 */
+		if ( ! moveStillValid ) {
+			failLargeReorderPoc();
+			return;
+		}
+
 		performance.mark( 'ytr-910-update-start' );
 		const applied = rowTableIntegration.applyRowMove( {
 			clientId: state.move.tableIdentity,
@@ -109,9 +130,9 @@ const applyAndSave = async (): Promise< void > => {
 /**
  * 対象Core TableのBlockEditをPoC状態に応じて確認UIまたは軽量表示へ切り替える。
  *
- * @param props           対象Tableの識別情報と元のBlockEdit表示。
- * @param props.clientId  対象Table個体のclientId。
- * @param props.children  通常時に表示するGutenberg本来のTable編集UI。
+ * @param props          対象Tableの識別情報と元のBlockEdit表示。
+ * @param props.clientId 対象Table個体のclientId。
+ * @param props.children 通常時に表示するGutenberg本来のTable編集UI。
  * @return PoC対象でなければ通常UI、確認中は確認ダイアログ、反映開始後はTableを退避した軽量表示。
  */
 export const LargeReorderPocTableBoundary = ( props: {
@@ -157,6 +178,3 @@ export const LargeReorderPocTableBoundary = ( props: {
 		</>
 	);
 };
-
-/** PoC境界から参照する元BlockEditのcomponent型。 */
-export type LargeReorderPocBlockEdit = ComponentType< TableBlockEditProps >;
