@@ -11,13 +11,15 @@
 import { devtools } from 'zustand/middleware';
 import { createStore } from 'zustand/vanilla';
 
+import { requiresLargeReorderApply } from '@/reorder/reorder-apply-policy';
 import { rowReorderMode } from '@/reorder/reorder-mode';
-
-import { rowTableIntegration, type RowReorderConstraints } from './table-integration';
 import {
 	isRowReorderTargetMovable,
 	type RowReorderTarget,
 } from '@/reorder/row-reorder/domain/target-validity';
+import { requestLargeRowReorderApply } from '@/reorder/row-reorder/responsibilities/reorder-apply';
+
+import { rowTableIntegration, type RowReorderConstraints } from './table-integration';
 
 /**
  * activeな行DnD中にDnD Interactionが所有する意味状態を表す。
@@ -241,11 +243,36 @@ const rowDndStore = createStore< RowDndStore >()(
 						return;
 					}
 
-					const rowMoveApplied = rowTableIntegration.applyRowMove( {
+					const move = {
 						clientId: session.tableIdentity,
 						sourceRowIndex: session.sourceRowIndex,
 						destinationBoundaryIndex: session.destinationBoundaryIndex,
-					} );
+					};
+					const affectedCellCount = rowTableIntegration.getAffectedCellCount( move );
+
+					/* 更新対象セル数を安全に算出できない場合は、反映経路を推測せずTableを変更しない。 */
+					if ( affectedCellCount === null ) {
+						shouldNotifyTermination = true;
+						return;
+					}
+
+					/* 共通閾値を超える移動はDnD Session終了後まで確認状態を公開せず、物理drag-end処理と確認UIを分離する。 */
+					if ( requiresLargeReorderApply( affectedCellCount ) ) {
+						const pendingMove = {
+							tableIdentity: session.tableIdentity,
+							sourceRowIndex: session.sourceRowIndex,
+							destinationBoundaryIndex: session.destinationBoundaryIndex,
+						};
+						queueMicrotask( () => {
+							const requested = requestLargeRowReorderApply( pendingMove );
+							if ( ! requested ) {
+								emitRowDndTerminationNotice();
+							}
+						} );
+						return;
+					}
+
+					const rowMoveApplied = rowTableIntegration.applyRowMove( move );
 
 					/* 更新要求時点の外部状態変化等で行移動を反映できない場合は、安全に確定できない通常の終了として扱う。 */
 					if ( ! rowMoveApplied ) {

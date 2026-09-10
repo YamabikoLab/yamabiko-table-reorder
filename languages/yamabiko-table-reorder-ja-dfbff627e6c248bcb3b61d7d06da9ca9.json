@@ -1,5 +1,5 @@
 {
-	"translation-revision-date": "2026-09-06 16:11+0900",
+	"translation-revision-date": "2026-09-10 10:53+0900",
 	"generator": "WP-CLI/2.12.0",
 	"source": "build/index.js",
 	"domain": "messages",
@@ -20,6 +20,22 @@
 			],
 			"Reorder rows and columns.": [
 				"\u884c\u3068\u5217\u3092\u4e26\u3073\u66ff\u3048\u3089\u308c\u307e\u3059\u3002"
+			],
+			"Apply the new order?": [
+				"\u4e26\u3073\u66ff\u3048\u3092\u53cd\u6620\u3057\u307e\u3059\u304b\uff1f"
+			],
+			"Row %1$d \u2192 %2$d": [ "%1$d\u884c\u76ee \u2192 %2$d\u884c\u76ee" ],
+			"Column %1$d \u2192 %2$d": [ "%1$d\u5217\u76ee \u2192 %2$d\u5217\u76ee" ],
+			"Applying this reorder may take some time.": [
+				"\u3053\u306e\u4e26\u3073\u66ff\u3048\u306e\u53cd\u6620\u306b\u306f\u6642\u9593\u304c\u304b\u304b\u308b\u5834\u5408\u304c\u3042\u308a\u307e\u3059\u3002"
+			],
+			"Continue": [ "\u7d9a\u884c" ],
+			"Cancel": [ "\u30ad\u30e3\u30f3\u30bb\u30eb" ],
+			"Applying the new order\u2026": [
+				"\u4e26\u3073\u66ff\u3048\u3092\u53cd\u6620\u3057\u3066\u3044\u307e\u3059\u2026"
+			],
+			"Please wait until the update is complete.": [
+				"\u5b8c\u4e86\u3059\u308b\u307e\u3067\u3057\u3070\u3089\u304f\u304a\u5f85\u3061\u304f\u3060\u3055\u3044\u3002"
 			]
 		}
 	}

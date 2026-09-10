@@ -10,11 +10,13 @@
 import { devtools } from 'zustand/middleware';
 import { createStore } from 'zustand/vanilla';
 
-import { columnReorderMode } from '@/reorder/reorder-mode';
 import {
 	isColumnReorderTargetMovable,
 	type ColumnReorderTarget,
 } from '@/reorder/column-reorder/domain/target-validity';
+import { requestLargeColumnReorderApply } from '@/reorder/column-reorder/responsibilities/reorder-apply';
+import { requiresLargeReorderApply } from '@/reorder/reorder-apply-policy';
+import { columnReorderMode } from '@/reorder/reorder-mode';
 
 import { columnTableIntegration, type ColumnReorderConstraints } from './table-integration';
 
@@ -245,11 +247,36 @@ const columnDndStore = createStore< ColumnDndStore >()(
 						return;
 					}
 
-					const columnMoveApplied = columnTableIntegration.applyColumnMove( {
+					const move = {
 						clientId: session.tableIdentity,
 						sourceColumnIndex: session.sourceColumnIndex,
 						destinationBoundaryIndex: session.destinationBoundaryIndex,
-					} );
+					};
+					const affectedCellCount = columnTableIntegration.getAffectedCellCount( move );
+
+					/* 更新対象セル数を安全に算出できない場合は、反映経路を推測せずTableを変更しない。 */
+					if ( affectedCellCount === null ) {
+						shouldNotifyTermination = true;
+						return;
+					}
+
+					/* 共通閾値を超える移動はDnD Session終了後まで確認状態を公開せず、物理drag-end処理と確認UIを分離する。 */
+					if ( requiresLargeReorderApply( affectedCellCount ) ) {
+						const pendingMove = {
+							tableIdentity: session.tableIdentity,
+							sourceColumnIndex: session.sourceColumnIndex,
+							destinationBoundaryIndex: session.destinationBoundaryIndex,
+						};
+						queueMicrotask( () => {
+							const requested = requestLargeColumnReorderApply( pendingMove );
+							if ( ! requested ) {
+								emitColumnDndTerminationNotice();
+							}
+						} );
+						return;
+					}
+
+					const columnMoveApplied = columnTableIntegration.applyColumnMove( move );
 
 					/* 再照合後の外部状態変化等で列移動を反映できない場合も、安全に確定できない終了として扱う。 */
 					if ( ! columnMoveApplied ) {

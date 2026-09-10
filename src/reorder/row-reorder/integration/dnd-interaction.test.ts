@@ -2,10 +2,11 @@
  * 行専用DnD Interactionの主要なSession Lifecycleと分岐を、公開境界から確認する。
  *
  * 開始可否はReorder Target Resolutionの責務として別テストで検証し、ここでは解決済みTargetから始まる
- * Session開始、移動先判定、complete時の現在構造への再照合、正常な中止、外部状態変化、およびLifecycle違反を検証する。
+ * Session開始、移動先判定、complete時の現在構造への再照合、反映規模による経路選択、正常な中止、外部状態変化、およびLifecycle違反を検証する。
  */
 
 import { rowReorderMode } from '@/reorder/reorder-mode';
+import { requestLargeRowReorderApply } from '@/reorder/row-reorder/responsibilities/reorder-apply';
 
 import {
 	getRowDndDestinationBoundaryIndex,
@@ -22,9 +23,14 @@ jest.mock( '@/reorder/reorder-mode', () => ( {
 	},
 } ) );
 
+jest.mock( '@/reorder/row-reorder/responsibilities/reorder-apply', () => ( {
+	requestLargeRowReorderApply: jest.fn(),
+} ) );
+
 jest.mock( '@/reorder/row-reorder/responsibilities/table-integration', () => ( {
 	rowTableIntegration: {
 		getConstraints: jest.fn(),
+		getAffectedCellCount: jest.fn(),
 		applyRowMove: jest.fn(),
 	},
 } ) );
@@ -32,8 +38,14 @@ jest.mock( '@/reorder/row-reorder/responsibilities/table-integration', () => ( {
 const getConstraintsMock = rowTableIntegration.getConstraints as jest.MockedFunction<
 	typeof rowTableIntegration.getConstraints
 >;
+const getAffectedCellCountMock = rowTableIntegration.getAffectedCellCount as jest.MockedFunction<
+	typeof rowTableIntegration.getAffectedCellCount
+>;
 const applyRowMoveMock = rowTableIntegration.applyRowMove as jest.MockedFunction<
 	typeof rowTableIntegration.applyRowMove
+>;
+const requestLargeRowReorderApplyMock = requestLargeRowReorderApply as jest.MockedFunction<
+	typeof requestLargeRowReorderApply
 >;
 const resolveAfterDndMock = rowReorderMode.resolveAfterDnd as jest.MockedFunction<
 	typeof rowReorderMode.resolveAfterDnd
@@ -65,11 +77,10 @@ describe( 'Row DnD Interaction lifecycle', () => {
 	beforeEach( () => {
 		rowDndInteraction.cancel();
 		jest.clearAllMocks();
-		getConstraintsMock.mockReset();
-		applyRowMoveMock.mockReset();
-		resolveAfterDndMock.mockReset();
 		getConstraintsMock.mockReturnValue( availableConstraints );
+		getAffectedCellCountMock.mockReturnValue( 20 );
 		applyRowMoveMock.mockReturnValue( true );
+		requestLargeRowReorderApplyMock.mockReturnValue( true );
 		terminationNoticeListener = jest.fn();
 		unsubscribeTerminationNotice = subscribeRowDndTerminationNotice( terminationNoticeListener );
 	} );
@@ -80,12 +91,14 @@ describe( 'Row DnD Interaction lifecycle', () => {
 	} );
 
 	/**
-	 * 概要:
-	 * - 解決済みTargetと開始時制約からactive Sessionを開始できることを確認する。
+	 * 解決済みTargetからactive Sessionを開始できることを確認する。
+	 *
 	 * 事前条件:
 	 * - DnD Interactionはidleである。
+	 *
 	 * 操作:
 	 * - start()を実行する。
+	 *
 	 * 期待結果:
 	 * - activeへ遷移し、開始時にTable Integrationへ問い合わせない。
 	 */
@@ -97,12 +110,14 @@ describe( 'Row DnD Interaction lifecycle', () => {
 	} );
 
 	/**
-	 * 概要:
-	 * - active Session中に別Sessionを開始できないことを確認する。
+	 * active Session中に別Sessionを開始できないことを確認する。
+	 *
 	 * 事前条件:
 	 * - active Sessionが存在する。
+	 *
 	 * 操作:
 	 * - start()を再度実行する。
+	 *
 	 * 期待結果:
 	 * - Lifecycle違反としてErrorになる。
 	 */
@@ -115,14 +130,16 @@ describe( 'Row DnD Interaction lifecycle', () => {
 	} );
 
 	/**
-	 * 概要:
-	 * - DnD中の移動先はSession開始時に確認した行制約だけで判定することを確認する。
+	 * DnD中の移動先をSession開始時の行制約で判定することを確認する。
+	 *
 	 * 事前条件:
-	 * - Session開始時の行制約では境界4が分断不可で、境界3は有効である。
+	 * - 境界4は分断不可、境界3は有効である。
+	 *
 	 * 操作:
-	 * - 境界4、続いて境界3へ移動先更新を要求する。
+	 * - 境界4、続いて境界3へ移動先を更新する。
+	 *
 	 * 期待結果:
-	 * - 境界4は無効化され、境界3だけが保持され、現在構造を取得し直さない。
+	 * - 境界3だけが保持され、現在構造を取得し直さない。
 	 */
 	it( 'when destinations change during an active session, should validate them against the initial constraints', () => {
 		startActiveSession( {
@@ -140,40 +157,105 @@ describe( 'Row DnD Interaction lifecycle', () => {
 	} );
 
 	/**
-	 * 概要:
-	 * - complete時の現在構造でも移動が成立する場合だけ確定済み行移動をTableへ反映することを確認する。
+	 * 小規模な行移動は確認を挟まず直接反映することを確認する。
+	 *
 	 * 事前条件:
-	 * - active Sessionの移動先境界4が開始時とcomplete時の双方で有効である。
+	 * - complete時の移動が有効で、更新対象セル数は閾値以下である。
+	 *
 	 * 操作:
-	 * - 移動先を境界4へ更新してcomplete()する。
+	 * - 有効な移動先でcomplete()する。
+	 *
 	 * 期待結果:
-	 * - 行移動を1回反映してidleへ戻り、DnD終了後のモード継続可否を現在Tableから解決する。
+	 * - 更新対象セル数を確認し、行移動を直接1回反映してidleへ戻る。
 	 */
-	it( 'when complete revalidation succeeds, should apply the row move and finish normally', () => {
+	it( 'when complete revalidation succeeds for a small move, should apply the row move and finish normally', () => {
 		startActiveSession();
 		rowDndInteraction.updateDestination( 4 );
 
 		rowDndInteraction.complete();
 
+		expect( getAffectedCellCountMock ).toHaveBeenCalledWith( {
+			clientId: 'table-a',
+			sourceRowIndex: 1,
+			destinationBoundaryIndex: 4,
+		} );
 		expect( applyRowMoveMock ).toHaveBeenCalledWith( {
 			clientId: 'table-a',
 			sourceRowIndex: 1,
 			destinationBoundaryIndex: 4,
 		} );
+		expect( requestLargeRowReorderApplyMock ).not.toHaveBeenCalled();
 		expect( getRowDndPhase() ).toBe( 'idle' );
 		expect( terminationNoticeListener ).not.toHaveBeenCalled();
 		expect( resolveAfterDndMock ).toHaveBeenCalledWith( 'table-a', true );
 	} );
 
 	/**
-	 * 概要:
-	 * - 有効な最終移動先がないdropはTableを更新しない正常終了として扱うことを確認する。
+	 * 大規模な行移動はDnD Session終了後に確認付き反映へ引き渡すことを確認する。
+	 *
 	 * 事前条件:
-	 * - active Sessionは成立しているが、有効な移動先は保持していない。
+	 * - 更新対象セル数が共通閾値を超えている。
+	 *
+	 * 操作:
+	 * - 有効な移動先でcomplete()する。
+	 *
+	 * 期待結果:
+	 * - 行移動を直接反映せず、まずDnD Sessionをidleへ戻す。
+	 * - 同期的なcomplete処理を抜けた後に、移動意図を確認付き反映へ1回だけ引き渡す。
+	 */
+	it( 'when affected cell count exceeds the threshold, should end the DnD session before requesting confirmation', async () => {
+		getAffectedCellCountMock.mockReturnValue( 2_001 );
+		startActiveSession();
+		rowDndInteraction.updateDestination( 4 );
+
+		rowDndInteraction.complete();
+
+		expect( getRowDndPhase() ).toBe( 'idle' );
+		expect( requestLargeRowReorderApplyMock ).not.toHaveBeenCalled();
+		expect( applyRowMoveMock ).not.toHaveBeenCalled();
+
+		await Promise.resolve();
+
+		expect( requestLargeRowReorderApplyMock ).toHaveBeenCalledTimes( 1 );
+		expect( requestLargeRowReorderApplyMock ).toHaveBeenCalledWith( {
+			tableIdentity: 'table-a',
+			sourceRowIndex: 1,
+			destinationBoundaryIndex: 4,
+		} );
+	} );
+
+	/**
+	 * 更新対象セル数を安全に算出できない場合はTableを変更しないことを確認する。
+	 *
+	 * 事前条件:
+	 * - complete時の移動自体は有効だが、更新対象セル数を取得できない。
+	 *
 	 * 操作:
 	 * - complete()する。
+	 *
 	 * 期待結果:
-	 * - 行移動と異常終了通知を発生させずidleへ戻る。
+	 * - 直接反映も確認付き反映も行わず、異常終了通知を発行する。
+	 */
+	it( 'when affected cell count cannot be resolved, should terminate without changing the table', () => {
+		getAffectedCellCountMock.mockReturnValue( null );
+		startActiveSession();
+		rowDndInteraction.updateDestination( 4 );
+
+		rowDndInteraction.complete();
+
+		expect( requestLargeRowReorderApplyMock ).not.toHaveBeenCalled();
+		expect( applyRowMoveMock ).not.toHaveBeenCalled();
+		expect( terminationNoticeListener ).toHaveBeenCalledTimes( 1 );
+	} );
+
+	/**
+	 * 有効な最終移動先がないdropを正常終了として扱うことを確認する。
+	 *
+	 * 操作:
+	 * - 移動先を保持せずcomplete()する。
+	 *
+	 * 期待結果:
+	 * - Tableを更新せず異常終了通知も発生しない。
 	 */
 	it( 'when complete has no valid destination, should finish without applying a row move or notice', () => {
 		startActiveSession();
@@ -186,14 +268,16 @@ describe( 'Row DnD Interaction lifecycle', () => {
 	} );
 
 	/**
-	 * 概要:
-	 * - complete直前の外部構造変化で移動元が成立しなくなった場合に安全終了することを確認する。
+	 * complete直前に移動元が無効になった場合は安全終了することを確認する。
+	 *
 	 * 事前条件:
 	 * - Session開始後に移動元行が結合範囲へ含まれる。
+	 *
 	 * 操作:
 	 * - complete()する。
+	 *
 	 * 期待結果:
-	 * - Tableを更新せず異常終了通知を1回発行してidleへ戻る。
+	 * - Tableを更新せず異常終了通知を1回発行する。
 	 */
 	it( 'when the source becomes invalid before complete, should terminate without applying the row move', () => {
 		startActiveSession();
@@ -211,14 +295,16 @@ describe( 'Row DnD Interaction lifecycle', () => {
 	} );
 
 	/**
-	 * 概要:
-	 * - complete直前の外部構造変化で最終移動先が成立しなくなった場合に安全終了することを確認する。
+	 * complete直前に移動先が無効になった場合は安全終了することを確認する。
+	 *
 	 * 事前条件:
-	 * - Session開始時には境界4が有効だが、complete時には境界4が分断不可になっている。
+	 * - Session開始後に最終移動先が分断不可境界になる。
+	 *
 	 * 操作:
-	 * - 境界4を保持した状態でcomplete()する。
+	 * - complete()する。
+	 *
 	 * 期待結果:
-	 * - Tableを更新せず異常終了通知を1回発行してidleへ戻る。
+	 * - Tableを更新せず異常終了通知を1回発行する。
 	 */
 	it( 'when the destination becomes invalid before complete, should terminate without applying the row move', () => {
 		startActiveSession();
@@ -236,14 +322,16 @@ describe( 'Row DnD Interaction lifecycle', () => {
 	} );
 
 	/**
-	 * 概要:
-	 * - 再照合後の外部状態変化で確定済み行移動を反映できない場合も安全終了することを確認する。
+	 * 再照合後に行移動を反映できない場合も安全終了することを確認する。
+	 *
 	 * 事前条件:
-	 * - complete時の再照合は成立するが、Table Integrationは行移動を反映できない。
+	 * - complete時の再照合は成立するが、Table Integrationで反映できない。
+	 *
 	 * 操作:
-	 * - 有効な移動先を保持した状態でcomplete()する。
+	 * - complete()する。
+	 *
 	 * 期待結果:
-	 * - active Sessionをidleへ戻し、異常終了通知を1回発行する。
+	 * - idleへ戻り、異常終了通知を1回発行する。
 	 */
 	it( 'when the confirmed row move cannot be applied, should finish with a termination notice', () => {
 		startActiveSession();
@@ -258,12 +346,14 @@ describe( 'Row DnD Interaction lifecycle', () => {
 	} );
 
 	/**
-	 * 概要:
-	 * - cancelではTableを更新せずSessionを終了することを確認する。
+	 * cancelではTableを更新せずSessionを終了することを確認する。
+	 *
 	 * 事前条件:
 	 * - active Sessionが存在する。
+	 *
 	 * 操作:
 	 * - cancel()する。
+	 *
 	 * 期待結果:
 	 * - Table更新なしでidleへ戻り、モード継続可否を解決する。
 	 */

@@ -4,7 +4,7 @@
  * 表示側は翻訳処理の詳細を持たず、この境界から現在の表示文言を取得する。
  */
 
-import { __ } from '@wordpress/i18n';
+import { __, sprintf } from '@wordpress/i18n';
 
 /** プラグイン名として表示する翻訳済み文言。 */
 export const PLUGIN_NAME = __( 'Yamabiko Table Reorder', 'yamabiko-table-reorder' );
@@ -62,3 +62,57 @@ export const getReorderGuidanceMessage = () =>
  */
 export const getCloseReorderGuidanceLabel = () =>
 	__( 'Close reorder guidance', 'yamabiko-table-reorder' );
+
+/** 大規模反映前の確認ダイアログタイトルを取得する。 */
+export const getLargeReorderApplyConfirmTitle = () =>
+	__( 'Apply the new order?', 'yamabiko-table-reorder' );
+
+/**
+ * 大規模な行移動の確認対象を、利用者向けの1-based位置で示す。
+ *
+ * @param sourcePosition      移動元の行番号。
+ * @param destinationPosition 反映後の移動先行番号。
+ * @return 移動元と移動先を簡潔に示す文言。
+ */
+export const getLargeRowReorderMoveSummary = (
+	sourcePosition: number,
+	destinationPosition: number
+) => {
+	/* translators: 1: 移動元の行番号, 2: 移動先の行番号 */
+	const message = __( 'Row %1$d → %2$d', 'yamabiko-table-reorder' );
+	return sprintf( message, sourcePosition, destinationPosition );
+};
+
+/**
+ * 大規模な列移動の確認対象を、利用者向けの1-based位置で示す。
+ *
+ * @param sourcePosition      移動元の列番号。
+ * @param destinationPosition 反映後の移動先列番号。
+ * @return 移動元と移動先を簡潔に示す文言。
+ */
+export const getLargeColumnReorderMoveSummary = (
+	sourcePosition: number,
+	destinationPosition: number
+) => {
+	/* translators: 1: 移動元の列番号, 2: 移動先の列番号 */
+	const message = __( 'Column %1$d → %2$d', 'yamabiko-table-reorder' );
+	return sprintf( message, sourcePosition, destinationPosition );
+};
+
+/** 大規模反映前の確認ダイアログ本文を取得する。 */
+export const getLargeReorderApplyConfirmBody = () =>
+	__( 'Applying this reorder may take some time.', 'yamabiko-table-reorder' );
+
+/** 大規模反映を続行するボタン表示名を取得する。 */
+export const getLargeReorderContinueLabel = () => __( 'Continue', 'yamabiko-table-reorder' );
+
+/** 大規模反映を中止するボタン表示名を取得する。 */
+export const getLargeReorderCancelLabel = () => __( 'Cancel', 'yamabiko-table-reorder' );
+
+/** 大規模反映中であることを知らせる文言を取得する。 */
+export const getLargeReorderApplyingMessage = () =>
+	__( 'Applying the new order…', 'yamabiko-table-reorder' );
+
+/** 大規模反映の完了を待つよう案内する補足文を取得する。 */
+export const getLargeReorderApplyingDetail = () =>
+	__( 'Please wait until the update is complete.', 'yamabiko-table-reorder' );
