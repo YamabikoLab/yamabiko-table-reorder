@@ -1,44 +1,31 @@
 /**
- * #910の大規模Table並び替えPoCとして、確認UI、Table退避、全Block編集抑止、反映・投稿保存・画面離脱を接続する。
+ * #912の大規模Table並び替えPoCとして、確認UI、Table退避、反映、再mountを接続する。
  *
  * PoC状態はDnD Sessionと分離し、対象Core TableのBlockEditだけを反映開始前に退避する。
- * 保存失敗時はTable退避と編集抑止を維持した終端状態とする。
+ * 反映完了または通常の反映不能後はPoCを終了し、現在Tableを再mountして通常編集へ戻す。
  */
 
-import { useBlockEditingMode } from '@wordpress/block-editor';
 import { Button, Modal } from '@wordpress/components';
-import { dispatch, select } from '@wordpress/data';
 import type { ReactNode } from '@wordpress/element';
-import { useEffect, useSyncExternalStore } from 'react';
+import { useEffect, useRef, useSyncExternalStore } from 'react';
 
 import {
 	getLargeReorderApplyConfirmBody,
 	getLargeReorderApplyConfirmTitle,
 	getLargeReorderApplyingMessage,
-	getLargeReorderApplyFailedMessage,
 	getLargeReorderCancelLabel,
 	getLargeReorderContinueLabel,
 } from '@/messages';
 import {
 	cancelLargeReorderPoc,
+	completeLargeReorderPoc,
 	confirmLargeReorderPoc,
-	failLargeReorderPoc,
 	getLargeReorderPocState,
 	subscribeLargeReorderPoc,
 } from '@/reorder/large-reorder-poc';
 import { isRowReorderTargetMovable } from '@/reorder/row-reorder/domain/target-validity';
 import { rowTableIntegration } from '@/reorder/row-reorder/responsibilities/table-integration';
 
-type EditorDispatch = {
-	savePost: () => Promise< unknown >;
-};
-
-type EditorSelect = {
-	didPostSaveRequestSucceed: () => boolean;
-};
-
-const selectByName = select as unknown as ( storeName: string ) => unknown;
-const dispatchByName = dispatch as unknown as ( storeName: string ) => unknown;
 let applyInFlight = false;
 
 /** 現在のPoC状態をReact componentから購読する。 */
@@ -46,22 +33,11 @@ export const useLargeReorderPocState = () =>
 	useSyncExternalStore( subscribeLargeReorderPoc, getLargeReorderPocState );
 
 /**
- * Continue後のPoC中は各Blockの編集をWordPress公開APIで無効化する。
- *
- * 保存失敗後もfailed終端状態で編集不可を維持し、Store上に残る並び替え結果を後続の手動保存へ混入させない。
- */
-export const useLargeReorderPocEditingGuard = (): void => {
-	const state = useLargeReorderPocState();
-	const editingDisabled = state.phase === 'applying' || state.phase === 'failed';
-	useBlockEditingMode( editingDisabled ? 'disabled' : undefined );
-};
-
-/**
- * Table退避完了後に現在構造を再照合して行移動を反映し、WordPress標準の投稿保存と投稿一覧への離脱まで実行する。
+ * Table退避完了後に現在構造を再照合して行移動を反映し、反映成否にかかわらず通常表示へ戻す。
  *
  * React Strict Mode等でEffectが再実行されても同じPoCを二重反映しない。
  */
-const applyAndSave = async (): Promise< void > => {
+const applyAndRemount = (): void => {
 	if ( applyInFlight ) {
 		return;
 	}
@@ -89,41 +65,33 @@ const applyAndSave = async (): Promise< void > => {
 			isRowReorderTargetMovable( target, constraints ) &&
 			destinationValid;
 
-		/* Continue後の外部状態変化で移動が成立しなくなった場合は、Tableを更新せずfailed終端状態へ移る。 */
+		/* Continue後の外部状態変化で移動が成立しなくなった場合はTableを変更せず、現在Tableの再mountへ進む。 */
 		if ( ! moveStillValid ) {
-			failLargeReorderPoc();
+			performance.mark( 'ytr-912-remount-start' );
+			completeLargeReorderPoc();
 			return;
 		}
 
-		performance.mark( 'ytr-910-update-start' );
+		performance.mark( 'ytr-912-update-start' );
 		const applied = rowTableIntegration.applyRowMove( {
 			clientId: state.move.tableIdentity,
 			sourceRowIndex: state.move.sourceRowIndex,
 			destinationBoundaryIndex: state.move.destinationBoundaryIndex,
 		} );
-		performance.mark( 'ytr-910-update-end' );
-		performance.measure( 'ytr-910-update', 'ytr-910-update-start', 'ytr-910-update-end' );
+		performance.mark( 'ytr-912-update-end' );
+		performance.measure( 'ytr-912-update', 'ytr-912-update-start', 'ytr-912-update-end' );
 
+		/* 反映不能も通常の外部状態変化として扱い、placeholderを残さず現在Tableの再mountへ進む。 */
 		if ( ! applied ) {
-			failLargeReorderPoc();
+			performance.mark( 'ytr-912-remount-start' );
+			completeLargeReorderPoc();
 			return;
 		}
 
-		const editorDispatch = dispatchByName( 'core/editor' ) as EditorDispatch;
-		performance.mark( 'ytr-910-save-start' );
-		await editorDispatch.savePost();
-		performance.mark( 'ytr-910-save-end' );
-		performance.measure( 'ytr-910-save', 'ytr-910-save-start', 'ytr-910-save-end' );
-
-		const editorSelect = selectByName( 'core/editor' ) as EditorSelect;
-		if ( ! editorSelect.didPostSaveRequestSucceed() ) {
-			failLargeReorderPoc();
-			return;
-		}
-
-		globalThis.location.assign( 'edit.php' );
-	} catch {
-		failLargeReorderPoc();
+		performance.mark( 'ytr-912-remount-start' );
+		completeLargeReorderPoc();
+	} finally {
+		applyInFlight = false;
 	}
 };
 
@@ -133,7 +101,7 @@ const applyAndSave = async (): Promise< void > => {
  * @param props          対象Tableの識別情報と元のBlockEdit表示。
  * @param props.clientId 対象Table個体のclientId。
  * @param props.children 通常時に表示するGutenberg本来のTable編集UI。
- * @return PoC対象でなければ通常UI、確認中は確認ダイアログ、反映開始後はTableを退避した軽量表示。
+ * @return PoC対象でなければ通常UI、確認中は確認ダイアログ、反映中はTableを退避した軽量表示。
  */
 export const LargeReorderPocTableBoundary = ( props: {
 	clientId: string;
@@ -141,6 +109,7 @@ export const LargeReorderPocTableBoundary = ( props: {
 } ) => {
 	const { clientId, children } = props;
 	const state = useLargeReorderPocState();
+	const wasApplyingForTarget = useRef( false );
 	const isTarget = state.phase !== 'idle' && state.move.tableIdentity === clientId;
 	const shouldApply = isTarget && state.phase === 'applying';
 
@@ -149,16 +118,27 @@ export const LargeReorderPocTableBoundary = ( props: {
 			return;
 		}
 
-		performance.mark( 'ytr-910-block-edit-unmounted' );
-		void applyAndSave();
+		wasApplyingForTarget.current = true;
+		performance.mark( 'ytr-912-block-edit-unmounted' );
+		applyAndRemount();
 	}, [ shouldApply ] );
 
-	if ( isTarget && state.phase === 'applying' ) {
-		return <div role="status">{ getLargeReorderApplyingMessage() }</div>;
-	}
+	useEffect( () => {
+		if ( state.phase !== 'idle' || ! wasApplyingForTarget.current ) {
+			return;
+		}
 
-	if ( isTarget && state.phase === 'failed' ) {
-		return <div role="alert">{ getLargeReorderApplyFailedMessage() }</div>;
+		wasApplyingForTarget.current = false;
+		performance.mark( 'ytr-912-remount-complete' );
+		performance.measure(
+			'ytr-912-remount',
+			'ytr-912-remount-start',
+			'ytr-912-remount-complete'
+		);
+	}, [ state.phase ] );
+
+	if ( shouldApply ) {
+		return <div role="status">{ getLargeReorderApplyingMessage() }</div>;
 	}
 
 	return (
