@@ -2,7 +2,7 @@
  * 対応Tableの編集表示へReorder ModeのLifecycleとToolbar配置を接続するReact componentを所有する。
  *
  * Gutenberg本来のBlockEdit構造を維持し、選択中の対応TableだけへReorder Mode Toolbarを追加する。
- * #910 PoCでは大規模Row Reorderの反映開始後だけ対象Core TableのBlockEditを退避する。
+ * #912 PoCでは大規模Row Reorderの反映中だけ対象Core TableのBlockEditを退避し、反映後に再mountする。
  */
 
 import type { BlockEditProps } from '@wordpress/blocks';
