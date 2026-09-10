@@ -3,11 +3,11 @@
  *
  * Row / Columnそれぞれが所有する反映Lifecycleを購読し、確認中は通常TableとModalを表示する。
  * 確認Modalでは実Tableを仮配置せず、移動元と反映後の移動先を利用者向けの位置として明示する。
- * Continue後は対象TableのBlockEditを一度退避し、反映中表示をpaintしてから現在Tableを再照合・更新する。
+ * Continue後は対象TableのBlockEditを一度退避し、反映中は閉じられないModalで静的な処理状況と待機案内を表示してから現在Tableを再照合・更新する。
  * 再mount後は移動結果へscroll / focusを戻し、表示が安定するまで反映中表示を維持する。
  */
 
-import { Button, Modal } from '@wordpress/components';
+import { Button, Dashicon, Modal } from '@wordpress/components';
 import type { ReactNode } from 'react';
 import { useEffect, useRef, useSyncExternalStore } from 'react';
 
@@ -15,6 +15,7 @@ import {
 	getLargeColumnReorderMoveSummary,
 	getLargeReorderApplyConfirmBody,
 	getLargeReorderApplyConfirmTitle,
+	getLargeReorderApplyingDetail,
 	getLargeReorderApplyingMessage,
 	getLargeReorderCancelLabel,
 	getLargeReorderContinueLabel,
@@ -148,6 +149,34 @@ const completeAfterVisualPaint = ( editorWindow: Window, complete: () => void ):
 };
 
 /**
+ * 大規模反映中に、静的な処理状況と待機案内を利用者へ示す。
+ *
+ * 進捗率を推測せず、閉じられないModalと静的なWordPressアイコンで処理継続中であることだけを伝える。
+ */
+const ReorderApplyingModal = () => (
+	<Modal
+		title={ getLargeReorderApplyingMessage() }
+		onRequestClose={ () => undefined }
+		isDismissible={ false }
+		focusOnMount="firstContentElement"
+		size="small"
+	>
+		<div
+			role="status"
+			aria-live="polite"
+			aria-busy="true"
+			tabIndex={ 0 }
+			style={ { textAlign: 'center' } }
+		>
+			<p aria-hidden="true">
+				<Dashicon icon="clock" />
+			</p>
+			<p>{ getLargeReorderApplyingDetail() }</p>
+		</div>
+	</Modal>
+);
+
+/**
  * 対象TableのBlockEditへ確認付き大規模反映UIを接続する。
  *
  * @param props          対象Tableと通常表示。
@@ -233,8 +262,8 @@ export const ReorderApplyTableBoundary = ( props: { clientId: string; children: 
 
 	if ( shouldApply ) {
 		return (
-			<div ref={ placeholder } role="status">
-				{ getLargeReorderApplyingMessage() }
+			<div ref={ placeholder }>
+				<ReorderApplyingModal />
 			</div>
 		);
 	}

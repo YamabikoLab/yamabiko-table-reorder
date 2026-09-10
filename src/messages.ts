@@ -112,3 +112,7 @@ export const getLargeReorderCancelLabel = () => __( 'Cancel', 'yamabiko-table-re
 /** 大規模反映中であることを知らせる文言を取得する。 */
 export const getLargeReorderApplyingMessage = () =>
 	__( 'Applying the new order…', 'yamabiko-table-reorder' );
+
+/** 大規模反映の完了を待つよう案内する補足文を取得する。 */
+export const getLargeReorderApplyingDetail = () =>
+	__( 'Please wait until the update is complete.', 'yamabiko-table-reorder' );

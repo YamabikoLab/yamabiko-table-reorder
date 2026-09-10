@@ -84,3 +84,7 @@ msgstr "キャンセル"
 #: src/messages.ts:114
 msgid "Applying the new order…"
 msgstr "並び替えを反映しています…"
+
+#: src/messages.ts:118
+msgid "Please wait until the update is complete."
+msgstr "完了するまでしばらくお待ちください。"

@@ -1,5 +1,5 @@
 /**
- * 確認付き大規模反映UIが、実Tableを仮配置せずに移動元と反映後の移動先を確認Modalへ示すことを確認する。
+ * 確認付き大規模反映UIが、確認対象と反映中の処理状況をWordPressのModalで適切に伝えることを確認する。
  */
 
 import { render, screen } from '@testing-library/react';
@@ -12,8 +12,14 @@ let mockColumnState: any = { phase: 'idle', move: null, applied: false };
 
 jest.mock( '@wordpress/components', () => ( {
 	Button: ( props: { children: ReactNode } ) => <button type="button">{ props.children }</button>,
-	Modal: ( props: { children: ReactNode; title: string } ) => (
+	Dashicon: ( props: { icon: string } ) => <span aria-hidden="true">{ props.icon }</span>,
+	Modal: ( props: { children: ReactNode; title: string; isDismissible?: boolean } ) => (
 		<div role="dialog" aria-label={ props.title }>
+			{ props.isDismissible !== false && (
+				<button type="button" aria-label="Close">
+					Close
+				</button>
+			) }
 			{ props.children }
 		</div>
 	),
@@ -24,6 +30,7 @@ jest.mock( '@/messages', () => ( {
 		`Column ${ source } → ${ destination }`,
 	getLargeReorderApplyConfirmBody: () => 'Applying this reorder may take some time.',
 	getLargeReorderApplyConfirmTitle: () => 'Apply the new order?',
+	getLargeReorderApplyingDetail: () => 'Please wait until the update is complete.',
 	getLargeReorderApplyingMessage: () => 'Applying the new order…',
 	getLargeReorderCancelLabel: () => 'Cancel',
 	getLargeReorderContinueLabel: () => 'Continue',
@@ -49,7 +56,7 @@ jest.mock( '@/reorder/column-reorder/responsibilities/reorder-apply', () => ( {
 	subscribeLargeColumnReorderApply: () => () => undefined,
 } ) );
 
-describe( 'Large reorder confirmation UI', () => {
+describe( 'Large reorder apply UI', () => {
 	beforeEach( () => {
 		mockRowState = { phase: 'idle', move: null, applied: false };
 		mockColumnState = { phase: 'idle', move: null, applied: false };
@@ -120,5 +127,44 @@ describe( 'Large reorder confirmation UI', () => {
 		);
 
 		expect( screen.getByText( 'Column 2 → 5' ) ).not.toBeNull();
+	} );
+
+	/**
+	 * 大規模な並び替えの反映中は、利用者が処理継続中であることと待機が必要なことを確認できることを確認する。
+	 *
+	 * 事前条件:
+	 * - 対象Tableの大規模な行並び替えを反映中である。
+	 *
+	 * 操作:
+	 * - 対象Tableの反映中UIを表示する。
+	 *
+	 * 期待結果:
+	 * - Table本体は一時退避される。
+	 * - 閉じられない反映中Modalに主文と待機案内が表示される。
+	 */
+	it( 'when a large reorder is applying, should show a non-dismissible status modal while the table is unavailable', () => {
+		mockRowState = {
+			phase: 'applying',
+			move: {
+				tableIdentity: 'table-a',
+				sourceRowIndex: 999,
+				destinationBoundaryIndex: 1,
+			},
+			applied: false,
+		};
+
+		render(
+			<ReorderApplyTableBoundary clientId="table-a">
+				<div>Table content</div>
+			</ReorderApplyTableBoundary>
+		);
+
+		expect( screen.queryByText( 'Table content' ) ).toBeNull();
+		expect(
+			screen.getByRole( 'dialog', { name: 'Applying the new order…' } )
+		).not.toBeNull();
+		expect( screen.getByText( 'Please wait until the update is complete.' ) ).not.toBeNull();
+		expect( screen.getByRole( 'status' ).getAttribute( 'aria-busy' ) ).toBe( 'true' );
+		expect( screen.queryByRole( 'button', { name: 'Close' } ) ).toBeNull();
 	} );
 } );
