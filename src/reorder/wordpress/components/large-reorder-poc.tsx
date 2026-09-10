@@ -32,6 +32,12 @@ let applyInFlight = false;
 export const useLargeReorderPocState = () =>
 	useSyncExternalStore( subscribeLargeReorderPoc, getLargeReorderPocState );
 
+/** 確認ダイアログのContinueから反映開始までの計測を開始する。 */
+const continueLargeReorderPoc = (): void => {
+	performance.mark( 'ytr-912-continue' );
+	confirmLargeReorderPoc();
+};
+
 /**
  * Table退避完了後に現在構造を再照合して行移動を反映し、反映成否にかかわらず通常表示へ戻す。
  *
@@ -135,6 +141,7 @@ export const LargeReorderPocTableBoundary = ( props: {
 			'ytr-912-remount-start',
 			'ytr-912-remount-complete'
 		);
+		performance.measure( 'ytr-912-total', 'ytr-912-continue', 'ytr-912-remount-complete' );
 	}, [ state.phase ] );
 
 	if ( shouldApply ) {
@@ -147,7 +154,7 @@ export const LargeReorderPocTableBoundary = ( props: {
 			{ isTarget && state.phase === 'confirming' && (
 				<Modal title={ getLargeReorderApplyConfirmTitle() } onRequestClose={ cancelLargeReorderPoc }>
 					<p>{ getLargeReorderApplyConfirmBody() }</p>
-					<Button variant="primary" onClick={ confirmLargeReorderPoc }>
+					<Button variant="primary" onClick={ continueLargeReorderPoc }>
 						{ getLargeReorderContinueLabel() }
 					</Button>
 					<Button variant="tertiary" onClick={ cancelLargeReorderPoc }>
