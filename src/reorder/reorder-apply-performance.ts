@@ -1,7 +1,7 @@
 /**
  * Row / Column Reorderに共通する反映性能の実測値と端末ローカルな学習値を所有する。
  *
- * Table構造や移動可否は解釈せず、直接反映の表示完了時間と更新対象セル数から性能閾値を学習する。
+ * Table構造や移動可否は解釈せず、直接反映の実行から表示完了までを計測し、更新対象セル数から性能閾値を学習する。
  * 学習値は現在のEditor環境のlocalStorageへ保存し、期限切れ・方針変更・保存異常時は利用しない。
  */
 
@@ -9,16 +9,6 @@ import { resolveEditorDomContext } from '@/reorder/editor-dom-context';
 
 /** 反映性能を方向別に保持するためのReorder方向。 */
 export type ReorderApplyDirection = 'row' | 'column';
-
-/**
- * 直接反映の開始時刻と、その操作で更新対象となった物理セル数。
- *
- * 正常に直接反映できた操作だけがこの値を生成する。
- */
-export type DirectReorderApplyMeasurement = {
-	affectedCellCount: number;
-	startedAt: number;
-};
 
 /**
  * 現在のEditor表示環境で反映性能を計測・保存するためのWeb API境界。
@@ -40,9 +30,7 @@ type LearnedReorderApplyThreshold = {
 
 const REORDER_APPLY_PERFORMANCE_POLICY_VERSION = 1;
 const REORDER_APPLY_PERFORMANCE_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000;
-
-/** 直接反映を遅い操作として学習する表示完了時間。 */
-export const SLOW_REORDER_APPLY_DURATION_MS = 1000;
+const SLOW_REORDER_APPLY_DURATION_MS = 1000;
 
 const storageKeys: Record< ReorderApplyDirection, string > = {
 	row: 'yamabiko-table-reorder:reorder-apply-performance:row',
@@ -163,7 +151,7 @@ export const getLearnedReorderApplyThreshold = (
  * @param storage           現在のEditor環境で利用するStorage。利用できない場合はnull。
  * @param nowMs             計測完了時のUnix epochミリ秒。
  */
-export const learnFromDirectReorderApply = (
+const learnFromDirectReorderApply = (
 	direction: ReorderApplyDirection,
 	affectedCellCount: number,
 	durationMs: number,
@@ -196,30 +184,47 @@ export const learnFromDirectReorderApply = (
 };
 
 /**
- * 正常な直接反映後に2描画周期待ち、更新済みTableの表示完了時間を学習へ渡す。
+ * 直接Table更新を実行し、正常に成立した場合だけ更新済みTableの表示完了時間を学習する。
  *
- * 物理DnD中の時間は含めず、直接Table更新開始時に作成された計測値から表示完了までを測る。
+ * 計測は直接Table更新の直前から開始し、更新後2描画周期が完了した時点までを対象とする。
+ * Editor環境を解決できない場合は計測せず直接反映だけを実行する。
  * 同一描画周期で発生するDnD Presentationの終了処理は厳密に分離せず、現在の終了順序を変更しない。
  *
- * @param direction   Row / Columnのどちらの直接反映を計測するか。
- * @param measurement 正常な直接反映開始時に確定した計測値。
- * @param runtime     同じEditor表示環境の計測・保存境界。
+ * @param direction         Row / Columnのどちらの直接反映を計測するか。
+ * @param affectedCellCount 今回の直接反映で更新対象となる物理セル数。
+ * @param runtime           現在のEditor表示環境の計測・保存境界。解決できない場合はnull。
+ * @param apply             直接Table更新を実行し、正常に成立した場合はtrueを返す処理。
+ * @return 直接Table更新が正常に成立した場合はtrue。
  */
-export const measureDirectReorderApplyAfterVisualPaint = (
+export const measureDirectReorderApply = (
 	direction: ReorderApplyDirection,
-	measurement: DirectReorderApplyMeasurement,
-	runtime: ReorderApplyRuntime
-): void => {
+	affectedCellCount: number,
+	runtime: ReorderApplyRuntime | null,
+	apply: () => boolean
+): boolean => {
+	if ( runtime === null ) {
+		const applied = apply();
+		return applied;
+	}
+
+	const startedAt = runtime.performanceNow();
+	const applied = apply();
+	if ( ! applied ) {
+		return false;
+	}
+
 	runtime.requestAnimationFrame( () => {
 		runtime.requestAnimationFrame( () => {
-			const durationMs = runtime.performanceNow() - measurement.startedAt;
+			const durationMs = runtime.performanceNow() - startedAt;
 			learnFromDirectReorderApply(
 				direction,
-				measurement.affectedCellCount,
+				affectedCellCount,
 				durationMs,
 				runtime.storage,
 				runtime.dateNow()
 			);
 		} );
 	} );
+
+	return true;
 };
