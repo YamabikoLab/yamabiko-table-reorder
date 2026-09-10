@@ -4,9 +4,7 @@
 
 import {
 	getLearnedReorderApplyThreshold,
-	learnFromDirectReorderApply,
-	measureDirectReorderApplyAfterVisualPaint,
-	SLOW_REORDER_APPLY_DURATION_MS,
+	measureDirectReorderApply,
 	type ReorderApplyRuntime,
 } from './reorder-apply-performance';
 
@@ -41,21 +39,72 @@ class MemoryStorage implements Storage {
 const NOW_MS = 1_800_000_000_000;
 const ROW_STORAGE_KEY = 'yamabiko-table-reorder:reorder-apply-performance:row';
 
+type RuntimeController = {
+	runtime: ReorderApplyRuntime;
+	callbacks: FrameRequestCallback[];
+	setPerformanceNow: ( value: number ) => void;
+	setDateNow: ( value: number ) => void;
+};
+
+/**
+ * 直接反映から表示完了までの時間を任意に進められる性能計測環境を作成する。
+ *
+ * @param storage 学習値を保存するStorage。
+ * @return 計測時刻と描画周期をテストから制御できるRuntime。
+ */
+const createRuntimeController = ( storage: Storage ): RuntimeController => {
+	const callbacks: FrameRequestCallback[] = [];
+	let performanceNow = 100;
+	let dateNow = NOW_MS;
+
+	return {
+		runtime: {
+			storage,
+			performanceNow: () => performanceNow,
+			dateNow: () => dateNow,
+			requestAnimationFrame: ( callback ) => {
+				callbacks.push( callback );
+				return callbacks.length;
+			},
+		},
+		callbacks,
+		setPerformanceNow: ( value ) => {
+			performanceNow = value;
+		},
+		setDateNow: ( value ) => {
+			dateNow = value;
+		},
+	};
+};
+
+/** 予約済みの2描画周期を完了させる。 */
+const completeVisualFrames = ( callbacks: FrameRequestCallback[] ): void => {
+	callbacks.shift()?.( 0 );
+	callbacks.shift()?.( 0 );
+};
+
 describe( 'Reorder apply performance learning', () => {
 	/**
 	 * 1秒未満で完了した直接反映は遅い操作として学習しないことを確認する。
 	 *
 	 * 操作:
-	 * - 1秒未満で完了した行の直接反映結果を学習へ渡す。
+	 * - 320セルの行の直接反映を開始し、999ms後に表示完了させる。
 	 *
 	 * 期待結果:
+	 * - 直接反映は成功する。
 	 * - 行の学習閾値は保存されない。
 	 */
 	it( 'when a direct apply completes below one second, should not learn a threshold', () => {
 		const storage = new MemoryStorage();
+		const controller = createRuntimeController( storage );
+		const apply = jest.fn( () => true );
 
-		learnFromDirectReorderApply( 'row', 320, SLOW_REORDER_APPLY_DURATION_MS - 1, storage, NOW_MS );
+		const applied = measureDirectReorderApply( 'row', 320, controller.runtime, apply );
+		controller.setPerformanceNow( 1099 );
+		completeVisualFrames( controller.callbacks );
 
+		expect( applied ).toBe( true );
+		expect( apply ).toHaveBeenCalledTimes( 1 );
 		expect( getLearnedReorderApplyThreshold( 'row', storage, NOW_MS ) ).toBeNull();
 	} );
 
@@ -63,7 +112,7 @@ describe( 'Reorder apply performance learning', () => {
 	 * 1秒以上かかった直接反映の更新対象セル数を、その方向だけの学習閾値として保存することを確認する。
 	 *
 	 * 操作:
-	 * - 320セルの行の直接反映が1秒かかった結果を学習へ渡す。
+	 * - 320セルの行の直接反映を開始し、1秒後に表示完了させる。
 	 *
 	 * 期待結果:
 	 * - 行の学習閾値は320になる。
@@ -71,8 +120,11 @@ describe( 'Reorder apply performance learning', () => {
 	 */
 	it( 'when a row direct apply takes one second, should learn only the row threshold', () => {
 		const storage = new MemoryStorage();
+		const controller = createRuntimeController( storage );
 
-		learnFromDirectReorderApply( 'row', 320, SLOW_REORDER_APPLY_DURATION_MS, storage, NOW_MS );
+		measureDirectReorderApply( 'row', 320, controller.runtime, () => true );
+		controller.setPerformanceNow( 1100 );
+		completeVisualFrames( controller.callbacks );
 
 		expect( getLearnedReorderApplyThreshold( 'row', storage, NOW_MS ) ).toBe( 320 );
 		expect( getLearnedReorderApplyThreshold( 'column', storage, NOW_MS ) ).toBeNull();
@@ -93,13 +145,64 @@ describe( 'Reorder apply performance learning', () => {
 	 */
 	it( 'when later slow applies are observed, should only lower the learned threshold', () => {
 		const storage = new MemoryStorage();
-		learnFromDirectReorderApply( 'row', 400, 1200, storage, NOW_MS );
+		const controller = createRuntimeController( storage );
 
-		learnFromDirectReorderApply( 'row', 450, 1400, storage, NOW_MS + 1000 );
+		measureDirectReorderApply( 'row', 400, controller.runtime, () => true );
+		controller.setPerformanceNow( 1300 );
+		completeVisualFrames( controller.callbacks );
+
+		controller.setPerformanceNow( 2000 );
+		controller.setDateNow( NOW_MS + 1000 );
+		measureDirectReorderApply( 'row', 450, controller.runtime, () => true );
+		controller.setPerformanceNow( 3200 );
+		completeVisualFrames( controller.callbacks );
 		expect( getLearnedReorderApplyThreshold( 'row', storage, NOW_MS + 1000 ) ).toBe( 400 );
 
-		learnFromDirectReorderApply( 'row', 300, 1100, storage, NOW_MS + 2000 );
+		controller.setPerformanceNow( 4000 );
+		controller.setDateNow( NOW_MS + 2000 );
+		measureDirectReorderApply( 'row', 300, controller.runtime, () => true );
+		controller.setPerformanceNow( 5100 );
+		completeVisualFrames( controller.callbacks );
 		expect( getLearnedReorderApplyThreshold( 'row', storage, NOW_MS + 2000 ) ).toBe( 300 );
+	} );
+
+	/**
+	 * 直接反映が成立しなかった場合は性能学習を行わないことを確認する。
+	 *
+	 * 操作:
+	 * - 直接反映処理がfalseを返す操作を実行する。
+	 *
+	 * 期待結果:
+	 * - falseを返す。
+	 * - 表示完了待ちは予約されず、学習値も保存されない。
+	 */
+	it( 'when a direct apply does not succeed, should not schedule performance learning', () => {
+		const storage = new MemoryStorage();
+		const controller = createRuntimeController( storage );
+
+		const applied = measureDirectReorderApply( 'row', 320, controller.runtime, () => false );
+
+		expect( applied ).toBe( false );
+		expect( controller.callbacks ).toHaveLength( 0 );
+		expect( getLearnedReorderApplyThreshold( 'row', storage, NOW_MS ) ).toBeNull();
+	} );
+
+	/**
+	 * Editor環境を解決できない場合も、性能学習を理由に直接反映を止めないことを確認する。
+	 *
+	 * 操作:
+	 * - Runtimeなしで直接反映を実行する。
+	 *
+	 * 期待結果:
+	 * - 直接反映の結果をそのまま返す。
+	 */
+	it( 'when the performance runtime is unavailable, should apply without measuring', () => {
+		const apply = jest.fn( () => true );
+
+		const applied = measureDirectReorderApply( 'column', 280, null, apply );
+
+		expect( applied ).toBe( true );
+		expect( apply ).toHaveBeenCalledTimes( 1 );
 	} );
 
 	/**
@@ -116,7 +219,10 @@ describe( 'Reorder apply performance learning', () => {
 	 */
 	it( 'when a learned threshold is older than thirty days, should treat it as expired', () => {
 		const storage = new MemoryStorage();
-		learnFromDirectReorderApply( 'row', 320, 1200, storage, NOW_MS );
+		const controller = createRuntimeController( storage );
+		measureDirectReorderApply( 'row', 320, controller.runtime, () => true );
+		controller.setPerformanceNow( 1300 );
+		completeVisualFrames( controller.callbacks );
 		const thirtyOneDaysLater = NOW_MS + 31 * 24 * 60 * 60 * 1000;
 
 		expect( getLearnedReorderApplyThreshold( 'row', storage, thirtyOneDaysLater ) ).toBeNull();
@@ -151,40 +257,24 @@ describe( 'Reorder apply performance learning', () => {
 	/**
 	 * 更新済みTableの表示完了を2描画周期後として扱い、その時点までの時間だけを学習へ渡すことを確認する。
 	 *
-	 * 事前条件:
-	 * - 直接Table更新は時刻100から開始している。
-	 * - 2描画周期後の時刻は1100である。
-	 *
 	 * 操作:
-	 * - 表示完了計測を開始し、予約された2描画周期を進める。
+	 * - 列の直接反映を開始し、予約された描画周期を1回ずつ進める。
 	 *
 	 * 期待結果:
 	 * - 1描画周期目では学習しない。
-	 * - 2描画周期目で1000msの直接反映として閾値を学習する。
+	 * - 2描画周期目で1秒以上の直接反映として閾値を学習する。
 	 */
 	it( 'when two visual frames complete after a direct apply, should learn from the elapsed display time', () => {
 		const storage = new MemoryStorage();
-		const callbacks: FrameRequestCallback[] = [];
-		const runtime: ReorderApplyRuntime = {
-			storage,
-			performanceNow: () => 1100,
-			dateNow: () => NOW_MS,
-			requestAnimationFrame: ( callback ) => {
-				callbacks.push( callback );
-				return callbacks.length;
-			},
-		};
+		const controller = createRuntimeController( storage );
 
-		measureDirectReorderApplyAfterVisualPaint(
-			'column',
-			{ affectedCellCount: 280, startedAt: 100 },
-			runtime
-		);
+		measureDirectReorderApply( 'column', 280, controller.runtime, () => true );
+		controller.setPerformanceNow( 1100 );
 
-		callbacks.shift()?.( 0 );
+		controller.callbacks.shift()?.( 0 );
 		expect( getLearnedReorderApplyThreshold( 'column', storage, NOW_MS ) ).toBeNull();
 
-		callbacks.shift()?.( 0 );
+		controller.callbacks.shift()?.( 0 );
 		expect( getLearnedReorderApplyThreshold( 'column', storage, NOW_MS ) ).toBe( 280 );
 	} );
 
