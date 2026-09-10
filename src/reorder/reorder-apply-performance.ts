@@ -111,8 +111,7 @@ export const resolveReorderApplyRuntime = (
 		performanceNow: () => editorContext.window.performance.now(),
 		dateNow: () =>
 			editorContext.window.performance.timeOrigin + editorContext.window.performance.now(),
-		requestAnimationFrame: ( callback ) =>
-			editorContext.window.requestAnimationFrame( callback ),
+		requestAnimationFrame: ( callback ) => editorContext.window.requestAnimationFrame( callback ),
 	};
 };
 
@@ -172,15 +171,13 @@ export const learnFromDirectReorderApply = (
 	nowMs: number
 ): void => {
 	const slowApply = durationMs >= SLOW_REORDER_APPLY_DURATION_MS;
-	const affectedCellCountValid =
-		Number.isInteger( affectedCellCount ) && affectedCellCount > 0;
+	const affectedCellCountValid = Number.isInteger( affectedCellCount ) && affectedCellCount > 0;
 	if ( ! slowApply || ! affectedCellCountValid || storage === null ) {
 		return;
 	}
 
 	const currentThreshold = getLearnedReorderApplyThreshold( direction, storage, nowMs );
-	const shouldLowerThreshold =
-		currentThreshold === null || affectedCellCount < currentThreshold;
+	const shouldLowerThreshold = currentThreshold === null || affectedCellCount < currentThreshold;
 	if ( ! shouldLowerThreshold ) {
 		return;
 	}

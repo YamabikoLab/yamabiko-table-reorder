@@ -54,13 +54,7 @@ describe( 'Reorder apply performance learning', () => {
 	it( 'when a direct apply completes below one second, should not learn a threshold', () => {
 		const storage = new MemoryStorage();
 
-		learnFromDirectReorderApply(
-			'row',
-			320,
-			SLOW_REORDER_APPLY_DURATION_MS - 1,
-			storage,
-			NOW_MS
-		);
+		learnFromDirectReorderApply( 'row', 320, SLOW_REORDER_APPLY_DURATION_MS - 1, storage, NOW_MS );
 
 		expect( getLearnedReorderApplyThreshold( 'row', storage, NOW_MS ) ).toBeNull();
 	} );
@@ -78,13 +72,7 @@ describe( 'Reorder apply performance learning', () => {
 	it( 'when a row direct apply takes one second, should learn only the row threshold', () => {
 		const storage = new MemoryStorage();
 
-		learnFromDirectReorderApply(
-			'row',
-			320,
-			SLOW_REORDER_APPLY_DURATION_MS,
-			storage,
-			NOW_MS
-		);
+		learnFromDirectReorderApply( 'row', 320, SLOW_REORDER_APPLY_DURATION_MS, storage, NOW_MS );
 
 		expect( getLearnedReorderApplyThreshold( 'row', storage, NOW_MS ) ).toBe( 320 );
 		expect( getLearnedReorderApplyThreshold( 'column', storage, NOW_MS ) ).toBeNull();
@@ -131,9 +119,7 @@ describe( 'Reorder apply performance learning', () => {
 		learnFromDirectReorderApply( 'row', 320, 1200, storage, NOW_MS );
 		const thirtyOneDaysLater = NOW_MS + 31 * 24 * 60 * 60 * 1000;
 
-		expect(
-			getLearnedReorderApplyThreshold( 'row', storage, thirtyOneDaysLater )
-		).toBeNull();
+		expect( getLearnedReorderApplyThreshold( 'row', storage, thirtyOneDaysLater ) ).toBeNull();
 	} );
 
 	/**

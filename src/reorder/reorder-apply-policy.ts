@@ -36,8 +36,7 @@ export const requiresLargeReorderApply = (
 	storage: Storage | null,
 	nowMs: number
 ): boolean => {
-	const exceedsDefaultThreshold =
-		affectedCellCount > REORDER_APPLY_CONFIRM_CELL_THRESHOLD;
+	const exceedsDefaultThreshold = affectedCellCount > REORDER_APPLY_CONFIRM_CELL_THRESHOLD;
 	if ( exceedsDefaultThreshold ) {
 		return true;
 	}

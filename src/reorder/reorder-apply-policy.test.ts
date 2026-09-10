@@ -52,12 +52,7 @@ describe( 'Reorder apply policy', () => {
 		const storage = new MemoryStorage();
 
 		expect(
-			requiresLargeReorderApply(
-				REORDER_APPLY_CONFIRM_CELL_THRESHOLD,
-				'row',
-				storage,
-				NOW_MS
-			)
+			requiresLargeReorderApply( REORDER_APPLY_CONFIRM_CELL_THRESHOLD, 'row', storage, NOW_MS )
 		).toBe( false );
 	} );
 
@@ -74,12 +69,7 @@ describe( 'Reorder apply policy', () => {
 		const storage = new MemoryStorage();
 
 		expect(
-			requiresLargeReorderApply(
-				REORDER_APPLY_CONFIRM_CELL_THRESHOLD + 1,
-				'row',
-				storage,
-				NOW_MS
-			)
+			requiresLargeReorderApply( REORDER_APPLY_CONFIRM_CELL_THRESHOLD + 1, 'row', storage, NOW_MS )
 		).toBe( true );
 	} );
 
@@ -115,12 +105,7 @@ describe( 'Reorder apply policy', () => {
 	 */
 	it( 'when storage is unavailable, should fall back to the default threshold', () => {
 		expect(
-			requiresLargeReorderApply(
-				REORDER_APPLY_CONFIRM_CELL_THRESHOLD,
-				'column',
-				null,
-				NOW_MS
-			)
+			requiresLargeReorderApply( REORDER_APPLY_CONFIRM_CELL_THRESHOLD, 'column', null, NOW_MS )
 		).toBe( false );
 	} );
 } );
