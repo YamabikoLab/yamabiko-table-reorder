@@ -484,8 +484,6 @@ const renderMovingColumn = (
 /**
  * DnD開始時に確定した列表示を、現在の物理ドラッグ位置へ縦横とも追従する独立表示として描画する。
  *
- * 移動元の視覚差は実Tableセルを変更せず、同じ開始時配置を使う独立した固定表示として描画する。
- *
  * @param props          移動表示に必要な配置と現在位置。
  * @param props.layout   DnD開始時に確定した元行とTableの配置情報。
  * @param props.position 現在の移動表示位置。
@@ -504,12 +502,6 @@ const ColumnMovingOverlay = ( props: {
 		}
 	}, [ layout ] );
 
-	const sourceVeilStyle: CSSProperties = {
-		top: layout.initialTop,
-		left: layout.initialLeft,
-		width: layout.columnWidth,
-		height: layout.snapshotHeight,
-	};
 	const overlayStyle: CSSProperties = {
 		top: position.top,
 		left: position.left,
@@ -518,22 +510,15 @@ const ColumnMovingOverlay = ( props: {
 	};
 
 	return createPortal(
-		<>
-			<div
-				aria-hidden="true"
-				className="yamabiko-table-reorder-moving-column-source-veil"
-				style={ sourceVeilStyle }
-			/>
-			<div
-				ref={ ( element ) => {
-					containerRef.current = element;
-					element?.setAttribute( 'inert', '' );
-				} }
-				aria-hidden="true"
-				className="editor-styles-wrapper yamabiko-table-reorder-moving-column"
-				style={ overlayStyle }
-			/>
-		</>,
+		<div
+			ref={ ( element ) => {
+				containerRef.current = element;
+				element?.setAttribute( 'inert', '' );
+			} }
+			aria-hidden="true"
+			className="editor-styles-wrapper yamabiko-table-reorder-moving-column"
+			style={ overlayStyle }
+		/>,
 		layout.editorDocument.body
 	);
 };
@@ -606,7 +591,7 @@ export const ColumnMovingDisplay = () => {
 	}, [ phase ] );
 
 	useEffect( () => {
-		/* active Session中だけ移動対象セルの識別とDnD中のポインター表示を維持し、終了時は元のeditor状態へ確実に戻す。 */
+		/* active Session中だけ元列の描画対象セルを半透明にし、DnD終了時は元Table表示へ確実に戻す。 */
 		if ( phase !== 'active' || layout === null ) {
 			return;
 		}
