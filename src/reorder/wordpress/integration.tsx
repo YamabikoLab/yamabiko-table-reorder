@@ -2,6 +2,7 @@
  * Reorder機能をWordPress Editorの拡張ポイントへ接続する配線を所有する。
  *
  * WordPress固有の対応Block判定とEditor選択状態の解決をこの境界へ閉じ込め、Reorder Mode本体へ持ち込まない。
+ * #910 PoCでは反映開始後の全Block編集抑止もこのBlockEdit接続境界で適用する。
  */
 
 import { store as blockEditorStore } from '@wordpress/block-editor';
@@ -13,6 +14,7 @@ import {
 	type ReorderModeBlockListBlockProps,
 } from '@/reorder/wordpress/components/block-list-block';
 import { ReorderModeEdit, type TableBlockEditProps } from '@/reorder/wordpress/components/edit';
+import { useLargeReorderPocEditingGuard } from '@/reorder/wordpress/components/large-reorder-poc';
 
 /** Reorder Modeへ接続するTable Block名。 */
 const SUPPORTED_TABLE_BLOCKS = new Set( [ 'core/table', 'flexible-table-block/table' ] );
@@ -42,13 +44,16 @@ const getSelectedTableIdentity = () => {
  * BlockEditへReorder ModeのToolbar接続境界を追加するHOC。
  *
  * BlockEdit自体は独自DOM要素で囲まず、Gutenberg本来のBlock構造を維持する。
+ * #910 PoCの反映開始後は対応Block種別にかかわらずWordPressの編集modeをdisabledへ切り替える。
  *
  * @param BlockEdit Gutenbergが提供する元のBlockEdit component。
- * @return 対応TableだけへReorder Modeを接続するBlockEdit component。
+ * @return 対応TableだけへReorder Modeを接続し、PoC中は全Blockへ編集抑止を適用するBlockEdit component。
  */
 export const withReorderMode = ( BlockEdit: ComponentType< TableBlockEditProps > ) =>
 	function WithReorderMode( props: TableBlockEditProps ) {
-		/* Reorder Modeの責務は対応Tableだけに限定し、その他のBlockの編集挙動には介入しない。 */
+		useLargeReorderPocEditingGuard();
+
+		/* Reorder Modeの責務は対応Tableだけに限定し、その他のBlockにはPoC中の編集抑止以外で介入しない。 */
 		if ( ! SUPPORTED_TABLE_BLOCKS.has( props.name ) ) {
 			return <BlockEdit { ...props } />;
 		}
