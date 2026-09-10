@@ -99,6 +99,27 @@ const focusMovedColumn = ( editorDocument: Document, clientId: string, columnInd
 };
 
 /**
+ * 反映中表示を残したまま2 frame待ち、再mount後の表示を確定してLifecycleを完了する。
+ *
+ * @param editorWindow 対象EditorのWindow。
+ * @param complete 対応方向の反映完了操作。
+ * @return 予約したframeを取り消すcleanup。
+ */
+const completeAfterVisualPaint = ( editorWindow: Window, complete: () => void ): ( () => void ) => {
+	let secondFrame = 0;
+	const firstFrame = editorWindow.requestAnimationFrame( () => {
+		secondFrame = editorWindow.requestAnimationFrame( complete );
+	} );
+	const cleanup = (): void => {
+		editorWindow.cancelAnimationFrame( firstFrame );
+		if ( secondFrame !== 0 ) {
+			editorWindow.cancelAnimationFrame( secondFrame );
+		}
+	};
+	return cleanup;
+};
+
+/**
  * 対象TableのBlockEditへ確認付き大規模反映UIを接続する。
  *
  * @param props 対象Tableと通常表示。
@@ -116,18 +137,18 @@ export const ReorderApplyTableBoundary = ( props: { clientId: string; children: 
 	const rowIsTarget = rowState.phase !== 'idle' && rowState.move.tableIdentity === clientId;
 	const columnIsTarget =
 		columnState.phase !== 'idle' && columnState.move.tableIdentity === clientId;
-	const activeDirection = rowIsTarget ? 'row' : columnIsTarget ? 'column' : null;
-	const activeState = activeDirection === 'row' ? rowState : activeDirection === 'column' ? columnState : null;
-	const shouldApply = activeState?.phase === 'applying';
+	const rowShouldApply = rowIsTarget && rowState.phase === 'applying';
+	const columnShouldApply = columnIsTarget && columnState.phase === 'applying';
+	const shouldApply = rowShouldApply || columnShouldApply;
 
 	useEffect( () => {
-		if ( ! shouldApply || ! activeDirection ) {
+		if ( ! shouldApply ) {
 			return;
 		}
 
 		editorDocument.current = placeholder.current?.ownerDocument ?? null;
 		const editorWindow = editorDocument.current?.defaultView ?? null;
-		const apply = activeDirection === 'row' ? applyLargeRowReorder : applyLargeColumnReorder;
+		const apply = rowShouldApply ? applyLargeRowReorder : applyLargeColumnReorder;
 		if ( ! editorWindow ) {
 			apply();
 			return;
@@ -143,48 +164,43 @@ export const ReorderApplyTableBoundary = ( props: { clientId: string; children: 
 				editorWindow.cancelAnimationFrame( secondFrame );
 			}
 		};
-	}, [ activeDirection, shouldApply ] );
+	}, [ columnShouldApply, rowShouldApply, shouldApply ] );
 
 	useEffect( () => {
-		if ( ! activeState || activeState.phase !== 'remounting' || ! activeDirection ) {
-			return;
+		if ( rowIsTarget && rowState.phase === 'remounting' ) {
+			if ( rowState.applied && editorDocument.current ) {
+				const insertionIndex =
+					rowState.move.destinationBoundaryIndex > rowState.move.sourceRowIndex
+						? rowState.move.destinationBoundaryIndex - 1
+						: rowState.move.destinationBoundaryIndex;
+				focusMovedRow( editorDocument.current, clientId, insertionIndex );
+			}
+
+			const editorWindow = editorDocument.current?.defaultView ?? null;
+			if ( ! editorWindow ) {
+				completeLargeRowReorderApply();
+				return;
+			}
+			return completeAfterVisualPaint( editorWindow, completeLargeRowReorderApply );
 		}
 
-		if ( activeState.applied && editorDocument.current ) {
-			if ( activeDirection === 'row' ) {
+		if ( columnIsTarget && columnState.phase === 'remounting' ) {
+			if ( columnState.applied && editorDocument.current ) {
 				const insertionIndex =
-					activeState.move.destinationBoundaryIndex > activeState.move.sourceRowIndex
-						? activeState.move.destinationBoundaryIndex - 1
-						: activeState.move.destinationBoundaryIndex;
-				focusMovedRow( editorDocument.current, clientId, insertionIndex );
-			} else {
-				const insertionIndex =
-					activeState.move.destinationBoundaryIndex > activeState.move.sourceColumnIndex
-						? activeState.move.destinationBoundaryIndex - 1
-						: activeState.move.destinationBoundaryIndex;
+					columnState.move.destinationBoundaryIndex > columnState.move.sourceColumnIndex
+						? columnState.move.destinationBoundaryIndex - 1
+						: columnState.move.destinationBoundaryIndex;
 				focusMovedColumn( editorDocument.current, clientId, insertionIndex );
 			}
-		}
 
-		const editorWindow = editorDocument.current?.defaultView ?? null;
-		const complete =
-			activeDirection === 'row' ? completeLargeRowReorderApply : completeLargeColumnReorderApply;
-		if ( ! editorWindow ) {
-			complete();
-			return;
-		}
-
-		let secondFrame = 0;
-		const firstFrame = editorWindow.requestAnimationFrame( () => {
-			secondFrame = editorWindow.requestAnimationFrame( complete );
-		} );
-		return () => {
-			editorWindow.cancelAnimationFrame( firstFrame );
-			if ( secondFrame !== 0 ) {
-				editorWindow.cancelAnimationFrame( secondFrame );
+			const editorWindow = editorDocument.current?.defaultView ?? null;
+			if ( ! editorWindow ) {
+				completeLargeColumnReorderApply();
+				return;
 			}
-		};
-	}, [ activeDirection, activeState, clientId ] );
+			return completeAfterVisualPaint( editorWindow, completeLargeColumnReorderApply );
+		}
+	}, [ clientId, columnIsTarget, columnState, rowIsTarget, rowState ] );
 
 	if ( shouldApply ) {
 		return (
@@ -194,16 +210,20 @@ export const ReorderApplyTableBoundary = ( props: { clientId: string; children: 
 		);
 	}
 
-	const confirming = activeState?.phase === 'confirming';
-	const remounting = activeState?.phase === 'remounting';
-	const confirm = activeDirection === 'row' ? confirmLargeRowReorderApply : confirmLargeColumnReorderApply;
-	const cancel = activeDirection === 'row' ? cancelLargeRowReorderApply : cancelLargeColumnReorderApply;
+	const rowConfirming = rowIsTarget && rowState.phase === 'confirming';
+	const columnConfirming = columnIsTarget && columnState.phase === 'confirming';
+	const confirming = rowConfirming || columnConfirming;
+	const remounting =
+		( rowIsTarget && rowState.phase === 'remounting' ) ||
+		( columnIsTarget && columnState.phase === 'remounting' );
+	const confirm = rowConfirming ? confirmLargeRowReorderApply : confirmLargeColumnReorderApply;
+	const cancel = rowConfirming ? cancelLargeRowReorderApply : cancelLargeColumnReorderApply;
 
 	return (
 		<>
 			{ children }
 			{ remounting && <div role="status">{ getLargeReorderApplyingMessage() }</div> }
-			{ confirming && activeDirection && (
+			{ confirming && (
 				<Modal title={ getLargeReorderApplyConfirmTitle() } onRequestClose={ cancel }>
 					<p>{ getLargeReorderApplyConfirmBody() }</p>
 					<Button variant="primary" onClick={ confirm }>
