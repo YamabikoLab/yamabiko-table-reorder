@@ -29,38 +29,49 @@ msgid "Reorder columns"
 msgstr ""
 
 #: src/messages.ts:32
+#: src/messages.ts:40
 msgid "Cannot move because cells are merged."
 msgstr ""
 
-#: src/messages.ts:40
+#: src/messages.ts:48
 msgid "Reordering could not continue, so the operation was ended."
 msgstr ""
 
-#: src/messages.ts:47
+#: src/messages.ts:56
 msgid "Reorder rows and columns."
 msgstr ""
 
-#: src/messages.ts:55
+#: src/messages.ts:64
 msgid "Close reorder guidance"
 msgstr ""
 
-#: src/messages.ts:59
+#: src/messages.ts:68
 msgid "Apply the new order?"
 msgstr ""
 
-#: src/messages.ts:63
-msgid "Applying this reorder may take some time. Do you want to continue?"
+#. translators: 1: 移動元の行番号, 2: 移動先の行番号
+#: src/messages.ts:82
+msgid "Row %1$d → %2$d"
 msgstr ""
 
-#: src/messages.ts:67
+#. translators: 1: 移動元の列番号, 2: 移動先の列番号
+#: src/messages.ts:98
+msgid "Column %1$d → %2$d"
+msgstr ""
+
+#: src/messages.ts:104
+msgid "Applying this reorder may take some time."
+msgstr ""
+
+#: src/messages.ts:107
 msgid "Continue"
 msgstr ""
 
-#: src/messages.ts:70
+#: src/messages.ts:110
 msgid "Cancel"
 msgstr ""
 
-#: src/messages.ts:74
+#: src/messages.ts:114
 msgid "Applying the new order…"
 msgstr ""
 
