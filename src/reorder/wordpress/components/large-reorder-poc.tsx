@@ -39,10 +39,12 @@ const continueLargeReorderPoc = (): void => {
 	performance.clearMarks( 'ytr-912-update-start' );
 	performance.clearMarks( 'ytr-912-update-end' );
 	performance.clearMarks( 'ytr-912-remount-start' );
-	performance.clearMarks( 'ytr-912-remount-complete' );
+	performance.clearMarks( 'ytr-912-react-remount-complete' );
+	performance.clearMarks( 'ytr-912-visual-complete' );
 	performance.clearMeasures( 'ytr-912-update' );
-	performance.clearMeasures( 'ytr-912-remount' );
-	performance.clearMeasures( 'ytr-912-total' );
+	performance.clearMeasures( 'ytr-912-react-remount' );
+	performance.clearMeasures( 'ytr-912-visual-remount' );
+	performance.clearMeasures( 'ytr-912-total-visual' );
 	performance.mark( 'ytr-912-continue' );
 	confirmLargeReorderPoc();
 };
@@ -136,20 +138,26 @@ const focusMovedRow = ( editorDocument: Document, clientId: string, rowIndex: nu
 	}
 
 	const editable = row.querySelector< HTMLElement >( '[contenteditable="true"]' );
-	row.scrollIntoView( { block: 'center', inline: 'nearest' } );
+	const firstCell = row.cells.item( 0 );
+	const displayTarget = editable ?? firstCell ?? row;
+
+	/* 移動後行の先頭側を表示して、横スクロール位置が途中の列へ残らないようにする。 */
+	displayTarget.scrollIntoView( { block: 'center', inline: 'start' } );
 	editable?.focus( { preventScroll: true } );
 };
 
 /** PoCの計測結果を比較しやすい形で開発者consoleへ出力する。 */
 const logPerformanceMeasurements = (): void => {
 	const update = performance.getEntriesByName( 'ytr-912-update' ).at( -1 );
-	const remount = performance.getEntriesByName( 'ytr-912-remount' ).at( -1 );
-	const total = performance.getEntriesByName( 'ytr-912-total' ).at( -1 );
+	const reactRemount = performance.getEntriesByName( 'ytr-912-react-remount' ).at( -1 );
+	const visualRemount = performance.getEntriesByName( 'ytr-912-visual-remount' ).at( -1 );
+	const totalVisual = performance.getEntriesByName( 'ytr-912-total-visual' ).at( -1 );
 
 	globalThis.console.info( '[YTR #912 PoC]', {
 		updateMs: update?.duration ?? null,
-		remountMs: remount?.duration ?? null,
-		totalMs: total?.duration ?? null,
+		reactRemountMs: reactRemount?.duration ?? null,
+		visualRemountMs: visualRemount?.duration ?? null,
+		totalVisualMs: totalVisual?.duration ?? null,
 	} );
 };
 
@@ -211,21 +219,63 @@ export const LargeReorderPocTableBoundary = ( props: {
 		}
 
 		wasApplyingForTarget.current = false;
-		performance.mark( 'ytr-912-remount-complete' );
+		performance.mark( 'ytr-912-react-remount-complete' );
 		performance.measure(
-			'ytr-912-remount',
+			'ytr-912-react-remount',
 			'ytr-912-remount-start',
-			'ytr-912-remount-complete'
+			'ytr-912-react-remount-complete'
 		);
-		performance.measure( 'ytr-912-total', 'ytr-912-continue', 'ytr-912-remount-complete' );
 
 		if ( editorDocument.current && movedRowIndex.current !== null ) {
 			focusMovedRow( editorDocument.current, clientId, movedRowIndex.current );
 		}
 
-		logPerformanceMeasurements();
-		editorDocument.current = null;
-		movedRowIndex.current = null;
+		const editorWindow = editorDocument.current?.defaultView ?? null;
+		if ( ! editorWindow ) {
+			performance.mark( 'ytr-912-visual-complete' );
+			performance.measure(
+				'ytr-912-visual-remount',
+				'ytr-912-remount-start',
+				'ytr-912-visual-complete'
+			);
+			performance.measure(
+				'ytr-912-total-visual',
+				'ytr-912-continue',
+				'ytr-912-visual-complete'
+			);
+			logPerformanceMeasurements();
+			editorDocument.current = null;
+			movedRowIndex.current = null;
+			return;
+		}
+
+		let secondFrame = 0;
+		const firstFrame = editorWindow.requestAnimationFrame( () => {
+			/* 再mountとfocus・scroll後の画面が1回paintされた次のframeを体感上の表示完了として記録する。 */
+			secondFrame = editorWindow.requestAnimationFrame( () => {
+				performance.mark( 'ytr-912-visual-complete' );
+				performance.measure(
+					'ytr-912-visual-remount',
+					'ytr-912-remount-start',
+					'ytr-912-visual-complete'
+				);
+				performance.measure(
+					'ytr-912-total-visual',
+					'ytr-912-continue',
+					'ytr-912-visual-complete'
+				);
+				logPerformanceMeasurements();
+				editorDocument.current = null;
+				movedRowIndex.current = null;
+			} );
+		} );
+
+		return () => {
+			editorWindow.cancelAnimationFrame( firstFrame );
+			if ( secondFrame !== 0 ) {
+				editorWindow.cancelAnimationFrame( secondFrame );
+			}
+		};
 	}, [ clientId, state.phase ] );
 
 	if ( shouldApply ) {
