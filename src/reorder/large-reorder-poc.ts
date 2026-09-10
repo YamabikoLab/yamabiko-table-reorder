@@ -34,6 +34,10 @@ type LargeReorderPocActions = {
 
 type LargeReorderPocStore = LargeReorderPocState & LargeReorderPocActions;
 
+type LargeReorderPocConsole = typeof globalThis & {
+	ytr912MoveRow?: ( sourceRowNumber: number, destinationRowNumber: number ) => boolean;
+};
+
 /** PoCの確認・反映状態を、DnD SessionやTable componentのmount状態から独立して保持する。 */
 const largeReorderPocStore = createStore< LargeReorderPocStore >()(
 	devtools(
@@ -111,3 +115,79 @@ export const cancelLargeReorderPoc = (): void => largeReorderPocStore.getState()
 
 /** 反映完了または通常の反映不能後にPoCを終了し、Tableを再mount可能な通常状態へ戻す。 */
 export const completeLargeReorderPoc = (): void => largeReorderPocStore.getState().complete();
+
+/**
+ * 選択中のCore Tableへ、DnDを使わず1-based行番号で#912 PoCの行移動を要求する。
+ *
+ * 長距離DnDを繰り返さずにunmount・更新・再mountの性能比較を行うためのPoC専用入口であり、正式機能には含めない。
+ *
+ * @param sourceRowNumber      移動前の1-based行番号。
+ * @param destinationRowNumber 並び替え後に配置したい1-based行番号。
+ * @return PoCの確認待ちを開始できた場合はtrue。指定または選択対象が成立しない場合はfalse。
+ */
+const requestLargeRowReorderPocFromConsole = (
+	sourceRowNumber: number,
+	destinationRowNumber: number
+): boolean => {
+	const blockEditor = select( blockEditorStore );
+	const selectedBlockClientId = blockEditor.getSelectedBlockClientId();
+	const selectedBlock = selectedBlockClientId
+		? blockEditor.getBlock( selectedBlockClientId )
+		: null;
+
+	/* Console入口は現在選択中のCore Tableだけを対象とし、別Blockへ暗黙に作用させない。 */
+	if ( ! selectedBlockClientId || ! selectedBlock || selectedBlock.name !== 'core/table' ) {
+		globalThis.console.warn( '[YTR #912 PoC] Select a Core Table before calling ytr912MoveRow().' );
+		return false;
+	}
+
+	const body = ( selectedBlock.attributes as { body?: unknown } ).body;
+	if ( ! Array.isArray( body ) ) {
+		globalThis.console.warn( '[YTR #912 PoC] The selected Core Table body is unavailable.' );
+		return false;
+	}
+
+	const rowCount = body.length;
+	const rowNumbersValid =
+		Number.isInteger( sourceRowNumber ) &&
+		Number.isInteger( destinationRowNumber ) &&
+		sourceRowNumber >= 1 &&
+		sourceRowNumber <= rowCount &&
+		destinationRowNumber >= 1 &&
+		destinationRowNumber <= rowCount;
+
+	if ( ! rowNumbersValid ) {
+		globalThis.console.warn( `[YTR #912 PoC] Row numbers must be integers from 1 to ${ rowCount }.` );
+		return false;
+	}
+
+	if ( sourceRowNumber === destinationRowNumber ) {
+		globalThis.console.warn( '[YTR #912 PoC] Source and destination rows are the same.' );
+		return false;
+	}
+
+	if ( largeReorderPocStore.getState().phase !== 'idle' ) {
+		globalThis.console.warn( '[YTR #912 PoC] Another PoC reorder is already active.' );
+		return false;
+	}
+
+	const sourceRowIndex = sourceRowNumber - 1;
+	const destinationBoundaryIndex =
+		destinationRowNumber > sourceRowNumber ? destinationRowNumber : destinationRowNumber - 1;
+	const requested = requestLargeRowReorderPoc( {
+		tableIdentity: selectedBlockClientId,
+		sourceRowIndex,
+		destinationBoundaryIndex,
+	} );
+
+	if ( requested ) {
+		globalThis.console.info(
+			`[YTR #912 PoC] Requested row ${ sourceRowNumber } → ${ destinationRowNumber }.`
+		);
+	}
+
+	return requested;
+};
+
+/* #912 PoCの手動性能確認だけで利用する一時的なConsole入口を公開する。 */
+( globalThis as LargeReorderPocConsole ).ytr912MoveRow = requestLargeRowReorderPocFromConsole;
