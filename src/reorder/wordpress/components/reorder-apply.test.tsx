@@ -160,9 +160,7 @@ describe( 'Large reorder apply UI', () => {
 		);
 
 		expect( screen.queryByText( 'Table content' ) ).toBeNull();
-		expect(
-			screen.getByRole( 'dialog', { name: 'Applying the new order…' } )
-		).not.toBeNull();
+		expect( screen.getByRole( 'dialog', { name: 'Applying the new order…' } ) ).not.toBeNull();
 		expect( screen.getByText( 'Please wait until the update is complete.' ) ).not.toBeNull();
 		expect( screen.getByRole( 'status' ).getAttribute( 'aria-busy' ) ).toBe( 'true' );
 		expect( screen.queryByRole( 'button', { name: 'Close' } ) ).toBeNull();
