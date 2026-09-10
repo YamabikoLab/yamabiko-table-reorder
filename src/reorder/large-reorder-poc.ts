@@ -31,6 +31,7 @@ export type LargeReorderPocState =
 
 type EditorSelect = {
 	isEditedPostDirty: () => boolean;
+	getCurrentPost: () => { status?: string } | null;
 };
 
 type NoticesDispatch = {
@@ -86,7 +87,7 @@ const largeReorderPocStore = createStore< LargeReorderPocStore >()(
 /**
  * 行dropを#910 PoCへ引き渡せるか判定し、対象なら確認待ち状態を開始する。
  *
- * PoCではCore Tableだけを強制的に大規模扱いする。未保存変更がある場合はTableを変更せず、先に投稿保存が必要なことを通知する。
+ * PoCではCore Tableだけを強制的に大規模扱いする。未保存変更または未保存の新規投稿ではTableを変更せず、先に投稿保存が必要なことを通知する。
  *
  * @param move drop時点で再照合済みの行移動意図。
  * @return PoCがdropを処理した場合はtrue。PoC対象外で既存Row Reorder処理を続ける場合はfalse。
@@ -103,7 +104,9 @@ export const requestLargeRowReorderPoc = ( move: LargeReorderPocRowMove ): boole
 	}
 
 	const editor = selectByName( 'core/editor' ) as EditorSelect;
-	if ( editor.isEditedPostDirty() ) {
+	const currentPost = editor.getCurrentPost();
+	const savedPost = currentPost !== null && currentPost.status !== 'auto-draft';
+	if ( ! savedPost || editor.isEditedPostDirty() ) {
 		const notices = dispatchByName( 'core/notices' ) as NoticesDispatch;
 		notices.createWarningNotice( getLargeReorderSaveFirstMessage(), { type: 'snackbar' } );
 		return true;
