@@ -62,3 +62,21 @@ export const getReorderGuidanceMessage = () =>
  */
 export const getCloseReorderGuidanceLabel = () =>
 	__( 'Close reorder guidance', 'yamabiko-table-reorder' );
+
+/** 大規模反映前の確認ダイアログタイトルを取得する。 */
+export const getLargeReorderApplyConfirmTitle = () =>
+	__( 'Apply the new order?', 'yamabiko-table-reorder' );
+
+/** 大規模反映前の確認ダイアログ本文を取得する。 */
+export const getLargeReorderApplyConfirmBody = () =>
+	__( 'Applying this reorder may take some time. Do you want to continue?', 'yamabiko-table-reorder' );
+
+/** 大規模反映を続行するボタン表示名を取得する。 */
+export const getLargeReorderContinueLabel = () => __( 'Continue', 'yamabiko-table-reorder' );
+
+/** 大規模反映を中止するボタン表示名を取得する。 */
+export const getLargeReorderCancelLabel = () => __( 'Cancel', 'yamabiko-table-reorder' );
+
+/** 大規模反映中であることを知らせる文言を取得する。 */
+export const getLargeReorderApplyingMessage = () =>
+	__( 'Applying the new order…', 'yamabiko-table-reorder' );
