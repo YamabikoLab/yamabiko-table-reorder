@@ -13,6 +13,7 @@ let mockDragDropMonitor: {
 	onDragStart?: ( event: any ) => void;
 	onDragMove?: ( event: any ) => void;
 } = {};
+let pendingAnimationFrame: FrameRequestCallback | null = null;
 
 jest.mock( '@/reorder/column-reorder/integration/dnd-interaction-react', () => ( {
 	useColumnDndPhase: () => mockColumnDndPhase,
@@ -124,6 +125,28 @@ const startPhysicalDrag = ( sourceCell: HTMLTableCellElement ) => {
 	} );
 };
 
+/** DnD Engineから最初の物理移動を通知する。 */
+const movePhysicalDrag = () => {
+	act( () => {
+		mockDragDropMonitor.onDragMove?.( {
+			operation: {
+				position: {
+					current: { x: 170, y: 140 },
+				},
+			},
+		} );
+	} );
+};
+
+/** 最初の物理移動後に予約された表示フレームを実行する。 */
+const flushAnimationFrame = () => {
+	const callback = pendingAnimationFrame;
+	pendingAnimationFrame = null;
+	if ( callback !== null ) {
+		act( () => callback( 0 ) );
+	}
+};
+
 /** 移動表示内のDnD開始セルを取得する。 */
 const getMovingSourceCell = (): HTMLTableCellElement | undefined =>
 	Array.from( document.querySelectorAll( '.yamabiko-table-reorder-moving-column td' ) ).find(
@@ -134,8 +157,14 @@ describe( 'Column moving display', () => {
 	beforeEach( () => {
 		mockColumnDndPhase = 'active';
 		mockDragDropMonitor = {};
+		pendingAnimationFrame = null;
 		document.body.replaceChildren();
 		jest.restoreAllMocks();
+		jest.spyOn( window, 'requestAnimationFrame' ).mockImplementation( ( callback ) => {
+			pendingAnimationFrame = callback;
+			return 1;
+		} );
+		jest.spyOn( window, 'cancelAnimationFrame' ).mockImplementation( () => undefined );
 	} );
 
 	/**
@@ -148,12 +177,14 @@ describe( 'Column moving display', () => {
 	 * 操作:
 	 * - 物理DnD開始を通知する。
 	 * - その後Column DnD Sessionをactiveへ遷移させる。
+	 * - 最初の物理移動と次の描画フレームを進める。
 	 *
 	 * 期待結果:
 	 * - idle中は移動表示も元列の半透明表示も開始しない。
-	 * - activeになった時点で、同じ物理DnDの移動表示と元列表示が開始する。
+	 * - activeになった時点で移動表示は開始するが、元列はまだ通常表示を維持する。
+	 * - 最初の物理移動後の描画フレームで元列の半透明表示を開始する。
 	 */
-	it( 'when physical drag information exists before the column session becomes active, should show the moving column only after the session is active', () => {
+	it( 'when physical drag information exists before the column session becomes active, should defer source appearance until after the first movement', () => {
 		mockColumnDndPhase = 'idle';
 		const { sourceCell } = createSourceTable();
 		const { rerender } = render( <ColumnMovingDisplay /> );
@@ -167,6 +198,12 @@ describe( 'Column moving display', () => {
 		rerender( <ColumnMovingDisplay /> );
 
 		expect( document.querySelector( '.yamabiko-table-reorder-moving-column' ) ).not.toBeNull();
+		expect( sourceCell.classList ).not.toContain( 'yamabiko-table-reorder-moving-column-source' );
+
+		movePhysicalDrag();
+		expect( sourceCell.classList ).not.toContain( 'yamabiko-table-reorder-moving-column-source' );
+
+		flushAnimationFrame();
 		expect( sourceCell.classList ).toContain( 'yamabiko-table-reorder-moving-column-source' );
 	} );
 
@@ -484,15 +521,7 @@ describe( 'Column moving display', () => {
 		render( <ColumnMovingDisplay /> );
 		startPhysicalDrag( sourceCell );
 
-		act( () => {
-			mockDragDropMonitor.onDragMove?.( {
-				operation: {
-					position: {
-						current: { x: 170, y: 140 },
-					},
-				},
-			} );
-		} );
+		movePhysicalDrag();
 
 		const overlay = document.querySelector(
 			'.yamabiko-table-reorder-moving-column'
@@ -505,7 +534,7 @@ describe( 'Column moving display', () => {
 	 * Column DnD Session終了時に移動表示と元セルの一時表示を残さないことを確認する。
 	 *
 	 * 事前条件:
-	 * - active Session中に移動表示と元列の半透明表示が成立している。
+	 * - active Session中に最初の物理移動まで完了し、元列の半透明表示が成立している。
 	 *
 	 * 操作:
 	 * - DnD Interactionの状態をidleへ戻す。
@@ -517,6 +546,8 @@ describe( 'Column moving display', () => {
 		const { sourceCell } = createSourceTable();
 		const { rerender } = render( <ColumnMovingDisplay /> );
 		startPhysicalDrag( sourceCell );
+		movePhysicalDrag();
+		flushAnimationFrame();
 		expect( sourceCell.classList ).toContain( 'yamabiko-table-reorder-moving-column-source' );
 
 		mockColumnDndPhase = 'idle';
