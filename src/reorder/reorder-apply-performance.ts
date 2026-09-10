@@ -109,7 +109,8 @@ export const resolveReorderApplyRuntime = (
 	return {
 		storage,
 		performanceNow: () => editorContext.window.performance.now(),
-		dateNow: () => editorContext.window.Date.now(),
+		dateNow: () =>
+			editorContext.window.performance.timeOrigin + editorContext.window.performance.now(),
 		requestAnimationFrame: ( callback ) =>
 			editorContext.window.requestAnimationFrame( callback ),
 	};
