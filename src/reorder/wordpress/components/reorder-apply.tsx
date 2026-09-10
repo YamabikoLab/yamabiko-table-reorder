@@ -7,7 +7,7 @@
  */
 
 import { Button, Modal } from '@wordpress/components';
-import type { ReactNode } from '@wordpress/element';
+import type { ReactNode } from 'react';
 import { useEffect, useRef, useSyncExternalStore } from 'react';
 
 import {
