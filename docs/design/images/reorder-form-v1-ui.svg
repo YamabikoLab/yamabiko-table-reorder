@@ -1,0 +1,50 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="720" viewBox="0 0 1200 720">
+  <rect width="1200" height="720" fill="#f8f8f8"/>
+  <rect x="0" y="0" width="1200" height="56" fill="#fff" stroke="#ddd"/>
+  <circle cx="35" cy="28" r="15" fill="#fff" stroke="#1e1e1e" stroke-width="2"/>
+  <text x="35" y="33" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" font-weight="700" fill="#1e1e1e">W</text>
+  <text x="62" y="34" font-family="Arial, sans-serif" font-size="16" font-weight="600" fill="#1e1e1e">YTR Reorder Form UI Prototype</text>
+  <text x="70" y="105" font-family="Arial, sans-serif" font-size="14" fill="#646970">Table toolbarから「フォームで並び替え」を開くPopover UI</text>
+  <rect x="70" y="126" width="520" height="44" rx="3" fill="#fff" stroke="#dcdcde"/>
+  <text x="90" y="153" font-family="Arial, sans-serif" font-size="14" fill="#1e1e1e">↕  行を並び替え</text>
+  <text x="242" y="153" font-family="Arial, sans-serif" font-size="14" fill="#1e1e1e">↔  列を並び替え</text>
+  <rect x="385" y="131" width="198" height="34" rx="2" fill="#f0f0f1" stroke="#3858e9"/>
+  <text x="402" y="153" font-family="Arial, sans-serif" font-size="14" fill="#1e1e1e">☷  フォームで並び替え</text>
+  <rect x="330" y="183" width="360" height="452" rx="4" fill="#fff" stroke="#dcdcde"/>
+  <path d="M492 183 L504 171 L516 183" fill="#fff" stroke="#dcdcde"/>
+  <text x="350" y="214" font-family="Arial, sans-serif" font-size="15" font-weight="600" fill="#1e1e1e">フォームで並び替え</text>
+  <text x="350" y="248" font-family="Arial, sans-serif" font-size="14" font-weight="600" fill="#1e1e1e">並び替える対象</text>
+  <rect x="350" y="260" width="72" height="34" rx="2" fill="#fff" stroke="#3858e9" stroke-width="2"/>
+  <circle cx="365" cy="277" r="6" fill="#3858e9"/><text x="379" y="282" font-family="Arial, sans-serif" font-size="14" fill="#1e1e1e">行</text>
+  <rect x="430" y="260" width="72" height="34" rx="2" fill="#fff" stroke="#c3c4c7"/>
+  <circle cx="445" cy="277" r="6" fill="#fff" stroke="#777"/><text x="459" y="282" font-family="Arial, sans-serif" font-size="14" fill="#1e1e1e">列</text>
+  <text x="350" y="326" font-family="Arial, sans-serif" font-size="14" font-weight="600" fill="#1e1e1e">移動する行</text>
+  <rect x="350" y="337" width="320" height="36" rx="2" fill="#fff" stroke="#949494"/>
+  <text x="362" y="360" font-family="Arial, sans-serif" font-size="14" fill="#777">例: 2</text>
+  <text x="350" y="391" font-family="Arial, sans-serif" font-size="12" fill="#646970">1〜1000 の範囲</text>
+  <text x="350" y="425" font-family="Arial, sans-serif" font-size="14" font-weight="600" fill="#1e1e1e">移動先の行</text>
+  <rect x="350" y="436" width="320" height="36" rx="2" fill="#fff" stroke="#949494"/>
+  <text x="362" y="459" font-family="Arial, sans-serif" font-size="14" fill="#777">例: 5</text>
+  <text x="350" y="490" font-family="Arial, sans-serif" font-size="12" fill="#646970">1〜1000 の範囲。選んだ行の上または下へ移動します。</text>
+  <text x="350" y="526" font-family="Arial, sans-serif" font-size="14" font-weight="600" fill="#1e1e1e">移動する位置</text>
+  <rect x="350" y="538" width="72" height="34" rx="2" fill="#fff" stroke="#c3c4c7"/>
+  <circle cx="365" cy="555" r="6" fill="#fff" stroke="#777"/><text x="379" y="560" font-family="Arial, sans-serif" font-size="14" fill="#1e1e1e">上</text>
+  <rect x="430" y="538" width="72" height="34" rx="2" fill="#fff" stroke="#c3c4c7"/>
+  <circle cx="445" cy="555" r="6" fill="#fff" stroke="#777"/><text x="459" y="560" font-family="Arial, sans-serif" font-size="14" fill="#1e1e1e">下</text>
+  <rect x="472" y="589" width="86" height="34" rx="2" fill="#fff" stroke="#2271b1"/>
+  <text x="515" y="611" text-anchor="middle" font-family="Arial, sans-serif" font-size="13" fill="#2271b1">キャンセル</text>
+  <rect x="566" y="589" width="104" height="34" rx="2" fill="#2271b1" opacity=".55"/>
+  <text x="618" y="611" text-anchor="middle" font-family="Arial, sans-serif" font-size="13" fill="#fff">並び替え</text>
+  <rect x="70" y="202" width="230" height="340" fill="#fff" stroke="#dcdcde"/>
+  <text x="85" y="230" font-family="Arial, sans-serif" font-size="13" font-weight="600" fill="#1e1e1e">Table</text>
+  <g stroke="#dcdcde" fill="none">
+    <rect x="85" y="245" width="200" height="245"/>
+    <path d="M85 285H285 M85 326H285 M85 367H285 M85 408H285 M85 449H285"/>
+    <path d="M135 245V490 M185 245V490 M235 245V490"/>
+  </g>
+  <text x="85" y="520" font-family="Arial, sans-serif" font-size="12" fill="#646970">Tableを見ながら指定できる</text>
+  <rect x="785" y="520" width="340" height="62" rx="4" fill="#fff" stroke="#dcdcde"/>
+  <rect x="785" y="520" width="4" height="62" fill="#008a20"/>
+  <text x="805" y="556" font-family="Arial, sans-serif" font-size="14" font-weight="600" fill="#1e1e1e">✓ 並び替えが完了しました。</text>
+  <text x="785" y="610" font-family="Arial, sans-serif" font-size="12" fill="#646970">完了時は非ブロッキングな短い通知のみ</text>
+</svg>
