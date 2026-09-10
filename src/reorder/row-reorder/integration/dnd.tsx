@@ -24,10 +24,7 @@ import { DragDropProvider } from '@dnd-kit/react';
 import { useCallback, useEffect, useRef } from '@wordpress/element';
 import type { ReactNode } from 'react';
 
-import {
-	measureDirectReorderApplyAfterVisualPaint,
-	resolveReorderApplyRuntime,
-} from '@/reorder/reorder-apply-performance';
+import { resolveReorderApplyRuntime } from '@/reorder/reorder-apply-performance';
 import { rowDndInteraction } from '@/reorder/row-reorder/responsibilities/dnd-interaction';
 import {
 	createRowDestinationResolver,
@@ -146,11 +143,7 @@ export const RowDnd = ( props: {
 		}
 
 		const runtime = resolveReorderApplyRuntime( event.operation?.source?.element );
-		const measurement = rowDndInteraction.complete( runtime );
-		/* 正常な直接反映だけを、同じEditor表示環境の表示完了計測へ接続する。 */
-		if ( runtime !== null && measurement !== null ) {
-			measureDirectReorderApplyAfterVisualPaint( 'row', measurement, runtime );
-		}
+		rowDndInteraction.complete( runtime );
 	};
 
 	return (
