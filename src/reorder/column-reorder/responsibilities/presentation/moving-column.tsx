@@ -528,6 +528,7 @@ const ColumnMovingOverlay = ( props: {
  *
  * 元Tableの列順は変更せず、開始時に取得した可視範囲だけをそのDnD中のsnapshotとして維持する。
  * 移動表示は縦横とも物理移動へ追従するが、縦方向の見かけ上の移動を論理移動先判定へ反映しない。
+ * 元列の半透明表示は物理ドラッグ開始と同時には変更せず、最初の移動後の描画フレームから開始する。
  *
  * @return activeなColumn DnD中は移動対象列表示。それ以外はnull。
  */
@@ -540,6 +541,7 @@ export const ColumnMovingDisplay = () => {
 		left: 0,
 		top: 0,
 	} );
+	const [ hasMoved, setHasMoved ] = useState( false );
 
 	useDragDropMonitor( {
 		onDragStart: ( event ) => {
@@ -554,6 +556,7 @@ export const ColumnMovingDisplay = () => {
 
 			activeLayout.current = nextLayout;
 			setLayout( nextLayout );
+			setHasMoved( false );
 			if ( nextLayout !== null ) {
 				setPosition( {
 					left: nextLayout.initialLeft,
@@ -573,6 +576,7 @@ export const ColumnMovingDisplay = () => {
 				left: currentLayout.initialLeft + currentPositionX - currentLayout.initialPositionX,
 				top: currentLayout.initialTop + currentPosition.y - currentLayout.initialPositionY,
 			} );
+			setHasMoved( true );
 		},
 	} );
 
@@ -583,6 +587,7 @@ export const ColumnMovingDisplay = () => {
 				sessionBecameActive.current = false;
 				activeLayout.current = null;
 				setLayout( null );
+				setHasMoved( false );
 			}
 			return;
 		}
@@ -591,20 +596,41 @@ export const ColumnMovingDisplay = () => {
 	}, [ phase ] );
 
 	useEffect( () => {
-		/* active Session中だけ元列の描画対象セルを半透明にし、DnD終了時は元Table表示へ確実に戻す。 */
+		/* active Session中は移動表示と同時に、掴んでいるポインター状態だけを開始する。 */
 		if ( phase !== 'active' || layout === null ) {
 			return;
 		}
 
-		layout.cells.forEach( ( snapshot ) => snapshot.sourceCell.classList.add( SOURCE_CELL_CLASS ) );
 		layout.editorDocument.body.classList.add( DRAGGING_CLASS );
 		return () => {
-			layout.cells.forEach( ( snapshot ) =>
-				snapshot.sourceCell.classList.remove( SOURCE_CELL_CLASS )
-			);
 			layout.editorDocument.body.classList.remove( DRAGGING_CLASS );
 		};
 	}, [ phase, layout ] );
+
+	useEffect( () => {
+		/* 移動開始時の表示更新と元列の半透明化を同じ描画タイミングへ集中させず、最初の物理移動後の次フレームから元列を区別する。 */
+		if ( phase !== 'active' || layout === null || ! hasMoved ) {
+			return;
+		}
+
+		const editorWindow = layout.editorDocument.defaultView;
+		if ( editorWindow === null ) {
+			return;
+		}
+
+		const frameId = editorWindow.requestAnimationFrame( () => {
+			layout.cells.forEach( ( snapshot ) =>
+				snapshot.sourceCell.classList.add( SOURCE_CELL_CLASS )
+			);
+		} );
+
+		return () => {
+			editorWindow.cancelAnimationFrame( frameId );
+			layout.cells.forEach( ( snapshot ) =>
+				snapshot.sourceCell.classList.remove( SOURCE_CELL_CLASS )
+			);
+		};
+	}, [ phase, layout, hasMoved ] );
 
 	const visible = phase === 'active' && layout !== null;
 	const movingDisplay = visible ? (
