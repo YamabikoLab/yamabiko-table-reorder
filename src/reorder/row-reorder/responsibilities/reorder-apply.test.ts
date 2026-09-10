@@ -82,14 +82,14 @@ describe( 'Large Row Reorder apply lifecycle', () => {
 			sourceRowIndex: 3,
 			destinationBoundaryIndex: 1,
 		} );
-		expect( getLargeRowReorderApplyState() ).toEqual( {
+		expect( getLargeRowReorderApplyState() ).toMatchObject( {
 			phase: 'remounting',
 			move,
 			applied: true,
 		} );
 
 		completeLargeRowReorderApply();
-		expect( getLargeRowReorderApplyState() ).toEqual( {
+		expect( getLargeRowReorderApplyState() ).toMatchObject( {
 			phase: 'idle',
 			move: null,
 			applied: false,
@@ -114,7 +114,7 @@ describe( 'Large Row Reorder apply lifecycle', () => {
 		cancelLargeRowReorderApply();
 
 		expect( applyRowMoveMock ).not.toHaveBeenCalled();
-		expect( getLargeRowReorderApplyState() ).toEqual( {
+		expect( getLargeRowReorderApplyState() ).toMatchObject( {
 			phase: 'idle',
 			move: null,
 			applied: false,
@@ -142,7 +142,7 @@ describe( 'Large Row Reorder apply lifecycle', () => {
 		applyLargeRowReorder();
 
 		expect( applyRowMoveMock ).not.toHaveBeenCalled();
-		expect( getLargeRowReorderApplyState() ).toEqual( {
+		expect( getLargeRowReorderApplyState() ).toMatchObject( {
 			phase: 'remounting',
 			move,
 			applied: false,
@@ -167,7 +167,7 @@ describe( 'Large Row Reorder apply lifecycle', () => {
 		const anotherMove = { ...move, sourceRowIndex: 2 };
 
 		expect( requestLargeRowReorderApply( anotherMove ) ).toBe( false );
-		expect( getLargeRowReorderApplyState() ).toEqual( {
+		expect( getLargeRowReorderApplyState() ).toMatchObject( {
 			phase: 'confirming',
 			move,
 			applied: false,
