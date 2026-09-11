@@ -48,6 +48,22 @@ jobs:
       - name: Update architecture Markdown
         run: python .github/issue-928-update.py
 
+      - name: Inspect process flow tables
+        shell: bash
+        run: |
+          python <<'PY'
+          from pathlib import Path
+          for path in [
+              'docs/architecture/row-reorder-v1-architecture.md',
+              'docs/architecture/column-reorder-v1-architecture.md',
+          ]:
+              text = Path(path).read_text(encoding='utf-8')
+              start = text.index('### Process Flow Views')
+              end = text.index('## 5. Building Block View')
+              print(f'===== {path} =====')
+              print(text[start:end])
+          PY
+
       - name: Install dependencies
         run: npm ci
 
