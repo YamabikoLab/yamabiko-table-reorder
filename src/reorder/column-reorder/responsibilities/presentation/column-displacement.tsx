@@ -167,6 +167,15 @@ const resolveDisplacementSessionLayout = (
 		return null;
 	}
 
+	/*
+	 * non-iframe Editorでは、大規模Core Tableに対する実セルのtransform適用で
+	 * 大きなLayoutコストが発生するため、Column Displacementを提供しない。
+	 * Moving ColumnとInsertion Lineによる移動先表示は別責務として維持する。
+	 */
+	if ( editorContext.window.frameElement === null ) {
+		return null;
+	}
+
 	const sourceColumnWidth = sourceCell.getBoundingClientRect().width;
 
 	/* 移動対象列幅を確定できない状態では、推測した移動量で実Table表示を変化させない。 */
