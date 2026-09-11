@@ -42,27 +42,23 @@ jobs:
               raise RuntimeError('atomic heading patch anchor not found')
           text = text.replace(old_atomic, new_atomic, 1)
 
+          old_wp_dep = "    wp_engine_dep = next(line for line in text.splitlines() if line.startswith(f'| RESP_WORDPRESS_REORDER_INTEGRATION | {engine_id} |'))\n"
+          new_wp_dep = "    dependencies_text = text[text.index('### Dependencies'):text.index('### Dependency Views')]\n    wp_engine_dep = next(line for line in dependencies_text.splitlines() if line.startswith(f'| RESP_WORDPRESS_REORDER_INTEGRATION | {engine_id} |'))\n"
+          if old_wp_dep not in text:
+              raise RuntimeError('WordPress dependency scope patch anchor not found')
+          text = text.replace(old_wp_dep, new_wp_dep, 1)
+
+          old_dnd_dep = "    dnd_table_dep = next(line for line in text.splitlines() if line.startswith(f'| {dnd_id} | {table_id} |'))\n"
+          new_dnd_dep = "    dependencies_text = text[text.index('### Dependencies'):text.index('### Dependency Views')]\n    dnd_table_dep = next(line for line in dependencies_text.splitlines() if line.startswith(f'| {dnd_id} | {table_id} |'))\n"
+          if old_dnd_dep not in text:
+              raise RuntimeError('DnD dependency scope patch anchor not found')
+          text = text.replace(old_dnd_dep, new_dnd_dep, 1)
+
           p.write_text(text, encoding='utf-8')
           PY
 
       - name: Update architecture Markdown
         run: python .github/issue-928-update.py
-
-      - name: Inspect process flow tables
-        shell: bash
-        run: |
-          python <<'PY'
-          from pathlib import Path
-          for path in [
-              'docs/architecture/row-reorder-v1-architecture.md',
-              'docs/architecture/column-reorder-v1-architecture.md',
-          ]:
-              text = Path(path).read_text(encoding='utf-8')
-              start = text.index('### Process Flow Views')
-              end = text.index('## 5. Building Block View')
-              print(f'===== {path} =====')
-              print(text[start:end])
-          PY
 
       - name: Install dependencies
         run: npm ci
