@@ -117,6 +117,10 @@ describe( 'Column displacement presentation', () => {
 		mockDestinationBoundaryIndex = null;
 		mockDragDropMonitor = {};
 		document.body.replaceChildren();
+		Object.defineProperty( window, 'frameElement', {
+			configurable: true,
+			value: document.createElement( 'iframe' ),
+		} );
 		Object.defineProperty( window, 'innerWidth', {
 			configurable: true,
 			value: 500,
@@ -125,6 +129,35 @@ describe( 'Column displacement presentation', () => {
 			configurable: true,
 			value: 600,
 		} );
+	} );
+
+	/**
+	 * non-iframe Editorでは周囲列の押しのけ表示を適用しないことを確認する。
+	 *
+	 * 事前条件:
+	 * - non-iframe EditorのLTR 5列Tableで2列目を移動対象とする。
+	 *
+	 * 操作:
+	 * - 最後の要素の後ろを有効な移動先として通知する。
+	 *
+	 * 期待結果:
+	 * - 移動元と移動先の間にある周囲セルへ移動量を設定しない。
+	 */
+	it( 'when the editor is non-iframe, should not apply column displacement', () => {
+		Object.defineProperty( window, 'frameElement', {
+			configurable: true,
+			value: null,
+		} );
+		const { cells, sourceCell } = createSimpleTable( 5, 1 );
+		const { rerender } = render( <ColumnDisplacement /> );
+		startPhysicalDrag( sourceCell );
+		mockSourceColumnIndex = 1;
+		mockDestinationBoundaryIndex = 5;
+		rerender( <ColumnDisplacement /> );
+
+		for ( const cell of cells ) {
+			expect( cell.style.getPropertyValue( DISPLACEMENT_PROPERTY ) ).toBe( '' );
+		}
 	} );
 
 	/**

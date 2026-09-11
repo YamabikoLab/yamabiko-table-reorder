@@ -34,6 +34,7 @@ Architecture上の責務はソースファイル構成を写したものでは�
 - Table Integrationは指定されたTable Identityに対して現在列制約と確定済み列移動の反映能力を提供する。Table Identity自体の所有または発行は行わない。
 - Table Integrationは1回の成立した列移動を`thead`、`tbody`、`tfoot`を含むTable全体への1回の更新として反映し、WordPress Undo上も1回のUndo単位とする。
 - DnD Engineが提供する標準の移動表示は利用せず、列DnD中の利用者向け表示はReorder Presentationが独立して所有する。
+- Reorder PresentationはEditor表示方式に応じて周囲列移動を提供するかを決定し、non-iframe EditorではPerformance fallbackとして周囲列移動を省略する。移動対象、垂直挿入位置、DnD Interactionの意味状態、確定処理は維持する。
 - 列DnDの自動スクロールはDnD Engine標準機能へ委ねず、Column DnD Engine Integrationが対象Tableの横スクロール領域と現在の物理入力位置を一回のDnDへ接続して横方向だけを進行する。
 - 対応Table Block固有の保存表現はTable Integration、WordPress固有のUIと永続化はWordPress Integration境界、DnD Engine固有のLifecycleとイベントはColumn DnD Engine IntegrationまたはDestination Resolutionで吸収する。
 - 正常な利用不能、cancel、外部環境変化による継続不能、内部Contractまたはruntime invariant違反を区別する。
@@ -73,6 +74,8 @@ DnD InteractionはDestination Resolutionで解決済みの論理列間境界をS
 Column Reorder Applyは`confirming`以降の方向固有Lifecycleを所有する。確認中はTableを変更せず、Continue後の反映開始時に現在構造をTable Integrationへ再照合し、現在も成立する場合だけ確定済み列移動を要求する。Cancelまたは再照合不成立ではTableを変更しない。
 
 WordPress Reorder Apply IntegrationはRow / ColumnのReorder Apply状態をWordPress Editor表示へ接続する。重いTable更新より先に対象Tableの通常編集表示を一時的に退避して反映中表示を成立させ、更新後の編集表示が再成立した後に方向固有Reorder Apply Lifecycleを完了する。
+
+Reorder Presentationは現在のEditor DOM Contextから表示環境を確認し、iframe Editorでは周囲列移動を提供する。non-iframe Editorでは大規模TableでのDnD中の追加Layoutコストを避けるため周囲列移動を省略し、移動対象と垂直挿入位置を維持する。このfallbackはPresentationだけに閉じ、Destination Resolution、DnD Interaction、drop/applyの意味を変更しない。
 
 ### Process Flow Views
 
@@ -140,7 +143,7 @@ active DnDの物理Lifecycleがcancelとなる場合、またはcomplete時の�
 | RESP_COLUMN_TARGET_RESOLUTION | Reorder Target Resolution | active DnD成立前に現在列制約から論理列の開始可否を二段階で解決し、開始可能時は開始時制約を返す。 |
 | RESP_COLUMN_DND_INTERACTION | DnD Interaction | 解決済みReorder Targetから始まる列DnD Session、論理移動先の有効性、確定、cancel、終了後モード解決を所有する。 |
 | RESP_COLUMN_REORDER_APPLY | Reorder Apply | DnD Session終了後の確認付き大規模反映について、確定済み列移動意図、確認、反映開始、現在構造再照合、表示復帰完了までの方向固有Lifecycleを所有する。 |
-| RESP_COLUMN_PRESENTATION | Reorder Presentation | 開始不可、移動対象、垂直挿入位置、周囲列移動、終了通知をColumn Reorderの独立表示として表現する。 |
+| RESP_COLUMN_PRESENTATION | Reorder Presentation | 開始不可、移動対象、垂直挿入位置、Editor表示方式に応じた周囲列移動、終了通知をColumn Reorderの独立表示として表現する。 |
 
 ### Ownership Boundaries
 
@@ -186,7 +189,7 @@ active DnDの物理Lifecycleがcancelとなる場合、またはcomplete時の�
 | RESP_COLUMN_DND_INTERACTION | RESP_COLUMN_REORDER_APPLY | 確認付き大規模反映ではDnD Session終了後に確定済み移動意図を方向固有Apply Lifecycleへ引き渡すために必要とする。 |
 | RESP_COLUMN_REORDER_APPLY | RESP_COLUMN_TABLE_INTEGRATION | Continue後の現在構造再照合、更新対象の成立確認、確定済み列移動の反映に必要とする。 |
 | RESP_COLUMN_DND_INTERACTION | RESP_REORDER_MODE | Session終了後に対象Tableで列並び替えを安全に継続できるかだけを現在モードへ反映するために必要とする。 |
-| RESP_COLUMN_PRESENTATION | RESP_EDITOR_DOM_CONTEXT | 現在のEditor DOM contextで一時表示を配置するために必要とする。 |
+| RESP_COLUMN_PRESENTATION | RESP_EDITOR_DOM_CONTEXT | 現在のEditor DOM contextで一時表示を配置し、Editor表示方式に応じた周囲列移動方針を選択するために必要とする。 |
 | RESP_COLUMN_PRESENTATION | EXT_DND_ENGINE | 移動対象表示等に必要な物理DnD情報をSessionへ複製せず利用するために必要とする。 |
 | RESP_COLUMN_PRESENTATION | RESP_COLUMN_TARGET_RESOLUTION | 操作可能列の事前表示等で開始可否の意味を重複判定せず利用するために必要とする。 |
 | RESP_COLUMN_PRESENTATION | RESP_COLUMN_DND_INTERACTION | active状態と現在の有効移動先を購読し、終了通知を受け取るために必要とする。 |
@@ -289,7 +292,7 @@ DnD completeで現在構造の再照合と更新対象セル数の算出が成�
 
 ##### Contract
 
-基準要素の現在の`ownerDocument`と対応する`window`を安全に提供できる場合だけcontextを返す。解決できない場合は以前のcontextまたは別Editor contextへfallbackしない。
+基準要素の現在の`ownerDocument`と対応する`window`を安全に提供できる場合だけcontextを返す。解決できない場合は以前のcontextまたは別Editor contextへfallbackしない。利用側は必要なPresentation方針を現在contextから要求時点で判断できるが、その表示方式をEditor DOM Context自身の別状態として保持しない。
 
 ##### Lifecycle
 
@@ -297,7 +300,7 @@ DOM / Web APIを必要とする時点で現在の基準要素から解決する�
 
 ##### Invariants
 
-- iframe / non-iframeというEditor方式を利用側へ判定させない。
+- iframe / non-iframeを独自の永続状態として保持しない。
 - 現在の基準とは異なるcontextをfallbackとして提供しない。
 - context利用不能をColumn Reorder内部Errorへ変換しない。
 
@@ -583,27 +586,28 @@ DnD Session終了後に確認付き大規模反映の移動意図を一つだけ
 
 ##### Responsibility
 
-Column Reorderの開始可否、active DnD意味状態、および必要なDnD Engine物理情報から、移動対象列、垂直挿入位置、周囲列移動、開始拒否、終了通知を独立した表示として表現する。
+Column Reorderの開始可否、active DnD意味状態、現在のEditor表示方式、および必要なDnD Engine物理情報から、移動対象列、垂直挿入位置、環境に応じた周囲列移動、開始拒否、終了通知を独立した表示として表現する。
 
 ##### State ownership
 
-表示と一回性通知に必要な一時状態だけを所有する。Tableデータ、DnD Session、Target Resolution結果の正本、DnD Engine物理状態を所有しない。
+表示と一回性通知に必要な一時状態だけを所有する。Tableデータ、DnD Session、Target Resolution結果の正本、DnD Engine物理状態、Editor表示方式の永続状態を所有しない。
 
 ##### Contract
 
 Input InteractionからDesign上の開始拒否理由と操作位置を一回性通知として受ける。操作可能列の事前表示等ではReorder Target Resolutionを利用し、構造制約を重複判定しない。DnD Interactionのactive状態と現在有効移動先を購読し、DnD Engineの物理情報は表示に必要な時点だけ利用する。
 
-移動対象列は元Tableの列幅とセル高さの配置関係を保ち、Tableの縦方向から不必要にはみ出さない。現在の有効移動先はTable全体の列間に垂直挿入線で示し、実際に位置が変わる周囲列だけを移動表示する。
+移動対象列は元Tableの列幅とセル高さの配置関係を保ち、Tableの縦方向から不必要にはみ出さない。現在の有効移動先はTable全体の列間に垂直挿入線で示す。iframe Editorでは実際に位置が変わる周囲列だけを移動表示する。non-iframe EditorではPerformance fallbackとして周囲列移動を成立させず、移動対象列と垂直挿入位置を維持する。この表示差によってDnD Interactionの有効移動先、drop後の列順、確定・cancelの意味を変更しない。
 
 ##### Lifecycle
 
-開始拒否通知はDesignで定義された期間だけ表示する。active DnD表示はDnD InteractionのSession開始と終了に追従する。cancelまたは成立しないdropでは異常終了通知を表示しない。安全に確定できない終了でDesignが通知を要求する場合だけ短い終了通知を表示する。
+開始拒否通知はDesignで定義された期間だけ表示する。active DnD表示はDnD InteractionのSession開始と終了に追従する。周囲列移動を提供するかはactive DnD開始時の現在Editor表示方式に従い、そのSession中に別の意味状態として保持しない。cancelまたは成立しないdropでは異常終了通知を表示しない。安全に確定できない終了でDesignが通知を要求する場合だけ短い終了通知を表示する。
 
 ##### Invariants
 
 - 表示状態をTableデータまたはDnD Sessionの正本にしない。
 - 開始可否や構造上の移動可否をPresentation独自に再実装しない。
 - DnD中の表示のために実Tableの列順を変更しない。
+- non-iframe Editorで周囲列移動を省略しても、移動対象、垂直挿入位置、DnD Interaction、drop/applyの意味を変更しない。
 - DnD Engine標準の移動表示とColumn Reorder独自表示を重ねて利用しない。
 - Row Reorderの表示状態を共有しない。
 
@@ -777,6 +781,10 @@ Column Reorderが扱う列は`thead`、`tbody`、`tfoot`を通じたTable全体�
 
 Destination Resolutionは物理入力位置を論理列間境界へ変換するだけとし、DnD Interactionはその論理境界をSession開始時制約へ照合する。この分離により、DnD EngineやDOM geometryをDnD Sessionへ持ち込まず、Presentationによる見かけ上の列移動を論理移動先へ混入させない。水平自動スクロールでTable位置だけが変化した場合も、DnD Engine Integrationが同じ最新物理入力位置からDestination Resolutionを再要求し、この責務分離を維持したまま現在位置へ追従する。
 
+### Presentation fallback by Editor environment
+
+Reorder Presentationは現在のEditor DOM Contextを要求時点で利用し、周囲列移動を提供できる表示方式かを判断する。iframe Editorでは周囲列移動を提供し、non-iframe Editorでは大規模Tableでの実セル表示更新による追加Layoutコストを避けるため周囲列移動を省略する。non-iframeでも移動対象列と垂直挿入位置を維持し、このfallbackをDnD Interaction、Destination Resolution、Table Integration、Reorder Applyへ伝播させない。
+
 ### Horizontal auto scroll ownership
 
 Column Reorderの水平自動スクロールはDnD Engine Integrationが所有する。対象Tableに対応する横スクロール領域を一回のDnDへ固定し、対象Editor環境と同じ座標系の現在物理入力位置が左右端領域にある場合だけ横方向へ進行する。DnD Engine標準のAuto Scrollは利用せず、縦方向のスクロールを開始しない。スクロール限界または端領域外では不要な継続を停止し、DnD終了時にはスクロール対象と物理入力位置を含む一時状態を破棄する。
@@ -819,12 +827,14 @@ Table Integrationが現在構造から算出した更新対象セル数を共通
 - `complete`だけは現在構造へ再照合してから確定する。
 - Table IntegrationはTable Identityを提供せず、指定Tableに対する現在制約と確定済み更新能力を提供する。
 - `thead`、`tbody`、`tfoot`を含むTable全体の列移動を1回の確定済み更新・1回のUndo単位として扱う。
+- non-iframe EditorではReorder PresentationのPerformance fallbackとして周囲列移動を省略し、移動対象と垂直挿入位置を維持する。表示方式の差をDnD Interactionまたは確定結果の差にしない。
 - Column Reorderの水平自動スクロールはDnD Engine標準機能へ委ねず、DnD Engine Integrationが対象Tableの横スクロール領域と現在物理入力位置を一回のDnDへ接続して所有する。
 
 ## 10. Quality Requirements
 
 - DnD InteractionはDnD Engine固有の物理イベント、表示参照、計測結果、自動スクロール状態をSession状態へ保持しない。
 - 大規模Tableでも`progress`ごとにSupported Table Blockの現在構造を再取得せず、Destination Resolutionの論理境界とSession開始時制約で移動先を判断する。
+- non-iframe Editorでは実Tableセルへの周囲列移動を省略し、移動対象と垂直挿入位置を維持したままColumn Reorder自身が追加するDnD中のLayoutコストを抑える。
 - 水平自動スクロール中も新しい物理moveを要求せず、実際にスクロールした時だけ最新の物理入力位置からDestination Resolutionを再要求して現在Table位置へ追従する。
 - 水平自動スクロールは対象Tableの横方向だけを変更し、スクロール限界または端領域外で不要な継続処理を残さない。
 - Presentationによる列の表示変位をDestination Resolutionの論理配置へ混入させない。
