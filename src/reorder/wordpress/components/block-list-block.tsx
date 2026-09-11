@@ -155,10 +155,7 @@ export const ReorderModeBlockListBlock = ( props: {
 	const reorderModeWrapperProps = ! editingAllowed
 		? {
 				...wrapperProps,
-				className: createReorderModeClassName(
-					wrapperProps?.className,
-					rowReorderEnabled
-				),
+				className: createReorderModeClassName( wrapperProps?.className, rowReorderEnabled ),
 		  }
 		: wrapperProps;
 
