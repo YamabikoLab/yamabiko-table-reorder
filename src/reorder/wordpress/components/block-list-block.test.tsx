@@ -38,7 +38,11 @@ jest.mock( '@/reorder/column-reorder/responsibilities/presentation/column-highli
 			overHandler: PointerEventHandler< Element >,
 			outHandler: PointerEventHandler< Element >
 		) => ReactNode;
-	} ) => children( () => undefined, () => undefined ),
+	} ) =>
+		children(
+			() => undefined,
+			() => undefined
+		),
 } ) );
 
 jest.mock( '@/reorder/row-reorder/integration/dnd', () => ( {
@@ -68,7 +72,7 @@ const BlockListBlock = ( props: ReorderModeBlockListBlockProps ) => {
 	);
 };
 
-const renderBlockListBlock = () =>
+const renderBlockListBlock = () => (
 	<ReorderModeBlockListBlock
 		BlockListBlock={ BlockListBlock }
 		blockProps={ {
@@ -77,7 +81,8 @@ const renderBlockListBlock = () =>
 			name: 'core/table',
 			wrapperProps: { draggable: true },
 		} }
-	/>;
+	/>
+);
 
 describe( 'Reorder Mode Block wrapper drag availability', () => {
 	beforeEach( () => {
