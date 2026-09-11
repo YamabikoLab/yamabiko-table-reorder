@@ -6,6 +6,7 @@
  * 移動表示は物理DnDへ縦横とも追従し、利用者が元Tableからずらしてセル内容を比較できるようにする。
  */
 
+import { getFrameTransform } from '@dnd-kit/dom/utilities';
 import { useDragDropMonitor } from '@dnd-kit/react';
 import { createPortal, useEffect, useRef, useState } from '@wordpress/element';
 import type { CSSProperties } from 'react';
@@ -350,10 +351,16 @@ const resolveMovingDisplayLayout = (
 		return null;
 	}
 
+	const frameTransform = getFrameTransform( sourceCell );
+	/* DnD Engineの物理座標から現在のeditor表示領域へ戻せない場合は、別列を推測して移動表示を作らない。 */
+	if ( ! Number.isFinite( frameTransform.scaleX ) || frameTransform.scaleX === 0 ) {
+		return null;
+	}
+	const editorPositionX = ( initialPositionX - frameTransform.x ) / frameTransform.scaleX;
 	const cells = collectMovingColumnCells(
 		sourceTable,
 		sourceCell,
-		initialPositionX,
+		editorPositionX,
 		editorContext.document,
 		editorContext.window
 	);
