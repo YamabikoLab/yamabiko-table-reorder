@@ -20,7 +20,7 @@ Architecture上の責務はソースファイル構成を写したものでは�
 - WordPress Reorder IntegrationはTableツールバー入口、RF入力画面、Reorder Mode / RF Interactionの排他接続を所有し、RF入力状態や方向固有移動意味を所有しない。
 - RF InteractionはRFのopen / close、対象Table Identity、選択方向、利用者入力、入力画面へ返すための一時状態を所有する。
 - RF Interactionは入力成立に必要な最小Table情報だけを方向固有Table Integrationから取得する。Rowでは現在行数、Columnでは論理列Identity・列番号・利用可能な見出し表示値を利用する。
-- RF Input Interpretationは利用者入力とRF Interactionから渡された現在の入力範囲を内部で解釈可能な値へ変換する。Table構造制約、Table更新、UI表示状態は所有しない。
+- RF Input Interpretationは利用者入力とRF Interactionから渡された現在の入力範囲 / 選択肢を解釈し、`not-ready`または`ready`と方向固有Resolutionへ渡す内部指定だけを返す。未入力と不正入力を公開結果で区別せず、Table構造制約、Table更新、UI表示状態は所有しない。
 - Row RF Resolutionは`tbody`の行指定と`above | below`を、移動前Table基準の行移動候補へ解決する。
 - Column RF ResolutionはTable全体の論理列指定と`left | right`を、移動前Table基準の列移動候補へ解決する。
 - RFで指定する移動先は、移動元を除去した後のindexではなく、並び替え前Table上の対象行または対象列そのものを識別する。
@@ -34,7 +34,7 @@ Architecture上の責務はソースファイル構成を写したものでは�
 - 既存の方向固有Reorder ApplyはDnD Session終了後のLifecycleとして成立しているため、RFから名前だけで流用しない。本ArchitectureではRF固有のApply Coordinationを定義し、共通PolicyとWordPress Reorder Apply Integrationを再利用する。
 - WordPress Reorder Apply Integrationは確認、反映中表示、editing surface restorationをRF Apply Coordinationへ接続できる共通Editor統合責務として扱う。
 - 確認中はTableデータを変更しない。Continue後は方向固有Table Integrationが要求時点の現在Tableへ再照合し、現在も成立する場合だけ更新する。
-- Cancel、no-op、入力不正、構造上の移動不可、再照合不成立、更新不能ではTableデータを変更しない。
+- Cancel、no-op、入力不成立、構造上の移動不可、再照合不成立、更新不能ではTableデータを変更しない。
 - 成立した一回のRF並び替えは一回のWordPress更新および一回のUndo単位として扱う。
 - 反映失敗後はRF入力を保持して入力画面へ戻し、対象Tableを再び編集可能にする。
 - 反映成功後はRFを終了し、通常編集へ戻す。
@@ -64,7 +64,7 @@ WordPress Reorder IntegrationはRF入口を既存のRow / Column入口と同じ�
 
 RF Interactionは対象Tableと利用者入力を所有する。RowではRow Table Integrationから現在行数を取得して入力範囲を成立させ、ColumnではColumn Table Integrationから最小列記述を取得して選択肢を成立させる。対応Table Blockの保存属性そのものはRFへ公開しない。
 
-RF Input InterpretationはRF Interactionから現在の入力範囲と利用者入力を受け、Rowの1-based位置番号を範囲内の0-based位置へ変換する。Columnでは現在の選択肢から選ばれた論理列Identityを内部指定として扱う。Table構造上の移動可否は判断しない。
+RF Input InterpretationはRF Interactionから現在の入力範囲 / 選択肢と利用者入力を受ける。Rowでは1-based位置番号を範囲内の0-based位置へ変換し、Columnではsource / targetの論理列Identityが現在の選択肢に存在することまでを入力成立性として照合する。必要入力が成立しない場合は理由を細分化せず`not-ready`を返し、成立した場合だけ`ready`と内部指定を返す。Table構造上の移動可否やno-opは判断しない。
 
 Row RF Resolutionは解釈済み行指定と上下指定を移動前Table基準の行間境界へ変換し、Row Table Integrationの現在構造から移動対象、移動先、結合セル制約、no-opを解決する。Column RF Resolutionも同様に、論理列指定と左右指定を移動前Table基準の列間境界へ変換し、Column Table Integrationの現在構造へ照合する。
 
@@ -89,7 +89,7 @@ RF開始から入力成立、方向固有の指定解決、反映経路選択、
 | RESP_WORDPRESS_REORDER_INTEGRATION | RESP_RF_INTERACTION | normal | 対象Table IdentityとともにRF入力Lifecycleを開始する。 |
 | RESP_RF_INTERACTION | RESP_ROW_TABLE_INTEGRATION | normal | Row入力の表示範囲に必要な現在行数を取得する。 |
 | RESP_RF_INTERACTION | RESP_COLUMN_TABLE_INTEGRATION | normal | Column入力の選択肢に必要な最小列記述を取得する。 |
-| RESP_RF_INTERACTION | RESP_RF_INPUT_INTERPRETATION | normal | 現在の入力範囲と利用者入力を内部で解釈可能な指定へ変換する。 |
+| RESP_RF_INTERACTION | RESP_RF_INPUT_INTERPRETATION | normal | 現在の入力範囲 / 選択肢と利用者入力を`not-ready`または`ready`な内部指定へ解釈する。 |
 | RESP_RF_INTERACTION | RESP_RF_ROW_RESOLUTION | normal | Row選択時の解釈済み指定を行移動候補として解決する。 |
 | RESP_RF_INTERACTION | RESP_RF_COLUMN_RESOLUTION | normal | Column選択時の解釈済み指定を列移動候補として解決する。 |
 | RESP_RF_ROW_RESOLUTION | RESP_ROW_TABLE_INTEGRATION | normal | 現在のtbody行制約と構造診断から行移動候補を解決する。 |
@@ -115,11 +115,11 @@ RF開始から入力成立、方向固有の指定解決、反映経路選択、
 
 #### RF Rejection and Recovery {#PV_RF_REJECTION_RECOVERY kind=failure-recovery}
 
-入力不正、構造上の移動不可、no-op、確認Cancel、反映時再照合不成立、更新不能からTableを変更せずRFへ復帰する処理方向を示す。
+入力不成立、構造上の移動不可、no-op、確認Cancel、反映時再照合不成立、更新不能からTableを変更せずRFへ復帰する処理方向を示す。
 
 | From | To | Kind | Meaning |
 | --- | --- | --- | --- |
-| RESP_RF_INPUT_INTERPRETATION | RESP_RF_INTERACTION | recovery | 未入力または有効に解釈できない入力をTable更新なしで現在入力状態へ反映する。 |
+| RESP_RF_INPUT_INTERPRETATION | RESP_RF_INTERACTION | recovery | `not-ready`をTable更新なしで現在入力状態へ反映する。 |
 | RESP_ROW_TABLE_INTEGRATION | RESP_RF_ROW_RESOLUTION | failure | Row候補を成立させない現在構造または結合セル診断を返す。 |
 | RESP_RF_ROW_RESOLUTION | RESP_RF_INTERACTION | recovery | Rowの構造拒否またはno-opを入力画面の現在結果へ返す。 |
 | RESP_COLUMN_TABLE_INTEGRATION | RESP_RF_COLUMN_RESOLUTION | failure | Column候補を成立させない現在構造または結合セル診断を返す。 |
@@ -143,7 +143,7 @@ RF開始から入力成立、方向固有の指定解決、反映経路選択、
 | RESP_WORDPRESS_REORDER_APPLY_INTEGRATION | WordPress Reorder Apply Integration | Reorder Apply状態をWordPress Editorの確認、反映中表示、editing surface restorationへ接続する。 |
 | RESP_REORDER_GUIDANCE_INTEGRATION | Reorder Guidance Integration | 初回案内の表示契機、操作環境判定、WordPress Preferences永続化、およびRow / Column / RF入口選択による案内終了を接続する。 |
 | RESP_RF_INTERACTION | RF Interaction | RFのopen / close、対象Table、方向、利用者入力、入力保持、および成功 / 失敗後の入力Lifecycleを所有する。 |
-| RESP_RF_INPUT_INTERPRETATION | RF Input Interpretation | RFの利用者入力と現在入力範囲を方向固有Resolutionが解釈できる内部指定へ変換し、入力自体の有効性を判定する。 |
+| RESP_RF_INPUT_INTERPRETATION | RF Input Interpretation | RFの利用者入力と現在入力範囲 / 選択肢を解釈し、`not-ready`または`ready`と方向固有Resolution向け内部指定を返す。 |
 | RESP_RF_ROW_RESOLUTION | Row RF Resolution | `tbody`行のRF指定を現在Tableへ照合し、移動前基準の候補、構造拒否、no-opを解決する。 |
 | RESP_RF_COLUMN_RESOLUTION | Column RF Resolution | 論理列のRF指定を現在Tableへ照合し、移動前基準の候補、構造拒否、no-opを解決する。 |
 | RESP_RF_APPLY_COORDINATION | RF Apply Coordination | RF候補の反映経路選択、確認付き反映、Table Integrationによる反映直前再照合、成功 / 失敗、editing surface restorationまでのLifecycleを所有する。 |
@@ -178,7 +178,7 @@ RF開始から入力成立、方向固有の指定解決、反映経路選択、
 | RESP_REORDER_GUIDANCE_INTEGRATION | RESP_REORDER_GUIDANCE | 現在の共通入口案内状態を開始・終了するために必要とする。 |
 | RESP_REORDER_GUIDANCE_INTEGRATION | RESP_REORDER_MODE | Row / Column入口選択を共通案内終了条件として扱うために必要とする。 |
 | RESP_REORDER_GUIDANCE_INTEGRATION | RESP_RF_INTERACTION | RF入口選択を共通案内終了条件として扱うために必要とする。 |
-| RESP_RF_INTERACTION | RESP_RF_INPUT_INTERPRETATION | 現在の入力範囲と利用者入力を安全に解釈し、入力自体の有効性を判断するために必要とする。 |
+| RESP_RF_INTERACTION | RESP_RF_INPUT_INTERPRETATION | 現在の入力範囲 / 選択肢と利用者入力を`not-ready`または`ready`な内部指定へ安全に解釈するために必要とする。 |
 | RESP_RF_INTERACTION | RESP_RF_ROW_RESOLUTION | Row選択時の指定を現在Tableへ照合し、行移動候補を解決するために必要とする。 |
 | RESP_RF_INTERACTION | RESP_RF_COLUMN_RESOLUTION | Column選択時の指定を現在Tableへ照合し、列移動候補を解決するために必要とする。 |
 | RESP_RF_INTERACTION | RESP_RF_APPLY_COORDINATION | 成立した解決済み候補を反映し、成功 / 失敗結果をRF Lifecycleへ反映するために必要とする。 |
@@ -390,22 +390,22 @@ closedまたは一つのopen RF Sessionを所有する。open Sessionは対象Ta
 
 ##### Contract
 
-WordPress Reorder Integrationから対象Table Identityを受けてRFを開始する。初期方向はRowとする。Row入力ではRow Table Integrationから現在行数を取得し、表示範囲と入力検証範囲としてRF Input Interpretationへ渡す。Column入力ではColumn Table Integrationから最小列記述を取得し、現在の選択肢として扱う。
+WordPress Reorder Integrationから対象Table Identityを受けてRFを開始する。初期方向はRowとする。Row入力ではRow Table Integrationから現在行数を取得し、表示範囲と入力検証範囲としてRF Input Interpretationへ渡す。Column入力ではColumn Table Integrationから最小列記述を取得し、現在の選択肢としてRF Input Interpretationへ渡す。
 
-入力変更時はRF Input Interpretationを利用し、必要な指定が解釈可能になった場合だけ現在方向のResolutionを要求する。Resolutionが成立し、no-opでない場合だけRF Apply Coordinationへ解決済み候補の反映を要求する。
+入力変更時はRF Input Interpretationを利用し、`ready`と内部指定が返された場合だけ現在方向のResolutionを要求する。`not-ready`ではResolutionへ進めず、Apply可能状態にしない。Resolutionが成立し、no-opでない場合だけRF Apply Coordinationへ解決済み候補の反映を要求する。
 
-方向変更時は切り替え前方向の入力エラー・構造拒否結果を現在表示へ持ち越さない。CancelではTableを更新せずRFを終了する。Apply成功ではRFを終了し、Apply失敗または大規模反映Cancelでは入力を保持したRFへ戻る。
+方向変更時は切り替え前方向の入力成立性・構造拒否結果を現在表示へ持ち越さない。CancelではTableを更新せずRFを終了する。Apply成功ではRFを終了し、Apply失敗または大規模反映Cancelでは入力を保持したRFへ戻る。
 
 ##### Lifecycle
 
-`closed → open(row) ↔ open(column) → applying → closed`を主Lifecycleとする。入力不正、構造拒否、no-opは`open`内の結果でありApply Lifecycleを開始しない。大規模反映Cancelまたは反映失敗では`open`へ戻る。
+`closed → open(row) ↔ open(column) → applying → closed`を主Lifecycleとする。`not-ready`、構造拒否、no-opは`open`内の結果でありApply Lifecycleを開始しない。大規模反映Cancelまたは反映失敗では`open`へ戻る。
 
 ##### Invariants
 
 - open RF Sessionは同時に一つだけ存在する。
 - RF Sessionは必ず対象Table Identityを持つ。
 - RF open中に同一Tableの方向固有DnDを並行して活動させない。
-- 方向切り替え前のエラー・構造拒否結果を切り替え後方向の結果として表示しない。
+- 方向切り替え前の入力成立性・構造拒否結果を切り替え後方向の結果として表示しない。
 - Table構造をSessionの永続snapshotとして保持しない。
 - Supported Table Blockの保存表現を直接解釈しない。
 - Table更新を直接行わない。
@@ -414,7 +414,7 @@ WordPress Reorder Integrationから対象Table Identityを受けてRFを開始�
 
 ##### Responsibility
 
-RFの利用者入力とRF Interactionから渡された現在の入力範囲を方向固有Resolutionが扱える内部指定へ変換し、入力自体が未完成、有効、または有効に解釈不能かを判定する。
+RFの利用者入力とRF Interactionから渡された現在の入力範囲 / 選択肢を方向固有Resolutionが扱える内部指定へ変換し、公開結果を`not-ready`または`ready`と内部指定の2状態に集約する。
 
 ##### State ownership
 
@@ -422,16 +422,22 @@ RFの利用者入力とRF Interactionから渡された現在の入力範囲を�
 
 ##### Contract
 
-Rowでは利用者向け1-based位置番号と現在の有効行数を受け、`1`から現在行数までの整数だけを内部の0-based位置へ変換する。ColumnではRF Interactionが現在の列記述から選択した論理列Identityを内部位置として受ける。未入力と不正入力を区別し、初期未入力だけを理由にエラー表示を要求しない。
+Rowでは`sourceRowNumber`、`targetRowNumber`、`above | below`と現在の有効行数を受け、必要な3入力がすべて成立し、両方の行番号が`1`から現在行数までの整数として解釈できる場合だけ`ready`と0-basedの`sourceRowIndex` / `targetRowIndex`を含む内部指定を返す。それ以外は理由を細分化せず`not-ready`を返す。
+
+Columnではsource / targetの論理列Identity、`left | right`とRF Interactionから渡された現在の列選択肢を受ける。必要な3入力が揃い、source / targetのIdentityがどちらも現在の選択肢に存在する場合だけ`ready`と内部指定を返し、それ以外は`not-ready`を返す。見出し文字列や任意文字列から列Identityを推測しない。
+
+公開結果にはエラーメッセージ文字列、エラーコード配列、field別エラーを含めない。no-op、blocked boundary、結合セルを含むTable構造制約、移動先境界は方向固有Resolutionへ委ねる。
 
 ##### Lifecycle
 
-入力変更ごとに現在値と現在入力範囲を独立して解釈し、以前の解釈結果を次回判定へ持ち越さない。
+入力変更ごとに現在値と現在入力範囲 / 選択肢を独立して解釈し、以前の解釈結果を次回判定へ持ち越さない。
 
 ##### Invariants
 
 - Table Integrationを直接参照しない。
-- Table構造上の移動可否を判定しない。
+- 未入力と不正入力を公開結果で区別しない。
+- Columnの現在選択肢にIdentityが存在するかどうかは入力成立性として扱う。
+- Table構造上の移動可否やno-opを判定しない。
 - 1-based表示値と0-based内部位置の境界を方向固有Resolutionへ漏らさない。
 - 解釈不能入力から移動候補を推測しない。
 - 入力値をTableデータとして扱わない。
@@ -593,7 +599,7 @@ RF入口から同一TableのDnDモードを終了し、Row初期状態でRFを�
 | 5 | RESP_WORDPRESS_REORDER_INTEGRATION | EXT_WORDPRESS_EDITOR | Rowを初期方向とするRF入力画面を表示する。 |
 | 6 | EXT_WORDPRESS_EDITOR | RESP_WORDPRESS_REORDER_INTEGRATION | 利用者がRow / Column方向を切り替える。 |
 | 7 | RESP_WORDPRESS_REORDER_INTEGRATION | RESP_RF_INTERACTION | 現在方向を切り替える。 |
-| 8 | RESP_WORDPRESS_REORDER_INTEGRATION | EXT_WORDPRESS_EDITOR | 新しい方向の入力状態を表示し、旧方向のエラー・構造拒否表示を終了する。 |
+| 8 | RESP_WORDPRESS_REORDER_INTEGRATION | EXT_WORDPRESS_EDITOR | 新しい方向の入力状態を表示し、旧方向の入力成立性・構造拒否表示を終了する。 |
 
 ### RF row resolution {#RV_RF_ROW_RESOLUTION}
 
@@ -607,8 +613,8 @@ Row入力範囲を現在Tableから取得し、入力が揃った時点で移動
 | 4 | EXT_WORDPRESS_EDITOR | RESP_WORDPRESS_REORDER_INTEGRATION | 利用者が移動元行、移動先行、上 / 下を入力する。 |
 | 5 | RESP_WORDPRESS_REORDER_INTEGRATION | RESP_RF_INTERACTION | 現在のRow入力をRF Sessionへ反映する。 |
 | 6 | RESP_RF_INTERACTION | RESP_RF_INPUT_INTERPRETATION | 現在行数とRow入力を解釈する。 |
-| 7 | RESP_RF_INPUT_INTERPRETATION | RESP_RF_INTERACTION | 未完成、不正、または解釈済み0-based指定を返す。 |
-| 8 | RESP_RF_INTERACTION | RESP_RF_ROW_RESOLUTION | 必要な指定が揃った場合だけRow候補の解決を要求する。 |
+| 7 | RESP_RF_INPUT_INTERPRETATION | RESP_RF_INTERACTION | `not-ready`、または`ready`と解釈済み0-based指定を返す。 |
+| 8 | RESP_RF_INTERACTION | RESP_RF_ROW_RESOLUTION | `ready`の場合だけRow候補の解決を要求する。 |
 | 9 | RESP_RF_ROW_RESOLUTION | RESP_ROW_TABLE_INTEGRATION | 要求時点の`tbody`行制約と必要な構造診断を要求する。 |
 | 10 | RESP_ROW_TABLE_INTEGRATION | EXT_SUPPORTED_TABLE_BLOCK | 現在の対応TableからRow構造を解釈する。 |
 | 11 | RESP_RF_ROW_RESOLUTION | RESP_RF_INTERACTION | resolved、blocking merged rangeを伴う構造拒否、またはno-opを返す。 |
@@ -626,9 +632,9 @@ Column選択肢を現在Tableから取得し、入力が揃った時点で移動
 | 3 | RESP_COLUMN_TABLE_INTEGRATION | RESP_RF_INTERACTION | 列Identity、列番号、利用可能な見出し表示値を返す。 |
 | 4 | EXT_WORDPRESS_EDITOR | RESP_WORDPRESS_REORDER_INTEGRATION | 利用者が移動元列、移動先列、左 / 右を選択する。 |
 | 5 | RESP_WORDPRESS_REORDER_INTEGRATION | RESP_RF_INTERACTION | 現在のColumn入力をRF Sessionへ反映する。 |
-| 6 | RESP_RF_INTERACTION | RESP_RF_INPUT_INTERPRETATION | 現在のColumn入力を解釈する。 |
-| 7 | RESP_RF_INPUT_INTERPRETATION | RESP_RF_INTERACTION | 未完成または解釈済み論理列指定を返す。 |
-| 8 | RESP_RF_INTERACTION | RESP_RF_COLUMN_RESOLUTION | 必要な指定が揃った場合だけColumn候補の解決を要求する。 |
+| 6 | RESP_RF_INTERACTION | RESP_RF_INPUT_INTERPRETATION | 現在のColumn入力と現在列選択肢を解釈する。 |
+| 7 | RESP_RF_INPUT_INTERPRETATION | RESP_RF_INTERACTION | `not-ready`、または`ready`と現在選択肢へ照合済みの論理列指定を返す。 |
+| 8 | RESP_RF_INTERACTION | RESP_RF_COLUMN_RESOLUTION | `ready`の場合だけColumn候補の解決を要求する。 |
 | 9 | RESP_RF_COLUMN_RESOLUTION | RESP_COLUMN_TABLE_INTEGRATION | 要求時点の論理列制約と必要な構造診断を要求する。 |
 | 10 | RESP_RF_COLUMN_RESOLUTION | RESP_RF_INTERACTION | resolved、blocking merged rangeを伴う構造拒否、またはno-opを返す。 |
 | 11 | RESP_WORDPRESS_REORDER_INTEGRATION | RESP_RF_INTERACTION | 現在の実行可否と理由状態を取得する。 |
@@ -694,7 +700,7 @@ Column選択肢を現在Tableから取得し、入力が揃った時点で移動
 
 ### UI Position and Internal Position
 
-利用者向け位置番号は1-basedとし、内部の方向固有Resolutionでは0-based位置を扱う。RF Interactionが現在行数または列記述を取得し、RF Input Interpretationが利用者入力を現在の入力範囲へ照合して内部位置へ変換する。Table IntegrationやApply Coordinationへ利用者向け番号体系を持ち込まない。
+利用者向け位置番号は1-basedとし、内部の方向固有Resolutionでは0-based位置を扱う。RF Interactionが現在行数または列記述を取得し、RF Input Interpretationが利用者入力を現在の入力範囲 / 選択肢へ照合して内部位置へ変換する。Table IntegrationやApply Coordinationへ利用者向け番号体系を持ち込まない。
 
 ### Destination Target Semantics
 
@@ -724,7 +730,7 @@ RF Apply Coordinationは方向固有Table Integrationへ現在候補の再照合
 
 ### Input Trust Boundary
 
-RFの利用者入力は内部位置として利用する前に解釈・範囲検証する。Rowの現在行数とColumnの現在列記述はRF Interactionが方向固有Table Integrationから取得し、RF Input Interpretationへ入力検証条件として渡す。解釈不能値を推測して移動候補へ変換しない。WordPress Editor内入力であっても、内部Contract成立前の値として扱う。
+RFの利用者入力は内部位置として利用する前に解釈・範囲検証する。Rowの現在行数とColumnの現在列記述はRF Interactionが方向固有Table Integrationから取得し、RF Input Interpretationへ入力成立条件として渡す。Rowは整数かつ現在行範囲内、Columnはsource / targetのIdentityが現在列選択肢に存在することまでを入力成立性とし、成立しない場合は公開理由を細分化せず`not-ready`とする。解釈不能値や見出し文字列から移動候補を推測しない。WordPress Editor内入力であっても、内部Contract成立前の値として扱う。
 
 ### Guidance Environment Boundary
 
@@ -750,7 +756,7 @@ RFは既存Row / Column Table Integrationの構造解釈・更新能力を再利
 
 ### RF Input Metadata Comes from Table Integration
 
-RF InteractionがRowの現在行数とColumnの最小列記述を方向固有Table Integrationから取得し、RF Input Interpretationへ入力成立条件を渡す。RF Input Interpretation自身はTable Integrationへ依存せず、入力値の解釈と範囲検証だけを所有する。
+RF InteractionがRowの現在行数とColumnの最小列記述を方向固有Table Integrationから取得し、RF Input Interpretationへ入力成立条件を渡す。RF Input Interpretation自身はTable Integrationへ依存せず、入力値の解釈と範囲 / 現在選択肢への照合だけを所有する。
 
 ### Apply Revalidation Uses Table Integration as Final Authority
 
@@ -773,7 +779,7 @@ RFは既存Reorder Guidance / Reorder Guidance Integrationのstable IDとContrac
 ## 10. Quality Requirements
 
 - **Correctness**: RF入力中の解決結果だけで更新せず、方向固有Table Integrationが反映直前の現在Tableへ再照合して成立する移動だけを確定する。
-- **Data integrity**: 入力不正、構造拒否、no-op、Cancel、再照合不成立、更新不能ではTableデータを変更しない。
+- **Data integrity**: `not-ready`、構造拒否、no-op、Cancel、再照合不成立、更新不能ではTableデータを変更しない。
 - **Consistency**: Row / Column DnDとRFは方向固有Table Integrationの同じ構造ルールと更新意味を利用する。
 - **Usability**: 結合セルによる移動不可では、大規模Tableでも原因位置を識別できる構造診断をPresentationへ提供できる。
 - **Responsiveness**: 更新対象セル数による共通Apply Policyを利用し、重い反映では確認と必要な反映中表示を適切なLifecycle境界で提供する。
@@ -784,7 +790,7 @@ RFは既存Reorder Guidance / Reorder Guidance Integrationのstable IDとContrac
 
 ## 11. Risks and Technical Debt
 
-- 既存Row / Column Table Integrationは現在、RFが必要とするblocking merged range、RF入力用Row行数Contract、Column選択肢用の最小列記述、Apply Coordination向け再照合Contractをすべて同じ形で公開しているわけではない。実装時はTableデータ全体を公開せず、必要最小限の方向固有Contract拡張とする。
+- Phase 1で追加したRF向けTable Integration Contractは、RF Input Interpretationから直接参照せずRF Interactionを介して現在入力範囲 / 選択肢として渡す必要がある。RF Input Interpretationへ方向固有Table Integration依存を逆流させない。
 - 既存WordPress Reorder Apply IntegrationはDnD由来の方向固有Reorder Applyを主な利用者として成立している。RF Apply Coordinationを接続する際は、UI実装を複製せず、共通Editor統合Contractを保ったまま複数Apply sourceを扱えることを確認する。
 - 結合セル診断をDnDへ適用する場合は、移動不可表示を過剰に更新しないPresentation方針が別途必要になる。診断能力と表示頻度を同じ責務へ混在させない。
 - Column見出し表示はTable内容を利用者向けラベルへ投影するため、空見出し・重複見出し・結合セルを含む場合でも論理列Identityを失わないContractが必要になる。
