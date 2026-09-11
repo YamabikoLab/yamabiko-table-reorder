@@ -3,7 +3,7 @@ Tags: block editor, gutenberg, table
 Requires at least: 6.8
 Tested up to: 7.1
 Requires PHP: 8.1
-Stable tag: 0.8.1
+Stable tag: 0.8.2
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -11,9 +11,9 @@ Reorder table rows and columns in supported blocks in the WordPress block editor
 
 == Description ==
 
-Yamabiko Table Reorder 0.8.1 provides Row Reorder and Column Reorder for WordPress Core Table and Flexible Table Block.
+Yamabiko Table Reorder 0.8.2 provides Row Reorder and Column Reorder for WordPress Core Table and Flexible Table Block.
 
-Use Row Reorder or Column Reorder mode from the Table toolbar, then drag body rows or Table columns with Mouse or Touch. During DnD, the plugin shows the moving row or column, the current destination, and the surrounding displacement so the result remains visible before it is committed.
+Use Row Reorder or Column Reorder mode from the Table toolbar, then drag body rows or Table columns with Mouse or Touch. During DnD, the plugin shows the moving row or column and the current destination. During Row Reorder, surrounding rows are displaced to preview the result before it is committed. During Column Reorder, surrounding columns are displaced in iframe editors. In non-iframe editors, surrounding column displacement is intentionally omitted to preserve responsiveness, while the moving column and insertion line continue to show the source and destination.
 
 Row and Column Reorder preserve supported Table structure, including merged-cell constraints, and update the order only when the drop is valid. Rows or columns that cannot be moved because of merged-cell constraints are identified in advance, and a short message explains the reason when a drag is attempted. Automatic scrolling follows the active reorder direction when needed.
 
@@ -39,6 +39,12 @@ The generated archive is `yamabiko-table-reorder.zip`.
 4. Activate Yamabiko Table Reorder.
 
 == Changelog ==
+
+= 0.8.2 =
+
+* Fixed: Improved Column Reorder responsiveness in non-iframe editors by omitting costly surrounding-column displacement while preserving the moving column and destination feedback.
+* Fixed: Prevented first-use Touch guidance from leaving editable Table content focused or keeping the software keyboard active.
+* Fixed: Corrected Column Reorder moving-column feedback in iframe editors so the dragged source column is identified correctly when the editor frame has a horizontal offset.
 
 = 0.8.1 =
 
