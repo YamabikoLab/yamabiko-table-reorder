@@ -5,6 +5,7 @@
  * その間にある論理列を移動対象列幅ぶん横方向へ移動する。押しのけ対象セルはDnD開始時にEditor表示領域と縦方向に交差する
  * 行範囲を基準に固定し、横方向はAuto Scrollで表示され得る列も保持する。Session中の移動先変更では可視判定をやり直さず、
  * 前回範囲との差分論理列だけを更新する。結合セルが複数論理列を覆う場合も同じDOMセルへ重複した表示更新を行わない。
+ * non-iframe Editorでは操作性能を保つためこの周囲列移動を提供せず、移動対象と挿入線による移動先表示を維持する。
  */
 
 import { useDragDropMonitor } from '@dnd-kit/react';
@@ -144,7 +145,7 @@ const cellCanIntersectVisibleRows = (
  * 移動先変更ではgeometryを再計測しない。同じ結合セルは占有する各論理列から参照されるが、表示更新時は参照数で一つのDOMセルとして扱う。
  *
  * @param sourceElement DnD Engineが現在の移動対象として管理するDOM要素。
- * @return 1回のDnDで再利用する押しのけ配置。安全に確定できない場合はnull。
+ * @return 1回のDnDで再利用する押しのけ配置。表示方針上押しのけ表示を提供しない場合、または安全に確定できない場合はnull。
  */
 const resolveDisplacementSessionLayout = (
 	sourceElement: Element | undefined
