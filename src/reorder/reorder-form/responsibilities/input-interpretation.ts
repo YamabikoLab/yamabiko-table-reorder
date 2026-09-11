@@ -5,8 +5,6 @@
  * Rowでは利用者向け1-based行番号を0-based indexへ変換し、Columnでは現在の列選択肢に存在する論理列Identityだけを受理する。
  */
 
-import type { ColumnInputDescriptor } from '@/reorder/column-reorder/responsibilities/table-integration';
-
 /** Row RFフォームで利用者が指定する入力値。 */
 export type RowRfFormInput = {
 	/** 移動する行の利用者向け1-based行番号。 */
@@ -72,6 +70,12 @@ export type ColumnRfInputInterpretation =
 			/** 現在の列選択肢に照合済みのColumn RF指定。 */
 			specification: ColumnRfSpecification;
 	  };
+
+/** RF Input InterpretationがColumn入力成立性の照合に利用する現在列Identity。 */
+type ColumnRfInputChoice = {
+	/** 現在Table上の0-based論理列Identity。 */
+	columnIndex: number;
+};
 
 /** Resolutionへ進めない共通結果。 */
 const NOT_READY = { status: 'not-ready' } as const;
@@ -142,12 +146,12 @@ export const interpretRowRfInput = (
  * blocked boundary、結合セル、no-op、移動先境界などの方向固有制約は判定しない。
  *
  * @param input   Column RFフォームの現在入力。
- * @param columns 現在Tableから取得したColumn RF用の列選択肢。
+ * @param columns RF Interactionから渡された現在Tableの列Identity集合。
  * @return Resolutionへ進める内部指定、または入力がまだ成立していないことを示す結果。
  */
 export const interpretColumnRfInput = (
 	input: ColumnRfFormInput,
-	columns: readonly ColumnInputDescriptor[]
+	columns: readonly ColumnRfInputChoice[]
 ): ColumnRfInputInterpretation => {
 	/* 必要な選択が揃うまでは方向固有Resolutionへ内部指定を渡さない。 */
 	if (
