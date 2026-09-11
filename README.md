@@ -8,7 +8,7 @@ A WordPress block editor plugin for reordering Table rows and columns.
 
 Version 0.8.2 provides **Row Reorder and Column Reorder** for WordPress Core Table and Flexible Table Block.
 
-Switch to Row Reorder or Column Reorder mode from the Table toolbar, then reorder `tbody` rows or Table columns with Mouse or Touch drag-and-drop. During DnD, the plugin shows the moving row or column and the current destination. In iframe editors, surrounding rows or columns are displaced to preview the result before it is committed. In non-iframe editors, surrounding column displacement is intentionally omitted during Column Reorder to preserve responsiveness, while the moving column and insertion line continue to show the source and destination.
+Switch to Row Reorder or Column Reorder mode from the Table toolbar, then reorder `tbody` rows or Table columns with Mouse or Touch drag-and-drop. During DnD, the plugin shows the moving row or column and the current destination. During Row Reorder, surrounding rows are displaced to preview the result before it is committed. During Column Reorder, surrounding columns are displaced in iframe editors. In non-iframe editors, surrounding column displacement is intentionally omitted to preserve responsiveness, while the moving column and insertion line continue to show the source and destination.
 
 For Tables with merged cells, only destinations that preserve the supported Table structure are accepted. Rows or columns that cannot be moved because of merged-cell constraints are identified in advance, and a short message explains the reason when a drag is attempted. Row and Column Reorder also support automatic scrolling in the active reorder direction when needed.
 
