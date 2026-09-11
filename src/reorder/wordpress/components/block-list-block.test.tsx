@@ -57,11 +57,16 @@ jest.mock( '@/reorder/column-reorder/integration/dnd', () => ( {
 	} ) => children( () => undefined ),
 } ) );
 
-const BlockListBlock = ( props: ReorderModeBlockListBlockProps ) => (
-	<div data-testid="block-wrapper" { ...props.wrapperProps }>
-		Table
-	</div>
-);
+const BlockListBlock = ( props: ReorderModeBlockListBlockProps ) => {
+	const draggable = props.wrapperProps?.draggable;
+	const blockDraggable = typeof draggable === 'boolean' ? draggable : undefined;
+
+	return (
+		<div data-testid="block-wrapper" draggable={ blockDraggable }>
+			Table
+		</div>
+	);
+};
 
 const renderBlockListBlock = () =>
 	<ReorderModeBlockListBlock
