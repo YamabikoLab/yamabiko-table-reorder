@@ -87,6 +87,39 @@ describe( 'Column Table Integration RF contract', () => {
 	} );
 
 	/**
+	 * 複数行headでは単一論理列の安定した見出しを決めず、列番号fallbackをPresentationへ委ねることを確認する。
+	 *
+	 * 事前条件:
+	 * - headは2行で構成され、各行に同じ2論理列の文字列contentがある。
+	 * - bodyも2論理列で構成される。
+	 *
+	 * 操作:
+	 * - RF用最小列記述を取得する。
+	 *
+	 * 期待結果:
+	 * - 論理列Identityと列番号だけが返り、すべてのheadingはnullになる。
+	 */
+	it( 'when head has multiple rows, should leave every heading unavailable', () => {
+		selectMock.mockReturnValue( {
+			getBlock: jest.fn().mockReturnValue( {
+				name: 'core/table',
+				attributes: {
+					head: [
+						{ cells: [ { content: '上段A' }, { content: '上段B' } ] },
+						{ cells: [ { content: '下段A' }, { content: '下段B' } ] },
+					],
+					body: [ { cells: [ {}, {} ] } ],
+				},
+			} ),
+		} );
+
+		expect( columnTableIntegration.getColumnInputDescriptors( 'table-a' ) ).toEqual( [
+			{ columnIndex: 0, columnNumber: 1, heading: null },
+			{ columnIndex: 1, columnNumber: 2, heading: null },
+		] );
+	} );
+
+	/**
 	 * 横結合見出しを単一論理列の表示値として流用しないことを確認する。
 	 *
 	 * 事前条件:
@@ -150,6 +183,39 @@ describe( 'Column Table Integration RF contract', () => {
 	} );
 
 	/**
+	 * source側に問題がなくdestination側を複数の横結合範囲が塞ぐ場合、開始論理列が小さい範囲を決定的に返すことを確認する。
+	 *
+	 * 事前条件:
+	 * - headには0〜2列を占有する横結合セル、bodyには1〜2列を占有する横結合セルがある。
+	 * - 移動元列はどの横結合範囲にも含まれず、移動先境界2を両方の範囲が塞ぐ。
+	 *
+	 * 操作:
+	 * - blocking merged rangeを取得する。
+	 *
+	 * 期待結果:
+	 * - sectionの解析順序に依存せず、開始論理列が小さい0〜2列の範囲が返る。
+	 */
+	it( 'when multiple destination column ranges block a move, should return the range with the earliest start', () => {
+		selectMock.mockReturnValue( {
+			getBlock: jest.fn().mockReturnValue( {
+				name: 'core/table',
+				attributes: {
+					head: [ { cells: [ { colspan: 3 }, {} ] } ],
+					body: [ { cells: [ {}, { colspan: 2 }, {} ] } ],
+				},
+			} ),
+		} );
+
+		expect(
+			columnTableIntegration.getBlockingMergedRange( {
+				clientId: 'table-a',
+				sourceColumnIndex: 3,
+				destinationBoundaryIndex: 2,
+			} )
+		).toEqual( { columnStart: 0, columnEnd: 2 } );
+	} );
+
+	/**
 	 * RF Apply前評価が現在Tableへ候補を再照合し、成立時だけ同じ評価から更新対象セル数を返すことを確認する。
 	 *
 	 * 事前条件:
@@ -178,6 +244,38 @@ describe( 'Column Table Integration RF contract', () => {
 				destinationBoundaryIndex: 0,
 			} )
 		).toEqual( { affectedCellCount: 3 } );
+	} );
+
+	/**
+	 * 現在Tableの横結合制約により候補が成立しない場合、RF Apply前評価を成立させないことを確認する。
+	 *
+	 * 事前条件:
+	 * - 0〜1列を占有する横結合セルを含む3論理列Tableである。
+	 * - 移動元論理列がその横結合範囲に含まれる。
+	 *
+	 * 操作:
+	 * - Apply assessmentを要求する。
+	 *
+	 * 期待結果:
+	 * - 現在Tableでは候補が成立しないためnullが返る。
+	 */
+	it( 'when the current merged-cell constraints reject a column move, should not return an apply assessment', () => {
+		selectMock.mockReturnValue( {
+			getBlock: jest.fn().mockReturnValue( {
+				name: 'core/table',
+				attributes: {
+					body: [ { cells: [ { colspan: 2 }, {} ] } ],
+				},
+			} ),
+		} );
+
+		expect(
+			columnTableIntegration.assessColumnMoveForApply( {
+				clientId: 'table-a',
+				sourceColumnIndex: 1,
+				destinationBoundaryIndex: 3,
+			} )
+		).toBeNull();
 	} );
 
 	/**
