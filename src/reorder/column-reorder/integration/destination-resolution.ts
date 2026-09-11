@@ -18,8 +18,17 @@ import {
 } from '@/reorder/column-reorder/infrastructure/column-geometry';
 
 /** DnD中に利用する、対象Table、論理進行方向、開始時に確定した論理列境界と移動対象列配置。 */
+// type ColumnDestinationLayout = {
+// 	table: HTMLTableElement;
+// 	inlineDirection: ColumnInlineDirection;
+// 	boundaries: readonly ColumnBoundaryGeometry[];
+// 	sourceLeft: number;
+// 	sourceWidth: number;
+// };
+
 type ColumnDestinationLayout = {
 	table: HTMLTableElement;
+	tableRectangle: DOMRect;
 	inlineDirection: ColumnInlineDirection;
 	boundaries: readonly ColumnBoundaryGeometry[];
 	sourceLeft: number;
@@ -80,6 +89,10 @@ const resolveDestinationLayout = (
 		return null;
 	}
 
+	// const typedTable = table as HTMLTableElement;
+	// const boundaries = measureTableColumnBoundaryGeometry( typedTable );
+	// const sourceRectangle = sourceCell.getBoundingClientRect();
+
 	const typedTable = table as HTMLTableElement;
 	const boundaries = measureTableColumnBoundaryGeometry( typedTable );
 	const sourceRectangle = sourceCell.getBoundingClientRect();
@@ -89,10 +102,22 @@ const resolveDestinationLayout = (
 		return null;
 	}
 
+	// A/B: dragmove中のgeometry readを止めるため、開始時Table矩形を固定する。
+	const tableRectangle = typedTable.getBoundingClientRect();
+
 	const inlineDirection = resolveTableColumnInlineDirection( typedTable );
+
+	// return {
+	// 	table: typedTable,
+	// 	inlineDirection,
+	// 	boundaries,
+	// 	sourceLeft: sourceRectangle.left,
+	// 	sourceWidth: sourceRectangle.width,
+	// };
 
 	return {
 		table: typedTable,
+		tableRectangle,
 		inlineDirection,
 		boundaries,
 		sourceLeft: sourceRectangle.left,
@@ -218,8 +243,16 @@ const resolveDestinationBoundaryIndex = (
 		return null;
 	}
 
+	// const pointerEvent = nativeEvent as PointerEvent;
+	// const tableRectangle = layout.table.getBoundingClientRect();
+	// const pointerX = pointerEvent.clientX;
+	// const pointerY = pointerEvent.clientY;
+
 	const pointerEvent = nativeEvent as PointerEvent;
-	const tableRectangle = layout.table.getBoundingClientRect();
+
+	// A/B: dragmove中はDOM geometryを読まず、DnD開始時の値を利用する。
+	const tableRectangle = layout.tableRectangle;
+
 	const pointerX = pointerEvent.clientX;
 	const pointerY = pointerEvent.clientY;
 
