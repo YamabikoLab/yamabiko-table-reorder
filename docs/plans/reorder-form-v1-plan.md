@@ -84,7 +84,7 @@ RF固有処理は`src/reorder/reorder-form/`配下へ独立して実装し、Row
 
 最初にRow / Column Table IntegrationをRFで必要なContractまで拡張する。既存の構造解析と確定更新を正本として維持し、RF用に別のTable解析を作らない。Rowでは現在行数と行制約に加えてblocking merged rangeを特定できる診断を提供し、Columnでは論理列制約と同じ解析結果からRF用の最小列記述と診断を提供する。確定更新については、RFからもDnDと同じ構造ルールと一回のWordPress更新境界を利用できるようにする。
 
-次にRF Input Interpretationと方向固有Resolutionを実装する。Input InterpretationはTable構造を参照せず、Rowの1-based入力を現在行数の範囲内の0-based位置へ変換し、未入力と不正入力を区別する。Row / Column RF Resolutionは、移動前Table上の対象行・対象列と`above | below` / `left | right`を現在Tableへ照合し、確定候補、構造拒否、no-opを解決する。入力中の解決結果はApply直前の最終権威にしない。
+次にRF Input Interpretationと方向固有Resolutionを実装する。Input InterpretationはTable構造を参照せず、公開結果を`not-ready`または`ready`と内部指定へ集約する。Rowでは1-based入力を現在行数の範囲内の0-based位置へ変換する。Columnでは現在の列記述から選択されたsource / targetの論理列Identityが現在の選択肢に存在することまでを入力成立性として照合し、任意文字列や見出し文字列から列位置を推測しない。未入力と不正入力を公開結果で区別せず、no-op、blocked boundary、構造制約、移動先境界は方向固有Resolutionへ委ねる。Row / Column RF Resolutionは、移動前Table上の対象行・対象列と`above | below` / `left | right`を現在Tableへ照合し、確定候補、構造拒否、no-opを解決する。入力中の解決結果はApply直前の最終権威にしない。
 
 意味処理が成立した後、RF Interactionを実装する。共有observable stateがReact componentのmount / unmountを越えて維持される必要があるため、Architecture上のopen RF Sessionを一つの状態責務として表現し、必要であれば既存Reorder Modeと同じくZustandを用いる。RF InteractionはTable構造snapshotやWordPress表示状態を所有せず、方向ごとの入力と現在結果だけを保持する。
 
@@ -131,12 +131,16 @@ Plan作成時点でArchitecture変更を必要とする事項は確認されて�
 - Outcome: UI入力をTable構造から独立して、方向固有Resolutionが扱える内部指定へ安全に変換できる。
 - Tasks:
   - RF固有実装境界として`src/reorder/reorder-form/`を作成する。
-  - Rowの1-based入力について、未入力、不正入力、有効入力を区別する結果表現を実装する。
-  - 有効なRow入力だけを現在行数の範囲内の0-based位置へ変換する。
-  - Columnは現在の列記述から選択された論理列Identityを内部指定として扱い、任意文字列から列位置を推測しない。
+  - Row / Columnとも公開結果を`not-ready`または`ready`と内部指定へ集約し、未入力と不正入力を個別のエラー種別として公開しない。
+  - Rowは必要な3入力が成立し、行番号が現在行数の`1..rowCount`に含まれる整数の場合だけ1-based入力を0-based位置へ変換して`ready`とする。
+  - Columnはsource / target / `left | right`が選択済みで、source / targetの論理列Identityがどちらも現在の列記述に存在する場合だけ`ready`とする。
+  - Columnは任意文字列や見出し文字列から列位置を推測しない。
+  - no-op、blocked boundary、構造制約、移動先境界をInput Interpretationへ持ち込まない。
   - 数値入力をTableデータやHTMLとして扱わず、入力境界で必要な型・範囲検証だけを行う。
 - Validation:
-  - 未入力、整数でない値、`1`未満、上限超過、境界値、有効値、Column未選択 / 有効選択をpure Jest testで確認する。
+  - Rowの未入力、整数でない値、`1`未満、上限超過、境界値、有効値、1-based→0-based変換、同一source / targetをpure Jest testで確認する。
+  - Columnの未選択、現在選択肢に存在しないsource / target Identity、有効選択、同一source / targetをpure Jest testで確認する。
+  - `not-ready`でエラーメッセージ文字列、エラーコード配列、field別エラーを公開しないことを結果Contractで維持する。
 
 ### Phase 3: Row / Column RF Resolution
 
@@ -157,10 +161,10 @@ Plan作成時点でArchitecture変更を必要とする事項は確認されて�
 - Tasks:
   - `closed`と一つのopen RF Sessionを表現する状態と操作境界を実装する。
   - open Sessionへ対象Table Identity、現在方向、方向ごとの入力、現在の入力 / Resolution結果を保持する。
-  - 初期方向をRowとし、方向切替時に切替前方向のエラー・構造拒否結果を現在表示へ持ち越さない。
+  - 初期方向をRowとし、方向切替時に切替前方向の入力成立性・構造拒否結果を現在表示へ持ち越さない。
   - Row入力範囲とColumn列選択肢を各Table Integrationから要求時点で取得する。
-  - 入力変更時にInput Interpretationと現在方向のResolutionを接続する。
-  - resolvedかつno-opでない場合だけApply可能状態とする。
+  - 入力変更時にInput Interpretationと現在方向のResolutionを接続し、`ready`の場合だけResolutionへ進める。
+  - `not-ready`、構造拒否、no-opではApply不可とし、resolvedかつno-opでない場合だけApply可能状態とする。
   - CancelではTableを更新せずSessionを終了する。
   - Apply失敗または大規模反映Cancel後に入力を保持したopen Sessionへ戻れる状態遷移を用意する。
 - Validation:
@@ -208,8 +212,8 @@ Plan作成時点でArchitecture変更を必要とする事項は確認されて�
   - RF open中は新しいGuidanceを開始しない。
   - PC / touchの既存Preference keyをそのまま利用し、RF専用keyを追加しない。
   - RF Interaction状態をPopover入力画面へ接続する。
-  - Row入力では現在行範囲、移動元、移動先、上 / 下、入力エラー、構造拒否、no-op、Apply可否を表示する。
-  - Column入力では現在列記述、移動元、移動先、左 / 右、構造拒否、no-op、Apply可否を表示する。
+  - Row入力では現在行範囲と整数条件を常時表示し、移動元、移動先、上 / 下、構造拒否、no-op、Apply可否を表示する。Input Interpretationが`not-ready`の間は動的な入力エラーメッセージを追加せずApplyをdisableする。
+  - Column入力では現在列記述、移動元、移動先、左 / 右、構造拒否、no-op、Apply可否を表示し、現在選択肢に存在しないIdentityを`not-ready`としてApply不可にする。
   - 結合セル拒否時は方向固有診断を利用して行・列範囲の利用者向けメッセージへ変換し、PresentationでTableを再解析しない。
   - RF open中にRow / Column入口を選択した場合はRFを終了してから選択したDnDモードへ進む。
   - RF終了時は過去のRow / Columnモードを復元しない。
@@ -313,13 +317,14 @@ Issue本文ではPlan全体を複製せず、そのIssueのscope、依存する�
 
 - RFをTableツールバーから開始し、Row / Columnを一つのRF Session内で切り替えられる。
 - RF開始時に同一TableのRow / Column Reorder Modeが終了し、RF終了時に以前のモードを自動復元しない。
-- Rowの1-based入力とColumn選択肢が安全に内部指定へ解釈され、不正入力ではTableを変更しない。
+- Rowの1-based入力とColumn選択肢が安全に内部指定へ解釈され、Input Interpretationが`not-ready`の間はTableを変更しない。
+- Input Interpretationは未入力と不正入力を公開結果で区別せず、Columnのsource / target Identityが現在選択肢に存在することまでを入力成立性として扱う。
 - Row / Column指定が要求時点の現在Tableへ方向固有に解決され、構造拒否とno-opではTableを変更しない。
 - 結合セル拒否では最初のblocking merged rangeの位置を利用者が識別でき、PresentationがTableを再解析しない。
 - RF Apply CoordinationがDnD Sessionへ依存せず、通常反映と確認付き大規模反映を既存Reorder Apply Policyへ接続する。
 - 確認中はTableを変更せず、Continue後は方向固有Table Integrationを最終権威として現在Tableへ再照合する。
 - 成立した一回のRF並び替えが一回のWordPress更新およびUndo単位になる。
-- 反映成功後はRFを終了し、Cancel / 入力不正 / 構造拒否 / no-op / 再照合不成立 / 更新不能では不要なTable更新を行わない。
+- 反映成功後はRFを終了し、Cancel / `not-ready` / 構造拒否 / no-op / 再照合不成立 / 更新不能では不要なTable更新を行わない。
 - 反映失敗または大規模反映Cancel後は入力を保持したRFへ戻る。
 - RF入口が既存Reorder Guidanceの共通入口として扱われ、RF専用の永続案内状態を追加しない。
 - Core Table / Flexible Table Blockおよび代表iframe / non-iframe環境で主要RF契約が検証される。
