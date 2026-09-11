@@ -118,15 +118,9 @@ test( 'when a Core Table column is dragged by mouse and then undone, should show
 	await expect( line ).toBeVisible();
 	const middleLine = await line.boundingBox();
 	const editorUsesIframe = ( await page.locator( 'iframe[name="editor-canvas"]' ).count() ) > 0;
-	if ( editorUsesIframe ) {
-		await expect
-			.poll( async () => ( await cells.nth( 1 ).boundingBox() )!.x )
-			.toBeLessThan( displacedStart );
-	} else {
-		await expect
-			.poll( async () => ( await cells.nth( 1 ).boundingBox() )!.x )
-			.toBe( displacedStart );
-	}
+	await expect
+		.poll( async () => ( await cells.nth( 1 ).boundingBox() )!.x < displacedStart )
+		.toBe( editorUsesIframe );
 	await moveMouse( page, end );
 	await expect.poll( async () => ( await line.boundingBox() )?.x ).toBeGreaterThan( middleLine!.x );
 	expect( await tableData( editor ) ).toEqual( before );
