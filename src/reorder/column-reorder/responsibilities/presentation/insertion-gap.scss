@@ -1,7 +1,8 @@
 /**
- * Column Reorderの挿入空間を、移動対象1列分の空きとしてTable上へ独立表示する。
+ * Column Reorderの挿入空間を、Editor表示方式に応じたTable上の独立表示として描画する。
  *
- * 周囲列の押しのけ表示とは別要素として白背景の空間を示し、DnD中の入力を遮らずTable上の空き位置と元列の横罫線を表現する。
+ * iframe Editorでは移動対象1列分の空きを示し、non-iframe Editorでは実Tableセルを動かさず移動先境界を強調する小幅な空間を示す。
+ * DnD中の入力を遮らず、元列の横罫線を挿入空間上へ表現する。
  */
 
 .yamabiko-table-reorder-column-insertion-gap {
@@ -14,9 +15,31 @@
 	border: 1px solid currentcolor;
 }
 
+.yamabiko-table-reorder-column-insertion-gap--compact {
+	animation: yamabiko-table-reorder-column-insertion-gap-open 120ms ease-out;
+}
+
 .yamabiko-table-reorder-column-insertion-gap-cell-boundary {
 	position: absolute;
 	right: 0;
 	left: 0;
 	border-top: 1px solid currentcolor;
+}
+
+@keyframes yamabiko-table-reorder-column-insertion-gap-open {
+	from {
+		opacity: 0.4;
+		transform: scaleX(0.25);
+	}
+
+	to {
+		opacity: 1;
+		transform: scaleX(1);
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.yamabiko-table-reorder-column-insertion-gap--compact {
+		animation: none;
+	}
 }
