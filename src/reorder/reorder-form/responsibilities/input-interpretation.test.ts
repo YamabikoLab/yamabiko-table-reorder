@@ -2,18 +2,12 @@
  * RF Input InterpretationがRow / Columnフォーム入力の成立性だけを判定し、成立した入力を方向固有Resolution向け内部指定へ変換するContractを確認する。
  */
 
-import type { ColumnInputDescriptor } from '@/reorder/column-reorder/responsibilities/table-integration';
-
 import {
 	interpretColumnRfInput,
 	interpretRowRfInput,
 } from './input-interpretation';
 
-const columns: readonly ColumnInputDescriptor[] = [
-	{ columnIndex: 0, columnNumber: 1, heading: '商品名' },
-	{ columnIndex: 1, columnNumber: 2, heading: '価格' },
-	{ columnIndex: 2, columnNumber: 3, heading: null },
-];
+const columns = [ { columnIndex: 0 }, { columnIndex: 1 }, { columnIndex: 2 } ] as const;
 
 describe( 'RF Input Interpretation', () => {
 	describe( 'Row', () => {
