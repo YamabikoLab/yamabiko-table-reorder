@@ -30,6 +30,7 @@ import {
 
 import './editing-guard.scss';
 
+const REORDER_MODE_CLASS = 'yamabiko-table-reorder-mode';
 const ROW_REORDER_MODE_CLASS = 'yamabiko-table-reorder-row-mode';
 
 /** BlockListBlock HOCが利用するprops。 */
@@ -110,14 +111,19 @@ const preservePointerOutHandler = (
 };
 
 /**
- * Gutenberg既存のwrapper classを維持したまま、行並び替えモード中の表示対象を識別できるclassを追加する。
+ * Gutenberg既存のwrapper classを維持したまま、並び替えモード中の編集抑止対象と行固有Presentation対象を識別できるclassを追加する。
  *
  * @param existingClassName Gutenberg本体または他のfilterが設定した既存className。
- * @return 既存classと行並び替えモード用classを併記したclassName。
+ * @param rowReorderEnabled 現在のTableで行並び替えモードが有効な場合はtrue。
+ * @return 既存class、共通Reorder Mode class、および必要な場合は行固有classを併記したclassName。
  */
-const createRowReorderModeClassName = ( existingClassName: unknown ): string => {
+const createReorderModeClassName = (
+	existingClassName: unknown,
+	rowReorderEnabled: boolean
+): string => {
 	const existing = typeof existingClassName === 'string' ? existingClassName : '';
-	const className = `${ existing } ${ ROW_REORDER_MODE_CLASS }`.trim();
+	const rowClass = rowReorderEnabled ? ROW_REORDER_MODE_CLASS : '';
+	const className = `${ existing } ${ REORDER_MODE_CLASS } ${ rowClass }`.trim();
 	return className;
 };
 
@@ -126,7 +132,8 @@ const createRowReorderModeClassName = ( existingClassName: unknown ): string => 
  *
  * このcomponentは対応Tableの生存期間中、選択状態にかかわらず同じ位置に維持され、Reorder Modeの購読を所有する。
  * Row / Column DnD境界はBlockListBlockを再mountしないよう常に同じ位置に維持し、Reorder Modeで選択中の方向だけ開始入力を有効化する。
- * 現在選択中のTableだけへ方向固有Reorder Presentationを接続し、行並び替えモード中だけ表示識別用classを付与する。
+ * 行・列いずれかの並び替えモード中は通常編集抑止用classを付与し、行並び替えモード中は行固有Presentation用classも付与する。
+ * 現在選択中のTableだけへ方向固有Reorder Presentationを接続する。
  *
  * @param props                Gutenbergから渡されるBlockListBlock propsと元のcomponent。
  * @param props.BlockListBlock Gutenberg本来のBlock wrapperを描画するcomponent。
@@ -144,22 +151,25 @@ export const ReorderModeBlockListBlock = ( props: {
 	const columnReorderEnabled = selectedKind === 'column';
 	const editingAllowed = selectedKind === null;
 
-	/* 行並び替えモード中だけ対象TableをPresentationから識別できるclassを既存wrapperへ加える。 */
-	const rowReorderWrapperProps = rowReorderEnabled
+	/* いずれかの並び替えモード中は通常編集抑止対象を識別し、行モードでは行固有Presentation対象も併せて識別する。 */
+	const reorderModeWrapperProps = ! editingAllowed
 		? {
 				...wrapperProps,
-				className: createRowReorderModeClassName( wrapperProps?.className ),
+				className: createReorderModeClassName(
+					wrapperProps?.className,
+					rowReorderEnabled
+				),
 		  }
 		: wrapperProps;
 
 	/* いずれかの並び替えモード中は通常編集開始を抑止し、モード解除後はGutenberg本来の入力処理へ戻す。 */
 	const reorderWrapperProps = ! editingAllowed
 		? {
-				...rowReorderWrapperProps,
+				...reorderModeWrapperProps,
 				onDoubleClickCapture: preserveEditingStartHandler( wrapperProps?.onDoubleClickCapture ),
 				onMouseDownCapture: preserveEditingStartHandler( wrapperProps?.onMouseDownCapture ),
 		  }
-		: rowReorderWrapperProps;
+		: reorderModeWrapperProps;
 
 	return (
 		<RowHighlight enabled={ rowReorderEnabled } tableIdentity={ clientId }>
