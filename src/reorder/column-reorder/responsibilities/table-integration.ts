@@ -2,7 +2,7 @@
  * 列専用Table Integrationとして、対応Table Block固有の表現差とWordPress Block Editor Storeとの接続を吸収し、Column Reorderへ現在の列制約、RF入力記述、構造診断、反映前評価、確定済み列移動の反映を提供する。
  *
  * このファイルはCore TableとFlexible Table Blockの結合セル属性差、Table全体の論理列解釈、および対応Tableへの列順反映を所有する。
- * Column Reorder / RFへは論理列数、結合セルを分断する挿入位置、最小列記述、blocking merged range、更新対象セル数、および確定更新だけを公開し、Tableデータや対応Block固有の表現は外へ公開しない。
+ * Column ReorderとRFへは論理列数、結合セルを分断する挿入位置、最小列記述、blocking merged range、更新対象セル数、および確定更新だけを公開し、Tableデータや対応Block固有の表現は外へ公開しない。
  * Tableデータや構造結果は保持せず、各要求時点のWordPress Blockを直接参照する。
  */
 
@@ -670,7 +670,7 @@ const applyColumnMove = ( move: ColumnMove ): boolean => {
 };
 
 /**
- * Column Reorder / RFと対応Table Blockの間を接続する列専用Table Integrationのインタフェース。
+ * Column ReorderとRFと対応Table Blockの間を接続する列専用Table Integrationのインタフェース。
  */
 export const columnTableIntegration = {
 	getConstraints,
