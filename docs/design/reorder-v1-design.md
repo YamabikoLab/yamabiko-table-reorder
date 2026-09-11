@@ -4,7 +4,7 @@
 
 本書は、`docs/requirements/reorder-v1-requirements.md`および`docs/requirements/reorder-v1-quality-requirements.md`で定義した正式v1の要件のうち、行・列のどちらにも属さない共通の利用者向け設計を定義する。
 
-行並び替え固有の設計は`row-reorder-v1-design.md`、列並び替え固有の設計は`column-reorder-v1-design.md`で定義する。
+行並び替え固有の設計は`row-reorder-v1-design.md`、列並び替え固有の設計は`column-reorder-v1-design.md`、Reorder Form固有の設計は`reorder-form-v1-design.md`で定義する。
 
 Keyboard操作、ドラッグを必要としない操作、focus、announcement、支援技術への情報提供など、別要件として扱うアクセシビリティ設計は本書の対象外とする。
 
@@ -57,9 +57,9 @@ Tableがフォーカスされた場合、またはセル編集が開始された
 - 日本語: `行と列を並び替えられます。`
 - English: `Reorder rows and columns.`
 
-初回案内の表示中は、「行を並び替え」と「列を並び替え」の両方の入口を通常時より視覚的に強調し、利用者がどこから並び替えを開始できるか確認できるようにする。
+初回案内の表示中は、「行を並び替え」「列を並び替え」「フォームで並び替え」の3つの入口を通常時より視覚的に強調し、利用者がどこから並び替えを開始できるか確認できるようにする。
 
-利用者がいずれかの入口を選択した場合、または初回案内を閉じた場合は、初回案内と入口の強調表示を終了し、その操作環境では表示済みとして扱う。
+利用者がいずれかの並び替え入口を選択した場合、または初回案内を閉じた場合は、初回案内と入口の強調表示を終了し、その操作環境では表示済みとして扱う。
 
 初回案内は通常のセル編集を妨げない。どの操作箇所へfocusを移すかなど、focusの具体的な扱いはアクセシビリティ設計で定義する。
 
@@ -142,6 +142,7 @@ DnDが異常終了した場合は、次の短いメッセージを表示する�
 
 - `row-reorder-v1-design.md`
 - `column-reorder-v1-design.md`
+- `reorder-form-v1-design.md`
 - #478 Large tableでRow / Column Reorderのcontroller再生成コストを削減する
 - #484 正式v1の最小要件定義書を作成する
 - #487 正式v1の基本設計書を作成する
