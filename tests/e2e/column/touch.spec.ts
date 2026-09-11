@@ -31,7 +31,7 @@ function wideTableAttributes() {
 }
 
 /**
- * タッチの長押しで列のDnDを開始し、表示された移動先へ確定できることを確認する。
+ * セル内容の長押しで列のDnDを開始し、表示された移動先へ確定できることを確認する。
  *
  * 事前条件:
  * - タッチ入力を利用できる環境でTableが表示されている。
@@ -39,25 +39,28 @@ function wideTableAttributes() {
  *
  * 操作:
  * - 列の並び替えモードを有効にする。
- * - 先頭列を長押ししてDnDを開始し、末尾の移動先へ移動する。
+ * - 先頭列の編集可能なセル内容を長押ししてDnDを開始し、末尾の移動先へ移動する。
  * - 指を離して移動を確定する。
  *
  * 期待結果:
- * - 長押し後に移動中の列と移動先が表示される。
+ * - セル内容の通常編集へ遷移せず、長押し後に移動中の列と移動先が表示される。
  * - 先頭列が末尾へ移動する。
  * - 確定後はDnD中だけの表示が終了する。
  */
-test( 'when a column is long-pressed and dragged by touch, should move it to the visible destination', async ( {
+test( 'when editable cell content is long-pressed and dragged by touch, should start column DnD without entering edit mode and move the column', async ( {
 	page,
 	editor,
 } ) => {
 	const { canvas, rows } = await insertTable( page, editor );
 	const cells = rows.first().locator( ':scope > td' );
+	const editable = cells.first().locator( '[contenteditable="true"]' ).first();
+	await expect( editable ).toBeVisible();
 	await page.getByRole( 'button', { name: COLUMN_BUTTON } ).tap();
 	const touch = await touchInput( page );
 	try {
-		await touch.start( await pointIn( cells.first() ) );
+		await touch.start( await pointIn( editable ) );
 		await expect( canvas.locator( '.yamabiko-table-reorder-moving-column' ) ).toBeVisible();
+		await expect( editable ).not.toBeFocused();
 		await touch.move( await pointIn( cells.last(), 0.8 ) );
 		await expect( canvas.locator( '.yamabiko-table-reorder-column-insertion-line' ) ).toBeVisible();
 		await touch.end();
@@ -66,6 +69,53 @@ test( 'when a column is long-pressed and dragged by touch, should move it to the
 			.toEqual( [ 'R1C2', 'R1C3', 'R1C4', 'R1C1' ] );
 		await expect( canvas.locator( '.yamabiko-table-reorder-moving-column' ) ).toBeHidden();
 		await expect( canvas.locator( '.yamabiko-table-reorder-column-insertion-line' ) ).toBeHidden();
+	} finally {
+		await touch.dispose();
+	}
+} );
+
+/**
+ * 見出しセル内容の長押しでも通常編集と競合せず列DnDを開始できることを確認する。
+ *
+ * 事前条件:
+ * - タッチ入力を利用できる環境で、見出しを持つCore Tableが表示されている。
+ * - 列の並び替えモードを利用できる。
+ *
+ * 操作:
+ * - 列の並び替えモードを有効にする。
+ * - 見出しセルの編集可能な内容を長押しする。
+ *
+ * 期待結果:
+ * - 見出しセルの通常編集へ遷移しない。
+ * - 見出しセルを移動元として列DnDが開始される。
+ */
+test( 'when editable header content is long-pressed by touch, should start column DnD without entering edit mode', async ( {
+	page,
+	editor,
+} ) => {
+	const attributes = {
+		...tableAttributes(),
+		head: [
+			{
+				cells: [ 'H1', 'H2', 'H3', 'H4' ].map( ( content ) => ( {
+					tag: 'th',
+					content,
+				} ) ),
+			},
+		],
+	};
+	const { canvas, block } = await insertTable( page, editor, 'core/table', attributes );
+	const headerCell = block.locator( 'thead > tr > th' ).first();
+	const editable = headerCell.locator( '[contenteditable="true"]' ).first();
+	await expect( editable ).toBeVisible();
+	await page.getByRole( 'button', { name: COLUMN_BUTTON } ).tap();
+	const touch = await touchInput( page );
+	try {
+		await touch.start( await pointIn( editable ) );
+		await expect( canvas.locator( '.yamabiko-table-reorder-moving-column' ) ).toBeVisible();
+		await expect( editable ).not.toBeFocused();
+		await touch.end();
+		await expect( canvas.locator( '.yamabiko-table-reorder-moving-column' ) ).toBeHidden();
 	} finally {
 		await touch.dispose();
 	}
