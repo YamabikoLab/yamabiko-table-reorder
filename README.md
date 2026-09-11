@@ -1,103 +1,103 @@
 # Yamabiko Table Reorder
 
-WordPressブロックエディターのTable並び替えを扱うプラグインです。
+A WordPress block editor plugin for reordering Table rows and columns.
 
 <img width="1897" height="824" alt="demo" src="https://github.com/user-attachments/assets/f7439db3-4524-4a8c-93be-c032eb41787e" />
 
-## 現在の状態
+## Current Status
 
-0.8.1では、WordPress Core TableとFlexible Table Blockの**行・列並び替え**を提供します。
+Version 0.8.2 provides **Row Reorder and Column Reorder** for WordPress Core Table and Flexible Table Block.
 
-Tableツールバーから行または列の並び替えモードへ切り替え、Mouse / TouchによるDnDでtbodyの行やTableの列を並び替えられます。DnD中は移動対象と移動先を視覚的に確認でき、通常は位置が変わる周囲の行または列も移動します。WordPress Editorがiframeを使わない環境で列を並び替える場合は、操作性能を保つため周囲列の移動表示を省略し、移動対象と挿入線で移動先を示します。結合セルを含むTableでは構造を壊さない範囲だけを移動先として扱います。
+Switch to Row Reorder or Column Reorder mode from the Table toolbar, then reorder `tbody` rows or Table columns with Mouse or Touch drag-and-drop. During DnD, the plugin shows the moving row or column and the current destination. In iframe editors, surrounding rows or columns are displaced to preview the result before it is committed. In non-iframe editors, surrounding column displacement is intentionally omitted during Column Reorder to preserve responsiveness, while the moving column and insertion line continue to show the source and destination.
 
-結合セル制約により移動できない行または列は事前に識別でき、DnD開始を試みた場合は理由を短時間表示します。行・列のDnDでは、対応する方向に必要な自動スクロールを利用できます。
+For Tables with merged cells, only destinations that preserve the supported Table structure are accepted. Rows or columns that cannot be moved because of merged-cell constraints are identified in advance, and a short message explains the reason when a drag is attempted. Row and Column Reorder also support automatic scrolling in the active reorder direction when needed.
 
-影響範囲が大きく、反映に時間がかかる可能性がある並び替えでは、反映前に移動内容を確認できます。続行した場合は対象Tableだけを一時的な反映中状態にし、更新完了後に編集へ戻ります。
+When a reorder affects enough cells that applying the change may take some time, the plugin shows a confirmation before applying it. If continued, only the target Table enters a temporary applying state, and editing resumes after the update completes.
 
-## デモ
+## Demo
 
-WordPress Playgroundで、**現在公開中のYamabiko Table ReorderのRow / Column Reorder**を試せます。
+Try the **currently released Yamabiko Table Reorder Row / Column Reorder** in WordPress Playground.
 
-[▶ デモを開く](https://playground.wordpress.net/?blueprint-url=https://raw.githubusercontent.com/YamabikoLab/yamabiko-table-reorder/main/demo/blueprint.json)
+[▶ Open the demo](https://playground.wordpress.net/?blueprint-url=https://raw.githubusercontent.com/YamabikoLab/yamabiko-table-reorder/main/demo/blueprint.json)
 
-デモではWordPress Core TableとFlexible Table Blockを用意しており、Mouse / Touchによる行・列のDnDと、結合セルを含むTableでの移動制約を確認できます。Yamabiko Table Reorderは公開中のlatest stable releaseを利用します。
+The demo includes WordPress Core Table and Flexible Table Block examples for Mouse / Touch row and column DnD, including movement constraints for Tables with merged cells. Yamabiko Table Reorder uses the latest stable release in the demo.
 
-Prototype v0.4.0の実装や設計を参照する場合は`prototype-final` tagを使用してください。
+Use the `prototype-final` tag when you need to refer to the Prototype v0.4.0 implementation or design.
 
 ## Versioning
 
-0.4.0までの配布履歴はそのまま維持しています。formal v1は新しい設計・実装世代を表す呼称であり、配布バージョンを`1.0.0`へ変更する意味ではありません。
+The distribution history through 0.4.0 is preserved as-is. The term formal v1 describes a new design and implementation generation and does not mean the distribution version changes to `1.0.0`.
 
-0.5.0はformal v1 Row Reorderの最初の公開版です。0.7.0はformal v1 Column Reorderを追加した最初の公開版です。0.8.0では、影響範囲が大きい並び替えに確認付きの反映フローを追加しました。0.8.1では、Column ReorderのTouch長押しがセル編集と競合する問題を修正しました。
+0.5.0 was the first formal v1 Row Reorder release. 0.7.0 added formal v1 Column Reorder. 0.8.0 added a confirmation flow for reorders whose affected range may take time to apply. 0.8.1 fixed a conflict between Column Reorder Touch long-presses and cell editing. 0.8.2 improves Column Reorder responsiveness in non-iframe editors, fixes first-use Touch guidance focus behavior, and corrects moving-column feedback when an iframe editor has a horizontal offset.
 
-## 動作環境
+## Requirements
 
-- WordPress 6.8以上
-- PHP 8.1以上
+- WordPress 6.8 or later
+- PHP 8.1 or later
 
-## インストール
+## Installation
 
-公開済みreleaseを利用する場合は、[GitHub Releases](https://github.com/YamabikoLab/yamabiko-table-reorder/releases)から配布用ZIPを取得してください。
+For a released version, download the distribution ZIP from [GitHub Releases](https://github.com/YamabikoLab/yamabiko-table-reorder/releases).
 
-## 不具合・要望の報告
+## Reporting Bugs and Requests
 
-不具合報告と機能要望は[GitHub Issues](https://github.com/YamabikoLab/yamabiko-table-reorder/issues)で受け付けています。
+Please use [GitHub Issues](https://github.com/YamabikoLab/yamabiko-table-reorder/issues) for bug reports and feature requests.
 
-セキュリティ上の問題は公開Issueへ投稿せず、[セキュリティポリシー](SECURITY.md)に従って非公開で報告してください。
+Do not post security issues in a public Issue. Follow the [security policy](SECURITY.md) to report them privately.
 
-現時点では、外部からのPull Requestは受け付けていません。
+External Pull Requests are not currently accepted.
 
-## ライセンス
+## License
 
-[GNU General Public License v2.0 or later](LICENSE)で公開します。
+Released under the [GNU General Public License v2.0 or later](LICENSE).
 
-## 開発者向け
+## Development
 
-formal v1のactive sourceは[`src/`](src/)にあります。Prototypeの実装を参照するときは`prototype-final` tagを使用してください。
+The active formal v1 source is in [`src/`](src/). Use the `prototype-final` tag when referring to the Prototype implementation.
 
-### 依存関係をインストール
+### Install dependencies
 
 ```bash
 npm ci
 composer install
 ```
 
-### 開発モードを開始
+### Start development mode
 
 ```bash
 npm start
 ```
 
-ローカルWordPress開発環境の設定、起動手順、プラグイン配置は、別リポジトリの[YamabikoLab/wp-dev](https://github.com/YamabikoLab/wp-dev)で管理しています。
+Local WordPress development environment setup, startup instructions, and plugin placement are maintained in the separate [YamabikoLab/wp-dev](https://github.com/YamabikoLab/wp-dev) repository.
 
-### 本番ビルドを作成
+### Create a production build
 
 ```bash
 npm run build
 ```
 
-ビルド結果は`build/`に出力されます。
+Build output is written to `build/`.
 
-### コードを検証
+### Validate the code
 
 ```bash
 npm test
 ```
 
-PHPのチェックは別に実行します。
+Run the PHP checks separately.
 
 ```bash
 composer lint:php
 composer analyse:php
 ```
 
-詳細な検証方法は[`docs/development/testing.md`](docs/development/testing.md)を参照してください。
+See [`docs/development/testing.md`](docs/development/testing.md) for detailed validation guidance.
 
-### 開発ドキュメント
+### Development documentation
 
-- [開発方針](docs/development/foundation.md)
-- [検証方法](docs/development/testing.md)
+- [Development principles](docs/development/foundation.md)
+- [Testing](docs/development/testing.md)
 - [GitHub CLI](docs/development/github-cli.md)
 - [i18n](docs/development/i18n.md)
-- [セキュリティ](docs/development/security.md)
-- [リリース方法](docs/development/releasing.md)
+- [Security](docs/development/security.md)
+- [Releasing](docs/development/releasing.md)
