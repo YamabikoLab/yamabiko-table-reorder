@@ -1,8 +1,8 @@
 /**
- * 列専用Table Integrationとして、対応Table Block固有の表現差とWordPress Block Editor Storeとの接続を吸収し、Column Reorderへ現在の列制約取得と確定済み列移動の反映を提供する。
+ * 列専用Table Integrationとして、対応Table Block固有の表現差とWordPress Block Editor Storeとの接続を吸収し、Column Reorderへ現在の列制約、RF入力記述、構造診断、反映前評価、確定済み列移動の反映を提供する。
  *
  * このファイルはCore TableとFlexible Table Blockの結合セル属性差、Table全体の論理列解釈、および対応Tableへの列順反映を所有する。
- * Column Reorderへは論理列数と結合セルを分断する挿入位置、および確定候補の更新対象セル数だけを公開し、Tableデータや対応Block固有の表現は外へ公開しない。
+ * Column Reorder / RFへは論理列数、結合セルを分断する挿入位置、最小列記述、blocking merged range、更新対象セル数、および確定更新だけを公開し、Tableデータや対応Block固有の表現は外へ公開しない。
  * Tableデータや構造結果は保持せず、各要求時点のWordPress Blockを直接参照する。
  */
 
@@ -15,6 +15,30 @@ export type ColumnReorderConstraints = {
 	columnCount: number;
 	/** 結合セルを分断するため移動先にできない0-based列間境界。重複なく昇順で提供する。 */
 	blockedBoundaries: readonly number[];
+};
+
+/** Column RFが現在Tableの列を識別するために利用する最小列記述。 */
+export type ColumnInputDescriptor = {
+	/** 現在Table上の0-based論理列位置。 */
+	columnIndex: number;
+	/** 利用者向けの1-based列番号。 */
+	columnNumber: number;
+	/** 単一論理列の見出しとして安全に利用できる表示値。 */
+	heading: string | null;
+};
+
+/** 列移動を成立させない横結合範囲。 */
+export type ColumnBlockingMergedRange = {
+	/** 0-based・inclusiveの開始論理列。 */
+	columnStart: number;
+	/** 0-based・inclusiveの終了論理列。 */
+	columnEnd: number;
+};
+
+/** RF Apply前に現在Tableへ再照合した列移動の評価結果。 */
+export type ColumnApplyAssessment = {
+	/** 列移動によって表示位置が変わる範囲に含まれる物理セル数。 */
+	affectedCellCount: number;
 };
 
 /** Table Integrationが解釈または反映する、再照合済みの確定候補となる列移動。 */
@@ -57,6 +81,13 @@ type ParsedTable = {
 	sections: Record< TableSectionName, ParsedSection >;
 	columnCount: number;
 	blockedBoundaries: readonly number[];
+	mergedRanges: readonly ColumnBlockingMergedRange[];
+};
+
+/** 要求時点の対応Tableと論理列解析結果。 */
+type CurrentColumnTable = {
+	attributes: Record< string, unknown >;
+	parsedTable: ParsedTable;
 };
 
 /** 列専用Table Integrationが受理する対応Table Block名。 */
@@ -292,20 +323,41 @@ const parseTable = (
 		return null;
 	}
 
+	const mergedRanges = new Map< string, ColumnBlockingMergedRange >();
+	/* 全sectionの横結合セルから、診断に利用する一意な論理列範囲を確定する。 */
+	for ( const sectionName of TABLE_SECTIONS ) {
+		for ( const parsedRow of sections[ sectionName ].rows ) {
+			for ( const parsedCell of parsedRow.cells ) {
+				if ( parsedCell.columnSpan === 1 ) {
+					continue;
+				}
+				const columnEnd = parsedCell.columnStart + parsedCell.columnSpan - 1;
+				mergedRanges.set( `${ parsedCell.columnStart }:${ columnEnd }`, {
+					columnStart: parsedCell.columnStart,
+					columnEnd,
+				} );
+			}
+		}
+	}
+
 	return {
 		sections,
 		columnCount,
 		blockedBoundaries: [ ...blockedBoundaries ].sort( ( left, right ) => left - right ),
+		mergedRanges: [ ...mergedRanges.values() ].sort(
+			( left, right ) =>
+				left.columnStart - right.columnStart || left.columnEnd - right.columnEnd
+		),
 	};
 };
 
 /**
- * 要求時点の対応TableからColumn Reorderが移動可否の再照合に利用する制約情報を取得する。
+ * 要求時点の対応Tableと論理列構造を取得する。
  *
  * @param clientId 対象Table個体を識別するclientId。
- * @return 現在の論理列数と分断不可境界。現在のTableを安全に解釈できない場合はnull。
+ * @return 現在Tableと解析結果。対象Blockの不在、非対応、または解析不能時はnull。
  */
-const getConstraints = ( clientId: string ): ColumnReorderConstraints | null => {
+const getCurrentColumnTable = ( clientId: string ): CurrentColumnTable | null => {
 	const block = select( blockEditorStore ).getBlock( clientId );
 	if ( ! block || ! isSupportedTable( block.name ) || ! isRecord( block.attributes ) ) {
 		return null;
@@ -317,31 +369,98 @@ const getConstraints = ( clientId: string ): ColumnReorderConstraints | null => 
 	}
 
 	return {
-		columnCount: parsedTable.columnCount,
-		blockedBoundaries: parsedTable.blockedBoundaries,
+		attributes: block.attributes,
+		parsedTable,
 	};
 };
 
 /**
- * 列移動によって表示位置が変わる論理範囲に含まれる物理セル数を取得する。
+ * 要求時点の対応TableからColumn Reorderが移動可否の再照合に利用する制約情報を取得する。
  *
- * colspan / rowspanによる論理占有数へ展開せず、影響範囲と交差するTable属性上のcell objectを各1セルとして数える。
- * 対象Tableまたは移動範囲を安全に解釈できない場合はnullを返す。
- *
- * @param move 現在のTableを基準とする列移動。
- * @return 今回の移動に含まれる物理セル数。安全に解釈できない場合はnull。
+ * @param clientId 対象Table個体を識別するclientId。
+ * @return 現在の論理列数と分断不可境界。現在のTableを安全に解釈できない場合はnull。
  */
-const getAffectedCellCount = ( move: ColumnMove ): number | null => {
-	const block = select( blockEditorStore ).getBlock( move.clientId );
-	if ( ! block || ! isSupportedTable( block.name ) || ! isRecord( block.attributes ) ) {
+const getConstraints = ( clientId: string ): ColumnReorderConstraints | null => {
+	const currentTable = getCurrentColumnTable( clientId );
+	if ( currentTable === null ) {
 		return null;
 	}
 
-	const parsedTable = parseTable( block.name, block.attributes );
-	if ( parsedTable === null ) {
+	return {
+		columnCount: currentTable.parsedTable.columnCount,
+		blockedBoundaries: currentTable.parsedTable.blockedBoundaries,
+	};
+};
+
+/**
+ * 見出しセルの内容を、RFで単一列を識別する表示値として利用できる場合だけ取得する。
+ *
+ * @param cell 明示的なhead sectionの単一論理列セル。
+ * @return 空でない文字列の見出し。利用できない場合はnull。
+ */
+const getHeadingValue = ( cell: Record< string, unknown > ): string | null => {
+	if ( typeof cell.content !== 'string' ) {
 		return null;
 	}
 
+	const heading = cell.content.trim();
+	if ( heading.length === 0 ) {
+		return null;
+	}
+	return heading;
+};
+
+/**
+ * Column RFが現在Tableの論理列を選択するための最小列記述を取得する。
+ *
+ * 見出しは明示的なhead sectionが一行で、対象セルが一つの論理列だけを占有するときだけ利用する。
+ * body先頭行を見出しとして推測せず、複数行headや横結合見出しでは列番号fallbackをPresentationへ委ねる。
+ *
+ * @param clientId 対象Table個体を識別するclientId。
+ * @return 現在の論理列ごとの最小記述。現在Tableを安全に解析できない場合はnull。
+ */
+const getColumnInputDescriptors = ( clientId: string ): readonly ColumnInputDescriptor[] | null => {
+	const currentTable = getCurrentColumnTable( clientId );
+	if ( currentTable === null ) {
+		return null;
+	}
+
+	const descriptors: ColumnInputDescriptor[] = Array.from(
+		{ length: currentTable.parsedTable.columnCount },
+		( _, columnIndex ) => ( {
+			columnIndex,
+			columnNumber: columnIndex + 1,
+			heading: null,
+		} )
+	);
+	const headRows = currentTable.parsedTable.sections.head.rows;
+	if ( headRows.length !== 1 ) {
+		return descriptors;
+	}
+
+	/* 単一行headのうち、一つの論理列だけを占有するセルをその列の見出し候補として利用する。 */
+	for ( const parsedCell of headRows[ 0 ].cells ) {
+		if ( parsedCell.columnSpan !== 1 ) {
+			continue;
+		}
+		descriptors[ parsedCell.columnStart ] = {
+			columnIndex: parsedCell.columnStart,
+			columnNumber: parsedCell.columnStart + 1,
+			heading: getHeadingValue( parsedCell.cell ),
+		};
+	}
+
+	return descriptors;
+};
+
+/**
+ * 現在の論理列構造に対して移動候補が成立するか方向固有ルールで判定する。
+ *
+ * @param parsedTable 要求時点の論理Table解析結果。
+ * @param move        現在のTableを基準とする列移動。
+ * @return source・destination・結合セル制約をすべて満たす場合はtrue。
+ */
+const isColumnMoveAllowed = ( parsedTable: ParsedTable, move: ColumnMove ): boolean => {
 	const sourceInRange =
 		Number.isInteger( move.sourceColumnIndex ) &&
 		move.sourceColumnIndex >= 0 &&
@@ -350,18 +469,60 @@ const getAffectedCellCount = ( move: ColumnMove ): number | null => {
 		Number.isInteger( move.destinationBoundaryIndex ) &&
 		move.destinationBoundaryIndex >= 0 &&
 		move.destinationBoundaryIndex <= parsedTable.columnCount;
+	if ( ! sourceInRange || ! destinationInRange ) {
+		return false;
+	}
+
 	const sourceBlockedByMergedRange =
 		parsedTable.blockedBoundaries.includes( move.sourceColumnIndex ) ||
 		parsedTable.blockedBoundaries.includes( move.sourceColumnIndex + 1 );
-	if (
-		! sourceInRange ||
-		! destinationInRange ||
-		sourceBlockedByMergedRange ||
-		parsedTable.blockedBoundaries.includes( move.destinationBoundaryIndex )
-	) {
+	const destinationBlockedByMergedRange = parsedTable.blockedBoundaries.includes(
+		move.destinationBoundaryIndex
+	);
+	const moveAllowed = ! sourceBlockedByMergedRange && ! destinationBlockedByMergedRange;
+	return moveAllowed;
+};
+
+/**
+ * 列移動を成立させない最初の横結合範囲を取得する。
+ *
+ * source側をdestination側より優先し、同じ側では開始論理列が小さい範囲を優先する。
+ *
+ * @param move 現在のTableを基準とする列移動。
+ * @return 候補を妨げる0-based・両端inclusiveの論理列範囲。構造拒否がない場合はnull。
+ */
+const getBlockingMergedRange = ( move: ColumnMove ): ColumnBlockingMergedRange | null => {
+	const currentTable = getCurrentColumnTable( move.clientId );
+	if ( currentTable === null ) {
 		return null;
 	}
 
+	const sourceRange = currentTable.parsedTable.mergedRanges.find(
+		( range ) =>
+			move.sourceColumnIndex >= range.columnStart &&
+			move.sourceColumnIndex <= range.columnEnd
+	);
+	if ( sourceRange !== undefined ) {
+		return sourceRange;
+	}
+
+	const destinationRange = currentTable.parsedTable.mergedRanges.find(
+		( range ) =>
+			move.destinationBoundaryIndex > range.columnStart &&
+			move.destinationBoundaryIndex <= range.columnEnd
+	);
+	const blockingRange = destinationRange ?? null;
+	return blockingRange;
+};
+
+/**
+ * 列移動によって表示位置が変わる論理範囲に含まれる物理セル数を、解析済みTableから取得する。
+ *
+ * @param parsedTable 要求時点の論理Table解析結果。
+ * @param move        現在のTableを基準とする列移動。
+ * @return 今回の移動に含まれる物理セル数。
+ */
+const countAffectedCells = ( parsedTable: ParsedTable, move: ColumnMove ): number => {
 	const insertionIndex =
 		move.destinationBoundaryIndex > move.sourceColumnIndex
 			? move.destinationBoundaryIndex - 1
@@ -370,6 +531,7 @@ const getAffectedCellCount = ( move: ColumnMove ): number | null => {
 	const end = Math.max( move.sourceColumnIndex, insertionIndex );
 	let affectedCellCount = 0;
 
+	/* 表示位置が変わる論理列範囲と交差する物理セルを、結合セルの論理占有数へ展開せず数える。 */
 	for ( const sectionName of TABLE_SECTIONS ) {
 		for ( const parsedRow of parsedTable.sections[ sectionName ].rows ) {
 			for ( const parsedCell of parsedRow.cells ) {
@@ -383,6 +545,41 @@ const getAffectedCellCount = ( move: ColumnMove ): number | null => {
 	}
 
 	return affectedCellCount;
+};
+
+/**
+ * 列移動によって表示位置が変わる論理範囲に含まれる物理セル数を取得する。
+ *
+ * colspan / rowspanによる論理占有数へ展開せず、影響範囲と交差するTable属性上のcell objectを各1セルとして数える。
+ * 対象Tableまたは移動候補を現在構造へ安全に照合できない場合はnullを返す。
+ *
+ * @param move 現在のTableを基準とする列移動。
+ * @return 今回の移動に含まれる物理セル数。安全に評価できない場合はnull。
+ */
+const getAffectedCellCount = ( move: ColumnMove ): number | null => {
+	const currentTable = getCurrentColumnTable( move.clientId );
+	if ( currentTable === null || ! isColumnMoveAllowed( currentTable.parsedTable, move ) ) {
+		return null;
+	}
+
+	return countAffectedCells( currentTable.parsedTable, move );
+};
+
+/**
+ * RF Apply前に、解決済み列移動を要求時点の現在Tableへ再照合する。
+ *
+ * @param move RFで解決済みの列移動候補。
+ * @return 現在も候補が成立する場合は更新対象セル数。成立しない場合はnull。
+ */
+const assessColumnMoveForApply = ( move: ColumnMove ): ColumnApplyAssessment | null => {
+	const currentTable = getCurrentColumnTable( move.clientId );
+	if ( currentTable === null || ! isColumnMoveAllowed( currentTable.parsedTable, move ) ) {
+		return null;
+	}
+
+	return {
+		affectedCellCount: countAffectedCells( currentTable.parsedTable, move ),
+	};
 };
 
 /**
@@ -439,54 +636,32 @@ const reorderRow = (
 /**
  * 確定済み列移動を要求時点の対応Tableへ一つの属性更新として反映する。
  *
+ * assessment後の外部変更を成立保証として扱わず、更新直前にsource・destination・結合セル制約を現在Tableへ再照合する。
+ *
  * @param move 更新直前のTable構造を基準とする確定済み列移動。
  * @return 現在も安全に更新できた場合はtrue、外部状態変化等で更新できない場合はfalse。
  */
 const applyColumnMove = ( move: ColumnMove ): boolean => {
-	const block = select( blockEditorStore ).getBlock( move.clientId );
-	if ( ! block || ! isSupportedTable( block.name ) || ! isRecord( block.attributes ) ) {
-		return false;
-	}
-
-	const parsedTable = parseTable( block.name, block.attributes );
-	if ( parsedTable === null ) {
-		return false;
-	}
-
-	const sourceInRange =
-		Number.isInteger( move.sourceColumnIndex ) &&
-		move.sourceColumnIndex >= 0 &&
-		move.sourceColumnIndex < parsedTable.columnCount;
-	const destinationInRange =
-		Number.isInteger( move.destinationBoundaryIndex ) &&
-		move.destinationBoundaryIndex >= 0 &&
-		move.destinationBoundaryIndex <= parsedTable.columnCount;
-	const sourceBlockedByMergedRange =
-		parsedTable.blockedBoundaries.includes( move.sourceColumnIndex ) ||
-		parsedTable.blockedBoundaries.includes( move.sourceColumnIndex + 1 );
-	if (
-		! sourceInRange ||
-		! destinationInRange ||
-		sourceBlockedByMergedRange ||
-		parsedTable.blockedBoundaries.includes( move.destinationBoundaryIndex )
-	) {
+	const currentTable = getCurrentColumnTable( move.clientId );
+	if ( currentTable === null || ! isColumnMoveAllowed( currentTable.parsedTable, move ) ) {
 		return false;
 	}
 
 	const positionMap = createColumnPositionMap(
-		parsedTable.columnCount,
+		currentTable.parsedTable.columnCount,
 		move.sourceColumnIndex,
 		move.destinationBoundaryIndex
 	);
 	const updates: Record< string, unknown > = {};
 
+	/* 存在する各sectionへ同じ論理列移動を適用し、一回の属性更新へまとめる。 */
 	for ( const sectionName of TABLE_SECTIONS ) {
-		const rawSection = block.attributes[ sectionName ];
+		const rawSection = currentTable.attributes[ sectionName ];
 		if ( rawSection === undefined ) {
 			continue;
 		}
-		updates[ sectionName ] = parsedTable.sections[ sectionName ].rows.map( ( parsedRow ) =>
-			reorderRow( parsedRow, positionMap )
+		updates[ sectionName ] = currentTable.parsedTable.sections[ sectionName ].rows.map(
+			( parsedRow ) => reorderRow( parsedRow, positionMap )
 		);
 	}
 
@@ -495,10 +670,13 @@ const applyColumnMove = ( move: ColumnMove ): boolean => {
 };
 
 /**
- * Column Reorderと対応Table Blockの間を接続する列専用Table Integrationのインタフェース。
+ * Column Reorder / RFと対応Table Blockの間を接続する列専用Table Integrationのインタフェース。
  */
 export const columnTableIntegration = {
 	getConstraints,
+	getColumnInputDescriptors,
+	getBlockingMergedRange,
 	getAffectedCellCount,
+	assessColumnMoveForApply,
 	applyColumnMove,
 };
