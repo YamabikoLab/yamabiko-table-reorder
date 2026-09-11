@@ -136,6 +136,38 @@ describe( 'Row Table Integration RF contract', () => {
 	} );
 
 	/**
+	 * 現在Tableの縦結合制約により候補が成立しない場合、RF Apply前評価を成立させないことを確認する。
+	 *
+	 * 事前条件:
+	 * - 先頭セルが0〜1行を占有する縦結合を持つ3行Tableである。
+	 * - 移動元行がその縦結合範囲に含まれる。
+	 *
+	 * 操作:
+	 * - Apply assessmentを要求する。
+	 *
+	 * 期待結果:
+	 * - 現在Tableでは候補が成立しないためnullが返る。
+	 */
+	it( 'when the current merged-cell constraints reject a row move, should not return an apply assessment', () => {
+		selectMock.mockReturnValue( {
+			getBlock: jest.fn().mockReturnValue( {
+				name: 'core/table',
+				attributes: {
+					body: [ { cells: [ { rowspan: 2 } ] }, { cells: [ {} ] }, { cells: [ {} ] } ],
+				},
+			} ),
+		} );
+
+		expect(
+			rowTableIntegration.assessRowMoveForApply( {
+				clientId: 'table-a',
+				sourceRowIndex: 1,
+				destinationBoundaryIndex: 3,
+			} )
+		).toBeNull();
+	} );
+
+	/**
 	 * assessment後にTable構造が変化して現在候補が縦結合制約へ抵触した場合、確定更新を行わないことを確認する。
 	 *
 	 * 事前条件:
