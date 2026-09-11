@@ -63,7 +63,7 @@ export const withReorderMode = ( BlockEdit: ComponentType< TableBlockEditProps >
 	};
 
 /**
- * Gutenberg既存のBlock wrapperへ、並び替えモード中の内容編集抑止だけを追加するHOC。
+ * Gutenberg既存のBlock wrapperへ、並び替えモード中の内容編集抑止とTable Block自体のBlock DnD抑止を追加するHOC。
  *
  * 新しいDOM階層を追加せず、Block Toolbarや配置操作を既存のEditor構造のまま利用可能にする。
  * 対応Tableでは選択状態にかかわらず同じReorder Mode接続境界を維持し、選択切替で既存Block subtreeを再生成しない。
