@@ -46,8 +46,11 @@ type SupportedTable = 'core/table' | 'flexible-table-block/table';
 
 /** 要求時点のtbodyを行移動判定へ利用できる形で解釈した結果。 */
 type ParsedRowTable = {
+	/** 検証済みの現在tbody行集合。 */
 	body: readonly Record< string, unknown >[];
+	/** 縦結合を分断するため移動先にできない行間境界。 */
 	blockedBoundaries: readonly number[];
+	/** 構造拒否理由として公開できる一意な縦結合範囲。 */
 	mergedRanges: readonly RowBlockingMergedRange[];
 };
 
@@ -120,6 +123,7 @@ const parseRowTable = (
 	/* tbodyの各行を縦結合の開始行として確認し、行制約と診断範囲を同じ解析から確定する。 */
 	for ( let rowIndex = 0; rowIndex < body.length; rowIndex++ ) {
 		const row = body[ rowIndex ];
+		/* 行をセル集合として解釈できない場合は、Table全体の行構造を安全に提供できない。 */
 		if ( ! isRecord( row ) || ! Array.isArray( row.cells ) ) {
 			return null;
 		}
@@ -127,14 +131,17 @@ const parseRowTable = (
 
 		/* 各セルが占有する行範囲を確認し、縦結合が跨ぐ行間を行移動の禁止境界へ反映する。 */
 		for ( const cell of row.cells ) {
+			/* セル属性を解釈できない場合は、方向固有制約と診断範囲を確定できない。 */
 			if ( ! isRecord( cell ) ) {
 				return null;
 			}
 
 			const rowSpan = getRowSpan( tableName, cell );
+			/* 無効な縦結合、またはtbody末尾を越える縦結合を含むTableは解析対象にしない。 */
 			if ( rowSpan === null || rowIndex + rowSpan > body.length ) {
 				return null;
 			}
+			/* 通常セルは行間境界を塞がないため、結合範囲の診断対象に含めない。 */
 			if ( rowSpan === 1 ) {
 				continue;
 			}
@@ -169,11 +176,13 @@ const parseRowTable = (
  */
 const getParsedRowTable = ( clientId: string ): ParsedRowTable | null => {
 	const block = select( blockEditorStore ).getBlock( clientId );
+	/* 対象Blockが存在しない、非対応、または属性を解釈できない場合は現在Tableとして利用しない。 */
 	if ( ! block || ! isSupportedTable( block.name ) || ! isRecord( block.attributes ) ) {
 		return null;
 	}
 
 	const body = block.attributes.body;
+	/* 対応Tableでもtbody行集合を取得できない場合は、行方向の判定を提供しない。 */
 	if ( ! Array.isArray( body ) ) {
 		return null;
 	}
@@ -189,6 +198,7 @@ const getParsedRowTable = ( clientId: string ): ParsedRowTable | null => {
  */
 const getConstraints = ( clientId: string ): RowReorderConstraints | null => {
 	const parsedTable = getParsedRowTable( clientId );
+	/* 現在Tableを安全に解析できない場合は、部分的な制約情報を返さない。 */
 	if ( parsedTable === null ) {
 		return null;
 	}
@@ -216,6 +226,7 @@ const isRowMoveAllowed = ( parsedTable: ParsedRowTable, move: RowMove ): boolean
 		Number.isInteger( move.destinationBoundaryIndex ) &&
 		move.destinationBoundaryIndex >= 0 &&
 		move.destinationBoundaryIndex <= rowCount;
+	/* 現在Table上に存在しない移動元または移動先は、解決済み候補として成立しない。 */
 	if ( ! sourceInRange || ! destinationInRange ) {
 		return false;
 	}
@@ -240,6 +251,7 @@ const isRowMoveAllowed = ( parsedTable: ParsedRowTable, move: RowMove ): boolean
  */
 const getBlockingMergedRange = ( move: RowMove ): RowBlockingMergedRange | null => {
 	const parsedTable = getParsedRowTable( move.clientId );
+	/* 診断元となる現在Tableを解析できない場合は、結合範囲を推測しない。 */
 	if ( parsedTable === null ) {
 		return null;
 	}
@@ -247,6 +259,7 @@ const getBlockingMergedRange = ( move: RowMove ): RowBlockingMergedRange | null 
 	const sourceRange = parsedTable.mergedRanges.find(
 		( range ) => move.sourceRowIndex >= range.rowStart && move.sourceRowIndex <= range.rowEnd
 	);
+	/* 移動元の構造拒否を利用者へ先に示せるよう、移動先よりsource側を優先する。 */
 	if ( sourceRange !== undefined ) {
 		return sourceRange;
 	}
@@ -279,6 +292,7 @@ const countAffectedCells = ( parsedTable: ParsedRowTable, move: RowMove ): numbe
 	/* 表示位置が変わる行範囲に存在する物理セルを、結合セルの論理占有数へ展開せず数える。 */
 	for ( let rowIndex = start; rowIndex <= end; rowIndex++ ) {
 		const cells = parsedTable.body[ rowIndex ].cells;
+		/* 解析済み行からcellsが失われる状態はTable Integration内部Contract違反として扱う。 */
 		if ( ! Array.isArray( cells ) ) {
 			throw new Error( 'Parsed row cells must remain available.' );
 		}
@@ -299,6 +313,7 @@ const countAffectedCells = ( parsedTable: ParsedRowTable, move: RowMove ): numbe
  */
 const getAffectedCellCount = ( move: RowMove ): number | null => {
 	const parsedTable = getParsedRowTable( move.clientId );
+	/* DnD候補を現在構造へ再照合できない場合は、更新対象セル数を提供しない。 */
 	if ( parsedTable === null || ! isRowMoveAllowed( parsedTable, move ) ) {
 		return null;
 	}
@@ -314,6 +329,7 @@ const getAffectedCellCount = ( move: RowMove ): number | null => {
  */
 const assessRowMoveForApply = ( move: RowMove ): RowApplyAssessment | null => {
 	const parsedTable = getParsedRowTable( move.clientId );
+	/* RF候補が現在Tableで成立しない場合は、反映経路へ進める評価結果を返さない。 */
 	if ( parsedTable === null || ! isRowMoveAllowed( parsedTable, move ) ) {
 		return null;
 	}
@@ -334,6 +350,7 @@ const assessRowMoveForApply = ( move: RowMove ): RowApplyAssessment | null => {
  */
 const applyRowMove = ( move: RowMove ): boolean => {
 	const parsedTable = getParsedRowTable( move.clientId );
+	/* assessment結果を成立保証にせず、更新直前の現在Tableで成立しない候補は反映しない。 */
 	if ( parsedTable === null || ! isRowMoveAllowed( parsedTable, move ) ) {
 		return false;
 	}
