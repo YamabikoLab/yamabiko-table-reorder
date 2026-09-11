@@ -8,6 +8,7 @@
 
 import { store as blockEditorStore } from '@wordpress/block-editor';
 import { dispatch, select } from '@wordpress/data';
+import { decodeEntities } from '@wordpress/html-entities';
 
 /** Column Reorderが現在のTableで移動可否を再照合するために利用する制約情報。 */
 export type ColumnReorderConstraints = {
@@ -132,7 +133,7 @@ const isSupportedTable = ( blockName: string ): blockName is SupportedTable =>
 /**
  * 対応Table Block固有の結合属性を、共通の占有数として解釈する。
  *
- * @param tableName 対応Table Block種別。
+ * @param tableName  対応Table Block種別。
  * @param cell      対応Table Blockから取得した未検証のセル属性。
  * @param direction 解釈する結合方向。
  * @return セルが占有する行数または列数。結合指定がない場合は1、占有数として解釈できない場合はnull。
@@ -430,8 +431,10 @@ const getConstraints = ( clientId: string ): ColumnReorderConstraints | null => 
 /**
  * 見出しセルの内容を、RFで単一列を識別する表示値として利用できる場合だけ取得する。
  *
+ * 実HTML markupを含むRichText保存表現は解釈せず列番号fallbackへ委ね、HTML entityだけWordPressの変換APIで利用者向け文字へ復元する。
+ *
  * @param cell 明示的なhead sectionの単一論理列セル。
- * @return 空でない文字列の見出し。利用できない場合はnull。
+ * @return 空でない表示用見出し。安全に表示値へ変換できない場合はnull。
  */
 const getHeadingValue = ( cell: Record< string, unknown > ): string | null => {
 	/* 文字列として安定して扱えないcontentは列見出しとして公開しない。 */
@@ -439,12 +442,19 @@ const getHeadingValue = ( cell: Record< string, unknown > ): string | null => {
 		return null;
 	}
 
-	const heading = cell.content.trim();
+	const content = cell.content.trim();
 	/* 空白だけの見出しは利用者が列を識別できないため、見出しなしとして扱う。 */
-	if ( heading.length === 0 ) {
+	if ( content.length === 0 ) {
 		return null;
 	}
-	return heading;
+	/* 実HTML markupを含む保存表現はTable Integrationで独自解釈せず、列番号fallbackへ委ねる。 */
+	if ( content.includes( '<' ) ) {
+		return null;
+	}
+
+	const heading = decodeEntities( content ).trim();
+	const usableHeading = heading.length === 0 ? null : heading;
+	return usableHeading;
 };
 
 /**
