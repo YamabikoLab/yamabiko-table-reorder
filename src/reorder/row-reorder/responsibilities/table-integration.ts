@@ -2,7 +2,7 @@
  * 行専用Table Integrationとして、対応Table Block固有の表現差とWordPress Block Editor Storeとの接続を吸収し、Row Reorderへ現在のtbody行構造、構造診断、反映前評価、確定済み行移動の反映を提供する。
  *
  * このファイルはCore TableとFlexible Table Blockの縦結合属性差、および対応Tableへの行順反映を所有する。
- * Row / RFへは現在行数、rowspanを分断できない挿入位置、blocking merged range、更新対象セル数、および確定更新だけを公開し、Tableデータや対応Block固有の表現は外へ公開しない。
+ * Row ReorderとRFへは現在行数、rowspanを分断できない挿入位置、blocking merged range、更新対象セル数、および確定更新だけを公開し、Tableデータや対応Block固有の表現は外へ公開しない。
  * Tableデータや構造結果は保持せず、各要求時点のWordPress Blockを直接参照する。
  */
 
@@ -354,7 +354,7 @@ const applyRowMove = ( move: RowMove ): boolean => {
 };
 
 /**
- * Row Reorder / RFと対応Table Blockの間を接続する、行専用Table Integrationのインタフェース。
+ * Row ReorderとRFと対応Table Blockの間を接続する、行専用Table Integrationのインタフェース。
  *
  * Core TableとFlexible Table Blockの表現差、およびWordPress Block Editor Storeとの接続はこの責務の内部で吸収する。
  * Tableデータや算出結果は保持せず、Block固有構造も外部へ公開しない。
