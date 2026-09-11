@@ -133,7 +133,7 @@ const isSupportedTable = ( blockName: string ): blockName is SupportedTable =>
 /**
  * 対応Table Block固有の結合属性を、共通の占有数として解釈する。
  *
- * @param tableName  対応Table Block種別。
+ * @param tableName 対応Table Block種別。
  * @param cell      対応Table Blockから取得した未検証のセル属性。
  * @param direction 解釈する結合方向。
  * @return セルが占有する行数または列数。結合指定がない場合は1、占有数として解釈できない場合はnull。
