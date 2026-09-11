@@ -6,7 +6,7 @@ WordPressブロックエディターのTable並び替えを扱うプラグイン
 
 ## 現在の状態
 
-0.8.0では、WordPress Core TableとFlexible Table Blockの**行・列並び替え**を提供します。
+0.8.1では、WordPress Core TableとFlexible Table Blockの**行・列並び替え**を提供します。
 
 Tableツールバーから行または列の並び替えモードへ切り替え、Mouse / TouchによるDnDでtbodyの行やTableの列を並び替えられます。DnD中は移動対象・移動先・周囲の行または列の移動を視覚的に確認でき、結合セルを含むTableでは構造を壊さない範囲だけを移動先として扱います。
 
@@ -28,7 +28,7 @@ Prototype v0.4.0の実装や設計を参照する場合は`prototype-final` tag�
 
 0.4.0までの配布履歴はそのまま維持しています。formal v1は新しい設計・実装世代を表す呼称であり、配布バージョンを`1.0.0`へ変更する意味ではありません。
 
-0.5.0はformal v1 Row Reorderの最初の公開版です。0.7.0はformal v1 Column Reorderを追加した最初の公開版です。0.8.0では、影響範囲が大きい並び替えに確認付きの反映フローを追加しました。
+0.5.0はformal v1 Row Reorderの最初の公開版です。0.7.0はformal v1 Column Reorderを追加した最初の公開版です。0.8.0では、影響範囲が大きい並び替えに確認付きの反映フローを追加しました。0.8.1では、Column ReorderのTouch長押しがセル編集と競合する問題を修正しました。
 
 ## 動作環境
 
