@@ -115,11 +115,10 @@ RF開始から入力成立、方向固有の指定解決、反映経路選択、
 
 #### RF Rejection and Recovery {#PV_RF_REJECTION_RECOVERY kind=failure-recovery}
 
-入力不成立、構造上の移動不可、no-op、確認Cancel、反映時再照合不成立、更新不能からTableを変更せずRFへ復帰する処理方向を示す。
+構造上の移動不可、no-op、確認Cancel、反映時再照合不成立、更新不能からTableを変更せずRFへ復帰する処理方向を示す。
 
 | From | To | Kind | Meaning |
 | --- | --- | --- | --- |
-| RESP_RF_INPUT_INTERPRETATION | RESP_RF_INTERACTION | recovery | `not-ready`をTable更新なしで現在入力状態へ反映する。 |
 | RESP_ROW_TABLE_INTEGRATION | RESP_RF_ROW_RESOLUTION | failure | Row候補を成立させない現在構造または結合セル診断を返す。 |
 | RESP_RF_ROW_RESOLUTION | RESP_RF_INTERACTION | recovery | Rowの構造拒否またはno-opを入力画面の現在結果へ返す。 |
 | RESP_COLUMN_TABLE_INTEGRATION | RESP_RF_COLUMN_RESOLUTION | failure | Column候補を成立させない現在構造または結合セル診断を返す。 |
