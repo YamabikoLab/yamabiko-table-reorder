@@ -1,3 +1,4 @@
+import type { Locator } from '@playwright/test';
 import { expect, test } from '@wordpress/e2e-test-utils-playwright';
 
 import {
@@ -18,6 +19,8 @@ test.beforeEach( async ( { admin, page } ) => {
 	await setPreferences( page );
 } );
 
+const EDITABLE_FOCUS_HISTORY_ATTRIBUTE = 'data-ytr-test-editable-focus-history';
+
 /** 横方向へ通常スクロールできるCore Table属性を生成する。 */
 function wideTableAttributes() {
 	const attributes = tableAttributes( 4, 12 );
@@ -28,6 +31,25 @@ function wideTableAttributes() {
 		}
 	}
 	return attributes;
+}
+
+/**
+ * 対象Tableで編集可能要素へfocusが移った履歴を記録する。
+ *
+ * DnD開始によって編集可能要素がDOMから外れた後でも、長押し開始からDnD開始までに通常編集へ遷移したかを確認できるようにする。
+ *
+ * @param block 対象TableのBlock wrapper。
+ */
+async function observeEditableFocusHistory( block: Locator ) {
+	await block.evaluate( ( element, attributeName ) => {
+		element.setAttribute( attributeName, 'false' );
+		element.addEventListener( 'focusin', ( event ) => {
+			const target = event.target;
+			if ( target instanceof Element && target.closest( '[contenteditable="true"]' ) ) {
+				element.setAttribute( attributeName, 'true' );
+			}
+		} );
+	}, EDITABLE_FOCUS_HISTORY_ATTRIBUTE );
 }
 
 /**
@@ -56,11 +78,12 @@ test( 'when editable cell content is long-pressed and dragged by touch, should s
 	const editable = cells.first().locator( '[contenteditable="true"]' ).first();
 	await expect( editable ).toBeVisible();
 	await page.getByRole( 'button', { name: COLUMN_BUTTON } ).tap();
+	await observeEditableFocusHistory( block );
 	const touch = await touchInput( page );
 	try {
 		await touch.start( await pointIn( editable ) );
 		await expect( canvas.locator( '.yamabiko-table-reorder-moving-column' ) ).toBeVisible();
-		await expect( block.locator( '[contenteditable="true"]:focus' ) ).toHaveCount( 0 );
+		await expect( block ).toHaveAttribute( EDITABLE_FOCUS_HISTORY_ATTRIBUTE, 'false' );
 		await touch.move( await pointIn( cells.last(), 0.8 ) );
 		await expect( canvas.locator( '.yamabiko-table-reorder-column-insertion-line' ) ).toBeVisible();
 		await touch.end();
@@ -109,11 +132,12 @@ test( 'when editable header content is long-pressed by touch, should start colum
 	const editable = headerCell.locator( '[contenteditable="true"]' ).first();
 	await expect( editable ).toBeVisible();
 	await page.getByRole( 'button', { name: COLUMN_BUTTON } ).tap();
+	await observeEditableFocusHistory( block );
 	const touch = await touchInput( page );
 	try {
 		await touch.start( await pointIn( editable ) );
 		await expect( canvas.locator( '.yamabiko-table-reorder-moving-column' ) ).toBeVisible();
-		await expect( block.locator( '[contenteditable="true"]:focus' ) ).toHaveCount( 0 );
+		await expect( block ).toHaveAttribute( EDITABLE_FOCUS_HISTORY_ATTRIBUTE, 'false' );
 		await touch.end();
 		await expect( canvas.locator( '.yamabiko-table-reorder-moving-column' ) ).toBeHidden();
 	} finally {
