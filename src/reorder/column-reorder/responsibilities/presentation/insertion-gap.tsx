@@ -1,7 +1,8 @@
 /**
- * Column Reorderの現在の有効な移動先に、移動対象列と同じ幅の1つの挿入空間を独立表示として描画する。
+ * Column Reorderの現在の有効な移動先に、Editor表示方式に応じた挿入空間を独立表示として描画する。
  *
  * 周囲列の押しのけによって生じる見かけ上の空間から位置を推測せず、DnD開始時の論理列境界と移動対象列幅を基準にする。
+ * iframe Editorでは移動対象列と同じ幅を表示し、周囲列移動を行わないnon-iframe Editorでは移動先境界に細い挿入空間を表示する。
  * 移動対象列の横罫線はDnD開始時に現在見えている実セル境界から固定し、縦結合セル内部へ存在しない境界を生成しない。
  * 移動方向はDnD Interactionが所有する移動元論理列と現在の有効移動先から判断し、スクロール中はTable自体の現在位置だけへ追従する。
  * 大規模TableではTable全高を覆わず、現在のeditor表示領域と重なる範囲だけを描画する。
@@ -25,6 +26,7 @@ import { resolveEditorDomContext } from '@/reorder/editor-dom-context';
 import './insertion-gap.scss';
 
 const VIEWPORT_SCAN_STEP = 8;
+const NON_IFRAME_GAP_MAX_WIDTH = 12;
 
 /**
  * 1回のColumn DnD開始時に確定し、そのDnD中の挿入空間表示で維持する論理配置。
@@ -37,6 +39,10 @@ type ColumnInsertionGapSessionLayout = {
 	sourceTable: HTMLTableElement;
 	/** DnD開始時に確定した移動対象1列分の表示幅。 */
 	sourceColumnWidth: number;
+	/** 現在のEditor表示方式で利用する挿入空間幅。 */
+	gapWidth: number;
+	/** non-iframe Editor向けの小幅な挿入空間を使用する場合はtrue。 */
+	usesCompactGap: boolean;
 	/** DnD開始時にDOMから観測できた論理列境界を、0-based境界位置ごとに固定したTable相対位置。 */
 	boundaryOffsets: ReadonlyMap< number, number >;
 	/** DnD開始時に現在見えている移動対象列セルから確定した、Table相対の内部横罫線位置。 */
@@ -50,7 +56,7 @@ type ColumnInsertionGapSessionLayout = {
 };
 
 /**
- * 現在のeditor表示領域へ実際に描画できる、移動対象1列分の挿入空間配置。
+ * 現在のeditor表示領域へ実際に描画できる挿入空間配置。
  *
  * 開始時の論理配置を現在のTable位置へ変換し、表示領域と重なる縦範囲だけを物理座標として保持する。
  */
@@ -59,8 +65,10 @@ type ColumnInsertionGapLayout = {
 	top: number;
 	/** 論理移動先を現在のTable位置へ変換した左端位置。 */
 	left: number;
-	/** DnD開始時に固定した移動対象列幅。 */
+	/** 現在のEditor表示方式で描画する挿入空間幅。 */
 	width: number;
+	/** non-iframe Editor向けの小幅な挿入空間を使用する場合はtrue。 */
+	usesCompactGap: boolean;
 	/** 対象Tableと現在のeditor表示領域が重なる縦方向の表示高。 */
 	height: number;
 	/** DnD開始時に固定したTable相対の内部横罫線位置。 */
@@ -166,6 +174,7 @@ const collectVisibleCellBoundaryOffsets = (
  * DnD開始時の移動対象DOMから、そのDnD中の挿入空間表示で維持する論理配置を確定する。
  *
  * ここでは表示に必要なTable参照、移動対象列幅、論理列境界、開始時に見えている移動対象列のセル境界を取得する。
+ * iframe Editorでは移動対象列幅をそのまま使用し、non-iframe Editorでは実セルを移動せずに移動先を強調できる小幅な挿入空間を使用する。
  * 移動元論理列はDOMから解決せず、DnD Interactionが所有する`sourceColumnIndex`を表示時の正本とする。
  *
  * @param sourceElement DnD Engineが現在の移動対象として管理するDOM要素。
@@ -204,6 +213,11 @@ const resolveInsertionGapSessionLayout = (
 		return null;
 	}
 
+	const usesCompactGap = editorContext.window.frameElement === null;
+	const gapWidth = usesCompactGap
+		? Math.min( sourceColumnWidth, NON_IFRAME_GAP_MAX_WIDTH )
+		: sourceColumnWidth;
+
 	/* 現在の有効移動先を開始時の論理位置へ直接対応付けられるよう、観測済み境界を境界番号ごとの固定位置として保持する。 */
 	const boundaryOffsets = new Map(
 		boundaryGeometry.map( ( boundary ) => [ boundary.index, boundary.offset ] )
@@ -220,6 +234,8 @@ const resolveInsertionGapSessionLayout = (
 	return {
 		sourceTable,
 		sourceColumnWidth,
+		gapWidth,
+		usesCompactGap,
 		boundaryOffsets,
 		cellBoundaryOffsets,
 		inlineDirection: resolveTableColumnInlineDirection( sourceTable ),
@@ -229,16 +245,17 @@ const resolveInsertionGapSessionLayout = (
 };
 
 /**
- * DnD開始時の論理境界から、押しのけ後に実際に空く1列分の表示位置を解決する。
+ * DnD開始時の論理境界から、現在のEditor表示方式に応じた挿入空間位置を解決する。
  *
- * 論理開始側への移動では移動先境界から論理終了方向へ、論理終了側への移動では移動先境界直前へ移動対象列幅を配置する。
+ * iframe Editorでは、論理開始側への移動は移動先境界から論理終了方向へ、論理終了側への移動は移動先境界直前へ移動対象列幅を配置する。
+ * non-iframe Editorでは同じ境界側へ小幅な挿入空間を寄せ、実Tableセルを移動せずに現在の挿入位置を強調する。
  * Table自体の現在位置だけを再計測し、押しのけ後セルの見かけ上の位置は利用しない。
  * DnD開始時に固定したTable相対の横罫線は、現在のTable位置とviewport clipへ変換して描画する。
  *
  * @param sessionLayout            DnD開始時に確定した論理配置。
  * @param sourceColumnIndex        DnD InteractionがSession開始時から所有する0-based移動元論理列位置。
  * @param destinationBoundaryIndex DnD Interactionが有効とした0-based移動先境界。
- * @return 現在描画できる1列分の挿入空間。表示不要または描画不能の場合はnull。
+ * @return 現在描画できる挿入空間。表示不要または描画不能の場合はnull。
  */
 const resolveInsertionGapLayout = (
 	sessionLayout: ColumnInsertionGapSessionLayout,
@@ -259,9 +276,9 @@ const resolveInsertionGapLayout = (
 
 	let logicalGapStartOffset = destinationBoundaryOffset;
 
-	/* 論理終了側への移動では、押し上げられた列の直後に空く領域へ移動対象列幅を合わせる。 */
+	/* 論理終了側への移動では、現在の挿入空間幅だけ移動先境界の手前へ寄せる。 */
 	if ( destinationBoundaryIndex > sourceColumnIndex ) {
-		logicalGapStartOffset -= sessionLayout.sourceColumnWidth;
+		logicalGapStartOffset -= sessionLayout.gapWidth;
 	}
 
 	const tableRectangle = sessionLayout.sourceTable.getBoundingClientRect();
@@ -269,13 +286,13 @@ const resolveInsertionGapLayout = (
 
 	/* RTLでは論理開始端がTable右端になるため、論理offsetを現在の物理横位置へ変換する。 */
 	if ( sessionLayout.inlineDirection === 'rtl' ) {
-		left = tableRectangle.right - logicalGapStartOffset - sessionLayout.sourceColumnWidth;
+		left = tableRectangle.right - logicalGapStartOffset - sessionLayout.gapWidth;
 	}
 
 	const top = Math.max( tableRectangle.top, 0 );
 	const bottom = Math.min( tableRectangle.bottom, sessionLayout.editorWindow.innerHeight );
 	const height = bottom - top;
-	const right = left + sessionLayout.sourceColumnWidth;
+	const right = left + sessionLayout.gapWidth;
 
 	/* 現在のTableとeditor表示領域が重ならない場合は、画面外の挿入空間を生成しない。 */
 	if ( height <= 0 || right <= 0 || left >= sessionLayout.editorWindow.innerWidth ) {
@@ -285,7 +302,8 @@ const resolveInsertionGapLayout = (
 	return {
 		top,
 		left,
-		width: sessionLayout.sourceColumnWidth,
+		width: sessionLayout.gapWidth,
+		usesCompactGap: sessionLayout.usesCompactGap,
 		height,
 		cellBoundaryOffsets: sessionLayout.cellBoundaryOffsets,
 		tableOffsetTop: tableRectangle.top - top,
@@ -294,13 +312,13 @@ const resolveInsertionGapLayout = (
 };
 
 /**
- * DnD Interactionが示す現在の有効な移動先へ、移動対象1列分の独立した挿入空間を描画する。
+ * DnD Interactionが示す現在の有効な移動先へ、Editor表示方式に応じた独立した挿入空間を描画する。
  *
  * DnD開始時に押しのけ前の論理列境界、移動対象列幅、現在見えている実セル境界を確定し、その後の物理移動ではTableの現在位置だけを再計測する。
  * 移動元と移動先の意味状態はDnD Interactionを正本とし、DnD Engineのsource DOMから移動元論理列を再解決しない。
  * DnD開始後に新しくviewportへ入った行の境界は追加取得しない。
  *
- * @return 現在の有効な移動先を覆う1列分の挿入空間。表示条件が成立しない場合はnull。
+ * @return 現在の有効な移動先を示す挿入空間。表示条件が成立しない場合はnull。
  */
 export const ColumnInsertionGap = () => {
 	const sourceColumnIndex = useColumnDndSourceColumnIndex();
@@ -386,9 +404,13 @@ export const ColumnInsertionGap = () => {
 		width: layout.width,
 		height: layout.height,
 	};
+	const className = layout.usesCompactGap
+		? 'yamabiko-table-reorder-column-insertion-gap yamabiko-table-reorder-column-insertion-gap--compact'
+		: 'yamabiko-table-reorder-column-insertion-gap';
+	const gapKey = layout.usesCompactGap ? destinationBoundaryIndex ?? 'compact' : 'full';
 
 	return createPortal(
-		<div aria-hidden="true" className="yamabiko-table-reorder-column-insertion-gap" style={ style }>
+		<div key={ gapKey } aria-hidden="true" className={ className } style={ style }>
 			{ layout.cellBoundaryOffsets.map( ( boundaryOffset ) => {
 				const separatorStyle: CSSProperties = {
 					top: layout.tableOffsetTop + boundaryOffset,
