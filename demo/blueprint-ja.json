@@ -1,0 +1,80 @@
+{
+	"$schema": "https://playground.wordpress.net/blueprint-schema.json",
+	"meta": {
+		"title": "Yamabiko Table Reorder 日本語デモ",
+		"description": "WordPress Core Table と Flexible Table Block で Yamabiko Table Reorder の行・列並び替えを試せます。",
+		"author": "YamabikoLab",
+		"categories": [ "demo", "table", "accessibility" ]
+	},
+	"preferredVersions": {
+		"php": "8.3",
+		"wp": "7.1"
+	},
+	"features": {
+		"networking": true
+	},
+	"login": true,
+	"landingPage": "/wp-admin/post.php?post=100&action=edit",
+	"steps": [
+		{
+			"step": "setSiteLanguage",
+			"language": "ja",
+			"progress": {
+				"caption": "日本語環境を設定しています..."
+			}
+		},
+		{
+			"step": "setSiteOptions",
+			"options": {
+				"blogname": "Yamabiko Table Reorder 日本語デモ",
+				"blogdescription": "Yamabiko Table Reorder を試す"
+			},
+			"progress": {
+				"caption": "デモサイトを設定しています..."
+			}
+		},
+		{
+			"step": "installPlugin",
+			"pluginData": {
+				"resource": "url",
+				"url": "https://github.com/YamabikoLab/yamabiko-table-reorder/releases/latest/download/yamabiko-table-reorder.zip"
+			},
+			"options": {
+				"activate": true
+			},
+			"progress": {
+				"caption": "Yamabiko Table Reorder をインストールしています..."
+			}
+		},
+		{
+			"step": "installPlugin",
+			"pluginData": {
+				"resource": "url",
+				"url": "https://downloads.wordpress.org/plugin/flexible-table-block.3.9.0.zip"
+			},
+			"options": {
+				"activate": true
+			},
+			"progress": {
+				"caption": "Flexible Table Block v3.9.0 をインストールしています..."
+			}
+		},
+		{
+			"step": "writeFile",
+			"path": "/tmp/create-demo.php",
+			"data": {
+				"resource": "url",
+				"url": "https://raw.githubusercontent.com/YamabikoLab/yamabiko-table-reorder/main/demo/create-demo.php"
+			},
+			"progress": {
+				"caption": "デモデータを準備しています..."
+			}
+		},
+		{
+			"step": "runPHPWithOptions",
+			"options": {
+				"scriptPath": "/tmp/create-demo.php"
+			}
+		}
+	]
+}
