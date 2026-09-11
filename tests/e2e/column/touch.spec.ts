@@ -51,7 +51,7 @@ test( 'when editable cell content is long-pressed and dragged by touch, should s
 	page,
 	editor,
 } ) => {
-	const { canvas, rows } = await insertTable( page, editor );
+	const { canvas, block, rows } = await insertTable( page, editor );
 	const cells = rows.first().locator( ':scope > td' );
 	const editable = cells.first().locator( '[contenteditable="true"]' ).first();
 	await expect( editable ).toBeVisible();
@@ -60,7 +60,7 @@ test( 'when editable cell content is long-pressed and dragged by touch, should s
 	try {
 		await touch.start( await pointIn( editable ) );
 		await expect( canvas.locator( '.yamabiko-table-reorder-moving-column' ) ).toBeVisible();
-		await expect( editable ).not.toBeFocused();
+		await expect( block.locator( '[contenteditable="true"]:focus' ) ).toHaveCount( 0 );
 		await touch.move( await pointIn( cells.last(), 0.8 ) );
 		await expect( canvas.locator( '.yamabiko-table-reorder-column-insertion-line' ) ).toBeVisible();
 		await touch.end();
@@ -113,7 +113,7 @@ test( 'when editable header content is long-pressed by touch, should start colum
 	try {
 		await touch.start( await pointIn( editable ) );
 		await expect( canvas.locator( '.yamabiko-table-reorder-moving-column' ) ).toBeVisible();
-		await expect( editable ).not.toBeFocused();
+		await expect( block.locator( '[contenteditable="true"]:focus' ) ).toHaveCount( 0 );
 		await touch.end();
 		await expect( canvas.locator( '.yamabiko-table-reorder-moving-column' ) ).toBeHidden();
 	} finally {
