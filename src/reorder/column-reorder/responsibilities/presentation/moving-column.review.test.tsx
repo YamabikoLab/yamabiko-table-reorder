@@ -1,9 +1,10 @@
 /**
  * Column Moving Overlayの可視列探索とTable背景snapshotが、DnD開始時の実表示を維持することを確認する。
  *
- * 横に部分表示された列とPortal内で再評価できないTable背景を対象に、利用者が開始時に見ていた列表示を欠落させないことを検証する。
+ * 横に部分表示された列、editor iframeの位置補正、Portal内で再評価できないTable背景を対象に、利用者が開始時に見ていた列表示を欠落させないことを検証する。
  */
 
+import { getFrameTransform } from '@dnd-kit/dom/utilities';
 import { act, render } from '@testing-library/react';
 
 import { ColumnMovingDisplay } from './moving-column';
@@ -16,11 +17,22 @@ jest.mock( '@/reorder/column-reorder/integration/dnd-interaction-react', () => (
 	useColumnDndPhase: () => 'active',
 } ) );
 
+jest.mock( '@dnd-kit/dom/utilities', () => ( {
+	getFrameTransform: jest.fn( () => ( {
+		x: 0,
+		y: 0,
+		scaleX: 1,
+		scaleY: 1,
+	} ) ),
+} ) );
+
 jest.mock( '@dnd-kit/react', () => ( {
 	useDragDropMonitor: ( monitor: typeof mockDragDropMonitor ) => {
 		mockDragDropMonitor = monitor;
 	},
 } ) );
+
+const mockGetFrameTransform = getFrameTransform as jest.MockedFunction< typeof getFrameTransform >;
 
 /**
  * 表示条件に必要な値だけを持つDOM矩形を作成する。
@@ -67,6 +79,12 @@ describe( 'Column moving display snapshot', () => {
 		mockDragDropMonitor = {};
 		document.body.replaceChildren();
 		jest.restoreAllMocks();
+		mockGetFrameTransform.mockReturnValue( {
+			x: 0,
+			y: 0,
+			scaleX: 1,
+			scaleY: 1,
+		} );
 		Object.defineProperty( window, 'innerHeight', {
 			configurable: true,
 			value: 80,
@@ -136,6 +154,96 @@ describe( 'Column moving display snapshot', () => {
 		const overlay = document.querySelector( '.yamabiko-table-reorder-moving-column' );
 		expect( overlay?.querySelectorAll( 'table' ) ).toHaveLength( 2 );
 		expect( document.elementFromPoint ).toHaveBeenCalledWith( 10, expect.any( Number ) );
+	} );
+
+	/**
+	 * editor iframeが外側viewportで横にずれていても、利用者が掴んだ列を移動元表示として維持できることを確認する。
+	 *
+	 * 事前条件:
+	 * - editor iframeは外側viewport上で横方向にoffsetを持つ。
+	 * - DnD Engineの開始位置にはそのoffsetが反映されている。
+	 * - editor内には移動元列と隣接列が表示されている。
+	 *
+	 * 操作:
+	 * - 移動元列からColumn DnDを開始する。
+	 *
+	 * 期待結果:
+	 * - editor内の開始位置を基準に移動元列の可視セルだけがsnapshotされる。
+	 * - 隣接列は移動元として半透明にならない。
+	 */
+	it( 'when the editor iframe has a horizontal frame offset, should keep the dragged column as the moving source', () => {
+		mockGetFrameTransform.mockReturnValue( {
+			x: 160,
+			y: 0,
+			scaleX: 1,
+			scaleY: 1,
+		} );
+		const table = document.createElement( 'table' );
+		const tbody = document.createElement( 'tbody' );
+		const sourceCells: HTMLTableCellElement[] = [];
+		const adjacentCells: HTMLTableCellElement[] = [];
+
+		[ 0, 40 ].forEach( ( top ) => {
+			const row = document.createElement( 'tr' );
+			const sourceCell = document.createElement( 'td' );
+			const adjacentCell = document.createElement( 'td' );
+			sourceCell.textContent = 'Source';
+			adjacentCell.textContent = 'Adjacent';
+			row.append( sourceCell, adjacentCell );
+			tbody.appendChild( row );
+			sourceCells.push( sourceCell );
+			adjacentCells.push( adjacentCell );
+			jest.spyOn( sourceCell, 'getBoundingClientRect' ).mockReturnValue(
+				rectangle( {
+					top,
+					bottom: top + 40,
+					left: 0,
+					right: 100,
+					width: 100,
+					height: 40,
+				} )
+			);
+			jest.spyOn( adjacentCell, 'getBoundingClientRect' ).mockReturnValue(
+				rectangle( {
+					top,
+					bottom: top + 40,
+					left: 100,
+					right: 200,
+					width: 100,
+					height: 40,
+				} )
+			);
+		} );
+		table.appendChild( tbody );
+		document.body.appendChild( table );
+		jest.spyOn( table, 'getBoundingClientRect' ).mockReturnValue(
+			rectangle( {
+				top: 0,
+				bottom: 80,
+				left: 0,
+				right: 200,
+				width: 200,
+				height: 80,
+			} )
+		);
+		Object.defineProperty( document, 'elementFromPoint', {
+			configurable: true,
+			value: jest.fn( ( x: number, y: number ) => {
+				const rowIndex = y < 40 ? 0 : 1;
+				return x < 100 ? sourceCells[ rowIndex ] : adjacentCells[ rowIndex ];
+			} ),
+		} );
+		render( <ColumnMovingDisplay /> );
+
+		startDrag( sourceCells[ 1 ], 170 );
+
+		expect( document.elementFromPoint ).toHaveBeenCalledWith( 10, expect.any( Number ) );
+		sourceCells.forEach( ( cell ) => {
+			expect( cell.classList ).toContain( 'yamabiko-table-reorder-moving-column-source' );
+		} );
+		adjacentCells.forEach( ( cell ) => {
+			expect( cell.classList ).not.toContain( 'yamabiko-table-reorder-moving-column-source' );
+		} );
 	} );
 
 	/**
