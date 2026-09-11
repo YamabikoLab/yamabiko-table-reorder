@@ -219,11 +219,11 @@ describe( 'Column moving display snapshot', () => {
 		jest.spyOn( table, 'getBoundingClientRect' ).mockReturnValue(
 			rectangle( {
 				top: 0,
-					bottom: 80,
-					left: 0,
-					right: 200,
-					width: 200,
-					height: 80,
+				bottom: 80,
+				left: 0,
+				right: 200,
+				width: 200,
+				height: 80,
 			} )
 		);
 		Object.defineProperty( document, 'elementFromPoint', {
