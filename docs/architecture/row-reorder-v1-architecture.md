@@ -15,6 +15,9 @@ Architecture上の責務はソースファイル構成を写したものでは�
 - Row ReorderとColumn Reorderは独立した方向固有実装とし、両者の方向固有状態を共有しない。
 - Reorder ModeはWordPress UIを所有せず、`edit | row | column`の排他状態、対象Table Identity、およびTable単位のLifecycleだけを所有する。
 - WordPress Reorder IntegrationはTableツールバー入口、通常編集抑止、現在TableとReorder Modeの接続、およびRow DnD Engine Integrationの有効化を所有する。
+- Reorder Apply PolicyはRow / Column共通の反映経路選択だけを所有し、Table構造や方向固有の移動意味、反映Lifecycleを所有しない。
+- WordPress Reorder Apply Integrationは確認付き大規模反映のEditor表示接続とediting surface restorationを所有し、通常のReorder Mode / DnD接続を所有しない。
+- Row Reorder Applyは確認付き大規模反映の方向固有Lifecycleと確定済み行移動意図だけを所有し、DnD Sessionとは独立して状態を管理する。
 - Reorder Guidanceは現在表示中の共通案内状態だけを所有する。PC / タッチごとの表示済み状態、操作環境判定、WordPress Preferencesへの永続化はReorder Guidance Integrationが所有する。
 - Editor DOM Contextは現在のeditor contextを要求時点で解決し、以前のcontextへfallbackしない。
 - Input Interactionは行DnDの開始入力と第一段階Reorder Target Resolutionだけを扱い、Reorder Mode、Editor DOM Context、DnD Interactionの状態やLifecycleを直接参照しない。
@@ -67,7 +70,11 @@ Row DnD Engine IntegrationはDnD Engineのactive DnD成立直前にReorder Targe
 
 Destination ResolutionはDnD Engineの物理入力位置をDnD開始時のTable配置に対する論理行間境界へ変換する。スクロールによる対象Table全体の現在位置変化には追従する一方、Presentationによる行の見かけ上の移動を論理移動先判定へ混入させない。`rowspan`等による移動可否は判断しない。
 
-DnD InteractionはDestination Resolutionで解決済みの論理行間境界をSession開始時制約へ照合し、有効な移動先だけを意味状態として保持する。`complete`では現在構造へ再照合し、成立する場合だけTable Integrationへ行移動を要求する。
+DnD InteractionはDestination Resolutionで解決済みの論理行間境界をSession開始時制約へ照合し、有効な移動先だけを意味状態として保持する。`complete`では現在構造へ再照合し、成立する場合はTable Integrationから更新対象セル数を取得してReorder Apply Policyへ反映経路の選択を要求する。通常反映ではTable Integrationへ確定済み行移動を要求し、確認付き大規模反映ではDnD Sessionを終了してからRow Reorder Applyへ確定済み移動意図を引き渡す。
+
+Row Reorder Applyは`confirming`以降の方向固有Lifecycleを所有する。確認中はTableを変更せず、Continue後の反映開始時に現在構造をTable Integrationへ再照合し、現在も成立する場合だけ確定済み行移動を要求する。Cancelまたは再照合不成立ではTableを変更しない。
+
+WordPress Reorder Apply IntegrationはRow / ColumnのReorder Apply状態をWordPress Editor表示へ接続する。重いTable更新より先に対象Tableの通常編集表示を一時的に退避して反映中表示を成立させ、更新後の編集表示が再成立した後に方向固有Reorder Apply Lifecycleを完了する。
 
 Reorder PresentationはDnD Interactionの意味状態と必要なDnD Engine物理情報を表示へ変換する。行並び替えモード中の操作可能・移動不可表示ではReorder Target Resolutionを利用して構造判定を重複させないが、実際のDnD開始では第一段階・第二段階の解決結果を権威とする。
 
@@ -91,6 +98,20 @@ WordPress Editorの入力が共通統合境界からRow DnD境界へ入り、第
 | RESP_ROW_DND_INTERACTION | RESP_ROW_TABLE_INTEGRATION | normal | complete時に現在構造の再照合と確定済み行移動の反映へ進む。 |
 | RESP_ROW_TABLE_INTEGRATION | EXT_SUPPORTED_TABLE_BLOCK | normal | 現在行制約を取得し、確定時は`tbody`の行順を反映する。 |
 
+#### Large Row Reorder Apply {#PV_ROW_LARGE_REORDER_APPLY kind=normal}
+
+DnD complete後に更新対象セル数から確認付き大規模反映へ分岐し、DnD Session終了後の方向固有Apply Lifecycle、WordPress表示接続、現在Table再照合、確定更新へ進む主要な処理方向を示す。Process Flowの行順はRuntime順序を定義しない。
+
+| From | To | Kind | Meaning |
+| --- | --- | --- | --- |
+| RESP_ROW_DND_INTERACTION | RESP_REORDER_APPLY_POLICY | normal | Table Integrationが算出した更新対象セル数から反映経路の選択へ進む。 |
+| RESP_ROW_DND_INTERACTION | RESP_ROW_REORDER_APPLY | normal | 確認付き大規模反映ではDnD Session終了後に確定済み移動意図を方向固有Apply Lifecycleへ引き渡す。 |
+| RESP_ROW_REORDER_APPLY | RESP_WORDPRESS_REORDER_APPLY_INTEGRATION | normal | 方向固有Apply状態をWordPress Editorの確認・反映中・表示復帰へ接続する。 |
+| RESP_WORDPRESS_REORDER_APPLY_INTEGRATION | EXT_WORDPRESS_EDITOR | normal | 確認UI、反映中表示、更新後の編集表示をWordPress Editor上に成立させる。 |
+| RESP_ROW_REORDER_APPLY | RESP_ROW_TABLE_INTEGRATION | normal | Continue後に現在構造を再照合し、成立する場合だけ確定済み行移動を要求する。 |
+| RESP_ROW_TABLE_INTEGRATION | EXT_SUPPORTED_TABLE_BLOCK | normal | 現在構造を取得し、成立した確定移動だけを対応Tableへ反映する。 |
+| RESP_ROW_TABLE_INTEGRATION | EXT_WORDPRESS_UNDO | normal | 成立した1回の行移動を1回のUndo単位として成立させる。 |
+
 #### External Environment Change and Recovery {#PV_ROW_EXTERNAL_CHANGE_RECOVERY kind=failure-recovery}
 
 物理DnDのcancel、またはcomplete時の現在Tableを安全に利用できない場合に、新しい行順を確定せずSessionを終了する処理方向を示す。
@@ -111,8 +132,10 @@ WordPress Editorの入力が共通統合境界からRow DnD境界へ入り、第
 | --- | --- | --- |
 | RESP_REORDER_MODE | Reorder Mode | `edit | row | column`の排他状態、対象Table Identity、およびTable単位のモードLifecycleを所有する共通状態責務。 |
 | RESP_REORDER_GUIDANCE | Reorder Guidance | 現在どのTableへどの操作環境の共通入口案内を表示しているかという一時状態だけを所有する共通状態責務。 |
+| RESP_REORDER_APPLY_POLICY | Reorder Apply Policy | Table Integrationが算出した更新対象セル数だけから通常反映か確認付き大規模反映かを選択する共通方針責務。 |
 | RESP_EDITOR_DOM_CONTEXT | Editor DOM Context | 現在のEditor DOM基準から、その表示環境に属するDOM / Web API contextを要求時点で解決する。 |
 | RESP_WORDPRESS_REORDER_INTEGRATION | WordPress Reorder Integration | Tableツールバー入口、通常編集抑止、現在TableとReorder Mode、および方向固有DnD境界をWordPress Editorへ接続する。 |
+| RESP_WORDPRESS_REORDER_APPLY_INTEGRATION | WordPress Reorder Apply Integration | 方向固有Reorder Apply状態をWordPress Editorの確認、反映中表示、editing surface restorationへ接続する。 |
 | RESP_REORDER_GUIDANCE_INTEGRATION | Reorder Guidance Integration | 初回案内の表示契機、操作環境判定、WordPress Preferences永続化、Reorder Mode選択による案内終了を接続する。 |
 | RESP_ROW_INPUT_INTERACTION | Input Interaction | PC / タッチの開始条件を解釈し、開始候補を第一段階Target Resolutionで事前解決して、開始可能な候補だけをDnD Engineへ登録する。 |
 | RESP_ROW_DND_ENGINE_INTEGRATION | DnD Engine Integration | DnD Engineの物理Lifecycleを第二段階Target Resolution、Destination Resolution、DnD Interactionへ接続し、そのDnDだけの接続一時状態を所有する。 |
@@ -120,16 +143,17 @@ WordPress Editorの入力が共通統合境界からRow DnD境界へ入り、第
 | RESP_ROW_TABLE_INTEGRATION | Table Integration | 指定された対応Tableの現在行制約取得、確定済み行移動、およびWordPress Undo境界を提供する。 |
 | RESP_ROW_TARGET_RESOLUTION | Reorder Target Resolution | active DnD成立前に現在行制約から移動行の開始可否を二段階で解決し、開始可能時は開始時制約を返す。 |
 | RESP_ROW_DND_INTERACTION | DnD Interaction | 解決済みReorder Targetから始まる行DnD Session、論理移動先の有効性、確定、cancel、終了後モード解決を所有する。 |
+| RESP_ROW_REORDER_APPLY | Reorder Apply | DnD Session終了後の確認付き大規模反映について、確定済み行移動意図、確認、反映開始、現在構造再照合、表示復帰完了までの方向固有Lifecycleを所有する。 |
 | RESP_ROW_PRESENTATION | Reorder Presentation | 操作可否、開始不可、移動対象、水平挿入位置、周囲行移動、終了通知をRow Reorderの独立表示として表現する。 |
 
 ### Ownership Boundaries
 
 | ID | Name | Includes |
 | --- | --- | --- |
-| BOUNDARY_REORDER_COMMON | Reorder Common | RESP_REORDER_MODE RESP_REORDER_GUIDANCE |
+| BOUNDARY_REORDER_COMMON | Reorder Common | RESP_REORDER_MODE RESP_REORDER_GUIDANCE RESP_REORDER_APPLY_POLICY |
 | BOUNDARY_EDITOR_INTEGRATION | Editor Integration | RESP_EDITOR_DOM_CONTEXT |
-| BOUNDARY_WORDPRESS_REORDER | WordPress Reorder Integration | RESP_WORDPRESS_REORDER_INTEGRATION RESP_REORDER_GUIDANCE_INTEGRATION |
-| BOUNDARY_ROW_REORDER | Row Reorder | RESP_ROW_INPUT_INTERACTION RESP_ROW_DND_ENGINE_INTEGRATION RESP_ROW_DESTINATION_RESOLUTION RESP_ROW_TABLE_INTEGRATION RESP_ROW_TARGET_RESOLUTION RESP_ROW_DND_INTERACTION RESP_ROW_PRESENTATION |
+| BOUNDARY_WORDPRESS_REORDER | WordPress Reorder Integration | RESP_WORDPRESS_REORDER_INTEGRATION RESP_REORDER_GUIDANCE_INTEGRATION RESP_WORDPRESS_REORDER_APPLY_INTEGRATION |
+| BOUNDARY_ROW_REORDER | Row Reorder | RESP_ROW_INPUT_INTERACTION RESP_ROW_DND_ENGINE_INTEGRATION RESP_ROW_DESTINATION_RESOLUTION RESP_ROW_TABLE_INTEGRATION RESP_ROW_TARGET_RESOLUTION RESP_ROW_DND_INTERACTION RESP_ROW_PRESENTATION RESP_ROW_REORDER_APPLY |
 | BOUNDARY_WORDPRESS_EXTERNAL | WordPress External | EXT_WORDPRESS_EDITOR EXT_SUPPORTED_TABLE_BLOCK EXT_WORDPRESS_UNDO EXT_WORDPRESS_PREFERENCES EXT_SCROLL_AREA |
 
 ### Dependencies
@@ -140,6 +164,8 @@ WordPress Editorの入力が共通統合境界からRow DnD境界へ入り、第
 | RESP_WORDPRESS_REORDER_INTEGRATION | EXT_WORDPRESS_EDITOR | Tableツールバー、現在Tableの編集面、WordPress側Lifecycleへ接続するために必要とする。 |
 | RESP_WORDPRESS_REORDER_INTEGRATION | RESP_REORDER_MODE | ツールバー選択、通常編集抑止、対象Table単位の現在モードを接続するために必要とする。 |
 | RESP_WORDPRESS_REORDER_INTEGRATION | RESP_ROW_DND_ENGINE_INTEGRATION | 対象Tableの行並び替え有効状態を方向固有DnD境界へ接続するために必要とする。 |
+| RESP_WORDPRESS_REORDER_APPLY_INTEGRATION | EXT_WORDPRESS_EDITOR | 確認UI、反映中表示、更新後の編集表示をWordPress Editorへ接続するために必要とする。 |
+| RESP_WORDPRESS_REORDER_APPLY_INTEGRATION | RESP_ROW_REORDER_APPLY | 方向固有の確認付き大規模反映状態をEditor表示へ接続し、Continue / Cancel / 表示復帰完了をLifecycleへ返すために必要とする。 |
 | RESP_REORDER_GUIDANCE_INTEGRATION | EXT_WORDPRESS_EDITOR | 初回案内の表示契機とWordPress Editor上の表示位置を接続するために必要とする。 |
 | RESP_REORDER_GUIDANCE_INTEGRATION | EXT_WORDPRESS_PREFERENCES | PC / タッチごとの初回案内表示済み状態を永続化するために必要とする。 |
 | RESP_REORDER_GUIDANCE_INTEGRATION | RESP_EDITOR_DOM_CONTEXT | 現在のEditor DOMに対する操作環境を解決するために必要とする。 |
@@ -159,6 +185,9 @@ WordPress Editorの入力が共通統合境界からRow DnD境界へ入り、第
 | RESP_ROW_TABLE_INTEGRATION | EXT_WORDPRESS_UNDO | 成立した1回の行移動を1回のUndo単位として維持するために必要とする。 |
 | RESP_ROW_TARGET_RESOLUTION | RESP_ROW_TABLE_INTEGRATION | 要求時点の現在行制約から移動行の開始可否と開始時制約を解決するために必要とする。 |
 | RESP_ROW_DND_INTERACTION | RESP_ROW_TABLE_INTEGRATION | complete時の現在構造再照合、確定済み行移動、終了後の対象Table継続可否確認に必要とする。 |
+| RESP_ROW_DND_INTERACTION | RESP_REORDER_APPLY_POLICY | 更新対象セル数から通常反映か確認付き大規模反映かを選択するために必要とする。 |
+| RESP_ROW_DND_INTERACTION | RESP_ROW_REORDER_APPLY | 確認付き大規模反映ではDnD Session終了後に確定済み移動意図を方向固有Apply Lifecycleへ引き渡すために必要とする。 |
+| RESP_ROW_REORDER_APPLY | RESP_ROW_TABLE_INTEGRATION | Continue後の現在構造再照合、更新対象の成立確認、確定済み行移動の反映に必要とする。 |
 | RESP_ROW_DND_INTERACTION | RESP_REORDER_MODE | Session終了後に対象Tableで行並び替えを安全に継続できるかだけを現在モードへ反映するために必要とする。 |
 | RESP_ROW_PRESENTATION | RESP_EDITOR_DOM_CONTEXT | 現在のEditor DOM contextで一時表示を配置するために必要とする。 |
 | RESP_ROW_PRESENTATION | EXT_DND_ENGINE | 移動対象表示等に必要な物理DnD情報をSessionへ複製せず利用するために必要とする。 |
@@ -170,11 +199,11 @@ WordPress Editorの入力が共通統合境界からRow DnD境界へ入り、第
 
 | ID | Name | Includes |
 | --- | --- | --- |
-| DV_ROW_RESPONSIBILITY | Responsibility View | EXT_WORDPRESS_EDITOR EXT_SUPPORTED_TABLE_BLOCK EXT_WORDPRESS_UNDO EXT_WORDPRESS_PREFERENCES EXT_SCROLL_AREA EXT_DND_ENGINE RESP_REORDER_MODE RESP_REORDER_GUIDANCE RESP_EDITOR_DOM_CONTEXT RESP_WORDPRESS_REORDER_INTEGRATION RESP_REORDER_GUIDANCE_INTEGRATION RESP_ROW_INPUT_INTERACTION RESP_ROW_DND_ENGINE_INTEGRATION RESP_ROW_DESTINATION_RESOLUTION RESP_ROW_TABLE_INTEGRATION RESP_ROW_TARGET_RESOLUTION RESP_ROW_DND_INTERACTION RESP_ROW_PRESENTATION |
-| DV_ROW_EDITOR_INTEGRATION | Editor Integration | EXT_WORDPRESS_EDITOR EXT_WORDPRESS_PREFERENCES RESP_REORDER_MODE RESP_REORDER_GUIDANCE RESP_EDITOR_DOM_CONTEXT RESP_WORDPRESS_REORDER_INTEGRATION RESP_REORDER_GUIDANCE_INTEGRATION RESP_ROW_DND_ENGINE_INTEGRATION |
-| DV_ROW_DND_CORE | DnD Core | EXT_DND_ENGINE RESP_ROW_INPUT_INTERACTION RESP_ROW_DND_ENGINE_INTEGRATION RESP_ROW_DESTINATION_RESOLUTION RESP_ROW_TABLE_INTEGRATION RESP_ROW_TARGET_RESOLUTION RESP_ROW_DND_INTERACTION |
+| DV_ROW_RESPONSIBILITY | Responsibility View | EXT_WORDPRESS_EDITOR EXT_SUPPORTED_TABLE_BLOCK EXT_WORDPRESS_UNDO EXT_WORDPRESS_PREFERENCES EXT_SCROLL_AREA EXT_DND_ENGINE RESP_REORDER_MODE RESP_REORDER_GUIDANCE RESP_EDITOR_DOM_CONTEXT RESP_WORDPRESS_REORDER_INTEGRATION RESP_REORDER_GUIDANCE_INTEGRATION RESP_ROW_INPUT_INTERACTION RESP_ROW_DND_ENGINE_INTEGRATION RESP_ROW_DESTINATION_RESOLUTION RESP_ROW_TABLE_INTEGRATION RESP_ROW_TARGET_RESOLUTION RESP_ROW_DND_INTERACTION RESP_ROW_PRESENTATION RESP_REORDER_APPLY_POLICY RESP_WORDPRESS_REORDER_APPLY_INTEGRATION RESP_ROW_REORDER_APPLY |
+| DV_ROW_EDITOR_INTEGRATION | Editor Integration | EXT_WORDPRESS_EDITOR EXT_WORDPRESS_PREFERENCES RESP_REORDER_MODE RESP_REORDER_GUIDANCE RESP_EDITOR_DOM_CONTEXT RESP_WORDPRESS_REORDER_INTEGRATION RESP_REORDER_GUIDANCE_INTEGRATION RESP_ROW_DND_ENGINE_INTEGRATION RESP_WORDPRESS_REORDER_APPLY_INTEGRATION RESP_ROW_REORDER_APPLY |
+| DV_ROW_DND_CORE | DnD Core | EXT_DND_ENGINE RESP_ROW_INPUT_INTERACTION RESP_ROW_DND_ENGINE_INTEGRATION RESP_ROW_DESTINATION_RESOLUTION RESP_ROW_TABLE_INTEGRATION RESP_ROW_TARGET_RESOLUTION RESP_ROW_DND_INTERACTION RESP_REORDER_APPLY_POLICY RESP_ROW_REORDER_APPLY |
 | DV_ROW_FEEDBACK | DnD Feedback | EXT_DND_ENGINE RESP_EDITOR_DOM_CONTEXT RESP_ROW_TARGET_RESOLUTION RESP_ROW_DND_INTERACTION RESP_ROW_PRESENTATION |
-| DV_ROW_DATA_UPDATE | Table Update | EXT_SUPPORTED_TABLE_BLOCK EXT_WORDPRESS_UNDO RESP_ROW_TABLE_INTEGRATION RESP_ROW_DND_INTERACTION |
+| DV_ROW_DATA_UPDATE | Table Update | EXT_SUPPORTED_TABLE_BLOCK EXT_WORDPRESS_UNDO RESP_ROW_TABLE_INTEGRATION RESP_ROW_DND_INTERACTION RESP_REORDER_APPLY_POLICY RESP_ROW_REORDER_APPLY RESP_WORDPRESS_REORDER_APPLY_INTEGRATION |
 
 ### Responsibility Details
 
@@ -227,6 +256,31 @@ Reorder Guidance Integrationから案内開始・終了を受け、現在表示�
 - 行または列固有状態を共通案内状態へ保持しない。
 - 同じTable・同じ操作環境の案内を重複開始しない。
 
+#### Reorder Apply Policy {#RESP_REORDER_APPLY_POLICY}
+
+##### Responsibility
+
+Row / Columnに共通する反映経路選択として、Table Integrationが算出した今回の更新対象セル数だけから通常反映または確認付き大規模反映のどちらを利用するかを判断する。
+
+##### State ownership
+
+状態を所有しない。Table構造、移動元・移動先、方向固有Apply Lifecycle、WordPress表示状態を保持しない。
+
+##### Contract
+
+呼び出し側から更新対象セル数を受け、共通の性能上のPolicyに従って通常反映または確認付き大規模反映を返す。Table構造や行移動の意味を解釈しない。
+
+##### Lifecycle
+
+DnD completeで現在構造の再照合と更新対象セル数の算出が成立した後に、その1回の確定候補について同期的に経路を選択する。選択結果を次の操作へ持ち越さない。
+
+##### Invariants
+
+- Row / Column固有の移動意味を所有しない。
+- 方向固有Reorder Apply状態を所有しない。
+- Table Integrationが算出していない値から更新範囲を推測しない。
+- 閾値を利用者向け固定要件として扱わない。
+
 #### Editor DOM Context {#RESP_EDITOR_DOM_CONTEXT}
 
 ##### Responsibility
@@ -274,6 +328,31 @@ WordPress統合Lifecycleに必要な一時参照だけを扱い、Reorder Mode�
 - Reorder Mode状態をWordPress側へ別正本として複製しない。
 - 行・列の排他をWordPress UI側だけで独自管理しない。
 - WordPress Editorの表示構造を方向固有状態の正本にしない。
+
+#### WordPress Reorder Apply Integration {#RESP_WORDPRESS_REORDER_APPLY_INTEGRATION}
+
+##### Responsibility
+
+Row / Columnの方向固有Reorder Apply状態をWordPress Editorの確認UI、反映中表示、および更新後のediting surface restorationへ接続する。
+
+##### State ownership
+
+WordPress表示接続に必要な一時状態だけを扱い、方向固有Reorder Apply状態、確定済み移動意図、Table制約、Reorder Modeを別正本として所有しない。
+
+##### Contract
+
+`confirming`では対象Tableの通常編集表示を維持したまま確認UIを提示し、Continue / Cancelを方向固有Reorder Applyへ返す。`applying`では重いTable更新より先に対象Tableの通常編集表示を一時的に退避して反映中表示を成立させる。方向固有Reorder Applyの更新処理が終わった後は更新後のTable編集表示を再成立させ、表示復帰完了を方向固有Lifecycleへ返す。
+
+##### Lifecycle
+
+方向固有Reorder Applyがidle以外の期間だけApply表示接続を成立させる。確認、反映中表示、更新後の編集表示再成立を経て、表示復帰完了後に方向固有Reorder Applyをidleへ完了させる。
+
+##### Invariants
+
+- Row / Column固有の移動意味やTable制約判定を所有しない。
+- 通常のReorder Mode / DnD接続を既存WordPress Reorder Integrationから奪わない。
+- 確認UIや表示復帰だけでTableデータ更新またはUndo履歴を追加しない。
+- React固有のmount / unmount方式をArchitecture契約にしない。
 
 #### Reorder Guidance Integration {#RESP_REORDER_GUIDANCE_INTEGRATION}
 
@@ -394,6 +473,8 @@ Table Identity、DnD Session、入力状態を所有しない。外部Tableデ�
 
 DnD Interactionから再照合済みの移動元行と移動先境界を受け、要求時点のTableでも更新範囲が成立する場合だけ`tbody`の行順を一つの確定済み更新として反映する。セル内容・属性その他の保持対象は変更しない。更新要求時点で安全に反映できない場合は部分更新せず利用不能結果を返す。
 
+確定候補となる行移動を受け、要求時点のTable構造から今回の更新対象セル数を算出して返す。安全に算出できない場合は反映経路を推測させず利用不能結果を返す。
+
 ##### Lifecycle
 
 各要求時点のSupported Table Blockを直接参照して制約取得または更新を行う。独自のTable監視、retry、rollbackを開始しない。
@@ -453,6 +534,8 @@ idleまたは一つのactive Sessionを所有する。active Sessionは対象Tab
 
 `complete`では有効移動先がある場合でもTable Integrationから現在制約を取得し直し、移動元と移動先が現在も成立する場合だけ確定済み行移動を要求する。現在構造で成立しない、Table利用不能、更新不能の場合は新しい行順を確定せず安全終了し、Designで通知対象となる場合だけReorder Presentationへ一回性終了通知を発行する。
 
+現在構造で確定候補が成立した場合は、Table Integrationから今回の更新対象セル数を取得し、Reorder Apply Policyで反映経路を選択する。通常反映ではTable Integrationへ確定済み行移動を要求する。確認付き大規模反映ではTableをまだ更新せず、DnD Sessionをidleへ終了した後に確定済み移動意図をRow Reorder Applyへ引き渡す。
+
 `cancel`または有効移動先のないdropはTableを更新せず正常終了する。Sessionを破棄した後、Table Integrationから対象Tableの現在利用可否を取得し直し、Reorder Modeへ「次の行並び替えを安全に受けられるか」だけを渡す。
 
 ##### Lifecycle
@@ -469,6 +552,33 @@ idleから`start`でactiveとなり、`progress`で有効移動先だけを更�
 - `complete`は現在構造への再照合なしに確定しない。
 - cancel、有効移動先なし、現在構造での確定不能では新しい行順を確定しない。
 - Reorder Mode状態そのものをSessionへ複製しない。
+
+#### Reorder Apply {#RESP_ROW_REORDER_APPLY}
+
+##### Responsibility
+
+確認付き大規模反映について、DnD Session終了後に受理した確定済み行移動意図、利用者確認、反映開始、現在構造再照合、editing surface restoration完了までの方向固有Lifecycleを所有する。
+
+##### State ownership
+
+idleでは移動意図を持たず、確認付き反映中だけ一つの確定済み行移動意図と現在のLifecycle状態を所有する。DnD Session、WordPress表示状態、Table制約のsnapshotを重複所有しない。
+
+##### Contract
+
+DnD Session終了後に確認付き大規模反映の移動意図を一つだけ受理して`confirming`へ進む。CancelではTableを変更せずidleへ戻る。Continueでは反映開始状態へ進み、WordPress Reorder Apply Integrationが反映中表示を成立させた後、Table Integrationから現在構造を再取得して移動元・移動先を再照合する。現在も成立する場合だけ確定済み行移動を要求し、成立しない場合はTableを変更しない。更新成否にかかわらずediting surface restorationを経て、その表示復帰完了後にidleへ戻る。
+
+##### Lifecycle
+
+`idle → confirming → applying → editing surface restoration → idle`をArchitecture上の意味として持つ。Cancelは`confirming → idle`、確認後の再照合不成立はTableを変更せず`applying → editing surface restoration → idle`へ進む。一つの確認付き反映が完了するまで別の同方向大規模反映要求を受理しない。
+
+##### Invariants
+
+- `confirming`は物理drag-end処理中ではなくDnD Session終了後に公開する。
+- 確認中はTableデータを変更しない。
+- Continue後も現在構造への再照合なしに確定しない。
+- 再照合不成立ではTableを変更しない。
+- 成立した1回の行移動を複数のWordPress更新またはUndo単位へ分割しない。
+- WordPress Editor表示の実装方式を所有しない。
 
 #### Reorder Presentation {#RESP_ROW_PRESENTATION}
 
@@ -544,7 +654,7 @@ DnD Engineの物理位置をDestination Resolutionで論理行間境界へ変換
 
 ### Row DnD complete {#RV_ROW_DND_COMPLETE}
 
-物理DnD終了をDnD Engine IntegrationがDnD Interactionへ接続し、現在Tableへ再照合できた場合だけ`tbody`の行順を一回で更新する。
+物理DnD終了後に現在Tableへ再照合し、更新対象セル数をReorder Apply Policyへ渡す。通常反映と判定された場合だけ、このRuntime内で確定済み行移動を一回で更新する。
 
 | Step | Source | Target | Interaction |
 | ---: | --- | --- | --- |
@@ -553,12 +663,76 @@ DnD Engineの物理位置をDestination Resolutionで論理行間境界へ変換
 | 3 | RESP_ROW_DND_INTERACTION | RESP_ROW_TABLE_INTEGRATION | 現在の行制約を要求する。 |
 | 4 | RESP_ROW_TABLE_INTEGRATION | EXT_SUPPORTED_TABLE_BLOCK | 要求時点の対応Tableから現在行制約を取得する。 |
 | 5 | RESP_ROW_TABLE_INTEGRATION | RESP_ROW_DND_INTERACTION | 現在行制約または利用不能結果を返す。 |
-| 6 | RESP_ROW_DND_INTERACTION | RESP_ROW_TABLE_INTEGRATION | 現在も移動元と移動先が成立し行順が変化する場合だけ確定済み行移動を要求する。 |
-| 7 | RESP_ROW_TABLE_INTEGRATION | EXT_SUPPORTED_TABLE_BLOCK | `tbody`の行順を一回の更新として反映する。 |
-| 8 | RESP_ROW_TABLE_INTEGRATION | EXT_WORDPRESS_UNDO | 成立した行移動を一回のUndo単位として成立させる。 |
-| 9 | RESP_ROW_DND_INTERACTION | RESP_ROW_PRESENTATION | Session終了を表示購読へ反映する。 |
-| 10 | RESP_ROW_DND_INTERACTION | RESP_ROW_TABLE_INTEGRATION | Session破棄後、対象Tableが次の行並び替えを安全に受けられるか現在状態を取得し直す。 |
-| 11 | RESP_ROW_DND_INTERACTION | RESP_REORDER_MODE | 対象Tableの継続可否だけを現在モードへ反映する。 |
+| 6 | RESP_ROW_DND_INTERACTION | RESP_ROW_TABLE_INTEGRATION | 現在も移動元と移動先が成立する確定候補について更新対象セル数を要求する。 |
+| 7 | RESP_ROW_TABLE_INTEGRATION | RESP_ROW_DND_INTERACTION | 更新対象セル数または利用不能結果を返す。 |
+| 8 | RESP_ROW_DND_INTERACTION | RESP_REORDER_APPLY_POLICY | 更新対象セル数から反映経路の選択を要求する。 |
+| 9 | RESP_REORDER_APPLY_POLICY | RESP_ROW_DND_INTERACTION | 通常反映または確認付き大規模反映を返す。 |
+| 10 | RESP_ROW_DND_INTERACTION | RESP_ROW_TABLE_INTEGRATION | 通常反映の場合だけ確定済み行移動を要求する。 |
+| 11 | RESP_ROW_TABLE_INTEGRATION | EXT_SUPPORTED_TABLE_BLOCK | 行順を一回の更新として反映する。 |
+| 12 | RESP_ROW_TABLE_INTEGRATION | EXT_WORDPRESS_UNDO | 成立した行移動を一回のUndo単位として成立させる。 |
+| 13 | RESP_ROW_DND_INTERACTION | RESP_ROW_PRESENTATION | DnD Session終了を表示購読へ反映する。 |
+| 14 | RESP_ROW_DND_INTERACTION | RESP_ROW_TABLE_INTEGRATION | Session破棄後、対象Tableが次のrow並び替えを安全に受けられるか現在状態を取得し直す。 |
+| 15 | RESP_ROW_DND_INTERACTION | RESP_REORDER_MODE | 対象Tableの継続可否だけを現在モードへ反映する。 |
+
+確認付き大規模反映と判定された場合、Step 10から12は実行せず、DnD Sessionを終了した後に`RV_ROW_LARGE_REORDER_CONFIRM`へ進む。
+
+### Row large reorder confirmation {#RV_ROW_LARGE_REORDER_CONFIRM}
+
+Reorder Apply Policyが確認付き大規模反映を選択した場合、物理DnDの表示とSessionを先に終了し、その後に方向固有Reorder Applyが確定済み移動意図を受理して確認状態を公開する。
+
+| Step | Source | Target | Interaction |
+| ---: | --- | --- | --- |
+| 1 | RESP_ROW_DND_INTERACTION | RESP_ROW_PRESENTATION | DnD Session終了を表示購読へ反映し、物理DnD表示を終了する。 |
+| 2 | RESP_ROW_DND_INTERACTION | RESP_ROW_TABLE_INTEGRATION | Session破棄後の対象Table利用可否を取得し直す。 |
+| 3 | RESP_ROW_DND_INTERACTION | RESP_REORDER_MODE | 対象Tableの継続可否だけを現在モードへ反映する。 |
+| 4 | RESP_ROW_DND_INTERACTION | RESP_ROW_REORDER_APPLY | DnD Session終了後に確定済み行移動意図を確認付き大規模反映として引き渡す。 |
+| 5 | RESP_ROW_REORDER_APPLY | RESP_WORDPRESS_REORDER_APPLY_INTEGRATION | `confirming`状態をWordPress表示接続へ公開する。 |
+| 6 | RESP_WORDPRESS_REORDER_APPLY_INTEGRATION | EXT_WORDPRESS_EDITOR | 対象Tableの通常編集表示を維持したまま確認UIを表示する。 |
+
+### Row large reorder continue {#RV_ROW_LARGE_REORDER_CONTINUE}
+
+利用者がContinueした後、反映中表示を先に成立させ、方向固有Reorder Applyが現在Tableを再照合して成立する場合だけ確定更新し、更新後の編集表示が再成立してからLifecycleを完了する。
+
+| Step | Source | Target | Interaction |
+| ---: | --- | --- | --- |
+| 1 | EXT_WORDPRESS_EDITOR | RESP_WORDPRESS_REORDER_APPLY_INTEGRATION | 利用者が確認UIでContinueを選択する。 |
+| 2 | RESP_WORDPRESS_REORDER_APPLY_INTEGRATION | RESP_ROW_REORDER_APPLY | 確認待ちの移動意図を反映開始へ進める。 |
+| 3 | RESP_ROW_REORDER_APPLY | RESP_WORDPRESS_REORDER_APPLY_INTEGRATION | `applying`状態をWordPress表示接続へ公開する。 |
+| 4 | RESP_WORDPRESS_REORDER_APPLY_INTEGRATION | EXT_WORDPRESS_EDITOR | 対象Tableの通常編集表示を一時的に退避し、反映中表示を先に成立させる。 |
+| 5 | RESP_WORDPRESS_REORDER_APPLY_INTEGRATION | RESP_ROW_REORDER_APPLY | 反映中表示成立後に確定処理を進める。 |
+| 6 | RESP_ROW_REORDER_APPLY | RESP_ROW_TABLE_INTEGRATION | 現在の行制約を取得し、保持中の移動元・移動先を再照合する。 |
+| 7 | RESP_ROW_TABLE_INTEGRATION | EXT_SUPPORTED_TABLE_BLOCK | 要求時点の対応Tableから現在行制約を取得する。 |
+| 8 | RESP_ROW_TABLE_INTEGRATION | RESP_ROW_REORDER_APPLY | 現在行制約または利用不能結果を返す。 |
+| 9 | RESP_ROW_REORDER_APPLY | RESP_ROW_TABLE_INTEGRATION | 現在も成立する場合だけ確定済み行移動を要求する。 |
+| 10 | RESP_ROW_TABLE_INTEGRATION | EXT_SUPPORTED_TABLE_BLOCK | 行順を一回の更新として反映する。 |
+| 11 | RESP_ROW_TABLE_INTEGRATION | EXT_WORDPRESS_UNDO | 成立した行移動を一回のUndo単位として成立させる。 |
+| 12 | RESP_ROW_REORDER_APPLY | RESP_WORDPRESS_REORDER_APPLY_INTEGRATION | Table更新後にediting surface restorationへ進んだことを公開する。 |
+| 13 | RESP_WORDPRESS_REORDER_APPLY_INTEGRATION | EXT_WORDPRESS_EDITOR | 更新後のTable編集表示を再成立させる。 |
+| 14 | RESP_WORDPRESS_REORDER_APPLY_INTEGRATION | RESP_ROW_REORDER_APPLY | 表示復帰完了を通知して方向固有Apply Lifecycleをidleへ完了させる。 |
+
+### Row large reorder cancel {#RV_ROW_LARGE_REORDER_CANCEL}
+
+確認中にCancelした場合はTableデータを変更せず、確認UIを終了して方向固有Reorder Applyをidleへ戻す。
+
+| Step | Source | Target | Interaction |
+| ---: | --- | --- | --- |
+| 1 | EXT_WORDPRESS_EDITOR | RESP_WORDPRESS_REORDER_APPLY_INTEGRATION | 利用者が確認UIでCancelを選択する。 |
+| 2 | RESP_WORDPRESS_REORDER_APPLY_INTEGRATION | RESP_ROW_REORDER_APPLY | 確認待ちの移動意図を破棄する。 |
+| 3 | RESP_ROW_REORDER_APPLY | RESP_WORDPRESS_REORDER_APPLY_INTEGRATION | Tableを変更せずidleへ戻った状態を公開する。 |
+| 4 | RESP_WORDPRESS_REORDER_APPLY_INTEGRATION | EXT_WORDPRESS_EDITOR | 確認UIを終了し、対象Tableの通常編集表示を維持する。 |
+
+### Row large reorder revalidation failure {#RV_ROW_LARGE_REORDER_REVALIDATION_FAILURE}
+
+Continue後の現在Table再照合で移動が成立しなくなっている場合はTableを変更せず、表示復帰を経てLifecycleを完了する。
+
+| Step | Source | Target | Interaction |
+| ---: | --- | --- | --- |
+| 1 | RESP_ROW_REORDER_APPLY | RESP_ROW_TABLE_INTEGRATION | 反映直前の現在行制約を要求する。 |
+| 2 | RESP_ROW_TABLE_INTEGRATION | EXT_SUPPORTED_TABLE_BLOCK | 要求時点の対応Tableから現在行制約を取得する。 |
+| 3 | RESP_ROW_TABLE_INTEGRATION | RESP_ROW_REORDER_APPLY | 移動元または移動先が成立しない現在状態を返す。 |
+| 4 | RESP_ROW_REORDER_APPLY | RESP_WORDPRESS_REORDER_APPLY_INTEGRATION | Tableを更新せずediting surface restorationへ進んだことを公開する。 |
+| 5 | RESP_WORDPRESS_REORDER_APPLY_INTEGRATION | EXT_WORDPRESS_EDITOR | 対象Tableの編集表示を再成立させる。 |
+| 6 | RESP_WORDPRESS_REORDER_APPLY_INTEGRATION | RESP_ROW_REORDER_APPLY | 表示復帰完了を通知して方向固有Apply Lifecycleをidleへ完了させる。 |
 
 ### Row DnD cancel or invalid drop {#RV_ROW_DND_CANCEL}
 
@@ -612,6 +786,12 @@ Reorder Target Resolutionは第一段階・第二段階の開始可否判定だ�
 
 第二段階Target Resolutionで得た行制約をSession開始時制約とする。`progress`では開始時制約を使い、外部Table構造を毎回取得しない。`complete`では現在構造を取得し直し、現在状態だけを最終確定の基準とする。
 
+### Reorder apply routing and lifecycle
+
+Table Integrationが現在構造から算出した更新対象セル数を共通Reorder Apply Policyへ渡し、通常反映と確認付き大規模反映を選択する。PolicyはTable構造や方向固有移動を解釈せず、方向固有Reorder Apply状態も所有しない。
+
+確認付き大規模反映では、物理drag-end処理と確認UIを分離するため、DnD Sessionを終了してから方向固有Reorder Applyが移動意図を受理する。確認中はTableを変更せず、Continue後にも現在構造を再照合する。WordPress Reorder Apply IntegrationはEditor表示接続だけを担当し、Table更新の権威はTable Integrationに維持する。
+
 ### Atomic row update
 
 1回の成立した行移動は`tbody`行順への1回の更新として扱う。途中状態を確定せず、WordPress Undo上も1回のUndo単位とする。
@@ -632,6 +812,11 @@ Core TableとFlexible Table Blockの保存表現差はTable Integrationが吸収
 
 ## 9. Architecture Decisions
 
+- Reorder Apply PolicyをRow / Column共通の独立責務とし、更新対象セル数だけから反映経路を選択する。
+- 確認付き大規模反映LifecycleはRow Reorder Applyの方向固有責務とし、Row / Column間で状態を共有しない。
+- WordPress Reorder Apply Integrationを通常のWordPress Reorder Integrationから分離し、確認・反映中表示・editing surface restorationだけを接続する。
+- 確認付き大規模反映ではDnD Session終了後にconfirmingを公開し、物理drag-end処理と確認UIを分離する。
+- Continue後も現在Table構造を再照合し、成立しない場合はTableを変更しない。
 - Row ReorderとColumn Reorderの方向固有状態を共有しない。
 - Reorder Mode本体とWordPress UI接続を分離し、Reorder Modeは排他状態とTable単位Lifecycleだけを所有する。
 - Reorder Guidance本体は現在表示中状態だけを所有し、初回案内表示済み状態とWordPress依存はReorder Guidance Integrationへ分離する。

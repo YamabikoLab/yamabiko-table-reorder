@@ -49,6 +49,12 @@ workspace "YTR Reorder v1 Architecture" {
 				element.setGroup("Reorder Common")
 			}
 		}
+		RESP_REORDER_APPLY_POLICY = element "Reorder Apply Policy" "Responsibility" "Table Integrationが算出した更新対象セル数だけから通常反映か確認付き大規模反映かを選択する共通方針責務。" {
+			tags "Responsibility"
+			!script groovy {
+				element.setGroup("Reorder Common")
+			}
+		}
 		RESP_EDITOR_DOM_CONTEXT = element "Editor DOM Context" "Responsibility" "現在のEditor DOM基準から、その表示環境に属するDOM / Web API contextを要求時点で解決する。" {
 			tags "Responsibility"
 			!script groovy {
@@ -56,6 +62,12 @@ workspace "YTR Reorder v1 Architecture" {
 			}
 		}
 		RESP_WORDPRESS_REORDER_INTEGRATION = element "WordPress Reorder Integration" "Responsibility" "Tableツールバー入口、通常編集抑止、現在TableとReorder Mode、および方向固有DnD境界をWordPress Editorへ接続する。" {
+			tags "Responsibility"
+			!script groovy {
+				element.setGroup("WordPress Reorder Integration")
+			}
+		}
+		RESP_WORDPRESS_REORDER_APPLY_INTEGRATION = element "WordPress Reorder Apply Integration" "Responsibility" "方向固有Reorder Apply状態をWordPress Editorの確認、反映中表示、editing surface restorationへ接続する。" {
 			tags "Responsibility"
 			!script groovy {
 				element.setGroup("WordPress Reorder Integration")
@@ -103,6 +115,12 @@ workspace "YTR Reorder v1 Architecture" {
 				element.setGroup("Row Reorder")
 			}
 		}
+		RESP_ROW_REORDER_APPLY = element "Reorder Apply" "Responsibility" "DnD Session終了後の確認付き大規模反映について、確定済み行移動意図、確認、反映開始、現在構造再照合、表示復帰完了までの方向固有Lifecycleを所有する。" {
+			tags "Responsibility"
+			!script groovy {
+				element.setGroup("Row Reorder")
+			}
+		}
 		RESP_ROW_PRESENTATION = element "Reorder Presentation" "Responsibility" "操作可否、開始不可、移動対象、水平挿入位置、周囲行移動、終了通知をRow Reorderの独立表示として表現する。" {
 			tags "Responsibility"
 			!script groovy {
@@ -122,79 +140,94 @@ workspace "YTR Reorder v1 Architecture" {
 		DEP_004 = RESP_WORDPRESS_REORDER_INTEGRATION -> RESP_ROW_DND_ENGINE_INTEGRATION "対象Tableの行並び替え有効状態を方向固有DnD境界へ接続するために必要とする。" {
 			tags "Structural Dependency"
 		}
-		DEP_005 = RESP_REORDER_GUIDANCE_INTEGRATION -> EXT_WORDPRESS_EDITOR "初回案内の表示契機とWordPress Editor上の表示位置を接続するために必要とする。" {
+		DEP_005 = RESP_WORDPRESS_REORDER_APPLY_INTEGRATION -> EXT_WORDPRESS_EDITOR "確認UI、反映中表示、更新後の編集表示をWordPress Editorへ接続するために必要とする。" {
 			tags "Structural Dependency"
 		}
-		DEP_006 = RESP_REORDER_GUIDANCE_INTEGRATION -> EXT_WORDPRESS_PREFERENCES "PC / タッチごとの初回案内表示済み状態を永続化するために必要とする。" {
+		DEP_006 = RESP_WORDPRESS_REORDER_APPLY_INTEGRATION -> RESP_ROW_REORDER_APPLY "方向固有の確認付き大規模反映状態をEditor表示へ接続し、Continue / Cancel / 表示復帰完了をLifecycleへ返すために必要とする。" {
 			tags "Structural Dependency"
 		}
-		DEP_007 = RESP_REORDER_GUIDANCE_INTEGRATION -> RESP_EDITOR_DOM_CONTEXT "現在のEditor DOMに対する操作環境を解決するために必要とする。" {
+		DEP_007 = RESP_REORDER_GUIDANCE_INTEGRATION -> EXT_WORDPRESS_EDITOR "初回案内の表示契機とWordPress Editor上の表示位置を接続するために必要とする。" {
 			tags "Structural Dependency"
 		}
-		DEP_008 = RESP_REORDER_GUIDANCE_INTEGRATION -> RESP_REORDER_GUIDANCE "現在の共通入口案内状態を開始・終了するために必要とする。" {
+		DEP_008 = RESP_REORDER_GUIDANCE_INTEGRATION -> EXT_WORDPRESS_PREFERENCES "PC / タッチごとの初回案内表示済み状態を永続化するために必要とする。" {
 			tags "Structural Dependency"
 		}
-		DEP_009 = RESP_REORDER_GUIDANCE_INTEGRATION -> RESP_REORDER_MODE "いずれかの並び替え入口選択を案内終了条件として扱うために必要とする。" {
+		DEP_009 = RESP_REORDER_GUIDANCE_INTEGRATION -> RESP_EDITOR_DOM_CONTEXT "現在のEditor DOMに対する操作環境を解決するために必要とする。" {
 			tags "Structural Dependency"
 		}
-		DEP_010 = RESP_ROW_INPUT_INTERACTION -> RESP_ROW_TARGET_RESOLUTION "入力開始候補を第一段階の現在制約で解決するために必要とする。" {
+		DEP_010 = RESP_REORDER_GUIDANCE_INTEGRATION -> RESP_REORDER_GUIDANCE "現在の共通入口案内状態を開始・終了するために必要とする。" {
 			tags "Structural Dependency"
 		}
-		DEP_011 = RESP_ROW_INPUT_INTERACTION -> EXT_DND_ENGINE "開始可能な候補だけを物理DnD開始候補として一時登録するために必要とする。" {
+		DEP_011 = RESP_REORDER_GUIDANCE_INTEGRATION -> RESP_REORDER_MODE "いずれかの並び替え入口選択を案内終了条件として扱うために必要とする。" {
 			tags "Structural Dependency"
 		}
-		DEP_012 = RESP_ROW_INPUT_INTERACTION -> RESP_ROW_PRESENTATION "第一段階でDesign上の開始拒否理由が返った場合に利用者向け通知へ接続するために必要とする。" {
+		DEP_012 = RESP_ROW_INPUT_INTERACTION -> RESP_ROW_TARGET_RESOLUTION "入力開始候補を第一段階の現在制約で解決するために必要とする。" {
 			tags "Structural Dependency"
 		}
-		DEP_013 = RESP_ROW_DND_ENGINE_INTEGRATION -> RESP_ROW_INPUT_INTERACTION "DnD Engine境界の配下で行開始入力を有効化し、開始候補登録を接続するために必要とする。" {
+		DEP_013 = RESP_ROW_INPUT_INTERACTION -> EXT_DND_ENGINE "開始可能な候補だけを物理DnD開始候補として一時登録するために必要とする。" {
 			tags "Structural Dependency"
 		}
-		DEP_014 = RESP_ROW_DND_ENGINE_INTEGRATION -> EXT_DND_ENGINE "物理DnDの開始前、開始、移動、終了Lifecycleを受け取るために必要とする。" {
+		DEP_014 = RESP_ROW_INPUT_INTERACTION -> RESP_ROW_PRESENTATION "第一段階でDesign上の開始拒否理由が返った場合に利用者向け通知へ接続するために必要とする。" {
 			tags "Structural Dependency"
 		}
-		DEP_015 = RESP_ROW_DND_ENGINE_INTEGRATION -> RESP_ROW_TARGET_RESOLUTION "active DnD成立直前の第二段階開始可否を解決するために必要とする。" {
+		DEP_015 = RESP_ROW_DND_ENGINE_INTEGRATION -> RESP_ROW_INPUT_INTERACTION "DnD Engine境界の配下で行開始入力を有効化し、開始候補登録を接続するために必要とする。" {
 			tags "Structural Dependency"
 		}
-		DEP_016 = RESP_ROW_DND_ENGINE_INTEGRATION -> RESP_ROW_DESTINATION_RESOLUTION "物理DnD移動を論理行間境界へ変換するために必要とする。" {
+		DEP_016 = RESP_ROW_DND_ENGINE_INTEGRATION -> EXT_DND_ENGINE "物理DnDの開始前、開始、移動、終了Lifecycleを受け取るために必要とする。" {
 			tags "Structural Dependency"
 		}
-		DEP_017 = RESP_ROW_DND_ENGINE_INTEGRATION -> RESP_ROW_DND_INTERACTION "解決済み開始情報、論理移動先、終了種別を行DnD Sessionへ接続するために必要とする。" {
+		DEP_017 = RESP_ROW_DND_ENGINE_INTEGRATION -> RESP_ROW_TARGET_RESOLUTION "active DnD成立直前の第二段階開始可否を解決するために必要とする。" {
 			tags "Structural Dependency"
 		}
-		DEP_018 = RESP_ROW_DND_ENGINE_INTEGRATION -> RESP_ROW_PRESENTATION "同じDnD Engine境界で独立したRow Reorder表示を活動させるために必要とする。" {
+		DEP_018 = RESP_ROW_DND_ENGINE_INTEGRATION -> RESP_ROW_DESTINATION_RESOLUTION "物理DnD移動を論理行間境界へ変換するために必要とする。" {
 			tags "Structural Dependency"
 		}
-		DEP_019 = RESP_ROW_DESTINATION_RESOLUTION -> EXT_DND_ENGINE "現在の物理入力位置を論理行間境界へ変換するためにDnD Engineの移動情報を必要とする。" {
+		DEP_019 = RESP_ROW_DND_ENGINE_INTEGRATION -> RESP_ROW_DND_INTERACTION "解決済み開始情報、論理移動先、終了種別を行DnD Sessionへ接続するために必要とする。" {
 			tags "Structural Dependency"
 		}
-		DEP_020 = RESP_ROW_TABLE_INTEGRATION -> EXT_SUPPORTED_TABLE_BLOCK "対応Table Block固有の行構造取得と行順更新を行うために必要とする。" {
+		DEP_020 = RESP_ROW_DND_ENGINE_INTEGRATION -> RESP_ROW_PRESENTATION "同じDnD Engine境界で独立したRow Reorder表示を活動させるために必要とする。" {
 			tags "Structural Dependency"
 		}
-		DEP_021 = RESP_ROW_TABLE_INTEGRATION -> EXT_WORDPRESS_UNDO "成立した1回の行移動を1回のUndo単位として維持するために必要とする。" {
+		DEP_021 = RESP_ROW_DESTINATION_RESOLUTION -> EXT_DND_ENGINE "現在の物理入力位置を論理行間境界へ変換するためにDnD Engineの移動情報を必要とする。" {
 			tags "Structural Dependency"
 		}
-		DEP_022 = RESP_ROW_TARGET_RESOLUTION -> RESP_ROW_TABLE_INTEGRATION "要求時点の現在行制約から移動行の開始可否と開始時制約を解決するために必要とする。" {
+		DEP_022 = RESP_ROW_TABLE_INTEGRATION -> EXT_SUPPORTED_TABLE_BLOCK "対応Table Block固有の行構造取得と行順更新を行うために必要とする。" {
 			tags "Structural Dependency"
 		}
-		DEP_023 = RESP_ROW_DND_INTERACTION -> RESP_ROW_TABLE_INTEGRATION "complete時の現在構造再照合、確定済み行移動、終了後の対象Table継続可否確認に必要とする。" {
+		DEP_023 = RESP_ROW_TABLE_INTEGRATION -> EXT_WORDPRESS_UNDO "成立した1回の行移動を1回のUndo単位として維持するために必要とする。" {
 			tags "Structural Dependency"
 		}
-		DEP_024 = RESP_ROW_DND_INTERACTION -> RESP_REORDER_MODE "Session終了後に対象Tableで行並び替えを安全に継続できるかだけを現在モードへ反映するために必要とする。" {
+		DEP_024 = RESP_ROW_TARGET_RESOLUTION -> RESP_ROW_TABLE_INTEGRATION "要求時点の現在行制約から移動行の開始可否と開始時制約を解決するために必要とする。" {
 			tags "Structural Dependency"
 		}
-		DEP_025 = RESP_ROW_PRESENTATION -> RESP_EDITOR_DOM_CONTEXT "現在のEditor DOM contextで一時表示を配置するために必要とする。" {
+		DEP_025 = RESP_ROW_DND_INTERACTION -> RESP_ROW_TABLE_INTEGRATION "complete時の現在構造再照合、確定済み行移動、終了後の対象Table継続可否確認に必要とする。" {
 			tags "Structural Dependency"
 		}
-		DEP_026 = RESP_ROW_PRESENTATION -> EXT_DND_ENGINE "移動対象表示等に必要な物理DnD情報をSessionへ複製せず利用するために必要とする。" {
+		DEP_026 = RESP_ROW_DND_INTERACTION -> RESP_REORDER_APPLY_POLICY "更新対象セル数から通常反映か確認付き大規模反映かを選択するために必要とする。" {
 			tags "Structural Dependency"
 		}
-		DEP_027 = RESP_ROW_PRESENTATION -> RESP_ROW_TARGET_RESOLUTION "操作可能・移動不可表示で開始可否の意味を重複判定せず利用するために必要とする。" {
+		DEP_027 = RESP_ROW_DND_INTERACTION -> RESP_ROW_REORDER_APPLY "確認付き大規模反映ではDnD Session終了後に確定済み移動意図を方向固有Apply Lifecycleへ引き渡すために必要とする。" {
 			tags "Structural Dependency"
 		}
-		DEP_028 = RESP_ROW_PRESENTATION -> RESP_ROW_DND_INTERACTION "active状態と現在の有効移動先を購読し、終了通知を受け取るために必要とする。" {
+		DEP_028 = RESP_ROW_REORDER_APPLY -> RESP_ROW_TABLE_INTEGRATION "Continue後の現在構造再照合、更新対象の成立確認、確定済み行移動の反映に必要とする。" {
 			tags "Structural Dependency"
 		}
-		DEP_029 = EXT_DND_ENGINE -> EXT_SCROLL_AREA "行DnD中に縦方向の自動スクロールを実行する対象領域として必要とする。" {
+		DEP_029 = RESP_ROW_DND_INTERACTION -> RESP_REORDER_MODE "Session終了後に対象Tableで行並び替えを安全に継続できるかだけを現在モードへ反映するために必要とする。" {
+			tags "Structural Dependency"
+		}
+		DEP_030 = RESP_ROW_PRESENTATION -> RESP_EDITOR_DOM_CONTEXT "現在のEditor DOM contextで一時表示を配置するために必要とする。" {
+			tags "Structural Dependency"
+		}
+		DEP_031 = RESP_ROW_PRESENTATION -> EXT_DND_ENGINE "移動対象表示等に必要な物理DnD情報をSessionへ複製せず利用するために必要とする。" {
+			tags "Structural Dependency"
+		}
+		DEP_032 = RESP_ROW_PRESENTATION -> RESP_ROW_TARGET_RESOLUTION "操作可能・移動不可表示で開始可否の意味を重複判定せず利用するために必要とする。" {
+			tags "Structural Dependency"
+		}
+		DEP_033 = RESP_ROW_PRESENTATION -> RESP_ROW_DND_INTERACTION "active状態と現在の有効移動先を購読し、終了通知を受け取るために必要とする。" {
+			tags "Structural Dependency"
+		}
+		DEP_034 = EXT_DND_ENGINE -> EXT_SCROLL_AREA "行DnD中に縦方向の自動スクロールを実行する対象領域として必要とする。" {
 			tags "Structural Dependency"
 		}
 
@@ -231,19 +264,40 @@ workspace "YTR Reorder v1 Architecture" {
 		PF_011 = RESP_ROW_TABLE_INTEGRATION -> EXT_SUPPORTED_TABLE_BLOCK "現在行制約を取得し、確定時はtbodyの行順を反映する。" {
 			tags "Process Flow,ProcessFlow_PV_ROW_REORDER_END_TO_END,normal"
 		}
-		PF_012 = EXT_DND_ENGINE -> RESP_ROW_DND_ENGINE_INTEGRATION "[failure] 物理DnDがcancelまたは継続不能として終了する。" {
+		PF_012 = RESP_ROW_DND_INTERACTION -> RESP_REORDER_APPLY_POLICY "Table Integrationが算出した更新対象セル数から反映経路の選択へ進む。" {
+			tags "Process Flow,ProcessFlow_PV_ROW_LARGE_REORDER_APPLY,normal"
+		}
+		PF_013 = RESP_ROW_DND_INTERACTION -> RESP_ROW_REORDER_APPLY "確認付き大規模反映ではDnD Session終了後に確定済み移動意図を方向固有Apply Lifecycleへ引き渡す。" {
+			tags "Process Flow,ProcessFlow_PV_ROW_LARGE_REORDER_APPLY,normal"
+		}
+		PF_014 = RESP_ROW_REORDER_APPLY -> RESP_WORDPRESS_REORDER_APPLY_INTEGRATION "方向固有Apply状態をWordPress Editorの確認・反映中・表示復帰へ接続する。" {
+			tags "Process Flow,ProcessFlow_PV_ROW_LARGE_REORDER_APPLY,normal"
+		}
+		PF_015 = RESP_WORDPRESS_REORDER_APPLY_INTEGRATION -> EXT_WORDPRESS_EDITOR "確認UI、反映中表示、更新後の編集表示をWordPress Editor上に成立させる。" {
+			tags "Process Flow,ProcessFlow_PV_ROW_LARGE_REORDER_APPLY,normal"
+		}
+		PF_016 = RESP_ROW_REORDER_APPLY -> RESP_ROW_TABLE_INTEGRATION "Continue後に現在構造を再照合し、成立する場合だけ確定済み行移動を要求する。" {
+			tags "Process Flow,ProcessFlow_PV_ROW_LARGE_REORDER_APPLY,normal"
+		}
+		PF_017 = RESP_ROW_TABLE_INTEGRATION -> EXT_SUPPORTED_TABLE_BLOCK "現在構造を取得し、成立した確定移動だけを対応Tableへ反映する。" {
+			tags "Process Flow,ProcessFlow_PV_ROW_LARGE_REORDER_APPLY,normal"
+		}
+		PF_018 = RESP_ROW_TABLE_INTEGRATION -> EXT_WORDPRESS_UNDO "成立した1回の行移動を1回のUndo単位として成立させる。" {
+			tags "Process Flow,ProcessFlow_PV_ROW_LARGE_REORDER_APPLY,normal"
+		}
+		PF_019 = EXT_DND_ENGINE -> RESP_ROW_DND_ENGINE_INTEGRATION "[failure] 物理DnDがcancelまたは継続不能として終了する。" {
 			tags "Process Flow,ProcessFlow_PV_ROW_EXTERNAL_CHANGE_RECOVERY,failure"
 		}
-		PF_013 = RESP_ROW_DND_ENGINE_INTEGRATION -> RESP_ROW_DND_INTERACTION "[recovery] 物理DnDの終了種別を行DnD Sessionのcancelへ接続する。" {
+		PF_020 = RESP_ROW_DND_ENGINE_INTEGRATION -> RESP_ROW_DND_INTERACTION "[recovery] 物理DnDの終了種別を行DnD Sessionのcancelへ接続する。" {
 			tags "Process Flow,ProcessFlow_PV_ROW_EXTERNAL_CHANGE_RECOVERY,recovery"
 		}
-		PF_014 = RESP_ROW_TABLE_INTEGRATION -> RESP_ROW_DND_INTERACTION "[failure] complete時の現在Table利用不能または更新不能を安全な確定不能結果として返す。" {
+		PF_021 = RESP_ROW_TABLE_INTEGRATION -> RESP_ROW_DND_INTERACTION "[failure] complete時の現在Table利用不能または更新不能を安全な確定不能結果として返す。" {
 			tags "Process Flow,ProcessFlow_PV_ROW_EXTERNAL_CHANGE_RECOVERY,failure"
 		}
-		PF_015 = RESP_ROW_DND_INTERACTION -> RESP_ROW_PRESENTATION "[recovery] DnD中表示を終了し、Designで通知対象となる確定不能だけを一回性通知へ反映する。" {
+		PF_022 = RESP_ROW_DND_INTERACTION -> RESP_ROW_PRESENTATION "[recovery] DnD中表示を終了し、Designで通知対象となる確定不能だけを一回性通知へ反映する。" {
 			tags "Process Flow,ProcessFlow_PV_ROW_EXTERNAL_CHANGE_RECOVERY,recovery"
 		}
-		PF_016 = RESP_ROW_DND_INTERACTION -> RESP_REORDER_MODE "[recovery] Session終了後に対象Tableで行並び替えを継続できるかだけを共通モード状態へ反映する。" {
+		PF_023 = RESP_ROW_DND_INTERACTION -> RESP_REORDER_MODE "[recovery] Session終了後に対象Tableで行並び替えを継続できるかだけを共通モード状態へ反映する。" {
 			tags "Process Flow,ProcessFlow_PV_ROW_EXTERNAL_CHANGE_RECOVERY,recovery"
 		}
 
@@ -411,9 +465,11 @@ workspace "YTR Reorder v1 Architecture" {
 			}
 		}
 		RT_028 = RESP_ROW_TABLE_INTEGRATION -> EXT_SUPPORTED_TABLE_BLOCK "要求時点の対応Tableから現在行制約を取得する。" {
-			tags "Runtime Interaction,Runtime_RV_ROW_DND_COMPLETE"
+			tags "Runtime Interaction,Runtime_RV_ROW_DND_COMPLETE,Runtime_RV_ROW_LARGE_REORDER_CONTINUE,Runtime_RV_ROW_LARGE_REORDER_REVALIDATION_FAILURE"
 			properties {
 				"runtime.RV_ROW_DND_COMPLETE.step.4" "要求時点の対応Tableから現在行制約を取得する。"
+				"runtime.RV_ROW_LARGE_REORDER_CONTINUE.step.7" "要求時点の対応Tableから現在行制約を取得する。"
+				"runtime.RV_ROW_LARGE_REORDER_REVALIDATION_FAILURE.step.2" "要求時点の対応Tableから現在行制約を取得する。"
 			}
 		}
 		RT_029 = RESP_ROW_TABLE_INTEGRATION -> RESP_ROW_DND_INTERACTION "現在行制約または利用不能結果を返す。" {
@@ -422,87 +478,259 @@ workspace "YTR Reorder v1 Architecture" {
 				"runtime.RV_ROW_DND_COMPLETE.step.5" "現在行制約または利用不能結果を返す。"
 			}
 		}
-		RT_030 = RESP_ROW_DND_INTERACTION -> RESP_ROW_TABLE_INTEGRATION "現在も移動元と移動先が成立し行順が変化する場合だけ確定済み行移動を要求する。" {
+		RT_030 = RESP_ROW_DND_INTERACTION -> RESP_ROW_TABLE_INTEGRATION "現在も移動元と移動先が成立する確定候補について更新対象セル数を要求する。" {
 			tags "Runtime Interaction,Runtime_RV_ROW_DND_COMPLETE"
 			properties {
-				"runtime.RV_ROW_DND_COMPLETE.step.6" "現在も移動元と移動先が成立し行順が変化する場合だけ確定済み行移動を要求する。"
+				"runtime.RV_ROW_DND_COMPLETE.step.6" "現在も移動元と移動先が成立する確定候補について更新対象セル数を要求する。"
 			}
 		}
-		RT_031 = RESP_ROW_TABLE_INTEGRATION -> EXT_SUPPORTED_TABLE_BLOCK "tbodyの行順を一回の更新として反映する。" {
+		RT_031 = RESP_ROW_TABLE_INTEGRATION -> RESP_ROW_DND_INTERACTION "更新対象セル数または利用不能結果を返す。" {
 			tags "Runtime Interaction,Runtime_RV_ROW_DND_COMPLETE"
 			properties {
-				"runtime.RV_ROW_DND_COMPLETE.step.7" "tbodyの行順を一回の更新として反映する。"
+				"runtime.RV_ROW_DND_COMPLETE.step.7" "更新対象セル数または利用不能結果を返す。"
 			}
 		}
-		RT_032 = RESP_ROW_TABLE_INTEGRATION -> EXT_WORDPRESS_UNDO "成立した行移動を一回のUndo単位として成立させる。" {
+		RT_032 = RESP_ROW_DND_INTERACTION -> RESP_REORDER_APPLY_POLICY "更新対象セル数から反映経路の選択を要求する。" {
 			tags "Runtime Interaction,Runtime_RV_ROW_DND_COMPLETE"
 			properties {
-				"runtime.RV_ROW_DND_COMPLETE.step.8" "成立した行移動を一回のUndo単位として成立させる。"
+				"runtime.RV_ROW_DND_COMPLETE.step.8" "更新対象セル数から反映経路の選択を要求する。"
 			}
 		}
-		RT_033 = RESP_ROW_DND_INTERACTION -> RESP_ROW_PRESENTATION "Session終了を表示購読へ反映する。" {
+		RT_033 = RESP_REORDER_APPLY_POLICY -> RESP_ROW_DND_INTERACTION "通常反映または確認付き大規模反映を返す。" {
 			tags "Runtime Interaction,Runtime_RV_ROW_DND_COMPLETE"
 			properties {
-				"runtime.RV_ROW_DND_COMPLETE.step.9" "Session終了を表示購読へ反映する。"
+				"runtime.RV_ROW_DND_COMPLETE.step.9" "通常反映または確認付き大規模反映を返す。"
 			}
 		}
-		RT_034 = RESP_ROW_DND_INTERACTION -> RESP_ROW_TABLE_INTEGRATION "Session破棄後、対象Tableが次の行並び替えを安全に受けられるか現在状態を取得し直す。" {
-			tags "Runtime Interaction,Runtime_RV_ROW_DND_COMPLETE,Runtime_RV_ROW_DND_CANCEL"
+		RT_034 = RESP_ROW_DND_INTERACTION -> RESP_ROW_TABLE_INTEGRATION "通常反映の場合だけ確定済み行移動を要求する。" {
+			tags "Runtime Interaction,Runtime_RV_ROW_DND_COMPLETE"
 			properties {
-				"runtime.RV_ROW_DND_COMPLETE.step.10" "Session破棄後、対象Tableが次の行並び替えを安全に受けられるか現在状態を取得し直す。"
-				"runtime.RV_ROW_DND_CANCEL.step.4" "Session破棄後、対象Tableが次の行並び替えを安全に受けられるか現在状態を取得し直す。"
+				"runtime.RV_ROW_DND_COMPLETE.step.10" "通常反映の場合だけ確定済み行移動を要求する。"
 			}
 		}
-		RT_035 = RESP_ROW_DND_INTERACTION -> RESP_REORDER_MODE "対象Tableの継続可否だけを現在モードへ反映する。" {
-			tags "Runtime Interaction,Runtime_RV_ROW_DND_COMPLETE,Runtime_RV_ROW_DND_CANCEL"
+		RT_035 = RESP_ROW_TABLE_INTEGRATION -> EXT_SUPPORTED_TABLE_BLOCK "行順を一回の更新として反映する。" {
+			tags "Runtime Interaction,Runtime_RV_ROW_DND_COMPLETE,Runtime_RV_ROW_LARGE_REORDER_CONTINUE"
 			properties {
-				"runtime.RV_ROW_DND_COMPLETE.step.11" "対象Tableの継続可否だけを現在モードへ反映する。"
+				"runtime.RV_ROW_DND_COMPLETE.step.11" "行順を一回の更新として反映する。"
+				"runtime.RV_ROW_LARGE_REORDER_CONTINUE.step.10" "行順を一回の更新として反映する。"
+			}
+		}
+		RT_036 = RESP_ROW_TABLE_INTEGRATION -> EXT_WORDPRESS_UNDO "成立した行移動を一回のUndo単位として成立させる。" {
+			tags "Runtime Interaction,Runtime_RV_ROW_DND_COMPLETE,Runtime_RV_ROW_LARGE_REORDER_CONTINUE"
+			properties {
+				"runtime.RV_ROW_DND_COMPLETE.step.12" "成立した行移動を一回のUndo単位として成立させる。"
+				"runtime.RV_ROW_LARGE_REORDER_CONTINUE.step.11" "成立した行移動を一回のUndo単位として成立させる。"
+			}
+		}
+		RT_037 = RESP_ROW_DND_INTERACTION -> RESP_ROW_PRESENTATION "DnD Session終了を表示購読へ反映する。" {
+			tags "Runtime Interaction,Runtime_RV_ROW_DND_COMPLETE"
+			properties {
+				"runtime.RV_ROW_DND_COMPLETE.step.13" "DnD Session終了を表示購読へ反映する。"
+			}
+		}
+		RT_038 = RESP_ROW_DND_INTERACTION -> RESP_ROW_TABLE_INTEGRATION "Session破棄後、対象Tableが次のrow並び替えを安全に受けられるか現在状態を取得し直す。" {
+			tags "Runtime Interaction,Runtime_RV_ROW_DND_COMPLETE"
+			properties {
+				"runtime.RV_ROW_DND_COMPLETE.step.14" "Session破棄後、対象Tableが次のrow並び替えを安全に受けられるか現在状態を取得し直す。"
+			}
+		}
+		RT_039 = RESP_ROW_DND_INTERACTION -> RESP_REORDER_MODE "対象Tableの継続可否だけを現在モードへ反映する。" {
+			tags "Runtime Interaction,Runtime_RV_ROW_DND_COMPLETE,Runtime_RV_ROW_LARGE_REORDER_CONFIRM,Runtime_RV_ROW_DND_CANCEL"
+			properties {
+				"runtime.RV_ROW_DND_COMPLETE.step.15" "対象Tableの継続可否だけを現在モードへ反映する。"
+				"runtime.RV_ROW_LARGE_REORDER_CONFIRM.step.3" "対象Tableの継続可否だけを現在モードへ反映する。"
 				"runtime.RV_ROW_DND_CANCEL.step.5" "対象Tableの継続可否だけを現在モードへ反映する。"
 			}
 		}
-		RT_036 = EXT_DND_ENGINE -> RESP_ROW_DND_ENGINE_INTEGRATION "cancelまたは物理DnD endを通知する。" {
+		RT_040 = RESP_ROW_DND_INTERACTION -> RESP_ROW_PRESENTATION "DnD Session終了を表示購読へ反映し、物理DnD表示を終了する。" {
+			tags "Runtime Interaction,Runtime_RV_ROW_LARGE_REORDER_CONFIRM"
+			properties {
+				"runtime.RV_ROW_LARGE_REORDER_CONFIRM.step.1" "DnD Session終了を表示購読へ反映し、物理DnD表示を終了する。"
+			}
+		}
+		RT_041 = RESP_ROW_DND_INTERACTION -> RESP_ROW_TABLE_INTEGRATION "Session破棄後の対象Table利用可否を取得し直す。" {
+			tags "Runtime Interaction,Runtime_RV_ROW_LARGE_REORDER_CONFIRM,Runtime_RV_ROW_CURRENT_STATE_RECOVERY"
+			properties {
+				"runtime.RV_ROW_LARGE_REORDER_CONFIRM.step.2" "Session破棄後の対象Table利用可否を取得し直す。"
+				"runtime.RV_ROW_CURRENT_STATE_RECOVERY.step.4" "Session破棄後の対象Table利用可否を取得し直す。"
+			}
+		}
+		RT_042 = RESP_ROW_DND_INTERACTION -> RESP_ROW_REORDER_APPLY "DnD Session終了後に確定済み行移動意図を確認付き大規模反映として引き渡す。" {
+			tags "Runtime Interaction,Runtime_RV_ROW_LARGE_REORDER_CONFIRM"
+			properties {
+				"runtime.RV_ROW_LARGE_REORDER_CONFIRM.step.4" "DnD Session終了後に確定済み行移動意図を確認付き大規模反映として引き渡す。"
+			}
+		}
+		RT_043 = RESP_ROW_REORDER_APPLY -> RESP_WORDPRESS_REORDER_APPLY_INTEGRATION "confirming状態をWordPress表示接続へ公開する。" {
+			tags "Runtime Interaction,Runtime_RV_ROW_LARGE_REORDER_CONFIRM"
+			properties {
+				"runtime.RV_ROW_LARGE_REORDER_CONFIRM.step.5" "confirming状態をWordPress表示接続へ公開する。"
+			}
+		}
+		RT_044 = RESP_WORDPRESS_REORDER_APPLY_INTEGRATION -> EXT_WORDPRESS_EDITOR "対象Tableの通常編集表示を維持したまま確認UIを表示する。" {
+			tags "Runtime Interaction,Runtime_RV_ROW_LARGE_REORDER_CONFIRM"
+			properties {
+				"runtime.RV_ROW_LARGE_REORDER_CONFIRM.step.6" "対象Tableの通常編集表示を維持したまま確認UIを表示する。"
+			}
+		}
+		RT_045 = EXT_WORDPRESS_EDITOR -> RESP_WORDPRESS_REORDER_APPLY_INTEGRATION "利用者が確認UIでContinueを選択する。" {
+			tags "Runtime Interaction,Runtime_RV_ROW_LARGE_REORDER_CONTINUE"
+			properties {
+				"runtime.RV_ROW_LARGE_REORDER_CONTINUE.step.1" "利用者が確認UIでContinueを選択する。"
+			}
+		}
+		RT_046 = RESP_WORDPRESS_REORDER_APPLY_INTEGRATION -> RESP_ROW_REORDER_APPLY "確認待ちの移動意図を反映開始へ進める。" {
+			tags "Runtime Interaction,Runtime_RV_ROW_LARGE_REORDER_CONTINUE"
+			properties {
+				"runtime.RV_ROW_LARGE_REORDER_CONTINUE.step.2" "確認待ちの移動意図を反映開始へ進める。"
+			}
+		}
+		RT_047 = RESP_ROW_REORDER_APPLY -> RESP_WORDPRESS_REORDER_APPLY_INTEGRATION "applying状態をWordPress表示接続へ公開する。" {
+			tags "Runtime Interaction,Runtime_RV_ROW_LARGE_REORDER_CONTINUE"
+			properties {
+				"runtime.RV_ROW_LARGE_REORDER_CONTINUE.step.3" "applying状態をWordPress表示接続へ公開する。"
+			}
+		}
+		RT_048 = RESP_WORDPRESS_REORDER_APPLY_INTEGRATION -> EXT_WORDPRESS_EDITOR "対象Tableの通常編集表示を一時的に退避し、反映中表示を先に成立させる。" {
+			tags "Runtime Interaction,Runtime_RV_ROW_LARGE_REORDER_CONTINUE"
+			properties {
+				"runtime.RV_ROW_LARGE_REORDER_CONTINUE.step.4" "対象Tableの通常編集表示を一時的に退避し、反映中表示を先に成立させる。"
+			}
+		}
+		RT_049 = RESP_WORDPRESS_REORDER_APPLY_INTEGRATION -> RESP_ROW_REORDER_APPLY "反映中表示成立後に確定処理を進める。" {
+			tags "Runtime Interaction,Runtime_RV_ROW_LARGE_REORDER_CONTINUE"
+			properties {
+				"runtime.RV_ROW_LARGE_REORDER_CONTINUE.step.5" "反映中表示成立後に確定処理を進める。"
+			}
+		}
+		RT_050 = RESP_ROW_REORDER_APPLY -> RESP_ROW_TABLE_INTEGRATION "現在の行制約を取得し、保持中の移動元・移動先を再照合する。" {
+			tags "Runtime Interaction,Runtime_RV_ROW_LARGE_REORDER_CONTINUE"
+			properties {
+				"runtime.RV_ROW_LARGE_REORDER_CONTINUE.step.6" "現在の行制約を取得し、保持中の移動元・移動先を再照合する。"
+			}
+		}
+		RT_051 = RESP_ROW_TABLE_INTEGRATION -> RESP_ROW_REORDER_APPLY "現在行制約または利用不能結果を返す。" {
+			tags "Runtime Interaction,Runtime_RV_ROW_LARGE_REORDER_CONTINUE"
+			properties {
+				"runtime.RV_ROW_LARGE_REORDER_CONTINUE.step.8" "現在行制約または利用不能結果を返す。"
+			}
+		}
+		RT_052 = RESP_ROW_REORDER_APPLY -> RESP_ROW_TABLE_INTEGRATION "現在も成立する場合だけ確定済み行移動を要求する。" {
+			tags "Runtime Interaction,Runtime_RV_ROW_LARGE_REORDER_CONTINUE"
+			properties {
+				"runtime.RV_ROW_LARGE_REORDER_CONTINUE.step.9" "現在も成立する場合だけ確定済み行移動を要求する。"
+			}
+		}
+		RT_053 = RESP_ROW_REORDER_APPLY -> RESP_WORDPRESS_REORDER_APPLY_INTEGRATION "Table更新後にediting surface restorationへ進んだことを公開する。" {
+			tags "Runtime Interaction,Runtime_RV_ROW_LARGE_REORDER_CONTINUE"
+			properties {
+				"runtime.RV_ROW_LARGE_REORDER_CONTINUE.step.12" "Table更新後にediting surface restorationへ進んだことを公開する。"
+			}
+		}
+		RT_054 = RESP_WORDPRESS_REORDER_APPLY_INTEGRATION -> EXT_WORDPRESS_EDITOR "更新後のTable編集表示を再成立させる。" {
+			tags "Runtime Interaction,Runtime_RV_ROW_LARGE_REORDER_CONTINUE"
+			properties {
+				"runtime.RV_ROW_LARGE_REORDER_CONTINUE.step.13" "更新後のTable編集表示を再成立させる。"
+			}
+		}
+		RT_055 = RESP_WORDPRESS_REORDER_APPLY_INTEGRATION -> RESP_ROW_REORDER_APPLY "表示復帰完了を通知して方向固有Apply Lifecycleをidleへ完了させる。" {
+			tags "Runtime Interaction,Runtime_RV_ROW_LARGE_REORDER_CONTINUE,Runtime_RV_ROW_LARGE_REORDER_REVALIDATION_FAILURE"
+			properties {
+				"runtime.RV_ROW_LARGE_REORDER_CONTINUE.step.14" "表示復帰完了を通知して方向固有Apply Lifecycleをidleへ完了させる。"
+				"runtime.RV_ROW_LARGE_REORDER_REVALIDATION_FAILURE.step.6" "表示復帰完了を通知して方向固有Apply Lifecycleをidleへ完了させる。"
+			}
+		}
+		RT_056 = EXT_WORDPRESS_EDITOR -> RESP_WORDPRESS_REORDER_APPLY_INTEGRATION "利用者が確認UIでCancelを選択する。" {
+			tags "Runtime Interaction,Runtime_RV_ROW_LARGE_REORDER_CANCEL"
+			properties {
+				"runtime.RV_ROW_LARGE_REORDER_CANCEL.step.1" "利用者が確認UIでCancelを選択する。"
+			}
+		}
+		RT_057 = RESP_WORDPRESS_REORDER_APPLY_INTEGRATION -> RESP_ROW_REORDER_APPLY "確認待ちの移動意図を破棄する。" {
+			tags "Runtime Interaction,Runtime_RV_ROW_LARGE_REORDER_CANCEL"
+			properties {
+				"runtime.RV_ROW_LARGE_REORDER_CANCEL.step.2" "確認待ちの移動意図を破棄する。"
+			}
+		}
+		RT_058 = RESP_ROW_REORDER_APPLY -> RESP_WORDPRESS_REORDER_APPLY_INTEGRATION "Tableを変更せずidleへ戻った状態を公開する。" {
+			tags "Runtime Interaction,Runtime_RV_ROW_LARGE_REORDER_CANCEL"
+			properties {
+				"runtime.RV_ROW_LARGE_REORDER_CANCEL.step.3" "Tableを変更せずidleへ戻った状態を公開する。"
+			}
+		}
+		RT_059 = RESP_WORDPRESS_REORDER_APPLY_INTEGRATION -> EXT_WORDPRESS_EDITOR "確認UIを終了し、対象Tableの通常編集表示を維持する。" {
+			tags "Runtime Interaction,Runtime_RV_ROW_LARGE_REORDER_CANCEL"
+			properties {
+				"runtime.RV_ROW_LARGE_REORDER_CANCEL.step.4" "確認UIを終了し、対象Tableの通常編集表示を維持する。"
+			}
+		}
+		RT_060 = RESP_ROW_REORDER_APPLY -> RESP_ROW_TABLE_INTEGRATION "反映直前の現在行制約を要求する。" {
+			tags "Runtime Interaction,Runtime_RV_ROW_LARGE_REORDER_REVALIDATION_FAILURE"
+			properties {
+				"runtime.RV_ROW_LARGE_REORDER_REVALIDATION_FAILURE.step.1" "反映直前の現在行制約を要求する。"
+			}
+		}
+		RT_061 = RESP_ROW_TABLE_INTEGRATION -> RESP_ROW_REORDER_APPLY "移動元または移動先が成立しない現在状態を返す。" {
+			tags "Runtime Interaction,Runtime_RV_ROW_LARGE_REORDER_REVALIDATION_FAILURE"
+			properties {
+				"runtime.RV_ROW_LARGE_REORDER_REVALIDATION_FAILURE.step.3" "移動元または移動先が成立しない現在状態を返す。"
+			}
+		}
+		RT_062 = RESP_ROW_REORDER_APPLY -> RESP_WORDPRESS_REORDER_APPLY_INTEGRATION "Tableを更新せずediting surface restorationへ進んだことを公開する。" {
+			tags "Runtime Interaction,Runtime_RV_ROW_LARGE_REORDER_REVALIDATION_FAILURE"
+			properties {
+				"runtime.RV_ROW_LARGE_REORDER_REVALIDATION_FAILURE.step.4" "Tableを更新せずediting surface restorationへ進んだことを公開する。"
+			}
+		}
+		RT_063 = RESP_WORDPRESS_REORDER_APPLY_INTEGRATION -> EXT_WORDPRESS_EDITOR "対象Tableの編集表示を再成立させる。" {
+			tags "Runtime Interaction,Runtime_RV_ROW_LARGE_REORDER_REVALIDATION_FAILURE"
+			properties {
+				"runtime.RV_ROW_LARGE_REORDER_REVALIDATION_FAILURE.step.5" "対象Tableの編集表示を再成立させる。"
+			}
+		}
+		RT_064 = EXT_DND_ENGINE -> RESP_ROW_DND_ENGINE_INTEGRATION "cancelまたは物理DnD endを通知する。" {
 			tags "Runtime Interaction,Runtime_RV_ROW_DND_CANCEL"
 			properties {
 				"runtime.RV_ROW_DND_CANCEL.step.1" "cancelまたは物理DnD endを通知する。"
 			}
 		}
-		RT_037 = RESP_ROW_DND_ENGINE_INTEGRATION -> RESP_ROW_DND_INTERACTION "cancelまたはcompleteという物理終了種別をSessionへ渡す。" {
+		RT_065 = RESP_ROW_DND_ENGINE_INTEGRATION -> RESP_ROW_DND_INTERACTION "cancelまたはcompleteという物理終了種別をSessionへ渡す。" {
 			tags "Runtime Interaction,Runtime_RV_ROW_DND_CANCEL"
 			properties {
 				"runtime.RV_ROW_DND_CANCEL.step.2" "cancelまたはcompleteという物理終了種別をSessionへ渡す。"
 			}
 		}
-		RT_038 = RESP_ROW_DND_INTERACTION -> RESP_ROW_PRESENTATION "DnD中表示を終了し、異常終了通知を要求しない。" {
+		RT_066 = RESP_ROW_DND_INTERACTION -> RESP_ROW_PRESENTATION "DnD中表示を終了し、異常終了通知を要求しない。" {
 			tags "Runtime Interaction,Runtime_RV_ROW_DND_CANCEL"
 			properties {
 				"runtime.RV_ROW_DND_CANCEL.step.3" "DnD中表示を終了し、異常終了通知を要求しない。"
 			}
 		}
-		RT_039 = RESP_ROW_DND_INTERACTION -> RESP_ROW_TABLE_INTEGRATION "complete時の現在行制約または確定済み行移動の反映を要求する。" {
+		RT_067 = RESP_ROW_DND_INTERACTION -> RESP_ROW_TABLE_INTEGRATION "Session破棄後、対象Tableが次の行並び替えを安全に受けられるか現在状態を取得し直す。" {
+			tags "Runtime Interaction,Runtime_RV_ROW_DND_CANCEL"
+			properties {
+				"runtime.RV_ROW_DND_CANCEL.step.4" "Session破棄後、対象Tableが次の行並び替えを安全に受けられるか現在状態を取得し直す。"
+			}
+		}
+		RT_068 = RESP_ROW_DND_INTERACTION -> RESP_ROW_TABLE_INTEGRATION "complete時の現在行制約または確定済み行移動の反映を要求する。" {
 			tags "Runtime Interaction,Runtime_RV_ROW_CURRENT_STATE_RECOVERY"
 			properties {
 				"runtime.RV_ROW_CURRENT_STATE_RECOVERY.step.1" "complete時の現在行制約または確定済み行移動の反映を要求する。"
 			}
 		}
-		RT_040 = RESP_ROW_TABLE_INTEGRATION -> RESP_ROW_DND_INTERACTION "現在Table利用不能または更新不能を安全な確定不能結果として返す。" {
+		RT_069 = RESP_ROW_TABLE_INTEGRATION -> RESP_ROW_DND_INTERACTION "現在Table利用不能または更新不能を安全な確定不能結果として返す。" {
 			tags "Runtime Interaction,Runtime_RV_ROW_CURRENT_STATE_RECOVERY"
 			properties {
 				"runtime.RV_ROW_CURRENT_STATE_RECOVERY.step.2" "現在Table利用不能または更新不能を安全な確定不能結果として返す。"
 			}
 		}
-		RT_041 = RESP_ROW_DND_INTERACTION -> RESP_ROW_PRESENTATION "Sessionを終了し、Designで通知対象となる場合だけ一回性終了通知を発行する。" {
+		RT_070 = RESP_ROW_DND_INTERACTION -> RESP_ROW_PRESENTATION "Sessionを終了し、Designで通知対象となる場合だけ一回性終了通知を発行する。" {
 			tags "Runtime Interaction,Runtime_RV_ROW_CURRENT_STATE_RECOVERY"
 			properties {
 				"runtime.RV_ROW_CURRENT_STATE_RECOVERY.step.3" "Sessionを終了し、Designで通知対象となる場合だけ一回性終了通知を発行する。"
 			}
 		}
-		RT_042 = RESP_ROW_DND_INTERACTION -> RESP_ROW_TABLE_INTEGRATION "Session破棄後の対象Table利用可否を取得し直す。" {
-			tags "Runtime Interaction,Runtime_RV_ROW_CURRENT_STATE_RECOVERY"
-			properties {
-				"runtime.RV_ROW_CURRENT_STATE_RECOVERY.step.4" "Session破棄後の対象Table利用可否を取得し直す。"
-			}
-		}
-		RT_043 = RESP_ROW_DND_INTERACTION -> RESP_REORDER_MODE "対象Tableで次の行並び替えを安全に受けられるかだけを現在モードへ反映する。" {
+		RT_071 = RESP_ROW_DND_INTERACTION -> RESP_REORDER_MODE "対象Tableで次の行並び替えを安全に受けられるかだけを現在モードへ反映する。" {
 			tags "Runtime Interaction,Runtime_RV_ROW_CURRENT_STATE_RECOVERY"
 			properties {
 				"runtime.RV_ROW_CURRENT_STATE_RECOVERY.step.5" "対象Tableで次の行並び替えを安全に受けられるかだけを現在モードへ反映する。"
@@ -513,21 +741,21 @@ workspace "YTR Reorder v1 Architecture" {
 	views {
 		systemLandscape "DV_ROW_RESPONSIBILITY" {
 			title "Structural Dependencies - Responsibility View"
-			include EXT_WORDPRESS_EDITOR EXT_SUPPORTED_TABLE_BLOCK EXT_WORDPRESS_UNDO EXT_WORDPRESS_PREFERENCES EXT_SCROLL_AREA EXT_DND_ENGINE RESP_REORDER_MODE RESP_REORDER_GUIDANCE RESP_EDITOR_DOM_CONTEXT RESP_WORDPRESS_REORDER_INTEGRATION RESP_REORDER_GUIDANCE_INTEGRATION RESP_ROW_INPUT_INTERACTION RESP_ROW_DND_ENGINE_INTEGRATION RESP_ROW_DESTINATION_RESOLUTION RESP_ROW_TABLE_INTEGRATION RESP_ROW_TARGET_RESOLUTION RESP_ROW_DND_INTERACTION RESP_ROW_PRESENTATION
+			include EXT_WORDPRESS_EDITOR EXT_SUPPORTED_TABLE_BLOCK EXT_WORDPRESS_UNDO EXT_WORDPRESS_PREFERENCES EXT_SCROLL_AREA EXT_DND_ENGINE RESP_REORDER_MODE RESP_REORDER_GUIDANCE RESP_EDITOR_DOM_CONTEXT RESP_WORDPRESS_REORDER_INTEGRATION RESP_REORDER_GUIDANCE_INTEGRATION RESP_ROW_INPUT_INTERACTION RESP_ROW_DND_ENGINE_INTEGRATION RESP_ROW_DESTINATION_RESOLUTION RESP_ROW_TABLE_INTEGRATION RESP_ROW_TARGET_RESOLUTION RESP_ROW_DND_INTERACTION RESP_ROW_PRESENTATION RESP_REORDER_APPLY_POLICY RESP_WORDPRESS_REORDER_APPLY_INTEGRATION RESP_ROW_REORDER_APPLY
 			exclude "relationship.tag!=Structural Dependency"
 			autoLayout lr
 		}
 
 		systemLandscape "DV_ROW_EDITOR_INTEGRATION" {
 			title "Structural Dependencies - Editor Integration"
-			include EXT_WORDPRESS_EDITOR EXT_WORDPRESS_PREFERENCES RESP_REORDER_MODE RESP_REORDER_GUIDANCE RESP_EDITOR_DOM_CONTEXT RESP_WORDPRESS_REORDER_INTEGRATION RESP_REORDER_GUIDANCE_INTEGRATION RESP_ROW_DND_ENGINE_INTEGRATION
+			include EXT_WORDPRESS_EDITOR EXT_WORDPRESS_PREFERENCES RESP_REORDER_MODE RESP_REORDER_GUIDANCE RESP_EDITOR_DOM_CONTEXT RESP_WORDPRESS_REORDER_INTEGRATION RESP_REORDER_GUIDANCE_INTEGRATION RESP_ROW_DND_ENGINE_INTEGRATION RESP_WORDPRESS_REORDER_APPLY_INTEGRATION RESP_ROW_REORDER_APPLY
 			exclude "relationship.tag!=Structural Dependency"
 			autoLayout lr
 		}
 
 		systemLandscape "DV_ROW_DND_CORE" {
 			title "Structural Dependencies - DnD Core"
-			include EXT_DND_ENGINE RESP_ROW_INPUT_INTERACTION RESP_ROW_DND_ENGINE_INTEGRATION RESP_ROW_DESTINATION_RESOLUTION RESP_ROW_TABLE_INTEGRATION RESP_ROW_TARGET_RESOLUTION RESP_ROW_DND_INTERACTION
+			include EXT_DND_ENGINE RESP_ROW_INPUT_INTERACTION RESP_ROW_DND_ENGINE_INTEGRATION RESP_ROW_DESTINATION_RESOLUTION RESP_ROW_TABLE_INTEGRATION RESP_ROW_TARGET_RESOLUTION RESP_ROW_DND_INTERACTION RESP_REORDER_APPLY_POLICY RESP_ROW_REORDER_APPLY
 			exclude "relationship.tag!=Structural Dependency"
 			autoLayout lr
 		}
@@ -541,7 +769,7 @@ workspace "YTR Reorder v1 Architecture" {
 
 		systemLandscape "DV_ROW_DATA_UPDATE" {
 			title "Structural Dependencies - Table Update"
-			include EXT_SUPPORTED_TABLE_BLOCK EXT_WORDPRESS_UNDO RESP_ROW_TABLE_INTEGRATION RESP_ROW_DND_INTERACTION
+			include EXT_SUPPORTED_TABLE_BLOCK EXT_WORDPRESS_UNDO RESP_ROW_TABLE_INTEGRATION RESP_ROW_DND_INTERACTION RESP_REORDER_APPLY_POLICY RESP_ROW_REORDER_APPLY RESP_WORDPRESS_REORDER_APPLY_INTEGRATION
 			exclude "relationship.tag!=Structural Dependency"
 			autoLayout lr
 		}
@@ -550,6 +778,13 @@ workspace "YTR Reorder v1 Architecture" {
 			title "Process Flow - Row Reorder End-to-End"
 			include EXT_WORDPRESS_EDITOR RESP_WORDPRESS_REORDER_INTEGRATION RESP_ROW_DND_ENGINE_INTEGRATION RESP_ROW_INPUT_INTERACTION RESP_ROW_TARGET_RESOLUTION EXT_DND_ENGINE RESP_ROW_DESTINATION_RESOLUTION RESP_ROW_DND_INTERACTION RESP_ROW_TABLE_INTEGRATION EXT_SUPPORTED_TABLE_BLOCK
 			exclude "relationship.tag!=ProcessFlow_PV_ROW_REORDER_END_TO_END"
+			autoLayout lr
+		}
+
+		custom "PV_ROW_LARGE_REORDER_APPLY" {
+			title "Process Flow - Large Row Reorder Apply"
+			include RESP_ROW_DND_INTERACTION RESP_REORDER_APPLY_POLICY RESP_ROW_REORDER_APPLY RESP_WORDPRESS_REORDER_APPLY_INTEGRATION EXT_WORDPRESS_EDITOR RESP_ROW_TABLE_INTEGRATION EXT_SUPPORTED_TABLE_BLOCK EXT_WORDPRESS_UNDO
+			exclude "relationship.tag!=ProcessFlow_PV_ROW_LARGE_REORDER_APPLY"
 			autoLayout lr
 		}
 
@@ -582,10 +817,50 @@ workspace "YTR Reorder v1 Architecture" {
 
 		custom "RV_ROW_DND_COMPLETE" {
 			title "Runtime - Row DnD complete"
-			include EXT_DND_ENGINE RESP_ROW_DND_ENGINE_INTEGRATION RESP_ROW_DND_INTERACTION RESP_ROW_TABLE_INTEGRATION EXT_SUPPORTED_TABLE_BLOCK EXT_WORDPRESS_UNDO RESP_ROW_PRESENTATION RESP_REORDER_MODE
+			include EXT_DND_ENGINE RESP_ROW_DND_ENGINE_INTEGRATION RESP_ROW_DND_INTERACTION RESP_ROW_TABLE_INTEGRATION EXT_SUPPORTED_TABLE_BLOCK RESP_REORDER_APPLY_POLICY EXT_WORDPRESS_UNDO RESP_ROW_PRESENTATION RESP_REORDER_MODE
 			exclude "relationship.tag!=Runtime_RV_ROW_DND_COMPLETE"
 			properties {
-				"runtime.steps" "1=RT_025;2=RT_026;3=RT_027;4=RT_028;5=RT_029;6=RT_030;7=RT_031;8=RT_032;9=RT_033;10=RT_034;11=RT_035"
+				"runtime.steps" "1=RT_025;2=RT_026;3=RT_027;4=RT_028;5=RT_029;6=RT_030;7=RT_031;8=RT_032;9=RT_033;10=RT_034;11=RT_035;12=RT_036;13=RT_037;14=RT_038;15=RT_039"
+			}
+			autoLayout lr
+		}
+
+		custom "RV_ROW_LARGE_REORDER_CONFIRM" {
+			title "Runtime - Row large reorder confirmation"
+			include RESP_ROW_DND_INTERACTION RESP_ROW_PRESENTATION RESP_ROW_TABLE_INTEGRATION RESP_REORDER_MODE RESP_ROW_REORDER_APPLY RESP_WORDPRESS_REORDER_APPLY_INTEGRATION EXT_WORDPRESS_EDITOR
+			exclude "relationship.tag!=Runtime_RV_ROW_LARGE_REORDER_CONFIRM"
+			properties {
+				"runtime.steps" "1=RT_040;2=RT_041;3=RT_039;4=RT_042;5=RT_043;6=RT_044"
+			}
+			autoLayout lr
+		}
+
+		custom "RV_ROW_LARGE_REORDER_CONTINUE" {
+			title "Runtime - Row large reorder continue"
+			include EXT_WORDPRESS_EDITOR RESP_WORDPRESS_REORDER_APPLY_INTEGRATION RESP_ROW_REORDER_APPLY RESP_ROW_TABLE_INTEGRATION EXT_SUPPORTED_TABLE_BLOCK EXT_WORDPRESS_UNDO
+			exclude "relationship.tag!=Runtime_RV_ROW_LARGE_REORDER_CONTINUE"
+			properties {
+				"runtime.steps" "1=RT_045;2=RT_046;3=RT_047;4=RT_048;5=RT_049;6=RT_050;7=RT_028;8=RT_051;9=RT_052;10=RT_035;11=RT_036;12=RT_053;13=RT_054;14=RT_055"
+			}
+			autoLayout lr
+		}
+
+		custom "RV_ROW_LARGE_REORDER_CANCEL" {
+			title "Runtime - Row large reorder cancel"
+			include EXT_WORDPRESS_EDITOR RESP_WORDPRESS_REORDER_APPLY_INTEGRATION RESP_ROW_REORDER_APPLY
+			exclude "relationship.tag!=Runtime_RV_ROW_LARGE_REORDER_CANCEL"
+			properties {
+				"runtime.steps" "1=RT_056;2=RT_057;3=RT_058;4=RT_059"
+			}
+			autoLayout lr
+		}
+
+		custom "RV_ROW_LARGE_REORDER_REVALIDATION_FAILURE" {
+			title "Runtime - Row large reorder revalidation failure"
+			include RESP_ROW_REORDER_APPLY RESP_ROW_TABLE_INTEGRATION EXT_SUPPORTED_TABLE_BLOCK RESP_WORDPRESS_REORDER_APPLY_INTEGRATION EXT_WORDPRESS_EDITOR
+			exclude "relationship.tag!=Runtime_RV_ROW_LARGE_REORDER_REVALIDATION_FAILURE"
+			properties {
+				"runtime.steps" "1=RT_060;2=RT_028;3=RT_061;4=RT_062;5=RT_063;6=RT_055"
 			}
 			autoLayout lr
 		}
@@ -595,7 +870,7 @@ workspace "YTR Reorder v1 Architecture" {
 			include EXT_DND_ENGINE RESP_ROW_DND_ENGINE_INTEGRATION RESP_ROW_DND_INTERACTION RESP_ROW_PRESENTATION RESP_ROW_TABLE_INTEGRATION RESP_REORDER_MODE
 			exclude "relationship.tag!=Runtime_RV_ROW_DND_CANCEL"
 			properties {
-				"runtime.steps" "1=RT_036;2=RT_037;3=RT_038;4=RT_034;5=RT_035"
+				"runtime.steps" "1=RT_064;2=RT_065;3=RT_066;4=RT_067;5=RT_039"
 			}
 			autoLayout lr
 		}
@@ -605,7 +880,7 @@ workspace "YTR Reorder v1 Architecture" {
 			include RESP_ROW_DND_INTERACTION RESP_ROW_TABLE_INTEGRATION RESP_ROW_PRESENTATION RESP_REORDER_MODE
 			exclude "relationship.tag!=Runtime_RV_ROW_CURRENT_STATE_RECOVERY"
 			properties {
-				"runtime.steps" "1=RT_039;2=RT_040;3=RT_041;4=RT_042;5=RT_043"
+				"runtime.steps" "1=RT_068;2=RT_069;3=RT_070;4=RT_041;5=RT_071"
 			}
 			autoLayout lr
 		}
