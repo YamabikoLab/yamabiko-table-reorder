@@ -61,7 +61,8 @@ function moveRegularColumn(
  * - 1回Undoする。
  *
  * 期待結果:
- * - DnD中は移動中の列、現在の移動先、位置が変わる周囲列を認識できる。
+ * - DnD中は移動中の列と現在の移動先を認識できる。
+ * - iframe Editorでは周囲列が移動し、non-iframe Editorでは周囲列の位置を維持する。
  * - drop前はTableの編集データが変更されない。
  * - 確定後はTable全体の列だけが移動し、内容・属性・装飾・各sectionが保持される。
  * - 1回のUndoで移動前の状態へ戻る。
@@ -116,9 +117,16 @@ test( 'when a Core Table column is dragged by mouse and then undone, should show
 	await moveMouse( page, middle );
 	await expect( line ).toBeVisible();
 	const middleLine = await line.boundingBox();
-	await expect
-		.poll( async () => ( await cells.nth( 1 ).boundingBox() )!.x )
-		.toBeLessThan( displacedStart );
+	const editorUsesIframe = ( await page.locator( 'iframe[name="editor-canvas"]' ).count() ) > 0;
+	if ( editorUsesIframe ) {
+		await expect
+			.poll( async () => ( await cells.nth( 1 ).boundingBox() )!.x )
+			.toBeLessThan( displacedStart );
+	} else {
+		await expect
+			.poll( async () => ( await cells.nth( 1 ).boundingBox() )!.x )
+			.toBe( displacedStart );
+	}
 	await moveMouse( page, end );
 	await expect.poll( async () => ( await line.boundingBox() )?.x ).toBeGreaterThan( middleLine!.x );
 	expect( await tableData( editor ) ).toEqual( before );
