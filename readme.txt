@@ -3,7 +3,7 @@ Tags: block editor, gutenberg, table
 Requires at least: 6.8
 Tested up to: 7.1
 Requires PHP: 8.1
-Stable tag: 0.8.0
+Stable tag: 0.8.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -11,7 +11,7 @@ Reorder table rows and columns in supported blocks in the WordPress block editor
 
 == Description ==
 
-Yamabiko Table Reorder 0.8.0 provides Row Reorder and Column Reorder for WordPress Core Table and Flexible Table Block.
+Yamabiko Table Reorder 0.8.1 provides Row Reorder and Column Reorder for WordPress Core Table and Flexible Table Block.
 
 Use Row Reorder or Column Reorder mode from the Table toolbar, then drag body rows or Table columns with Mouse or Touch. During DnD, the plugin shows the moving row or column, the current destination, and the surrounding displacement so the result remains visible before it is committed.
 
@@ -39,6 +39,10 @@ The generated archive is `yamabiko-table-reorder.zip`.
 4. Activate Yamabiko Table Reorder.
 
 == Changelog ==
+
+= 0.8.1 =
+
+* Fixed: Prevented Column Reorder touch long-presses on editable Table content from entering cell editing before column DnD starts.
 
 = 0.8.0 =
 
