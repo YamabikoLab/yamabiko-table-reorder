@@ -86,6 +86,7 @@ const acknowledgeInitialGuidance = ( environment: ReorderGuidanceEnvironment ): 
  * 対象Tableの初回案内をWordPress Editorへ接続する。
  *
  * ツールバー要素が現在のEditor DOMで利用可能になった時点で、その操作環境が未表示なら初回案内を開始する。
+ * タッチ環境では案内開始時にツールバーへフォーカスを移し、セル編集とソフトウェアキーボードを残さない。
  * 初回案内中に行または列の並び替え入口が選択された場合は、表示済みとして保存して案内を終了する。
  *
  * @param tableIdentity    初回案内の対象となるTable Identity。
@@ -114,6 +115,11 @@ export const useReorderGuidance = (
 		/* 操作環境を確定できない場合、または同じ操作環境で表示済みの場合は再表示しない。 */
 		if ( environment === null || isInitialGuidanceAcknowledged( environment ) ) {
 			return;
+		}
+
+		/* タッチ環境の初回案内では、セル編集状態を残さず案内とツールバーを確認できる状態へ移す。 */
+		if ( environment === 'touch' ) {
+			referenceElement.focus( { preventScroll: true } );
 		}
 
 		reorderGuidance.show( tableIdentity, environment );

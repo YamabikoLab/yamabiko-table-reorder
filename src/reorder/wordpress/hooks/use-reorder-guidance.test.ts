@@ -112,6 +112,33 @@ describe( 'Reorder Guidance WordPress integration', () => {
 
 	/**
 	 * 概要:
+	 * - タッチ環境の初回案内開始時にセル編集状態を残さないことを確認する。
+	 *
+	 * 事前条件:
+	 * - タッチ環境の初回案内は未表示である。
+	 * - Reorder Modeは通常編集である。
+	 *
+	 * 操作:
+	 * - TableツールバーをReorder Guidanceへ接続する。
+	 *
+	 * 期待結果:
+	 * - ツールバーへスクロールを発生させずにフォーカスを移す。
+	 * - 対象Tableの初回案内が表示される。
+	 */
+	it( 'when touch guidance has not been acknowledged, should focus the toolbar without scrolling and show guidance', async () => {
+		mockTouchEnvironment = true;
+		const referenceElement = createReferenceElement();
+		const focusSpy = jest.spyOn( referenceElement, 'focus' );
+		const { result } = renderHook( () => useReorderGuidance( 'table-a', referenceElement ) );
+
+		await waitFor( () => {
+			expect( result.current.isVisible ).toBe( true );
+		} );
+		expect( focusSpy ).toHaveBeenCalledWith( { preventScroll: true } );
+	} );
+
+	/**
+	 * 概要:
 	 * - 現在の操作環境ですでに初回案内を表示済みの場合は再表示しないことを確認する。
 	 *
 	 * 事前条件:
