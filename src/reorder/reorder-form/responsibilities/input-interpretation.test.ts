@@ -2,10 +2,7 @@
  * RF Input InterpretationがRow / Columnフォーム入力の成立性だけを判定し、成立した入力を方向固有Resolution向け内部指定へ変換するContractを確認する。
  */
 
-import {
-	interpretColumnRfInput,
-	interpretRowRfInput,
-} from './input-interpretation';
+import { interpretColumnRfInput, interpretRowRfInput } from './input-interpretation';
 
 const columns = [ { columnIndex: 0 }, { columnIndex: 1 }, { columnIndex: 2 } ] as const;
 
@@ -32,12 +29,9 @@ describe( 'RF Input Interpretation', () => {
 		] )(
 			'when required Row input is missing, should return not-ready',
 			( sourceRowNumber, targetRowNumber, position ) => {
-				expect(
-					interpretRowRfInput(
-						{ sourceRowNumber, targetRowNumber, position },
-						10
-					)
-				).toEqual( { status: 'not-ready' } );
+				expect( interpretRowRfInput( { sourceRowNumber, targetRowNumber, position }, 10 ) ).toEqual(
+					{ status: 'not-ready' }
+				);
 			}
 		);
 
@@ -66,10 +60,7 @@ describe( 'RF Input Interpretation', () => {
 			'when a Row number cannot be interpreted inside the current range, should return not-ready',
 			( sourceRowNumber, targetRowNumber ) => {
 				expect(
-					interpretRowRfInput(
-						{ sourceRowNumber, targetRowNumber, position: 'below' },
-						10
-					)
+					interpretRowRfInput( { sourceRowNumber, targetRowNumber, position: 'below' }, 10 )
 				).toEqual( { status: 'not-ready' } );
 			}
 		);
@@ -87,28 +78,25 @@ describe( 'RF Input Interpretation', () => {
 		 * 期待結果:
 		 * - 1-based行番号が0-based indexへ変換された`ready`結果が返る。
 		 */
-		it(
-			'when Row numbers are at the valid range boundaries, should return their zero-based indexes',
-			() => {
-				expect(
-					interpretRowRfInput(
-						{
-							sourceRowNumber: '1',
-							targetRowNumber: '10',
-							position: 'above',
-						},
-						10
-					)
-				).toEqual( {
-					status: 'ready',
-					specification: {
-						sourceRowIndex: 0,
-						targetRowIndex: 9,
+		it( 'when Row numbers are at the valid range boundaries, should return their zero-based indexes', () => {
+			expect(
+				interpretRowRfInput(
+					{
+						sourceRowNumber: '1',
+						targetRowNumber: '10',
 						position: 'above',
 					},
-				} );
-			}
-		);
+					10
+				)
+			).toEqual( {
+				status: 'ready',
+				specification: {
+					sourceRowIndex: 0,
+					targetRowIndex: 9,
+					position: 'above',
+				},
+			} );
+		} );
 
 		/**
 		 * 入力段階ではsource / targetの位置関係からno-opを判定しないことを確認する。
@@ -129,10 +117,7 @@ describe( 'RF Input Interpretation', () => {
 			'when a Row specification may become a no-op later, should still return ready',
 			( sourceRowNumber, targetRowNumber, position ) => {
 				expect(
-					interpretRowRfInput(
-						{ sourceRowNumber, targetRowNumber, position },
-						10
-					).status
+					interpretRowRfInput( { sourceRowNumber, targetRowNumber, position }, 10 ).status
 				).toBe( 'ready' );
 			}
 		);
@@ -160,10 +145,7 @@ describe( 'RF Input Interpretation', () => {
 			'when required Column input is not selected, should return not-ready',
 			( sourceColumnIndex, targetColumnIndex, position ) => {
 				expect(
-					interpretColumnRfInput(
-						{ sourceColumnIndex, targetColumnIndex, position },
-						columns
-					)
+					interpretColumnRfInput( { sourceColumnIndex, targetColumnIndex, position }, columns )
 				).toEqual( { status: 'not-ready' } );
 			}
 		);
@@ -209,28 +191,25 @@ describe( 'RF Input Interpretation', () => {
 		 * 期待結果:
 		 * - 選択されたIdentityと位置を保持する`ready`結果が返る。
 		 */
-		it(
-			'when current Column identities and position are selected, should return them as the specification',
-			() => {
-				expect(
-					interpretColumnRfInput(
-						{
-							sourceColumnIndex: 0,
-							targetColumnIndex: 2,
-							position: 'left',
-						},
-						columns
-					)
-				).toEqual( {
-					status: 'ready',
-					specification: {
+		it( 'when current Column identities and position are selected, should return them as the specification', () => {
+			expect(
+				interpretColumnRfInput(
+					{
 						sourceColumnIndex: 0,
 						targetColumnIndex: 2,
 						position: 'left',
 					},
-				} );
-			}
-		);
+					columns
+				)
+			).toEqual( {
+				status: 'ready',
+				specification: {
+					sourceColumnIndex: 0,
+					targetColumnIndex: 2,
+					position: 'left',
+				},
+			} );
+		} );
 
 		/**
 		 * Column入力段階では同一source / targetをno-opとして拒否しないことを確認する。
@@ -244,20 +223,17 @@ describe( 'RF Input Interpretation', () => {
 		 * 期待結果:
 		 * - 入力成立性は満たすため`ready`となる。
 		 */
-		it(
-			'when source and target use the same current Column identity, should still return ready',
-			() => {
-				expect(
-					interpretColumnRfInput(
-						{
-							sourceColumnIndex: 1,
-							targetColumnIndex: 1,
-							position: 'right',
-						},
-						columns
-					).status
-				).toBe( 'ready' );
-			}
-		);
+		it( 'when source and target use the same current Column identity, should still return ready', () => {
+			expect(
+				interpretColumnRfInput(
+					{
+						sourceColumnIndex: 1,
+						targetColumnIndex: 1,
+						position: 'right',
+					},
+					columns
+				).status
+			).toBe( 'ready' );
+		} );
 	} );
 } );

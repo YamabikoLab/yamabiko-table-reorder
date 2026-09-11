@@ -162,12 +162,8 @@ export const interpretColumnRfInput = (
 		return NOT_READY;
 	}
 
-	const sourceExists = columns.some(
-		( column ) => column.columnIndex === input.sourceColumnIndex
-	);
-	const targetExists = columns.some(
-		( column ) => column.columnIndex === input.targetColumnIndex
-	);
+	const sourceExists = columns.some( ( column ) => column.columnIndex === input.sourceColumnIndex );
+	const targetExists = columns.some( ( column ) => column.columnIndex === input.targetColumnIndex );
 	/* 現在の選択肢から消えた論理列Identityは入力成立性を満たさないためResolutionへ進めない。 */
 	if ( ! sourceExists || ! targetExists ) {
 		return NOT_READY;
