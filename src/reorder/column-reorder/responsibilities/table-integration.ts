@@ -345,8 +345,7 @@ const parseTable = (
 		columnCount,
 		blockedBoundaries: [ ...blockedBoundaries ].sort( ( left, right ) => left - right ),
 		mergedRanges: [ ...mergedRanges.values() ].sort(
-			( left, right ) =>
-				left.columnStart - right.columnStart || left.columnEnd - right.columnEnd
+			( left, right ) => left.columnStart - right.columnStart || left.columnEnd - right.columnEnd
 		),
 	};
 };
@@ -499,8 +498,7 @@ const getBlockingMergedRange = ( move: ColumnMove ): ColumnBlockingMergedRange |
 
 	const sourceRange = currentTable.parsedTable.mergedRanges.find(
 		( range ) =>
-			move.sourceColumnIndex >= range.columnStart &&
-			move.sourceColumnIndex <= range.columnEnd
+			move.sourceColumnIndex >= range.columnStart && move.sourceColumnIndex <= range.columnEnd
 	);
 	if ( sourceRange !== undefined ) {
 		return sourceRange;

@@ -43,11 +43,7 @@ describe( 'Column Table Integration RF contract', () => {
 				attributes: {
 					head: [
 						{
-							cells: [
-								{ content: '商品名' },
-								{ content: '価格' },
-								{ content: '   ' },
-							],
+							cells: [ { content: '商品名' }, { content: '価格' }, { content: '   ' } ],
 						},
 					],
 					body: [ { cells: [ {}, {}, {} ] } ],
@@ -56,10 +52,10 @@ describe( 'Column Table Integration RF contract', () => {
 		} );
 
 		expect( columnTableIntegration.getColumnInputDescriptors( 'table-a' ) ).toEqual( [
-		{ columnIndex: 0, columnNumber: 1, heading: '商品名' },
-		{ columnIndex: 1, columnNumber: 2, heading: '価格' },
-		{ columnIndex: 2, columnNumber: 3, heading: null },
-	] );
+			{ columnIndex: 0, columnNumber: 1, heading: '商品名' },
+			{ columnIndex: 1, columnNumber: 2, heading: '価格' },
+			{ columnIndex: 2, columnNumber: 3, heading: null },
+		] );
 	} );
 
 	/**
@@ -85,9 +81,9 @@ describe( 'Column Table Integration RF contract', () => {
 		} );
 
 		expect( columnTableIntegration.getColumnInputDescriptors( 'table-a' ) ).toEqual( [
-		{ columnIndex: 0, columnNumber: 1, heading: null },
-		{ columnIndex: 1, columnNumber: 2, heading: null },
-	] );
+			{ columnIndex: 0, columnNumber: 1, heading: null },
+			{ columnIndex: 1, columnNumber: 2, heading: null },
+		] );
 	} );
 
 	/**
@@ -108,19 +104,17 @@ describe( 'Column Table Integration RF contract', () => {
 			getBlock: jest.fn().mockReturnValue( {
 				name: 'core/table',
 				attributes: {
-					head: [
-						{ cells: [ { content: '商品', colspan: 2 }, { content: '価格' } ] },
-					],
+					head: [ { cells: [ { content: '商品', colspan: 2 }, { content: '価格' } ] } ],
 					body: [ { cells: [ {}, {}, {} ] } ],
 				},
 			} ),
 		} );
 
 		expect( columnTableIntegration.getColumnInputDescriptors( 'table-a' ) ).toEqual( [
-		{ columnIndex: 0, columnNumber: 1, heading: null },
-		{ columnIndex: 1, columnNumber: 2, heading: null },
-		{ columnIndex: 2, columnNumber: 3, heading: '価格' },
-	] );
+			{ columnIndex: 0, columnNumber: 1, heading: null },
+			{ columnIndex: 1, columnNumber: 2, heading: null },
+			{ columnIndex: 2, columnNumber: 3, heading: '価格' },
+		] );
 	} );
 
 	/**
