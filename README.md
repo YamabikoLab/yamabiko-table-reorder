@@ -2,7 +2,7 @@
 
 A WordPress block editor plugin for reordering Table rows and columns.
 
-<img width="1897" height="824" alt="demo" src="https://github.com/user-attachments/assets/f7439db3-4524-4a8c-93be-c032eb41787e" />
+<img width="1897" height="842" alt="demo" src="https://github.com/user-attachments/assets/f055a4e6-d03c-41d0-b9a6-fd55c223a6dc" />
 
 ## Current Status
 
