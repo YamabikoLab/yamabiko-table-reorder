@@ -29,11 +29,20 @@ jobs:
           from pathlib import Path
           p = Path('.github/issue-928-update.py')
           text = p.read_text(encoding='utf-8')
+
           old = """    direct_sentence = (\n        f'DnD InteractionはDestination Resolutionで解決済みの論理{axis}間境界をSession開始時制約へ照合し、有効な移動先だけを意味状態として保持する。'\n        f'`complete`では現在構造へ再照合し、成立する場合だけTable Integrationへ{axis}移動を要求する。'\n    )\n"""
           new = """    direct_move_label = 'Table全体の列' if direction == 'Column' else axis\n    direct_sentence = (\n        f'DnD InteractionはDestination Resolutionで解決済みの論理{axis}間境界をSession開始時制約へ照合し、有効な移動先だけを意味状態として保持する。'\n        f'`complete`では現在構造へ再照合し、成立する場合だけTable Integrationへ{direct_move_label}移動を要求する。'\n    )\n"""
           if old not in text:
-              raise RuntimeError('temporary transformation patch anchor not found')
-          p.write_text(text.replace(old, new, 1), encoding='utf-8')
+              raise RuntimeError('direct wording patch anchor not found')
+          text = text.replace(old, new, 1)
+
+          old_atomic = "    atomic_heading = f'### Atomic {lower} update'\n"
+          new_atomic = "    atomic_heading = '### Atomic Table-wide update' if direction == 'Column' else f'### Atomic {lower} update'\n"
+          if old_atomic not in text:
+              raise RuntimeError('atomic heading patch anchor not found')
+          text = text.replace(old_atomic, new_atomic, 1)
+
+          p.write_text(text, encoding='utf-8')
           PY
 
       - name: Update architecture Markdown
