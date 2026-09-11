@@ -1,5 +1,5 @@
 /**
- * Column Reorderの挿入空間表示が、DnD Interactionの意味状態とDnD開始時の論理列境界から移動対象1列分の空間を独立表示することを確認する。
+ * Column Reorderの挿入空間表示が、DnD Interactionの意味状態とDnD開始時の論理列境界からEditor表示方式に応じた空間を独立表示することを確認する。
  */
 
 import { act, render } from '@testing-library/react';
@@ -155,6 +155,7 @@ describe( 'Column insertion gap', () => {
 		resolveEditorDomContextMock.mockReturnValue( {
 			document,
 			window: {
+				frameElement: document.createElement( 'iframe' ),
 				innerWidth: 500,
 				innerHeight: 600,
 				requestAnimationFrame: requestAnimationFrameMock,
@@ -167,7 +168,7 @@ describe( 'Column insertion gap', () => {
 	 * 幅の異なる列間を論理終了側へ移動しても、移動先周辺列ではなく移動対象列の幅で挿入空間を表示することを確認する。
 	 *
 	 * 事前条件:
-	 * - 移動対象列幅は80pxで、移動先側には140px幅の論理列がある。
+	 * - iframe Editorで移動対象列幅は80px、移動先側には140px幅の論理列がある。
 	 * - DnD Interactionは移動元を先頭列、移動先をTable末尾境界として保持している。
 	 *
 	 * 操作:
@@ -192,6 +193,48 @@ describe( 'Column insertion gap', () => {
 		expect( gap?.style.width ).toBe( '80px' );
 		expect( gap?.style.top ).toBe( '0px' );
 		expect( gap?.style.height ).toBe( '600px' );
+	} );
+
+	/**
+	 * non-iframe Editorでは実Tableセルを動かさず、移動先境界に小幅な挿入空間を表示することを確認する。
+	 *
+	 * 事前条件:
+	 * - non-iframe Editorで移動対象列幅は80pxである。
+	 * - DnD Interactionは移動元を先頭列、移動先をTable末尾境界として保持している。
+	 *
+	 * 操作:
+	 * - Column DnDを開始して末尾境界を有効な移動先として表示する。
+	 *
+	 * 期待結果:
+	 * - 末尾境界直前に12px幅の小さな挿入空間を表示する。
+	 * - 小幅表示用のPresentation状態を付与する。
+	 */
+	it( 'when the editor is non-iframe, should show a compact gap next to the destination boundary', () => {
+		resolveEditorDomContextMock.mockReturnValue( {
+			document,
+			window: {
+				frameElement: null,
+				innerWidth: 500,
+				innerHeight: 600,
+				requestAnimationFrame: requestAnimationFrameMock,
+				cancelAnimationFrame: cancelAnimationFrameMock,
+			} as unknown as Window,
+		} );
+		const { sourceCell } = createSourceTable( 80 );
+		const { rerender } = render( <ColumnInsertionGap /> );
+		startPhysicalDrag( sourceCell );
+		mockSourceColumnIndex = 0;
+		mockDestinationBoundaryIndex = 4;
+		rerender( <ColumnInsertionGap /> );
+
+		const gap = document.querySelector(
+			'.yamabiko-table-reorder-column-insertion-gap'
+		) as HTMLElement | null;
+		expect( gap?.style.left ).toBe( '428px' );
+		expect( gap?.style.width ).toBe( '12px' );
+		expect(
+			gap?.classList.contains( 'yamabiko-table-reorder-column-insertion-gap--compact' )
+		).toBe( true );
 	} );
 
 	/**
@@ -250,7 +293,7 @@ describe( 'Column insertion gap', () => {
 	} );
 
 	/**
-	 * DnD開始時の論理境界を維持しながら、入力位置の更新を伴わないスクロールでもTable全体の現在位置変化へ追従することを確認する。
+	 * DnD開始時の論理列境界を維持しながら、入力位置の更新を伴わないスクロールでもTable全体の現在位置変化へ追従することを確認する。
 	 *
 	 * 事前条件:
 	 * - 論理終了側の挿入空間が表示されている。
