@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>YTR Reorder Form UI Prototype</title>
+<style>
+  :root {
+    --wp-blue:#3858e9;
+    --wp-border:#c3c4c7;
+    --wp-text:#1e1e1e;
+    --wp-muted:#646970;
+    --danger:#b32d2e;
+    --success:#008a20;
+    --shadow:0 8px 30px rgba(0,0,0,.16);
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:#fff;color:var(--wp-text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans JP",sans-serif;font-size:14px}
+  .app{min-height:100vh;background:linear-gradient(#fff,#f8f8f8)}
+  .topbar{height:56px;border-bottom:1px solid #ddd;display:flex;align-items:center;padding:0 20px;gap:12px;background:#fff;position:sticky;top:0;z-index:3}
+  .wpmark{width:30px;height:30px;border:2px solid #1e1e1e;border-radius:50%;display:grid;place-items:center;font-weight:700;font-size:12px}
+  .title{font-weight:600}
+  .canvas{padding:42px 48px 80px;max-width:1200px;margin:auto}
+  .note{margin-bottom:18px;color:var(--wp-muted)}
+  .toolbar-wrap{position:relative;display:inline-block;margin-bottom:18px}
+  .toolbar{display:flex;align-items:center;gap:2px;border:1px solid #dcdcde;border-radius:2px;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.04);padding:2px}
+  .toolbtn{appearance:none;border:0;background:#fff;padding:8px 10px;border-radius:2px;cursor:pointer;font:inherit;display:flex;align-items:center;gap:6px}
+  .toolbtn:hover,.toolbtn.active{background:#f0f0f1}
+  .toolbtn.active{box-shadow:inset 0 0 0 1px var(--wp-blue)}
+  .icon{font-size:15px;width:16px;text-align:center}
+  .popover{position:absolute;left:0;top:48px;width:360px;background:#fff;border:1px solid #dcdcde;border-radius:4px;box-shadow:var(--shadow);padding:16px;z-index:5;display:none}
+  .popover.open{display:block}
+  .popover:before{content:"";position:absolute;top:-7px;left:166px;width:12px;height:12px;background:#fff;border-left:1px solid #dcdcde;border-top:1px solid #dcdcde;transform:rotate(45deg)}
+  .pop-title{font-size:15px;font-weight:600;margin:0 0 14px}
+  fieldset{border:0;padding:0;margin:0 0 16px}
+  legend{font-weight:600;margin-bottom:8px}
+  .segmented{display:flex;gap:8px}
+  .radio-pill{display:flex;align-items:center;gap:6px;border:1px solid var(--wp-border);padding:7px 10px;border-radius:2px;cursor:pointer;background:#fff}
+  .radio-pill:has(input:checked){border-color:var(--wp-blue);box-shadow:0 0 0 1px var(--wp-blue)}
+  .field{margin-bottom:14px}
+  label{display:block;font-weight:600;margin-bottom:6px}
+  input[type=number],select{width:100%;min-height:36px;border:1px solid #949494;border-radius:2px;padding:6px 8px;font:inherit;background:#fff}
+  input[type=number]:focus,select:focus{outline:2px solid var(--wp-blue);outline-offset:0;border-color:var(--wp-blue)}
+  .help{font-size:12px;color:var(--wp-muted);margin-top:5px}
+  .error{font-size:12px;color:var(--danger);margin-top:5px;display:none}
+  .error.show{display:block}
+  .notice{border-left:4px solid #dba617;background:#fff8e5;padding:10px 12px;margin:8px 0 14px;display:none}
+  .notice.show{display:block}
+  .actions{display:flex;justify-content:flex-end;gap:8px;margin-top:18px}
+  button{font:inherit}
+  .btn{min-height:34px;padding:6px 12px;border-radius:2px;border:1px solid #2271b1;background:#fff;color:#2271b1;cursor:pointer}
+  .btn.primary{background:#2271b1;color:white}
+  .btn:disabled{opacity:.45;cursor:not-allowed}
+  .table-card{border:1px solid #dcdcde;background:#fff;padding:22px;box-shadow:0 1px 2px rgba(0,0,0,.03)}
+  table{border-collapse:collapse;width:100%}
+  th,td{border:1px solid #dcdcde;padding:10px;text-align:left}
+  th{background:#f6f7f7;font-weight:600}
+  .statusline{margin-top:14px;color:var(--wp-muted);font-size:13px}
+  .toast{position:fixed;right:24px;bottom:24px;min-width:260px;background:#fff;border:1px solid #dcdcde;border-left:4px solid var(--success);box-shadow:var(--shadow);padding:12px 14px;display:none;z-index:10}
+  .toast.show{display:block}
+  .toast strong{display:block}
+  .debug{margin-top:26px;padding:14px;background:#f6f7f7;border:1px dashed #c3c4c7;color:#50575e;font-size:13px}
+  .debug code{background:#fff;padding:1px 4px}
+  @media(max-width:700px){.canvas{padding:24px 16px}.popover{width:min(360px,calc(100vw - 32px));left:0}.toolbar{flex-wrap:wrap}}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="topbar"><div class="wpmark">W</div><div class="title">YTR Reorder Form UI Prototype</div></div>
+  <main class="canvas">
+    <div class="note">Tableツールバーの「フォームで並び替え」を押して、RFの操作感を確認できます。</div>
+
+    <div class="toolbar-wrap">
+      <div class="toolbar" aria-label="Table tools">
+        <button class="toolbtn"><span class="icon">↕</span>行を並び替え</button>
+        <button class="toolbtn"><span class="icon">↔</span>列を並び替え</button>
+        <button id="rfButton" class="toolbtn" aria-expanded="false"><span class="icon">☷</span>フォームで並び替え</button>
+      </div>
+
+      <section id="popover" class="popover" role="dialog" aria-modal="false" aria-labelledby="rfTitle">
+        <h2 id="rfTitle" class="pop-title">フォームで並び替え</h2>
+
+        <fieldset>
+          <legend>並び替える対象</legend>
+          <div class="segmented">
+            <label class="radio-pill"><input type="radio" name="direction" value="row" checked> 行</label>
+            <label class="radio-pill"><input type="radio" name="direction" value="column"> 列</label>
+          </div>
+        </fieldset>
+
+        <div id="rowForm">
+          <div class="field">
+            <label for="sourceRow">移動する行</label>
+            <input id="sourceRow" type="number" inputmode="numeric" min="1" max="1000" placeholder="例: 2">
+            <div class="help">1〜1000 の範囲</div>
+            <div id="sourceRowError" class="error">1〜1000の整数を入力してください。</div>
+          </div>
+          <div class="field">
+            <label for="targetRow">移動先の行</label>
+            <input id="targetRow" type="number" inputmode="numeric" min="1" max="1000" placeholder="例: 5">
+            <div class="help">1〜1000 の範囲。選んだ行の上または下へ移動します。</div>
+            <div id="targetRowError" class="error">1〜1000の整数を入力してください。</div>
+          </div>
+          <fieldset>
+            <legend>移動する位置</legend>
+            <div class="segmented">
+              <label class="radio-pill"><input type="radio" name="rowSide" value="before"> 上</label>
+              <label class="radio-pill"><input type="radio" name="rowSide" value="after"> 下</label>
+            </div>
+          </fieldset>
+        </div>
+
+        <div id="columnForm" hidden>
+          <div class="field">
+            <label for="sourceCol">移動する列</label>
+            <select id="sourceCol">
+              <option value="">選択してください</option>
+              <option value="1">商品コード（1列目）</option>
+              <option value="2">商品名（2列目）</option>
+              <option value="3">数量（3列目）</option>
+              <option value="4">価格（4列目）</option>
+              <option value="5">備考（5列目）</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="targetCol">移動先の列</label>
+            <select id="targetCol">
+              <option value="">選択してください</option>
+              <option value="1">商品コード（1列目）</option>
+              <option value="2">商品名（2列目）</option>
+              <option value="3">数量（3列目）</option>
+              <option value="4">価格（4列目）</option>
+              <option value="5">備考（5列目）</option>
+            </select>
+            <div class="help">選んだ列の左または右へ移動します。</div>
+          </div>
+          <fieldset>
+            <legend>移動する位置</legend>
+            <div class="segmented">
+              <label class="radio-pill"><input type="radio" name="colSide" value="before"> 左</label>
+              <label class="radio-pill"><input type="radio" name="colSide" value="after"> 右</label>
+            </div>
+          </fieldset>
+        </div>
+
+        <div id="noopNotice" class="notice">この指定では並び順は変わりません。</div>
+        <div id="structNotice" class="notice">3〜4行目、2〜3列目に結合セルがあるため、移動できません。</div>
+
+        <div class="actions">
+          <button id="cancelBtn" class="btn">キャンセル</button>
+          <button id="applyBtn" class="btn primary" disabled>並び替え</button>
+        </div>
+      </section>
+    </div>
+
+    <section class="table-card">
+      <table aria-label="Sample table">
+        <thead>
+          <tr><th>商品コード</th><th>商品名</th><th>数量</th><th>価格</th><th>備考</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>A-001</td><td>りんご</td><td>10</td><td>120</td><td></td></tr>
+          <tr><td>A-002</td><td>みかん</td><td>8</td><td>100</td><td>人気</td></tr>
+          <tr><td>A-003</td><td>ぶどう</td><td>4</td><td>580</td><td></td></tr>
+          <tr><td>A-004</td><td>梨</td><td>6</td><td>300</td><td></td></tr>
+          <tr><td>A-005</td><td>桃</td><td>5</td><td>450</td><td>季節商品</td></tr>
+        </tbody>
+      </table>
+      <div class="statusline">※ プロトタイプなので、行は1〜1000の想定、表示Tableは5行だけです。</div>
+    </section>
+
+    <div class="debug">
+      確認ポイント: <code>Popoverの大きさ</code> / <code>行=数値入力</code> / <code>列=選択式</code> / <code>初期エラーなし</code> / <code>入力後エラー</code> / <code>no-op</code> / <code>完了通知</code>
+    </div>
+  </main>
+</div>
+
+<div id="toast" class="toast" role="status" aria-live="polite"><strong>✓ 並び替えが完了しました。</strong></div>
+
+<script>
+(() => {
+  const rfButton = document.getElementById('rfButton');
+  const popover = document.getElementById('popover');
+  const rowForm = document.getElementById('rowForm');
+  const columnForm = document.getElementById('columnForm');
+  const applyBtn = document.getElementById('applyBtn');
+  const cancelBtn = document.getElementById('cancelBtn');
+  const sourceRow = document.getElementById('sourceRow');
+  const targetRow = document.getElementById('targetRow');
+  const sourceRowError = document.getElementById('sourceRowError');
+  const targetRowError = document.getElementById('targetRowError');
+  const sourceCol = document.getElementById('sourceCol');
+  const targetCol = document.getElementById('targetCol');
+  const noopNotice = document.getElementById('noopNotice');
+  const structNotice = document.getElementById('structNotice');
+  const toast = document.getElementById('toast');
+
+  let touched = { sourceRow:false, targetRow:false };
+
+  const open = () => {
+    popover.classList.add('open');
+    rfButton.classList.add('active');
+    rfButton.setAttribute('aria-expanded','true');
+  };
+  const close = () => {
+    popover.classList.remove('open');
+    rfButton.classList.remove('active');
+    rfButton.setAttribute('aria-expanded','false');
+  };
+  rfButton.addEventListener('click', () => popover.classList.contains('open') ? close() : open());
+  cancelBtn.addEventListener('click', close);
+
+  document.querySelectorAll('input[name="direction"]').forEach(el => el.addEventListener('change', e => {
+    const isRow = e.target.value === 'row';
+    rowForm.hidden = !isRow;
+    columnForm.hidden = isRow;
+    noopNotice.classList.remove('show');
+    structNotice.classList.remove('show');
+    validate();
+  }));
+
+  [sourceRow,targetRow].forEach(el => {
+    el.addEventListener('input', () => { touched[el.id] = true; validate(); });
+    el.addEventListener('blur', () => { touched[el.id] = true; validate(); });
+  });
+  [sourceCol,targetCol].forEach(el => el.addEventListener('change', validate));
+  document.querySelectorAll('input[name="rowSide"], input[name="colSide"]').forEach(el => el.addEventListener('change', validate));
+
+  function validRowValue(el){
+    if (el.value === '') return false;
+    const n = Number(el.value);
+    return Number.isInteger(n) && n >= 1 && n <= 1000;
+  }
+
+  function validate(){
+    const direction = document.querySelector('input[name="direction"]:checked').value;
+    noopNotice.classList.remove('show');
+    structNotice.classList.remove('show');
+    let ok = false;
+
+    if(direction === 'row'){
+      const sOk = validRowValue(sourceRow);
+      const tOk = validRowValue(targetRow);
+      sourceRowError.classList.toggle('show', touched.sourceRow && !sOk);
+      targetRowError.classList.toggle('show', touched.targetRow && !tOk);
+      const side = document.querySelector('input[name="rowSide"]:checked');
+      ok = sOk && tOk && !!side;
+
+      if(ok){
+        const s = Number(sourceRow.value), t = Number(targetRow.value);
+        const noOp = s === t || (side.value === 'before' && s === t - 1) || (side.value === 'after' && s === t + 1);
+        if(noOp){ noopNotice.classList.add('show'); ok = false; }
+        if(s === 3 && t === 4){ structNotice.classList.add('show'); ok = false; }
+      }
+    } else {
+      sourceRowError.classList.remove('show');
+      targetRowError.classList.remove('show');
+      const side = document.querySelector('input[name="colSide"]:checked');
+      ok = !!sourceCol.value && !!targetCol.value && !!side;
+      if(ok){
+        const s = Number(sourceCol.value), t = Number(targetCol.value);
+        const noOp = s === t || (side.value === 'before' && s === t - 1) || (side.value === 'after' && s === t + 1);
+        if(noOp){ noopNotice.classList.add('show'); ok = false; }
+      }
+    }
+    applyBtn.disabled = !ok;
+  }
+
+  applyBtn.addEventListener('click', () => {
+    applyBtn.disabled = true;
+    applyBtn.textContent = '反映中…';
+    setTimeout(() => {
+      applyBtn.textContent = '並び替え';
+      close();
+      toast.classList.add('show');
+      setTimeout(() => toast.classList.remove('show'), 2600);
+      validate();
+    }, 450);
+  });
+
+  document.addEventListener('click', e => {
+    if (!popover.contains(e.target) && !rfButton.contains(e.target) && popover.classList.contains('open')) close();
+  });
+})();
+</script>
+</body>
+</html>
