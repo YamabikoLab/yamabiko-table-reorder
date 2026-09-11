@@ -90,7 +90,7 @@ RF固有処理は`src/reorder/reorder-form/`配下へ独立して実装し、Row
 
 続いてRF Apply Coordinationを実装する。通常反映では長期状態を持たず、現在Table再照合、更新対象セル数取得、Reorder Apply Policyによる経路選択、更新要求を一回の処理で完了させる。確認付き大規模反映だけはRF固有の`confirming | applying | restoring`相当の状態を持ち、WordPress Reorder Apply Integrationへ公開する。既存Row / Column Reorder Applyとの重複を避けるため、WordPress側の共通表示接続は方向別DnD Applyだけを知る現在実装から、複数のApply Lifecycleを接続できる構成へ整理する。ただし、方向固有の移動意味やTable再照合をWordPress側へ移さない。
 
-最後にWordPress Reorder IntegrationへRF入口とPopoverを接続する。RF開始時は同一TableのReorder Modeを`edit`へ戻してからRF Interactionを開始し、RF open中にRow / Column入口が選択された場合はRFを終了してから方向固有モードへ切り替える。RF終了時に以前のDnDモードは復元しない。GuidanceはRF専用状態を追加せず、RF開始を既存共通案内の終了契機として扱う。
+最後にWordPress Reorder IntegrationへRF入口とPopoverを接続する。RF開始時は同一TableのReorder Modeを`edit`へ戻してからRF Interactionを開始し、RF open中にRow / Column入口が選択された場合はRFを終了してから方向固有モードへ切り替える。RF終了時に以前のDnDモードは復元しない。RF入口をユーザー可視にする同じPhaseでGuidanceも接続し、RF専用状態を追加せずRF開始を既存共通案内の終了契機として扱う。
 
 各Phaseではfocused Jest testを中心に責務境界を確認し、WordPress Editor上の実経路が成立した後にPlaywrightでiframe / non-iframeとSupported Table Blockの横断契約を検証する。
 
@@ -197,12 +197,16 @@ Plan作成時点でArchitecture変更を必要とする事項は確認されて�
   - Row / Column / RFそれぞれのconfirming / applying / restoring相当状態が対象Tableだけへ表示されることをReact integration testで確認する。
   - Continue前にTableが変更されないこと、BlockEdit退避後にApplyが開始されること、表示復帰完了までLifecycleが終了しないことを確認する。
 
-### Phase 7: WordPress RF entry, Popover, and exclusivity
+### Phase 7: WordPress RF entry, Popover, exclusivity, and Guidance
 
-- Outcome: 対応TableのツールバーからRFを開始し、Tableを確認しながらRow / Column入力を行い、既存DnDと排他的に操作できる製品経路が成立する。
+- Outcome: 対応TableのツールバーからRFを開始し、Tableを確認しながらRow / Column入力を行い、既存DnDと排他的に操作できる製品経路が成立する。RF入口は公開時点からRow / Column入口と同じ既存初回案内の一部として扱われる。
 - Tasks:
   - 「列を並び替え」の隣にRF ToolbarButtonを追加し、Designで定義されたラベルとアイコンを接続する。
+  - 初回案内表示中はRF入口も既存Row / Column入口と同じ案内対象として扱う。
   - RF入口選択時に同一TableのReorder Modeを`edit`へ戻してからRF Interactionを開始する。
+  - RF開始状態をReorder Guidance Integrationへ接続し、現在操作環境の初回案内を表示済みとして保存して案内を終了する。
+  - RF open中は新しいGuidanceを開始しない。
+  - PC / touchの既存Preference keyをそのまま利用し、RF専用keyを追加しない。
   - RF Interaction状態をPopover入力画面へ接続する。
   - Row入力では現在行範囲、移動元、移動先、上 / 下、入力エラー、構造拒否、no-op、Apply可否を表示する。
   - Column入力では現在列記述、移動元、移動先、左 / 右、構造拒否、no-op、Apply可否を表示する。
@@ -212,20 +216,11 @@ Plan作成時点でArchitecture変更を必要とする事項は確認されて�
   - 通常反映成功時はRFを終了して完了通知を表示し、失敗時は入力保持したPopoverへ戻す。
 - Validation:
   - Toolbar順序、Popover open / close、初期Row、方向切替、入力表示、Apply disabled / enabled、Cancel、DnDとの排他、成功 / 失敗表示をReact / WordPress integration testで確認する。
+  - 初回案内表示中にRF入口もRow / Column入口と同じ案内対象になること、RF入口選択で現在操作環境の表示済み状態が保存されて案内が終了すること、RF open中に案内を新規開始しないことをfocused / integration testで確認する。
+  - Row / Column既存Guidance経路とPC / touch分離が引き続き成立することを確認する。
   - 再mountだけでRF Sessionを失わないことを既存mount stability testと同種の検証で確認する。
 
-### Phase 8: Reorder Guidance integration
-
-- Outcome: RF入口がRow / Column入口と同じ既存初回案内の一部として扱われ、RF専用の永続状態を追加せず案内を終了できる。
-- Tasks:
-  - RF開始状態をReorder Guidance Integrationへ接続する。
-  - RF入口選択時に現在操作環境の初回案内を表示済みとして保存し、案内を終了する。
-  - RF open中は新しいGuidanceを開始しない。
-  - PC / touchの既存Preference keyをそのまま利用し、RF専用keyを追加しない。
-- Validation:
-  - 未表示時の共通案内、RF入口選択での表示済み保存、Row / Column既存経路、PC / touch分離をfocused / integration testで確認する。
-
-### Phase 9: Product composition and cross-cutting validation
+### Phase 8: Product composition and cross-cutting validation
 
 - Outcome: RF v1の主要利用経路がSupported Table BlockとEditor contextを跨いで成立し、既存Row / Column Reorderを回帰させない。
 - Tasks:
@@ -269,7 +264,7 @@ Plan作成時点でArchitecture変更を必要とする事項は確認されて�
    - Tableを覆い隠さず、iframe / non-iframeの双方で現在Toolbarを基準に表示できるWordPress `Popover`の配置方法を確定する。
    - RF Sessionの正本をPopover component lifecycleへ依存させない。
 
-6. **Phase 9開始前: RF E2Eのproject配置**
+6. **Phase 8開始前: RF E2Eのproject配置**
 
    - RFはRow / Columnの両方を一つの入口から扱うため、既存`row` / `column` projectへ重複配置するか、独立した`form` projectを追加するかをテスト責務とCIコストから決定する。
    - project構成の変更が必要な場合は`tests/e2e/AGENTS.md`とCI構成へ従う。
@@ -292,13 +287,12 @@ Planレビュー後、次を一つのIssueへ詰め込まず、原則として�
 - [ ] Phase 4: RF Interaction / Session Lifecycleを実装する
 - [ ] Phase 5: RF Apply Coordinationを実装する
 - [ ] Phase 6: WordPress Reorder Apply IntegrationをRFへ拡張する
-- [ ] Phase 7: RF Toolbar入口 / Popover / 排他接続を実装する
-- [ ] Phase 8: RF入口をReorder Guidanceへ接続する
-- [ ] Phase 9: RF product composition / E2E / performance validationを追加する
+- [ ] Phase 7: RF Toolbar入口 / Popover / 排他接続 / Reorder Guidance連携を実装する
+- [ ] Phase 8: RF product composition / E2E / performance validationを追加する
 
 Phase 1でTable Integrationの変更量がRow診断、Column診断 / 列記述、Apply再照合の三領域に大きく分かれる場合は、レビュー容易性を優先して複数Issueへ分割してよい。ただし、Row / Columnの方向固有実装を一つの新しい共通実装へまとめるための分割は行わない。
 
-Phase 7でPopover UIとWordPress排他接続の変更量が大きくなる場合も、RF Interaction Contractを先に固定したうえでUI表示と統合配線を分割してよい。
+Phase 7でPopover UIとWordPress排他 / Guidance接続の変更量が大きくなる場合も、RF Interaction Contractを先に固定したうえでUI表示と統合配線を分割してよい。ただしRF入口をユーザー可視にする実装単位では、Guidance契約まで同時に成立させる。
 
 Issue本文ではPlan全体を複製せず、そのIssueのscope、依存する完了Phase、対象Architecture責務、completion condition、validationだけを記載する。
 
