@@ -1,5 +1,5 @@
 /**
- * 対応Tableの既存Block wrapperへReorder Mode中の通常編集抑止、行・列DnD接続、Presentation対象識別を反映するReact componentを所有する。
+ * 対応Tableの既存Block wrapperへReorder Mode中の通常編集抑止、Block DnD抑止、行・列DnD接続、Presentation対象識別を反映するReact componentを所有する。
  *
  * 新しいDOM階層は追加せず、Gutenberg既存のwrapper propsへ必要な入力抑止とRow / Column DnD開始入力を合成する。
  * dnd-kitの物理Lifecycleは方向固有DnD境界へ委譲し、この境界はReorder Modeを正本として有効な方向を切り替える。
@@ -128,11 +128,11 @@ const createReorderModeClassName = (
 };
 
 /**
- * 対応Tableの既存Block wrapperへReorder Modeの編集可否と方向固有DnD接続を反映する。
+ * 対応Tableの既存Block wrapperへReorder Modeの編集可否、Block DnD可否と方向固有DnD接続を反映する。
  *
  * このcomponentは対応Tableの生存期間中、選択状態にかかわらず同じ位置に維持され、Reorder Modeの購読を所有する。
  * Row / Column DnD境界はBlockListBlockを再mountしないよう常に同じ位置に維持し、Reorder Modeで選択中の方向だけ開始入力を有効化する。
- * 行・列いずれかの並び替えモード中は通常編集抑止用classを付与し、行並び替えモード中は行固有Presentation用classも付与する。
+ * 行・列いずれかの並び替えモード中は通常編集とTable Block自体のDnDを抑止し、行並び替えモード中は行固有Presentation用classも付与する。
  * 現在選択中のTableだけへ方向固有Reorder Presentationを接続する。
  *
  * @param props                Gutenbergから渡されるBlockListBlock propsと元のcomponent。
@@ -151,10 +151,11 @@ export const ReorderModeBlockListBlock = ( props: {
 	const columnReorderEnabled = selectedKind === 'column';
 	const editingAllowed = selectedKind === null;
 
-	/* いずれかの並び替えモード中は通常編集抑止対象を識別し、行モードでは行固有Presentation対象も併せて識別する。 */
+	/* いずれかの並び替えモード中は通常編集とTable Block自体のDnDを抑止し、行モードでは行固有Presentation対象も併せて識別する。 */
 	const reorderModeWrapperProps = ! editingAllowed
 		? {
 				...wrapperProps,
+				draggable: false,
 				className: createReorderModeClassName( wrapperProps?.className, rowReorderEnabled ),
 		  }
 		: wrapperProps;
