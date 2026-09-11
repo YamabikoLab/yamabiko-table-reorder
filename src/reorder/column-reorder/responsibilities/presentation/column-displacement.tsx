@@ -25,6 +25,7 @@ import './column-displacement.scss';
 
 const DISPLACED_CELL_CLASS = 'yamabiko-table-reorder-displaced-column-cell';
 const DISPLACEMENT_PROPERTY = '--yamabiko-table-reorder-column-displacement';
+const POINTER_EVENTS_DISABLED_CLASS = 'yamabiko-table-reorder-column-pointer-events-disabled';
 
 /** 1回のColumn DnD中に維持する、DnD開始時の縦方向表示対象セルと論理列の対応および移動量の基準。 */
 type ColumnDisplacementSessionLayout = {
@@ -382,11 +383,13 @@ export const ColumnDisplacement = () => {
 
 	/** 1回のDnDで適用した一時表示と参照状態をすべて破棄し、次のDnDへ持ち越さない。 */
 	const clear = useCallback( (): void => {
-		/* このPresentationが触れたセルだけを対象に、次のDnDへ一時表示を持ち越さないよう完全に解除する。 */
 		touchedCells.current.forEach( ( cell ) => {
 			cell.classList.remove( DISPLACED_CELL_CLASS );
 			cell.style.removeProperty( DISPLACEMENT_PROPERTY );
 		} );
+
+		activeLayout.current?.table.classList.remove( POINTER_EVENTS_DISABLED_CLASS );
+
 		touchedCells.current.clear();
 		coverageCounts.current.clear();
 		currentRange.current = null;
@@ -396,7 +399,11 @@ export const ColumnDisplacement = () => {
 	useDragDropMonitor( {
 		onDragStart: ( event ) => {
 			clear();
-			activeLayout.current = resolveDisplacementSessionLayout( event.operation.source?.element );
+
+			const layout = resolveDisplacementSessionLayout( event.operation.source?.element );
+
+			activeLayout.current = layout;
+			layout?.table.classList.add( POINTER_EVENTS_DISABLED_CLASS );
 		},
 		onDragEnd: clear,
 	} );
