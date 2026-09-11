@@ -55,10 +55,7 @@ export type ColumnRfResolution =
  * @param specification Phase 2で成立済みとなったColumn RF内部指定。
  * @return 現在Tableを基準とするColumn RF Resolution結果。
  */
-const resolve = (
-	clientId: string,
-	specification: ColumnRfSpecification
-): ColumnRfResolution => {
+const resolve = ( clientId: string, specification: ColumnRfSpecification ): ColumnRfResolution => {
 	const constraints = columnTableIntegration.getConstraints( clientId );
 	/* 現在Tableを論理列構造として安全に利用できない場合は候補を推測しない。 */
 	if ( constraints === null ) {
