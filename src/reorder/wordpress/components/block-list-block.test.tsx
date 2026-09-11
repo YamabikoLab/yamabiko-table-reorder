@@ -109,18 +109,18 @@ describe( 'Reorder Mode Block wrapper drag availability', () => {
 		const { getByTestId, rerender } = render( renderBlockListBlock() );
 		const blockWrapper = getByTestId( 'block-wrapper' );
 
-		expect( blockWrapper ).toHaveAttribute( 'draggable', 'true' );
+		expect( blockWrapper.getAttribute( 'draggable' ) ).toBe( 'true' );
 
 		mockSelectedKind = 'row';
 		rerender( renderBlockListBlock() );
-		expect( blockWrapper ).toHaveAttribute( 'draggable', 'false' );
+		expect( blockWrapper.getAttribute( 'draggable' ) ).toBe( 'false' );
 
 		mockSelectedKind = 'column';
 		rerender( renderBlockListBlock() );
-		expect( blockWrapper ).toHaveAttribute( 'draggable', 'false' );
+		expect( blockWrapper.getAttribute( 'draggable' ) ).toBe( 'false' );
 
 		mockSelectedKind = null;
 		rerender( renderBlockListBlock() );
-		expect( blockWrapper ).toHaveAttribute( 'draggable', 'true' );
+		expect( blockWrapper.getAttribute( 'draggable' ) ).toBe( 'true' );
 	} );
 } );
