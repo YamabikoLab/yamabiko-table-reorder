@@ -18,6 +18,15 @@ jest.mock( '@/reorder/column-reorder/integration/dnd-interaction-react', () => (
 	useColumnDndPhase: () => mockColumnDndPhase,
 } ) );
 
+jest.mock( '@dnd-kit/dom/utilities', () => ( {
+	getFrameTransform: () => ( {
+		x: 0,
+		y: 0,
+		scaleX: 1,
+		scaleY: 1,
+	} ),
+} ) );
+
 jest.mock( '@dnd-kit/react', () => ( {
 	useDragDropMonitor: ( monitor: typeof mockDragDropMonitor ) => {
 		mockDragDropMonitor = monitor;
