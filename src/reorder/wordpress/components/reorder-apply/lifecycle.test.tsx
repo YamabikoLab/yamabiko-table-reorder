@@ -37,6 +37,7 @@ const createEditorWindow = () => {
 	} );
 	const flushNextFrame = (): void => {
 		const nextFrame = callbacks.entries().next();
+		/* 待機中の描画更新がない場合は、Lifecycleを進める処理も実行しない。 */
 		if ( nextFrame.done ) {
 			return;
 		}
@@ -56,9 +57,11 @@ const LifecycleHarness = ( props: { presentation: ReorderApplyPresentationState 
 	const { applyingReferenceElementRef, restorationReferenceElementRef } =
 		useReorderApplyLifecycle( presentation );
 
+	/* 反映開始段階では、反映中表示そのものを現在のEditor DOM Contextの基準要素とする。 */
 	if ( presentation.phase === 'applying' ) {
 		return <div ref={ applyingReferenceElementRef }>Applying</div>;
 	}
+	/* 再mount後は、復帰中表示を新しいEditor DOM Contextの基準要素として接続し直す。 */
 	if ( presentation.phase === 'remounting' ) {
 		return <div ref={ restorationReferenceElementRef }>Restoring</div>;
 	}
@@ -151,29 +154,49 @@ describe( 'WordPress Reorder Apply Integration lifecycle', () => {
 
 	/**
 	 * 概要:
-	 * - 反映成功後は再mount後の現在Editor DOM Contextで表示を復帰してからLifecycleを完了することを確認する。
+	 * - 反映中から再mountへ移る際に以前のEditor DOM Contextを再利用せず、現在の表示環境で復帰することを確認する。
 	 *
 	 * 事前条件:
-	 * - 行の並び替えは反映済みで、対象Tableは再mountされている。
-	 * - 再mount後の基準要素から現在のEditor DOM Contextを解決できる。
+	 * - 反映中表示はEditor DOM Context Aに属している。
+	 * - 行反映後の再mount表示は別のEditor DOM Context Bに属している。
 	 *
 	 * 操作:
-	 * - 表示復帰段階をmountし、復帰後の描画待ちを完了する。
+	 * - Context Aで反映開始まで進めた後、Context Bで表示復帰段階へ進める。
 	 *
 	 * 期待結果:
-	 * - 現在のdocumentと反映後最終行位置で行表示を復帰する。
+	 * - 表示復帰にはContext Bのdocumentと反映後最終行位置だけを利用する。
 	 * - 復帰表示の描画後にLifecycleを完了する。
 	 */
-	it( 'when a row update was applied and remounted, should restore it in the current editor context before completing', () => {
+	it( 'when remounting occurs in a new editor context, should restore only in the remounted context before completing', () => {
+		const apply = jest.fn();
 		const complete = jest.fn();
-		const editorWindow = createEditorWindow();
-		const currentDocument = document.implementation.createHTMLDocument( 'remounted-editor' );
-		resolveEditorDomContextMock.mockReturnValue( {
-			document: currentDocument,
-			window: editorWindow.window,
+		const applyingWindow = createEditorWindow();
+		const restorationWindow = createEditorWindow();
+		const applyingDocument = document.implementation.createHTMLDocument( 'applying-editor' );
+		const restorationDocument = document.implementation.createHTMLDocument( 'remounted-editor' );
+		resolveEditorDomContextMock.mockReturnValueOnce( {
+			document: applyingDocument,
+			window: applyingWindow.window,
 		} );
+		const view = render(
+			<LifecycleHarness
+				presentation={ {
+					phase: 'applying',
+					kind: 'row',
+					tableIdentity: 'table-a',
+					apply,
+				} }
+			/>
+		);
+		applyingWindow.flushNextFrame();
+		applyingWindow.flushNextFrame();
+		expect( apply ).toHaveBeenCalledTimes( 1 );
 
-		render(
+		resolveEditorDomContextMock.mockReturnValueOnce( {
+			document: restorationDocument,
+			window: restorationWindow.window,
+		} );
+		view.rerender(
 			<LifecycleHarness
 				presentation={ {
 					phase: 'remounting',
@@ -186,10 +209,11 @@ describe( 'WordPress Reorder Apply Integration lifecycle', () => {
 			/>
 		);
 
-		expect( restoreMovedRowMock ).toHaveBeenCalledWith( currentDocument, 'table-a', 4 );
+		expect( restoreMovedRowMock ).toHaveBeenCalledWith( restorationDocument, 'table-a', 4 );
+		expect( restoreMovedRowMock ).not.toHaveBeenCalledWith( applyingDocument, 'table-a', 4 );
 		expect( complete ).not.toHaveBeenCalled();
-		editorWindow.flushNextFrame();
-		editorWindow.flushNextFrame();
+		restorationWindow.flushNextFrame();
+		restorationWindow.flushNextFrame();
 		expect( complete ).toHaveBeenCalledTimes( 1 );
 	} );
 
