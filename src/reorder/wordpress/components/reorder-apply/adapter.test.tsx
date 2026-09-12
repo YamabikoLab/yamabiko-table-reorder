@@ -98,17 +98,18 @@ describe( 'WordPress Reorder Apply Integration adapter', () => {
 		mockRfSnapshot = { phase: 'confirming', tableIdentity: 'table-a', kind: 'row' };
 		mockRfSummary = { kind: 'row', sourcePosition: 1000, destinationPosition: 2 };
 		const { result } = renderHook( () => useReorderApplyPresentationState( 'table-a' ) );
+		const presentation = result.current;
 
-		expect( result.current.phase ).toBe( 'confirming' );
-		if ( result.current.phase !== 'confirming' ) {
+		expect( presentation.phase ).toBe( 'confirming' );
+		if ( presentation.phase !== 'confirming' ) {
 			throw new Error( 'Expected confirming presentation.' );
 		}
-		expect( result.current.kind ).toBe( 'row' );
-		expect( result.current.moveSummary ).toBe( 'Row 1000 → 2' );
+		expect( presentation.kind ).toBe( 'row' );
+		expect( presentation.moveSummary ).toBe( 'Row 1000 → 2' );
 
 		act( () => {
-			result.current.confirm();
-			result.current.cancel();
+			presentation.confirm();
+			presentation.cancel();
 		} );
 		expect( mockContinueRfApply ).toHaveBeenCalledTimes( 1 );
 		expect( mockCancelRfApply ).toHaveBeenCalledTimes( 1 );
@@ -130,15 +131,16 @@ describe( 'WordPress Reorder Apply Integration adapter', () => {
 	it( 'when an RF column move is applying, should expose the RF apply operation with the column kind', () => {
 		mockRfSnapshot = { phase: 'applying', tableIdentity: 'table-a', kind: 'column' };
 		const { result } = renderHook( () => useReorderApplyPresentationState( 'table-a' ) );
+		const presentation = result.current;
 
-		expect( result.current.phase ).toBe( 'applying' );
-		if ( result.current.phase !== 'applying' ) {
+		expect( presentation.phase ).toBe( 'applying' );
+		if ( presentation.phase !== 'applying' ) {
 			throw new Error( 'Expected applying presentation.' );
 		}
-		expect( result.current.kind ).toBe( 'column' );
+		expect( presentation.kind ).toBe( 'column' );
 
 		act( () => {
-			result.current.apply();
+			presentation.apply();
 		} );
 		expect( mockApplyRfReorder ).toHaveBeenCalledTimes( 1 );
 	} );
@@ -167,17 +169,18 @@ describe( 'WordPress Reorder Apply Integration adapter', () => {
 		};
 		mockRfSummary = { kind: 'column', sourcePosition: 2, destinationPosition: 5 };
 		const { result } = renderHook( () => useReorderApplyPresentationState( 'table-a' ) );
+		const presentation = result.current;
 
-		expect( result.current.phase ).toBe( 'remounting' );
-		if ( result.current.phase !== 'remounting' ) {
+		expect( presentation.phase ).toBe( 'remounting' );
+		if ( presentation.phase !== 'remounting' ) {
 			throw new Error( 'Expected remounting presentation.' );
 		}
-		expect( result.current.kind ).toBe( 'column' );
-		expect( result.current.applied ).toBe( true );
-		expect( result.current.destinationIndex ).toBe( 4 );
+		expect( presentation.kind ).toBe( 'column' );
+		expect( presentation.applied ).toBe( true );
+		expect( presentation.destinationIndex ).toBe( 4 );
 
 		act( () => {
-			result.current.complete();
+			presentation.complete();
 		} );
 		expect( mockCompleteRfApplyRestoration ).toHaveBeenCalledTimes( 1 );
 	} );
