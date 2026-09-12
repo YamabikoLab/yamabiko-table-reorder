@@ -1,7 +1,7 @@
 /**
  * RF Interactionが所有する共有状態をReactへ接続する境界を提供する。
  *
- * React側はRF Sessionの正本や状態変更操作を持たず、対象Tableから見た現在方向の表示状態だけを継続購読する。
+ * React側はRF Sessionの状態正本や状態変更操作を持たず、対象Tableから見た現在方向の表示状態だけを継続購読する。
  * Table変更の検知や再評価通知はこのHookの責務に含めない。
  */
 
@@ -47,18 +47,30 @@ const CLOSED_STATE: RfInteractionReactState = { status: 'closed' };
 /**
  * 対象Tableから見たRF Interaction状態をReact描画へ反映する。
  *
- * 現在Session対象と異なるTableからの購読はclosedとして扱う。
+ * 現在Session対象と異なるTableからの購読はclosedとして扱い、そのTableに無関係なSession更新では再描画しない。
  * Row / Columnのopen状態では現在方向に必要な項目だけを公開し、candidateや非表示方向の入力は返さない。
  *
  * @param tableIdentity RF状態を購読するTable Identity。
  * @return 対象Tableから見た現在RF Interaction表示状態。
  */
 export const useRfInteraction = ( tableIdentity: string ): RfInteractionReactState => {
-	const session = useStore( rfInteractionStore, ( store ) => store.session );
-	if ( session.status === 'closed' || session.tableIdentity !== tableIdentity ) {
+	const session = useStore( rfInteractionStore, ( store ) => {
+		const currentSession = store.session;
+
+		// 対象外Tableには常に同じnullを返し、無関係なSession更新をReact更新へ伝播させない。
+		if ( currentSession.status === 'closed' || currentSession.tableIdentity !== tableIdentity ) {
+			return null;
+		}
+
+		return currentSession;
+	} );
+
+	// 現在Sessionの対象外TableはRF表示状態を持たない。
+	if ( session === null ) {
 		return CLOSED_STATE;
 	}
 
+	// Apply結果待機中は入力や評価結果を公開せず、現在方向だけを表示状態として公開する。
 	if ( session.status === 'applying' ) {
 		const applyingState: RfInteractionReactState = {
 			status: 'applying',
@@ -67,6 +79,7 @@ export const useRfInteraction = ( tableIdentity: string ): RfInteractionReactSta
 		return applyingState;
 	}
 
+	// Row選択中はRow方向で再評価した表示情報だけを公開する。
 	if ( session.direction === 'row' && session.evaluation.direction === 'row' ) {
 		const result = session.evaluation.result;
 		const rowState: RfInteractionReactState = {
@@ -80,6 +93,7 @@ export const useRfInteraction = ( tableIdentity: string ): RfInteractionReactSta
 		return rowState;
 	}
 
+	// Column選択中はColumn方向で再評価した表示情報だけを公開する。
 	if ( session.direction === 'column' && session.evaluation.direction === 'column' ) {
 		const result = session.evaluation.result;
 		const columnState: RfInteractionReactState = {
@@ -93,5 +107,6 @@ export const useRfInteraction = ( tableIdentity: string ): RfInteractionReactSta
 		return columnState;
 	}
 
+	// 方向と評価結果が一致しない不完全なSessionはPresentationへ公開しない。
 	return CLOSED_STATE;
 };
