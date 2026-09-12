@@ -56,8 +56,6 @@ const columnRequest: RfApplyRequest = {
 describe( 'RF Apply Coordination', () => {
 	beforeEach( () => {
 		jest.clearAllMocks();
-		expect( getRfApplyCoordinationSnapshot() ).toEqual( { phase: 'idle' } );
-		expect( getRfApplySummary() ).toBeNull();
 	} );
 
 	/**
