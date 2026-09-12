@@ -82,7 +82,7 @@ export const useReorderApplyLifecycle = (
 	}, [ apply, isApplying ] );
 
 	const isRemounting = presentation.phase === 'remounting';
-	const direction = isRemounting ? presentation.direction : null;
+	const kind = isRemounting ? presentation.kind : null;
 	const tableIdentity = isRemounting ? presentation.tableIdentity : null;
 	const applied = isRemounting ? presentation.applied : false;
 	const destinationIndex = isRemounting ? presentation.destinationIndex : null;
@@ -91,7 +91,7 @@ export const useReorderApplyLifecycle = (
 	useEffect( () => {
 		if (
 			! isRemounting ||
-			direction === null ||
+			kind === null ||
 			tableIdentity === null ||
 			destinationIndex === null ||
 			complete === null
@@ -104,7 +104,7 @@ export const useReorderApplyLifecycle = (
 			referenceElement === null ? null : resolveEditorDomContext( referenceElement );
 		/* 反映成功時だけ、再mount後の現在Editor DOM Contextで表示位置とフォーカスを復帰する。 */
 		if ( applied && editorContext !== null ) {
-			if ( direction === 'row' ) {
+			if ( kind === 'row' ) {
 				restoreMovedRow( editorContext.document, tableIdentity, destinationIndex );
 			} else {
 				restoreMovedColumn( editorContext.document, tableIdentity, destinationIndex );
@@ -118,7 +118,7 @@ export const useReorderApplyLifecycle = (
 		}
 
 		return runAfterVisualPaint( editorContext.window, complete );
-	}, [ applied, complete, destinationIndex, direction, isRemounting, tableIdentity ] );
+	}, [ applied, complete, destinationIndex, isRemounting, kind, tableIdentity ] );
 
 	return { applyingReferenceElementRef, restorationReferenceElementRef };
 };
