@@ -13,27 +13,29 @@ const RESTORED_CELL_CLASS = 'yamabiko-table-reorder-restored-cell';
 /**
  * 大規模反映後の復帰先セルをフォーカス中だけ強調する。
  *
- * フォーカスがセルから外れた時点で一時表示classを破棄し、その後の通常編集へ強調状態を持ち越さない。
+ * セル内部でフォーカスが移動する間は強調を維持し、セル外へ移った時点で一時表示classと監視を破棄する。
  *
  * @param cell     反映後のフォーカス復帰先セル。
  * @param editable 実際にフォーカスを戻す編集位置。
  */
 const focusRestoredCell = ( cell: HTMLElement, editable: HTMLElement ): void => {
 	cell.classList.add( RESTORED_CELL_CLASS );
-	cell.addEventListener(
-		'focusout',
-		() => {
-			cell.classList.remove( RESTORED_CELL_CLASS );
-		},
-		{ once: true }
-	);
+	const handleFocusOut = ( event: FocusEvent ): void => {
+		const nextTarget = event.relatedTarget;
+		if ( nextTarget instanceof Node && cell.contains( nextTarget ) ) {
+			return;
+		}
+		cell.classList.remove( RESTORED_CELL_CLASS );
+		cell.removeEventListener( 'focusout', handleFocusOut );
+	};
+	cell.addEventListener( 'focusout', handleFocusOut );
 	editable.focus( { preventScroll: true } );
 };
 
 /**
  * 行反映後の最終行を利用者が確認できる位置へ表示し、編集可能な場合はその行の先頭編集位置へフォーカスを戻す。
  *
- * フォーカスを戻したセルは、利用者が別の場所へ移るまで反映結果として強調する。
+ * フォーカスを戻したセルは、利用者が別のセルやUIへ移るまで反映結果として強調する。
  *
  * @param editorDocument 対象Tableが存在する現在のEditor DOM Contextのdocument。
  * @param clientId       対象Table個体のclientId。
@@ -65,7 +67,7 @@ export const restoreMovedRow = (
  * 列反映後の最終論理列を利用者が確認できる位置へ表示し、編集可能な場合は対応セルへフォーカスを戻す。
  *
  * 結合セルが最終論理列を占有する場合は、その結合セルを表示復帰先として扱う。フォーカスを戻したセルは、
- * 利用者が別の場所へ移るまで反映結果として強調する。
+ * 利用者が別のセルやUIへ移るまで反映結果として強調する。
  *
  * @param editorDocument 対象Tableが存在する現在のEditor DOM Contextのdocument。
  * @param clientId       対象Table個体のclientId。
