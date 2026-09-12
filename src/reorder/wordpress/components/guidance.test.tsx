@@ -10,8 +10,7 @@ import { ReorderGuidance } from '@/reorder/wordpress/components/guidance';
 jest.mock( '@/messages', () => ( {
 	getCloseReorderGuidanceLabel: () => 'Close reorder guidance',
 	getPcReorderGuidanceMessage: () => 'Reorder rows and columns.',
-	getTouchReorderGuidanceMessage: () =>
-		'Long press a cell, then drag to reorder rows and columns.',
+	getTouchReorderGuidanceMessage: () => 'Long press a cell, then drag to reorder rows and columns.',
 } ) );
 
 jest.mock( '@wordpress/components', () => ( {

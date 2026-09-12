@@ -52,9 +52,7 @@ export const ReorderGuidance = ( props: ReorderGuidanceProps ) => {
 
 	/* 初回案内文は、現在の操作環境で必要となる操作だけを案内する。 */
 	const guidanceMessage =
-		environment === 'touch'
-			? getTouchReorderGuidanceMessage()
-			: getPcReorderGuidanceMessage();
+		environment === 'touch' ? getTouchReorderGuidanceMessage() : getPcReorderGuidanceMessage();
 
 	return (
 		<Popover
