@@ -1,8 +1,8 @@
 /**
- * Row / Columnの確認付き大規模反映Lifecycleを、WordPress表示責務が扱う最小のPresentation状態へ変換する。
+ * 行・列の確認付き大規模反映を、WordPress表示責務が扱うPresentation状態へ変換する。
  *
- * 方向固有Storeを正本として購読し、表示に必要な対象Table、移動概要、Lifecycle操作、反映後最終位置だけを受け渡す。
- * 状態やMove意味は所有せず、Table IntegrationやEditor DOM Contextへは依存しない。
+ * 方向固有のReorder Applyを正本として購読し、対象Tableに必要な確認内容、反映操作、反映後最終位置だけを表示側へ提供する。
+ * Reorder Applyの状態や移動先の意味は所有せず、Table IntegrationやEditor DOM Contextにも依存しない。
  */
 
 import { useSyncExternalStore } from 'react';
@@ -18,6 +18,7 @@ import {
 	subscribeLargeColumnReorderApply,
 	type LargeColumnReorderApplyState,
 } from '@/reorder/column-reorder/responsibilities/reorder-apply';
+import type { ReorderKind } from '@/reorder/reorder-mode';
 import {
 	applyLargeRowReorder,
 	cancelLargeRowReorderApply,
@@ -29,15 +30,12 @@ import {
 	type LargeRowReorderApplyState,
 } from '@/reorder/row-reorder/responsibilities/reorder-apply';
 
-/** WordPress表示責務が扱う確認付き大規模反映の方向。 */
-export type ReorderApplyDirection = 'row' | 'column';
-
 /** WordPress表示責務が扱う確認付き大規模反映のPresentation状態。 */
 export type ReorderApplyPresentationState =
 	| { phase: 'idle' }
 	| {
 			phase: 'confirming';
-			direction: ReorderApplyDirection;
+			kind: ReorderKind;
 			tableIdentity: string;
 			moveSummary: string;
 			confirm: () => void;
@@ -45,13 +43,13 @@ export type ReorderApplyPresentationState =
 	  }
 	| {
 			phase: 'applying';
-			direction: ReorderApplyDirection;
+			kind: ReorderKind;
 			tableIdentity: string;
 			apply: () => void;
 	  }
 	| {
 			phase: 'remounting';
-			direction: ReorderApplyDirection;
+			kind: ReorderKind;
 			tableIdentity: string;
 			applied: boolean;
 			destinationIndex: number;
@@ -77,6 +75,7 @@ const adaptRowReorderApply = (
 	clientId: string,
 	state: LargeRowReorderApplyState
 ): ReorderApplyPresentationState => {
+	/* 別Tableの反映状態は、現在のTableへ表示しない。 */
 	if ( state.phase === 'idle' || state.move.tableIdentity !== clientId ) {
 		return { phase: 'idle' };
 	}
@@ -84,13 +83,14 @@ const adaptRowReorderApply = (
 	if ( state.phase === 'applying' ) {
 		return {
 			phase: 'applying',
-			direction: 'row',
+			kind: 'row',
 			tableIdentity: state.move.tableIdentity,
 			apply: applyLargeRowReorder,
 		};
 	}
 
 	const destinationRowIndex = getLargeRowReorderDestinationRowIndex();
+	/* 反映後最終位置を確定できない場合は、推測した確認内容や復帰先を表示しない。 */
 	if ( destinationRowIndex === null ) {
 		return { phase: 'idle' };
 	}
@@ -98,7 +98,7 @@ const adaptRowReorderApply = (
 	if ( state.phase === 'confirming' ) {
 		return {
 			phase: 'confirming',
-			direction: 'row',
+			kind: 'row',
 			tableIdentity: state.move.tableIdentity,
 			moveSummary: getLargeRowReorderMoveSummary(
 				state.move.sourceRowIndex + 1,
@@ -111,7 +111,7 @@ const adaptRowReorderApply = (
 
 	return {
 		phase: 'remounting',
-		direction: 'row',
+		kind: 'row',
 		tableIdentity: state.move.tableIdentity,
 		applied: state.applied,
 		destinationIndex: destinationRowIndex,
@@ -130,6 +130,7 @@ const adaptColumnReorderApply = (
 	clientId: string,
 	state: LargeColumnReorderApplyState
 ): ReorderApplyPresentationState => {
+	/* 別Tableの反映状態は、現在のTableへ表示しない。 */
 	if ( state.phase === 'idle' || state.move.tableIdentity !== clientId ) {
 		return { phase: 'idle' };
 	}
@@ -137,13 +138,14 @@ const adaptColumnReorderApply = (
 	if ( state.phase === 'applying' ) {
 		return {
 			phase: 'applying',
-			direction: 'column',
+			kind: 'column',
 			tableIdentity: state.move.tableIdentity,
 			apply: applyLargeColumnReorder,
 		};
 	}
 
 	const destinationColumnIndex = getLargeColumnReorderDestinationColumnIndex();
+	/* 反映後最終位置を確定できない場合は、推測した確認内容や復帰先を表示しない。 */
 	if ( destinationColumnIndex === null ) {
 		return { phase: 'idle' };
 	}
@@ -151,7 +153,7 @@ const adaptColumnReorderApply = (
 	if ( state.phase === 'confirming' ) {
 		return {
 			phase: 'confirming',
-			direction: 'column',
+			kind: 'column',
 			tableIdentity: state.move.tableIdentity,
 			moveSummary: getLargeColumnReorderMoveSummary(
 				state.move.sourceColumnIndex + 1,
@@ -164,7 +166,7 @@ const adaptColumnReorderApply = (
 
 	return {
 		phase: 'remounting',
-		direction: 'column',
+		kind: 'column',
 		tableIdentity: state.move.tableIdentity,
 		applied: state.applied,
 		destinationIndex: destinationColumnIndex,
@@ -175,7 +177,7 @@ const adaptColumnReorderApply = (
 /**
  * 対象Tableへ現在表示すべき確認付き大規模反映状態を提供する。
  *
- * Row / Columnが同時に対象となることは各Lifecycleの通常契約では想定しないが、既存境界と同じくRowを先に選択する。
+ * 行と列の反映が同じTableで同時進行することは各Reorder Applyの契約では想定せず、既存の優先順に従って行を先に扱う。
  *
  * @param clientId 対象Table個体のclientId。
  * @return WordPress表示責務が扱う現在のPresentation状態。
