@@ -163,6 +163,45 @@ describe( 'RF Interaction', () => {
 
 	/**
 	 * 概要:
+	 * - 現在Sessionと一致しないTableや方向から遅れて届いた操作で現在Sessionを変更しないことを確認する。
+	 *
+	 * 事前条件:
+	 * - Table AのSessionでRow入力を保持したままColumn方向が選択されている。
+	 *
+	 * 操作:
+	 * - 別TableからcloseとColumn入力更新を要求し、切替前Row方向からも入力更新を要求する。
+	 *
+	 * 期待結果:
+	 * - Table A / ColumnのSessionは維持され、保持済みRow入力と未更新Column入力が変化しない。
+	 */
+	it( 'when stale table or direction commands arrive, should preserve the current session', () => {
+		rfInteraction.open( 'table-a' );
+		rfInteraction.updateRowInput( 'table-a', ROW_INPUT );
+		rfInteraction.selectDirection( 'table-a', 'column' );
+
+		rfInteraction.close( 'table-b' );
+		rfInteraction.updateColumnInput( 'table-b', COLUMN_INPUT );
+		rfInteraction.updateRowInput( 'table-a', {
+			...ROW_INPUT,
+			sourceRowNumber: '2',
+		} );
+
+		const session = rfInteractionStore.getState().session;
+		expect( session ).toMatchObject( {
+			status: 'open',
+			tableIdentity: 'table-a',
+			direction: 'column',
+			rowInput: ROW_INPUT,
+			columnInput: {
+				sourceColumnIndex: null,
+				targetColumnIndex: null,
+				position: null,
+			},
+		} );
+	} );
+
+	/**
+	 * 概要:
 	 * - 外部Table変更通知で保持入力を維持したまま現在Table基準の結果を更新することを確認する。
 	 *
 	 * 事前条件:
@@ -240,6 +279,93 @@ describe( 'RF Interaction', () => {
 			status: 'applying',
 			tableIdentity: 'table-a',
 			direction: 'row',
+		} );
+		disconnect();
+	} );
+
+	/**
+	 * 概要:
+	 * - Column方向でもApply要求時点の現在評価から方向固有candidateを引き渡せることを確認する。
+	 *
+	 * 事前条件:
+	 * - Table AのColumn入力はresolvedとして表示されている。
+	 * - RF Apply Coordinationの受信境界が接続されている。
+	 *
+	 * 操作:
+	 * - Column Resolutionが返すcandidateを変更してからApplyを要求する。
+	 *
+	 * 期待結果:
+	 * - Column方向のfresh candidateが渡され、Column applying状態へ遷移する。
+	 */
+	it( 'when column apply is requested, should send the fresh column candidate and enter applying', () => {
+		rfInteraction.open( 'table-a' );
+		rfInteraction.selectDirection( 'table-a', 'column' );
+		rfInteraction.updateColumnInput( 'table-a', COLUMN_INPUT );
+		jest.spyOn( columnRfResolution, 'resolve' ).mockReturnValue( {
+			status: 'resolved',
+			candidate: {
+				clientId: 'table-a',
+				sourceColumnIndex: 1,
+				destinationBoundaryIndex: 0,
+			},
+		} );
+		let received: RfApplyRequest | null = null;
+		const disconnect = connectRfApplyCoordination( ( request ) => {
+			received = request;
+		} );
+
+		rfInteraction.requestApply( 'table-a' );
+
+		expect( received ).toEqual( {
+			direction: 'column',
+			candidate: {
+				clientId: 'table-a',
+				sourceColumnIndex: 1,
+				destinationBoundaryIndex: 0,
+			},
+		} );
+		expect( rfInteractionStore.getState().session ).toMatchObject( {
+			status: 'applying',
+			tableIdentity: 'table-a',
+			direction: 'column',
+		} );
+		disconnect();
+	} );
+
+	/**
+	 * 概要:
+	 * - Apply直前の再評価で指定が成立しなくなった場合はApply Lifecycleを開始しないことを確認する。
+	 *
+	 * 事前条件:
+	 * - Table AのRow入力は一度resolvedとして表示されている。
+	 * - RF Apply Coordinationの受信境界が接続されている。
+	 *
+	 * 操作:
+	 * - Apply要求時の再評価だけをno-opへ変化させる。
+	 *
+	 * 期待結果:
+	 * - Apply要求は引き渡されず、Sessionはopenのまま最新no-op結果を表示する。
+	 */
+	it( 'when fresh apply evaluation is not resolved, should stay open with the fresh result', () => {
+		rfInteraction.open( 'table-a' );
+		rfInteraction.updateRowInput( 'table-a', ROW_INPUT );
+		jest.spyOn( rowRfResolution, 'resolve' ).mockReturnValue( { status: 'no-op' } );
+		let requestCount = 0;
+		const disconnect = connectRfApplyCoordination( () => {
+			requestCount++;
+		} );
+
+		rfInteraction.requestApply( 'table-a' );
+
+		expect( requestCount ).toBe( 0 );
+		expect( rfInteractionStore.getState().session ).toMatchObject( {
+			status: 'open',
+			tableIdentity: 'table-a',
+			direction: 'row',
+			evaluation: {
+				direction: 'row',
+				result: { status: 'no-op' },
+			},
 		} );
 		disconnect();
 	} );
