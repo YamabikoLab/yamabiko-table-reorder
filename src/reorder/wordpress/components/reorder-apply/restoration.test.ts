@@ -30,12 +30,17 @@ describe( 'WordPress Reorder Apply restoration', () => {
 				</tbody></table>
 			</div>
 		`;
-		const editable = editorDocument.querySelector< HTMLElement >( 'tbody tr:nth-child(2) [contenteditable="true"]' );
+		const editable = editorDocument.querySelector< HTMLElement >(
+			'tbody tr:nth-child(2) [contenteditable="true"]'
+		);
 		if ( editable === null ) {
 			throw new Error( 'Expected editable row position.' );
 		}
 		const scrollIntoView = jest.fn();
-		Object.defineProperty( editable, 'scrollIntoView', { configurable: true, value: scrollIntoView } );
+		Object.defineProperty( editable, 'scrollIntoView', {
+			configurable: true,
+			value: scrollIntoView,
+		} );
 		const focus = jest.spyOn( editable, 'focus' );
 
 		restoreMovedRow( editorDocument, 'table-a', 1 );
@@ -69,12 +74,17 @@ describe( 'WordPress Reorder Apply restoration', () => {
 				</tr></tbody></table>
 			</div>
 		`;
-		const editable = editorDocument.querySelector< HTMLElement >( 'td[colspan="2"] [contenteditable="true"]' );
+		const editable = editorDocument.querySelector< HTMLElement >(
+			'td[colspan="2"] [contenteditable="true"]'
+		);
 		if ( editable === null ) {
 			throw new Error( 'Expected editable merged-cell position.' );
 		}
 		const scrollIntoView = jest.fn();
-		Object.defineProperty( editable, 'scrollIntoView', { configurable: true, value: scrollIntoView } );
+		Object.defineProperty( editable, 'scrollIntoView', {
+			configurable: true,
+			value: scrollIntoView,
+		} );
 		const focus = jest.spyOn( editable, 'focus' );
 
 		restoreMovedColumn( editorDocument, 'table-a', 1 );

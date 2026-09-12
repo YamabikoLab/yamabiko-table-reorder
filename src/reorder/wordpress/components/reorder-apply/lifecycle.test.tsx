@@ -51,7 +51,11 @@ const createEditorWindow = () => {
 	};
 };
 
-/** 表示状態に対応する現在要素へLifecycleの基準要素参照を接続する。 */
+/**
+ * 表示状態に対応する現在要素へLifecycleの基準要素参照を接続する。
+ * @param props
+ * @param props.presentation
+ */
 const LifecycleHarness = ( props: { presentation: ReorderApplyPresentationState } ) => {
 	const { presentation } = props;
 	const { applyingReferenceElementRef, restorationReferenceElementRef } =
