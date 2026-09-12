@@ -91,7 +91,7 @@ const acknowledgeInitialGuidance = ( environment: ReorderGuidanceEnvironment ): 
  *
  * @param tableIdentity    初回案内の対象となるTable Identity。
  * @param referenceElement 現在のEditor DOMとPopover位置を特定するツールバー要素。
- * @return 対象Tableの初回案内表示状態と、閉じる操作。
+ * @return 対象Tableの初回案内対象と、閉じる操作。
  */
 export const useReorderGuidance = (
 	tableIdentity: string,
@@ -100,9 +100,14 @@ export const useReorderGuidance = (
 	const activeGuidance = useStore( reorderGuidanceStore, ( state ) => state.activeGuidance );
 	const { selectedKind } = useReorderMode( tableIdentity );
 
-	/* 別Tableの案内状態は、現在のTableへ表示中として反映しない。 */
+	/* 別Tableの案内状態は、現在のTableへ表示対象として反映しない。 */
 	const guidanceForTable = activeGuidance?.tableIdentity === tableIdentity ? activeGuidance : null;
-	const isVisible = guidanceForTable !== null;
+	const guidance =
+		guidanceForTable === null
+			? null
+			: {
+					environment: guidanceForTable.environment,
+			  };
 
 	useEffect( () => {
 		/* 配置基準がない間、または並び替えモード中は初回案内を新しく開始しない。 */
@@ -147,6 +152,6 @@ export const useReorderGuidance = (
 
 	return {
 		dismiss,
-		isVisible,
+		guidance,
 	};
 };
