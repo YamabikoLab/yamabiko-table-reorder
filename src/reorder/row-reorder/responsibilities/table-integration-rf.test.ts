@@ -99,7 +99,7 @@ describe( 'Row Table Integration RF contract', () => {
 	} );
 
 	/**
-	 * RF Apply前評価が現在Tableへ候補を再照合し、成立時だけ同じ評価から更新対象セル数を返すことを確認する。
+	 * RF Apply前評価が現在Tableへ候補を再照合し、成立時に更新対象セル数と反映後の最終行位置を返すことを確認する。
 	 *
 	 * 事前条件:
 	 * - tbodyの各行は1、2、3、4個の物理セルを持ち、結合セル制約はない。
@@ -109,9 +109,10 @@ describe( 'Row Table Integration RF contract', () => {
 	 * - Apply assessmentを要求する。
 	 *
 	 * 期待結果:
-	 * - 現在候補が成立し、表示位置が変わる2〜4行目の物理セル数9が返る。
+	 * - 表示位置が変わる2〜4行目の物理セル数9が返る。
+	 * - 移動対象の反映後0-based最終行位置として1が返る。
 	 */
-	it( 'when the current row move is valid, should assess it with the affected cell count', () => {
+	it( 'when the current row move is valid, should assess affected cells and the final row position', () => {
 		selectMock.mockReturnValue( {
 			getBlock: jest.fn().mockReturnValue( {
 				name: 'core/table',
@@ -132,7 +133,43 @@ describe( 'Row Table Integration RF contract', () => {
 				sourceRowIndex: 3,
 				destinationBoundaryIndex: 1,
 			} )
-		).toEqual( { affectedCellCount: 9 } );
+		).toEqual( { affectedCellCount: 9, destinationRowIndex: 1 } );
+	} );
+
+	/**
+	 * 後方へ移動するRF候補でも、移動元除去後の最終行位置を返すことを確認する。
+	 *
+	 * 事前条件:
+	 * - 4行の通常Tableで先頭行を末尾境界へ移動する。
+	 *
+	 * 操作:
+	 * - Apply assessmentを要求する。
+	 *
+	 * 期待結果:
+	 * - 移動元除去後の0-based最終行位置として3が返る。
+	 */
+	it( 'when a row moves toward a later boundary, should assess the post-removal destination row index', () => {
+		selectMock.mockReturnValue( {
+			getBlock: jest.fn().mockReturnValue( {
+				name: 'core/table',
+				attributes: {
+					body: [
+						{ cells: [ {} ] },
+						{ cells: [ {} ] },
+						{ cells: [ {} ] },
+						{ cells: [ {} ] },
+					],
+				},
+			} ),
+		} );
+
+		expect(
+			rowTableIntegration.assessRowMoveForApply( {
+				clientId: 'table-a',
+				sourceRowIndex: 0,
+				destinationBoundaryIndex: 4,
+			} )
+		).toEqual( { affectedCellCount: 4, destinationRowIndex: 3 } );
 	} );
 
 	/**
@@ -206,6 +243,7 @@ describe( 'Row Table Integration RF contract', () => {
 
 		expect( rowTableIntegration.assessRowMoveForApply( move ) ).toEqual( {
 			affectedCellCount: 2,
+			destinationRowIndex: 2,
 		} );
 		expect( rowTableIntegration.applyRowMove( move ) ).toBe( false );
 		expect( updateBlockAttributes ).not.toHaveBeenCalled();
