@@ -14,8 +14,8 @@ import { restoreMovedColumn, restoreMovedRow } from './restoration';
 
 /** WordPress表示Lifecycleが各phaseの現在要素を受け取るPresentation anchor。 */
 export type ReorderApplyLifecycleAnchors = {
-	applyingAnchorRef: RefObject< HTMLDivElement | null >;
-	restorationAnchorRef: RefObject< HTMLDivElement | null >;
+	applyingAnchorRef: RefObject< HTMLDivElement >;
+	restorationAnchorRef: RefObject< HTMLDivElement >;
 };
 
 /**
@@ -48,8 +48,8 @@ const runAfterVisualPaint = ( editorWindow: Window, callback: () => void ): ( ()
 export const useReorderApplyLifecycle = (
 	presentation: ReorderApplyPresentationState
 ): ReorderApplyLifecycleAnchors => {
-	const applyingAnchorRef = useRef< HTMLDivElement | null >( null );
-	const restorationAnchorRef = useRef< HTMLDivElement | null >( null );
+	const applyingAnchorRef = useRef< HTMLDivElement >( null );
+	const restorationAnchorRef = useRef< HTMLDivElement >( null );
 
 	const isApplying = presentation.phase === 'applying';
 	const apply = isApplying ? presentation.apply : null;
