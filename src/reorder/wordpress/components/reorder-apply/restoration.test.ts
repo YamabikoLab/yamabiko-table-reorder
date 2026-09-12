@@ -64,19 +64,27 @@ describe( 'WordPress Reorder Apply restoration', () => {
 
 	/**
 	 * 概要:
-	 * - 復帰先セルの内部でフォーカス位置が変わっても、同じセルを反映結果として強調し続けることを確認する。
+	 * - iframe editor内の復帰先セルでフォーカス位置が変わっても、同じセルを反映結果として強調し続けることを確認する。
 	 *
 	 * 事前条件:
-	 * - 再mount後の反映後最終行に複数のフォーカス可能位置がある。
+	 * - iframe editor内の反映後最終行に複数のフォーカス可能位置がある。
+	 * - 復帰先と移動先はglobalとは異なるDOM環境に属している。
 	 *
 	 * 操作:
 	 * - 最終行へ表示復帰した後、同じセル内の別の位置へフォーカスを移す。
 	 *
 	 * 期待結果:
-	 * - 復帰先セルの強調は維持される。
+	 * - iframe / non-iframeのDOM環境差に影響されず、復帰先セルの強調は維持される。
 	 */
-	it( 'when focus moves within the restored cell, should keep the restored cell highlighted', () => {
-		const editorDocument = document.implementation.createHTMLDocument( 'editor' );
+	it( 'when focus moves within the restored cell in an editor iframe, should keep the restored cell highlighted', () => {
+		const iframe = document.createElement( 'iframe' );
+		document.body.append( iframe );
+		const editorDocument = iframe.contentDocument;
+		const editorWindow = iframe.contentWindow;
+		if ( editorDocument === null || editorWindow === null ) {
+			iframe.remove();
+			throw new Error( 'Expected editor iframe browsing context.' );
+		}
 		editorDocument.body.innerHTML = `
 			<div data-block="table-a">
 				<table><tbody><tr><td>
@@ -89,6 +97,7 @@ describe( 'WordPress Reorder Apply restoration', () => {
 		const cell = editable?.closest< HTMLElement >( 'td' ) ?? null;
 		const inside = cell?.querySelector< HTMLButtonElement >( 'button' ) ?? null;
 		if ( editable === null || cell === null || inside === null ) {
+			iframe.remove();
 			throw new Error( 'Expected restored cell with another focus target.' );
 		}
 		Object.defineProperty( editable, 'scrollIntoView', {
@@ -96,12 +105,16 @@ describe( 'WordPress Reorder Apply restoration', () => {
 			value: jest.fn(),
 		} );
 
+		expect( inside ).toBeInstanceOf( editorWindow.Node );
+		expect( inside ).not.toBeInstanceOf( Node );
+
 		restoreMovedRow( editorDocument, 'table-a', 0 );
 		editable.dispatchEvent(
-			new FocusEvent( 'focusout', { bubbles: true, relatedTarget: inside } )
+			new editorWindow.FocusEvent( 'focusout', { bubbles: true, relatedTarget: inside } )
 		);
 
 		expect( cell.classList.contains( RESTORED_CELL_CLASS ) ).toBe( true );
+		iframe.remove();
 	} );
 
 	/**
