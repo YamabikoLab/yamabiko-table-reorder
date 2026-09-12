@@ -59,7 +59,12 @@ export type RfApplyRequest =
 /** RF Apply CoordinationがRF Interactionへ返すLifecycle結果。 */
 export type RfApplyResult = 'success' | 'failure' | 'cancelled';
 
-/** RF Apply CoordinationがApply要求を受け取る内部接続境界。 */
+/**
+ * RF Apply CoordinationがApply要求を受け取る内部接続境界。
+ *
+ * @param request Apply要求時点の現在Tableで成立した方向固有candidate。
+ * @param resolve Apply Coordinationが確定したLifecycle結果をRF Interactionへ返す通知。
+ */
 export type RfApplyRequestReceiver = (
 	request: RfApplyRequest,
 	resolve: ( result: RfApplyResult ) => void
@@ -134,16 +139,23 @@ type RfInteractionStoreActions = {
 	resolveApply: ( tableIdentity: string, result: RfApplyResult ) => void;
 };
 
+/** RF Interactionの状態と、その状態を変更できるStore内部操作。 */
 type RfInteractionStore = RfInteractionStoreState & RfInteractionStoreActions;
 
 /** RF Apply Coordination実装が接続されるまでApply要求を外部へ流さないための内部Receiver。 */
 let applyRequestReceiver: RfApplyRequestReceiver | null = null;
 
 /**
- * Row Resolutionのcandidateを除いたPresentation向け結果へ変換する。
- * @param resolution
+ * Row Resolution結果から、Presentationへ公開してよい現在結果だけを取り出す。
+ *
+ * candidateはApply Coordinationとの内部境界だけで扱い、結合セル制約で拒否された場合だけ
+ * 利用者が理由を確認できるようblockingMergedRangeを保持する。
+ *
+ * @param resolution 現在TableとRow指定を評価したResolution結果。
+ * @return candidateを含まないPresentation向け現在結果。
  */
 const toRowCurrentResult = ( resolution: RowRfResolution ): RfRowCurrentResult => {
+	// 結合セル制約による拒否時だけ、利用者へ拒否理由を示す範囲情報を公開する。
 	if ( resolution.status === 'rejected' ) {
 		return {
 			status: 'rejected',
@@ -156,10 +168,16 @@ const toRowCurrentResult = ( resolution: RowRfResolution ): RfRowCurrentResult =
 };
 
 /**
- * Column Resolutionのcandidateを除いたPresentation向け結果へ変換する。
- * @param resolution
+ * Column Resolution結果から、Presentationへ公開してよい現在結果だけを取り出す。
+ *
+ * candidateはApply Coordinationとの内部境界だけで扱い、結合セル制約で拒否された場合だけ
+ * 利用者が理由を確認できるようblockingMergedRangeを保持する。
+ *
+ * @param resolution 現在TableとColumn指定を評価したResolution結果。
+ * @return candidateを含まないPresentation向け現在結果。
  */
 const toColumnCurrentResult = ( resolution: ColumnRfResolution ): RfColumnCurrentResult => {
+	// 結合セル制約による拒否時だけ、利用者へ拒否理由を示す範囲情報を公開する。
 	if ( resolution.status === 'rejected' ) {
 		return {
 			status: 'rejected',
@@ -183,6 +201,7 @@ const evaluateRow = (
 	input: RowRfFormInput
 ): { evaluation: RowEvaluation; candidate: RowRfMoveCandidate | null } => {
 	const constraints = rowTableIntegration.getConstraints( tableIdentity );
+	// 現在TableのRow構造を取得できない場合は成立可否を推測せず、利用不能として扱う。
 	if ( constraints === null ) {
 		return {
 			evaluation: {
@@ -195,6 +214,7 @@ const evaluateRow = (
 	}
 
 	const interpretation = interpretRowRfInput( input, constraints.rowCount );
+	// 入力指定が現在行数に対して未成立なら、構造制約の解決へ進めず入力待ちとして扱う。
 	if ( interpretation.status === 'not-ready' ) {
 		return {
 			evaluation: {
@@ -207,6 +227,7 @@ const evaluateRow = (
 	}
 
 	const resolution = rowRfResolution.resolve( tableIdentity, interpretation.specification );
+	// Apply候補は現在指定が成立した場合だけ内部境界へ渡せる。
 	const candidate = resolution.status === 'resolved' ? resolution.candidate : null;
 	return {
 		evaluation: {
@@ -230,6 +251,7 @@ const evaluateColumn = (
 	input: ColumnRfFormInput
 ): { evaluation: ColumnEvaluation; candidate: ColumnRfMoveCandidate | null } => {
 	const columns = columnTableIntegration.getColumnInputDescriptors( tableIdentity );
+	// 現在TableのColumn構造を取得できない場合は成立可否を推測せず、利用不能として扱う。
 	if ( columns === null ) {
 		return {
 			evaluation: {
@@ -242,6 +264,7 @@ const evaluateColumn = (
 	}
 
 	const interpretation = interpretColumnRfInput( input, columns );
+	// 入力指定が現在の列記述に対して未成立なら、構造制約の解決へ進めず入力待ちとして扱う。
 	if ( interpretation.status === 'not-ready' ) {
 		return {
 			evaluation: {
@@ -254,6 +277,7 @@ const evaluateColumn = (
 	}
 
 	const resolution = columnRfResolution.resolve( tableIdentity, interpretation.specification );
+	// Apply候補は現在指定が成立した場合だけ内部境界へ渡せる。
 	const candidate = resolution.status === 'resolved' ? resolution.candidate : null;
 	return {
 		evaluation: {
@@ -274,14 +298,17 @@ const evaluateColumn = (
 const evaluateOpenSession = (
 	session: Extract< RfSessionState, { status: 'open' } >
 ): { evaluation: RfEvaluation; request: RfApplyRequest | null } => {
+	// 現在選択中の方向だけを再評価し、非表示方向の保持入力は評価結果へ混在させない。
 	if ( session.direction === 'row' ) {
 		const row = evaluateRow( session.tableIdentity, session.rowInput );
+		// Apply要求は現在Row指定が成立した場合だけ生成する。
 		const request =
 			row.candidate === null ? null : { direction: 'row' as const, candidate: row.candidate };
 		return { evaluation: row.evaluation, request };
 	}
 
 	const column = evaluateColumn( session.tableIdentity, session.columnInput );
+	// Apply要求は現在Column指定が成立した場合だけ生成する。
 	const request =
 		column.candidate === null
 			? null
@@ -300,9 +327,11 @@ export const rfInteractionStore = createStore< RfInteractionStore >()(
 			session: { status: 'closed' },
 			open: ( tableIdentity ) => {
 				const session = get().session;
+				// Apply結果待機中は現在Sessionを固定し、別Session開始や再初期化を受け付けない。
 				if ( session.status === 'applying' ) {
 					return;
 				}
+				// 同じTableの再openはReact remount等で既存入力や方向を失わないため無視する。
 				if ( session.status === 'open' && session.tableIdentity === tableIdentity ) {
 					return;
 				}
@@ -327,6 +356,7 @@ export const rfInteractionStore = createStore< RfInteractionStore >()(
 			},
 			close: ( tableIdentity ) => {
 				const session = get().session;
+				// Cancel / closeは現在open中の対象Tableからの要求だけを受理し、古い要求で別Sessionを閉じない。
 				if ( session.status !== 'open' || session.tableIdentity !== tableIdentity ) {
 					return;
 				}
@@ -334,9 +364,11 @@ export const rfInteractionStore = createStore< RfInteractionStore >()(
 			},
 			selectDirection: ( tableIdentity, direction ) => {
 				const session = get().session;
+				// 方向変更は現在open中の対象Tableからの要求だけを受理する。
 				if ( session.status !== 'open' || session.tableIdentity !== tableIdentity ) {
 					return;
 				}
+				// 同じ方向の再選択では保持入力や現在評価を不要に更新しない。
 				if ( session.direction === direction ) {
 					return;
 				}
@@ -351,6 +383,7 @@ export const rfInteractionStore = createStore< RfInteractionStore >()(
 			},
 			updateRowInput: ( tableIdentity, input ) => {
 				const session = get().session;
+				// Row入力は現在open中の同じTableでRow方向が選択されている場合だけ更新する。
 				if (
 					session.status !== 'open' ||
 					session.tableIdentity !== tableIdentity ||
@@ -374,6 +407,7 @@ export const rfInteractionStore = createStore< RfInteractionStore >()(
 			},
 			updateColumnInput: ( tableIdentity, input ) => {
 				const session = get().session;
+				// Column入力は現在open中の同じTableでColumn方向が選択されている場合だけ更新する。
 				if (
 					session.status !== 'open' ||
 					session.tableIdentity !== tableIdentity ||
@@ -397,6 +431,7 @@ export const rfInteractionStore = createStore< RfInteractionStore >()(
 			},
 			notifyTableChanged: ( tableIdentity ) => {
 				const session = get().session;
+				// Table変更通知は現在open中の対象Tableに対してだけ再評価を発生させる。
 				if ( session.status !== 'open' || session.tableIdentity !== tableIdentity ) {
 					return;
 				}
@@ -410,11 +445,13 @@ export const rfInteractionStore = createStore< RfInteractionStore >()(
 			},
 			requestApply: ( tableIdentity ) => {
 				const session = get().session;
+				// Apply要求は現在open中の対象Tableからの要求だけを受理する。
 				if ( session.status !== 'open' || session.tableIdentity !== tableIdentity ) {
 					return;
 				}
 
 				const evaluated = evaluateOpenSession( session );
+				// freshな指定が未成立、またはApply Coordination未接続ならLifecycleを開始せず最新表示結果だけを反映する。
 				if ( evaluated.request === null || applyRequestReceiver === null ) {
 					set(
 						{ session: { ...session, evaluation: evaluated.evaluation } },
@@ -438,25 +475,29 @@ export const rfInteractionStore = createStore< RfInteractionStore >()(
 			},
 			resolveApply: ( tableIdentity, result ) => {
 				const session = get().session;
+				// Apply結果は現在結果待ち中の同じTableに対する通知だけを受理し、古い完了通知を無視する。
 				if ( session.status !== 'applying' || session.tableIdentity !== tableIdentity ) {
 					return;
 				}
 
+				// 正常反映が完了したSessionは入力を残さず終了する。
 				if ( result === 'success' ) {
 					set( { session: { status: 'closed' } }, undefined, 'rf-interaction/apply-success' );
 					return;
 				}
 
+				// failure / cancelledでは入力を保持して再開し、現在方向だけを最新Table基準で再評価する。
+				const evaluation =
+					session.direction === 'row'
+						? evaluateRow( session.tableIdentity, session.rowInput ).evaluation
+						: evaluateColumn( session.tableIdentity, session.columnInput ).evaluation;
 				const openSession: Extract< RfSessionState, { status: 'open' } > = {
 					status: 'open',
 					tableIdentity: session.tableIdentity,
 					direction: session.direction,
 					rowInput: session.rowInput,
 					columnInput: session.columnInput,
-					evaluation:
-						session.direction === 'row'
-							? evaluateRow( session.tableIdentity, session.rowInput ).evaluation
-							: evaluateColumn( session.tableIdentity, session.columnInput ).evaluation,
+					evaluation,
 				};
 				set( { session: openSession }, undefined, `rf-interaction/apply-${ result }` );
 			},
@@ -509,6 +550,7 @@ export const connectRfApplyCoordination = ( receiver: RfApplyRequestReceiver ): 
 	applyRequestReceiver = receiver;
 
 	return () => {
+		// 古いcleanupが後から呼ばれても、新しく接続されたReceiverを誤って解除しない。
 		if ( applyRequestReceiver === receiver ) {
 			applyRequestReceiver = null;
 		}
