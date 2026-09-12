@@ -1,7 +1,7 @@
 /**
  * RF InteractionのReact接続境界が、対象Tableに必要な表示状態だけを継続購読することを確認する。
  *
- * RF Sessionの状態変更をReact外から行い、対象Table / 別Tableの見え方、方向固有公開状態、
+ * RF Sessionの状態変更をReact外から行い、対象Table / 別Tableの見え方、Reorder Kind固有公開状態、
  * notifyTableChangedによる再評価結果への追従をHook境界から検証する。
  */
 
@@ -104,7 +104,7 @@ describe( 'RF Interaction React connection', () => {
 
 		expect( tableA.result.current ).toEqual( {
 			status: 'open',
-			direction: 'row',
+			kind: 'row',
 			input: ROW_INPUT,
 			rowCount: 3,
 			result: { status: 'resolved' },
@@ -143,7 +143,7 @@ describe( 'RF Interaction React connection', () => {
 
 		expect( tableA.result.current ).toEqual( {
 			status: 'open',
-			direction: 'row',
+			kind: 'row',
 			input: ROW_INPUT,
 			rowCount: 1,
 			result: { status: 'not-ready' },
@@ -162,7 +162,7 @@ describe( 'RF Interaction React connection', () => {
 	 * - Row Resolutionがno-opまたはrejectedを返す状態で入力を更新する。
 	 *
 	 * 期待結果:
-	 * - 方向固有結果がそのまま公開され、canApplyはfalseになる。
+	 * - Reorder Kind固有結果がそのまま公開され、canApplyはfalseになる。
 	 */
 	it.each( [
 		[ 'no-op', { status: 'no-op' } as const, { status: 'no-op' } as const ],
@@ -184,7 +184,7 @@ describe( 'RF Interaction React connection', () => {
 
 			expect( tableA.result.current ).toMatchObject( {
 				status: 'open',
-				direction: 'row',
+				kind: 'row',
 				result: expectedResult,
 				canApply: false,
 			} );
@@ -211,7 +211,7 @@ describe( 'RF Interaction React connection', () => {
 
 		expect( tableA.result.current ).toMatchObject( {
 			status: 'open',
-			direction: 'row',
+			kind: 'row',
 			rowCount: null,
 			result: { status: 'unavailable' },
 			canApply: false,
@@ -220,26 +220,26 @@ describe( 'RF Interaction React connection', () => {
 
 	/**
 	 * 概要:
-	 * - Column方向ではColumn入力・現在列記述・Column結果だけを公開することを確認する。
+	 * - Column ReorderではColumn入力・現在列記述・Column結果だけを公開することを確認する。
 	 *
 	 * 操作:
-	 * - Table AをColumn方向へ切り替え、Column入力を更新する。
+	 * - Table AをColumn Reorderへ切り替え、Column入力を更新する。
 	 *
 	 * 期待結果:
-	 * - Column方向のdiscriminated stateとして現在入力・列記述・resolved結果が公開される。
+	 * - Column Reorderのdiscriminated stateとして現在入力・列記述・resolved結果が公開される。
 	 */
-	it( 'when column direction is active, should publish only the current column state', () => {
+	it( 'when column kind is active, should publish only the current column state', () => {
 		const tableA = renderHook( () => useRfInteraction( 'table-a' ) );
 
 		act( () => {
 			rfInteraction.open( 'table-a' );
-			rfInteraction.selectDirection( 'table-a', 'column' );
+			rfInteraction.selectKind( 'table-a', 'column' );
 			rfInteraction.updateColumnInput( 'table-a', COLUMN_INPUT );
 		} );
 
 		expect( tableA.result.current ).toEqual( {
 			status: 'open',
-			direction: 'column',
+			kind: 'column',
 			input: COLUMN_INPUT,
 			columns: COLUMNS,
 			result: { status: 'resolved' },
@@ -272,7 +272,7 @@ describe( 'RF Interaction React connection', () => {
 
 		expect( remounted.result.current ).toEqual( {
 			status: 'open',
-			direction: 'row',
+			kind: 'row',
 			input: ROW_INPUT,
 			rowCount: 3,
 			result: { status: 'resolved' },
