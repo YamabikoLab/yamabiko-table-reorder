@@ -42,40 +42,44 @@ msgid "Reorder rows and columns."
 msgstr ""
 
 #: src/messages.ts:64
+msgid "Long press a cell, then drag to reorder rows and columns."
+msgstr ""
+
+#: src/messages.ts:72
 msgid "Close reorder guidance"
 msgstr ""
 
-#: src/messages.ts:68
+#: src/messages.ts:76
 msgid "Apply the new order?"
 msgstr ""
 
 #. translators: 1: 移動元の行番号, 2: 移動先の行番号
-#: src/messages.ts:82
+#: src/messages.ts:90
 msgid "Row %1$d → %2$d"
 msgstr ""
 
 #. translators: 1: 移動元の列番号, 2: 移動先の列番号
-#: src/messages.ts:98
+#: src/messages.ts:106
 msgid "Column %1$d → %2$d"
 msgstr ""
 
-#: src/messages.ts:104
+#: src/messages.ts:112
 msgid "Applying this reorder may take some time."
 msgstr ""
 
-#: src/messages.ts:107
+#: src/messages.ts:115
 msgid "Continue"
 msgstr ""
 
-#: src/messages.ts:110
+#: src/messages.ts:118
 msgid "Cancel"
 msgstr ""
 
-#: src/messages.ts:114
+#: src/messages.ts:122
 msgid "Applying the new order…"
 msgstr ""
 
-#: src/messages.ts:118
+#: src/messages.ts:126
 msgid "Please wait until the update is complete."
 msgstr ""
 

@@ -48,12 +48,20 @@ export const getRowDndTerminationMessage = () =>
 	__( 'Reordering could not continue, so the operation was ended.', 'yamabiko-table-reorder' );
 
 /**
- * 初回案内に表示する行・列共通の説明文を取得する。
+ * PC環境の初回案内に表示する行・列共通の説明文を取得する。
  *
- * @return 現在の言語に対応した初回案内文。
+ * @return 現在の言語に対応したPC向け初回案内文。
  */
-export const getReorderGuidanceMessage = () =>
+export const getPcReorderGuidanceMessage = () =>
 	__( 'Reorder rows and columns.', 'yamabiko-table-reorder' );
+
+/**
+ * タッチ環境の初回案内に表示する長押し操作を含む説明文を取得する。
+ *
+ * @return 現在の言語に対応したタッチ向け初回案内文。
+ */
+export const getTouchReorderGuidanceMessage = () =>
+	__( 'Long press a cell, then drag to reorder rows and columns.', 'yamabiko-table-reorder' );
 
 /**
  * 初回案内を閉じる入口の支援技術向け表示名を取得する。
