@@ -204,4 +204,53 @@ describe( 'WordPress Reorder Apply Integration adapter', () => {
 
 		expect( result.current ).toEqual( { phase: 'idle' } );
 	} );
+
+	/**
+	 * 複数Apply Lifecycleの同時成立を表示側の選択順で吸収しないことを確認する。
+	 *
+	 * 事前条件:
+	 * - Row ApplyとRF Applyが同時に非idleである。
+	 *
+	 * 操作:
+	 * - 対象TableのPresentation状態を取得する。
+	 *
+	 * 期待結果:
+	 * - 優先順位による表示選択を行わず、内部Invariant違反としてErrorになる。
+	 */
+	it( 'when multiple apply lifecycles are active, should throw instead of choosing one presentation', () => {
+		mockRowState = {
+			phase: 'applying',
+			move: { tableIdentity: 'table-a', sourceRowIndex: 1, destinationBoundaryIndex: 2 },
+			applied: false,
+		};
+		mockRfSnapshot = { phase: 'applying', tableIdentity: 'table-a', kind: 'row' };
+
+		expect( () => renderHook( () => useReorderApplyPresentationState( 'table-a' ) ) ).toThrow(
+			'Multiple reorder apply lifecycles cannot be active at the same time.'
+		);
+		expect( console ).toHaveErrored();
+	} );
+
+	/**
+	 * RF大規模反映中にsummaryが失われた場合を通常状態へ隠さないことを確認する。
+	 *
+	 * 事前条件:
+	 * - 対象TableのRF行移動が確認待ちである。
+	 * - RF Apply Coordinationがsummaryを提供していない。
+	 *
+	 * 操作:
+	 * - 対象TableのPresentation状態を取得する。
+	 *
+	 * 期待結果:
+	 * - idleへ変換せず、RF内部Contract違反としてErrorになる。
+	 */
+	it( 'when an active RF apply lifecycle has no summary, should throw instead of hiding it as idle', () => {
+		mockRfSnapshot = { phase: 'confirming', tableIdentity: 'table-a', kind: 'row' };
+		mockRfSummary = null;
+
+		expect( () => renderHook( () => useReorderApplyPresentationState( 'table-a' ) ) ).toThrow(
+			'RF apply summary is required while the RF apply lifecycle is active.'
+		);
+		expect( console ).toHaveErrored();
+	} );
 } );
