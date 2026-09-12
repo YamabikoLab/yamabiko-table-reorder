@@ -4,10 +4,12 @@
 
 import { restoreMovedColumn, restoreMovedRow } from './restoration';
 
+const RESTORED_CELL_CLASS = 'yamabiko-table-reorder-restored-cell';
+
 describe( 'WordPress Reorder Apply restoration', () => {
 	/**
 	 * 概要:
-	 * - 行反映後に最終行を表示し、編集可能な先頭位置へフォーカスを戻すことを確認する。
+	 * - 行反映後に最終行を表示し、編集可能な先頭位置へフォーカスを戻して復帰先セルを強調することを確認する。
 	 *
 	 * 事前条件:
 	 * - 再mount後のTableに反映後最終行が存在する。
@@ -15,12 +17,14 @@ describe( 'WordPress Reorder Apply restoration', () => {
 	 *
 	 * 操作:
 	 * - 反映後最終行への表示復帰を要求する。
+	 * - その後、フォーカスを復帰先セルの外へ移す。
 	 *
 	 * 期待結果:
 	 * - 最終行の編集位置が利用者から確認できる位置へ表示される。
 	 * - 同じ編集位置へスクロールを発生させずにフォーカスが戻る。
+	 * - フォーカス中は復帰先セルが強調され、セル外へ移ると強調が終了する。
 	 */
-	it( 'when the moved row exists after remounting, should reveal and focus its first editable position', () => {
+	it( 'when the moved row exists after remounting, should reveal, focus, and highlight its first editable cell until focus leaves', () => {
 		const editorDocument = document.implementation.createHTMLDocument( 'editor' );
 		editorDocument.body.innerHTML = `
 			<div data-block="table-a">
@@ -29,12 +33,15 @@ describe( 'WordPress Reorder Apply restoration', () => {
 					<tr><td><span contenteditable="true">B</span></td></tr>
 				</tbody></table>
 			</div>
+			<button type="button">Outside</button>
 		`;
 		const editable = editorDocument.querySelector< HTMLElement >(
 			'tbody tr:nth-child(2) [contenteditable="true"]'
 		);
-		if ( editable === null ) {
-			throw new Error( 'Expected editable row position.' );
+		const cell = editable?.closest< HTMLElement >( 'td' ) ?? null;
+		const outside = editorDocument.querySelector< HTMLButtonElement >( 'button' );
+		if ( editable === null || cell === null || outside === null ) {
+			throw new Error( 'Expected editable row cell and outside focus target.' );
 		}
 		const scrollIntoView = jest.fn();
 		Object.defineProperty( editable, 'scrollIntoView', {
@@ -47,11 +54,59 @@ describe( 'WordPress Reorder Apply restoration', () => {
 
 		expect( scrollIntoView ).toHaveBeenCalledWith( { block: 'center', inline: 'start' } );
 		expect( focus ).toHaveBeenCalledWith( { preventScroll: true } );
+		expect( cell ).toHaveClass( RESTORED_CELL_CLASS );
+
+		editable.dispatchEvent(
+			new FocusEvent( 'focusout', { bubbles: true, relatedTarget: outside } )
+		);
+		expect( cell ).not.toHaveClass( RESTORED_CELL_CLASS );
 	} );
 
 	/**
 	 * 概要:
-	 * - 列反映後の最終論理列が結合セル内にある場合、その結合セルを表示復帰先として扱うことを確認する。
+	 * - 復帰先セルの内部でフォーカス位置が変わっても、同じセルを反映結果として強調し続けることを確認する。
+	 *
+	 * 事前条件:
+	 * - 再mount後の反映後最終行に複数のフォーカス可能位置がある。
+	 *
+	 * 操作:
+	 * - 最終行へ表示復帰した後、同じセル内の別の位置へフォーカスを移す。
+	 *
+	 * 期待結果:
+	 * - 復帰先セルの強調は維持される。
+	 */
+	it( 'when focus moves within the restored cell, should keep the restored cell highlighted', () => {
+		const editorDocument = document.implementation.createHTMLDocument( 'editor' );
+		editorDocument.body.innerHTML = `
+			<div data-block="table-a">
+				<table><tbody><tr><td>
+					<span contenteditable="true">A</span>
+					<button type="button">Inside</button>
+				</td></tr></tbody></table>
+			</div>
+		`;
+		const editable = editorDocument.querySelector< HTMLElement >( '[contenteditable="true"]' );
+		const cell = editable?.closest< HTMLElement >( 'td' ) ?? null;
+		const inside = cell?.querySelector< HTMLButtonElement >( 'button' ) ?? null;
+		if ( editable === null || cell === null || inside === null ) {
+			throw new Error( 'Expected restored cell with another focus target.' );
+		}
+		Object.defineProperty( editable, 'scrollIntoView', {
+			configurable: true,
+			value: jest.fn(),
+		} );
+
+		restoreMovedRow( editorDocument, 'table-a', 0 );
+		editable.dispatchEvent(
+			new FocusEvent( 'focusout', { bubbles: true, relatedTarget: inside } )
+		);
+
+		expect( cell ).toHaveClass( RESTORED_CELL_CLASS );
+	} );
+
+	/**
+	 * 概要:
+	 * - 列反映後の最終論理列が結合セル内にある場合、その結合セルを表示復帰先として扱って強調することを確認する。
 	 *
 	 * 事前条件:
 	 * - 再mount後のTable先頭行で、1つのセルが複数の論理列を占有している。
@@ -63,8 +118,9 @@ describe( 'WordPress Reorder Apply restoration', () => {
 	 * 期待結果:
 	 * - 最終論理列を占有する結合セルの編集位置が表示される。
 	 * - 同じ編集位置へスクロールを発生させずにフォーカスが戻る。
+	 * - フォーカスを戻した結合セルが反映結果として強調される。
 	 */
-	it( 'when the moved logical column is covered by a merged cell, should restore the merged cell that owns it', () => {
+	it( 'when the moved logical column is covered by a merged cell, should restore and highlight the merged cell that owns it', () => {
 		const editorDocument = document.implementation.createHTMLDocument( 'editor' );
 		editorDocument.body.innerHTML = `
 			<div data-block="table-a">
@@ -77,7 +133,8 @@ describe( 'WordPress Reorder Apply restoration', () => {
 		const editable = editorDocument.querySelector< HTMLElement >(
 			'td[colspan="2"] [contenteditable="true"]'
 		);
-		if ( editable === null ) {
+		const cell = editable?.closest< HTMLElement >( 'td' ) ?? null;
+		if ( editable === null || cell === null ) {
 			throw new Error( 'Expected editable merged-cell position.' );
 		}
 		const scrollIntoView = jest.fn();
@@ -91,5 +148,6 @@ describe( 'WordPress Reorder Apply restoration', () => {
 
 		expect( scrollIntoView ).toHaveBeenCalledWith( { block: 'center', inline: 'center' } );
 		expect( focus ).toHaveBeenCalledWith( { preventScroll: true } );
+		expect( cell ).toHaveClass( RESTORED_CELL_CLASS );
 	} );
 } );
