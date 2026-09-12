@@ -258,7 +258,7 @@ describe( 'Column Table Integration RF contract', () => {
 	} );
 
 	/**
-	 * RF Apply前評価が現在Tableへ候補を再照合し、成立時だけ同じ評価から更新対象セル数を返すことを確認する。
+	 * RF Apply前評価が現在Tableへ候補を再照合し、成立時に更新対象セル数と反映後の最終列位置を返すことを確認する。
 	 *
 	 * 事前条件:
 	 * - 4論理列の通常Tableで3列目を先頭へ移動する。
@@ -267,9 +267,10 @@ describe( 'Column Table Integration RF contract', () => {
 	 * - Apply assessmentを要求する。
 	 *
 	 * 期待結果:
-	 * - 現在候補が成立し、影響する0〜2列の物理セル数3が返る。
+	 * - 影響する0〜2列の物理セル数3が返る。
+	 * - 移動対象の反映後0-based最終列位置として0が返る。
 	 */
-	it( 'when the current column move is valid, should assess it with the affected cell count', () => {
+	it( 'when the current column move is valid, should assess affected cells and the final column position', () => {
 		selectMock.mockReturnValue( {
 			getBlock: jest.fn().mockReturnValue( {
 				name: 'core/table',
@@ -285,7 +286,38 @@ describe( 'Column Table Integration RF contract', () => {
 				sourceColumnIndex: 2,
 				destinationBoundaryIndex: 0,
 			} )
-		).toEqual( { affectedCellCount: 3 } );
+		).toEqual( { affectedCellCount: 3, destinationColumnIndex: 0 } );
+	} );
+
+	/**
+	 * 後方へ移動するRF候補でも、移動元除去後の最終列位置を返すことを確認する。
+	 *
+	 * 事前条件:
+	 * - 4論理列の通常Tableで先頭列を末尾境界へ移動する。
+	 *
+	 * 操作:
+	 * - Apply assessmentを要求する。
+	 *
+	 * 期待結果:
+	 * - 移動元除去後の0-based最終列位置として3が返る。
+	 */
+	it( 'when a column moves toward a later boundary, should assess the post-removal destination column index', () => {
+		selectMock.mockReturnValue( {
+			getBlock: jest.fn().mockReturnValue( {
+				name: 'core/table',
+				attributes: {
+					body: [ { cells: [ {}, {}, {}, {} ] } ],
+				},
+			} ),
+		} );
+
+		expect(
+			columnTableIntegration.assessColumnMoveForApply( {
+				clientId: 'table-a',
+				sourceColumnIndex: 0,
+				destinationBoundaryIndex: 4,
+			} )
+		).toEqual( { affectedCellCount: 4, destinationColumnIndex: 3 } );
 	} );
 
 	/**
@@ -359,6 +391,7 @@ describe( 'Column Table Integration RF contract', () => {
 
 		expect( columnTableIntegration.assessColumnMoveForApply( move ) ).toEqual( {
 			affectedCellCount: 3,
+			destinationColumnIndex: 0,
 		} );
 		expect( columnTableIntegration.applyColumnMove( move ) ).toBe( false );
 		expect( updateBlockAttributes ).not.toHaveBeenCalled();
