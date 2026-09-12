@@ -8,6 +8,7 @@ import {
 	completeLargeColumnReorderApply,
 	confirmLargeColumnReorderApply,
 	getLargeColumnReorderApplyState,
+	getLargeColumnReorderDestinationColumnIndex,
 	requestLargeColumnReorderApply,
 } from './reorder-apply';
 import { columnTableIntegration } from './table-integration';
@@ -15,11 +16,14 @@ import { columnTableIntegration } from './table-integration';
 jest.mock( './table-integration', () => ( {
 	columnTableIntegration: {
 		getConstraints: jest.fn(),
+		resolveDestinationColumnIndex: jest.fn(),
 		applyColumnMove: jest.fn(),
 	},
 } ) );
 
 const getConstraintsMock = columnTableIntegration.getConstraints as jest.Mock;
+const resolveDestinationColumnIndexMock =
+	columnTableIntegration.resolveDestinationColumnIndex as jest.Mock;
 const applyColumnMoveMock = columnTableIntegration.applyColumnMove as jest.Mock;
 
 const move = {
@@ -51,6 +55,7 @@ describe( 'Large Column Reorder apply lifecycle', () => {
 		restoreIdleState();
 		jest.clearAllMocks();
 		getConstraintsMock.mockReturnValue( { columnCount: 5, blockedBoundaries: [] } );
+		resolveDestinationColumnIndexMock.mockReturnValue( 1 );
 		applyColumnMoveMock.mockReturnValue( true );
 	} );
 
@@ -94,6 +99,27 @@ describe( 'Large Column Reorder apply lifecycle', () => {
 			move: null,
 			applied: false,
 		} );
+	} );
+
+	/**
+	 * 列Apply LifecycleがPresentationへ反映後最終位置を提供するとき、Table Integrationの方向固有解釈を正本として利用することを確認する。
+	 *
+	 * 事前条件:
+	 * - 大規模列反映が確認待ちである。
+	 * - Table Integrationは保持中Moveの反映後最終位置として1を返す。
+	 *
+	 * 操作:
+	 * - 反映後最終論理列位置を取得する。
+	 *
+	 * 期待結果:
+	 * - Table Integrationへ保持中Moveのsourceとdestinationが渡される。
+	 * - Table Integrationが返した0-based最終論理列位置1がそのまま返る。
+	 */
+	it( 'when a column apply holds a move, should provide its final column position from Table Integration', () => {
+		requestLargeColumnReorderApply( move );
+
+		expect( getLargeColumnReorderDestinationColumnIndex() ).toBe( 1 );
+		expect( resolveDestinationColumnIndexMock ).toHaveBeenCalledWith( 3, 1 );
 	} );
 
 	/**

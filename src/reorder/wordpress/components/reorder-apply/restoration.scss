@@ -1,0 +1,10 @@
+/**
+ * 大規模反映後にフォーカスを戻したセルの一時的な強調表示を定義する。
+ *
+ * フォーカスを含む復帰先セルだけをWordPressの管理画面テーマ色で示し、通常編集のセル表示は変更しない。
+ */
+
+.yamabiko-table-reorder-restored-cell:focus-within {
+	outline: 2px solid var(--wp-admin-theme-color, #3858e9);
+	outline-offset: -2px;
+}

@@ -39,6 +39,9 @@
 			],
 			"Please wait until the update is complete.": [
 				"\u5b8c\u4e86\u3059\u308b\u307e\u3067\u3057\u3070\u3089\u304f\u304a\u5f85\u3061\u304f\u3060\u3055\u3044\u3002"
+			],
+			"Reordering complete.": [
+				"\u4e26\u3073\u66ff\u3048\u304c\u5b8c\u4e86\u3057\u307e\u3057\u305f\u3002"
 			]
 		}
 	}

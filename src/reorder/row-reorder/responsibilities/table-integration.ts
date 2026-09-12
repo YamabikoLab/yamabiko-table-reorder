@@ -392,6 +392,7 @@ export const rowTableIntegration = {
 	getConstraints,
 	getBlockingMergedRange,
 	getAffectedCellCount,
+	resolveDestinationRowIndex,
 	assessRowMoveForApply,
 	applyRowMove,
 };

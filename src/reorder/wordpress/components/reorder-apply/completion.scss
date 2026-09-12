@@ -1,0 +1,39 @@
+/**
+ * 大規模反映の完了通知をTable配置へ影響させず、editor表示領域の中央付近へ一時表示する。
+ *
+ * 白い編集画面でも見落としにくい濃色背景と十分な表示面積を持たせ、動きに頼らず完了を認識できる表示とする。
+ */
+
+.yamabiko-table-reorder-completion-notice {
+	position: fixed;
+	top: 42%;
+	left: 50%;
+	z-index: 100000;
+	width: min(420px, calc(100vw - 48px));
+	pointer-events: none;
+	transform: translate(-50%, -50%);
+
+	.components-snackbar {
+		width: 100%;
+		min-width: 0;
+		min-height: 84px;
+		padding: 20px 24px;
+		border: 1px solid #3c434a;
+		border-left: 5px solid #008a20;
+		border-radius: 4px;
+		color: #fff;
+		background: #1e1e1e;
+		box-shadow: 0 12px 36px rgb(0 0 0 / 28%);
+	}
+}
+
+.yamabiko-table-reorder-completion-notice__content {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	gap: 10px;
+	width: 100%;
+	font-size: 16px;
+	font-weight: 600;
+	line-height: 1.5;
+}

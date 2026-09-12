@@ -1,22 +1,37 @@
 /**
- * 確認付き大規模反映UIが、確認対象と反映中の処理状況をWordPressのModalで適切に伝えることを確認する。
+ * WordPress Reorder Apply IntegrationのBoundaryが、対象Tableへ確認・反映中・復帰の表示構造を適切に接続することを確認する。
  */
 
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import type { ReactNode } from 'react';
 
-import { ReorderApplyTableBoundary } from './reorder-apply';
+import { ReorderApplyTableBoundary } from './boundary';
 
 let mockRowState: any = { phase: 'idle', move: null, applied: false };
 let mockColumnState: any = { phase: 'idle', move: null, applied: false };
+let mockRowDestinationIndex: number | null = null;
+let mockColumnDestinationIndex: number | null = null;
+const mockCancelLargeRowReorderApply = jest.fn();
+const mockCancelLargeColumnReorderApply = jest.fn();
+const mockConfirmLargeRowReorderApply = jest.fn();
+const mockConfirmLargeColumnReorderApply = jest.fn();
 
 jest.mock( '@wordpress/components', () => ( {
-	Button: ( props: { children: ReactNode } ) => <button type="button">{ props.children }</button>,
+	Button: ( props: { children: ReactNode; onClick?: () => void } ) => (
+		<button type="button" onClick={ props.onClick }>
+			{ props.children }
+		</button>
+	),
 	Dashicon: ( props: { icon: string } ) => <span aria-hidden="true">{ props.icon }</span>,
-	Modal: ( props: { children: ReactNode; title: string; isDismissible?: boolean } ) => (
+	Modal: ( props: {
+		children: ReactNode;
+		title: string;
+		isDismissible?: boolean;
+		onRequestClose?: () => void;
+	} ) => (
 		<div role="dialog" aria-label={ props.title }>
 			{ props.isDismissible !== false && (
-				<button type="button" aria-label="Close">
+				<button type="button" aria-label="Close" onClick={ props.onRequestClose }>
 					Close
 				</button>
 			) }
@@ -40,26 +55,38 @@ jest.mock( '@/messages', () => ( {
 
 jest.mock( '@/reorder/row-reorder/responsibilities/reorder-apply', () => ( {
 	applyLargeRowReorder: jest.fn(),
-	cancelLargeRowReorderApply: jest.fn(),
+	cancelLargeRowReorderApply: () => mockCancelLargeRowReorderApply(),
 	completeLargeRowReorderApply: jest.fn(),
-	confirmLargeRowReorderApply: jest.fn(),
+	confirmLargeRowReorderApply: () => mockConfirmLargeRowReorderApply(),
 	getLargeRowReorderApplyState: () => mockRowState,
+	getLargeRowReorderDestinationRowIndex: () => mockRowDestinationIndex,
 	subscribeLargeRowReorderApply: () => () => undefined,
 } ) );
 
 jest.mock( '@/reorder/column-reorder/responsibilities/reorder-apply', () => ( {
 	applyLargeColumnReorder: jest.fn(),
-	cancelLargeColumnReorderApply: jest.fn(),
+	cancelLargeColumnReorderApply: () => mockCancelLargeColumnReorderApply(),
 	completeLargeColumnReorderApply: jest.fn(),
-	confirmLargeColumnReorderApply: jest.fn(),
+	confirmLargeColumnReorderApply: () => mockConfirmLargeColumnReorderApply(),
 	getLargeColumnReorderApplyState: () => mockColumnState,
+	getLargeColumnReorderDestinationColumnIndex: () => mockColumnDestinationIndex,
 	subscribeLargeColumnReorderApply: () => () => undefined,
 } ) );
 
-describe( 'Large reorder apply UI', () => {
+jest.mock( './lifecycle', () => ( {
+	useReorderApplyLifecycle: () => ( {
+		applyingReferenceElementRef: { current: null },
+		restorationReferenceElementRef: { current: null },
+	} ),
+} ) );
+
+describe( 'WordPress Reorder Apply Integration boundary', () => {
 	beforeEach( () => {
 		mockRowState = { phase: 'idle', move: null, applied: false };
 		mockColumnState = { phase: 'idle', move: null, applied: false };
+		mockRowDestinationIndex = null;
+		mockColumnDestinationIndex = null;
+		jest.clearAllMocks();
 	} );
 
 	/**
@@ -67,6 +94,7 @@ describe( 'Large reorder apply UI', () => {
 	 *
 	 * 事前条件:
 	 * - 1000行目を2行目へ移動する確認待ち状態である。
+	 * - Row Apply Lifecycleが反映後最終位置として0-based位置1を提供する。
 	 *
 	 * 操作:
 	 * - 対象Tableの確認UIを表示する。
@@ -85,6 +113,7 @@ describe( 'Large reorder apply UI', () => {
 			},
 			applied: false,
 		};
+		mockRowDestinationIndex = 1;
 
 		render(
 			<ReorderApplyTableBoundary clientId="table-a">
@@ -98,10 +127,11 @@ describe( 'Large reorder apply UI', () => {
 	} );
 
 	/**
-	 * 後方への大規模な列移動では、移動元を取り除いた後の最終列番号で確認できることを確認する。
+	 * 後方への大規模な列移動では、Column Apply Lifecycleが提供する反映後最終位置を確認表示に利用することを確認する。
 	 *
 	 * 事前条件:
-	 * - 2列目を、移動前Tableの6番目の境界へ移動する確認待ち状態である。
+	 * - 2列目を後方へ移動する確認待ち状態である。
+	 * - Column Apply Lifecycleが反映後最終位置として0-based位置4を提供する。
 	 *
 	 * 操作:
 	 * - 対象Tableの確認UIを表示する。
@@ -109,16 +139,17 @@ describe( 'Large reorder apply UI', () => {
 	 * 期待結果:
 	 * - 確認Modalに反映後の移動先である「5列目」が表示される。
 	 */
-	it( 'when a large column move goes forward, should show the final column position after source removal', () => {
+	it( 'when a large column move awaits confirmation, should show the final column position provided by its apply lifecycle', () => {
 		mockColumnState = {
 			phase: 'confirming',
 			move: {
 				tableIdentity: 'table-a',
 				sourceColumnIndex: 1,
-				destinationBoundaryIndex: 5,
+				destinationBoundaryIndex: 6,
 			},
 			applied: false,
 		};
+		mockColumnDestinationIndex = 4;
 
 		render(
 			<ReorderApplyTableBoundary clientId="table-a">
@@ -127,6 +158,75 @@ describe( 'Large reorder apply UI', () => {
 		);
 
 		expect( screen.getByText( 'Column 2 → 5' ) ).not.toBeNull();
+	} );
+
+	/**
+	 * 確認対象ではないTableには確認UIを表示しないことを確認する。
+	 *
+	 * 事前条件:
+	 * - 別Tableの行移動が確認待ちである。
+	 *
+	 * 操作:
+	 * - 対象外TableのBoundaryを表示する。
+	 *
+	 * 期待結果:
+	 * - 通常Tableだけが表示される。
+	 * - 確認Modalは表示されない。
+	 */
+	it( 'when another table owns the pending reorder, should leave the current table unchanged', () => {
+		mockRowState = {
+			phase: 'confirming',
+			move: {
+				tableIdentity: 'table-b',
+				sourceRowIndex: 2,
+				destinationBoundaryIndex: 0,
+			},
+			applied: false,
+		};
+		mockRowDestinationIndex = 0;
+
+		render(
+			<ReorderApplyTableBoundary clientId="table-a">
+				<div>Table content</div>
+			</ReorderApplyTableBoundary>
+		);
+
+		expect( screen.getByText( 'Table content' ) ).not.toBeNull();
+		expect( screen.queryByRole( 'dialog' ) ).toBeNull();
+	} );
+
+	/**
+	 * 利用者が確認を取り消した場合は、方向固有Apply Lifecycleの取消操作へ接続されることを確認する。
+	 *
+	 * 事前条件:
+	 * - 行移動が確認待ちである。
+	 *
+	 * 操作:
+	 * - 確認ModalのCancelを選択する。
+	 *
+	 * 期待結果:
+	 * - Row Apply Lifecycleの取消操作が1回呼ばれる。
+	 */
+	it( 'when the user cancels a row confirmation, should delegate cancellation to the row apply lifecycle', () => {
+		mockRowState = {
+			phase: 'confirming',
+			move: {
+				tableIdentity: 'table-a',
+				sourceRowIndex: 2,
+				destinationBoundaryIndex: 0,
+			},
+			applied: false,
+		};
+		mockRowDestinationIndex = 0;
+
+		render(
+			<ReorderApplyTableBoundary clientId="table-a">
+				<div>Table content</div>
+			</ReorderApplyTableBoundary>
+		);
+		fireEvent.click( screen.getByRole( 'button', { name: 'Cancel' } ) );
+
+		expect( mockCancelLargeRowReorderApply ).toHaveBeenCalledTimes( 1 );
 	} );
 
 	/**

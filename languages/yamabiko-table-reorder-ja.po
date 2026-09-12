@@ -92,3 +92,7 @@ msgstr "並び替えを反映しています…"
 #: src/messages.ts:126
 msgid "Please wait until the update is complete."
 msgstr "完了するまでしばらくお待ちください。"
+
+#: src/messages.ts:130
+msgid "Reordering complete."
+msgstr "並び替えが完了しました。"
