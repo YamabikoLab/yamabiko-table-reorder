@@ -64,6 +64,7 @@ export const useReorderApplyLifecycle = (
 	const apply = isApplying ? presentation.apply : null;
 
 	useEffect( () => {
+		/* 反映開始段階以外では、反映中表示の描画待ちとTable更新を開始しない。 */
 		if ( ! isApplying || apply === null ) {
 			return;
 		}
@@ -89,6 +90,7 @@ export const useReorderApplyLifecycle = (
 	const complete = isRemounting ? presentation.complete : null;
 
 	useEffect( () => {
+		/* 再mount後の表示復帰段階が成立していない間は、表示復帰とLifecycle完了を開始しない。 */
 		if (
 			! isRemounting ||
 			kind === null ||
