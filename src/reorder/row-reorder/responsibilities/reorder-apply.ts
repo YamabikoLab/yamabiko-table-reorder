@@ -166,6 +166,25 @@ export const subscribeLargeRowReorderApply = ( listener: () => void ): ( () => v
 export const getLargeRowReorderApplyState = (): LargeRowReorderApplyState =>
 	largeRowReorderApplyStore.getState();
 
+/**
+ * 現在保持している行移動の反映後最終位置をTable Integrationの方向固有解釈から取得する。
+ *
+ * 現在Tableの再解析は行わず、Storeが保持する確定済みMoveからO(1)で導出する。
+ *
+ * @return 反映後の0-based最終行位置。大規模反映がない場合はnull。
+ */
+export const getLargeRowReorderDestinationRowIndex = (): number | null => {
+	const state = largeRowReorderApplyStore.getState();
+	if ( state.phase === 'idle' ) {
+		return null;
+	}
+	return rowTableIntegration.resolveDestinationRowIndex( {
+		clientId: state.move.tableIdentity,
+		sourceRowIndex: state.move.sourceRowIndex,
+		destinationBoundaryIndex: state.move.destinationBoundaryIndex,
+	} );
+};
+
 /** 確認待ちの行移動について、利用者の続行選択を受けて反映開始状態へ進める。 */
 export const confirmLargeRowReorderApply = (): void =>
 	largeRowReorderApplyStore.getState().confirm();
