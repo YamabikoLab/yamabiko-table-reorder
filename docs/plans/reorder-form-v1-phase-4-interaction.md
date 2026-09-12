@@ -11,266 +11,110 @@
 - Phase 1: #932
 - Phase 2: #933
 - Phase 3: #937
+- Phase 5: #963
 
 ## Goal
 
-RF Interactionを、React component lifecycleから独立した一つのRF Session状態責務として実装できるよう、Phase 4で採用する状態管理方式、公開操作境界、状態表現、Apply Coordinationとの接続境界を確定する。
+`RESP_RF_INTERACTION`の受理済みArchitectureを、React component lifecycleから独立したRF Session状態管理とReact購読境界へ実装する。
 
-本Planは`RESP_RF_INTERACTION`のArchitecture Contractを変更しない。Architectureで定義済みのopen / close、対象Table Identity、方向、入力保持、現在結果、Apply要求、成功 / 失敗復帰を、現在のsource規約へ具体的に写像する。
+Phase 1〜3で実装済みのTable Integration、Input Interpretation、Row / Column Resolutionを接続し、Phase 5のRF Apply Coordinationへfresh candidateを渡せる状態までをPhase 4の成果とする。
 
-## Scope
+## Implementation direction
 
-### Included
+### Session state
 
-- `zustand/vanilla`を利用したRF Session状態管理
-- RF Interactionの公開操作境界
-- 対象Table Identityを伴う状態遷移
-- Row / Column方向別入力保持
-- Input Interpretation / Resolution接続
-- 現在表示SnapshotとApply可否の派生
-- Apply要求時の方向固有candidateの内部引き渡し
-- Apply成功 / 失敗 / 大規模反映Cancel後のRF Interaction側Lifecycle境界
-- React mount / unmount / remountから独立したSession維持
+`src/reorder/reorder-form/responsibilities/interaction.ts`に`zustand/vanilla` Storeを置き、一つのRF Sessionを状態正本として所有する。
 
-### Not included
+StoreにはSession継続に必要な対象Table Identity、現在方向、Row / Column入力、粗い`open | applying` Lifecycleを保持する。現在Tableに依存する行数、列記述、Resolution結果は要求時点で再評価した表示用cacheとして扱い、Table構造snapshotやcandidateの成立保証には使わない。
 
-- RF Apply Coordinationが所有する通常反映 / 確認付き大規模反映Lifecycle
-- `confirming | applying | restoring`の詳細状態管理
-- WordPress Toolbar / Popover / Reorder Mode排他接続
-- React componentやHookの具体的なUI実装
-- Table構造解析や方向固有Resolutionの再実装
-- Row / Column candidateを一つの共通Move Typeへ統合する変更
+状態変更はStore actionからだけ行い、外部統合には`rfInteraction` facadeを公開する。
 
-## Approach
+### Current-table evaluation
 
-### Zustand vanilla Storeを状態正本にする
+入力更新、方向切替、`notifyTableChanged()`、`requestApply()`は同じ現在Table基準の評価経路を利用する。
 
-RF SessionはReact componentのmount / unmount / remountを越えて維持される共有observable stateであるため、`zustand/vanilla`を利用したStoreを状態正本とする。
+- Row: Row Table Integration → RF Input Interpretation → Row RF Resolution
+- Column: Column Table Integration → RF Input Interpretation → Column RF Resolution
 
-これは`src/AGENTS.md`のZustand state management方針に従う。component-local React stateをRF Sessionの正本にせず、状態遷移はStore所有actionだけから行う。
+Input Interpretationが`not-ready`の場合はResolutionへ進めない。Table情報を取得できない場合は`unavailable`とする。
 
-Zustandは実装手段であり、Storeそのものや`getState()` / `setState()`をRF Interactionの公開Contractにはしない。公開境界はArchitecture上のRF Interaction責務と実際の製品利用から決める。
+Presentation向け結果からcandidateを除外し、`canApply`はReact境界で`result.status === 'resolved'`から導出する。
 
-### 公開操作境界
+### React subscription
 
-概念上のRF Interaction公開IFは次とする。実装時の識別子はsource規約に合わせて調整してよいが、意味境界は広げない。
+`src/reorder/reorder-form/responsibilities/interaction-react.ts`に`useRfInteraction(tableIdentity)`を置く。
 
-```ts
-export type RfDirection = 'row' | 'column';
+HookはZustand Storeを継続購読し、現在Session対象と一致するTableだけへ方向固有の表示状態を返す。別Tableには`closed`を返す。
 
-export type RfInteraction = {
-	open: ( tableIdentity: string ) => void;
-	close: ( tableIdentity: string ) => void;
-	selectDirection: (
-		tableIdentity: string,
-		direction: RfDirection
-	) => void;
-	updateRowInput: (
-		tableIdentity: string,
-		input: RowRfFormInput
-	) => void;
-	updateColumnInput: (
-		tableIdentity: string,
-		input: ColumnRfFormInput
-	) => void;
-	getSnapshot: ( tableIdentity: string ) => RfInteractionSnapshot;
-	requestApply: ( tableIdentity: string ) => void;
-};
-```
+Hookは状態観測だけを担当し、WordPress側のTable変更検知や`notifyTableChanged()`発火を行わない。
 
-すべての状態変更要求に対象Table Identityを伴わせる。これにより、別TableやReact再生成前の古いcomponentから遅れて届いた操作要求で現在Sessionを上書きしない。
+### Apply boundary
 
-### open / close
+`requestApply()`では直前の表示結果を成立保証として使わず、保持入力を要求時点の現在Tableで再評価する。
 
-`open(tableIdentity)`はclosed状態から対象TableのSessionを初期Row方向で開始する。
+fresh resolutionが`resolved`で、Phase 5のRF Apply Coordination受信境界が接続されている場合だけ`applying`へ進み、方向固有candidateを内部Apply要求として渡す。
 
-同じTableのSessionがすでにopenの場合、再openでは方向・入力・現在Sessionを初期化しない。React remount等による同一Tableの再接続をSession終了条件にしないためである。
+Phase 5から返る結果は次へ接続する。
 
-別Tableでopenされた場合は、既存Sessionを終了し、新しいTableを初期Row方向・初期入力で開始する。同時にopenできるRF Sessionは一つだけとする。
+- success: Session終了
+- failure: 方向別入力を保持してopenへ復帰
+- cancelled: 方向別入力を保持してopenへ復帰
 
-`close(tableIdentity)`は指定Tableが現在Session対象の場合だけ終了する。別Tableまたは終了済みSessionからの古いclose要求は無視する。RF入力画面のCancelはTableを更新せず、このcloseと同じSession終了意味として扱う。
+`applying`中はRF Interaction側の新しい命令・通知を無視する。
 
-### 方向切替と方向別入力保持
+## Implementation units
 
-SessionはRow / Columnそれぞれの入力値を保持する。
+### 1. RF Interaction Store
 
-方向切替時は切替前方向の入力値自体は保持するが、Input Interpretation / Resolution結果を切替後方向の現在結果へ持ち越さない。切替先方向では保持済み入力と要求時点の現在Table情報を使い、改めてInterpretation / Resolutionする。
+- `interaction.ts`を追加する。
+- `open` / `close` / `selectDirection`を実装する。
+- Row / Column入力を方向別に保持する。
+- Table Identity guardと一Session制約を実装する。
 
-### 入力更新と現在結果
+### 2. Evaluation connection
 
-Row入力更新では要求時点の現在行数をRow Table Integrationから取得し、RF Input Interpretationへ渡す。Column入力更新では要求時点の最小列記述をColumn Table Integrationから取得する。
+- Phase 1〜3の既存IFを接続する。
+- 現在方向の共通再評価経路を実装する。
+- `notifyTableChanged()`を再評価の外部通知入口として実装する。
+- candidateを表示状態へ含めない。
 
-Input Interpretationが`not-ready`の場合は方向固有Resolutionへ進めない。`ready`の場合だけ対応するRow / Column RF Resolutionを要求する。
+### 3. Apply handoff
 
-現在表示結果は、Input InterpretationとResolutionを接続した結果として次の粒度を表現する。
+- `requestApply()`でfresh resolutionを行う。
+- Phase 5へ方向固有candidateを渡す内部接続境界を実装する。
+- `applying`中の操作拒否とsuccess / failure / cancelled復帰を実装する。
 
-- `not-ready`
-- `no-op`
-- `rejected`と方向固有`blockingMergedRange`
-- `unavailable`
-- `resolved`
+### 4. React subscription
 
-`canApply`は独立stateとして保持せず、現在結果が`resolved`の場合だけ`true`となる派生値にする。
+- `interaction-react.ts`を追加する。
+- `useRfInteraction(tableIdentity)`を実装する。
+- Row / Columnをdiscriminated unionで公開する。
+- `canApply`を現在結果から派生させる。
 
-### 表示Snapshot
+### 5. Focused tests
 
-Presentation / WordPress Integrationへは、対象Tableから見た現在表示状態だけを公開する。
+- Store / responsibility testでSession lifecycle、方向別入力保持、Table変更再評価、fresh candidate、applying guard、Apply結果復帰を確認する。
+- React Hook testで対象TableだけがStore更新を継続購読し、`notifyTableChanged()`後の表示状態へ追従することを確認する。
 
-概念上のSnapshotは次の状態を表現できるものとする。
+## Validation
 
-```ts
-type RfInteractionSnapshot =
-	| { status: 'closed' }
-	| {
-			status: 'open';
-			direction: 'row';
-			input: RowRfFormInput;
-			rowCount: number | null;
-			result: RfRowCurrentResult;
-			canApply: boolean;
-	  }
-	| {
-			status: 'open';
-			direction: 'column';
-			input: ColumnRfFormInput;
-			columns: readonly ColumnInputDescriptor[];
-			result: RfColumnCurrentResult;
-			canApply: boolean;
-	  }
-	| {
-			status: 'applying';
-			direction: 'row' | 'column';
-	  };
-```
+`docs/development/testing.md`を正本として、TypeScript変更に適用されるNode.js checks、production build、repository checkを最終確認に用いる。
 
-Row / Column Resolutionが返すcandidate自体はPresentation向けSnapshotへ公開しない。candidateはRF InteractionからRF Apply Coordinationへ渡す内部境界の値に限定する。
+Phase 4のfocused Jestでは少なくとも次を確認する。
 
-Rowの現在行数とColumnの現在列記述は、現在Tableから要求時点で取得する情報であり、永続的なSession snapshotとして保持しない。
-
-### Apply要求
-
-`requestApply(tableIdentity)`は、現在SessionのTable Identityが一致し、現在結果が`resolved`の場合だけ成立する。
-
-`not-ready` / `no-op` / `rejected` / `unavailable`ではApply Lifecycleを開始しない。
-
-Apply要求時は解決済みの方向固有candidateをUIへ経由させず、RF Apply Coordinationへ内部的に渡す。
-
-```ts
-type RfApplyRequest =
-	| {
-			direction: 'row';
-			candidate: RowRfMoveCandidate;
-	  }
-	| {
-			direction: 'column';
-			candidate: ColumnRfMoveCandidate;
-	  };
-```
-
-Row / Column candidateは方向固有Typeのまま維持する。
-
-Phase 4ではRF Interaction側のApply要求と粗い`applying`状態、成功 / 失敗 / Cancel後の復帰境界までを成立させる。通常反映 / 確認付き大規模反映の詳細LifecycleはPhase 5のRF Apply Coordinationが所有する。
-
-Apply成功ではSessionを終了する。Apply失敗または大規模反映CancelではTableを不完全に変更せず、方向別入力を保持したopen Sessionへ戻る。
-
-RF Apply Coordinationが所有する`confirming | applying | restoring`をRF Interactionへ重複保持しない。
-
-## Architecture impact
-
-新しいArchitecture責務は追加しない。
-
-`RESP_RF_INTERACTION`の既存Contractを次の実装方針へ写像する。
-
-- 一つのopen RF SessionをZustand vanilla Storeで表現する。
-- Store内部APIをArchitecture境界として公開しない。
-- Session状態の正本と現在Table情報を分離する。
-- Presentationへ方向固有candidateを公開しない。
-- Apply Coordinationの詳細LifecycleをRF Interactionへ重複所有しない。
-
-Architecture文書の責務、依存関係、Lifecycle、Invariantは変更しない。
-
-## Implementation phases
-
-### Phase 1: Session Storeと公開操作境界
-
-- Outcome: closedまたは一つのRF SessionをReact lifecycleから独立して所有できる。
-- Tasks:
-  - `zustand/vanilla` Storeを作成する。
-  - `open` / `close` / `selectDirection`とTable Identity guardを実装する。
-  - Row / Column方向別入力を保持する。
-  - Store内部APIを外部公開しないRF Interaction facadeを用意する。
-- Validation:
-  - 同一Table再open、別Table open、別Table close、一Session制約、方向切替、入力保持をfocused store testで確認する。
-
-### Phase 2: Input Interpretation / Resolution接続
-
-- Outcome: 現在入力から現在Tableを基準とするRF結果とApply可否を一意に解決できる。
-- Tasks:
-  - Row / Column入力更新を既存Input Interpretationへ接続する。
-  - `ready`の場合だけ方向固有Resolutionへ進める。
-  - 現在結果を`not-ready | no-op | rejected | unavailable | resolved`の意味へ接続する。
-  - `canApply`を`resolved`から派生させる。
-  - 方向切替後は切替先の現在Table情報で結果を再解決する。
-- Validation:
-  - 各結果状態、方向切替時の旧結果非継承、Table変化後の再解決をfocused responsibility testで確認する。
-
-### Phase 3: SnapshotとApply境界
-
-- Outcome: Presentationへ最小表示状態を公開し、Phase 5へ方向固有candidateを安全に渡せる。
-- Tasks:
-  - 対象Table視点のSnapshotを公開する。
-  - candidateをPresentation向けSnapshotから除外する。
-  - `requestApply`のTable Identity / `resolved` guardを実装する。
-  - Apply成功 / 失敗 / Cancel結果をSession終了または入力保持復帰へ接続できる内部境界を用意する。
-- Validation:
-  - candidate非公開、Apply guard、成功終了、失敗 / Cancel復帰、React remount非依存をfocused testで確認する。
-
-## Decisions and validation questions
-
-### Decide before implementation
-
-- RF Interactionの状態管理方式は`zustand/vanilla`に確定する。
-- Zustand Storeは状態正本だが、Store内部APIはRF Interaction公開Contractにしない。
-- `canApply`は独立stateにせず現在結果から派生させる。
-- Presentation向けSnapshotへ方向固有candidateを公開しない。
-- Row / Column candidateを共通Move Typeへ統合しない。
-
-### Validate during implementation
-
-- 現在Table情報をSnapshot取得時または入力更新時に解決する具体的な実装配置は、不要な再解析やReact再描画を増やさずArchitectureの「要求時点の現在Table」Contractを満たす形をfocused testと計測で確認する。
-- Zustand selectorを追加するPhaseでは、各consumerが必要な状態だけを購読し、無関係なRF状態更新で不要な再描画を起こさないことを確認する。
+- same-table reopen / another-table open / guarded close
+- Row / Column方向切替と方向別入力保持
+- `not-ready | no-op | rejected | unavailable | resolved`と`canApply`
+- stale Table / direction要求の無効化
+- `notifyTableChanged()`による現在Table基準再評価
+- Apply要求時のfresh candidate
+- `applying`中の命令 / 通知 / 二重Apply無効化
+- success / failure / cancelled後のLifecycle
+- React mount / unmountから独立したStore状態
+- `useRfInteraction(tableIdentity)`の継続購読と別Table隔離
 
 ## Issue breakdown
 
 - [ ] #962 RF Phase 4: RF Interaction and Session lifecycleを実装する
-- [ ] Phase 5でRF Apply Coordinationとの実接続を完成する
-- [ ] Phase 7でReact / WordPress Integrationから公開Snapshot / 操作境界を利用する
-
-## Validation
-
-`docs/development/testing.md`を正本としてPhase 4に必要なfocused Jest validationを行う。
-
-- Store lifecycle: open / close / same-table reopen / another-table open
-- Direction lifecycle: Row / Column切替と方向別入力保持
-- Interpretation / Resolution: 現在結果とApply可否
-- Stale request guard: 別Table / 旧方向からの操作要求
-- Apply boundary: candidate非公開、Apply guard、成功 / 失敗 / Cancel復帰
-- Mount stability: React mount / unmount / remountをSession終了条件にしない
-
-## Completion criteria
-
-- `zustand/vanilla` Storeが一つのRF Session状態正本として成立する。
-- React component lifecycleとRF Session lifecycleが分離されている。
-- Store内部APIをRF Interaction公開IFへ漏らしていない。
-- 同一Table再openで入力・方向を失わず、別Table開始では新しいSessionへ安全に切り替わる。
-- Row / Column入力を方向別に保持し、現在方向だけをInterpretation / Resolutionへ接続できる。
-- `not-ready` / `no-op` / `rejected` / `unavailable`ではApply不可、`resolved`の場合だけApply可能になる。
-- Apply可否が独立stateを持たず、現在結果から一意に導出される。
-- Presentationへ方向固有candidateを公開しない。
-- Apply成功でSessionを終了し、失敗 / 大規模反映Cancelでは入力保持したopen Sessionへ戻れる。
-- Phase 1〜3の既存責務を再実装していない。
-
-## Notes
-
-- 本PlanはPhase 4の具体的な実装方針を補足する。RF全体の実装順序とPhase境界は`docs/plans/reorder-form-v1-plan.md`を正本とする。
-- Architecture上のContract変更が必要になった場合は、このPlanや#962だけで決定せず`docs/architecture/reorder-form-v1-architecture.md`を先に更新する。
+- [ ] #963 RF Phase 5: RF Apply Coordinationを実装する
+- [ ] Phase 7でWordPress RF entry / Popoverから`rfInteraction`と`useRfInteraction()`を接続する
