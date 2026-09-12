@@ -1,0 +1,17 @@
+/**
+ * 大規模反映の完了通知をTable配置へ影響させず、editor表示領域内の一時通知として配置する。
+ */
+
+.yamabiko-table-reorder-completion-notice {
+	position: fixed;
+	left: 24px;
+	bottom: 24px;
+	z-index: 100000;
+	max-width: calc(100vw - 48px);
+}
+
+.yamabiko-table-reorder-completion-notice__content {
+	display: inline-flex;
+	align-items: center;
+	gap: 8px;
+}
