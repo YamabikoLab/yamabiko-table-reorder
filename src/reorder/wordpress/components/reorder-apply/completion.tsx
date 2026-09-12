@@ -1,5 +1,5 @@
 /**
- * 確認付き大規模反映の完了を、操作を妨げない一時通知として表示する。
+ * 確認付き大規模反映の完了を、操作を妨げず認識しやすい一時通知として表示する。
  *
  * 反映成功後の再mount完了を検知して通知表示だけを所有し、Apply Lifecycleや方向固有状態は変更しない。
  */
@@ -55,7 +55,10 @@ export const ReorderApplyCompletion = ( props: { isSuccessfulRemounting: boolean
 		<div className="yamabiko-table-reorder-completion-notice">
 			<Snackbar key={ noticeSequence } onRemove={ removeNotice }>
 				<span className="yamabiko-table-reorder-completion-notice__content">
-					<span aria-hidden="true">
+					<span
+						className="yamabiko-table-reorder-completion-notice__icon"
+						aria-hidden="true"
+					>
 						<Dashicon icon="yes-alt" />
 					</span>
 					{ getLargeReorderCompletionMessage() }
