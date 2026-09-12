@@ -82,13 +82,15 @@ export const useRfInteraction = ( tableIdentity: string ): RfInteractionReactSta
 	// Row選択中はRow方向で再評価した表示情報だけを公開する。
 	if ( session.direction === 'row' && session.evaluation.direction === 'row' ) {
 		const result = session.evaluation.result;
+		// Applyは現在Tableに対する指定が成立済みの場合だけ要求可能とする。
+		const canApply = result.status === 'resolved';
 		const rowState: RfInteractionReactState = {
 			status: 'open',
 			direction: 'row',
 			input: session.rowInput,
 			rowCount: session.evaluation.rowCount,
 			result,
-			canApply: result.status === 'resolved',
+			canApply,
 		};
 		return rowState;
 	}
@@ -96,13 +98,15 @@ export const useRfInteraction = ( tableIdentity: string ): RfInteractionReactSta
 	// Column選択中はColumn方向で再評価した表示情報だけを公開する。
 	if ( session.direction === 'column' && session.evaluation.direction === 'column' ) {
 		const result = session.evaluation.result;
+		// Applyは現在Tableに対する指定が成立済みの場合だけ要求可能とする。
+		const canApply = result.status === 'resolved';
 		const columnState: RfInteractionReactState = {
 			status: 'open',
 			direction: 'column',
 			input: session.columnInput,
 			columns: session.evaluation.columns,
 			result,
-			canApply: result.status === 'resolved',
+			canApply,
 		};
 		return columnState;
 	}
