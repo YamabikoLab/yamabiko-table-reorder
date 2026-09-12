@@ -1,5 +1,5 @@
 /**
- * RF Apply Coordinationが通常反映と確認付き大規模反映を分離し、現在Table再照合、Lifecycle、summary、結果返却を所有するContractを確認する。
+ * RF Apply Coordinationが通常反映と確認付き大規模反映を分離し、現在Table再照合、ライフサイクル、表示用概要、結果返却を所有する契約を確認する。
  */
 
 import { columnTableIntegration } from '@/reorder/column-reorder/responsibilities/table-integration';
@@ -13,6 +13,7 @@ import {
 	getRfApplyCoordinationSnapshot,
 	getRfApplySummary,
 	receiveRfApplyRequest,
+	subscribeRfApplyCoordination,
 } from './apply-coordination';
 import type { RfApplyRequest, RfApplyResult } from './interaction';
 
@@ -59,7 +60,7 @@ describe( 'RF Apply Coordination', () => {
 	} );
 
 	/**
-	 * 小規模なRF候補は長期Lifecycleを作らず同期的に反映できることを確認する。
+	 * 小規模なRF候補は長期ライフサイクルを作らず同期的に反映できることを確認する。
 	 *
 	 * 事前条件:
 	 * - Row候補は現在Tableで成立し、更新対象セル数は大規模反映閾値以下である。
@@ -71,7 +72,7 @@ describe( 'RF Apply Coordination', () => {
 	 * 期待結果:
 	 * - 一回の確定更新だけが要求される。
 	 * - callbackへsuccessが一度返る。
-	 * - 大規模反映Lifecycleとsummaryは作られない。
+	 * - 大規模反映ライフサイクルと表示用概要は作られない。
 	 */
 	it( 'when a row request uses the direct path, should apply once and resolve success without long-lived state', () => {
 		rowAssessmentMock.mockReturnValue( { affectedCellCount: 10, destinationRowIndex: 3 } );
@@ -84,6 +85,39 @@ describe( 'RF Apply Coordination', () => {
 		expect( rowApplyMock ).toHaveBeenCalledWith( rowRequest.candidate );
 		expect( resolve ).toHaveBeenCalledTimes( 1 );
 		expect( resolve ).toHaveBeenCalledWith( 'success' );
+		expect( getRfApplyCoordinationSnapshot() ).toEqual( { phase: 'idle' } );
+		expect( getRfApplySummary() ).toBeNull();
+	} );
+
+	/**
+	 * 小規模なColumn候補の確定更新が失敗した場合に、要求を失敗として完了できることを確認する。
+	 *
+	 * 事前条件:
+	 * - Column候補は現在Tableで成立し、更新対象セル数は大規模反映閾値以下である。
+	 * - Table Integrationの確定更新は失敗する。
+	 *
+	 * 操作:
+	 * - RF Apply要求を受け付ける。
+	 *
+	 * 期待結果:
+	 * - Columnの確定更新が一度だけ要求される。
+	 * - callbackへfailureが一度返る。
+	 * - 大規模反映ライフサイクルは開始されない。
+	 */
+	it( 'when a direct column apply fails, should resolve failure without starting a large lifecycle', () => {
+		columnAssessmentMock.mockReturnValue( {
+			affectedCellCount: 10,
+			destinationColumnIndex: 0,
+		} );
+		columnApplyMock.mockReturnValue( false );
+		const resolve = jest.fn();
+
+		receiveRfApplyRequest( columnRequest, resolve );
+
+		expect( columnApplyMock ).toHaveBeenCalledTimes( 1 );
+		expect( columnApplyMock ).toHaveBeenCalledWith( columnRequest.candidate );
+		expect( resolve ).toHaveBeenCalledTimes( 1 );
+		expect( resolve ).toHaveBeenCalledWith( 'failure' );
 		expect( getRfApplyCoordinationSnapshot() ).toEqual( { phase: 'idle' } );
 		expect( getRfApplySummary() ).toBeNull();
 	} );
@@ -126,7 +160,7 @@ describe( 'RF Apply Coordination', () => {
 	 * 期待結果:
 	 * - Continue時点ではTableを変更しない。
 	 * - confirmingからapplying、restoring、idleへ遷移する。
-	 * - callbackはcleanup後にsuccessで一度だけ呼ばれる。
+	 * - callbackは内部状態の破棄後にsuccessで一度だけ呼ばれる。
 	 */
 	it( 'when a large row request completes, should resolve success only after restoration and cleanup', () => {
 		rowAssessmentMock.mockReturnValue( { affectedCellCount: 501, destinationRowIndex: 3 } );
@@ -185,7 +219,7 @@ describe( 'RF Apply Coordination', () => {
 	 *
 	 * 期待結果:
 	 * - 確定更新は要求されない。
-	 * - callback時点ではLifecycleとsummaryがcleanup済みである。
+	 * - callback時点ではライフサイクルと表示用概要が破棄済みである。
 	 * - cancelledが一度だけ返る。
 	 */
 	it( 'when a confirming request is cancelled, should clean up before resolving cancelled', () => {
@@ -213,7 +247,7 @@ describe( 'RF Apply Coordination', () => {
 	} );
 
 	/**
-	 * Continue後に現在Tableが変化して候補が成立しなくなった場合、stale候補を反映しないことを確認する。
+	 * Continue後に現在Tableが変化して候補が成立しなくなった場合、古くなった候補を反映しないことを確認する。
 	 *
 	 * 事前条件:
 	 * - Apply要求時にはRow候補が大規模反映として成立する。
@@ -251,7 +285,46 @@ describe( 'RF Apply Coordination', () => {
 	} );
 
 	/**
-	 * 一つの大規模反映Lifecycle中に別要求が来ても、二つ目のInteractionを未完了にしないことを確認する。
+	 * 大規模反映の再照合成立後に確定更新が失敗した場合も、表示復帰を経てfailureを返すことを確認する。
+	 *
+	 * 事前条件:
+	 * - Apply要求時と反映開始時の現在TableでRow候補が成立する。
+	 * - Table Integrationの確定更新は失敗する。
+	 *
+	 * 操作:
+	 * - Continue後に反映開始と表示復帰完了を通知する。
+	 *
+	 * 期待結果:
+	 * - restoringではappliedがfalseになる。
+	 * - 表示復帰完了まではcallbackを呼ばない。
+	 * - 表示復帰完了後にfailureを一度返す。
+	 */
+	it( 'when a large apply is rejected during the final update, should restore and resolve failure', () => {
+		rowAssessmentMock.mockReturnValue( { affectedCellCount: 501, destinationRowIndex: 3 } );
+		rowApplyMock.mockReturnValue( false );
+		const resolve = jest.fn();
+
+		receiveRfApplyRequest( rowRequest, resolve );
+		continueRfApply();
+		applyRfReorder();
+
+		expect( rowAssessmentMock ).toHaveBeenCalledTimes( 2 );
+		expect( rowApplyMock ).toHaveBeenCalledTimes( 1 );
+		expect( getRfApplyCoordinationSnapshot() ).toEqual( {
+			phase: 'restoring',
+			tableIdentity: 'table-row',
+			direction: 'row',
+			applied: false,
+		} );
+		expect( resolve ).not.toHaveBeenCalled();
+
+		completeRfApplyRestoration();
+		expect( resolve ).toHaveBeenCalledTimes( 1 );
+		expect( resolve ).toHaveBeenCalledWith( 'failure' );
+	} );
+
+	/**
+	 * 一つの大規模反映ライフサイクル中に別要求が来ても、二つ目のInteractionを未完了にしないことを確認する。
 	 *
 	 * 事前条件:
 	 * - Row候補がconfirmingとして保持されている。
@@ -262,7 +335,7 @@ describe( 'RF Apply Coordination', () => {
 	 *
 	 * 期待結果:
 	 * - 二つ目のcallbackへfailureが一度返る。
-	 * - 最初の確認Lifecycleは維持される。
+	 * - 最初の確認ライフサイクルは維持される。
 	 */
 	it( 'when another request arrives during a large lifecycle, should fail the competing request without replacing the pending one', () => {
 		rowAssessmentMock.mockReturnValue( { affectedCellCount: 501, destinationRowIndex: 3 } );
@@ -287,6 +360,42 @@ describe( 'RF Apply Coordination', () => {
 	} );
 
 	/**
+	 * WordPress統合向け購読が公開状態の変更を通知し、解除後は通知を停止することを確認する。
+	 *
+	 * 事前条件:
+	 * - Row候補が大規模反映として成立する。
+	 * - 公開状態の購読者が登録されている。
+	 *
+	 * 操作:
+	 * - Apply要求とContinueで状態を変更した後、購読を解除して反映と表示復帰を完了する。
+	 *
+	 * 期待結果:
+	 * - 購読中の状態変更ごとに通知される。
+	 * - 購読解除後の状態変更では通知されない。
+	 */
+	it( 'when a lifecycle subscriber is removed, should stop notifying it about later state changes', () => {
+		rowAssessmentMock.mockReturnValue( { affectedCellCount: 501, destinationRowIndex: 3 } );
+		rowApplyMock.mockReturnValue( true );
+		const resolve = jest.fn();
+		const listener = jest.fn();
+		const unsubscribe = subscribeRfApplyCoordination( listener );
+
+		receiveRfApplyRequest( rowRequest, resolve );
+		expect( listener ).toHaveBeenCalledTimes( 1 );
+
+		continueRfApply();
+		expect( listener ).toHaveBeenCalledTimes( 2 );
+
+		unsubscribe();
+		applyRfReorder();
+		completeRfApplyRestoration();
+
+		expect( listener ).toHaveBeenCalledTimes( 2 );
+		expect( resolve ).toHaveBeenCalledTimes( 1 );
+		expect( resolve ).toHaveBeenCalledWith( 'success' );
+	} );
+
+	/**
 	 * useSyncExternalStore向けsnapshotが状態不変時に同一参照を返すことを確認する。
 	 *
 	 * 事前条件:
@@ -297,7 +406,7 @@ describe( 'RF Apply Coordination', () => {
 	 *
 	 * 期待結果:
 	 * - 状態不変時は同一参照が返る。
-	 * - Lifecycleが変化すると新しいsnapshot参照になる。
+	 * - ライフサイクルが変化すると新しいsnapshot参照になる。
 	 */
 	it( 'when the lifecycle state is unchanged, should return the same public snapshot reference', () => {
 		rowAssessmentMock.mockReturnValue( { affectedCellCount: 501, destinationRowIndex: 3 } );
