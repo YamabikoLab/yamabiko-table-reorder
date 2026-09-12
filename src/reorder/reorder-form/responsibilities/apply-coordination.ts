@@ -1,8 +1,9 @@
 /**
- * RF Apply Coordinationとして、RF候補の反映経路選択と確認付き大規模反映Lifecycleを所有する。
+ * RF Apply Coordinationとして、RF候補の反映経路選択と確認付き大規模反映のライフサイクルを所有する。
  *
  * 通常反映は長期状態を持たず一回の処理として完了し、確認付き大規模反映だけをZustandのvanilla storeで保持する。
- * 方向固有Move意味と現在Tableでの成立性はRow / Column Table Integrationを正本とし、WordPress表示責務や翻訳済み文言は所有しない。
+ * 方向固有の移動意味と現在Tableでの成立性はRow / Column Table Integrationを正本とし、
+ * WordPress側の表示責務や翻訳済み文言は所有しない。
  */
 
 import { devtools } from 'zustand/middleware';
@@ -14,7 +15,13 @@ import { rowTableIntegration } from '@/reorder/row-reorder/responsibilities/tabl
 
 import type { RfApplyRequest, RfApplyRequestReceiver, RfApplyResult } from './interaction';
 
-/** WordPress Reorder Apply Integrationへ公開するRF大規模反映Lifecycle。 */
+/**
+ * WordPress Reorder Apply Integrationへ公開する確認付き大規模反映のライフサイクル状態。
+ *
+ * `idle`は保持中の大規模反映がない状態、`confirming`は利用者の確認待ち、`applying`はWordPress側が
+ * 反映中表示を成立させる段階、`restoring`は確定更新判定後の表示復帰待ちを表す。
+ * 方向固有候補そのものは公開せず、WordPress側が移動意味を再解釈しなくてよい情報だけを含める。
+ */
 export type RfApplyCoordinationSnapshot =
 	| { phase: 'idle' }
 	| { phase: 'confirming'; tableIdentity: string; direction: 'row' | 'column' }
@@ -26,12 +33,21 @@ export type RfApplyCoordinationSnapshot =
 			applied: boolean;
 	  };
 
-/** 確認Modalへ渡すRF移動の利用者向け位置。 */
+/**
+ * 確認ダイアログへ渡す利用者向けのRF移動概要。
+ *
+ * `sourcePosition`と`destinationPosition`は1-basedで表し、`destinationPosition`は移動元を除去した後の
+ * 最終配置位置とする。方向固有候補や翻訳済み文言は含めない。
+ */
 export type RfApplySummary =
 	| { direction: 'row'; sourcePosition: number; destinationPosition: number }
 	| { direction: 'column'; sourcePosition: number; destinationPosition: number };
 
-/** RF Apply Coordinationが大規模反映中だけ内部保持する要求。 */
+/**
+ * RF Apply Coordinationが確認付き大規模反映の完了まで内部保持する要求。
+ *
+ * 受付済み候補、完了通知、確認表示用概要を一組として保持し、WordPress側へは公開しない。
+ */
 type PendingRfApply = {
 	request: RfApplyRequest;
 	resolve: ( result: RfApplyResult ) => void;
@@ -46,7 +62,7 @@ type RfApplyAssessment = {
 	summary: RfApplySummary;
 };
 
-/** RF大規模反映Lifecycleを進めるStore内部操作。 */
+/** RF大規模反映ライフサイクルを進めるStore内部操作。 */
 type RfApplyCoordinationActions = {
 	requestLarge: (
 		request: RfApplyRequest,
@@ -68,15 +84,17 @@ type RfApplyCoordinationStore = {
 /**
  * RF候補を現在Tableへ再照合し、経路選択と確認表示に必要な情報を取得する。
  *
- * destinationPositionの方向固有Move意味はTable IntegrationのApply Assessmentを正本とし、
+ * destinationPositionの方向固有の移動意味はTable IntegrationのApply Assessmentを正本とし、
  * この責務では0-based位置を1-based表示へ変換するだけとする。
  *
  * @param request RF InteractionがApply要求時点で解決した方向固有候補。
  * @return 現在Tableでも成立する候補の評価。成立しない場合はnull。
  */
 const assessRequest = ( request: RfApplyRequest ): RfApplyAssessment | null => {
+	/* 方向固有の移動意味は、対応するTable Integrationの評価結果だけを正本として利用する。 */
 	if ( request.direction === 'row' ) {
 		const assessment = rowTableIntegration.assessRowMoveForApply( request.candidate );
+		/* 現在TableでRow候補が成立しない場合は反映経路の選択へ進めない。 */
 		if ( assessment === null ) {
 			return null;
 		}
@@ -94,6 +112,7 @@ const assessRequest = ( request: RfApplyRequest ): RfApplyAssessment | null => {
 	}
 
 	const assessment = columnTableIntegration.assessColumnMoveForApply( request.candidate );
+	/* 現在TableでColumn候補が成立しない場合は反映経路の選択へ進めない。 */
 	if ( assessment === null ) {
 		return null;
 	}
@@ -119,6 +138,7 @@ const assessRequest = ( request: RfApplyRequest ): RfApplyAssessment | null => {
  * @return 現在Tableへ安全に反映できた場合はtrue。
  */
 const applyRequest = ( request: RfApplyRequest ): boolean => {
+	/* 確定更新は候補の方向に対応するTable Integrationだけへ委譲する。 */
 	if ( request.direction === 'row' ) {
 		return rowTableIntegration.applyRowMove( request.candidate );
 	}
@@ -126,7 +146,7 @@ const applyRequest = ( request: RfApplyRequest ): boolean => {
 	return columnTableIntegration.applyColumnMove( request.candidate );
 };
 
-/** 確認付き大規模反映Lifecycleの初期公開状態。 */
+/** 確認付き大規模反映ライフサイクルの初期公開状態。 */
 const IDLE_SNAPSHOT: RfApplyCoordinationSnapshot = { phase: 'idle' };
 
 /**
@@ -159,7 +179,7 @@ const rfApplyCoordinationStore = createStore< RfApplyCoordinationStore >()(
 			},
 			continueApply: () => {
 				const state = get();
-				/* 確認対象が存在しない状態からContinueすることは内部Lifecycle違反とする。 */
+				/* 確認対象が存在しない状態からContinueすることは内部ライフサイクル違反とする。 */
 				if ( state.snapshot.phase !== 'confirming' || state.pending === null ) {
 					throw new Error( 'RF apply continuation requires a confirming request.' );
 				}
@@ -184,13 +204,13 @@ const rfApplyCoordinationStore = createStore< RfApplyCoordinationStore >()(
 				}
 
 				const resolve = state.pending.resolve;
-				/* callbackの同期的な再入で古いLifecycleを観測させないため、外部通知より先に内部状態を破棄する。 */
+				/* callbackの同期的な再入で古いライフサイクルを観測させないため、外部通知より先に内部状態を破棄する。 */
 				set( { snapshot: IDLE_SNAPSHOT, pending: null }, undefined, 'rf-apply/cancel' );
 				resolve( 'cancelled' );
 			},
 			apply: () => {
 				const state = get();
-				/* WordPress側で反映中表示が成立する前の更新要求は内部Lifecycle違反とする。 */
+				/* WordPress側で反映中表示が成立する前の更新要求は内部ライフサイクル違反とする。 */
 				if ( state.snapshot.phase !== 'applying' || state.pending === null ) {
 					throw new Error( 'RF reorder apply requires an applying request.' );
 				}
@@ -219,6 +239,7 @@ const rfApplyCoordinationStore = createStore< RfApplyCoordinationStore >()(
 				}
 
 				const resolve = state.pending.resolve;
+				/* 表示復帰後の結果は、確定更新が実際に成功したかだけで決定する。 */
 				const result: RfApplyResult = state.snapshot.applied ? 'success' : 'failure';
 				/* callbackの同期的な再入で完了済み候補を再利用させないため、外部通知より先にcleanupする。 */
 				set( { snapshot: IDLE_SNAPSHOT, pending: null }, undefined, 'rf-apply/complete' );
@@ -236,21 +257,23 @@ const rfApplyCoordinationStore = createStore< RfApplyCoordinationStore >()(
  * 確認付き大規模反映だけをStoreへ移す。各要求のcallbackは成功・失敗・取消のいずれかで一度だけ完了させる。
  *
  * @param request RF InteractionがApply要求時点で解決した候補。
- * @param resolve RF InteractionへLifecycle結果を返すcallback。
+ * @param resolve RF Interactionへライフサイクル結果を返すcallback。
  */
 export const receiveRfApplyRequest: RfApplyRequestReceiver = ( request, resolve ) => {
-	/* 進行中Lifecycleと競合する要求は黙って破棄せず、呼び出し元Interactionをfailureで解放する。 */
+	/* 進行中ライフサイクルと競合する要求は黙って破棄せず、呼び出し元Interactionをfailureで解放する。 */
 	if ( rfApplyCoordinationStore.getState().snapshot.phase !== 'idle' ) {
 		resolve( 'failure' );
 		return;
 	}
 
 	const assessment = assessRequest( request );
+	/* 受付時点の現在Tableで候補が成立しない場合は、Tableを変更せず要求を失敗として完了する。 */
 	if ( assessment === null ) {
 		resolve( 'failure' );
 		return;
 	}
 
+	/* 大規模反映閾値以下では確認状態を保持せず、その場で一回の確定更新まで完了する。 */
 	if ( ! requiresLargeReorderApply( assessment.affectedCellCount ) ) {
 		const applied = applyRequest( request );
 		resolve( applied ? 'success' : 'failure' );
@@ -267,7 +290,9 @@ export const receiveRfApplyRequest: RfApplyRequestReceiver = ( request, resolve 
 };
 
 /**
- * RF大規模反映Lifecycleの変更を購読する。
+ * RF大規模反映ライフサイクルの変更を購読する。
+ *
+ * 公開状態をReact component lifecycleへ移さず、WordPress統合が外部状態として観測できる境界を提供する。
  *
  * @param listener 公開snapshotが変化したときにWordPress統合へ通知する購読者。
  * @return 購読を解除する関数。
@@ -276,7 +301,7 @@ export const subscribeRfApplyCoordination = ( listener: () => void ): ( () => vo
 	rfApplyCoordinationStore.subscribe( listener );
 
 /**
- * WordPress統合へ公開する現在Lifecycle snapshotを取得する。
+ * WordPress統合へ公開する現在ライフサイクルsnapshotを取得する。
  *
  * 状態が変わらない間はStoreが保持する同一参照を返し、Zustand Store自体や内部candidateは公開しない。
  *
@@ -286,9 +311,9 @@ export const getRfApplyCoordinationSnapshot = (): RfApplyCoordinationSnapshot =>
 	rfApplyCoordinationStore.getState().snapshot;
 
 /**
- * 確認Modalへ表示するRF移動summaryを取得する。
+ * 確認ダイアログへ表示するRF移動summaryを取得する。
  *
- * Lifecycle購読は既存snapshot購読を正本とし、このgetter専用の購読は持たない。
+ * ライフサイクル購読は既存snapshot購読を正本とし、このgetter専用の購読は持たない。
  * raw candidateや翻訳済み文言を公開せず、利用者向け1-based位置だけを返す。
  *
  * @return 大規模反映中の表示専用summary。idleではnull。
