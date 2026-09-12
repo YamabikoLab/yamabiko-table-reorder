@@ -79,15 +79,11 @@ export const ReorderModeToolbar = ( props: ReorderModeToolbarProps ) => {
 	const { tableIdentity } = props;
 	const { selectedKind, select: selectMode } = useReorderMode( tableIdentity );
 	const [ guidanceAnchor, setGuidanceAnchor ] = useState< HTMLElement | null >( null );
-	const { dismiss, isVisible: isGuidanceVisible } = useReorderGuidance(
-		tableIdentity,
-		guidanceAnchor
-	);
+	const { dismiss, guidance } = useReorderGuidance( tableIdentity, guidanceAnchor );
 
 	/* 初回案内中は、行・列の両入口を共通の開始位置として通常時より強調する。 */
-	const guidanceTargetClassName = isGuidanceVisible
-		? 'yamabiko-table-reorder-guidance-target'
-		: undefined;
+	const guidanceTargetClassName =
+		guidance !== null ? 'yamabiko-table-reorder-guidance-target' : undefined;
 
 	return (
 		<BlockControls>
@@ -109,11 +105,14 @@ export const ReorderModeToolbar = ( props: ReorderModeToolbarProps ) => {
 					onClick={ () => selectMode( 'column' ) }
 				/>
 			</ToolbarGroup>
-			<ReorderGuidance
-				anchor={ guidanceAnchor }
-				isVisible={ isGuidanceVisible }
-				onDismiss={ dismiss }
-			/>
+			{ /* 有効な案内対象がある場合だけ、確定済みの操作環境で初回案内を描画する。 */ }
+			{ guidance !== null && (
+				<ReorderGuidance
+					anchor={ guidanceAnchor }
+					environment={ guidance.environment }
+					onDismiss={ dismiss }
+				/>
+			) }
 		</BlockControls>
 	);
 };
