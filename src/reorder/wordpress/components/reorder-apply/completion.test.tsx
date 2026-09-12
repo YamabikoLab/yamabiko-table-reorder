@@ -8,7 +8,6 @@ import type { ReactNode } from 'react';
 import { ReorderApplyCompletion } from './completion';
 
 jest.mock( '@wordpress/components', () => ( {
-	Dashicon: ( props: { icon: string } ) => <span aria-hidden="true">{ props.icon }</span>,
 	Snackbar: ( props: { children: ReactNode } ) => <div role="status">{ props.children }</div>,
 } ) );
 
@@ -27,15 +26,15 @@ describe( 'WordPress Reorder Apply completion notice', () => {
 	 * - 再mount完了状態へ移行する。
 	 *
 	 * 期待結果:
-	 * - 完了メッセージと完了アイコンを含む一時通知が表示される。
+	 * - 完了メッセージと成功を示す記号を含む一時通知が表示される。
 	 */
-	it( 'when a successful remount finishes, should show a completion notice with a success icon', () => {
+	it( 'when a successful remount finishes, should show a completion notice with a success mark', () => {
 		const { rerender } = render( <ReorderApplyCompletion isSuccessfulRemounting={ true } /> );
 
 		rerender( <ReorderApplyCompletion isSuccessfulRemounting={ false } /> );
 
 		expect( screen.getByText( 'Reordering complete.' ) ).not.toBeNull();
-		expect( screen.getByText( 'yes-alt' ) ).not.toBeNull();
+		expect( screen.getByText( '✓' ) ).not.toBeNull();
 	} );
 
 	/**
