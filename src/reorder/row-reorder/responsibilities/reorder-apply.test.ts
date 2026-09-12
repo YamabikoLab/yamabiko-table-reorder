@@ -8,6 +8,7 @@ import {
 	completeLargeRowReorderApply,
 	confirmLargeRowReorderApply,
 	getLargeRowReorderApplyState,
+	getLargeRowReorderDestinationRowIndex,
 	requestLargeRowReorderApply,
 } from './reorder-apply';
 import { rowTableIntegration } from './table-integration';
@@ -15,11 +16,13 @@ import { rowTableIntegration } from './table-integration';
 jest.mock( './table-integration', () => ( {
 	rowTableIntegration: {
 		getConstraints: jest.fn(),
+		resolveDestinationRowIndex: jest.fn(),
 		applyRowMove: jest.fn(),
 	},
 } ) );
 
 const getConstraintsMock = rowTableIntegration.getConstraints as jest.Mock;
+const resolveDestinationRowIndexMock = rowTableIntegration.resolveDestinationRowIndex as jest.Mock;
 const applyRowMoveMock = rowTableIntegration.applyRowMove as jest.Mock;
 
 const move = {
@@ -51,6 +54,7 @@ describe( 'Large Row Reorder apply lifecycle', () => {
 		restoreIdleState();
 		jest.clearAllMocks();
 		getConstraintsMock.mockReturnValue( { rowCount: 5, blockedBoundaries: [] } );
+		resolveDestinationRowIndexMock.mockReturnValue( 1 );
 		applyRowMoveMock.mockReturnValue( true );
 	} );
 
@@ -93,6 +97,31 @@ describe( 'Large Row Reorder apply lifecycle', () => {
 			phase: 'idle',
 			move: null,
 			applied: false,
+		} );
+	} );
+
+	/**
+	 * 行Apply LifecycleがPresentationへ反映後最終位置を提供するとき、Table Integrationの方向固有解釈を正本として利用することを確認する。
+	 *
+	 * 事前条件:
+	 * - 大規模行反映が確認待ちである。
+	 * - Table Integrationは保持中Moveの反映後最終位置として1を返す。
+	 *
+	 * 操作:
+	 * - 反映後最終行位置を取得する。
+	 *
+	 * 期待結果:
+	 * - Table Integrationへ保持中Moveが渡される。
+	 * - Table Integrationが返した0-based最終行位置1がそのまま返る。
+	 */
+	it( 'when a row apply holds a move, should provide its final row position from Table Integration', () => {
+		requestLargeRowReorderApply( move );
+
+		expect( getLargeRowReorderDestinationRowIndex() ).toBe( 1 );
+		expect( resolveDestinationRowIndexMock ).toHaveBeenCalledWith( {
+			clientId: 'table-a',
+			sourceRowIndex: 3,
+			destinationBoundaryIndex: 1,
 		} );
 	} );
 
