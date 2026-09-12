@@ -25,17 +25,18 @@ import { useReorderApplyLifecycle } from './lifecycle';
 export const ReorderApplyTableBoundary = ( props: { clientId: string; children: ReactNode } ) => {
 	const { clientId, children } = props;
 	const presentation = useReorderApplyPresentationState( clientId );
-	const { applyingAnchorRef, restorationAnchorRef } = useReorderApplyLifecycle( presentation );
+	const { applyingReferenceElementRef, restorationReferenceElementRef } =
+		useReorderApplyLifecycle( presentation );
 
 	if ( presentation.phase === 'applying' ) {
-		return <ReorderApplying anchorRef={ applyingAnchorRef } />;
+		return <ReorderApplying referenceElementRef={ applyingReferenceElementRef } />;
 	}
 
 	return (
 		<>
 			{ children }
 			{ presentation.phase === 'remounting' && (
-				<div ref={ restorationAnchorRef } role="status">
+				<div ref={ restorationReferenceElementRef } role="status">
 					{ getLargeReorderApplyingMessage() }
 				</div>
 			) }
