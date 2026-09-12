@@ -54,12 +54,12 @@ describe( 'WordPress Reorder Apply restoration', () => {
 
 		expect( scrollIntoView ).toHaveBeenCalledWith( { block: 'center', inline: 'start' } );
 		expect( focus ).toHaveBeenCalledWith( { preventScroll: true } );
-		expect( cell ).toHaveClass( RESTORED_CELL_CLASS );
+		expect( cell.classList.contains( RESTORED_CELL_CLASS ) ).toBe( true );
 
 		editable.dispatchEvent(
 			new FocusEvent( 'focusout', { bubbles: true, relatedTarget: outside } )
 		);
-		expect( cell ).not.toHaveClass( RESTORED_CELL_CLASS );
+		expect( cell.classList.contains( RESTORED_CELL_CLASS ) ).toBe( false );
 	} );
 
 	/**
@@ -101,7 +101,7 @@ describe( 'WordPress Reorder Apply restoration', () => {
 			new FocusEvent( 'focusout', { bubbles: true, relatedTarget: inside } )
 		);
 
-		expect( cell ).toHaveClass( RESTORED_CELL_CLASS );
+		expect( cell.classList.contains( RESTORED_CELL_CLASS ) ).toBe( true );
 	} );
 
 	/**
@@ -148,6 +148,6 @@ describe( 'WordPress Reorder Apply restoration', () => {
 
 		expect( scrollIntoView ).toHaveBeenCalledWith( { block: 'center', inline: 'center' } );
 		expect( focus ).toHaveBeenCalledWith( { preventScroll: true } );
-		expect( cell ).toHaveClass( RESTORED_CELL_CLASS );
+		expect( cell.classList.contains( RESTORED_CELL_CLASS ) ).toBe( true );
 	} );
 } );
