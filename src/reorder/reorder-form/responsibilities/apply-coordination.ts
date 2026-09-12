@@ -12,11 +12,7 @@ import { columnTableIntegration } from '@/reorder/column-reorder/responsibilitie
 import { requiresLargeReorderApply } from '@/reorder/reorder-apply-policy';
 import { rowTableIntegration } from '@/reorder/row-reorder/responsibilities/table-integration';
 
-import type {
-	RfApplyRequest,
-	RfApplyRequestReceiver,
-	RfApplyResult,
-} from './interaction';
+import type { RfApplyRequest, RfApplyRequestReceiver, RfApplyResult } from './interaction';
 
 /** WordPress Reorder Apply Integrationへ公開するRF大規模反映Lifecycle。 */
 export type RfApplyCoordinationSnapshot =
@@ -189,11 +185,7 @@ const rfApplyCoordinationStore = createStore< RfApplyCoordinationStore >()(
 
 				const resolve = state.pending.resolve;
 				/* callbackの同期的な再入で古いLifecycleを観測させないため、外部通知より先に内部状態を破棄する。 */
-				set(
-					{ snapshot: IDLE_SNAPSHOT, pending: null },
-					undefined,
-					'rf-apply/cancel'
-				);
+				set( { snapshot: IDLE_SNAPSHOT, pending: null }, undefined, 'rf-apply/cancel' );
 				resolve( 'cancelled' );
 			},
 			apply: () => {
@@ -229,11 +221,7 @@ const rfApplyCoordinationStore = createStore< RfApplyCoordinationStore >()(
 				const resolve = state.pending.resolve;
 				const result: RfApplyResult = state.snapshot.applied ? 'success' : 'failure';
 				/* callbackの同期的な再入で完了済み候補を再利用させないため、外部通知より先にcleanupする。 */
-				set(
-					{ snapshot: IDLE_SNAPSHOT, pending: null },
-					undefined,
-					'rf-apply/complete'
-				);
+				set( { snapshot: IDLE_SNAPSHOT, pending: null }, undefined, 'rf-apply/complete' );
 				resolve( result );
 			},
 		} ),
@@ -318,4 +306,5 @@ export const cancelRfApply = (): void => rfApplyCoordinationStore.getState().can
 export const applyRfReorder = (): void => rfApplyCoordinationStore.getState().apply();
 
 /** WordPress側のediting surface restoration完了後にcleanupし、RF Interactionへ結果を返す。 */
-export const completeRfApplyRestoration = (): void => rfApplyCoordinationStore.getState().complete();
+export const completeRfApplyRestoration = (): void =>
+	rfApplyCoordinationStore.getState().complete();
