@@ -18,6 +18,18 @@ import {
 } from './interaction';
 import { rowRfResolution } from './row-resolution';
 
+jest.mock( '@/reorder/row-reorder/responsibilities/table-integration', () => ( {
+	rowTableIntegration: {
+		getConstraints: jest.fn(),
+	},
+} ) );
+
+jest.mock( '@/reorder/column-reorder/responsibilities/table-integration', () => ( {
+	columnTableIntegration: {
+		getColumnInputDescriptors: jest.fn(),
+	},
+} ) );
+
 const ROW_INPUT = {
 	sourceRowNumber: '1',
 	targetRowNumber: '3',
