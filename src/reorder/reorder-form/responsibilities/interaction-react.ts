@@ -54,48 +54,44 @@ const CLOSED_STATE: RfInteractionReactState = { status: 'closed' };
  * @return 対象Tableから見た現在RF Interaction表示状態。
  */
 export const useRfInteraction = ( tableIdentity: string ): RfInteractionReactState => {
-	const state = useStore( rfInteractionStore, ( store ) => {
-		const session = store.session;
-		if ( session.status === 'closed' || session.tableIdentity !== tableIdentity ) {
-			return CLOSED_STATE;
-		}
-
-		if ( session.status === 'applying' ) {
-			const applyingState: RfInteractionReactState = {
-				status: 'applying',
-				direction: session.direction,
-			};
-			return applyingState;
-		}
-
-		if ( session.direction === 'row' && session.evaluation.direction === 'row' ) {
-			const result = session.evaluation.result;
-			const rowState: RfInteractionReactState = {
-				status: 'open',
-				direction: 'row',
-				input: session.rowInput,
-				rowCount: session.evaluation.rowCount,
-				result,
-				canApply: result.status === 'resolved',
-			};
-			return rowState;
-		}
-
-		if ( session.direction === 'column' && session.evaluation.direction === 'column' ) {
-			const result = session.evaluation.result;
-			const columnState: RfInteractionReactState = {
-				status: 'open',
-				direction: 'column',
-				input: session.columnInput,
-				columns: session.evaluation.columns,
-				result,
-				canApply: result.status === 'resolved',
-			};
-			return columnState;
-		}
-
+	const session = useStore( rfInteractionStore, ( store ) => store.session );
+	if ( session.status === 'closed' || session.tableIdentity !== tableIdentity ) {
 		return CLOSED_STATE;
-	} );
+	}
 
-	return state;
+	if ( session.status === 'applying' ) {
+		const applyingState: RfInteractionReactState = {
+			status: 'applying',
+			direction: session.direction,
+		};
+		return applyingState;
+	}
+
+	if ( session.direction === 'row' && session.evaluation.direction === 'row' ) {
+		const result = session.evaluation.result;
+		const rowState: RfInteractionReactState = {
+			status: 'open',
+			direction: 'row',
+			input: session.rowInput,
+			rowCount: session.evaluation.rowCount,
+			result,
+			canApply: result.status === 'resolved',
+		};
+		return rowState;
+	}
+
+	if ( session.direction === 'column' && session.evaluation.direction === 'column' ) {
+		const result = session.evaluation.result;
+		const columnState: RfInteractionReactState = {
+			status: 'open',
+			direction: 'column',
+			input: session.columnInput,
+			columns: session.evaluation.columns,
+			result,
+			canApply: result.status === 'resolved',
+		};
+		return columnState;
+	}
+
+	return CLOSED_STATE;
 };
