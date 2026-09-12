@@ -16,7 +16,7 @@ import { getLargeReorderApplyingDetail, getLargeReorderApplyingMessage } from '@
  * @param props.anchorRef 現在mountされている反映中要素をLifecycleへ渡すref。
  * @return 反映中Modal。
  */
-export const ReorderApplying = ( props: { anchorRef: RefObject< HTMLDivElement | null > } ) => {
+export const ReorderApplying = ( props: { anchorRef: RefObject< HTMLDivElement > } ) => {
 	const { anchorRef } = props;
 	return (
 		<div ref={ anchorRef }>
