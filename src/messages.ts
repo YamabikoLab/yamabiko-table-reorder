@@ -124,3 +124,7 @@ export const getLargeReorderApplyingMessage = () =>
 /** 大規模反映の完了を待つよう案内する補足文を取得する。 */
 export const getLargeReorderApplyingDetail = () =>
 	__( 'Please wait until the update is complete.', 'yamabiko-table-reorder' );
+
+/** 大規模反映が完了したことを知らせる文言を取得する。 */
+export const getLargeReorderCompletionMessage = () =>
+	__( 'Reordering complete.', 'yamabiko-table-reorder' );
