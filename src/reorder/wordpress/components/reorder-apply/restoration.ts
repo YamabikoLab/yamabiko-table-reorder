@@ -1,14 +1,14 @@
 /**
- * 確認付き大規模反映後のRow / Column表示復帰を担当する。
+ * 確認付き大規模反映後の行・列表示復帰を担当する。
  *
- * Lifecycleから渡された現在のEditor Documentだけを利用し、反映後の最終位置へscroll / focusを戻す。
- * Presentation anchorやEditor Contextの解決・保持、方向固有Move意味の計算は所有しない。
+ * Lifecycleから渡された現在のEditor DOM Contextのdocumentだけを利用し、反映後の最終位置へ表示位置とフォーカスを戻す。
+ * Editor DOM Contextの解決や保持、方向固有の移動先解釈は所有しない。
  */
 
 /**
- * 行反映後の移動先行をEditor内で表示して、先頭の編集可能セルへfocusする。
+ * 行反映後の最終行を利用者が確認できる位置へ表示し、編集可能な場合はその行の先頭編集位置へフォーカスを戻す。
  *
- * @param editorDocument 対象Tableが存在する現在のEditor Document。
+ * @param editorDocument 対象Tableが存在する現在のEditor DOM Contextのdocument。
  * @param clientId       対象Table個体のclientId。
  * @param rowIndex       反映後のtbody内0-based最終行位置。
  */
@@ -19,6 +19,7 @@ export const restoreMovedRow = (
 ): void => {
 	const table = editorDocument.querySelector( `[data-block="${ clientId }"] table` );
 	const row = table?.querySelector( 'tbody' )?.querySelectorAll( 'tr' ).item( rowIndex ) ?? null;
+	/* 再mount後に対象行を確認できない場合は、別の位置を推測して復帰しない。 */
 	if ( ! row ) {
 		return;
 	}
@@ -31,9 +32,11 @@ export const restoreMovedRow = (
 };
 
 /**
- * 列反映後の移動先論理列を先頭側のTable行で解決し、該当セルへscroll / focusする。
+ * 列反映後の最終論理列を利用者が確認できる位置へ表示し、編集可能な場合は対応セルへフォーカスを戻す。
  *
- * @param editorDocument 対象Tableが存在する現在のEditor Document。
+ * 結合セルが最終論理列を占有する場合は、その結合セルを表示復帰先として扱う。
+ *
+ * @param editorDocument 対象Tableが存在する現在のEditor DOM Contextのdocument。
  * @param clientId       対象Table個体のclientId。
  * @param columnIndex    反映後の0-based最終論理列位置。
  */
@@ -45,13 +48,14 @@ export const restoreMovedColumn = (
 	const firstRow = editorDocument.querySelector< HTMLTableRowElement >(
 		`[data-block="${ clientId }"] table tr`
 	);
+	/* 再mount後に対象Tableを確認できない場合は、別の位置を推測して復帰しない。 */
 	if ( ! firstRow ) {
 		return;
 	}
 
 	let logicalColumnStart = 0;
 	let targetCell: HTMLTableCellElement | null = null;
-	/* 現在の先頭側行を論理列順に解釈し、結合セルを含めて反映後の移動列を覆う表示セルを特定する。 */
+	/* 先頭側の行を論理列として解釈し、結合セルを含めて反映後の最終論理列を占有する表示セルを特定する。 */
 	for ( const cell of Array.from( firstRow.cells ) ) {
 		const logicalColumnEnd = logicalColumnStart + cell.colSpan;
 		if ( columnIndex >= logicalColumnStart && columnIndex < logicalColumnEnd ) {
@@ -60,6 +64,7 @@ export const restoreMovedColumn = (
 		}
 		logicalColumnStart = logicalColumnEnd;
 	}
+	/* 対応する表示セルを確認できない場合は、隣接セルを代替先として使用しない。 */
 	if ( ! targetCell ) {
 		return;
 	}
