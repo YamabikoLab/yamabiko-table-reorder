@@ -299,7 +299,8 @@ const evaluateOpenSession = (
 	if ( session.kind === 'row' ) {
 		const row = evaluateRow( session.tableIdentity, session.rowInput );
 		// Apply要求は現在Row指定が成立した場合だけ生成する。
-		const request = row.candidate === null ? null : { kind: 'row' as const, candidate: row.candidate };
+		const request =
+			row.candidate === null ? null : { kind: 'row' as const, candidate: row.candidate };
 		return { evaluation: row.evaluation, request };
 	}
 
