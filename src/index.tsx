@@ -6,7 +6,12 @@
 
 import { addFilter } from '@wordpress/hooks';
 
+import { receiveRfApplyRequest } from '@/reorder/reorder-form/responsibilities/apply-coordination';
+import { connectRfApplyCoordination } from '@/reorder/reorder-form/responsibilities/interaction';
 import { withReorderMode, withReorderModeBlockListBlock } from '@/reorder/wordpress/integration';
+
+/* RF通常反映も同じReceiverを必要とするため、React mountから独立したプラグイン初期化時に一度接続する。 */
+connectRfApplyCoordination( receiveRfApplyRequest );
 
 addFilter( 'editor.BlockEdit', 'yamabiko-table-reorder/reorder-mode', withReorderMode );
 addFilter(

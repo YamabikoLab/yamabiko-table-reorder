@@ -2,7 +2,7 @@
  * 列専用Table Integrationとして、対応Table Block固有の表現差とWordPress Block Editor Storeとの接続を吸収し、Column Reorderへ現在の列制約、RF入力記述、構造診断、反映前評価、確定済み列移動の反映を提供する。
  *
  * このファイルはCore TableとFlexible Table Blockの結合セル属性差、Table全体の論理列解釈、および対応Tableへの列順反映を所有する。
- * Column ReorderとRFへは論理列数、結合セルを分断する挿入位置、最小列記述、blocking merged range、更新対象セル数、および確定更新だけを公開し、Tableデータや対応Block固有の表現は外へ公開しない。
+ * Column ReorderとRFへは論理列数、結合セルを分断する挿入位置、最小列記述、blocking merged range、更新対象セル数、反映後の最終列位置、および確定更新だけを公開し、Tableデータや対応Block固有の表現は外へ公開しない。
  * Tableデータや構造結果は保持せず、各要求時点のWordPress Blockを直接参照する。
  */
 
@@ -40,6 +40,8 @@ export type ColumnBlockingMergedRange = {
 export type ColumnApplyAssessment = {
 	/** 列移動によって表示位置が変わる範囲に含まれる物理セル数。 */
 	affectedCellCount: number;
+	/** 移動元列を除去した後に移動対象が配置される0-based最終論理列位置。 */
+	destinationColumnIndex: number;
 };
 
 /** Table Integrationが解釈または反映する、再照合済みの確定候補となる列移動。 */
@@ -568,6 +570,26 @@ const getBlockingMergedRange = ( move: ColumnMove ): ColumnBlockingMergedRange |
 };
 
 /**
+ * 移動前の列間境界を、移動元除去後の最終論理列位置へ解釈する。
+ *
+ * Assessmentと確定更新が同じ方向固有Move意味を利用するため、この境界を列移動の正本とする。
+ *
+ * @param sourceColumnIndex        現在Table上の0-based移動元論理列位置。
+ * @param destinationBoundaryIndex 現在Table上の0-based移動先列間境界。
+ * @return 移動対象が反映後に配置される0-based論理列位置。
+ */
+const resolveDestinationColumnIndex = (
+	sourceColumnIndex: number,
+	destinationBoundaryIndex: number
+): number => {
+	const destinationColumnIndex =
+		destinationBoundaryIndex > sourceColumnIndex
+			? destinationBoundaryIndex - 1
+			: destinationBoundaryIndex;
+	return destinationColumnIndex;
+};
+
+/**
  * 列移動によって表示位置が変わる論理範囲に含まれる物理セル数を、解析済みTableから取得する。
  *
  * @param parsedTable 要求時点の論理Table解析結果。
@@ -575,12 +597,12 @@ const getBlockingMergedRange = ( move: ColumnMove ): ColumnBlockingMergedRange |
  * @return 今回の移動に含まれる物理セル数。
  */
 const countAffectedCells = ( parsedTable: ParsedTable, move: ColumnMove ): number => {
-	const insertionIndex =
-		move.destinationBoundaryIndex > move.sourceColumnIndex
-			? move.destinationBoundaryIndex - 1
-			: move.destinationBoundaryIndex;
-	const start = Math.min( move.sourceColumnIndex, insertionIndex );
-	const end = Math.max( move.sourceColumnIndex, insertionIndex );
+	const destinationColumnIndex = resolveDestinationColumnIndex(
+		move.sourceColumnIndex,
+		move.destinationBoundaryIndex
+	);
+	const start = Math.min( move.sourceColumnIndex, destinationColumnIndex );
+	const end = Math.max( move.sourceColumnIndex, destinationColumnIndex );
 	let affectedCellCount = 0;
 
 	/* 表示位置が変わる論理列範囲と交差する物理セルを、結合セルの論理占有数へ展開せず数える。 */
@@ -622,7 +644,7 @@ const getAffectedCellCount = ( move: ColumnMove ): number | null => {
  * RF Apply前に、解決済み列移動を要求時点の現在Tableへ再照合する。
  *
  * @param move RFで解決済みの列移動候補。
- * @return 現在も候補が成立する場合は更新対象セル数。成立しない場合はnull。
+ * @return 現在も候補が成立する場合は更新対象セル数と反映後の最終列位置。成立しない場合はnull。
  */
 const assessColumnMoveForApply = ( move: ColumnMove ): ColumnApplyAssessment | null => {
 	const currentTable = getCurrentColumnTable( move.clientId );
@@ -633,6 +655,10 @@ const assessColumnMoveForApply = ( move: ColumnMove ): ColumnApplyAssessment | n
 
 	return {
 		affectedCellCount: countAffectedCells( currentTable.parsedTable, move ),
+		destinationColumnIndex: resolveDestinationColumnIndex(
+			move.sourceColumnIndex,
+			move.destinationBoundaryIndex
+		),
 	};
 };
 
@@ -651,11 +677,11 @@ const createColumnPositionMap = (
 ): readonly number[] => {
 	const reorderedColumns = Array.from( { length: columnCount }, ( _, index ) => index );
 	const [ sourceColumn ] = reorderedColumns.splice( sourceColumnIndex, 1 );
-	const insertionIndex =
-		destinationBoundaryIndex > sourceColumnIndex
-			? destinationBoundaryIndex - 1
-			: destinationBoundaryIndex;
-	reorderedColumns.splice( insertionIndex, 0, sourceColumn );
+	const destinationColumnIndex = resolveDestinationColumnIndex(
+		sourceColumnIndex,
+		destinationBoundaryIndex
+	);
+	reorderedColumns.splice( destinationColumnIndex, 0, sourceColumn );
 
 	const positionMap = Array< number >( columnCount );
 	/* 各移動前論理列が確定後に占める位置を逆引きできる対応へ変換する。 */

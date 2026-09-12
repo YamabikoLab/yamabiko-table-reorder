@@ -2,7 +2,7 @@
  * 行専用Table Integrationとして、対応Table Block固有の表現差とWordPress Block Editor Storeとの接続を吸収し、Row Reorderへ現在のtbody行構造、構造診断、反映前評価、確定済み行移動の反映を提供する。
  *
  * このファイルはCore TableとFlexible Table Blockの縦結合属性差、および対応Tableへの行順反映を所有する。
- * Row ReorderとRFへは現在行数、rowspanを分断できない挿入位置、blocking merged range、更新対象セル数、および確定更新だけを公開し、Tableデータや対応Block固有の表現は外へ公開しない。
+ * Row ReorderとRFへは現在行数、rowspanを分断できない挿入位置、blocking merged range、更新対象セル数、反映後の最終行位置、および確定更新だけを公開し、Tableデータや対応Block固有の表現は外へ公開しない。
  * Tableデータや構造結果は保持せず、各要求時点のWordPress Blockを直接参照する。
  */
 
@@ -29,6 +29,8 @@ export type RowBlockingMergedRange = {
 export type RowApplyAssessment = {
 	/** 行移動によって表示位置が変わる範囲に含まれる物理セル数。 */
 	affectedCellCount: number;
+	/** 移動元行を除去した後に移動対象が配置される0-based最終行位置。 */
+	destinationRowIndex: number;
 };
 
 /** Table Integrationが解釈または反映する、再照合済みの確定候補となる行移動。 */
@@ -274,6 +276,22 @@ const getBlockingMergedRange = ( move: RowMove ): RowBlockingMergedRange | null 
 };
 
 /**
+ * 移動前の行間境界を、移動元除去後の最終行位置へ解釈する。
+ *
+ * Assessmentと確定更新が同じ方向固有Move意味を利用するため、この境界を行移動の正本とする。
+ *
+ * @param move 現在のtbodyを基準とする行移動。
+ * @return 移動対象が反映後に配置される0-based行位置。
+ */
+const resolveDestinationRowIndex = ( move: RowMove ): number => {
+	const destinationRowIndex =
+		move.destinationBoundaryIndex > move.sourceRowIndex
+			? move.destinationBoundaryIndex - 1
+			: move.destinationBoundaryIndex;
+	return destinationRowIndex;
+};
+
+/**
  * 行移動によって表示位置が変わる範囲に含まれる物理セル数を、解析済みtbodyから取得する。
  *
  * @param parsedTable 要求時点の解析済みtbody。
@@ -281,12 +299,9 @@ const getBlockingMergedRange = ( move: RowMove ): RowBlockingMergedRange | null 
  * @return 今回の移動に含まれる物理セル数。
  */
 const countAffectedCells = ( parsedTable: ParsedRowTable, move: RowMove ): number => {
-	const insertionIndex =
-		move.destinationBoundaryIndex > move.sourceRowIndex
-			? move.destinationBoundaryIndex - 1
-			: move.destinationBoundaryIndex;
-	const start = Math.min( move.sourceRowIndex, insertionIndex );
-	const end = Math.max( move.sourceRowIndex, insertionIndex );
+	const destinationRowIndex = resolveDestinationRowIndex( move );
+	const start = Math.min( move.sourceRowIndex, destinationRowIndex );
+	const end = Math.max( move.sourceRowIndex, destinationRowIndex );
 	let affectedCellCount = 0;
 
 	/* 表示位置が変わる行範囲に存在する物理セルを、結合セルの論理占有数へ展開せず数える。 */
@@ -325,7 +340,7 @@ const getAffectedCellCount = ( move: RowMove ): number | null => {
  * RF Apply前に、解決済み行移動を要求時点の現在Tableへ再照合する。
  *
  * @param move RFで解決済みの行移動候補。
- * @return 現在も候補が成立する場合は更新対象セル数。成立しない場合はnull。
+ * @return 現在も候補が成立する場合は更新対象セル数と反映後の最終行位置。成立しない場合はnull。
  */
 const assessRowMoveForApply = ( move: RowMove ): RowApplyAssessment | null => {
 	const parsedTable = getParsedRowTable( move.clientId );
@@ -336,6 +351,7 @@ const assessRowMoveForApply = ( move: RowMove ): RowApplyAssessment | null => {
 
 	return {
 		affectedCellCount: countAffectedCells( parsedTable, move ),
+		destinationRowIndex: resolveDestinationRowIndex( move ),
 	};
 };
 
@@ -355,14 +371,10 @@ const applyRowMove = ( move: RowMove ): boolean => {
 		return false;
 	}
 
-	/* 移動先境界は移動前のtbodyを基準とするため、移動元行の除去後も同じ境界を表す位置へ補正する。 */
-	const insertionIndex =
-		move.destinationBoundaryIndex > move.sourceRowIndex
-			? move.destinationBoundaryIndex - 1
-			: move.destinationBoundaryIndex;
+	const destinationRowIndex = resolveDestinationRowIndex( move );
 	const reorderedBody = [ ...parsedTable.body ];
 	const [ movedRow ] = reorderedBody.splice( move.sourceRowIndex, 1 );
-	reorderedBody.splice( insertionIndex, 0, movedRow );
+	reorderedBody.splice( destinationRowIndex, 0, movedRow );
 
 	dispatch( blockEditorStore ).updateBlockAttributes( move.clientId, {
 		body: reorderedBody,
