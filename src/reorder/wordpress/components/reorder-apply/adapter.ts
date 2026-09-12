@@ -79,6 +79,38 @@ const useRfApplyCoordinationSnapshot = (): RfApplyCoordinationSnapshot =>
 	useSyncExternalStore( subscribeRfApplyCoordination, getRfApplyCoordinationSnapshot );
 
 /**
+ * Row / Column / RFのApply Lifecycleが同時に複数成立していないことを確認する。
+ *
+ * WordPress表示責務は複数Lifecycle間の優先順位付けや仲裁を所有しないため、複数の非idle状態は
+ * Presentation変換で吸収せず、製品入口の排他契約が破られた内部Invariant違反として扱う。
+ *
+ * @param rowState    Row Reorder Applyが所有する現在状態。
+ * @param columnState Column Reorder Applyが所有する現在状態。
+ * @param rfSnapshot  RF Apply Coordinationが所有する現在snapshot。
+ */
+const assertSingleActiveApplyLifecycle = (
+	rowState: LargeRowReorderApplyState,
+	columnState: LargeColumnReorderApplyState,
+	rfSnapshot: RfApplyCoordinationSnapshot
+): void => {
+	let activeLifecycleCount = 0;
+	if ( rowState.phase !== 'idle' ) {
+		activeLifecycleCount += 1;
+	}
+	if ( columnState.phase !== 'idle' ) {
+		activeLifecycleCount += 1;
+	}
+	if ( rfSnapshot.phase !== 'idle' ) {
+		activeLifecycleCount += 1;
+	}
+
+	/* 複数Lifecycleの同時成立は優先順位で解決せず、内部契約違反として露出させる。 */
+	if ( activeLifecycleCount > 1 ) {
+		throw new Error( 'Multiple reorder apply lifecycles cannot be active at the same time.' );
+	}
+};
+
+/**
  * 行の確認付き大規模反映を、対象Table向けPresentation状態へ変換する。
  *
  * @param clientId 対象Table個体のclientId。
@@ -216,9 +248,9 @@ const adaptRfApply = (
 	}
 
 	const summary = getRfApplySummary();
-	/* RF Apply Coordinationが概要を提供できない場合は、推測した確認内容や復帰先を表示しない。 */
+	/* 非idleのRF Lifecycleには確認表示または復帰位置の正本となるsummaryが必ず存在する。 */
 	if ( summary === null ) {
-		return { phase: 'idle' };
+		throw new Error( 'RF apply summary is required while the RF apply lifecycle is active.' );
 	}
 
 	if ( snapshot.phase === 'confirming' ) {
@@ -271,6 +303,8 @@ export const useReorderApplyPresentationState = (
 	const rowState = useLargeRowReorderApplyState();
 	const columnState = useLargeColumnReorderApplyState();
 	const rfSnapshot = useRfApplyCoordinationSnapshot();
+	assertSingleActiveApplyLifecycle( rowState, columnState, rfSnapshot );
+
 	const rowPresentation = adaptRowReorderApply( clientId, rowState );
 	if ( rowPresentation.phase !== 'idle' ) {
 		return rowPresentation;
