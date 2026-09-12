@@ -55,9 +55,9 @@ jest.mock( '@/messages', () => ( {
 
 jest.mock( '@/reorder/row-reorder/responsibilities/reorder-apply', () => ( {
 	applyLargeRowReorder: jest.fn(),
-	cancelLargeRowReorderApply: mockCancelLargeRowReorderApply,
+	cancelLargeRowReorderApply: () => mockCancelLargeRowReorderApply(),
 	completeLargeRowReorderApply: jest.fn(),
-	confirmLargeRowReorderApply: mockConfirmLargeRowReorderApply,
+	confirmLargeRowReorderApply: () => mockConfirmLargeRowReorderApply(),
 	getLargeRowReorderApplyState: () => mockRowState,
 	getLargeRowReorderDestinationRowIndex: () => mockRowDestinationIndex,
 	subscribeLargeRowReorderApply: () => () => undefined,
@@ -65,9 +65,9 @@ jest.mock( '@/reorder/row-reorder/responsibilities/reorder-apply', () => ( {
 
 jest.mock( '@/reorder/column-reorder/responsibilities/reorder-apply', () => ( {
 	applyLargeColumnReorder: jest.fn(),
-	cancelLargeColumnReorderApply: mockCancelLargeColumnReorderApply,
+	cancelLargeColumnReorderApply: () => mockCancelLargeColumnReorderApply(),
 	completeLargeColumnReorderApply: jest.fn(),
-	confirmLargeColumnReorderApply: mockConfirmLargeColumnReorderApply,
+	confirmLargeColumnReorderApply: () => mockConfirmLargeColumnReorderApply(),
 	getLargeColumnReorderApplyState: () => mockColumnState,
 	getLargeColumnReorderDestinationColumnIndex: () => mockColumnDestinationIndex,
 	subscribeLargeColumnReorderApply: () => () => undefined,
