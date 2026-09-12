@@ -762,6 +762,7 @@ export const columnTableIntegration = {
 	getColumnInputDescriptors,
 	getBlockingMergedRange,
 	getAffectedCellCount,
+	resolveDestinationColumnIndex,
 	assessColumnMoveForApply,
 	applyColumnMove,
 };
