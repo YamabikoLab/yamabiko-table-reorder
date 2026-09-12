@@ -15,6 +15,7 @@ const mockCancelLargeRowReorderApply = jest.fn();
 const mockCancelLargeColumnReorderApply = jest.fn();
 const mockConfirmLargeRowReorderApply = jest.fn();
 const mockConfirmLargeColumnReorderApply = jest.fn();
+const mockRfApplyIdleSnapshot = { phase: 'idle' } as const;
 
 jest.mock( '@wordpress/components', () => ( {
 	Button: ( props: { children: ReactNode; onClick?: () => void } ) => (
@@ -71,6 +72,16 @@ jest.mock( '@/reorder/column-reorder/responsibilities/reorder-apply', () => ( {
 	getLargeColumnReorderApplyState: () => mockColumnState,
 	getLargeColumnReorderDestinationColumnIndex: () => mockColumnDestinationIndex,
 	subscribeLargeColumnReorderApply: () => () => undefined,
+} ) );
+
+jest.mock( '@/reorder/reorder-form/responsibilities/apply-coordination', () => ( {
+	applyRfReorder: jest.fn(),
+	cancelRfApply: jest.fn(),
+	completeRfApplyRestoration: jest.fn(),
+	continueRfApply: jest.fn(),
+	getRfApplyCoordinationSnapshot: () => mockRfApplyIdleSnapshot,
+	getRfApplySummary: () => null,
+	subscribeRfApplyCoordination: () => () => undefined,
 } ) );
 
 jest.mock( './lifecycle', () => ( {
