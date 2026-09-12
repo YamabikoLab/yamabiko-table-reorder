@@ -103,11 +103,7 @@ export const useReorderGuidance = (
 	/* 別Tableの案内状態は、現在のTableへ表示対象として反映しない。 */
 	const guidanceForTable = activeGuidance?.tableIdentity === tableIdentity ? activeGuidance : null;
 	const guidance =
-		guidanceForTable === null
-			? null
-			: {
-					environment: guidanceForTable.environment,
-			  };
+		guidanceForTable === null ? null : { environment: guidanceForTable.environment };
 
 	useEffect( () => {
 		/* 配置基準がない間、または並び替えモード中は初回案内を新しく開始しない。 */
