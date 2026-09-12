@@ -80,10 +80,14 @@ describe( 'WordPress Reorder Apply restoration', () => {
 		const iframe = document.createElement( 'iframe' );
 		document.body.append( iframe );
 		const editorDocument = iframe.contentDocument;
-		const editorWindow = iframe.contentWindow;
-		if ( editorDocument === null || editorWindow === null ) {
+		if ( editorDocument === null ) {
 			iframe.remove();
 			throw new Error( 'Expected editor iframe browsing context.' );
+		}
+		const editorWindow = editorDocument.defaultView;
+		if ( editorWindow === null ) {
+			iframe.remove();
+			throw new Error( 'Expected editor iframe window.' );
 		}
 		editorDocument.body.innerHTML = `
 			<div data-block="table-a">
