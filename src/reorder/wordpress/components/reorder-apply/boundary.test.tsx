@@ -75,8 +75,8 @@ jest.mock( '@/reorder/column-reorder/responsibilities/reorder-apply', () => ( {
 
 jest.mock( './lifecycle', () => ( {
 	useReorderApplyLifecycle: () => ( {
-		applyingAnchorRef: { current: null },
-		restorationAnchorRef: { current: null },
+		applyingReferenceElementRef: { current: null },
+		restorationReferenceElementRef: { current: null },
 	} ),
 } ) );
 
