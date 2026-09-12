@@ -4,7 +4,7 @@
  * 反映成功後の再mount完了を検知して通知表示だけを所有し、Apply Lifecycleや方向固有状態は変更しない。
  */
 
-import { Dashicon, Snackbar } from '@wordpress/components';
+import { Snackbar } from '@wordpress/components';
 import { useEffect, useRef, useState } from '@wordpress/element';
 
 import { getLargeReorderCompletionMessage } from '@/messages';
@@ -54,12 +54,10 @@ export const ReorderApplyCompletion = ( props: { isSuccessfulRemounting: boolean
 	return (
 		<div className="yamabiko-table-reorder-completion-notice">
 			<Snackbar key={ noticeSequence } onRemove={ removeNotice }>
-				<span className="yamabiko-table-reorder-completion-notice__content">
-					<span className="yamabiko-table-reorder-completion-notice__icon" aria-hidden="true">
-						<Dashicon icon="yes-alt" />
-					</span>
+				<strong className="yamabiko-table-reorder-completion-notice__content">
+					<span aria-hidden="true">✓</span>
 					{ getLargeReorderCompletionMessage() }
-				</span>
+				</strong>
 			</Snackbar>
 		</div>
 	);
