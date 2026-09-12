@@ -6,7 +6,7 @@ A WordPress block editor plugin for reordering Table rows and columns.
 
 ## Current Status
 
-Version 0.8.3 provides **Row Reorder and Column Reorder** for WordPress Core Table and Flexible Table Block.
+Version 0.8.4 provides **Row Reorder and Column Reorder** for WordPress Core Table and Flexible Table Block.
 
 Switch to Row Reorder or Column Reorder mode from the Table toolbar, then reorder `tbody` rows or Table columns with Mouse or Touch drag-and-drop. During DnD, the plugin shows the moving row or column and the current destination. During Row Reorder, surrounding rows are displaced to preview the result before it is committed. During Column Reorder, surrounding columns are displaced in iframe editors. In non-iframe editors, surrounding column displacement is intentionally omitted to preserve responsiveness, while the moving column and insertion line continue to show the source and destination.
 
@@ -28,7 +28,7 @@ Use the `prototype-final` tag when you need to refer to the Prototype v0.4.0 imp
 
 The distribution history through 0.4.0 is preserved as-is. The term formal v1 describes a new design and implementation generation and does not mean the distribution version changes to `1.0.0`.
 
-0.5.0 was the first formal v1 Row Reorder release. 0.7.0 added formal v1 Column Reorder. 0.8.0 added a confirmation flow for reorders whose affected range may take time to apply. 0.8.1 fixed a conflict between Column Reorder Touch long-presses and cell editing. 0.8.2 improves Column Reorder responsiveness in non-iframe editors, fixes first-use Touch guidance focus behavior, and corrects moving-column feedback when an iframe editor has a horizontal offset. 0.8.3 prevents Gutenberg's native block dragging from competing with Row / Column Reorder while Reorder Mode is active.
+0.5.0 was the first formal v1 Row Reorder release. 0.7.0 added formal v1 Column Reorder. 0.8.0 added a confirmation flow for reorders whose affected range may take time to apply. 0.8.1 fixed a conflict between Column Reorder Touch long-presses and cell editing. 0.8.2 improves Column Reorder responsiveness in non-iframe editors, fixes first-use Touch guidance focus behavior, and corrects moving-column feedback when an iframe editor has a horizontal offset. 0.8.3 prevents Gutenberg's native block dragging from competing with Row / Column Reorder while Reorder Mode is active. 0.8.4 prevents browser text selection, search, and long-press callout actions from interfering with touch Row / Column Reorder while Reorder Mode is active.
 
 ## Requirements
 
