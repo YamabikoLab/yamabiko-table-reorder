@@ -222,13 +222,19 @@ const adaptRfApply = (
 	}
 
 	if ( snapshot.phase === 'confirming' ) {
-		const moveSummary =
-			summary.kind === 'row'
-				? getLargeRowReorderMoveSummary( summary.sourcePosition, summary.destinationPosition )
-				: getLargeColumnReorderMoveSummary(
-						summary.sourcePosition,
-						summary.destinationPosition
-				  );
+		let moveSummary: string;
+		/* 確認文言はRFが公開するReorder Kindと利用者向け位置だけから生成する。 */
+		if ( summary.kind === 'row' ) {
+			moveSummary = getLargeRowReorderMoveSummary(
+				summary.sourcePosition,
+				summary.destinationPosition
+			);
+		} else {
+			moveSummary = getLargeColumnReorderMoveSummary(
+				summary.sourcePosition,
+				summary.destinationPosition
+			);
+		}
 
 		return {
 			phase: 'confirming',
