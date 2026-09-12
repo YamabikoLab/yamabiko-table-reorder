@@ -73,6 +73,16 @@ jest.mock( '@/reorder/column-reorder/responsibilities/reorder-apply', () => ( {
 	subscribeLargeColumnReorderApply: () => () => undefined,
 } ) );
 
+jest.mock( '@/reorder/reorder-form/responsibilities/apply-coordination', () => ( {
+	applyRfReorder: jest.fn(),
+	cancelRfApply: jest.fn(),
+	completeRfApplyRestoration: jest.fn(),
+	continueRfApply: jest.fn(),
+	getRfApplyCoordinationSnapshot: () => ( { phase: 'idle' } ),
+	getRfApplySummary: () => null,
+	subscribeRfApplyCoordination: () => () => undefined,
+} ) );
+
 jest.mock( './lifecycle', () => ( {
 	useReorderApplyLifecycle: () => ( {
 		applyingReferenceElementRef: { current: null },
