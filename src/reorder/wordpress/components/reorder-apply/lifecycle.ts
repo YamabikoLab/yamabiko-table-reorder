@@ -1,27 +1,29 @@
 /**
  * WordPress Reorder Apply Integrationの表示Lifecycleを接続する。
  *
- * applyingでは現在mountされている反映中Presentation anchor、remountingでは表示復帰後のstatus anchorから
+ * applyingでは現在mountされている反映中Presentationの基準要素、remountingでは表示復帰後のstatus基準要素から
  * Editor DOM Contextをそのphaseごとに解決し、paint-before-apply、scroll / focus restoration、完了待ちを接続する。
- * phaseを跨いでDOM NodeやEditor Contextを保持せず、予約したframeは各phase終了時にcleanupする。
+ * phaseを跨いでDOM NodeやEditor DOM Contextを保持せず、予約したframeは各phase終了時にcleanupする。
  */
 
 import { useEffect, useRef } from 'react';
 import type { RefObject } from 'react';
 
+import { resolveEditorDomContext } from '@/reorder/editor-dom-context';
+
 import type { ReorderApplyPresentationState } from './adapter';
 import { restoreMovedColumn, restoreMovedRow } from './restoration';
 
-/** WordPress表示Lifecycleが各phaseの現在要素を受け取るPresentation anchor。 */
-export type ReorderApplyLifecycleAnchors = {
-	applyingAnchorRef: RefObject< HTMLDivElement >;
-	restorationAnchorRef: RefObject< HTMLDivElement >;
+/** WordPress表示Lifecycleが各phaseの現在の基準要素を受け取るref。 */
+export type ReorderApplyLifecycleReferences = {
+	applyingReferenceElementRef: RefObject< HTMLDivElement >;
+	restorationReferenceElementRef: RefObject< HTMLDivElement >;
 };
 
 /**
  * 現在のEditor Windowで2 frame待ってから処理し、phase終了時に予約を破棄できるようにする。
  *
- * @param editorWindow 現在mountされているPresentation要素から解決したEditor Window。
+ * @param editorWindow 現在mountされている基準要素から解決したEditor Window。
  * @param callback     paint後に実行するLifecycle操作。
  * @return 予約済みframeを取り消すcleanup。
  */
@@ -40,16 +42,16 @@ const runAfterVisualPaint = ( editorWindow: Window, callback: () => void ): ( ()
 };
 
 /**
- * 確認付き大規模反映のapplying / remounting phaseを現在のEditor Contextへ接続する。
+ * 確認付き大規模反映のapplying / remounting phaseを現在のEditor DOM Contextへ接続する。
  *
  * @param presentation 対象Tableへ表示している現在のPresentation状態。
- * @return applyingとrestorationそれぞれの現在要素へ接続するanchor ref。
+ * @return applyingとrestorationそれぞれの現在の基準要素へ接続するref。
  */
 export const useReorderApplyLifecycle = (
 	presentation: ReorderApplyPresentationState
-): ReorderApplyLifecycleAnchors => {
-	const applyingAnchorRef = useRef< HTMLDivElement >( null );
-	const restorationAnchorRef = useRef< HTMLDivElement >( null );
+): ReorderApplyLifecycleReferences => {
+	const applyingReferenceElementRef = useRef< HTMLDivElement >( null );
+	const restorationReferenceElementRef = useRef< HTMLDivElement >( null );
 
 	const isApplying = presentation.phase === 'applying';
 	const apply = isApplying ? presentation.apply : null;
@@ -59,15 +61,17 @@ export const useReorderApplyLifecycle = (
 			return;
 		}
 
-		const editorWindow = applyingAnchorRef.current?.ownerDocument.defaultView ?? null;
-		/* Editor Windowを現在要素から取得できない場合は別Contextを推測せず、paint待ちだけを省略する。 */
-		if ( editorWindow === null ) {
+		const referenceElement = applyingReferenceElementRef.current;
+		const editorContext =
+			referenceElement === null ? null : resolveEditorDomContext( referenceElement );
+		/* Editor DOM Contextを現在要素から解決できない場合は別Contextを推測せず、paint待ちだけを省略する。 */
+		if ( editorContext === null ) {
 			apply();
 			return;
 		}
 
 		/* 対象Tableの退避と反映中表示を先に描画し、重いTable更新より前に利用者へ反映開始を伝える。 */
-		return runAfterVisualPaint( editorWindow, apply );
+		return runAfterVisualPaint( editorContext.window, apply );
 	}, [ apply, isApplying ] );
 
 	const isRemounting = presentation.phase === 'remounting';
@@ -88,25 +92,26 @@ export const useReorderApplyLifecycle = (
 			return;
 		}
 
-		const editorDocument = restorationAnchorRef.current?.ownerDocument ?? null;
-		/* 反映成功時だけ、remount後の現在Documentから対象を取り直して表示位置とfocusを復帰する。 */
-		if ( applied && editorDocument !== null ) {
+		const referenceElement = restorationReferenceElementRef.current;
+		const editorContext =
+			referenceElement === null ? null : resolveEditorDomContext( referenceElement );
+		/* 反映成功時だけ、remount後の現在Editor DOM Contextから対象を取り直して表示位置とfocusを復帰する。 */
+		if ( applied && editorContext !== null ) {
 			if ( direction === 'row' ) {
-				restoreMovedRow( editorDocument, tableIdentity, destinationIndex );
+				restoreMovedRow( editorContext.document, tableIdentity, destinationIndex );
 			} else {
-				restoreMovedColumn( editorDocument, tableIdentity, destinationIndex );
+				restoreMovedColumn( editorContext.document, tableIdentity, destinationIndex );
 			}
 		}
 
-		const editorWindow = editorDocument?.defaultView ?? null;
-		/* 現在のEditor Windowがない場合も別Windowへfallbackせず、復帰Lifecycleだけを完了する。 */
-		if ( editorWindow === null ) {
+		/* 現在のEditor DOM Contextがない場合も別Contextへfallbackせず、復帰Lifecycleだけを完了する。 */
+		if ( editorContext === null ) {
 			complete();
 			return;
 		}
 
-		return runAfterVisualPaint( editorWindow, complete );
+		return runAfterVisualPaint( editorContext.window, complete );
 	}, [ applied, complete, destinationIndex, direction, isRemounting, tableIdentity ] );
 
-	return { applyingAnchorRef, restorationAnchorRef };
+	return { applyingReferenceElementRef, restorationReferenceElementRef };
 };
