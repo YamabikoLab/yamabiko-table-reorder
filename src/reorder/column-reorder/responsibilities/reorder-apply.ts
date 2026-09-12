@@ -178,6 +178,24 @@ export const subscribeLargeColumnReorderApply = ( listener: () => void ): ( () =
 export const getLargeColumnReorderApplyState = (): LargeColumnReorderApplyState =>
 	largeColumnReorderApplyStore.getState();
 
+/**
+ * 現在保持している列移動の反映後最終位置をTable Integrationの方向固有解釈から取得する。
+ *
+ * 現在Tableの再解析は行わず、Storeが保持する確定済みMoveからO(1)で導出する。
+ *
+ * @return 反映後の0-based最終論理列位置。大規模反映がない場合はnull。
+ */
+export const getLargeColumnReorderDestinationColumnIndex = (): number | null => {
+	const state = largeColumnReorderApplyStore.getState();
+	if ( state.phase === 'idle' ) {
+		return null;
+	}
+	return columnTableIntegration.resolveDestinationColumnIndex(
+		state.move.sourceColumnIndex,
+		state.move.destinationBoundaryIndex
+	);
+};
+
 /** 確認待ちの列移動について、利用者の続行選択を受けて反映開始状態へ進める。 */
 export const confirmLargeColumnReorderApply = (): void =>
 	largeColumnReorderApplyStore.getState().confirm();
