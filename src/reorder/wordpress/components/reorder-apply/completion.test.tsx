@@ -7,14 +7,9 @@ import type { ReactNode } from 'react';
 
 import { ReorderApplyCompletion } from './completion';
 
-let snackbarRemove: ( () => void ) | undefined;
-
 jest.mock( '@wordpress/components', () => ( {
 	Dashicon: ( props: { icon: string } ) => <span aria-hidden="true">{ props.icon }</span>,
-	Snackbar: ( props: { children: ReactNode; onRemove?: () => void } ) => {
-		snackbarRemove = props.onRemove;
-		return <div role="status">{ props.children }</div>;
-	},
+	Snackbar: ( props: { children: ReactNode } ) => <div role="status">{ props.children }</div>,
 } ) );
 
 jest.mock( '@/messages', () => ( {
@@ -22,10 +17,6 @@ jest.mock( '@/messages', () => ( {
 } ) );
 
 describe( 'WordPress Reorder Apply completion notice', () => {
-	beforeEach( () => {
-		snackbarRemove = undefined;
-	} );
-
 	/**
 	 * 正常な大規模反映が完了した直後に、フォーカスを奪わない完了通知を表示することを確認する。
 	 *
