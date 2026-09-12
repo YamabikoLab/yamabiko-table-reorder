@@ -2,7 +2,7 @@
  * RF Apply Coordinationとして、RF候補の反映経路選択と確認付き大規模反映のライフサイクルを所有する。
  *
  * 通常反映は長期状態を持たず一回の処理として完了し、確認付き大規模反映だけをZustandのvanilla storeで保持する。
- * 方向固有の移動意味と現在Tableでの成立性はRow / Column Table Integrationを正本とし、
+ * Reorder Kind固有の移動意味と現在Tableでの成立性はRow / Column Table Integrationを正本とし、
  * WordPress側の表示責務や翻訳済み文言は所有しない。
  */
 
@@ -20,16 +20,16 @@ import type { RfApplyRequest, RfApplyRequestReceiver, RfApplyResult } from './in
  *
  * `idle`は保持中の大規模反映がない状態、`confirming`は利用者の確認待ち、`applying`はWordPress側が
  * 反映中表示を成立させる段階、`restoring`は確定更新判定後の表示復帰待ちを表す。
- * 方向固有候補そのものは公開せず、WordPress側が移動意味を再解釈しなくてよい情報だけを含める。
+ * Reorder Kind固有候補そのものは公開せず、WordPress側が移動意味を再解釈しなくてよい情報だけを含める。
  */
 export type RfApplyCoordinationSnapshot =
 	| { phase: 'idle' }
-	| { phase: 'confirming'; tableIdentity: string; direction: 'row' | 'column' }
-	| { phase: 'applying'; tableIdentity: string; direction: 'row' | 'column' }
+	| { phase: 'confirming'; tableIdentity: string; kind: 'row' | 'column' }
+	| { phase: 'applying'; tableIdentity: string; kind: 'row' | 'column' }
 	| {
 			phase: 'restoring';
 			tableIdentity: string;
-			direction: 'row' | 'column';
+			kind: 'row' | 'column';
 			applied: boolean;
 	  };
 
@@ -37,11 +37,11 @@ export type RfApplyCoordinationSnapshot =
  * 確認ダイアログへ渡す利用者向けのRF移動概要。
  *
  * `sourcePosition`と`destinationPosition`は1-basedで表し、`destinationPosition`は移動元を除去した後の
- * 最終配置位置とする。方向固有候補や翻訳済み文言は含めない。
+ * 最終配置位置とする。Reorder Kind固有候補や翻訳済み文言は含めない。
  */
 export type RfApplySummary =
-	| { direction: 'row'; sourcePosition: number; destinationPosition: number }
-	| { direction: 'column'; sourcePosition: number; destinationPosition: number };
+	| { kind: 'row'; sourcePosition: number; destinationPosition: number }
+	| { kind: 'column'; sourcePosition: number; destinationPosition: number };
 
 /**
  * RF Apply Coordinationが確認付き大規模反映の完了まで内部保持する要求。
@@ -57,7 +57,7 @@ type PendingRfApply = {
 /** Apply要求時の現在Table再照合結果。 */
 type RfApplyAssessment = {
 	tableIdentity: string;
-	direction: 'row' | 'column';
+	kind: 'row' | 'column';
 	affectedCellCount: number;
 	summary: RfApplySummary;
 };
@@ -84,15 +84,15 @@ type RfApplyCoordinationStore = {
 /**
  * RF候補を現在Tableへ再照合し、経路選択と確認表示に必要な情報を取得する。
  *
- * destinationPositionの方向固有の移動意味はTable IntegrationのApply Assessmentを正本とし、
+ * destinationPositionのReorder Kind固有の移動意味はTable IntegrationのApply Assessmentを正本とし、
  * この責務では0-based位置を1-based表示へ変換するだけとする。
  *
- * @param request RF InteractionがApply要求時点で解決した方向固有候補。
+ * @param request RF InteractionがApply要求時点で解決したReorder Kind固有候補。
  * @return 現在Tableでも成立する候補の評価。成立しない場合はnull。
  */
 const assessRequest = ( request: RfApplyRequest ): RfApplyAssessment | null => {
-	/* 方向固有の移動意味は、対応するTable Integrationの評価結果だけを正本として利用する。 */
-	if ( request.direction === 'row' ) {
+	/* Reorder Kind固有の移動意味は、対応するTable Integrationの評価結果だけを正本として利用する。 */
+	if ( request.kind === 'row' ) {
 		const assessment = rowTableIntegration.assessRowMoveForApply( request.candidate );
 		/* 現在TableでRow候補が成立しない場合は反映経路の選択へ進めない。 */
 		if ( assessment === null ) {
@@ -101,10 +101,10 @@ const assessRequest = ( request: RfApplyRequest ): RfApplyAssessment | null => {
 
 		return {
 			tableIdentity: request.candidate.clientId,
-			direction: 'row',
+			kind: 'row',
 			affectedCellCount: assessment.affectedCellCount,
 			summary: {
-				direction: 'row',
+				kind: 'row',
 				sourcePosition: request.candidate.sourceRowIndex + 1,
 				destinationPosition: assessment.destinationRowIndex + 1,
 			},
@@ -119,10 +119,10 @@ const assessRequest = ( request: RfApplyRequest ): RfApplyAssessment | null => {
 
 	return {
 		tableIdentity: request.candidate.clientId,
-		direction: 'column',
+		kind: 'column',
 		affectedCellCount: assessment.affectedCellCount,
 		summary: {
-			direction: 'column',
+			kind: 'column',
 			sourcePosition: request.candidate.sourceColumnIndex + 1,
 			destinationPosition: assessment.destinationColumnIndex + 1,
 		},
@@ -130,16 +130,16 @@ const assessRequest = ( request: RfApplyRequest ): RfApplyAssessment | null => {
 };
 
 /**
- * 対応方向のTable Integrationへ一回の確定更新を要求する。
+ * 対応Reorder KindのTable Integrationへ一回の確定更新を要求する。
  *
  * Table Integration自身が更新直前の現在Tableを最終権威として再照合するため、ここでは候補を加工しない。
  *
- * @param request 反映対象の方向固有候補。
+ * @param request 反映対象のReorder Kind固有候補。
  * @return 現在Tableへ安全に反映できた場合はtrue。
  */
 const applyRequest = ( request: RfApplyRequest ): boolean => {
-	/* 確定更新は候補の方向に対応するTable Integrationだけへ委譲する。 */
-	if ( request.direction === 'row' ) {
+	/* 確定更新は候補のReorder Kindに対応するTable Integrationだけへ委譲する。 */
+	if ( request.kind === 'row' ) {
 		return rowTableIntegration.applyRowMove( request.candidate );
 	}
 
@@ -169,7 +169,7 @@ const rfApplyCoordinationStore = createStore< RfApplyCoordinationStore >()(
 				const tableIdentity = request.candidate.clientId;
 				set(
 					{
-						snapshot: { phase: 'confirming', tableIdentity, direction: request.direction },
+						snapshot: { phase: 'confirming', tableIdentity, kind: request.kind },
 						pending: { request, resolve, summary },
 					},
 					undefined,
@@ -189,7 +189,7 @@ const rfApplyCoordinationStore = createStore< RfApplyCoordinationStore >()(
 						snapshot: {
 							phase: 'applying',
 							tableIdentity: state.snapshot.tableIdentity,
-							direction: state.snapshot.direction,
+							kind: state.snapshot.kind,
 						},
 					},
 					undefined,
@@ -223,7 +223,7 @@ const rfApplyCoordinationStore = createStore< RfApplyCoordinationStore >()(
 						snapshot: {
 							phase: 'restoring',
 							tableIdentity: state.snapshot.tableIdentity,
-							direction: state.snapshot.direction,
+							kind: state.snapshot.kind,
 							applied,
 						},
 					},
