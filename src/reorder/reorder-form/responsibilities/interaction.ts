@@ -3,7 +3,7 @@
  *
  * Zustandのvanilla storeを状態正本とし、React component lifecycleから独立してSessionを維持する。
  * 現在Tableに依存する表示結果は要求時点で既存Table Integration / Input Interpretation / Resolutionから再評価し、
- * 方向固有candidateはPresentationへ公開せずRF Apply Coordinationとの内部境界だけへ渡す。
+ * 並び替え種別固有candidateはPresentationへ公開せずRF Apply Coordinationとの内部境界だけへ渡す。
  */
 
 import { devtools } from 'zustand/middleware';
@@ -32,10 +32,7 @@ import {
 } from './column-resolution';
 import { rowRfResolution, type RowRfMoveCandidate, type RowRfResolution } from './row-resolution';
 
-/** RF Sessionで選択できる並び替え方向。 */
-export type RfDirection = 'row' | 'column';
-
-/** Row方向の現在表示結果。 */
+/** Row Reorderの現在表示結果。 */
 export type RfRowCurrentResult =
 	| { status: 'not-ready' }
 	| { status: 'no-op' }
@@ -43,7 +40,7 @@ export type RfRowCurrentResult =
 	| { status: 'unavailable' }
 	| { status: 'resolved' };
 
-/** Column方向の現在表示結果。 */
+/** Column Reorderの現在表示結果。 */
 export type RfColumnCurrentResult =
 	| { status: 'not-ready' }
 	| { status: 'no-op' }
@@ -51,10 +48,10 @@ export type RfColumnCurrentResult =
 	| { status: 'unavailable' }
 	| { status: 'resolved' };
 
-/** RF InteractionがRF Apply Coordinationへ渡す方向固有要求。 */
+/** RF InteractionがRF Apply Coordinationへ渡すReorder Kind固有要求。 */
 export type RfApplyRequest =
-	| { direction: 'row'; candidate: RowRfMoveCandidate }
-	| { direction: 'column'; candidate: ColumnRfMoveCandidate };
+	| { kind: 'row'; candidate: RowRfMoveCandidate }
+	| { kind: 'column'; candidate: ColumnRfMoveCandidate };
 
 /** RF Apply CoordinationがRF Interactionへ返すLifecycle結果。 */
 export type RfApplyResult = 'success' | 'failure' | 'cancelled';
@@ -62,7 +59,7 @@ export type RfApplyResult = 'success' | 'failure' | 'cancelled';
 /**
  * RF Apply CoordinationがApply要求を受け取る内部接続境界。
  *
- * @param request Apply要求時点の現在Tableで成立した方向固有candidate。
+ * @param request Apply要求時点の現在Tableで成立したReorder Kind固有candidate。
  * @param resolve Apply Coordinationが確定したLifecycle結果をRF Interactionへ返す通知。
  */
 export type RfApplyRequestReceiver = (
@@ -84,27 +81,27 @@ const INITIAL_COLUMN_INPUT: ColumnRfFormInput = {
 	position: null,
 };
 
-/** RF Sessionが保持する方向別入力。 */
+/** RF Sessionが保持するReorder Kind別入力。 */
 type RfSessionInputs = {
 	rowInput: RowRfFormInput;
 	columnInput: ColumnRfFormInput;
 };
 
-/** Row方向の現在Table基準表示キャッシュ。 */
+/** Row Reorderの現在Table基準表示キャッシュ。 */
 type RowEvaluation = {
-	direction: 'row';
+	kind: 'row';
 	rowCount: number | null;
 	result: RfRowCurrentResult;
 };
 
-/** Column方向の現在Table基準表示キャッシュ。 */
+/** Column Reorderの現在Table基準表示キャッシュ。 */
 type ColumnEvaluation = {
-	direction: 'column';
+	kind: 'column';
 	columns: readonly ColumnInputDescriptor[];
 	result: RfColumnCurrentResult;
 };
 
-/** 現在方向に対応する表示キャッシュ。 */
+/** 現在Reorder Kindに対応する表示キャッシュ。 */
 type RfEvaluation = RowEvaluation | ColumnEvaluation;
 
 /** RF Interactionが所有するSession Lifecycle状態。 */
@@ -113,13 +110,13 @@ type RfSessionState =
 	| ( {
 			status: 'open';
 			tableIdentity: string;
-			direction: RfDirection;
+			kind: 'row' | 'column';
 			evaluation: RfEvaluation;
 	  } & RfSessionInputs )
 	| ( {
 			status: 'applying';
 			tableIdentity: string;
-			direction: RfDirection;
+			kind: 'row' | 'column';
 	  } & RfSessionInputs );
 
 /** RF Interaction Storeが所有する状態。 */
@@ -131,7 +128,7 @@ type RfInteractionStoreState = {
 type RfInteractionStoreActions = {
 	open: ( tableIdentity: string ) => void;
 	close: ( tableIdentity: string ) => void;
-	selectDirection: ( tableIdentity: string, direction: RfDirection ) => void;
+	selectKind: ( tableIdentity: string, kind: 'row' | 'column' ) => void;
 	updateRowInput: ( tableIdentity: string, input: RowRfFormInput ) => void;
 	updateColumnInput: ( tableIdentity: string, input: ColumnRfFormInput ) => void;
 	notifyTableChanged: ( tableIdentity: string ) => void;
@@ -205,7 +202,7 @@ const evaluateRow = (
 	if ( constraints === null ) {
 		return {
 			evaluation: {
-				direction: 'row',
+				kind: 'row',
 				rowCount: null,
 				result: { status: 'unavailable' },
 			},
@@ -218,7 +215,7 @@ const evaluateRow = (
 	if ( interpretation.status === 'not-ready' ) {
 		return {
 			evaluation: {
-				direction: 'row',
+				kind: 'row',
 				rowCount: constraints.rowCount,
 				result: { status: 'not-ready' },
 			},
@@ -231,7 +228,7 @@ const evaluateRow = (
 	const candidate = resolution.status === 'resolved' ? resolution.candidate : null;
 	return {
 		evaluation: {
-			direction: 'row',
+			kind: 'row',
 			rowCount: constraints.rowCount,
 			result: toRowCurrentResult( resolution ),
 		},
@@ -255,7 +252,7 @@ const evaluateColumn = (
 	if ( columns === null ) {
 		return {
 			evaluation: {
-				direction: 'column',
+				kind: 'column',
 				columns: [],
 				result: { status: 'unavailable' },
 			},
@@ -268,7 +265,7 @@ const evaluateColumn = (
 	if ( interpretation.status === 'not-ready' ) {
 		return {
 			evaluation: {
-				direction: 'column',
+				kind: 'column',
 				columns,
 				result: { status: 'not-ready' },
 			},
@@ -281,7 +278,7 @@ const evaluateColumn = (
 	const candidate = resolution.status === 'resolved' ? resolution.candidate : null;
 	return {
 		evaluation: {
-			direction: 'column',
+			kind: 'column',
 			columns,
 			result: toColumnCurrentResult( resolution ),
 		},
@@ -290,29 +287,26 @@ const evaluateColumn = (
 };
 
 /**
- * 現在方向と保持入力を使い、要求時点の現在Table基準で共通再評価する。
+ * 現在Reorder Kindと保持入力を使い、要求時点の現在Table基準で共通再評価する。
  *
  * @param session 再評価対象のopen Session。
- * @return 現在方向の表示評価と、成立時だけ方向固有candidate。
+ * @return 現在Reorder Kindの表示評価と、成立時だけkind固有candidate。
  */
 const evaluateOpenSession = (
 	session: Extract< RfSessionState, { status: 'open' } >
 ): { evaluation: RfEvaluation; request: RfApplyRequest | null } => {
-	// 現在選択中の方向だけを再評価し、非表示方向の保持入力は評価結果へ混在させない。
-	if ( session.direction === 'row' ) {
+	// 現在選択中のReorder Kindだけを再評価し、非表示kindの保持入力は評価結果へ混在させない。
+	if ( session.kind === 'row' ) {
 		const row = evaluateRow( session.tableIdentity, session.rowInput );
 		// Apply要求は現在Row指定が成立した場合だけ生成する。
-		const request =
-			row.candidate === null ? null : { direction: 'row' as const, candidate: row.candidate };
+		const request = row.candidate === null ? null : { kind: 'row' as const, candidate: row.candidate };
 		return { evaluation: row.evaluation, request };
 	}
 
 	const column = evaluateColumn( session.tableIdentity, session.columnInput );
 	// Apply要求は現在Column指定が成立した場合だけ生成する。
 	const request =
-		column.candidate === null
-			? null
-			: { direction: 'column' as const, candidate: column.candidate };
+		column.candidate === null ? null : { kind: 'column' as const, candidate: column.candidate };
 	return { evaluation: column.evaluation, request };
 };
 
@@ -331,7 +325,7 @@ export const rfInteractionStore = createStore< RfInteractionStore >()(
 				if ( session.status === 'applying' ) {
 					return;
 				}
-				// 同じTableの再openはReact remount等で既存入力や方向を失わないため無視する。
+				// 同じTableの再openはReact remount等で既存入力やReorder Kindを失わないため無視する。
 				if ( session.status === 'open' && session.tableIdentity === tableIdentity ) {
 					return;
 				}
@@ -344,7 +338,7 @@ export const rfInteractionStore = createStore< RfInteractionStore >()(
 						session: {
 							status: 'open',
 							tableIdentity,
-							direction: 'row',
+							kind: 'row',
 							rowInput,
 							columnInput,
 							evaluation: row.evaluation,
@@ -362,32 +356,32 @@ export const rfInteractionStore = createStore< RfInteractionStore >()(
 				}
 				set( { session: { status: 'closed' } }, undefined, 'rf-interaction/close' );
 			},
-			selectDirection: ( tableIdentity, direction ) => {
+			selectKind: ( tableIdentity, kind ) => {
 				const session = get().session;
-				// 方向変更は現在open中の対象Tableからの要求だけを受理する。
+				// Reorder Kind変更は現在open中の対象Tableからの要求だけを受理する。
 				if ( session.status !== 'open' || session.tableIdentity !== tableIdentity ) {
 					return;
 				}
-				// 同じ方向の再選択では保持入力や現在評価を不要に更新しない。
-				if ( session.direction === direction ) {
+				// 同じReorder Kindの再選択では保持入力や現在評価を不要に更新しない。
+				if ( session.kind === kind ) {
 					return;
 				}
 
-				const nextSession = { ...session, direction };
+				const nextSession = { ...session, kind };
 				const evaluated = evaluateOpenSession( nextSession );
 				set(
 					{ session: { ...nextSession, evaluation: evaluated.evaluation } },
 					undefined,
-					'rf-interaction/select-direction'
+					'rf-interaction/select-kind'
 				);
 			},
 			updateRowInput: ( tableIdentity, input ) => {
 				const session = get().session;
-				// Row入力は現在open中の同じTableでRow方向が選択されている場合だけ更新する。
+				// Row入力は現在open中の同じTableでRow Reorderが選択されている場合だけ更新する。
 				if (
 					session.status !== 'open' ||
 					session.tableIdentity !== tableIdentity ||
-					session.direction !== 'row'
+					session.kind !== 'row'
 				) {
 					return;
 				}
@@ -407,11 +401,11 @@ export const rfInteractionStore = createStore< RfInteractionStore >()(
 			},
 			updateColumnInput: ( tableIdentity, input ) => {
 				const session = get().session;
-				// Column入力は現在open中の同じTableでColumn方向が選択されている場合だけ更新する。
+				// Column入力は現在open中の同じTableでColumn Reorderが選択されている場合だけ更新する。
 				if (
 					session.status !== 'open' ||
 					session.tableIdentity !== tableIdentity ||
-					session.direction !== 'column'
+					session.kind !== 'column'
 				) {
 					return;
 				}
@@ -464,7 +458,7 @@ export const rfInteractionStore = createStore< RfInteractionStore >()(
 				const applyingSession: Extract< RfSessionState, { status: 'applying' } > = {
 					status: 'applying',
 					tableIdentity: session.tableIdentity,
-					direction: session.direction,
+					kind: session.kind,
 					rowInput: session.rowInput,
 					columnInput: session.columnInput,
 				};
@@ -486,15 +480,15 @@ export const rfInteractionStore = createStore< RfInteractionStore >()(
 					return;
 				}
 
-				// failure / cancelledでは入力を保持して再開し、現在方向だけを最新Table基準で再評価する。
+				// failure / cancelledでは入力を保持して再開し、現在Reorder Kindだけを最新Table基準で再評価する。
 				const evaluation =
-					session.direction === 'row'
+					session.kind === 'row'
 						? evaluateRow( session.tableIdentity, session.rowInput ).evaluation
 						: evaluateColumn( session.tableIdentity, session.columnInput ).evaluation;
 				const openSession: Extract< RfSessionState, { status: 'open' } > = {
 					status: 'open',
 					tableIdentity: session.tableIdentity,
-					direction: session.direction,
+					kind: session.kind,
 					rowInput: session.rowInput,
 					columnInput: session.columnInput,
 					evaluation,
@@ -514,10 +508,10 @@ export const rfInteraction = {
 	close: ( tableIdentity: string ) => rfInteractionStore.getState().close( tableIdentity ),
 	/**
 	 * @param tableIdentity 現在RF Sessionの対象Table Identity。
-	 * @param direction     選択するRF方向。
+	 * @param kind          選択するReorder Kind。
 	 */
-	selectDirection: ( tableIdentity: string, direction: RfDirection ) =>
-		rfInteractionStore.getState().selectDirection( tableIdentity, direction ),
+	selectKind: ( tableIdentity: string, kind: 'row' | 'column' ) =>
+		rfInteractionStore.getState().selectKind( tableIdentity, kind ),
 	/**
 	 * @param tableIdentity 現在RF Sessionの対象Table Identity。
 	 * @param input         利用者が現在指定しているRow入力。
