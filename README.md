@@ -8,7 +8,7 @@ A WordPress block editor plugin for reordering Table rows and columns.
 > Yamabiko Table Reorder currently supports only:
 >
 > - WordPress **Core Table**
-> - **Flexible Table Block**
+> - [**Flexible Table Block**](https://wordpress.org/plugins/flexible-table-block/)
 >
 > Other Table blocks provided by plugins or themes are not currently supported.
 > Yamabiko Table Reorder's Row / Column Reorder features will not work with unsupported Table blocks.
