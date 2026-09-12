@@ -2,11 +2,38 @@
  * 確認付き大規模反映後の行・列表示復帰を担当する。
  *
  * Lifecycleから渡された現在のEditor DOM Contextのdocumentだけを利用し、反映後の最終位置へ表示位置とフォーカスを戻す。
- * Editor DOM Contextの解決や保持、方向固有の移動先解釈は所有しない。
+ * フォーカスを戻したセルはフォーカス中だけ強調し、Editor DOM Contextの解決や保持、方向固有の移動先解釈は所有しない。
  */
+
+import './restoration.scss';
+
+/** 大規模反映後にフォーカスを戻したセルだけを識別する一時表示class。 */
+const RESTORED_CELL_CLASS = 'yamabiko-table-reorder-restored-cell';
+
+/**
+ * 大規模反映後の復帰先セルをフォーカス中だけ強調する。
+ *
+ * フォーカスがセルから外れた時点で一時表示classを破棄し、その後の通常編集へ強調状態を持ち越さない。
+ *
+ * @param cell     反映後のフォーカス復帰先セル。
+ * @param editable 実際にフォーカスを戻す編集位置。
+ */
+const focusRestoredCell = ( cell: HTMLElement, editable: HTMLElement ): void => {
+	cell.classList.add( RESTORED_CELL_CLASS );
+	cell.addEventListener(
+		'focusout',
+		() => {
+			cell.classList.remove( RESTORED_CELL_CLASS );
+		},
+		{ once: true }
+	);
+	editable.focus( { preventScroll: true } );
+};
 
 /**
  * 行反映後の最終行を利用者が確認できる位置へ表示し、編集可能な場合はその行の先頭編集位置へフォーカスを戻す。
+ *
+ * フォーカスを戻したセルは、利用者が別の場所へ移るまで反映結果として強調する。
  *
  * @param editorDocument 対象Tableが存在する現在のEditor DOM Contextのdocument。
  * @param clientId       対象Table個体のclientId。
@@ -28,13 +55,17 @@ export const restoreMovedRow = (
 	const firstCell = row.querySelector< HTMLElement >( 'th, td' );
 	const displayTarget = editable ?? firstCell ?? ( row as HTMLElement );
 	displayTarget.scrollIntoView( { block: 'center', inline: 'start' } );
-	editable?.focus( { preventScroll: true } );
+	const focusCell = editable?.closest< HTMLElement >( 'th, td' ) ?? null;
+	if ( editable !== null && focusCell !== null ) {
+		focusRestoredCell( focusCell, editable );
+	}
 };
 
 /**
  * 列反映後の最終論理列を利用者が確認できる位置へ表示し、編集可能な場合は対応セルへフォーカスを戻す。
  *
- * 結合セルが最終論理列を占有する場合は、その結合セルを表示復帰先として扱う。
+ * 結合セルが最終論理列を占有する場合は、その結合セルを表示復帰先として扱う。フォーカスを戻したセルは、
+ * 利用者が別の場所へ移るまで反映結果として強調する。
  *
  * @param editorDocument 対象Tableが存在する現在のEditor DOM Contextのdocument。
  * @param clientId       対象Table個体のclientId。
@@ -72,5 +103,7 @@ export const restoreMovedColumn = (
 	const editable = targetCell.querySelector< HTMLElement >( '[contenteditable="true"]' );
 	const displayTarget = editable ?? targetCell;
 	displayTarget.scrollIntoView( { block: 'center', inline: 'center' } );
-	editable?.focus( { preventScroll: true } );
+	if ( editable !== null ) {
+		focusRestoredCell( targetCell, editable );
+	}
 };
