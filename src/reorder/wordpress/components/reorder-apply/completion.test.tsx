@@ -2,7 +2,7 @@
  * 確認付き大規模反映の完了通知が、正常完了だけを利用者へ一時表示することを確認する。
  */
 
-import { render, screen } from '@testing-library/react';
+import { act, render, screen } from '@testing-library/react';
 import type { ReactNode } from 'react';
 
 import { ReorderApplyCompletion } from './completion';
@@ -35,6 +35,36 @@ describe( 'WordPress Reorder Apply completion notice', () => {
 
 		expect( screen.getByText( 'Reordering complete.' ) ).not.toBeNull();
 		expect( screen.getByText( '✓' ) ).not.toBeNull();
+	} );
+
+	/**
+	 * 完了通知が表示された場合に、利用者が完了を確認できる時間を確保した後で自動的に終了することを確認する。
+	 *
+	 * 事前条件:
+	 * - 正常な大規模反映後の再mountが完了している。
+	 *
+	 * 操作:
+	 * - 完了通知の表示開始から2秒経過させる。
+	 *
+	 * 期待結果:
+	 * - 2秒経過前は完了通知が表示されている。
+	 * - 2秒経過後は完了通知が終了する。
+	 */
+	it( 'when a completion notice has been visible for two seconds, should remove the notice', () => {
+		jest.useFakeTimers();
+		const { rerender } = render( <ReorderApplyCompletion isSuccessfulRemounting={ true } /> );
+		rerender( <ReorderApplyCompletion isSuccessfulRemounting={ false } /> );
+
+		act( () => {
+			jest.advanceTimersByTime( 1999 );
+		} );
+		expect( screen.getByText( 'Reordering complete.' ) ).not.toBeNull();
+
+		act( () => {
+			jest.advanceTimersByTime( 1 );
+		} );
+		expect( screen.queryByText( 'Reordering complete.' ) ).toBeNull();
+		jest.useRealTimers();
 	} );
 
 	/**
