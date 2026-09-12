@@ -14,7 +14,10 @@ import {
 	type ColumnBlockingMergedRange,
 	type ColumnInputDescriptor,
 } from '@/reorder/column-reorder/responsibilities/table-integration';
-import { rowTableIntegration, type RowBlockingMergedRange } from '@/reorder/row-reorder/responsibilities/table-integration';
+import {
+	rowTableIntegration,
+	type RowBlockingMergedRange,
+} from '@/reorder/row-reorder/responsibilities/table-integration';
 
 import {
 	interpretColumnRfInput,
@@ -136,7 +139,10 @@ type RfInteractionStore = RfInteractionStoreState & RfInteractionStoreActions;
 /** RF Apply Coordination実装が接続されるまでApply要求を外部へ流さないための内部Receiver。 */
 let applyRequestReceiver: RfApplyRequestReceiver | null = null;
 
-/** Row Resolutionのcandidateを除いたPresentation向け結果へ変換する。 */
+/**
+ * Row Resolutionのcandidateを除いたPresentation向け結果へ変換する。
+ * @param resolution
+ */
 const toRowCurrentResult = ( resolution: RowRfResolution ): RfRowCurrentResult => {
 	if ( resolution.status === 'rejected' ) {
 		return {
@@ -149,7 +155,10 @@ const toRowCurrentResult = ( resolution: RowRfResolution ): RfRowCurrentResult =
 	return result;
 };
 
-/** Column Resolutionのcandidateを除いたPresentation向け結果へ変換する。 */
+/**
+ * Column Resolutionのcandidateを除いたPresentation向け結果へ変換する。
+ * @param resolution
+ */
 const toColumnCurrentResult = ( resolution: ColumnRfResolution ): RfColumnCurrentResult => {
 	if ( resolution.status === 'rejected' ) {
 		return {
@@ -268,9 +277,7 @@ const evaluateOpenSession = (
 	if ( session.direction === 'row' ) {
 		const row = evaluateRow( session.tableIdentity, session.rowInput );
 		const request =
-			row.candidate === null
-				? null
-				: { direction: 'row' as const, candidate: row.candidate };
+			row.candidate === null ? null : { direction: 'row' as const, candidate: row.candidate };
 		return { evaluation: row.evaluation, request };
 	}
 
@@ -320,20 +327,14 @@ export const rfInteractionStore = createStore< RfInteractionStore >()(
 			},
 			close: ( tableIdentity ) => {
 				const session = get().session;
-				if (
-					session.status !== 'open' ||
-					session.tableIdentity !== tableIdentity
-				) {
+				if ( session.status !== 'open' || session.tableIdentity !== tableIdentity ) {
 					return;
 				}
 				set( { session: { status: 'closed' } }, undefined, 'rf-interaction/close' );
 			},
 			selectDirection: ( tableIdentity, direction ) => {
 				const session = get().session;
-				if (
-					session.status !== 'open' ||
-					session.tableIdentity !== tableIdentity
-				) {
+				if ( session.status !== 'open' || session.tableIdentity !== tableIdentity ) {
 					return;
 				}
 				if ( session.direction === direction ) {
@@ -396,10 +397,7 @@ export const rfInteractionStore = createStore< RfInteractionStore >()(
 			},
 			notifyTableChanged: ( tableIdentity ) => {
 				const session = get().session;
-				if (
-					session.status !== 'open' ||
-					session.tableIdentity !== tableIdentity
-				) {
+				if ( session.status !== 'open' || session.tableIdentity !== tableIdentity ) {
 					return;
 				}
 
@@ -412,10 +410,7 @@ export const rfInteractionStore = createStore< RfInteractionStore >()(
 			},
 			requestApply: ( tableIdentity ) => {
 				const session = get().session;
-				if (
-					session.status !== 'open' ||
-					session.tableIdentity !== tableIdentity
-				) {
+				if ( session.status !== 'open' || session.tableIdentity !== tableIdentity ) {
 					return;
 				}
 
@@ -443,19 +438,12 @@ export const rfInteractionStore = createStore< RfInteractionStore >()(
 			},
 			resolveApply: ( tableIdentity, result ) => {
 				const session = get().session;
-				if (
-					session.status !== 'applying' ||
-					session.tableIdentity !== tableIdentity
-				) {
+				if ( session.status !== 'applying' || session.tableIdentity !== tableIdentity ) {
 					return;
 				}
 
 				if ( result === 'success' ) {
-					set(
-						{ session: { status: 'closed' } },
-						undefined,
-						'rf-interaction/apply-success'
-					);
+					set( { session: { status: 'closed' } }, undefined, 'rf-interaction/apply-success' );
 					return;
 				}
 
