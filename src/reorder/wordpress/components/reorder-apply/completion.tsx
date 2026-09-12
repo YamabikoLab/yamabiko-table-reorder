@@ -14,7 +14,7 @@ import './completion.scss';
 /**
  * 大規模反映が正常完了した場合に、フォーカスを奪わない完了通知を短時間だけ表示する。
  *
- * @param props                       完了通知の表示条件。
+ * @param props                        完了通知の表示条件。
  * @param props.isSuccessfulRemounting 反映成功後の再mount中であることを示す。
  * @return 完了直後だけ表示する一時通知。それ以外はnull。
  */
@@ -55,7 +55,9 @@ export const ReorderApplyCompletion = ( props: { isSuccessfulRemounting: boolean
 		<div className="yamabiko-table-reorder-completion-notice">
 			<Snackbar key={ noticeSequence } onRemove={ removeNotice }>
 				<span className="yamabiko-table-reorder-completion-notice__content">
-					<Dashicon icon="yes-alt" aria-hidden="true" />
+					<span aria-hidden="true">
+						<Dashicon icon="yes-alt" />
+					</span>
 					{ getLargeReorderCompletionMessage() }
 				</span>
 			</Snackbar>
