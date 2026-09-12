@@ -22,7 +22,12 @@ const focusRestoredCell = ( cell: HTMLElement, editable: HTMLElement ): void => 
 	cell.classList.add( RESTORED_CELL_CLASS );
 	const handleFocusOut = ( event: FocusEvent ): void => {
 		const nextTarget = event.relatedTarget;
-		if ( nextTarget instanceof Node && cell.contains( nextTarget ) ) {
+		const editorNode = cell.ownerDocument.defaultView?.Node;
+		if (
+			editorNode !== undefined &&
+			nextTarget instanceof editorNode &&
+			cell.contains( nextTarget )
+		) {
 			return;
 		}
 		cell.classList.remove( RESTORED_CELL_CLASS );
