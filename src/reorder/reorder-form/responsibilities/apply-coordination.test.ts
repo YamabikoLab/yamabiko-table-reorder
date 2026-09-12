@@ -37,7 +37,7 @@ const columnAssessmentMock = columnTableIntegration.assessColumnMoveForApply as 
 const columnApplyMock = columnTableIntegration.applyColumnMove as jest.Mock;
 
 const rowRequest: RfApplyRequest = {
-	direction: 'row',
+	kind: 'row',
 	candidate: {
 		clientId: 'table-row',
 		sourceRowIndex: 1,
@@ -46,7 +46,7 @@ const rowRequest: RfApplyRequest = {
 };
 
 const columnRequest: RfApplyRequest = {
-	direction: 'column',
+	kind: 'column',
 	candidate: {
 		clientId: 'table-column',
 		sourceColumnIndex: 2,
@@ -176,10 +176,10 @@ describe( 'RF Apply Coordination', () => {
 		expect( getRfApplyCoordinationSnapshot() ).toEqual( {
 			phase: 'confirming',
 			tableIdentity: 'table-row',
-			direction: 'row',
+			kind: 'row',
 		} );
 		expect( getRfApplySummary() ).toEqual( {
-			direction: 'row',
+			kind: 'row',
 			sourcePosition: 2,
 			destinationPosition: 4,
 		} );
@@ -189,7 +189,7 @@ describe( 'RF Apply Coordination', () => {
 		expect( getRfApplyCoordinationSnapshot() ).toEqual( {
 			phase: 'applying',
 			tableIdentity: 'table-row',
-			direction: 'row',
+			kind: 'row',
 		} );
 
 		applyRfReorder();
@@ -198,7 +198,7 @@ describe( 'RF Apply Coordination', () => {
 		expect( getRfApplyCoordinationSnapshot() ).toEqual( {
 			phase: 'restoring',
 			tableIdentity: 'table-row',
-			direction: 'row',
+			kind: 'row',
 			applied: true,
 		} );
 		expect( resolve ).not.toHaveBeenCalled();
@@ -235,7 +235,7 @@ describe( 'RF Apply Coordination', () => {
 
 		receiveRfApplyRequest( columnRequest, resolve );
 		expect( getRfApplySummary() ).toEqual( {
-			direction: 'column',
+			kind: 'column',
 			sourcePosition: 3,
 			destinationPosition: 1,
 		} );
@@ -274,7 +274,7 @@ describe( 'RF Apply Coordination', () => {
 		expect( getRfApplyCoordinationSnapshot() ).toEqual( {
 			phase: 'restoring',
 			tableIdentity: 'table-row',
-			direction: 'row',
+			kind: 'row',
 			applied: false,
 		} );
 		expect( resolve ).not.toHaveBeenCalled();
@@ -313,7 +313,7 @@ describe( 'RF Apply Coordination', () => {
 		expect( getRfApplyCoordinationSnapshot() ).toEqual( {
 			phase: 'restoring',
 			tableIdentity: 'table-row',
-			direction: 'row',
+			kind: 'row',
 			applied: false,
 		} );
 		expect( resolve ).not.toHaveBeenCalled();
@@ -351,7 +351,7 @@ describe( 'RF Apply Coordination', () => {
 		expect( getRfApplyCoordinationSnapshot() ).toEqual( {
 			phase: 'confirming',
 			tableIdentity: 'table-row',
-			direction: 'row',
+			kind: 'row',
 		} );
 
 		cancelRfApply();
