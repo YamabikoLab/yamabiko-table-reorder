@@ -2,11 +2,22 @@
 
 A WordPress block editor plugin for reordering Table rows and columns.
 
+> [!IMPORTANT]
+> **Supported Table blocks**
+>
+> Yamabiko Table Reorder currently supports only:
+>
+> - WordPress **Core Table**
+> - **Flexible Table Block**
+>
+> Other Table blocks provided by plugins or themes are not currently supported.
+> Yamabiko Table Reorder's Row / Column Reorder features will not work with unsupported Table blocks.
+
 <img width="1897" height="842" alt="demo" src="https://github.com/user-attachments/assets/f055a4e6-d03c-41d0-b9a6-fd55c223a6dc" />
 
 ## Current Status
 
-Version 0.8.5 provides **Row Reorder and Column Reorder** for WordPress Core Table and Flexible Table Block.
+Version 0.8.5 provides **Row Reorder and Column Reorder** for the supported Table blocks listed above.
 
 Switch to Row Reorder or Column Reorder mode from the Table toolbar, then reorder `tbody` rows or Table columns with Mouse or Touch drag-and-drop. During DnD, the plugin shows the moving row or column and the current destination. During Row Reorder, surrounding rows are displaced to preview the result before it is committed. During Column Reorder, surrounding columns are displaced in iframe editors. In non-iframe editors, surrounding column displacement is intentionally omitted to preserve responsiveness, while the moving column and insertion line continue to show the source and destination.
 
