@@ -10,7 +10,7 @@
  *
  * 要件上の固定値ではなく、実機検証に基づいて調整する。
  */
-export const REORDER_APPLY_CONFIRM_CELL_THRESHOLD = 500;
+export const REORDER_APPLY_CONFIRM_CELL_THRESHOLD = 300;
 
 /**
  * 更新対象セル数が確認付き大規模反映を必要とするか判定する。

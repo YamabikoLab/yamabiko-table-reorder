@@ -30,9 +30,7 @@ describe( 'WordPress Reorder Apply completion notice', () => {
 	 * - 完了メッセージと完了アイコンを含む一時通知が表示される。
 	 */
 	it( 'when a successful remount finishes, should show a completion notice with a success icon', () => {
-		const { rerender } = render(
-			<ReorderApplyCompletion isSuccessfulRemounting={ true } />
-		);
+		const { rerender } = render( <ReorderApplyCompletion isSuccessfulRemounting={ true } /> );
 
 		rerender( <ReorderApplyCompletion isSuccessfulRemounting={ false } /> );
 

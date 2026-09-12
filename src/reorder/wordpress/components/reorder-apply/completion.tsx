@@ -55,10 +55,7 @@ export const ReorderApplyCompletion = ( props: { isSuccessfulRemounting: boolean
 		<div className="yamabiko-table-reorder-completion-notice">
 			<Snackbar key={ noticeSequence } onRemove={ removeNotice }>
 				<span className="yamabiko-table-reorder-completion-notice__content">
-					<span
-						className="yamabiko-table-reorder-completion-notice__icon"
-						aria-hidden="true"
-					>
+					<span className="yamabiko-table-reorder-completion-notice__icon" aria-hidden="true">
 						<Dashicon icon="yes-alt" />
 					</span>
 					{ getLargeReorderCompletionMessage() }
