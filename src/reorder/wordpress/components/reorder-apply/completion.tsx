@@ -11,6 +11,9 @@ import { getLargeReorderCompletionMessage } from '@/messages';
 
 import './completion.scss';
 
+/** 完了を認識できる時間を確保しつつ、編集操作を長く覆わない表示時間。 */
+const COMPLETION_NOTICE_DURATION_MS = 2000;
+
 /**
  * 大規模反映が正常完了した場合に、フォーカスを奪わない完了通知を短時間だけ表示する。
  *
@@ -32,6 +35,28 @@ export const ReorderApplyCompletion = ( props: { isSuccessfulRemounting: boolean
 			setNoticeSequence( ( current ) => ( current ?? 0 ) + 1 );
 		}
 	}, [ isSuccessfulRemounting ] );
+
+	useEffect( () => {
+		if ( noticeSequence === null ) {
+			return;
+		}
+
+		const currentNoticeSequence = noticeSequence;
+		const timeoutId = setTimeout( () => {
+			setNoticeSequence( ( current ) => {
+				/* 後から始まった完了通知は、先の通知の表示時間満了では終了させない。 */
+				if ( current !== currentNoticeSequence ) {
+					return current;
+				}
+
+				return null;
+			} );
+		}, COMPLETION_NOTICE_DURATION_MS );
+
+		return () => {
+			clearTimeout( timeoutId );
+		};
+	}, [ noticeSequence ] );
 
 	/* 完了イベントが発生していない間は、利用者向け通知を表示しない。 */
 	if ( noticeSequence === null ) {
