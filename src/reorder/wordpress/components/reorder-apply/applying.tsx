@@ -7,10 +7,7 @@
 import { Dashicon, Modal } from '@wordpress/components';
 import type { RefObject } from 'react';
 
-import {
-	getLargeReorderApplyingDetail,
-	getLargeReorderApplyingMessage,
-} from '@/messages';
+import { getLargeReorderApplyingDetail, getLargeReorderApplyingMessage } from '@/messages';
 
 /**
  * 大規模反映中に、閉じられない処理状況と待機案内を表示する。

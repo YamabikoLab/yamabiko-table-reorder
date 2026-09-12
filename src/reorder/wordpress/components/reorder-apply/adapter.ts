@@ -7,10 +7,7 @@
 
 import { useSyncExternalStore } from 'react';
 
-import {
-	getLargeColumnReorderMoveSummary,
-	getLargeRowReorderMoveSummary,
-} from '@/messages';
+import { getLargeColumnReorderMoveSummary, getLargeRowReorderMoveSummary } from '@/messages';
 import {
 	applyLargeColumnReorder,
 	cancelLargeColumnReorderApply,
