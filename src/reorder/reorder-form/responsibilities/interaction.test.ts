@@ -288,12 +288,12 @@ describe( 'RF Interaction', () => {
 	 * - successではclosedになり、failure / cancelledではRow入力を保持したopenへ戻る。
 	 */
 	it.each( [
-		[ 'success', 'closed' ],
-		[ 'failure', 'open' ],
-		[ 'cancelled', 'open' ],
+		[ 'success', { status: 'closed' } ],
+		[ 'failure', { status: 'open', rowInput: ROW_INPUT } ],
+		[ 'cancelled', { status: 'open', rowInput: ROW_INPUT } ],
 	] as const )(
-		'when apply resolves as %s, should transition the session to %s',
-		( result, expectedStatus ) => {
+		'when apply resolves as %s, should transition to the expected session state',
+		( result, expectedSession ) => {
 			let resolveApply: ( result: RfApplyResult ) => void = () => undefined;
 			const disconnect = connectRfApplyCoordination( ( _request, resolve ) => {
 				resolveApply = resolve;
@@ -305,10 +305,7 @@ describe( 'RF Interaction', () => {
 			resolveApply( result );
 
 			const session = rfInteractionStore.getState().session;
-			expect( session.status ).toBe( expectedStatus );
-			if ( expectedStatus === 'open' ) {
-				expect( session ).toMatchObject( { rowInput: ROW_INPUT } );
-			}
+			expect( session ).toMatchObject( expectedSession );
 			disconnect();
 		}
 	);
