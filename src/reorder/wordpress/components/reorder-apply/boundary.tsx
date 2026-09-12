@@ -1,7 +1,7 @@
 /**
  * WordPressのTable編集表示へ確認付き大規模反映を接続するBoundary。
  *
- * 対象Tableの現在Presentation状態を選び、「確認 → 反映 → 復帰」のUI構造を接続する。
+ * 対象Tableの現在Presentation状態を選び、「確認 → 反映 → 復帰 → 完了通知」のUI構造を接続する。
  * 方向固有Store、Move意味、paint待ち、Editor DOM Context解決、scroll / focus実装は各private責務へ委譲する。
  */
 
@@ -11,6 +11,7 @@ import { getLargeReorderApplyingMessage } from '@/messages';
 
 import { useReorderApplyPresentationState } from './adapter';
 import { ReorderApplying } from './applying';
+import { ReorderApplyCompletion } from './completion';
 import { ReorderApplyConfirmation } from './confirmation';
 import { useReorderApplyLifecycle } from './lifecycle';
 
@@ -20,7 +21,7 @@ import { useReorderApplyLifecycle } from './lifecycle';
  * @param props          対象Tableと通常表示。
  * @param props.clientId 対象Table個体のclientId。
  * @param props.children 通常時に表示するGutenberg本来のTable編集UI。
- * @return 通常Table、確認Modal、反映中表示、または復帰中表示。
+ * @return 通常Table、確認Modal、反映中表示、復帰中表示、または完了通知。
  */
 export const ReorderApplyTableBoundary = ( props: { clientId: string; children: ReactNode } ) => {
 	const { clientId, children } = props;
@@ -31,6 +32,9 @@ export const ReorderApplyTableBoundary = ( props: { clientId: string; children: 
 	if ( presentation.phase === 'applying' ) {
 		return <ReorderApplying referenceElementRef={ applyingReferenceElementRef } />;
 	}
+
+	const isSuccessfulRemounting =
+		presentation.phase === 'remounting' && presentation.applied;
 
 	return (
 		<>
@@ -47,6 +51,7 @@ export const ReorderApplyTableBoundary = ( props: { clientId: string; children: 
 					onCancel={ presentation.cancel }
 				/>
 			) }
+			<ReorderApplyCompletion isSuccessfulRemounting={ isSuccessfulRemounting } />
 		</>
 	);
 };
