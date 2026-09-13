@@ -235,8 +235,11 @@ describe( 'Column DnD input boundary', () => {
 		pointerDownHandler( createPointerEvent( { target, currentTarget, pointerType: 'touch' } ) );
 
 		expect( draggableConstructorMock ).toHaveBeenCalledTimes( 1 );
-		const options = pointerSensorConfigureMock.mock.calls[ 0 ]?.[ 0 ];
-		options?.activationConstraints?.( { pointerType: 'touch' } as PointerEvent );
+		const activationConstraints = pointerSensorConfigureMock.mock.calls[ 0 ]?.[ 0 ]?.activationConstraints;
+		if ( typeof activationConstraints !== 'function' ) {
+			throw new Error( 'PointerSensor activationConstraints callback was not configured.' );
+		}
+		activationConstraints( { pointerType: 'touch' } as PointerEvent, {} as Draggable );
 		expect( delayConstraintMock ).toHaveBeenCalledWith( { value: 250, tolerance: 5 } );
 	} );
 
@@ -251,8 +254,11 @@ describe( 'Column DnD input boundary', () => {
 		const { pointerDownHandler } = renderColumnInput();
 		pointerDownHandler( createPointerEvent( { target, currentTarget } ) );
 
-		const options = pointerSensorConfigureMock.mock.calls[ 0 ]?.[ 0 ];
-		options?.activationConstraints?.( { pointerType: 'mouse' } as PointerEvent );
+		const activationConstraints = pointerSensorConfigureMock.mock.calls[ 0 ]?.[ 0 ]?.activationConstraints;
+		if ( typeof activationConstraints !== 'function' ) {
+			throw new Error( 'PointerSensor activationConstraints callback was not configured.' );
+		}
+		activationConstraints( { pointerType: 'mouse' } as PointerEvent, {} as Draggable );
 		expect( distanceConstraintMock ).toHaveBeenCalledWith( { value: 5 } );
 	} );
 
