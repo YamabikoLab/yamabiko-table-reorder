@@ -223,9 +223,7 @@ export const ReorderFormPopover = ( props: ReorderFormPopoverProps ) => {
 									rfInteraction.updateColumnInput( tableIdentity, {
 										...state.input,
 										sourceColumnIndex:
-											event.currentTarget.value === ''
-												? null
-												: Number( event.currentTarget.value ),
+											event.currentTarget.value === '' ? null : Number( event.currentTarget.value ),
 									} )
 								}
 								value={ state.input.sourceColumnIndex ?? '' }
@@ -245,9 +243,7 @@ export const ReorderFormPopover = ( props: ReorderFormPopoverProps ) => {
 									rfInteraction.updateColumnInput( tableIdentity, {
 										...state.input,
 										targetColumnIndex:
-											event.currentTarget.value === ''
-												? null
-												: Number( event.currentTarget.value ),
+											event.currentTarget.value === '' ? null : Number( event.currentTarget.value ),
 									} )
 								}
 								value={ state.input.targetColumnIndex ?? '' }

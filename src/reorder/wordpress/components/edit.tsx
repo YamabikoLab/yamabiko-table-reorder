@@ -41,13 +41,7 @@ export const ReorderModeEdit = ( componentProps: ReorderModeEditProps ) => {
 	const rfState = useRfInteraction( clientId );
 
 	useTableLifecycle( clientId, isSelected, getSelectedTableIdentity );
-	useRfTableLifecycle(
-		clientId,
-		isSelected,
-		getSelectedTableIdentity,
-		attributes,
-		rfState.status
-	);
+	useRfTableLifecycle( clientId, isSelected, getSelectedTableIdentity, attributes, rfState.status );
 
 	return (
 		<>

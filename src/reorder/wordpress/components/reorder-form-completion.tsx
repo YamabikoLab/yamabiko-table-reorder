@@ -23,9 +23,7 @@ const COMPLETION_NOTICE_DURATION_MS = 2000;
  * @param props.status 対象Tableから見たRF Interaction状態。
  * @return 正常反映直後だけ表示する一時通知。それ以外はnull。
  */
-export const ReorderFormCompletion = ( props: {
-	status: RfInteractionReactState[ 'status' ];
-} ) => {
+export const ReorderFormCompletion = ( props: { status: RfInteractionReactState[ 'status' ] } ) => {
 	const { status } = props;
 	const previousStatus = useRef( status );
 	const [ noticeSequence, setNoticeSequence ] = useState< number | null >( null );

@@ -109,17 +109,16 @@ export const ReorderModeToolbar = ( props: ReorderModeToolbarProps ) => {
 	const [ rfAnchor, setRfAnchor ] = useState< HTMLElement | null >( null );
 	const rfActive = rfState.status !== 'closed';
 	const rfApplying = rfState.status === 'applying';
-	const { dismiss, guidance } = useReorderGuidance(
-		tableIdentity,
-		guidanceAnchor,
-		rfActive
-	);
+	const { dismiss, guidance } = useReorderGuidance( tableIdentity, guidanceAnchor, rfActive );
 
 	/* 初回案内中は、3つの入口を共通の開始位置として通常時より強調する。 */
 	const guidanceTargetClassName =
 		guidance !== null ? 'yamabiko-table-reorder-guidance-target' : undefined;
 
-	/** RFがopenなら終了してから選択したDnDモードへ進む。 */
+	/**
+	 * RFがopenなら終了してから選択したDnDモードへ進む。
+	 * @param kind
+	 */
 	const selectDndMode = ( kind: ReorderKind ): void => {
 		/* RF反映中は新しい並び替え操作を開始しない。 */
 		if ( rfApplying ) {

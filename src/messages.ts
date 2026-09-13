@@ -125,12 +125,18 @@ export const getRfUnavailableMessage = () =>
 export const getRfRowMergedRangeMessage = ( rowStart: number, rowEnd: number ) => {
 	if ( rowStart === rowEnd ) {
 		/* translators: %d: 1-based row number */
-		const message = __( 'A merged cell involving row %d prevents this move.', 'yamabiko-table-reorder' );
+		const message = __(
+			'A merged cell involving row %d prevents this move.',
+			'yamabiko-table-reorder'
+		);
 		return sprintf( message, rowStart );
 	}
 
 	/* translators: 1: first 1-based row number, 2: last 1-based row number */
-	const message = __( 'A merged cell spanning rows %1$d–%2$d prevents this move.', 'yamabiko-table-reorder' );
+	const message = __(
+		'A merged cell spanning rows %1$d–%2$d prevents this move.',
+		'yamabiko-table-reorder'
+	);
 	return sprintf( message, rowStart, rowEnd );
 };
 
