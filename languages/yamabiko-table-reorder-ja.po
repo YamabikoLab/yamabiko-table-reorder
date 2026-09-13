@@ -99,106 +99,106 @@ msgstr "並び替えが完了しました。"
 #. %d: 1-based column number
 #: src/messages.ts:103
 msgid "Column %d"
-msgstr ""
+msgstr "%d列目"
 
 #: src/messages.ts:109
 msgid "This selection won't change the order."
-msgstr ""
+msgstr "この指定では並び順は変わりません。"
 
 #: src/messages.ts:113
 msgid "This reorder can't continue with the current table. Check the table and try again."
-msgstr ""
+msgstr "現在のテーブルでは、この並び替えを続行できません。テーブルの状態を確認して、もう一度お試しください。"
 
 #. %d: 1-based row number
 #: src/messages.ts:128
 msgid "A merged cell involving row %d prevents this move."
-msgstr ""
+msgstr "%d行目にある結合セルのため、この指定では移動できません。"
 
 #. 1: first 1-based row number, 2: last 1-based row number
 #: src/messages.ts:136
 msgid "A merged cell spanning rows %1$d–%2$d prevents this move."
-msgstr ""
+msgstr "%1$d〜%2$d行目にまたがる結合セルがあるため、この指定では移動できません。"
 
 #. %d: 1-based column number
 #: src/messages.ts:153
 msgid "A merged cell involving column %d prevents this move."
-msgstr ""
+msgstr "%d列目にある結合セルのため、この指定では移動できません。"
 
 #. 1: first 1-based column number, 2: last 1-based column number
 #: src/messages.ts:161
 msgid "A merged cell spanning columns %1$d–%2$d prevents this move."
-msgstr ""
+msgstr "%1$d〜%2$d列目にまたがる結合セルがあるため、この指定では移動できません。"
 
 #: src/messages.ts:172
 msgid "Reorder"
-msgstr ""
+msgstr "並び替え"
 
 #: src/messages.ts:27
 msgid "Reorder with form"
-msgstr ""
+msgstr "フォームで並び替え"
 
 #: src/messages.ts:33
 msgid "Rows"
-msgstr ""
+msgstr "行"
 
 #: src/messages.ts:36
 msgid "Columns"
-msgstr ""
+msgstr "列"
 
 #: src/messages.ts:39
 msgid "Row to move"
-msgstr ""
+msgstr "移動する行"
 
 #: src/messages.ts:42
 msgid "Target row"
-msgstr ""
+msgstr "移動先の行"
 
 #: src/messages.ts:45
 msgid "Position"
-msgstr ""
+msgstr "位置"
 
 #: src/messages.ts:48
 msgid "Above"
-msgstr ""
+msgstr "上"
 
 #: src/messages.ts:51
 msgid "Below"
-msgstr ""
+msgstr "下"
 
 #. %d: current tbody row count
 #: src/messages.ts:61
 msgid "Enter an integer from 1 to %d."
-msgstr ""
+msgstr "1〜%dの整数を入力してください。"
 
 #: src/messages.ts:67
 msgid "Move the row above or below the target row."
-msgstr ""
+msgstr "移動先の行の上または下へ移動します。"
 
 #: src/messages.ts:70
 msgid "Column to move"
-msgstr ""
+msgstr "移動する列"
 
 #: src/messages.ts:73
 msgid "Target column"
-msgstr ""
+msgstr "移動先の列"
 
 #: src/messages.ts:76
 msgid "Select a column"
-msgstr ""
+msgstr "列を選択"
 
 #: src/messages.ts:79
 msgid "Left"
-msgstr ""
+msgstr "左"
 
 #: src/messages.ts:82
 msgid "Right"
-msgstr ""
+msgstr "右"
 
 #: src/messages.ts:86
 msgid "Move the column to the left or right of the target column."
-msgstr ""
+msgstr "移動先の列の左または右へ移動します。"
 
 #. 1: column heading, 2: 1-based column number
 #: src/messages.ts:98
 msgid "%1$s (Column %2$d)"
-msgstr ""
+msgstr "%1$s（%2$d列目）"
