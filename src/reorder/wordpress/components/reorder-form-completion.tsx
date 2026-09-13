@@ -1,15 +1,16 @@
 /**
  * Reorder Form（RF）の正常反映完了を、操作を妨げない一時通知として表示する。
  *
- * RF Interactionの`applying`から`closed`への遷移だけを成功として扱い、通常反映と確認付き大規模反映を
- * 同じ経路から一度だけ通知する。Apply LifecycleやRF Session状態そのものは変更しない。
+ * RF Interactionが保持する未消費のApply Outcomeを正本とし、Reactの描画履歴やTableの再mount有無に依存せず
+ * 通常反映と確認付き大規模反映の成功を同じ経路から一度だけ通知する。
  */
 
 import { Snackbar } from '@wordpress/components';
 import { useEffect, useRef, useState } from '@wordpress/element';
 
 import { getLargeReorderCompletionMessage } from '@/messages';
-import type { RfInteractionReactState } from '@/reorder/reorder-form/responsibilities/interaction-react';
+import { rfInteraction } from '@/reorder/reorder-form/responsibilities/interaction';
+import { useRfApplyOutcome } from '@/reorder/reorder-form/responsibilities/interaction-react';
 
 import './reorder-form.scss';
 
@@ -19,55 +20,59 @@ const COMPLETION_NOTICE_DURATION_MS = 2000;
 /**
  * RF Interactionが正常反映を完了した直後だけ完了通知を表示する。
  *
- * @param props        現在RF状態。
- * @param props.status 対象Tableから見たRF Interaction状態。
- * @return 正常反映直後だけ表示する一時通知。それ以外はnull。
+ * @param props               通知対象Table。
+ * @param props.tableIdentity RF完了結果を購読するTable Identity。
+ * @return 未消費の正常完了を受け取った直後だけ表示する一時通知。それ以外はnull。
  */
-export const ReorderFormCompletion = ( props: { status: RfInteractionReactState[ 'status' ] } ) => {
-	const { status } = props;
-	const previousStatus = useRef( status );
-	const [ noticeSequence, setNoticeSequence ] = useState< number | null >( null );
+export const ReorderFormCompletion = ( props: { tableIdentity: string } ) => {
+	const { tableIdentity } = props;
+	const applyOutcome = useRfApplyOutcome( tableIdentity );
+	const [ isNoticeVisible, setIsNoticeVisible ] = useState( false );
+	const timeoutRef = useRef< ReturnType< typeof setTimeout > | null >( null );
 
 	useEffect( () => {
-		const completed = previousStatus.current === 'applying' && status === 'closed';
-		previousStatus.current = status;
-
-		/* failure / cancelledはopenへ戻るため、applying→closedだけが正常反映を表す。 */
-		if ( completed ) {
-			setNoticeSequence( ( current ) => ( current ?? 0 ) + 1 );
-		}
-	}, [ status ] );
-
-	useEffect( () => {
-		if ( noticeSequence === null ) {
+		if ( applyOutcome.status !== 'success' ) {
 			return;
 		}
 
-		const currentNoticeSequence = noticeSequence;
-		const timeoutId = setTimeout( () => {
-			setNoticeSequence( ( current ) => {
-				const nextSequence = current === currentNoticeSequence ? null : current;
-				return nextSequence;
-			} );
+		/* 成功事実はStoreで一度だけ消費し、表示時間だけをPresentationのlocal stateで所有する。 */
+		rfInteraction.consumeApplyOutcome( tableIdentity );
+		setIsNoticeVisible( true );
+
+		if ( timeoutRef.current !== null ) {
+			clearTimeout( timeoutRef.current );
+		}
+
+		timeoutRef.current = setTimeout( () => {
+			setIsNoticeVisible( false );
+			timeoutRef.current = null;
 		}, COMPLETION_NOTICE_DURATION_MS );
+	}, [ applyOutcome, tableIdentity ] );
 
-		return () => clearTimeout( timeoutId );
-	}, [ noticeSequence ] );
+	useEffect(
+		() => () => {
+			if ( timeoutRef.current !== null ) {
+				clearTimeout( timeoutRef.current );
+			}
+		},
+		[]
+	);
 
-	if ( noticeSequence === null ) {
+	if ( ! isNoticeVisible ) {
 		return null;
 	}
 
 	const removeNotice = (): void => {
-		setNoticeSequence( ( current ) => {
-			const nextSequence = current === noticeSequence ? null : current;
-			return nextSequence;
-		} );
+		if ( timeoutRef.current !== null ) {
+			clearTimeout( timeoutRef.current );
+			timeoutRef.current = null;
+		}
+		setIsNoticeVisible( false );
 	};
 
 	return (
 		<div className="yamabiko-table-reorder-rf-completion">
-			<Snackbar key={ noticeSequence } onRemove={ removeNotice }>
+			<Snackbar onRemove={ removeNotice }>
 				<strong className="yamabiko-table-reorder-rf-completion__content">
 					<span aria-hidden="true">✓</span>
 					{ getLargeReorderCompletionMessage() }
