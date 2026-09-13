@@ -83,7 +83,8 @@ describe( 'Reorder completion notice presentation', () => {
 			screen.getByText( 'Reordering failed. The table has not been changed.' )
 		).not.toBeNull();
 		expect(
-			screen.getByText( 'Reordering failed. The table has not been changed.' ).previousElementSibling
+			screen.getByText( 'Reordering failed. The table has not been changed.' )
+				.previousElementSibling
 		).not.toBeNull();
 	} );
 
