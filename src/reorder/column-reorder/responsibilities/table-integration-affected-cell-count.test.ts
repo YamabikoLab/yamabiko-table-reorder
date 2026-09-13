@@ -9,6 +9,7 @@ jest.mock( '@wordpress/block-editor', () => ( {
 } ) );
 
 jest.mock( '@wordpress/data', () => ( {
+	combineReducers: jest.requireActual( '@wordpress/data' ).combineReducers,
 	dispatch: jest.fn(),
 	select: jest.fn(),
 } ) );
