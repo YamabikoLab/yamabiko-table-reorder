@@ -1,5 +1,5 @@
 /**
- * 行・列・RFの確認付き大規模反映を、WordPress表示責務が扱うPresentation状態へ変換する。
+ * 行・列・RFの反映を、WordPress表示責務が扱うPresentation状態へ変換する。
  *
  * 各Reorder Applyを正本として購読し、対象Tableに必要な確認内容、反映操作、反映後最終位置だけを表示側へ提供する。
  * Reorder Applyの状態や移動先の意味は所有せず、Table IntegrationやEditor DOM Contextにも依存しない。
@@ -40,10 +40,10 @@ import {
 	type LargeRowReorderApplyState,
 } from '@/reorder/row-reorder/responsibilities/reorder-apply';
 
-/** 表示復帰中の大規模反映を所有する並び替え手段。 */
+/** 表示復帰中の反映を所有する並び替え手段。 */
 type ReorderApplyOwner = 'row' | 'column' | 'rf';
 
-/** WordPress表示責務が扱う確認付き大規模反映のPresentation状態。 */
+/** WordPress表示責務が扱う反映Presentation状態。 */
 export type ReorderApplyPresentationState =
 	| { phase: 'idle' }
 	| {
@@ -66,7 +66,7 @@ export type ReorderApplyPresentationState =
 			kind: ReorderKind;
 			tableIdentity: string;
 			applied: boolean;
-			destinationIndex: number;
+			destinationIndex: number | null;
 			complete: () => void;
 	  };
 
@@ -78,7 +78,7 @@ const useLargeRowReorderApplyState = (): LargeRowReorderApplyState =>
 const useLargeColumnReorderApplyState = (): LargeColumnReorderApplyState =>
 	useSyncExternalStore( subscribeLargeColumnReorderApply, getLargeColumnReorderApplyState );
 
-/** ReactからRFの確認付き大規模反映状態を購読する。 */
+/** ReactからRF反映状態を購読する。 */
 const useRfApplyCoordinationSnapshot = (): RfApplyCoordinationSnapshot =>
 	useSyncExternalStore( subscribeRfApplyCoordination, getRfApplyCoordinationSnapshot );
 
@@ -227,9 +227,10 @@ const adaptColumnReorderApply = (
 };
 
 /**
- * RFの確認付き大規模反映を、対象Table向けPresentation状態へ変換する。
+ * RF反映を、対象Table向けPresentation状態へ変換する。
  *
- * RF Apply Coordinationが公開する利用者向け位置を正本とし、candidateやTable構造をWordPress表示責務で再解釈しない。
+ * 確認表示ではRF Apply Coordinationの1-based summaryだけを利用し、表示復帰ではsnapshotが保持する
+ * 0-based destinationIndexを直接利用する。WordPress表示責務では復帰先を再構成しない。
  *
  * @param clientId 対象Table個体のclientId。
  * @param snapshot RF Apply Coordinationが所有する現在snapshot。
@@ -253,13 +254,13 @@ const adaptRfApply = (
 		};
 	}
 
-	const summary = getRfApplySummary();
-	/* 非idleのRF Lifecycleには確認表示または復帰位置の正本となるsummaryが必ず存在する。 */
-	if ( summary === null ) {
-		throw new Error( 'RF apply summary is required while the RF apply lifecycle is active.' );
-	}
-
 	if ( snapshot.phase === 'confirming' ) {
+		const summary = getRfApplySummary();
+		/* 確認待ちRF Lifecycleには確認表示の正本となるsummaryが必ず存在する。 */
+		if ( summary === null ) {
+			throw new Error( 'RF apply summary is required while RF confirmation is active.' );
+		}
+
 		let moveSummary: string;
 		/* 確認文言はRFが公開するReorder Kindと利用者向け位置だけから生成する。 */
 		if ( summary.kind === 'row' ) {
@@ -284,19 +285,24 @@ const adaptRfApply = (
 		};
 	}
 
+	/* 成功した表示復帰では、RF Apply Coordinationが確定した復帰先が必須となる。 */
+	if ( snapshot.applied && snapshot.destinationIndex === null ) {
+		throw new Error( 'RF restoration destination is required after a successful apply.' );
+	}
+
 	return {
 		phase: 'remounting',
 		owner: 'rf',
 		kind: snapshot.kind,
 		tableIdentity: snapshot.tableIdentity,
 		applied: snapshot.applied,
-		destinationIndex: summary.destinationPosition - 1,
+		destinationIndex: snapshot.destinationIndex,
 		complete: completeRfApplyRestoration,
 	};
 };
 
 /**
- * 対象Tableへ現在表示すべき確認付き大規模反映状態を提供する。
+ * 対象Tableへ現在表示すべき反映状態を提供する。
  *
  * Row / Column / RFのApply Lifecycleは同時に複数成立しないことをInvariantとする。
  * この境界は製品入口の排他制御やInvariant違反時の仲裁を所有せず、各責務の状態をPresentationへ変換するだけとする。

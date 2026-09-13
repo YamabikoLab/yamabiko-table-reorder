@@ -2,7 +2,7 @@
  * WordPress Reorder Apply Integrationの表示Lifecycleを接続する。
  *
  * 反映開始前と表示復帰完了前に必要な描画待ちを管理し、各段階で現在表示されている基準要素から
- * Editor DOM Contextを解決する。反映中から再mount後へDOM要素やEditor DOM Contextを持ち越さず、
+ * Editor DOM Contextを解決する。反映中から表示復帰後へDOM要素やEditor DOM Contextを持ち越さず、
  * 段階終了時には未完了の描画待ちを破棄する。
  */
 
@@ -18,7 +18,7 @@ import { restoreMovedColumn, restoreMovedRow } from './restoration';
 export type ReorderApplyLifecycleReferences = {
 	/** 反映中表示が属する現在のEditor DOM Contextを特定する基準要素。 */
 	applyingReferenceElementRef: RefObject< HTMLDivElement >;
-	/** 再mount後の表示が属する現在のEditor DOM Contextを特定する基準要素。 */
+	/** 表示復帰時の現在のEditor DOM Contextを特定する基準要素。 */
 	restorationReferenceElementRef: RefObject< HTMLDivElement >;
 };
 
@@ -46,10 +46,10 @@ const runAfterVisualPaint = ( editorWindow: Window, callback: () => void ): ( ()
 };
 
 /**
- * 確認付き大規模反映の反映開始と再mount後の表示復帰を、現在のEditor DOM Contextへ接続する。
+ * 反映開始と反映後の表示復帰を、現在のEditor DOM Contextへ接続する。
  *
- * 反映中表示が描画された後にTable更新を開始し、再mount後は反映成功時だけ表示位置とフォーカスを復帰してから
- * 完了通知を行う。各段階ではその時点の基準要素からEditor DOM Contextを解決し、以前の表示環境を再利用しない。
+ * 反映中表示が描画された後にTable更新を開始し、表示復帰では反映成功時だけ表示位置とフォーカスを復帰してから
+ * Lifecycleを完了する。通常RFの成功時はTableを退避しないが、同じ表示復帰契約を利用する。
  *
  * @param presentation 対象Tableへ表示している現在のPresentation状態。
  * @return 反映中と表示復帰中の現在の基準要素へ接続する参照。
@@ -90,22 +90,21 @@ export const useReorderApplyLifecycle = (
 	const complete = isRemounting ? presentation.complete : null;
 
 	useEffect( () => {
-		/* 再mount後の表示復帰段階が成立していない間は、表示復帰とLifecycle完了を開始しない。 */
-		if (
-			! isRemounting ||
-			kind === null ||
-			tableIdentity === null ||
-			destinationIndex === null ||
-			complete === null
-		) {
+		/* 表示復帰段階が成立していない間は、復帰とLifecycle完了を開始しない。 */
+		if ( ! isRemounting || kind === null || tableIdentity === null || complete === null ) {
+			return;
+		}
+
+		/* 反映成功時には確定済みの復帰先が必須であり、失敗時には復帰先なしでもLifecycleを完了できる。 */
+		if ( applied && destinationIndex === null ) {
 			return;
 		}
 
 		const referenceElement = restorationReferenceElementRef.current;
 		const editorContext =
 			referenceElement === null ? null : resolveEditorDomContext( referenceElement );
-		/* 反映成功時だけ、再mount後の現在Editor DOM Contextで表示位置とフォーカスを復帰する。 */
-		if ( applied && editorContext !== null ) {
+		/* 反映成功時だけ、現在Editor DOM Contextで表示位置とフォーカスを復帰する。 */
+		if ( applied && destinationIndex !== null && editorContext !== null ) {
 			if ( kind === 'row' ) {
 				restoreMovedRow( editorContext.document, tableIdentity, destinationIndex );
 			} else {
