@@ -9,8 +9,11 @@
 import { useEffect, useRef } from '@wordpress/element';
 import type { PointerEvent, ReactNode } from 'react';
 
-import { useColumnDndPhase } from '@/reorder/column-reorder/integration/dnd-interaction-react';
 import { resolveColumnSourceIndex } from '@/reorder/column-reorder/integration/source-column-resolution';
+import {
+	getColumnDndPhase,
+	subscribeColumnDndState,
+} from '@/reorder/column-reorder/responsibilities/dnd-interaction';
 import { columnReorderTargetResolution } from '@/reorder/column-reorder/responsibilities/target-resolution';
 
 import './column-highlight.scss';
@@ -44,8 +47,9 @@ const clearVisualState = ( cell: HTMLTableCellElement | null ): void => {
 /**
  * 現在のTarget Resolution結果に応じて、DnD開始前のセルへ操作可能または移動不可を予告表示する。
  *
- * 同一render内の開始可否判定ではTarget Resolutionが提供する一つのResolverを利用し、Table制約をセルごとに取得し直さない。
- * Highlight自身はTable構造のsnapshotやrevision監視を所有せず、現在認識しているセルだけを一時的に保持する。
+ * Resolverは最初の有効な開始可否判定で生成し、同一Highlight Lifecycle内で再利用する。
+ * DnD開始時は開始前表示とResolverを破棄し、DnD終了後の次の有効な判定で現在Table構造から生成し直す。
+ * Highlight自身はTable構造の長期cacheやrevision監視を所有せず、現在認識しているセルだけを一時的に保持する。
  * 同一セル内の要素間移動では開始可否を再解決せず、マウスが現在セルを離れた場合だけ表示を終了する。
  * タッチ入力では指を離しただけでは現在セルを解除せず、次に認識したセルまたは意味のあるLifecycle変更まで表示する。
  * DnD開始時はTarget Resolutionが要求時点の現在構造を再取得して最終判断するため、この表示は開始可否の権威を持たない。
@@ -65,20 +69,40 @@ export const ColumnHighlight = ( props: {
 	) => ReactNode;
 } ) => {
 	const { enabled, tableIdentity, children } = props;
-	const dndPhase = useColumnDndPhase();
 	const currentCell = useRef< HTMLTableCellElement | null >( null );
-	const resolver =
-		enabled && dndPhase === 'idle'
-			? columnReorderTargetResolution.createResolver( tableIdentity )
-			: null;
+	const resolver = useRef< ReturnType< typeof columnReorderTargetResolution.createResolver > | null >(
+		null
+	);
+	const resolverTableIdentity = useRef< string | null >( null );
 
 	useEffect( () => {
-		/* モード終了、対象Table変更、DnD Lifecycle変更、またはPresentation境界終了時に開始前表示を実Tableへ残さない。 */
-		return () => {
+		resolver.current = null;
+		resolverTableIdentity.current = null;
+
+		const clearHighlightState = (): void => {
 			clearVisualState( currentCell.current );
 			currentCell.current = null;
 		};
-	}, [ enabled, tableIdentity, dndPhase ] );
+
+		const synchronizeDndLifecycle = (): void => {
+			/* active DnDでは開始前表示とそのTable構造snapshotを次の操作へ持ち越さない。 */
+			if ( getColumnDndPhase() === 'active' ) {
+				clearHighlightState();
+				resolver.current = null;
+				resolverTableIdentity.current = null;
+			}
+		};
+
+		const unsubscribe = enabled ? subscribeColumnDndState( synchronizeDndLifecycle ) : () => {};
+
+		/* モード終了、対象Table変更、またはPresentation境界終了時に開始前表示を実Tableへ残さない。 */
+		return () => {
+			unsubscribe();
+			clearHighlightState();
+			resolver.current = null;
+			resolverTableIdentity.current = null;
+		};
+	}, [ enabled, tableIdentity ] );
 
 	const onPointerOverCapture: ColumnHighlightPointerOverHandler = ( event ) => {
 		const cell = ( event.target as Element | null )?.closest(
@@ -97,8 +121,7 @@ export const ColumnHighlight = ( props: {
 		/* 列DnD開始前以外、または現在Tableへ直接属さないセルは操作可否予告の対象にしない。 */
 		if (
 			! enabled ||
-			dndPhase !== 'idle' ||
-			resolver === null ||
+			getColumnDndPhase() !== 'idle' ||
 			! table ||
 			! cell ||
 			cell.closest( 'table' ) !== table
@@ -113,7 +136,13 @@ export const ColumnHighlight = ( props: {
 			return;
 		}
 
-		const resolution = resolver.resolve( sourceColumnIndex );
+		/* Reorder Mode切替renderではTable解析を行わず、最初の有効な操作可否判定でだけResolverを生成する。 */
+		if ( resolver.current === null || resolverTableIdentity.current !== tableIdentity ) {
+			resolver.current = columnReorderTargetResolution.createResolver( tableIdentity );
+			resolverTableIdentity.current = tableIdentity;
+		}
+
+		const resolution = resolver.current.resolve( sourceColumnIndex );
 		currentCell.current = cell;
 
 		/* 開始可能な列だけを現在セルで操作可能として予告する。 */
