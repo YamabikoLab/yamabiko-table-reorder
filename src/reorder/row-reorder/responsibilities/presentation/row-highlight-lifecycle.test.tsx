@@ -45,7 +45,7 @@ const createResolverMock = rowReorderTargetResolution.createResolver as jest.Moc
  * @param props.childrenRender
  */
 const TestTable = ( props: { childrenRender?: () => void } ) => (
-	<RowHighlight enabled tableIdentity="table-a">
+	<RowHighlight tableIdentity="table-a">
 		{ ( onPointerOverCapture ) => {
 			props.childrenRender?.();
 			return (
@@ -81,16 +81,16 @@ describe( 'Row highlight resolver lifecycle', () => {
 	} );
 
 	/**
-	 * Row Reorderモードを有効にしただけではTable全体解析を開始しないことを確認する。
+	 * Row Highlightを接続しただけではTable全体解析を開始しないことを確認する。
 	 *
 	 * 操作:
-	 * - Row Highlightを有効状態で描画する。
+	 * - Row Highlightを描画する。
 	 *
 	 * 期待結果:
 	 * - Target Resolverは生成されない。
 	 * - DnD Lifecycle監視だけが接続される。
 	 */
-	it( 'when row reorder mode renders as enabled, should defer resolver creation until a valid highlight request', () => {
+	it( 'when row highlight is rendered, should defer resolver creation until a valid highlight request', () => {
 		render( <TestTable /> );
 
 		expect( createResolverMock ).not.toHaveBeenCalled();
