@@ -3,7 +3,6 @@
  */
 
 import { fireEvent, render } from '@testing-library/react';
-import type { ReactNode } from 'react';
 
 import {
 	getRowDndPhase,
@@ -160,8 +159,8 @@ describe( 'Row highlight resolver lifecycle', () => {
 	 * - children描画処理の実行回数は増えない。
 	 */
 	it( 'when row DnD phase changes, should not rerender the table subtree', () => {
-		const childrenRender = jest.fn< ReactNode, [] >();
-		render( <TestTable childrenRender={ () => childrenRender( null ) } /> );
+		const childrenRender = jest.fn();
+		render( <TestTable childrenRender={ childrenRender } /> );
 		const initialRenderCount = childrenRender.mock.calls.length;
 
 		mockRowDndPhase = 'active';
