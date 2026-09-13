@@ -191,8 +191,12 @@ describe( 'Reorder toolbar RF exclusivity', () => {
 		render( <ReorderModeToolbar tableIdentity="table-a" /> );
 
 		const rowButton = screen.getByRole( 'button', { name: 'Reorder rows' } ) as HTMLButtonElement;
-		const columnButton = screen.getByRole( 'button', { name: 'Reorder columns' } ) as HTMLButtonElement;
-		const rfButton = screen.getByRole( 'button', { name: 'Reorder with form' } ) as HTMLButtonElement;
+		const columnButton = screen.getByRole( 'button', {
+			name: 'Reorder columns',
+		} ) as HTMLButtonElement;
+		const rfButton = screen.getByRole( 'button', {
+			name: 'Reorder with form',
+		} ) as HTMLButtonElement;
 
 		expect( rowButton.disabled ).toBe( true );
 		expect( columnButton.disabled ).toBe( true );
