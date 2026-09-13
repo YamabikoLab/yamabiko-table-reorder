@@ -36,15 +36,15 @@ export const ReorderApplyTableBoundary = ( props: { clientId: string; children: 
 		return <ReorderApplying referenceElementRef={ applyingReferenceElementRef } />;
 	}
 
-	let remountingStatus: 'success' | 'failure' | null = null;
-	if ( presentation.phase === 'remounting' && presentation.owner !== 'rf' ) {
-		remountingStatus = presentation.applied ? 'success' : 'failure';
+	let restorationStatus: 'success' | 'failure' | null = null;
+	if ( presentation.phase === 'restoring' && presentation.owner !== 'rf' ) {
+		restorationStatus = presentation.applied ? 'success' : 'failure';
 	}
 
 	return (
 		<>
 			{ children }
-			{ presentation.phase === 'remounting' && (
+			{ presentation.phase === 'restoring' && (
 				<div ref={ restorationReferenceElementRef } role="status">
 					{ getLargeReorderApplyingMessage() }
 				</div>
@@ -56,7 +56,7 @@ export const ReorderApplyTableBoundary = ( props: { clientId: string; children: 
 					onCancel={ presentation.cancel }
 				/>
 			) }
-			<ReorderApplyCompletion remountingStatus={ remountingStatus } />
+			<ReorderApplyCompletion restorationStatus={ restorationStatus } />
 		</>
 	);
 };
