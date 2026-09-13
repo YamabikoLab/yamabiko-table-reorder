@@ -55,16 +55,16 @@ jest.mock( '@/reorder/row-reorder/responsibilities/presentation/row-presentation
 	RowPresentation: () => null,
 } ) );
 
-let activeDraggableRef: { current: Draggable | null } | null = null;
-const rowInputPointerDownMock = jest.fn();
+let mockActiveDraggableRef: { current: Draggable | null } | null = null;
+const mockRowInputPointerDown = jest.fn();
 
 jest.mock( '@/reorder/row-reorder/responsibilities/input', () => ( {
 	RowInput: ( props: {
 		activeDraggable: { current: Draggable | null };
 		children: ( handler: ( event: unknown ) => void ) => ReactNode;
 	} ) => {
-		activeDraggableRef = props.activeDraggable;
-		return props.children( rowInputPointerDownMock );
+		mockActiveDraggableRef = props.activeDraggable;
+		return props.children( mockRowInputPointerDown );
 	},
 } ) );
 
@@ -116,7 +116,7 @@ const resetReorderMode = () => {
 describe( 'Row DnD engine connection', () => {
 	beforeEach( () => {
 		jest.clearAllMocks();
-		activeDraggableRef = null;
+		mockActiveDraggableRef = null;
 		destinationResolverFactoryMock.mockReturnValue( null );
 		resetReorderMode();
 	} );
@@ -168,13 +168,13 @@ describe( 'Row DnD engine connection', () => {
 		const event = {};
 
 		pointerDown( event );
-		expect( rowInputPointerDownMock ).not.toHaveBeenCalled();
+		expect( mockRowInputPointerDown ).not.toHaveBeenCalled();
 
 		act( () => {
 			reorderMode.select( 'row', 'table-1' );
 		} );
 		pointerDown( event );
-		expect( rowInputPointerDownMock ).toHaveBeenCalledWith( event );
+		expect( mockRowInputPointerDown ).toHaveBeenCalledWith( event );
 	} );
 
 	/**
@@ -229,11 +229,11 @@ describe( 'Row DnD engine connection', () => {
 			preventDefault: jest.fn(),
 		} as unknown as BeforeDragStartEvent );
 
-		if ( activeDraggableRef === null ) {
+		if ( mockActiveDraggableRef === null ) {
 			throw new Error( 'RowInput activeDraggable ref was not captured.' );
 		}
 		const destroy = jest.fn();
-		activeDraggableRef.current = { destroy } as unknown as Draggable;
+		mockActiveDraggableRef.current = { destroy } as unknown as Draggable;
 
 		act( () => {
 			reorderMode.select( 'row', 'table-1' );
@@ -249,11 +249,11 @@ describe( 'Row DnD engine connection', () => {
 	 */
 	it( 'when the row DnD connection unmounts, should destroy the active draggable', () => {
 		const { unmount } = render( <RowDnd tableIdentity="table-1">{ () => <div /> }</RowDnd> );
-		if ( activeDraggableRef === null ) {
+		if ( mockActiveDraggableRef === null ) {
 			throw new Error( 'RowInput activeDraggable ref was not captured.' );
 		}
 		const destroy = jest.fn();
-		activeDraggableRef.current = { destroy } as unknown as Draggable;
+		mockActiveDraggableRef.current = { destroy } as unknown as Draggable;
 
 		unmount();
 		expect( destroy ).toHaveBeenCalledTimes( 1 );
