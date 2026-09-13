@@ -43,8 +43,8 @@ const preventEditingStart = ( event: EditingStartEvent ) => {
  * @return 既存処理と現在状態に応じたReorder Modeの編集開始抑止を順に適用するhandler。
  */
 export const preserveEditingStartHandler = (
-	existingHandler?: EditingStartHandler,
-	shouldPrevent: () => boolean = () => true
+	existingHandler: EditingStartHandler | undefined,
+	shouldPrevent: () => boolean
 ): EditingStartHandler => {
 	const handler: EditingStartHandler = ( event ) => {
 		existingHandler?.( event );
