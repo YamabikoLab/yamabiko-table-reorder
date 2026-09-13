@@ -107,6 +107,17 @@ export const ReorderFormPopover = ( props: ReorderFormPopoverProps ) => {
 	}
 
 	const resultMessage = getCurrentResultMessage( state );
+	const controlIdPrefix = `yamabiko-table-reorder-rf-${ tableIdentity }`;
+	const rowKindId = `${ controlIdPrefix }-kind-row`;
+	const columnKindId = `${ controlIdPrefix }-kind-column`;
+	const sourceRowId = `${ controlIdPrefix }-source-row`;
+	const targetRowId = `${ controlIdPrefix }-target-row`;
+	const rowAboveId = `${ controlIdPrefix }-row-above`;
+	const rowBelowId = `${ controlIdPrefix }-row-below`;
+	const sourceColumnId = `${ controlIdPrefix }-source-column`;
+	const targetColumnId = `${ controlIdPrefix }-target-column`;
+	const columnLeftId = `${ controlIdPrefix }-column-left`;
+	const columnRightId = `${ controlIdPrefix }-column-right`;
 
 	return (
 		<Popover
@@ -126,18 +137,20 @@ export const ReorderFormPopover = ( props: ReorderFormPopoverProps ) => {
 
 				<fieldset className="yamabiko-table-reorder-rf__fieldset">
 					<legend>{ getRfKindLegend() }</legend>
-					<label>
+					<label htmlFor={ rowKindId }>
 						<input
 							checked={ state.kind === 'row' }
+							id={ rowKindId }
 							name={ `yamabiko-table-reorder-rf-kind-${ tableIdentity }` }
 							onChange={ () => rfInteraction.selectKind( tableIdentity, 'row' ) }
 							type="radio"
 						/>
 						{ getRfRowsLabel() }
 					</label>
-					<label>
+					<label htmlFor={ columnKindId }>
 						<input
 							checked={ state.kind === 'column' }
+							id={ columnKindId }
 							name={ `yamabiko-table-reorder-rf-kind-${ tableIdentity }` }
 							onChange={ () => rfInteraction.selectKind( tableIdentity, 'column' ) }
 							type="radio"
@@ -148,9 +161,10 @@ export const ReorderFormPopover = ( props: ReorderFormPopoverProps ) => {
 
 				{ state.kind === 'row' ? (
 					<div className="yamabiko-table-reorder-rf__fields">
-						<label>
+						<label htmlFor={ sourceRowId }>
 							<span>{ getRfSourceRowLabel() }</span>
 							<input
+								id={ sourceRowId }
 								inputMode="numeric"
 								onChange={ ( event ) =>
 									rfInteraction.updateRowInput( tableIdentity, {
@@ -162,9 +176,10 @@ export const ReorderFormPopover = ( props: ReorderFormPopoverProps ) => {
 								value={ state.input.sourceRowNumber }
 							/>
 						</label>
-						<label>
+						<label htmlFor={ targetRowId }>
 							<span>{ getRfTargetRowLabel() }</span>
 							<input
+								id={ targetRowId }
 								inputMode="numeric"
 								onChange={ ( event ) =>
 									rfInteraction.updateRowInput( tableIdentity, {
@@ -183,9 +198,10 @@ export const ReorderFormPopover = ( props: ReorderFormPopoverProps ) => {
 						) }
 						<fieldset className="yamabiko-table-reorder-rf__fieldset">
 							<legend>{ getRfPositionLegend() }</legend>
-							<label>
+							<label htmlFor={ rowAboveId }>
 								<input
 									checked={ state.input.position === 'above' }
+									id={ rowAboveId }
 									name={ `yamabiko-table-reorder-rf-row-position-${ tableIdentity }` }
 									onChange={ () =>
 										rfInteraction.updateRowInput( tableIdentity, {
@@ -197,9 +213,10 @@ export const ReorderFormPopover = ( props: ReorderFormPopoverProps ) => {
 								/>
 								{ getRfAboveLabel() }
 							</label>
-							<label>
+							<label htmlFor={ rowBelowId }>
 								<input
 									checked={ state.input.position === 'below' }
+									id={ rowBelowId }
 									name={ `yamabiko-table-reorder-rf-row-position-${ tableIdentity }` }
 									onChange={ () =>
 										rfInteraction.updateRowInput( tableIdentity, {
@@ -216,9 +233,10 @@ export const ReorderFormPopover = ( props: ReorderFormPopoverProps ) => {
 					</div>
 				) : (
 					<div className="yamabiko-table-reorder-rf__fields">
-						<label>
+						<label htmlFor={ sourceColumnId }>
 							<span>{ getRfSourceColumnLabel() }</span>
 							<select
+								id={ sourceColumnId }
 								onChange={ ( event ) =>
 									rfInteraction.updateColumnInput( tableIdentity, {
 										...state.input,
@@ -236,9 +254,10 @@ export const ReorderFormPopover = ( props: ReorderFormPopoverProps ) => {
 								) ) }
 							</select>
 						</label>
-						<label>
+						<label htmlFor={ targetColumnId }>
 							<span>{ getRfTargetColumnLabel() }</span>
 							<select
+								id={ targetColumnId }
 								onChange={ ( event ) =>
 									rfInteraction.updateColumnInput( tableIdentity, {
 										...state.input,
@@ -258,9 +277,10 @@ export const ReorderFormPopover = ( props: ReorderFormPopoverProps ) => {
 						</label>
 						<fieldset className="yamabiko-table-reorder-rf__fieldset">
 							<legend>{ getRfPositionLegend() }</legend>
-							<label>
+							<label htmlFor={ columnLeftId }>
 								<input
 									checked={ state.input.position === 'left' }
+									id={ columnLeftId }
 									name={ `yamabiko-table-reorder-rf-column-position-${ tableIdentity }` }
 									onChange={ () =>
 										rfInteraction.updateColumnInput( tableIdentity, {
@@ -272,9 +292,10 @@ export const ReorderFormPopover = ( props: ReorderFormPopoverProps ) => {
 								/>
 								{ getRfLeftLabel() }
 							</label>
-							<label>
+							<label htmlFor={ columnRightId }>
 								<input
 									checked={ state.input.position === 'right' }
+									id={ columnRightId }
 									name={ `yamabiko-table-reorder-rf-column-position-${ tableIdentity }` }
 									onChange={ () =>
 										rfInteraction.updateColumnInput( tableIdentity, {
