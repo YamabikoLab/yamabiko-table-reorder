@@ -10,7 +10,6 @@ import type {
 	MouseEventHandler,
 	PointerEventHandler,
 	ReactNode,
-	Ref,
 } from 'react';
 
 import { reorderMode } from '@/reorder/reorder-mode';
@@ -66,7 +65,7 @@ const BlockListBlock = ( props: ReorderModeBlockListBlockProps ) => {
 
 	return (
 		<div
-			ref={ wrapperProps.ref as Ref< HTMLDivElement > | undefined }
+			id={ `block-${ props.clientId }` }
 			data-testid="block-wrapper"
 			draggable={ wrapperProps.draggable as boolean | undefined }
 			onMouseDownCapture={ wrapperProps.onMouseDownCapture as MouseEventHandler< HTMLDivElement > }
@@ -77,17 +76,30 @@ const BlockListBlock = ( props: ReorderModeBlockListBlockProps ) => {
 	);
 };
 
-const renderBlockListBlock = ( existingWrapperRef?: Ref< HTMLDivElement > ) => (
+const ReplacementBlockListBlock = ( props: ReorderModeBlockListBlockProps ) => {
+	const wrapperProps = props.wrapperProps ?? {};
+
+	return (
+		<section
+			id={ `block-${ props.clientId }` }
+			data-testid="block-wrapper"
+			draggable={ wrapperProps.draggable as boolean | undefined }
+		>
+			Table replacement
+		</section>
+	);
+};
+
+const renderBlockListBlock = (
+	Component: typeof BlockListBlock | typeof ReplacementBlockListBlock = BlockListBlock
+) => (
 	<ReorderModeBlockListBlock
-		BlockListBlock={ BlockListBlock }
+		BlockListBlock={ Component }
 		blockProps={ {
 			clientId: 'table-a',
 			isSelected: true,
 			name: 'core/table',
-			wrapperProps: {
-				draggable: true,
-				ref: existingWrapperRef,
-			},
+			wrapperProps: { draggable: true },
 		} }
 	/>
 );
@@ -175,36 +187,32 @@ describe( 'Reorder Mode Block wrapper integration', () => {
 	} );
 
 	/**
-	 * Gutenbergがwrapper要素を再接続した場合も既存refを維持しながら現在modeを新しいwrapperへ同期できることを確認する。
+	 * Gutenberg側の通常rerenderでwrapper DOMが置き換わった場合も、現在のReorder Modeを新しいwrapperへ同期できることを確認する。
 	 *
 	 * 事前条件:
 	 * - 行並び替えモードが有効である。
-	 * - Gutenberg側の既存wrapper refが設定されている。
 	 *
 	 * 操作:
-	 * - BlockListBlockを再描画してwrapperを再接続する。
+	 * - BlockListBlock実装を差し替えてwrapper DOMを再接続する。
 	 *
 	 * 期待結果:
-	 * - 新しいwrapperにも現在のrow mode属性が同期される。
-	 * - Gutenberg側の既存refも新しいwrapperを受け取る。
+	 * - 置き換え後のwrapperにも現在のrow mode属性が同期される。
 	 */
-	it( 'when Gutenberg reconnects the wrapper, should resynchronize current mode and preserve the existing ref', () => {
-		const existingRef = jest.fn();
+	it( 'when Gutenberg reconnects the wrapper, should resynchronize the current mode to the new wrapper', () => {
 		act( () => reorderMode.select( 'row', 'table-a' ) );
-		const { getByTestId, rerender } = render( renderBlockListBlock( existingRef ) );
+		const { getByTestId, rerender } = render( renderBlockListBlock() );
 
 		expect( getByTestId( 'block-wrapper' ) ).toHaveAttribute(
 			'data-yamabiko-table-reorder-mode',
 			'row'
 		);
-		expect( existingRef ).toHaveBeenCalledWith( getByTestId( 'block-wrapper' ) );
 
-		rerender( renderBlockListBlock( existingRef ) );
+		rerender( renderBlockListBlock( ReplacementBlockListBlock ) );
 
+		expect( getByTestId( 'block-wrapper' ).tagName ).toBe( 'SECTION' );
 		expect( getByTestId( 'block-wrapper' ) ).toHaveAttribute(
 			'data-yamabiko-table-reorder-mode',
 			'row'
 		);
-		expect( existingRef ).toHaveBeenLastCalledWith( getByTestId( 'block-wrapper' ) );
 	} );
 } );
