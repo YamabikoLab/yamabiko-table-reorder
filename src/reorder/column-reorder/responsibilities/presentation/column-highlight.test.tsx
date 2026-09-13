@@ -5,14 +5,25 @@
 import { createEvent, fireEvent, render } from '@testing-library/react';
 
 import { resolveColumnSourceIndex } from '@/reorder/column-reorder/integration/source-column-resolution';
+import {
+	getColumnDndPhase,
+	subscribeColumnDndState,
+} from '@/reorder/column-reorder/responsibilities/dnd-interaction';
 import { columnReorderTargetResolution } from '@/reorder/column-reorder/responsibilities/target-resolution';
 
 import { ColumnHighlight } from './column-highlight';
 
 let mockColumnDndPhase: 'idle' | 'active' = 'idle';
+let mockColumnDndStateListener: ( () => void ) | null = null;
 
-jest.mock( '@/reorder/column-reorder/integration/dnd-interaction-react', () => ( {
-	useColumnDndPhase: () => mockColumnDndPhase,
+jest.mock( '@/reorder/column-reorder/responsibilities/dnd-interaction', () => ( {
+	getColumnDndPhase: jest.fn( () => mockColumnDndPhase ),
+	subscribeColumnDndState: jest.fn( ( listener: () => void ) => {
+		mockColumnDndStateListener = listener;
+		return () => {
+			mockColumnDndStateListener = null;
+		};
+	} ),
 } ) );
 
 jest.mock( '@/reorder/column-reorder/integration/source-column-resolution', () => ( {
@@ -97,6 +108,7 @@ describe( 'Column highlight', () => {
 	beforeEach( () => {
 		jest.clearAllMocks();
 		mockColumnDndPhase = 'idle';
+		mockColumnDndStateListener = null;
 		resolveColumnSourceIndexMock.mockImplementation( ( _table, cell ) => cell.cellIndex );
 		resolveMock = jest.fn( ( sourceColumnIndex: number ) => ( {
 			status: 'resolved',
@@ -282,14 +294,16 @@ describe( 'Column highlight', () => {
 	 * - 開始前のセル予告表示が解除される。
 	 */
 	it( 'when column DnD starts, should clear the pre-drag cell preview', () => {
-		const { getByTestId, rerender } = render( <TestTable /> );
+		const { getByTestId } = render( <TestTable /> );
 		const currentCell = getByTestId( 'column-1' );
 
 		fireEvent.pointerOver( currentCell, { pointerType: 'mouse' } );
 		mockColumnDndPhase = 'active';
-		rerender( <TestTable /> );
+		mockColumnDndStateListener?.();
 
 		expect( currentCell.className ).toBe( '' );
+		expect( getColumnDndPhase() ).toBe( 'active' );
+		expect( subscribeColumnDndState ).toHaveBeenCalled();
 	} );
 
 	/**
