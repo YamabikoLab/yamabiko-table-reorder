@@ -31,9 +31,9 @@ export type ColumnDndPointerDownHandler = ( event: PointerEvent< Element > ) => 
  * Design上の開始拒否理由がある場合はDraggableを登録せず、操作位置とともにPresentationへ通知する。
  * DnD Engineがidleで新しいポインター入力を受け付けられる場合は前回の開始候補を破棄し、現在入力だけを有効にする。
  * active DnD中は現在のDraggableを破棄せず、新しい開始候補も受け付けない。
+ * Reorder Modeの判定はDnD接続境界が入力を渡す前に行い、この責務では扱わない。
  *
  * @param props                         ポインター入力接続に必要な値。
- * @param props.enabled                 現在のTableで列並び替え開始入力を受け付ける場合はtrue。
  * @param props.tableIdentity           列並び替え対象のTable Identity。
  * @param props.activeDraggable         現在のポインター入力で登録したDraggableを保持する参照。
  * @param props.activeDraggable.current 現在のポインター入力で登録したDraggable。未登録の場合はnull。
@@ -41,19 +41,18 @@ export type ColumnDndPointerDownHandler = ( event: PointerEvent< Element > ) => 
  * @return ポインター入力による列DnD開始へ接続された子要素。
  */
 export const ColumnInput = ( props: {
-	enabled: boolean;
 	tableIdentity: string;
 	activeDraggable: {
 		current: Draggable | null;
 	};
 	children: ( onPointerDownCapture: ColumnDndPointerDownHandler ) => ReactNode;
 } ) => {
-	const { enabled, tableIdentity, activeDraggable, children } = props;
+	const { tableIdentity, activeDraggable, children } = props;
 	const manager = useDragDropManager();
 
 	const onPointerDownCapture: ColumnDndPointerDownHandler = ( event ) => {
-		/* 列並び替えが無効、または物理DnD接続を利用できない場合は開始入力を扱わない。 */
-		if ( ! enabled || ! manager ) {
+		/* 物理DnD接続を利用できない場合は開始入力を扱わない。 */
+		if ( ! manager ) {
 			return;
 		}
 
