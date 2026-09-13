@@ -172,6 +172,14 @@ export const getRfCancelLabel = () => __( 'Cancel', 'yamabiko-table-reorder' );
 export const getRfApplyLabel = () => __( 'Reorder', 'yamabiko-table-reorder' );
 
 /**
+ * RF反映に失敗し、Tableが変更されていないことを知らせる文言を取得する。
+ *
+ * @return 現在の言語に対応したRF反映失敗メッセージ。
+ */
+export const getRfApplyFailureMessage = () =>
+	__( 'Reordering failed. The table has not been changed.', 'yamabiko-table-reorder' );
+
+/**
  * 結合セルにより行DnDを開始できない理由を知らせる文言を取得する。
  *
  * @return 現在の言語に対応した行DnD開始拒否メッセージ。

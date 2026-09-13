@@ -50,8 +50,8 @@ export const ReorderModeEdit = ( componentProps: ReorderModeEditProps ) => {
 				{ /* Toolbar入口は現在選択中の対応Tableだけに表示する。 */ }
 				{ isSelected && <ReorderModeToolbar tableIdentity={ clientId } /> }
 			</ReorderApplyTableBoundary>
-			{ /* RF完了通知は大規模反映Boundaryとは独立して通常 / 大規模の成功を一つの経路で扱う。 */ }
-			<ReorderFormCompletion status={ rfState.status } />
+			{ /* RF完了通知はSession表示状態ではなく対象Tableの未消費Apply結果を購読する。 */ }
+			<ReorderFormCompletion tableIdentity={ clientId } />
 		</>
 	);
 };

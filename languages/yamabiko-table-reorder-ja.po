@@ -202,3 +202,7 @@ msgstr "移動先の列の左または右へ移動します。"
 #: src/messages.ts:98
 msgid "%1$s (Column %2$d)"
 msgstr "%1$s（%2$d列目）"
+
+#: src/messages.ts:181
+msgid "Reordering failed. The table has not been changed."
+msgstr "並び替えが失敗しました。テーブルは変更されていません。"

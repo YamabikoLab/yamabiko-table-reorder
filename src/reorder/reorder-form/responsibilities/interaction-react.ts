@@ -1,8 +1,8 @@
 /**
  * RF Interactionが所有する共有状態をReactへ接続する境界を提供する。
  *
- * React側はRF Sessionの状態正本や状態変更操作を持たず、対象Tableから見た現在Reorder Kindの表示状態だけを継続購読する。
- * Table変更の検知や再評価通知はこのHookの責務に含めない。
+ * React側はRF SessionやApply Outcomeの状態正本を持たず、対象Tableから見た現在Reorder Kindの表示状態と
+ * 未消費のApply結果だけを継続購読する。Table変更の検知や再評価通知はこのHookの責務に含めない。
  */
 
 import { useStore } from 'zustand';
@@ -12,6 +12,7 @@ import type { ColumnInputDescriptor } from '@/reorder/column-reorder/responsibil
 import type { ColumnRfFormInput, RowRfFormInput } from './input-interpretation';
 import {
 	rfInteractionStore,
+	type RfApplyOutcome,
 	type RfColumnCurrentResult,
 	type RfRowCurrentResult,
 } from './interaction';
@@ -42,6 +43,9 @@ export type RfInteractionReactState =
 
 /** 別TableまたはSession終了時に共有する不変のclosed表示状態。 */
 const CLOSED_STATE: RfInteractionReactState = { status: 'closed' };
+
+/** 対象Tableに未消費結果がない場合に共有する不変のApply Outcome。 */
+const IDLE_APPLY_OUTCOME: RfApplyOutcome = { status: 'idle' };
 
 /**
  * 対象Tableから見たRF Interaction状態をReact描画へ反映する。
@@ -113,3 +117,22 @@ export const useRfInteraction = ( tableIdentity: string ): RfInteractionReactSta
 	// Reorder Kindと評価結果が一致しない不完全なSessionはPresentationへ公開しない。
 	return CLOSED_STATE;
 };
+
+/**
+ * 対象Tableに対する未消費のRF反映結果をReact描画へ反映する。
+ *
+ * Apply OutcomeはRF Session状態とは独立してStoreに保持されるため、Tableやcomponentの再mount後でも成功・失敗結果を確認できる。
+ * 別Tableの結果は公開せず、対象Tableに未消費結果がない場合はidleを返す。
+ *
+ * @param tableIdentity 反映結果を購読するTable Identity。
+ * @return 対象Tableに対する未消費のApply Outcome。
+ */
+export const useRfApplyOutcome = ( tableIdentity: string ): RfApplyOutcome =>
+	useStore( rfInteractionStore, ( store ) => {
+		const outcome = store.applyOutcome;
+		if ( outcome.status === 'idle' || outcome.tableIdentity !== tableIdentity ) {
+			return IDLE_APPLY_OUTCOME;
+		}
+
+		return outcome;
+	} );
