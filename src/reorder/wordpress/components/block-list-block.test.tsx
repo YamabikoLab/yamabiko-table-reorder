@@ -125,24 +125,24 @@ describe( 'Reorder Mode Block wrapper integration', () => {
 		const blockWrapper = getByTestId( 'block-wrapper' );
 
 		expect( blockListBlockRenderCount ).toBe( 1 );
-		expect( blockWrapper ).not.toHaveAttribute( 'data-yamabiko-table-reorder-mode' );
+		expect( blockWrapper.getAttribute( 'data-yamabiko-table-reorder-mode' ) ).toBeNull();
 		expect( blockWrapper.getAttribute( 'draggable' ) ).toBe( 'true' );
 
 		act( () => reorderMode.select( 'row', 'table-a' ) );
-		expect( blockWrapper ).toHaveAttribute( 'data-yamabiko-table-reorder-mode', 'row' );
+		expect( blockWrapper.getAttribute( 'data-yamabiko-table-reorder-mode' ) ).toBe( 'row' );
 		expect( blockListBlockRenderCount ).toBe( 1 );
 		expect( blockWrapper.getAttribute( 'draggable' ) ).toBe( 'true' );
 
 		act( () => reorderMode.select( 'row', 'table-a' ) );
-		expect( blockWrapper ).not.toHaveAttribute( 'data-yamabiko-table-reorder-mode' );
+		expect( blockWrapper.getAttribute( 'data-yamabiko-table-reorder-mode' ) ).toBeNull();
 		expect( blockListBlockRenderCount ).toBe( 1 );
 
 		act( () => reorderMode.select( 'column', 'table-a' ) );
-		expect( blockWrapper ).toHaveAttribute( 'data-yamabiko-table-reorder-mode', 'column' );
+		expect( blockWrapper.getAttribute( 'data-yamabiko-table-reorder-mode' ) ).toBe( 'column' );
 		expect( blockListBlockRenderCount ).toBe( 1 );
 
 		act( () => reorderMode.select( 'column', 'table-a' ) );
-		expect( blockWrapper ).not.toHaveAttribute( 'data-yamabiko-table-reorder-mode' );
+		expect( blockWrapper.getAttribute( 'data-yamabiko-table-reorder-mode' ) ).toBeNull();
 		expect( blockListBlockRenderCount ).toBe( 1 );
 	} );
 
@@ -197,16 +197,14 @@ describe( 'Reorder Mode Block wrapper integration', () => {
 		act( () => reorderMode.select( 'row', 'table-a' ) );
 		const { getByTestId, rerender } = render( renderBlockListBlock() );
 
-		expect( getByTestId( 'block-wrapper' ) ).toHaveAttribute(
-			'data-yamabiko-table-reorder-mode',
+		expect( getByTestId( 'block-wrapper' ).getAttribute( 'data-yamabiko-table-reorder-mode' ) ).toBe(
 			'row'
 		);
 
 		rerender( renderBlockListBlock( ReplacementBlockListBlock ) );
 
 		expect( getByTestId( 'block-wrapper' ).tagName ).toBe( 'SECTION' );
-		expect( getByTestId( 'block-wrapper' ) ).toHaveAttribute(
-			'data-yamabiko-table-reorder-mode',
+		expect( getByTestId( 'block-wrapper' ).getAttribute( 'data-yamabiko-table-reorder-mode' ) ).toBe(
 			'row'
 		);
 	} );
