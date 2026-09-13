@@ -7,7 +7,7 @@
 import type { BlockEditProps } from '@wordpress/blocks';
 import type { ComponentType } from '@wordpress/element';
 
-import { useRfInteraction } from '@/reorder/reorder-form/responsibilities/interaction-react';
+import { useRfInteractionStatus } from '@/reorder/reorder-form/responsibilities/interaction-react';
 import { ReorderApplyTableBoundary } from '@/reorder/wordpress/components/reorder-apply';
 import { ReorderFormCompletion } from '@/reorder/wordpress/components/reorder-form-completion';
 import { ReorderModeToolbar } from '@/reorder/wordpress/components/toolbar';
@@ -29,6 +29,31 @@ type ReorderModeEditProps = {
 	props: TableBlockEditProps;
 };
 
+/** RF Lifecycle同期componentへ渡すprops。 */
+type RfTableLifecycleSyncProps = {
+	tableIdentity: string;
+	isSelected: boolean;
+	getSelectedTableIdentity: GetSelectedTableIdentity;
+	attributes: Record< string, unknown >;
+};
+
+/**
+ * RF Sessionと対象Table Lifecycleの同期だけを所有する。
+ *
+ * RF状態購読をTable本体の編集表示から分離し、Session状態変更がBlockEditの再描画へ伝播しない境界を作る。
+ *
+ * @param componentProps 対象Table Identity、選択状態、現在Table解決境界、Table属性。
+ * @return 表示要素は持たず、Lifecycle同期だけを行う。
+ */
+const RfTableLifecycleSync = ( componentProps: RfTableLifecycleSyncProps ) => {
+	const { tableIdentity, isSelected, getSelectedTableIdentity, attributes } = componentProps;
+	const rfStatus = useRfInteractionStatus( tableIdentity );
+
+	useRfTableLifecycle( tableIdentity, isSelected, getSelectedTableIdentity, attributes, rfStatus );
+
+	return null;
+};
+
 /**
  * 対応Tableの編集表示へReorder Mode / RF Lifecycle、Toolbar、確認付き大規模反映を接続する。
  *
@@ -38,10 +63,8 @@ type ReorderModeEditProps = {
 export const ReorderModeEdit = ( componentProps: ReorderModeEditProps ) => {
 	const { BlockEdit, getSelectedTableIdentity, props } = componentProps;
 	const { attributes, clientId, isSelected } = props;
-	const rfState = useRfInteraction( clientId );
 
 	useTableLifecycle( clientId, isSelected, getSelectedTableIdentity );
-	useRfTableLifecycle( clientId, isSelected, getSelectedTableIdentity, attributes, rfState.status );
 
 	return (
 		<>
@@ -50,6 +73,12 @@ export const ReorderModeEdit = ( componentProps: ReorderModeEditProps ) => {
 				{ /* Toolbar入口は現在選択中の対応Tableだけに表示する。 */ }
 				{ isSelected && <ReorderModeToolbar tableIdentity={ clientId } /> }
 			</ReorderApplyTableBoundary>
+			<RfTableLifecycleSync
+				tableIdentity={ clientId }
+				isSelected={ isSelected }
+				getSelectedTableIdentity={ getSelectedTableIdentity }
+				attributes={ attributes }
+			/>
 			{ /* RF完了通知はSession表示状態ではなく対象Tableの未消費Apply結果を購読する。 */ }
 			<ReorderFormCompletion tableIdentity={ clientId } />
 		</>
