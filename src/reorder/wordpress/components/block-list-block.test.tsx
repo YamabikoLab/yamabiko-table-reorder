@@ -4,7 +4,7 @@
  * Reorder Mode変更をGutenberg本来のBlockListBlock再renderへ伝播させず、YTR専用DOM状態と安定した入力境界だけを現在modeへ同期することを検証する。
  */
 
-import { act, render } from '@testing-library/react';
+import { act, render, waitFor } from '@testing-library/react';
 import type { DragEventHandler, MouseEventHandler, PointerEventHandler, ReactNode } from 'react';
 
 import { reorderMode } from '@/reorder/reorder-mode';
@@ -230,6 +230,7 @@ describe( 'Reorder Mode Block wrapper integration', () => {
 			getByTestId( 'block-wrapper' ).getAttribute( 'data-yamabiko-table-reorder-mode' )
 		).toBe( 'row' );
 	} );
+
 	/**
 	 * BlockListBlock自身の更新だけでwrapper DOMが置き換わった場合も、現在のReorder Modeを新しいwrapperへ同期できることを確認する。
 	 *
@@ -243,7 +244,7 @@ describe( 'Reorder Mode Block wrapper integration', () => {
 	 * 期待結果:
 	 * - 置き換え後のwrapperにも現在のrow mode属性が同期される。
 	 */
-	it( 'when BlockListBlock replaces its wrapper without rerendering ReorderModeBlockListBlock, should resynchronize the current mode to the new wrapper', () => {
+	it( 'when BlockListBlock replaces its wrapper without rerendering ReorderModeBlockListBlock, should resynchronize the current mode to the new wrapper', async () => {
 		act( () => reorderMode.select( 'row', 'table-a' ) );
 
 		const { getByTestId, getByRole } = render(
@@ -270,6 +271,8 @@ describe( 'Reorder Mode Block wrapper integration', () => {
 
 		expect( replacedWrapper ).not.toBe( originalWrapper );
 		expect( replacedWrapper.tagName ).toBe( 'SECTION' );
-		expect( replacedWrapper.getAttribute( 'data-yamabiko-table-reorder-mode' ) ).toBe( 'row' );
+		await waitFor( () => {
+			expect( replacedWrapper.getAttribute( 'data-yamabiko-table-reorder-mode' ) ).toBe( 'row' );
+		} );
 	} );
 } );
