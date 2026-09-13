@@ -39,7 +39,11 @@ const createResolverMock = rowReorderTargetResolution.createResolver as jest.Moc
 	typeof rowReorderTargetResolution.createResolver
 >;
 
-/** Row HighlightのLifecycleだけを確認するTableを描画する。 */
+/**
+ * Row HighlightのLifecycleだけを確認するTableを描画する。
+ * @param props
+ * @param props.childrenRender
+ */
 const TestTable = ( props: { childrenRender?: () => void } ) => (
 	<RowHighlight enabled tableIdentity="table-a">
 		{ ( onPointerOverCapture ) => {

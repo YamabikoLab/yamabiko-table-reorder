@@ -47,7 +47,11 @@ const createResolverMock = columnReorderTargetResolution.createResolver as jest.
 	typeof columnReorderTargetResolution.createResolver
 >;
 
-/** Column HighlightのLifecycleだけを確認するTableを描画する。 */
+/**
+ * Column HighlightのLifecycleだけを確認するTableを描画する。
+ * @param props
+ * @param props.childrenRender
+ */
 const TestTable = ( props: { childrenRender?: () => void } ) => (
 	<ColumnHighlight enabled tableIdentity="table-a">
 		{ ( onPointerOverCapture, onPointerOutCapture ) => {

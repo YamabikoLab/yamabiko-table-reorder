@@ -70,9 +70,9 @@ export const ColumnHighlight = ( props: {
 } ) => {
 	const { enabled, tableIdentity, children } = props;
 	const currentCell = useRef< HTMLTableCellElement | null >( null );
-	const resolver = useRef< ReturnType< typeof columnReorderTargetResolution.createResolver > | null >(
-		null
-	);
+	const resolver = useRef< ReturnType<
+		typeof columnReorderTargetResolution.createResolver
+	> | null >( null );
 	const resolverTableIdentity = useRef< string | null >( null );
 
 	useEffect( () => {
