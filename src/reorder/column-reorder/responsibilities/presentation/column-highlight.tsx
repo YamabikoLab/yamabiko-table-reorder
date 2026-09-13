@@ -6,7 +6,7 @@
  * Reorder Mode離脱は非React購読で受け取り、React renderを要求せず表示とResolverを破棄する。
  */
 
-import { useCallback, useEffect, useRef } from '@wordpress/element';
+import { useEffect, useRef } from '@wordpress/element';
 import type { PointerEvent, ReactNode } from 'react';
 
 import { resolveColumnSourceIndex } from '@/reorder/column-reorder/integration/source-column-resolution';
@@ -15,6 +15,7 @@ import {
 	subscribeColumnDndState,
 } from '@/reorder/column-reorder/responsibilities/dnd-interaction';
 import { columnReorderTargetResolution } from '@/reorder/column-reorder/responsibilities/target-resolution';
+import { columnReorderMode } from '@/reorder/reorder-mode';
 import { subscribeReorderMode } from '@/reorder/reorder-mode-subscription';
 
 import './column-highlight.scss';
@@ -50,31 +51,26 @@ const clearVisualState = ( cell: HTMLTableCellElement | null ): void => {
  *
  * Resolverは最初の有効な開始可否判定で生成し、同一Highlight Lifecycle内で再利用する。
  * DnD開始時とColumn Reorder Mode離脱時は開始前表示とResolverを破棄する。
- * 開始可否は入力時に`isActive`から参照し、mode変更をReact props更新として要求しない。
+ * 開始可否は方向固有Reorder Mode APIから入力時に直接参照し、mode変更をReact props更新として要求しない。
  *
  * @param props               セル予告表示に必要な値。
- * @param props.enabled       Highlight接続境界自体を利用できる場合はtrue。
- * @param props.isActive      現在Tableで列並び替えが有効かをevent-timeで返す処理。省略時はenabledを利用する。
  * @param props.tableIdentity 列並び替え対象のTable Identity。
  * @param props.children      既存DOMへ操作対象判定とマウス終了処理を接続する描画処理。
  * @return 列の操作可否予告表示へ接続された子要素。
  */
 export const ColumnHighlight = ( props: {
-	enabled: boolean;
-	isActive?: () => boolean;
 	tableIdentity: string;
 	children: (
 		onPointerOverCapture: ColumnHighlightPointerOverHandler,
 		onPointerOutCapture: ColumnHighlightPointerOutHandler
 	) => ReactNode;
 } ) => {
-	const { enabled, isActive, tableIdentity, children } = props;
+	const { tableIdentity, children } = props;
 	const currentCell = useRef< HTMLTableCellElement | null >( null );
 	const resolver = useRef< ReturnType<
 		typeof columnReorderTargetResolution.createResolver
 	> | null >( null );
 	const resolverTableIdentity = useRef< string | null >( null );
-	const resolveActive = useCallback( () => isActive?.() ?? enabled, [ enabled, isActive ] );
 
 	useEffect( () => {
 		resolver.current = null;
@@ -97,10 +93,10 @@ export const ColumnHighlight = ( props: {
 			}
 		};
 
-		const unsubscribeDnd = enabled ? subscribeColumnDndState( synchronizeDndLifecycle ) : () => {};
+		const unsubscribeDnd = subscribeColumnDndState( synchronizeDndLifecycle );
 		const unsubscribeMode = subscribeReorderMode( tableIdentity, () => {
 			/* Column Reorder Modeから離脱した時点で、React renderを待たず開始前表示とResolverを破棄する。 */
-			if ( ! resolveActive() ) {
+			if ( ! columnReorderMode.isActive( tableIdentity ) ) {
 				clearTransientHighlightState();
 			}
 		} );
@@ -110,7 +106,7 @@ export const ColumnHighlight = ( props: {
 			unsubscribeMode();
 			clearTransientHighlightState();
 		};
-	}, [ enabled, tableIdentity, resolveActive ] );
+	}, [ tableIdentity ] );
 
 	const onPointerOverCapture: ColumnHighlightPointerOverHandler = ( event ) => {
 		const cell = ( event.target as Element | null )?.closest(
@@ -126,8 +122,7 @@ export const ColumnHighlight = ( props: {
 		const table = event.currentTarget.querySelector( 'table' );
 
 		if (
-			! enabled ||
-			! resolveActive() ||
+			! columnReorderMode.isActive( tableIdentity ) ||
 			getColumnDndPhase() !== 'idle' ||
 			! table ||
 			! cell ||

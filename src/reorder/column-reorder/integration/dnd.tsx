@@ -40,6 +40,7 @@ import {
 	type ColumnReorderTarget,
 	type ColumnReorderTargetResolution,
 } from '@/reorder/column-reorder/responsibilities/target-resolution';
+import { columnReorderMode } from '@/reorder/reorder-mode';
 import { subscribeReorderMode } from '@/reorder/reorder-mode-subscription';
 
 /** 列DnDを既存DOMのポインター入力へ接続する開始処理型を、DnD接続境界から公開する。 */
@@ -67,25 +68,21 @@ const resolveNativePointerPosition = ( event: DragMoveEvent ): ColumnPointerPosi
 /**
  * 対象Tableへdnd-kitの物理DnD進行を接続する。
  *
- * Reorder Modeの有効判定は入力時に`isActive`から参照し、mode変更をReact props更新として要求しない。
+ * Reorder Modeの有効判定は方向固有APIから入力時に直接参照し、mode変更をReact props更新として要求しない。
  * mode離脱時は非React購読から解決結果、Auto Scroll、物理DnD登録を即時破棄する。
  *
  * @param props                     列DnD接続に必要な値。
- * @param props.enabled             DnD接続境界自体を利用できる場合はtrue。
- * @param props.isActive            現在Tableで列並び替えが有効かをevent-timeで返す処理。省略時はenabledを利用する。
  * @param props.presentationEnabled 現在の操作対象としてReorder Presentationを接続する場合はtrue。
  * @param props.tableIdentity       列並び替え対象のTable Identity。
  * @param props.children            既存DOMへポインター開始処理を接続する描画処理。
  * @return dnd-kitの列DnD進行と必要な表示境界へ接続された子要素。
  */
 export const ColumnDnd = ( props: {
-	enabled: boolean;
-	isActive?: () => boolean;
 	presentationEnabled?: boolean;
 	tableIdentity: string;
 	children: ( onPointerDownCapture: ColumnDndPointerDownHandler ) => ReactNode;
 } ) => {
-	const { enabled, isActive, presentationEnabled = false, tableIdentity, children } = props;
+	const { presentationEnabled = false, tableIdentity, children } = props;
 	const activeDraggable = useRef< Draggable | null >( null );
 	const destinationResolver = useRef< ColumnDestinationResolver | null >( null );
 	const latestDragMoveEvent = useRef< DragMoveEvent | null >( null );
@@ -93,8 +90,6 @@ export const ColumnDnd = ( props: {
 		ColumnReorderTargetResolution,
 		{ status: 'resolved' }
 	> | null >( null );
-	const presentationActive = enabled && presentationEnabled;
-	const resolveActive = useCallback( () => isActive?.() ?? enabled, [ enabled, isActive ] );
 	const horizontalAutoScroll = useMemo(
 		() =>
 			createColumnHorizontalAutoScroll( () => {
@@ -122,21 +117,15 @@ export const ColumnDnd = ( props: {
 	}, [ horizontalAutoScroll ] );
 
 	useEffect( () => {
-		if ( ! enabled ) {
-			clearTransientDndState();
-		}
-	}, [ enabled, clearTransientDndState ] );
-
-	useEffect( () => {
 		const unsubscribe = subscribeReorderMode( tableIdentity, () => {
 			/* Column Reorder Modeから離脱した時点で、React renderを待たず一時状態を破棄する。 */
-			if ( ! resolveActive() ) {
+			if ( ! columnReorderMode.isActive( tableIdentity ) ) {
 				clearTransientDndState();
 			}
 		} );
 
 		return unsubscribe;
-	}, [ tableIdentity, resolveActive, clearTransientDndState ] );
+	}, [ tableIdentity, clearTransientDndState ] );
 
 	useEffect( () => {
 		return clearTransientDndState;
@@ -213,16 +202,12 @@ export const ColumnDnd = ( props: {
 			onDragMove={ onDragMove }
 			onDragEnd={ onDragEnd }
 		>
-			{ presentationActive && <ColumnPresentation /> }
-			<ColumnInput
-				enabled={ enabled }
-				tableIdentity={ tableIdentity }
-				activeDraggable={ activeDraggable }
-			>
+			{ presentationEnabled && <ColumnPresentation /> }
+			<ColumnInput tableIdentity={ tableIdentity } activeDraggable={ activeDraggable }>
 				{ ( onPointerDownCapture ) =>
 					children( ( event ) => {
 						/* 現在modeが列でない入力は、安定した接続を維持したままColumn Inputへ渡さない。 */
-						if ( resolveActive() ) {
+						if ( columnReorderMode.isActive( tableIdentity ) ) {
 							onPointerDownCapture( event );
 						}
 					} )

@@ -22,6 +22,8 @@ import { DragDropProvider } from '@dnd-kit/react';
 import { useCallback, useEffect, useRef } from '@wordpress/element';
 import type { ReactNode } from 'react';
 
+import { rowReorderMode } from '@/reorder/reorder-mode';
+import { subscribeReorderMode } from '@/reorder/reorder-mode-subscription';
 import {
 	createRowDestinationResolver,
 	type RowDestinationResolver,
@@ -37,7 +39,6 @@ import {
 	type RowReorderTarget,
 	type RowReorderTargetResolution,
 } from '@/reorder/row-reorder/responsibilities/target-resolution';
-import { subscribeReorderMode } from '@/reorder/reorder-mode-subscription';
 
 /** 行DnDを既存DOMのポインター入力へ接続する開始処理型を、DnD接続境界から公開する。 */
 export type { RowDndPointerDownHandler } from '@/reorder/row-reorder/responsibilities/input';
@@ -45,33 +46,28 @@ export type { RowDndPointerDownHandler } from '@/reorder/row-reorder/responsibil
 /**
  * 対象Tableへdnd-kitの物理DnD進行を接続する。
  *
- * 接続自体はTableの描画中に安定して維持し、行並び替えが有効な期間だけ入力境界から開始対象を登録する。
- * Reorder Modeの有効判定は入力時に`isActive`から参照し、mode変更をReact props更新として要求しない。
+ * 接続自体はTableの描画中に安定して維持し、行並び替えが有効な期間だけ入力境界へ開始入力を渡す。
+ * Reorder Modeの有効判定は方向固有APIから入力時に直接参照し、mode変更をReact props更新として要求しない。
  * mode離脱時は非React購読から未使用の解決結果、移動先解決境界、物理DnD登録を即時破棄する。
  *
  * @param props                     行DnD接続に必要な値。
- * @param props.enabled             DnD接続境界自体を利用できる場合はtrue。
- * @param props.isActive            現在Tableで行並び替えが有効かをevent-timeで返す処理。省略時はenabledを利用する。
  * @param props.presentationEnabled 現在の操作対象としてReorder Presentationを接続する場合はtrue。
  * @param props.tableIdentity       行並び替え対象のTable Identity。
  * @param props.children            既存DOMへポインター開始処理を接続する描画処理。
  * @return dnd-kitの行DnD進行と必要な表示境界へ接続された子要素。
  */
 export const RowDnd = ( props: {
-	enabled: boolean;
-	isActive?: () => boolean;
 	presentationEnabled?: boolean;
 	tableIdentity: string;
 	children: ( onPointerDownCapture: RowDndPointerDownHandler ) => ReactNode;
 } ) => {
-	const { enabled, isActive, presentationEnabled = true, tableIdentity, children } = props;
+	const { presentationEnabled = true, tableIdentity, children } = props;
 	const activeDraggable = useRef< Draggable | null >( null );
 	const destinationResolver = useRef< RowDestinationResolver | null >( null );
 	const resolvedStart = useRef< Extract<
 		RowReorderTargetResolution,
 		{ status: 'resolved' }
 	> | null >( null );
-	const resolveActive = useCallback( () => isActive?.() ?? enabled, [ enabled, isActive ] );
 
 	/** 次の開始入力や通常編集へ持ち越せないDnD接続境界の一時状態をまとめて破棄する。 */
 	const clearTransientDndState = useCallback( (): void => {
@@ -82,22 +78,15 @@ export const RowDnd = ( props: {
 	}, [] );
 
 	useEffect( () => {
-		/* 接続境界自体が無効になった時点で、通常編集や別モードへ一時状態を持ち越さない。 */
-		if ( ! enabled ) {
-			clearTransientDndState();
-		}
-	}, [ enabled, clearTransientDndState ] );
-
-	useEffect( () => {
 		const unsubscribe = subscribeReorderMode( tableIdentity, () => {
 			/* 行Reorder Modeから離脱した時点で、React renderを待たず開始候補とResolverを破棄する。 */
-			if ( ! resolveActive() ) {
+			if ( ! rowReorderMode.isActive( tableIdentity ) ) {
 				clearTransientDndState();
 			}
 		} );
 
 		return unsubscribe;
-	}, [ tableIdentity, resolveActive, clearTransientDndState ] );
+	}, [ tableIdentity, clearTransientDndState ] );
 
 	useEffect( () => {
 		/* TableのDnD接続終了時は、未使用の解決結果、移動先解決境界、物理DnD登録を残さない。 */
@@ -173,15 +162,11 @@ export const RowDnd = ( props: {
 			onDragEnd={ onDragEnd }
 		>
 			{ presentationEnabled && <RowPresentation /> }
-			<RowInput
-				enabled={ enabled }
-				tableIdentity={ tableIdentity }
-				activeDraggable={ activeDraggable }
-			>
+			<RowInput tableIdentity={ tableIdentity } activeDraggable={ activeDraggable }>
 				{ ( onPointerDownCapture ) =>
 					children( ( event ) => {
 						/* 現在modeが行でない入力は、安定した接続を維持したままRow Inputへ渡さない。 */
-						if ( resolveActive() ) {
+						if ( rowReorderMode.isActive( tableIdentity ) ) {
 							onPointerDownCapture( event );
 						}
 					} )

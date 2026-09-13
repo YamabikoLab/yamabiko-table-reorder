@@ -220,33 +220,15 @@ export const ReorderModeBlockListBlock = ( props: {
 		() => reorderMode.getMode( clientId ) !== 'edit',
 		[ clientId ]
 	);
-	const isRowReorderActive = useCallback(
-		() => reorderMode.getMode( clientId ) === 'row',
-		[ clientId ]
-	);
-	const isColumnReorderActive = useCallback(
-		() => reorderMode.getMode( clientId ) === 'column',
-		[ clientId ]
-	);
 
 	return (
-		<RowHighlight enabled isActive={ isRowReorderActive } tableIdentity={ clientId }>
+		<RowHighlight tableIdentity={ clientId }>
 			{ ( rowHighlightPointerOverCapture ) => (
-				<ColumnHighlight enabled isActive={ isColumnReorderActive } tableIdentity={ clientId }>
+				<ColumnHighlight tableIdentity={ clientId }>
 					{ ( columnHighlightPointerOverCapture, columnHighlightPointerOutCapture ) => (
-						<RowDnd
-							enabled
-							isActive={ isRowReorderActive }
-							presentationEnabled={ isSelected }
-							tableIdentity={ clientId }
-						>
+						<RowDnd presentationEnabled={ isSelected } tableIdentity={ clientId }>
 							{ ( rowDndPointerDownCapture ) => (
-								<ColumnDnd
-									enabled
-									isActive={ isColumnReorderActive }
-									presentationEnabled={ isSelected }
-									tableIdentity={ clientId }
-								>
+								<ColumnDnd presentationEnabled={ isSelected } tableIdentity={ clientId }>
 									{ ( columnDndPointerDownCapture ) => (
 										<>
 											<template ref={ modeDomAnchor } />

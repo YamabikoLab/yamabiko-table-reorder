@@ -15,7 +15,7 @@ export type TableReorderMode = ReorderKind | 'edit';
  *
  * @param mode 変更後に対象Tableで有効なReorder Mode。
  */
-export type ReorderModeChangeHandler = ( mode: TableReorderMode ) => void;
+type ReorderModeChangeHandler = ( mode: TableReorderMode ) => void;
 
 /**
  * 対象Tableから見たReorder Mode変更だけを購読する。

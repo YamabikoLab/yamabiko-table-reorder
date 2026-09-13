@@ -60,7 +60,7 @@ const createTarget = () => {
 const renderPointerHandler = (): RowDndPointerDownHandler => {
 	let handler: RowDndPointerDownHandler | null = null;
 	render(
-		<RowInput enabled tableIdentity="table-1" activeDraggable={ { current: null } }>
+		<RowInput tableIdentity="table-1" activeDraggable={ { current: null } }>
 			{ ( currentHandler ) => {
 				handler = currentHandler;
 				return <div />;
@@ -117,7 +117,7 @@ describe( 'Row DnD input browser defaults', () => {
 	 * - マウスによる行DnD開始入力では文字選択等のブラウザー既定動作を抑止することを確認する。
 	 *
 	 * 事前条件:
-	 * - 行並び替えが有効で、tbody直下行から主マウス入力を開始できる。
+	 * - tbody直下行から主マウス入力を開始できる。
 	 *
 	 * 操作:
 	 * - 行セルへ主マウスボタン入力を行う。
@@ -141,7 +141,7 @@ describe( 'Row DnD input browser defaults', () => {
 	 * - タッチによる行DnD開始入力ではブラウザー既定動作を即時に抑止しないことを確認する。
 	 *
 	 * 事前条件:
-	 * - 行並び替えが有効で、tbody直下行から主タッチ入力を開始できる。
+	 * - tbody直下行から主タッチ入力を開始できる。
 	 *
 	 * 操作:
 	 * - 行セルへ主タッチ入力を行う。
