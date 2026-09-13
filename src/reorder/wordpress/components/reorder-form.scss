@@ -15,16 +15,24 @@
 	display: grid;
 	gap: 16px;
 	padding: 16px;
-}
-
-.yamabiko-table-reorder-rf__drag-handle {
 	cursor: grab;
 	touch-action: none;
 	user-select: none;
 }
 
-.yamabiko-table-reorder-rf__drag-handle:active {
+.yamabiko-table-reorder-rf:active {
 	cursor: grabbing;
+}
+
+.yamabiko-table-reorder-rf input,
+.yamabiko-table-reorder-rf select,
+.yamabiko-table-reorder-rf textarea,
+.yamabiko-table-reorder-rf button,
+.yamabiko-table-reorder-rf a,
+.yamabiko-table-reorder-rf [contenteditable='true'] {
+	cursor: auto;
+	touch-action: auto;
+	user-select: auto;
 }
 
 .yamabiko-table-reorder-rf__title {
