@@ -8,7 +8,10 @@ import type { BlockEditProps } from '@wordpress/blocks';
 import type { ComponentType } from '@wordpress/element';
 
 import { rfInteraction } from '@/reorder/reorder-form/responsibilities/interaction';
-import { useRfInteraction } from '@/reorder/reorder-form/responsibilities/interaction-react';
+import {
+	useRfApplyOutcome,
+	useRfInteraction,
+} from '@/reorder/reorder-form/responsibilities/interaction-react';
 import { ReorderApplyTableBoundary } from '@/reorder/wordpress/components/reorder-apply';
 import { ReorderFormCompletion } from '@/reorder/wordpress/components/reorder-form-completion';
 import { ReorderModeToolbar } from '@/reorder/wordpress/components/toolbar';
@@ -40,6 +43,7 @@ export const ReorderModeEdit = ( componentProps: ReorderModeEditProps ) => {
 	const { BlockEdit, getSelectedTableIdentity, props } = componentProps;
 	const { attributes, clientId, isSelected } = props;
 	const rfState = useRfInteraction( clientId );
+	const rfApplyOutcome = useRfApplyOutcome( clientId );
 
 	useTableLifecycle( clientId, isSelected, getSelectedTableIdentity );
 	useRfTableLifecycle( clientId, isSelected, getSelectedTableIdentity, attributes, rfState.status );
@@ -53,7 +57,7 @@ export const ReorderModeEdit = ( componentProps: ReorderModeEditProps ) => {
 			</ReorderApplyTableBoundary>
 			{ /* RF確定結果は通常 / 大規模反映共通の一経路で通知し、表示開始時にInteractionから消費する。 */ }
 			<ReorderFormCompletion
-				applyOutcome={ rfState.applyOutcome }
+				applyOutcome={ rfApplyOutcome }
 				consumeApplyOutcome={ rfInteraction.consumeApplyOutcome }
 			/>
 		</>

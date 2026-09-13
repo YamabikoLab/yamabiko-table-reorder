@@ -1,8 +1,9 @@
 /**
  * RF Interactionが所有する共有状態をReactへ接続する境界を提供する。
  *
- * React側はRF Sessionの状態正本や状態変更操作を持たず、対象Tableから見た現在Reorder Kindの表示状態と
- * 未消費のApply確定結果だけを継続購読する。Table変更の検知や再評価通知はこのHookの責務に含めない。
+ * React側はRF Sessionや未消費Apply結果の状態正本を持たず、対象Tableから見た現在Reorder Kindの表示状態と
+ * 通知Presentationに必要な未消費Apply結果を、それぞれ必要な境界から継続購読する。
+ * Table変更の検知や再評価通知はこのHook群の責務に含めない。
  */
 
 import { useStore } from 'zustand';
@@ -19,7 +20,7 @@ import {
 
 /** React UIへ公開する対象Table視点のRF Interaction状態。 */
 export type RfInteractionReactState =
-	| { status: 'closed'; applyOutcome: RfApplyOutcome | null }
+	| { status: 'closed' }
 	| {
 			status: 'open';
 			kind: 'row';
@@ -27,7 +28,6 @@ export type RfInteractionReactState =
 			rowCount: number | null;
 			result: RfRowCurrentResult;
 			canApply: boolean;
-			applyOutcome: RfApplyOutcome | null;
 	  }
 	| {
 			status: 'open';
@@ -36,22 +36,20 @@ export type RfInteractionReactState =
 			columns: readonly ColumnInputDescriptor[];
 			result: RfColumnCurrentResult;
 			canApply: boolean;
-			applyOutcome: RfApplyOutcome | null;
 	  }
 	| {
 			status: 'applying';
 			kind: 'row' | 'column';
-			applyOutcome: RfApplyOutcome | null;
 	  };
 
-/** 未消費結果がない対象外Tableで共有する不変のclosed表示状態。 */
-const CLOSED_STATE: RfInteractionReactState = { status: 'closed', applyOutcome: null };
+/** 別TableまたはSession終了時に共有する不変のclosed表示状態。 */
+const CLOSED_STATE: RfInteractionReactState = { status: 'closed' };
 
 /**
  * 対象Tableから見たRF Interaction状態をReact描画へ反映する。
  *
  * 現在Session対象と異なるTableからの購読はclosedとして扱い、そのTableに無関係なSession更新では再描画しない。
- * Apply確定結果は対象Tableに属する未消費結果だけを公開し、Row / Columnのopen状態では現在Reorder Kindに必要な項目だけを返す。
+ * Row / Columnのopen状態では現在Reorder Kindに必要な項目だけを公開し、candidateや非表示kindの入力は返さない。
  *
  * @param tableIdentity RF状態を購読するTable Identity。
  * @return 対象Tableから見た現在RF Interaction表示状態。
@@ -67,22 +65,10 @@ export const useRfInteraction = ( tableIdentity: string ): RfInteractionReactSta
 
 		return currentSession;
 	} );
-	const applyOutcome = useStore( rfInteractionStore, ( store ) => {
-		const currentOutcome = store.applyOutcome;
-		// Apply結果は結果が確定した対象TableのPresentationだけへ公開する。
-		if ( currentOutcome === null || currentOutcome.tableIdentity !== tableIdentity ) {
-			return null;
-		}
 
-		return currentOutcome;
-	} );
-
-	// 現在Sessionの対象外Tableでも、自身の未消費Apply結果があれば通知Presentationへ公開する。
+	// 現在Sessionの対象外TableはRF表示状態を持たない。
 	if ( session === null ) {
-		if ( applyOutcome === null ) {
-			return CLOSED_STATE;
-		}
-		return { status: 'closed', applyOutcome };
+		return CLOSED_STATE;
 	}
 
 	// Apply結果待機中は入力や評価結果を公開せず、現在Reorder Kindだけを表示状態として公開する。
@@ -90,7 +76,6 @@ export const useRfInteraction = ( tableIdentity: string ): RfInteractionReactSta
 		const applyingState: RfInteractionReactState = {
 			status: 'applying',
 			kind: session.kind,
-			applyOutcome,
 		};
 		return applyingState;
 	}
@@ -107,7 +92,6 @@ export const useRfInteraction = ( tableIdentity: string ): RfInteractionReactSta
 			rowCount: session.evaluation.rowCount,
 			result,
 			canApply,
-			applyOutcome,
 		};
 		return rowState;
 	}
@@ -124,14 +108,27 @@ export const useRfInteraction = ( tableIdentity: string ): RfInteractionReactSta
 			columns: session.evaluation.columns,
 			result,
 			canApply,
-			applyOutcome,
 		};
 		return columnState;
 	}
 
 	// Reorder Kindと評価結果が一致しない不完全なSessionはPresentationへ公開しない。
-	if ( applyOutcome === null ) {
-		return CLOSED_STATE;
-	}
-	return { status: 'closed', applyOutcome };
+	return CLOSED_STATE;
 };
+
+/**
+ * 対象Tableに属する未消費のRF Apply確定結果だけを通知Presentationへ公開する。
+ *
+ * @param tableIdentity Apply結果を購読するTable Identity。
+ * @return 対象Tableの未消費結果。存在しない場合はnull。
+ */
+export const useRfApplyOutcome = ( tableIdentity: string ): RfApplyOutcome | null =>
+	useStore( rfInteractionStore, ( store ) => {
+		const outcome = store.applyOutcome;
+		// 別Tableの結果を現在Tableの通知として扱わない。
+		if ( outcome === null || outcome.tableIdentity !== tableIdentity ) {
+			return null;
+		}
+
+		return outcome;
+	} );
