@@ -37,7 +37,7 @@ export type ColumnBlockingMergedRange = {
 };
 
 /** RF Apply前に現在Tableへ再照合した列移動の評価結果。 */
-export type ColumnApplyAssessment = {
+type ColumnApplyAssessment = {
 	/** 列移動によって表示位置が変わる範囲に含まれる物理セル数。 */
 	affectedCellCount: number;
 	/** 移動元列を除去した後に移動対象が配置される0-based最終論理列位置。 */
