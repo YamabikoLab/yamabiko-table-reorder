@@ -25,7 +25,8 @@ jest.mock( '@/messages', () => ( {
 	getRfCancelLabel: () => 'キャンセル',
 	getRfColumnMergedRangeMessage: () => '列結合',
 	getRfColumnOptionLabel: ( columnNumber: number, heading: string | null ) => {
-		const label = heading === null ? `${ columnNumber }列目` : `${ heading }（${ columnNumber }列目）`;
+		const label =
+			heading === null ? `${ columnNumber }列目` : `${ heading }（${ columnNumber }列目）`;
 		return label;
 	},
 	getRfColumnTargetHelp: () => '対象列の左右へ移動',

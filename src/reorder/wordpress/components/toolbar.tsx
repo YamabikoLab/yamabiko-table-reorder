@@ -77,22 +77,27 @@ const columnReorderIcon = (
 /** RFのツールバー入口に表示するフォーム専用アイコン。 */
 const formReorderIcon = (
 	<svg
-		aria-hidden="true"
+		xmlns="http://www.w3.org/2000/svg"
+		viewBox="0 0 24 24"
 		fill="none"
 		stroke="currentColor"
+		strokeWidth="1.8"
 		strokeLinecap="round"
 		strokeLinejoin="round"
-		strokeWidth="1.5"
-		viewBox="0 0 24 24"
-		xmlns="http://www.w3.org/2000/svg"
 	>
-		<rect height="17" rx="1" width="17" x="3.5" y="3.5" />
-		<circle cx="7" cy="8" r="0.75" fill="currentColor" stroke="none" />
-		<circle cx="7" cy="12" r="0.75" fill="currentColor" stroke="none" />
-		<circle cx="7" cy="16" r="0.75" fill="currentColor" stroke="none" />
-		<line x1="10" x2="17" y1="8" y2="8" />
-		<line x1="10" x2="17" y1="12" y2="12" />
-		<line x1="10" x2="17" y1="16" y2="16" />
+		<rect x="2.75" y="4" width="12.5" height="16" rx="2.25" />
+
+		<rect x="4.75" y="7" width="8.5" height="3.5" rx="1" />
+		<circle cx="6.4" cy="8.75" r="0.55" />
+		<path d="M8.2 8.75h3.15" />
+
+		<rect x="4.75" y="13.5" width="8.5" height="3.5" rx="1" />
+		<circle cx="6.4" cy="15.25" r="0.55" />
+		<path d="M8.2 15.25h3.15" />
+
+		<path d="M19 5.5v13" />
+		<path d="M16.8 7.7 19 5.5l2.2 2.2" />
+		<path d="m16.8 16.3 2.2 2.2 2.2-2.2" />
 	</svg>
 );
 
