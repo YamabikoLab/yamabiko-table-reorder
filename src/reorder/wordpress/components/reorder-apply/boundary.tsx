@@ -36,8 +36,12 @@ export const ReorderApplyTableBoundary = ( props: { clientId: string; children: 
 		return <ReorderApplying referenceElementRef={ applyingReferenceElementRef } />;
 	}
 
-	const isSuccessfulRemounting =
-		presentation.phase === 'remounting' && presentation.applied && presentation.owner !== 'rf';
+	const remountingStatus =
+		presentation.phase === 'remounting' && presentation.owner !== 'rf'
+			? presentation.applied
+				? 'success'
+				: 'failure'
+			: null;
 
 	return (
 		<>
@@ -54,7 +58,7 @@ export const ReorderApplyTableBoundary = ( props: { clientId: string; children: 
 					onCancel={ presentation.cancel }
 				/>
 			) }
-			<ReorderApplyCompletion isSuccessfulRemounting={ isSuccessfulRemounting } />
+			<ReorderApplyCompletion remountingStatus={ remountingStatus } />
 		</>
 	);
 };
