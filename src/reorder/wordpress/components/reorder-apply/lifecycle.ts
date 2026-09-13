@@ -82,16 +82,16 @@ export const useReorderApplyLifecycle = (
 		return runAfterVisualPaint( editorContext.window, apply );
 	}, [ apply, isApplying ] );
 
-	const isRemounting = presentation.phase === 'remounting';
-	const kind = isRemounting ? presentation.kind : null;
-	const tableIdentity = isRemounting ? presentation.tableIdentity : null;
-	const applied = isRemounting ? presentation.applied : false;
-	const destinationIndex = isRemounting ? presentation.destinationIndex : null;
-	const complete = isRemounting ? presentation.complete : null;
+	const isRestoring = presentation.phase === 'restoring';
+	const kind = isRestoring ? presentation.kind : null;
+	const tableIdentity = isRestoring ? presentation.tableIdentity : null;
+	const applied = isRestoring ? presentation.applied : false;
+	const destinationIndex = isRestoring ? presentation.destinationIndex : null;
+	const complete = isRestoring ? presentation.complete : null;
 
 	useEffect( () => {
 		/* 表示復帰段階が成立していない間は、復帰とLifecycle完了を開始しない。 */
-		if ( ! isRemounting || kind === null || tableIdentity === null || complete === null ) {
+		if ( ! isRestoring || kind === null || tableIdentity === null || complete === null ) {
 			return;
 		}
 
@@ -119,7 +119,7 @@ export const useReorderApplyLifecycle = (
 		}
 
 		return runAfterVisualPaint( editorContext.window, complete );
-	}, [ applied, complete, destinationIndex, isRemounting, kind, tableIdentity ] );
+	}, [ applied, complete, destinationIndex, isRestoring, kind, tableIdentity ] );
 
 	return { applyingReferenceElementRef, restorationReferenceElementRef };
 };
