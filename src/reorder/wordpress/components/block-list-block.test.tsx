@@ -197,15 +197,15 @@ describe( 'Reorder Mode Block wrapper integration', () => {
 		act( () => reorderMode.select( 'row', 'table-a' ) );
 		const { getByTestId, rerender } = render( renderBlockListBlock() );
 
-		expect( getByTestId( 'block-wrapper' ).getAttribute( 'data-yamabiko-table-reorder-mode' ) ).toBe(
-			'row'
-		);
+		expect(
+			getByTestId( 'block-wrapper' ).getAttribute( 'data-yamabiko-table-reorder-mode' )
+		).toBe( 'row' );
 
 		rerender( renderBlockListBlock( ReplacementBlockListBlock ) );
 
 		expect( getByTestId( 'block-wrapper' ).tagName ).toBe( 'SECTION' );
-		expect( getByTestId( 'block-wrapper' ).getAttribute( 'data-yamabiko-table-reorder-mode' ) ).toBe(
-			'row'
-		);
+		expect(
+			getByTestId( 'block-wrapper' ).getAttribute( 'data-yamabiko-table-reorder-mode' )
+		).toBe( 'row' );
 	} );
 } );
