@@ -51,7 +51,10 @@ const COLUMNS = [
 ];
 
 const resetInteraction = () => {
-	rfInteractionStore.setState( { session: { status: 'closed' } } );
+	rfInteractionStore.setState( {
+		session: { status: 'closed' },
+		applyOutcome: { status: 'idle' },
+	} );
 };
 
 const mockedReceiveRfApplyRequest = jest.mocked( receiveRfApplyRequest );
