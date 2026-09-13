@@ -125,23 +125,23 @@ const createPointerEvent = ( options: {
 
 /** RowInputが子要素へ公開する開始処理を取得する。 */
 const renderRowInput = () => {
-	let pointerDownHandler: RowDndPointerDownHandler | null = null;
+	const capturedHandler: { current: RowDndPointerDownHandler | null } = { current: null };
 	const activeDraggable: { current: Draggable | null } = { current: null };
 
 	render(
 		<RowInput tableIdentity="table-1" activeDraggable={ activeDraggable }>
 			{ ( handler ) => {
-				pointerDownHandler = handler;
+				capturedHandler.current = handler;
 				return <div />;
 			} }
 		</RowInput>
 	);
 
-	if ( pointerDownHandler === null ) {
+	if ( capturedHandler.current === null ) {
 		throw new Error( 'RowInput did not provide a pointer handler.' );
 	}
 
-	return { pointerDownHandler, activeDraggable };
+	return { pointerDownHandler: capturedHandler.current, activeDraggable };
 };
 
 describe( 'Row DnD input boundary', () => {
