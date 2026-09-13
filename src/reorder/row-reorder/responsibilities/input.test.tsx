@@ -50,7 +50,10 @@ const notifyRowStartRejectionMock = notifyRowStartRejection as jest.MockedFuncti
 	typeof notifyRowStartRejection
 >;
 
-/** DnD Engineの開始可否状態を生成する。 */
+/**
+ * DnD Engineの開始可否状態を生成する。
+ * @param idle
+ */
 const createManager = ( idle = true ) =>
 	( {
 		dragOperation: {
@@ -277,7 +280,13 @@ describe( 'Row DnD input boundary', () => {
 	it.each( [
 		{ label: 'non-primary pointer', isPrimary: false, button: 0, pointerType: 'mouse', idle: true },
 		{ label: 'secondary button', isPrimary: true, button: 1, pointerType: 'mouse', idle: true },
-		{ label: 'additional pointer during active DnD', isPrimary: true, button: 0, pointerType: 'touch', idle: false },
+		{
+			label: 'additional pointer during active DnD',
+			isPrimary: true,
+			button: 0,
+			pointerType: 'touch',
+			idle: false,
+		},
 	] )(
 		'when $label input is not eligible to start row DnD, should not register a draggable',
 		( { isPrimary, button, pointerType, idle } ) => {

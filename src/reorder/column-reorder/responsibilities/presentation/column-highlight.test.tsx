@@ -44,7 +44,12 @@ const createResolverMock = columnReorderTargetResolution.createResolver as jest.
 	typeof columnReorderTargetResolution.createResolver
 >;
 
-/** ポインター終了入力を明示して通知する。 */
+/**
+ * ポインター終了入力を明示して通知する。
+ * @param target
+ * @param pointerType
+ * @param relatedTarget
+ */
 const firePointerOut = (
 	target: Element,
 	pointerType: 'mouse' | 'touch',
@@ -62,7 +67,11 @@ const resetReorderMode = () => {
 	} );
 };
 
-/** 開始前のセル予告表示を確認するためのTableを描画する。 */
+/**
+ * 開始前のセル予告表示を確認するためのTableを描画する。
+ * @param props
+ * @param props.tableIdentity
+ */
 const TestTable = ( props: { tableIdentity?: string } ) => (
 	<ColumnHighlight tableIdentity={ props.tableIdentity ?? 'table-a' }>
 		{ ( onPointerOverCapture, onPointerOutCapture ) => (
@@ -75,7 +84,9 @@ const TestTable = ( props: { tableIdentity?: string } ) => (
 					<tbody>
 						<tr>
 							<td data-testid="column-0">A</td>
-							<td data-testid="column-1"><span data-testid="column-1-child">B</span></td>
+							<td data-testid="column-1">
+								<span data-testid="column-1-child">B</span>
+							</td>
 							<td data-testid="column-2">C</td>
 						</tr>
 					</tbody>

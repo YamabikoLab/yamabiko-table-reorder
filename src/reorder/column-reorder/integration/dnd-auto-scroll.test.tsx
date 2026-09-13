@@ -136,11 +136,7 @@ describe( 'Column DnD horizontal auto scroll integration', () => {
 	it( 'when horizontal auto scroll moves the table without a new pointer move, should resolve and update the destination again', () => {
 		const resolver = { resolve: jest.fn().mockReturnValue( 2 ) };
 		destinationResolverFactoryMock.mockReturnValue( resolver );
-		render(
-			<ColumnDnd tableIdentity="table-1">
-				{ () => <div /> }
-			</ColumnDnd>
-		);
+		render( <ColumnDnd tableIdentity="table-1">{ () => <div /> }</ColumnDnd> );
 		const provider = getProviderProps();
 		const sourceElement = document.createElement( 'td' );
 		const moveEvent = {
@@ -173,11 +169,7 @@ describe( 'Column DnD horizontal auto scroll integration', () => {
 		destinationResolverFactoryMock.mockReturnValue( {
 			resolve: jest.fn().mockReturnValue( 2 ),
 		} );
-		render(
-			<ColumnDnd tableIdentity="table-1">
-				{ () => <div /> }
-			</ColumnDnd>
-		);
+		render( <ColumnDnd tableIdentity="table-1">{ () => <div /> }</ColumnDnd> );
 		const provider = getProviderProps();
 		const sourceElement = document.createElement( 'td' );
 

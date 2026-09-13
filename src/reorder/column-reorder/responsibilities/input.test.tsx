@@ -47,7 +47,10 @@ const targetResolutionMock = columnReorderTargetResolution as jest.Mocked<
 	typeof columnReorderTargetResolution
 >;
 
-/** DnD Engineの開始可否状態を生成する。 */
+/**
+ * DnD Engineの開始可否状態を生成する。
+ * @param idle
+ */
 const createManager = ( idle = true ) =>
 	( { dragOperation: { status: { idle } } } ) as ReturnType< typeof useDragDropManager >;
 
@@ -71,7 +74,8 @@ const createTableTarget = () => {
 /** 横結合の後続セルを持つTableを生成する。 */
 const createColspanTableTarget = () => {
 	const currentTarget = document.createElement( 'div' );
-	currentTarget.innerHTML = '<table><tbody><tr><td colspan="2">A</td><td data-testid="target">B</td></tr></tbody></table>';
+	currentTarget.innerHTML =
+		'<table><tbody><tr><td colspan="2">A</td><td data-testid="target">B</td></tr></tbody></table>';
 	const target = currentTarget.querySelector( '[data-testid="target"]' );
 	if ( target === null ) {
 		throw new Error( 'Column colspan input test target could not be created.' );
@@ -79,7 +83,15 @@ const createColspanTableTarget = () => {
 	return { currentTarget, target };
 };
 
-/** 列DnD開始処理へ渡すポインターイベントを生成する。 */
+/**
+ * 列DnD開始処理へ渡すポインターイベントを生成する。
+ * @param options
+ * @param options.target
+ * @param options.currentTarget
+ * @param options.pointerType
+ * @param options.isPrimary
+ * @param options.button
+ */
 const createPointerEvent = ( options: {
 	target: Element;
 	currentTarget: Element;
@@ -202,7 +214,9 @@ describe( 'Column DnD input boundary', () => {
 		pointerDownHandler( createPointerEvent( { target, currentTarget } ) );
 		const currentDraggable = activeDraggable.current;
 		manager.dragOperation.status.idle = false;
-		pointerDownHandler( createPointerEvent( { target: next, currentTarget, pointerType: 'touch' } ) );
+		pointerDownHandler(
+			createPointerEvent( { target: next, currentTarget, pointerType: 'touch' } )
+		);
 
 		expect( currentDraggable?.destroy ).not.toHaveBeenCalled();
 		expect( activeDraggable.current ).toBe( currentDraggable );

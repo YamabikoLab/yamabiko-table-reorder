@@ -36,9 +36,15 @@ const TestTable = () => (
 			<div data-testid="wrapper" onPointerOverCapture={ onPointerOverCapture }>
 				<table>
 					<tbody>
-						<tr data-testid="row-0"><td>First</td></tr>
-						<tr data-testid="row-1"><td>Second</td></tr>
-						<tr data-testid="row-2"><td>Third</td></tr>
+						<tr data-testid="row-0">
+							<td>First</td>
+						</tr>
+						<tr data-testid="row-1">
+							<td>Second</td>
+						</tr>
+						<tr data-testid="row-2">
+							<td>Third</td>
+						</tr>
 					</tbody>
 				</table>
 			</div>

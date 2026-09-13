@@ -91,7 +91,10 @@ const getProviderProps = () => {
 	return props;
 };
 
-/** 開始可能なTarget Resolution結果を設定する。 */
+/**
+ * 開始可能なTarget Resolution結果を設定する。
+ * @param sourceRowIndex
+ */
 const mockResolvedTarget = ( sourceRowIndex = 0 ) => {
 	const target = { tableIdentity: 'table-1', sourceRowIndex };
 	const initialConstraints = { rowCount: 3, blockedBoundaries: [] as number[] };
@@ -126,11 +129,7 @@ describe( 'Row DnD engine connection', () => {
 	 * 行DnDでは縦方向だけAuto Scrollを許可することを確認する。
 	 */
 	it( 'when row DnD plugins are resolved, should enable auto scroll only on the vertical axis', () => {
-		render(
-			<RowDnd tableIdentity="table-1">
-				{ () => <div /> }
-			</RowDnd>
-		);
+		render( <RowDnd tableIdentity="table-1">{ () => <div /> }</RowDnd> );
 		const props = getProviderProps();
 		const unrelatedPlugin = {};
 		const plugins = props.plugins( [ unrelatedPlugin, AutoScroller ] );
@@ -183,11 +182,7 @@ describe( 'Row DnD engine connection', () => {
 	 */
 	it( 'when target resolution rejects the source, should prevent the physical drag from starting', () => {
 		targetResolutionMock.resolve.mockReturnValue( { status: 'unavailable' } );
-		render(
-			<RowDnd tableIdentity="table-1">
-				{ () => <div /> }
-			</RowDnd>
-		);
+		render( <RowDnd tableIdentity="table-1">{ () => <div /> }</RowDnd> );
 		const props = getProviderProps();
 		const preventDefault = jest.fn();
 		const target = { tableIdentity: 'table-1', sourceRowIndex: 1 };
@@ -207,11 +202,7 @@ describe( 'Row DnD engine connection', () => {
 	 */
 	it( 'when physical drag starts after target resolution, should start the row DnD session with the resolved target and constraints', () => {
 		const { target, initialConstraints } = mockResolvedTarget( 1 );
-		render(
-			<RowDnd tableIdentity="table-1">
-				{ () => <div /> }
-			</RowDnd>
-		);
+		render( <RowDnd tableIdentity="table-1">{ () => <div /> }</RowDnd> );
 		const props = getProviderProps();
 
 		props.onBeforeDragStart( {
@@ -231,11 +222,7 @@ describe( 'Row DnD engine connection', () => {
 			reorderMode.select( 'row', 'table-1' );
 		} );
 		const { target } = mockResolvedTarget( 1 );
-		render(
-			<RowDnd tableIdentity="table-1">
-				{ () => <div /> }
-			</RowDnd>
-		);
+		render( <RowDnd tableIdentity="table-1">{ () => <div /> }</RowDnd> );
 		const props = getProviderProps();
 		props.onBeforeDragStart( {
 			operation: { source: { data: target } },
@@ -261,11 +248,7 @@ describe( 'Row DnD engine connection', () => {
 	 * DnD接続境界終了時にDraggable登録を破棄することを確認する。
 	 */
 	it( 'when the row DnD connection unmounts, should destroy the active draggable', () => {
-		const { unmount } = render(
-			<RowDnd tableIdentity="table-1">
-				{ () => <div /> }
-			</RowDnd>
-		);
+		const { unmount } = render( <RowDnd tableIdentity="table-1">{ () => <div /> }</RowDnd> );
 		if ( activeDraggableRef === null ) {
 			throw new Error( 'RowInput activeDraggable ref was not captured.' );
 		}
@@ -284,11 +267,7 @@ describe( 'Row DnD engine connection', () => {
 		const resolve = jest.fn().mockReturnValue( 1 );
 		destinationResolverFactoryMock.mockReturnValue( { resolve } );
 		const { target } = mockResolvedTarget();
-		render(
-			<RowDnd tableIdentity="table-1">
-				{ () => <div /> }
-			</RowDnd>
-		);
+		render( <RowDnd tableIdentity="table-1">{ () => <div /> }</RowDnd> );
 		const props = getProviderProps();
 		props.onBeforeDragStart( {
 			operation: { source: { data: target } },
@@ -309,11 +288,7 @@ describe( 'Row DnD engine connection', () => {
 	 * 物理DnDのcancelと通常終了をSessionの取消と確定へ分岐して接続することを確認する。
 	 */
 	it( 'when physical drag ends, should cancel a canceled drag and complete a normal drag', () => {
-		render(
-			<RowDnd tableIdentity="table-1">
-				{ () => <div /> }
-			</RowDnd>
-		);
+		render( <RowDnd tableIdentity="table-1">{ () => <div /> }</RowDnd> );
 		const props = getProviderProps();
 
 		props.onDragEnd( { canceled: true } as DragEndEvent );
