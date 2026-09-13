@@ -131,6 +131,55 @@ describe( 'Reorder Form completion presentation', () => {
 
 	/**
 	 * 概要:
+	 * - 結果通知の表示中に次のRF反映結果が届いた場合、最新結果を利用者が確認できることを確認する。
+	 *
+	 * 事前条件:
+	 * - Table Aの成功通知が表示中である。
+	 *
+	 * 操作:
+	 * - 成功通知の表示開始から1秒後にTable Aのfailure Outcomeを受け取る。
+	 *
+	 * 期待結果:
+	 * - 表示内容は失敗通知へ切り替わる。
+	 * - 前回通知の残り時間では終了せず、失敗通知を受け取ってから2秒間表示される。
+	 * - success / failureの各Outcomeが一度ずつ消費される。
+	 */
+	it( 'when another RF outcome arrives while a notice is visible, should show the latest result for a full notice duration', () => {
+		mockedUseRfApplyOutcome.mockReturnValue( {
+			status: 'success',
+			tableIdentity: 'table-a',
+		} );
+		const view = render( <ReorderFormCompletion tableIdentity="table-a" /> );
+
+		act( () => {
+			jest.advanceTimersByTime( 1000 );
+		} );
+		mockedUseRfApplyOutcome.mockReturnValue( {
+			status: 'failure',
+			tableIdentity: 'table-a',
+		} );
+		view.rerender( <ReorderFormCompletion tableIdentity="table-a" /> );
+
+		expect(
+			screen.getByText( 'Reordering failed. The table has not been changed.' )
+		).not.toBeNull();
+		expect( mockedConsumeApplyOutcome ).toHaveBeenCalledTimes( 2 );
+		expect( mockedConsumeApplyOutcome ).toHaveBeenNthCalledWith( 1, 'table-a' );
+		expect( mockedConsumeApplyOutcome ).toHaveBeenNthCalledWith( 2, 'table-a' );
+
+		act( () => {
+			jest.advanceTimersByTime( 1000 );
+		} );
+		expect( screen.getByRole( 'status' ) ).not.toBeNull();
+
+		act( () => {
+			jest.advanceTimersByTime( 1000 );
+		} );
+		expect( screen.queryByRole( 'status' ) ).toBeNull();
+	} );
+
+	/**
+	 * 概要:
 	 * - RF結果通知が利用者に認識できる時間だけ表示されることを確認する。
 	 *
 	 * 事前条件:
