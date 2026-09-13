@@ -36,12 +36,10 @@ export const ReorderApplyTableBoundary = ( props: { clientId: string; children: 
 		return <ReorderApplying referenceElementRef={ applyingReferenceElementRef } />;
 	}
 
-	const remountingStatus =
-		presentation.phase === 'remounting' && presentation.owner !== 'rf'
-			? presentation.applied
-				? 'success'
-				: 'failure'
-			: null;
+	let remountingStatus: 'success' | 'failure' | null = null;
+	if ( presentation.phase === 'remounting' && presentation.owner !== 'rf' ) {
+		remountingStatus = presentation.applied ? 'success' : 'failure';
+	}
 
 	return (
 		<>
