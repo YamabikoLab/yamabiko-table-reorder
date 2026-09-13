@@ -46,10 +46,7 @@ describe( 'Reorder Form completion presentation', () => {
 		const outcome: RfApplyOutcome = { tableIdentity: 'table-a', result: 'success' };
 		const consumeApplyOutcome = jest.fn();
 		const view = render(
-			<ReorderFormCompletion
-				applyOutcome={ outcome }
-				consumeApplyOutcome={ consumeApplyOutcome }
-			/>
+			<ReorderFormCompletion applyOutcome={ outcome } consumeApplyOutcome={ consumeApplyOutcome } />
 		);
 
 		expect( screen.getByText( 'Reordering complete.' ) ).not.toBeNull();
@@ -57,10 +54,7 @@ describe( 'Reorder Form completion presentation', () => {
 		expect( consumeApplyOutcome ).toHaveBeenCalledWith( outcome );
 
 		view.rerender(
-			<ReorderFormCompletion
-				applyOutcome={ null }
-				consumeApplyOutcome={ consumeApplyOutcome }
-			/>
+			<ReorderFormCompletion applyOutcome={ null } consumeApplyOutcome={ consumeApplyOutcome } />
 		);
 		expect( consumeApplyOutcome ).toHaveBeenCalledTimes( 1 );
 
@@ -85,10 +79,7 @@ describe( 'Reorder Form completion presentation', () => {
 		const consumeApplyOutcome = jest.fn();
 
 		render(
-			<ReorderFormCompletion
-				applyOutcome={ outcome }
-				consumeApplyOutcome={ consumeApplyOutcome }
-			/>
+			<ReorderFormCompletion applyOutcome={ outcome } consumeApplyOutcome={ consumeApplyOutcome } />
 		);
 
 		expect(
@@ -111,19 +102,13 @@ describe( 'Reorder Form completion presentation', () => {
 		const outcome: RfApplyOutcome = { tableIdentity: 'table-a', result: 'success' };
 		const consumeApplyOutcome = jest.fn();
 		const first = render(
-			<ReorderFormCompletion
-				applyOutcome={ outcome }
-				consumeApplyOutcome={ consumeApplyOutcome }
-			/>
+			<ReorderFormCompletion applyOutcome={ outcome } consumeApplyOutcome={ consumeApplyOutcome } />
 		);
 		expect( screen.getByText( 'Reordering complete.' ) ).not.toBeNull();
 		first.unmount();
 
 		render(
-			<ReorderFormCompletion
-				applyOutcome={ null }
-				consumeApplyOutcome={ consumeApplyOutcome }
-			/>
+			<ReorderFormCompletion applyOutcome={ null } consumeApplyOutcome={ consumeApplyOutcome } />
 		);
 
 		expect( screen.queryByRole( 'status' ) ).toBeNull();
