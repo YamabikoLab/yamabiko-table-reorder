@@ -21,6 +21,40 @@ const COMPLETION_NOTICE_DURATION_MS = 2000;
 type ReorderFormNotice = 'success' | 'failure' | null;
 
 /**
+ * 成功・失敗を色だけに依存せず識別できる結果アイコンを表示する。
+ *
+ * @param props           表示する結果種別。
+ * @param props.isFailure 失敗結果であるか。
+ * @return 成功時はチェック、失敗時は警告を表す装飾アイコン。
+ */
+const ReorderFormCompletionIcon = ( props: { isFailure: boolean } ) => {
+	const { isFailure } = props;
+
+	if ( isFailure ) {
+		return (
+			<span
+				className="yamabiko-table-reorder-rf-completion__icon yamabiko-table-reorder-rf-completion__icon--failure"
+				aria-hidden="true"
+			>
+				<svg viewBox="0 0 24 24" focusable="false">
+					<path d="M12 3.5 2.8 20h18.4L12 3.5Z" />
+					<path d="M12 9v5" />
+					<circle cx="12" cy="17" r="1" />
+				</svg>
+			</span>
+		);
+	}
+
+	return (
+		<span className="yamabiko-table-reorder-rf-completion__icon" aria-hidden="true">
+			<svg viewBox="0 0 24 24" focusable="false">
+				<path d="m6.5 12.5 3.5 3.5 7.5-8" />
+			</svg>
+		</span>
+	);
+};
+
+/**
  * RF Interactionが反映結果を確定した直後だけ結果通知を表示する。
  *
  * @param props               通知対象Table。
@@ -75,7 +109,6 @@ export const ReorderFormCompletion = ( props: { tableIdentity: string } ) => {
 
 	const isFailure = notice === 'failure';
 	const message = isFailure ? getRfApplyFailureMessage() : getLargeReorderCompletionMessage();
-	const icon = isFailure ? '!' : '✓';
 	const contentClassName = isFailure
 		? 'yamabiko-table-reorder-rf-completion__content yamabiko-table-reorder-rf-completion__content--failure'
 		: 'yamabiko-table-reorder-rf-completion__content';
@@ -84,8 +117,10 @@ export const ReorderFormCompletion = ( props: { tableIdentity: string } ) => {
 		<div className="yamabiko-table-reorder-rf-completion">
 			<Snackbar onRemove={ removeNotice }>
 				<strong className={ contentClassName }>
-					<span aria-hidden="true">{ icon }</span>
-					{ message }
+					<ReorderFormCompletionIcon isFailure={ isFailure } />
+					<span className="yamabiko-table-reorder-rf-completion__message">
+						{ message }
+					</span>
 				</strong>
 			</Snackbar>
 		</div>
