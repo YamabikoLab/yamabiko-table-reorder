@@ -1,12 +1,13 @@
 /**
- * 対応Tableの既存Block wrapperへReorder Mode中の通常編集抑止、Block DnD抑止、行・列DnD接続、Presentation対象識別を反映するReact componentを所有する。
+ * 対応Tableの既存Block wrapperへReorder Mode中の入力制御、行・列DnD接続、Presentation対象識別を反映するReact componentを所有する。
  *
- * 新しいDOM階層は追加せず、Gutenberg既存のwrapper propsへ必要な入力抑止とRow / Column DnD開始入力を合成する。
- * dnd-kitの物理Lifecycleは方向固有DnD境界へ委譲し、この境界はReorder Modeを正本として有効な方向を切り替える。
- * 現在選択中のTableだけへ方向固有Reorder Presentationを接続する。
+ * Gutenberg本来のBlockListBlockへReorder Mode状態をReact propsとして伝播させず、既存wrapperへ安定した入力handlerを接続する。
+ * Reorder Mode固有のDOM状態はYTR専用data属性として所有し、非React購読で現在状態へ同期する。
+ * dnd-kitの物理Lifecycleと方向固有cleanupは各DnD / Highlight境界へ委譲する。
  */
 
-import type { ComponentType } from '@wordpress/element';
+import { useCallback, useEffect, useRef, type ComponentType } from '@wordpress/element';
+import type { DragEvent, Ref } from 'react';
 
 import {
 	ColumnDnd,
@@ -17,12 +18,16 @@ import {
 	type ColumnHighlightPointerOutHandler,
 	type ColumnHighlightPointerOverHandler,
 } from '@/reorder/column-reorder/responsibilities/presentation/column-highlight';
+import { reorderMode } from '@/reorder/reorder-mode';
+import {
+	subscribeReorderMode,
+	type TableReorderMode,
+} from '@/reorder/reorder-mode-subscription';
 import { RowDnd, type RowDndPointerDownHandler } from '@/reorder/row-reorder/integration/dnd';
 import {
 	RowHighlight,
 	type RowHighlightPointerOverHandler,
 } from '@/reorder/row-reorder/responsibilities/presentation/row-highlight';
-import { useReorderMode } from '@/reorder/reorder-mode-react';
 import {
 	preserveEditingStartHandler,
 	type EditingStartWrapperProps,
@@ -30,8 +35,7 @@ import {
 
 import './editing-guard.scss';
 
-const REORDER_MODE_CLASS = 'yamabiko-table-reorder-mode';
-const ROW_REORDER_MODE_CLASS = 'yamabiko-table-reorder-row-mode';
+const REORDER_MODE_ATTRIBUTE = 'data-yamabiko-table-reorder-mode';
 
 /** BlockListBlock HOCが利用するprops。 */
 export type ReorderModeBlockListBlockProps = {
@@ -45,7 +49,7 @@ export type ReorderModeBlockListBlockProps = {
 /**
  * Gutenberg既存のpointerdown処理を維持したまま、方向固有DnDの開始入力を追加する。
  *
- * Row / Column両DnD境界へ入力を通知し、Reorder Modeで有効な方向だけが開始候補を受理する。
+ * Row / Column両DnD境界へ入力を通知し、各入力境界がevent-timeのReorder Modeから有効な方向だけを受理する。
  *
  * @param existingHandler  Gutenberg本体または他のfilterが設定した既存handler。
  * @param rowDndHandler    Row DnDが提供する開始入力handler。
@@ -91,8 +95,6 @@ const preservePointerOverHandler = (
 /**
  * Gutenberg既存のpointerout処理を維持したまま、Column Highlightへ現在セルを離れた入力を通知する。
  *
- * 物理イベントが現在セル内部の移動かセル外への移動かという判断はColumn Highlightへ委ね、この境界では既存handlerとの合成だけを行う。
- *
  * @param existingHandler        Gutenberg本体または他のfilterが設定した既存handler。
  * @param columnHighlightHandler 列の開始前予告表示が提供する終了判定handler。
  * @return 既存処理の後にColumn Highlightへ終了入力を通知するhandler。
@@ -111,29 +113,73 @@ const preservePointerOutHandler = (
 };
 
 /**
- * Gutenberg既存のwrapper classを維持したまま、並び替えモード中の編集抑止対象と行固有Presentation対象を識別できるclassを追加する。
+ * Gutenberg既存のBlock drag開始処理を維持したまま、Reorder Mode中だけTable Block自体のnative drag開始を拒否する。
  *
- * @param existingClassName Gutenberg本体または他のfilterが設定した既存className。
- * @param rowReorderEnabled 現在のTableで行並び替えモードが有効な場合はtrue。
- * @return 既存class、共通Reorder Mode class、および必要な場合は行固有classを併記したclassName。
+ * @param existingHandler Gutenberg本体または他のfilterが設定した既存handler。
+ * @param tableIdentity   Reorder Mode状態を確認するTable Identity。
+ * @return 現在モードを入力時に参照してBlock drag開始可否を決めるhandler。
  */
-const createReorderModeClassName = (
-	existingClassName: unknown,
-	rowReorderEnabled: boolean
-): string => {
-	const existing = typeof existingClassName === 'string' ? existingClassName : '';
-	const rowClass = rowReorderEnabled ? ROW_REORDER_MODE_CLASS : '';
-	const className = `${ existing } ${ REORDER_MODE_CLASS } ${ rowClass }`.trim();
-	return className;
+const preserveBlockDragStartHandler = (
+	existingHandler: unknown,
+	tableIdentity: string
+): ( ( event: DragEvent< Element > ) => void ) => {
+	const handler = ( event: DragEvent< Element > ) => {
+		if ( typeof existingHandler === 'function' ) {
+			( existingHandler as ( dragEvent: DragEvent< Element > ) => void )( event );
+		}
+
+		/* 通常編集ではGutenberg本来のBlock DnDを変更せず、Reorder Mode中だけnative dragを成立させない。 */
+		if ( reorderMode.getMode( tableIdentity ) !== 'edit' ) {
+			event.preventDefault();
+		}
+	};
+
+	return handler;
 };
 
 /**
- * 対応Tableの既存Block wrapperへReorder Modeの編集可否、Block DnD可否と方向固有DnD接続を反映する。
+ * Gutenbergまたは他のfilterが所有するrefへ、YTRが受け取ったwrapper要素を同じ値で通知する。
  *
- * このcomponentは対応Tableの生存期間中、選択状態にかかわらず同じ位置に維持され、Reorder Modeの購読を所有する。
- * Row / Column DnD境界はBlockListBlockを再mountしないよう常に同じ位置に維持し、Reorder Modeで選択中の方向だけ開始入力を有効化する。
- * 行・列いずれかの並び替えモード中は通常編集とTable Block自体のDnDを抑止し、行並び替えモード中は行固有Presentation用classも付与する。
- * 現在選択中のTableだけへ方向固有Reorder Presentationを接続する。
+ * @param existingRef Gutenberg側がwrapper propsへ設定したref。
+ * @param element     現在接続されているwrapper要素。切断時はnull。
+ */
+const preserveWrapperRef = ( existingRef: unknown, element: HTMLElement | null ): void => {
+	if ( typeof existingRef === 'function' ) {
+		( existingRef as ( value: HTMLElement | null ) => void )( element );
+		return;
+	}
+
+	if ( typeof existingRef === 'object' && existingRef !== null && 'current' in existingRef ) {
+		( existingRef as { current: HTMLElement | null } ).current = element;
+	}
+};
+
+/**
+ * YTRが所有するReorder Mode DOM状態だけを現在modeへ同期する。
+ *
+ * Gutenberg由来のclass、属性、handlerには触れず、通常編集ではYTR専用属性自体を残さない。
+ *
+ * @param element 現在のTable Block wrapper。
+ * @param mode    対象Tableから見た現在のReorder Mode。
+ */
+const synchronizeWrapperMode = ( element: HTMLElement | null, mode: TableReorderMode ): void => {
+	if ( element === null ) {
+		return;
+	}
+
+	if ( mode === 'edit' ) {
+		element.removeAttribute( REORDER_MODE_ATTRIBUTE );
+		return;
+	}
+
+	element.setAttribute( REORDER_MODE_ATTRIBUTE, mode );
+};
+
+/**
+ * 対応Tableの既存Block wrapperへ安定した入力境界とReorder Mode固有DOM同期を接続する。
+ *
+ * Reorder Mode変更は非React購読でYTR専用data属性と方向固有Lifecycleへ通知し、Gutenberg本来のBlockListBlock propsを変更しない。
+ * wrapperがGutenberg都合で再接続された場合は、その時点の現在modeを新しい要素へ即時同期する。
  *
  * @param props                Gutenbergから渡されるBlockListBlock propsと元のcomponent。
  * @param props.BlockListBlock Gutenberg本来のBlock wrapperを描画するcomponent。
@@ -146,42 +192,51 @@ export const ReorderModeBlockListBlock = ( props: {
 } ) => {
 	const { BlockListBlock, blockProps } = props;
 	const { clientId, isSelected, wrapperProps } = blockProps;
-	const { selectedKind } = useReorderMode( clientId );
-	const rowReorderEnabled = selectedKind === 'row';
-	const columnReorderEnabled = selectedKind === 'column';
-	const editingAllowed = selectedKind === null;
+	const wrapperElement = useRef< HTMLElement | null >( null );
+	const existingWrapperRef = wrapperProps?.ref as Ref< HTMLElement > | undefined;
 
-	/* いずれかの並び替えモード中は通常編集とTable Block自体のDnDを抑止し、行モードでは行固有Presentation対象も併せて識別する。 */
-	const reorderModeWrapperProps = ! editingAllowed
-		? {
-				...wrapperProps,
-				draggable: false,
-				className: createReorderModeClassName( wrapperProps?.className, rowReorderEnabled ),
-		  }
-		: wrapperProps;
+	const setWrapperRef = useCallback(
+		( element: HTMLElement | null ) => {
+			const previousElement = wrapperElement.current;
 
-	/* いずれかの並び替えモード中は通常編集開始を抑止し、モード解除後はGutenberg本来の入力処理へ戻す。 */
-	const reorderWrapperProps = ! editingAllowed
-		? {
-				...reorderModeWrapperProps,
-				onDoubleClickCapture: preserveEditingStartHandler( wrapperProps?.onDoubleClickCapture ),
-				onMouseDownCapture: preserveEditingStartHandler( wrapperProps?.onMouseDownCapture ),
-		  }
-		: reorderModeWrapperProps;
+			/* wrapper再接続時は旧要素へYTR専用状態を残さず、新しい要素だけを現在modeへ同期する。 */
+			if ( previousElement !== null && previousElement !== element ) {
+				previousElement.removeAttribute( REORDER_MODE_ATTRIBUTE );
+			}
+
+			wrapperElement.current = element;
+			preserveWrapperRef( existingWrapperRef, element );
+			synchronizeWrapperMode( element, reorderMode.getMode( clientId ) );
+		},
+		[ clientId, existingWrapperRef ]
+	);
+
+	useEffect( () => {
+		synchronizeWrapperMode( wrapperElement.current, reorderMode.getMode( clientId ) );
+		const unsubscribe = subscribeReorderMode( clientId, ( mode ) => {
+			synchronizeWrapperMode( wrapperElement.current, mode );
+		} );
+
+		return () => {
+			unsubscribe();
+			wrapperElement.current?.removeAttribute( REORDER_MODE_ATTRIBUTE );
+		};
+	}, [ clientId ] );
+
+	const shouldPreventEditingStart = useCallback(
+		() => reorderMode.getMode( clientId ) !== 'edit',
+		[ clientId ]
+	);
 
 	return (
-		<RowHighlight enabled={ rowReorderEnabled } tableIdentity={ clientId }>
+		<RowHighlight enabled tableIdentity={ clientId }>
 			{ ( rowHighlightPointerOverCapture ) => (
-				<ColumnHighlight enabled={ columnReorderEnabled } tableIdentity={ clientId }>
+				<ColumnHighlight enabled tableIdentity={ clientId }>
 					{ ( columnHighlightPointerOverCapture, columnHighlightPointerOutCapture ) => (
-						<RowDnd
-							enabled={ rowReorderEnabled }
-							presentationEnabled={ isSelected }
-							tableIdentity={ clientId }
-						>
+						<RowDnd enabled presentationEnabled={ isSelected } tableIdentity={ clientId }>
 							{ ( rowDndPointerDownCapture ) => (
 								<ColumnDnd
-									enabled={ columnReorderEnabled }
+									enabled
 									presentationEnabled={ isSelected }
 									tableIdentity={ clientId }
 								>
@@ -189,7 +244,20 @@ export const ReorderModeBlockListBlock = ( props: {
 										<BlockListBlock
 											{ ...blockProps }
 											wrapperProps={ {
-												...reorderWrapperProps,
+												...wrapperProps,
+												ref: setWrapperRef,
+												onDoubleClickCapture: preserveEditingStartHandler(
+													wrapperProps?.onDoubleClickCapture,
+													shouldPreventEditingStart
+												),
+												onMouseDownCapture: preserveEditingStartHandler(
+													wrapperProps?.onMouseDownCapture,
+													shouldPreventEditingStart
+												),
+												onDragStartCapture: preserveBlockDragStartHandler(
+													wrapperProps?.onDragStartCapture,
+													clientId
+												),
 												onPointerOverCapture: preservePointerOverHandler(
 													wrapperProps?.onPointerOverCapture,
 													rowHighlightPointerOverCapture,
