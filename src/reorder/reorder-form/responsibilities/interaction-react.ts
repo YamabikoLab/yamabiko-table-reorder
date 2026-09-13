@@ -119,12 +119,12 @@ export const useRfInteraction = ( tableIdentity: string ): RfInteractionReactSta
 };
 
 /**
- * 対象Tableに対する未消費のRF Apply結果をReact描画へ反映する。
+ * 対象Tableに対する未消費のRF反映結果をReact描画へ反映する。
  *
- * Apply OutcomeはSession終了後もStoreに残るため、Tableやcomponentの再mount後でも正常完了を確認できる。
- * 別Tableの結果は公開せず、対象Tableに結果がない場合はidleを返す。
+ * Apply OutcomeはRF Session状態とは独立してStoreに保持されるため、Tableやcomponentの再mount後でも成功・失敗結果を確認できる。
+ * 別Tableの結果は公開せず、対象Tableに未消費結果がない場合はidleを返す。
  *
- * @param tableIdentity Apply結果を購読するTable Identity。
+ * @param tableIdentity 反映結果を購読するTable Identity。
  * @return 対象Tableに対する未消費のApply Outcome。
  */
 export const useRfApplyOutcome = ( tableIdentity: string ): RfApplyOutcome =>
