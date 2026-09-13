@@ -172,8 +172,8 @@ describe( 'WordPress Reorder Apply Integration adapter', () => {
 		const { result } = renderHook( () => useReorderApplyPresentationState( 'table-a' ) );
 		const presentation = result.current;
 
-		expect( presentation.phase ).toBe( 'remounting' );
-		if ( presentation.phase !== 'remounting' ) {
+		expect( presentation.phase ).toBe( 'restoring' );
+		if ( presentation.phase !== 'restoring' ) {
 			throw new Error( 'Expected restoration presentation.' );
 		}
 		expect( presentation.kind ).toBe( 'column' );
@@ -210,8 +210,8 @@ describe( 'WordPress Reorder Apply Integration adapter', () => {
 		const { result } = renderHook( () => useReorderApplyPresentationState( 'table-a' ) );
 		const presentation = result.current;
 
-		expect( presentation.phase ).toBe( 'remounting' );
-		if ( presentation.phase !== 'remounting' ) {
+		expect( presentation.phase ).toBe( 'restoring' );
+		if ( presentation.phase !== 'restoring' ) {
 			throw new Error( 'Expected restoration presentation.' );
 		}
 		expect( presentation.destinationIndex ).toBeNull();
