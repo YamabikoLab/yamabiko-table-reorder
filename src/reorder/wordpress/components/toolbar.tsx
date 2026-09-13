@@ -79,25 +79,29 @@ const formReorderIcon = (
 	<svg
 		xmlns="http://www.w3.org/2000/svg"
 		viewBox="0 0 24 24"
+		width="24"
+		height="24"
 		fill="none"
 		stroke="currentColor"
 		strokeWidth="1.8"
 		strokeLinecap="round"
 		strokeLinejoin="round"
 	>
-		<rect x="2.75" y="4" width="12.5" height="16" rx="2.25" />
+		<rect x="1" y="2" width="13.8" height="12.8" rx="2.1" fill="none" />
 
-		<rect x="4.75" y="7" width="8.5" height="3.5" rx="1" />
-		<circle cx="6.4" cy="8.75" r="0.55" />
-		<path d="M8.2 8.75h3.15" />
+		<rect x="3.3" y="4.6" width="2.5" height="2.5" rx="0.4" fill="none" />
+		<rect x="7.3" y="4.6" width="5.2" height="2.5" rx="0.5" fill="none" />
 
-		<rect x="4.75" y="13.5" width="8.5" height="3.5" rx="1" />
-		<circle cx="6.4" cy="15.25" r="0.55" />
-		<path d="M8.2 15.25h3.15" />
+		<rect x="3.3" y="9" width="2.5" height="2.5" rx="0.4" fill="none" />
+		<rect x="7.3" y="9" width="5.2" height="2.5" rx="0.5" fill="none" />
 
-		<path d="M19 5.5v13" />
-		<path d="M16.8 7.7 19 5.5l2.2 2.2" />
-		<path d="m16.8 16.3 2.2 2.2 2.2-2.2" />
+		<path d="M19.3 2.8v11.4" fill="none" />
+		<path d="m17.5 4.6 1.8-1.8 1.8 1.8" fill="none" />
+		<path d="m17.5 12.4 1.8 1.8 1.8-1.8" fill="none" />
+
+		<path d="M2.3 19.8h11.4" fill="none" />
+		<path d="m4.1 18-1.8 1.8 1.8 1.8" fill="none" />
+		<path d="m11.9 18 1.8 1.8-1.8 1.8" fill="none" />
 	</svg>
 );
 

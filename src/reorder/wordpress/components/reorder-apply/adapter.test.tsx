@@ -62,7 +62,7 @@ describe( 'WordPress Reorder Apply Integration adapter', () => {
 	} );
 
 	/**
-	 * RF大規模反映がない場合は通常表示を維持することを確認する。
+	 * RF反映がない場合は通常表示を維持することを確認する。
 	 *
 	 * 事前条件:
 	 * - Row / Column / RFのApply Lifecycleがすべて通常状態である。
@@ -146,34 +146,35 @@ describe( 'WordPress Reorder Apply Integration adapter', () => {
 	} );
 
 	/**
-	 * RF表示復帰では、1-based最終位置を既存restoration用0-based位置へ変換することを確認する。
+	 * RF表示復帰では、Apply Coordinationが確定した0-based最終位置をそのまま利用することを確認する。
 	 *
 	 * 事前条件:
 	 * - 対象TableのRF列移動が正常反映後の表示復帰待ちである。
-	 * - RF Apply Coordinationが最終位置5列目を公開している。
+	 * - RF Apply Coordinationが0-based最終位置4を公開している。
+	 * - 確認表示用summaryは存在しない。
 	 *
 	 * 操作:
 	 * - Presentation状態を取得し、表示復帰完了を通知する。
 	 *
 	 * 期待結果:
-	 * - restoringは既存Presentationのremountingとして公開される。
-	 * - restorationへ0-based位置4が渡される。
+	 * - restorationへ0-based位置4がそのまま渡される。
 	 * - 完了操作はRF Apply Coordinationへ委譲される。
 	 */
-	it( 'when an RF column move is restoring, should expose remounting with a zero-based destination and RF completion', () => {
+	it( 'when an RF column move is restoring, should expose its stored destination without using the confirmation summary', () => {
 		mockRfSnapshot = {
 			phase: 'restoring',
 			tableIdentity: 'table-a',
 			kind: 'column',
 			applied: true,
+			destinationIndex: 4,
 		};
-		mockRfSummary = { kind: 'column', sourcePosition: 2, destinationPosition: 5 };
+		mockRfSummary = null;
 		const { result } = renderHook( () => useReorderApplyPresentationState( 'table-a' ) );
 		const presentation = result.current;
 
-		expect( presentation.phase ).toBe( 'remounting' );
-		if ( presentation.phase !== 'remounting' ) {
-			throw new Error( 'Expected remounting presentation.' );
+		expect( presentation.phase ).toBe( 'restoring' );
+		if ( presentation.phase !== 'restoring' ) {
+			throw new Error( 'Expected restoration presentation.' );
 		}
 		expect( presentation.kind ).toBe( 'column' );
 		expect( presentation.applied ).toBe( true );
@@ -186,7 +187,38 @@ describe( 'WordPress Reorder Apply Integration adapter', () => {
 	} );
 
 	/**
-	 * 別TableのRF大規模反映状態を現在Tableへ漏らさないことを確認する。
+	 * RF反映失敗後の表示復帰では、移動先を推測せずLifecycleを完了できることを確認する。
+	 *
+	 * 事前条件:
+	 * - 対象TableのRF行移動が失敗後の表示復帰待ちである。
+	 * - Apply直前の再照合では復帰先を確定できなかった。
+	 *
+	 * 操作:
+	 * - Presentation状態を取得する。
+	 *
+	 * 期待結果:
+	 * - destinationIndexはnullのまま渡される。
+	 */
+	it( 'when an RF apply failed without a final destination, should expose restoration without inventing one', () => {
+		mockRfSnapshot = {
+			phase: 'restoring',
+			tableIdentity: 'table-a',
+			kind: 'row',
+			applied: false,
+			destinationIndex: null,
+		};
+		const { result } = renderHook( () => useReorderApplyPresentationState( 'table-a' ) );
+		const presentation = result.current;
+
+		expect( presentation.phase ).toBe( 'restoring' );
+		if ( presentation.phase !== 'restoring' ) {
+			throw new Error( 'Expected restoration presentation.' );
+		}
+		expect( presentation.destinationIndex ).toBeNull();
+	} );
+
+	/**
+	 * 別TableのRF反映状態を現在Tableへ漏らさないことを確認する。
 	 *
 	 * 事前条件:
 	 * - table-bのRF行移動が確認待ちである。
@@ -232,7 +264,7 @@ describe( 'WordPress Reorder Apply Integration adapter', () => {
 	} );
 
 	/**
-	 * RF大規模反映中にsummaryが失われた場合を通常状態へ隠さないことを確認する。
+	 * RF確認中にsummaryが失われた場合を通常状態へ隠さないことを確認する。
 	 *
 	 * 事前条件:
 	 * - 対象TableのRF行移動が確認待ちである。
@@ -244,12 +276,12 @@ describe( 'WordPress Reorder Apply Integration adapter', () => {
 	 * 期待結果:
 	 * - idleへ変換せず、RF内部Contract違反としてErrorになる。
 	 */
-	it( 'when an active RF apply lifecycle has no summary, should throw instead of hiding it as idle', () => {
+	it( 'when RF confirmation has no summary, should throw instead of hiding it as idle', () => {
 		mockRfSnapshot = { phase: 'confirming', tableIdentity: 'table-a', kind: 'row' };
 		mockRfSummary = null;
 
 		expect( () => renderHook( () => useReorderApplyPresentationState( 'table-a' ) ) ).toThrow(
-			'RF apply summary is required while the RF apply lifecycle is active.'
+			'RF apply summary is required while RF confirmation is active.'
 		);
 		expect( console ).toHaveErrored();
 	} );

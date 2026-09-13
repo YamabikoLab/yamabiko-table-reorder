@@ -1,7 +1,7 @@
 /**
- * WordPressのTable編集表示へ確認付き大規模反映を接続するBoundary。
+ * WordPressのTable編集表示へReorder Applyの表示Lifecycleを接続するBoundary。
  *
- * 対象Tableの現在Presentation状態を選び、「確認 → 反映 → 復帰 → 完了通知」のUI構造を接続する。
+ * 対象Tableの現在Presentation状態を選び、確認付き反映の「確認 → 反映 → 復帰」と、通常RF成功後の復帰を接続する。
  * 方向固有Store、Move意味、paint待ち、Editor DOM Context解決、scroll / focus実装は各private責務へ委譲する。
  */
 
@@ -16,10 +16,10 @@ import { ReorderApplyConfirmation } from './confirmation';
 import { useReorderApplyLifecycle } from './lifecycle';
 
 /**
- * 対象TableのBlockEditへ確認付き大規模反映UIと表示Lifecycleを接続する。
+ * 対象TableのBlockEditへReorder Apply UIと表示Lifecycleを接続する。
  *
  * RFの完了通知はRF Presentationが通常反映と大規模反映を一つの経路で所有するため、
- * このBoundaryではRow / Column大規模反映だけを完了通知対象とする。
+ * このBoundaryではRFの表示復帰だけを接続し、Row / Column大規模反映だけを完了通知対象とする。
  *
  * @param props          対象Tableと通常表示。
  * @param props.clientId 対象Table個体のclientId。
@@ -36,13 +36,15 @@ export const ReorderApplyTableBoundary = ( props: { clientId: string; children: 
 		return <ReorderApplying referenceElementRef={ applyingReferenceElementRef } />;
 	}
 
-	const isSuccessfulRemounting =
-		presentation.phase === 'remounting' && presentation.applied && presentation.owner !== 'rf';
+	let restorationStatus: 'success' | 'failure' | null = null;
+	if ( presentation.phase === 'restoring' && presentation.owner !== 'rf' ) {
+		restorationStatus = presentation.applied ? 'success' : 'failure';
+	}
 
 	return (
 		<>
 			{ children }
-			{ presentation.phase === 'remounting' && (
+			{ presentation.phase === 'restoring' && (
 				<div ref={ restorationReferenceElementRef } role="status">
 					{ getLargeReorderApplyingMessage() }
 				</div>
@@ -54,7 +56,7 @@ export const ReorderApplyTableBoundary = ( props: { clientId: string; children: 
 					onCancel={ presentation.cancel }
 				/>
 			) }
-			<ReorderApplyCompletion isSuccessfulRemounting={ isSuccessfulRemounting } />
+			<ReorderApplyCompletion restorationStatus={ restorationStatus } />
 		</>
 	);
 };
