@@ -1,19 +1,8 @@
 /**
- * Jest環境でWordPress RichTextの文字列正規化境界だけを再現する。
+ * Jest環境では、各test file固有の`@wordpress/data`部分mockより先にWordPress RichTextを初期化する。
  *
- * 一部テストは`@wordpress/data`を責務境界として部分mockするため、RichText package内部Storeの初期化に依存せず、
- * YTRが利用する`create()`と`getTextContent()`だけをDOMで再現する。
+ * RichText自体はmockせず、package内部Storeの初期化だけを実物の`@wordpress/data`で完了させる。
+ * これにより、後からtest fileが`select` / `dispatch`を部分mockしてもRichTextの初期化Contractを壊さない。
  */
 
-jest.mock( '@wordpress/rich-text', () => ( {
-	create: ( { html = '', text = '' } = {} ) => {
-		if ( html !== '' ) {
-			const container = globalThis.document.createElement( 'div' );
-			container.innerHTML = html;
-			return { text: container.textContent ?? '' };
-		}
-
-		return { text };
-	},
-	getTextContent: ( value ) => value.text,
-} ) );
+import '@wordpress/rich-text';
