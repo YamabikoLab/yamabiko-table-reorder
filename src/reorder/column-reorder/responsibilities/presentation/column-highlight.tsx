@@ -3,10 +3,10 @@
  *
  * 移動可能な列は現在セルだけを操作可能表示とし、結合範囲により移動できない列は現在セルだけを移動不可表示として区別する。
  * Presentation自身では列構造制約を解釈せず、Reorder Target Resolutionが返す開始可否だけを表示へ反映する。
- * DnD開始後の移動対象列全体の表示はDnD中Presentationへ委ね、この責務では開始前の列全体表示を所有しない。
+ * Reorder Mode離脱は非React購読で受け取り、React renderを要求せず表示とResolverを破棄する。
  */
 
-import { useEffect, useRef } from '@wordpress/element';
+import { useCallback, useEffect, useRef } from '@wordpress/element';
 import type { PointerEvent, ReactNode } from 'react';
 
 import { resolveColumnSourceIndex } from '@/reorder/column-reorder/integration/source-column-resolution';
@@ -15,6 +15,7 @@ import {
 	subscribeColumnDndState,
 } from '@/reorder/column-reorder/responsibilities/dnd-interaction';
 import { columnReorderTargetResolution } from '@/reorder/column-reorder/responsibilities/target-resolution';
+import { subscribeReorderMode } from '@/reorder/reorder-mode-subscription';
 
 import './column-highlight.scss';
 
@@ -48,32 +49,32 @@ const clearVisualState = ( cell: HTMLTableCellElement | null ): void => {
  * 現在のTarget Resolution結果に応じて、DnD開始前のセルへ操作可能または移動不可を予告表示する。
  *
  * Resolverは最初の有効な開始可否判定で生成し、同一Highlight Lifecycle内で再利用する。
- * DnD開始時は開始前表示とResolverを破棄し、DnD終了後の次の有効な判定で現在Table構造から生成し直す。
- * Highlight自身はTable構造の長期cacheやrevision監視を所有せず、現在認識しているセルだけを一時的に保持する。
- * 同一セル内の要素間移動では開始可否を再解決せず、マウスが現在セルを離れた場合だけ表示を終了する。
- * タッチ入力では指を離しただけでは現在セルを解除せず、次に認識したセルまたは意味のあるLifecycle変更まで表示する。
- * DnD開始時はTarget Resolutionが要求時点の現在構造を再取得して最終判断するため、この表示は開始可否の権威を持たない。
+ * DnD開始時とColumn Reorder Mode離脱時は開始前表示とResolverを破棄する。
+ * 開始可否は入力時に`isActive`から参照し、mode変更をReact props更新として要求しない。
  *
  * @param props               セル予告表示に必要な値。
- * @param props.enabled       現在のTableで列並び替えモードが有効な場合はtrue。
+ * @param props.enabled       Highlight接続境界自体を利用できる場合はtrue。
+ * @param props.isActive      現在Tableで列並び替えが有効かをevent-timeで返す処理。省略時はenabledを利用する。
  * @param props.tableIdentity 列並び替え対象のTable Identity。
  * @param props.children      既存DOMへ操作対象判定とマウス終了処理を接続する描画処理。
  * @return 列の操作可否予告表示へ接続された子要素。
  */
 export const ColumnHighlight = ( props: {
 	enabled: boolean;
+	isActive?: () => boolean;
 	tableIdentity: string;
 	children: (
 		onPointerOverCapture: ColumnHighlightPointerOverHandler,
 		onPointerOutCapture: ColumnHighlightPointerOutHandler
 	) => ReactNode;
 } ) => {
-	const { enabled, tableIdentity, children } = props;
+	const { enabled, isActive, tableIdentity, children } = props;
 	const currentCell = useRef< HTMLTableCellElement | null >( null );
 	const resolver = useRef< ReturnType<
 		typeof columnReorderTargetResolution.createResolver
 	> | null >( null );
 	const resolverTableIdentity = useRef< string | null >( null );
+	const resolveActive = useCallback( () => isActive?.() ?? enabled, [ enabled, isActive ] );
 
 	useEffect( () => {
 		resolver.current = null;
@@ -84,32 +85,38 @@ export const ColumnHighlight = ( props: {
 			currentCell.current = null;
 		};
 
-		const synchronizeDndLifecycle = (): void => {
-			/* active DnDでは開始前表示とそのTable構造snapshotを次の操作へ持ち越さない。 */
-			if ( getColumnDndPhase() === 'active' ) {
-				clearHighlightState();
-				resolver.current = null;
-				resolverTableIdentity.current = null;
-			}
-		};
-
-		const unsubscribe = enabled ? subscribeColumnDndState( synchronizeDndLifecycle ) : () => {};
-
-		/* モード終了、対象Table変更、またはPresentation境界終了時に開始前表示を実Tableへ残さない。 */
-		return () => {
-			unsubscribe();
+		const clearTransientHighlightState = (): void => {
 			clearHighlightState();
 			resolver.current = null;
 			resolverTableIdentity.current = null;
 		};
-	}, [ enabled, tableIdentity ] );
+
+		const synchronizeDndLifecycle = (): void => {
+			if ( getColumnDndPhase() === 'active' ) {
+				clearTransientHighlightState();
+			}
+		};
+
+		const unsubscribeDnd = enabled ? subscribeColumnDndState( synchronizeDndLifecycle ) : () => {};
+		const unsubscribeMode = subscribeReorderMode( tableIdentity, () => {
+			/* Column Reorder Modeから離脱した時点で、React renderを待たず開始前表示とResolverを破棄する。 */
+			if ( ! resolveActive() ) {
+				clearTransientHighlightState();
+			}
+		} );
+
+		return () => {
+			unsubscribeDnd();
+			unsubscribeMode();
+			clearTransientHighlightState();
+		};
+	}, [ enabled, tableIdentity, resolveActive ] );
 
 	const onPointerOverCapture: ColumnHighlightPointerOverHandler = ( event ) => {
 		const cell = ( event.target as Element | null )?.closest(
 			'th, td'
 		) as HTMLTableCellElement | null;
 
-		/* 同一セル内の要素間移動では、同じ開始可否判定と表示を繰り返さない。 */
 		if ( cell !== null && cell === currentCell.current ) {
 			return;
 		}
@@ -118,9 +125,9 @@ export const ColumnHighlight = ( props: {
 		currentCell.current = null;
 		const table = event.currentTarget.querySelector( 'table' );
 
-		/* 列DnD開始前以外、または現在Tableへ直接属さないセルは操作可否予告の対象にしない。 */
 		if (
 			! enabled ||
+			! resolveActive() ||
 			getColumnDndPhase() !== 'idle' ||
 			! table ||
 			! cell ||
@@ -131,12 +138,10 @@ export const ColumnHighlight = ( props: {
 
 		const sourceColumnIndex = resolveColumnSourceIndex( table, cell );
 
-		/* 現在Tableの論理列へ対応付けられないセルでは、開始可否を推測しない。 */
 		if ( sourceColumnIndex === null ) {
 			return;
 		}
 
-		/* Reorder Mode切替renderではTable解析を行わず、最初の有効な操作可否判定でだけResolverを生成する。 */
 		if ( resolver.current === null || resolverTableIdentity.current !== tableIdentity ) {
 			resolver.current = columnReorderTargetResolution.createResolver( tableIdentity );
 			resolverTableIdentity.current = tableIdentity;
@@ -145,20 +150,18 @@ export const ColumnHighlight = ( props: {
 		const resolution = resolver.current.resolve( sourceColumnIndex );
 		currentCell.current = cell;
 
-		/* 開始可能な列だけを現在セルで操作可能として予告する。 */
 		if ( resolution.status === 'resolved' ) {
 			cell.classList.add( HIGHLIGHTABLE_CELL_CLASS );
 			return;
 		}
 
-		/* Designで理由を提示する開始拒否だけを、現在セルで事前に識別できる移動不可表示として示す。 */
 		if ( resolution.status === 'rejected' ) {
 			cell.classList.add( UNAVAILABLE_CELL_CLASS );
+			currentCell.current = cell;
 		}
 	};
 
 	const onPointerOutCapture: ColumnHighlightPointerOutHandler = ( event ) => {
-		/* タッチでは指を離した後も現在操作対象として認識したセルを維持し、マウスだけhover終了として扱う。 */
 		if ( event.pointerType !== 'mouse' ) {
 			return;
 		}
@@ -171,7 +174,6 @@ export const ColumnHighlight = ( props: {
 				: null;
 		const remainsInsideCell = cell !== null && relatedNode !== null && cell.contains( relatedNode );
 
-		/* 現在セル内部の要素間移動では予告表示を維持し、マウスが現在セルを離れた場合だけ終了する。 */
 		if ( remainsInsideCell ) {
 			return;
 		}
