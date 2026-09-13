@@ -40,6 +40,9 @@ import {
 	type LargeRowReorderApplyState,
 } from '@/reorder/row-reorder/responsibilities/reorder-apply';
 
+/** 表示復帰中の大規模反映を所有する並び替え手段。 */
+type ReorderApplyOwner = 'row' | 'column' | 'rf';
+
 /** WordPress表示責務が扱う確認付き大規模反映のPresentation状態。 */
 export type ReorderApplyPresentationState =
 	| { phase: 'idle' }
@@ -59,6 +62,7 @@ export type ReorderApplyPresentationState =
 	  }
 	| {
 			phase: 'remounting';
+			owner: ReorderApplyOwner;
 			kind: ReorderKind;
 			tableIdentity: string;
 			applied: boolean;
@@ -157,6 +161,7 @@ const adaptRowReorderApply = (
 
 	return {
 		phase: 'remounting',
+		owner: 'row',
 		kind: 'row',
 		tableIdentity: state.move.tableIdentity,
 		applied: state.applied,
@@ -212,6 +217,7 @@ const adaptColumnReorderApply = (
 
 	return {
 		phase: 'remounting',
+		owner: 'column',
 		kind: 'column',
 		tableIdentity: state.move.tableIdentity,
 		applied: state.applied,
@@ -280,6 +286,7 @@ const adaptRfApply = (
 
 	return {
 		phase: 'remounting',
+		owner: 'rf',
 		kind: snapshot.kind,
 		tableIdentity: snapshot.tableIdentity,
 		applied: snapshot.applied,
