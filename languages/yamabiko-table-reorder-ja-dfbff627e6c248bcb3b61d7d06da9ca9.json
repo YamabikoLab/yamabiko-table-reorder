@@ -7,42 +7,69 @@
 		"messages": {
 			"": { "domain": "messages", "lang": "ja", "plural-forms": "nplurals=1; plural=0;" },
 			"Yamabiko Table Reorder": [ "Yamabiko Table Reorder" ],
-			"Reorder rows": [ "\u884c\u3092\u4e26\u3073\u66ff\u3048" ],
-			"Reorder columns": [ "\u5217\u3092\u4e26\u3073\u66ff\u3048" ],
-			"Close reorder guidance": [
-				"\u4e26\u3073\u66ff\u3048\u306e\u6848\u5185\u3092\u9589\u3058\u308b"
+			"Reorder rows": [ "行を並び替え" ],
+			"Reorder columns": [ "列を並び替え" ],
+			"Reorder with form": [ "フォームで並び替え" ],
+			"Rows": [ "行" ],
+			"Columns": [ "列" ],
+			"Row to move": [ "移動する行" ],
+			"Target row": [ "移動先の行" ],
+			"Position": [ "位置" ],
+			"Above": [ "上" ],
+			"Below": [ "下" ],
+			"Enter an integer from 1 to %d.": [ "1〜%dの整数を入力してください。" ],
+			"Move the row above or below the target row.": [ "移動先の行の上または下へ移動します。" ],
+			"Column to move": [ "移動する列" ],
+			"Target column": [ "移動先の列" ],
+			"Select a column": [ "列を選択" ],
+			"Left": [ "左" ],
+			"Right": [ "右" ],
+			"Move the column to the left or right of the target column.": [
+				"移動先の列の左または右へ移動します。"
 			],
+			"%1$s (Column %2$d)": [ "%1$s（%2$d列目）" ],
+			"Column %d": [ "%d列目" ],
+			"This selection won't change the order.": [ "この指定では並び順は変わりません。" ],
+			"This reorder can't continue with the current table. Check the table and try again.": [
+				"現在のテーブルでは、この並び替えを続行できません。テーブルの状態を確認して、もう一度お試しください。"
+			],
+			"A merged cell involving row %d prevents this move.": [
+				"%d行目にある結合セルのため、この指定では移動できません。"
+			],
+			"A merged cell spanning rows %1$d–%2$d prevents this move.": [
+				"%1$d〜%2$d行目にまたがる結合セルがあるため、この指定では移動できません。"
+			],
+			"A merged cell involving column %d prevents this move.": [
+				"%d列目にある結合セルのため、この指定では移動できません。"
+			],
+			"A merged cell spanning columns %1$d–%2$d prevents this move.": [
+				"%1$d〜%2$d列目にまたがる結合セルがあるため、この指定では移動できません。"
+			],
+			"Reorder": [ "並び替え" ],
+			"Close reorder guidance": [ "並び替えの案内を閉じる" ],
 			"Reordering could not continue, so the operation was ended.": [
-				"\u4e26\u3073\u66ff\u3048\u3092\u7d9a\u3051\u3089\u308c\u306a\u3044\u305f\u3081\u3001\u64cd\u4f5c\u3092\u7d42\u4e86\u3057\u307e\u3057\u305f\u3002"
+				"並び替えを続けられないため、操作を終了しました。"
 			],
 			"Cannot move because cells are merged.": [
-				"\u30bb\u30eb\u304c\u7d50\u5408\u3055\u308c\u3066\u3044\u308b\u305f\u3081\u3001\u79fb\u52d5\u3067\u304d\u307e\u305b\u3093\u3002"
+				"セルが結合されているため、移動できません。"
 			],
-			"Reorder rows and columns.": [
-				"\u884c\u30fb\u5217\u3092\u4e26\u3073\u66ff\u3048\u3089\u308c\u307e\u3059\u3002"
-			],
+			"Reorder rows and columns.": [ "行・列を並び替えられます。" ],
 			"Long press a cell, then drag to reorder rows and columns.": [
-				"\u30bb\u30eb\u3092\u9577\u62bc\u3057\u3066\u304b\u3089\u30c9\u30e9\u30c3\u30b0\u3059\u308b\u3068\u3001\u884c\u30fb\u5217\u3092\u4e26\u3073\u66ff\u3048\u3089\u308c\u307e\u3059\u3002"
+				"セルを長押ししてからドラッグすると、行・列を並び替えられます。"
 			],
-			"Apply the new order?": [
-				"\u4e26\u3073\u66ff\u3048\u3092\u53cd\u6620\u3057\u307e\u3059\u304b\uff1f"
-			],
-			"Row %1$d \u2192 %2$d": [ "%1$d\u884c\u76ee \u2192 %2$d\u884c\u76ee" ],
-			"Column %1$d \u2192 %2$d": [ "%1$d\u5217\u76ee \u2192 %2$d\u5217\u76ee" ],
+			"Apply the new order?": [ "並び替えを反映しますか？" ],
+			"Row %1$d → %2$d": [ "%1$d行目 → %2$d行目" ],
+			"Column %1$d → %2$d": [ "%1$d列目 → %2$d列目" ],
 			"Applying this reorder may take some time.": [
-				"\u3053\u306e\u4e26\u3073\u66ff\u3048\u306e\u53cd\u6620\u306b\u306f\u6642\u9593\u304c\u304b\u304b\u308b\u5834\u5408\u304c\u3042\u308a\u307e\u3059\u3002"
+				"この並び替えの反映には時間がかかる場合があります。"
 			],
-			"Continue": [ "\u7d9a\u884c" ],
-			"Cancel": [ "\u30ad\u30e3\u30f3\u30bb\u30eb" ],
-			"Applying the new order\u2026": [
-				"\u4e26\u3073\u66ff\u3048\u3092\u53cd\u6620\u3057\u3066\u3044\u307e\u3059\u2026"
-			],
+			"Continue": [ "続行" ],
+			"Cancel": [ "キャンセル" ],
+			"Applying the new order…": [ "並び替えを反映しています…" ],
 			"Please wait until the update is complete.": [
-				"\u5b8c\u4e86\u3059\u308b\u307e\u3067\u3057\u3070\u3089\u304f\u304a\u5f85\u3061\u304f\u3060\u3055\u3044\u3002"
+				"完了するまでしばらくお待ちください。"
 			],
-			"Reordering complete.": [
-				"\u4e26\u3073\u66ff\u3048\u304c\u5b8c\u4e86\u3057\u307e\u3057\u305f\u3002"
-			]
+			"Reordering complete.": [ "並び替えが完了しました。" ]
 		}
 	}
 }
