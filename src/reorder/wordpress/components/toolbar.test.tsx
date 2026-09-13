@@ -190,8 +190,12 @@ describe( 'Reorder toolbar RF exclusivity', () => {
 		mockRfState = { status: 'applying', kind: 'row' };
 		render( <ReorderModeToolbar tableIdentity="table-a" /> );
 
-		expect( screen.getByRole( 'button', { name: 'Reorder rows' } ) ).toBeDisabled();
-		expect( screen.getByRole( 'button', { name: 'Reorder columns' } ) ).toBeDisabled();
-		expect( screen.getByRole( 'button', { name: 'Reorder with form' } ) ).toBeDisabled();
+		const rowButton = screen.getByRole( 'button', { name: 'Reorder rows' } ) as HTMLButtonElement;
+		const columnButton = screen.getByRole( 'button', { name: 'Reorder columns' } ) as HTMLButtonElement;
+		const rfButton = screen.getByRole( 'button', { name: 'Reorder with form' } ) as HTMLButtonElement;
+
+		expect( rowButton.disabled ).toBe( true );
+		expect( columnButton.disabled ).toBe( true );
+		expect( rfButton.disabled ).toBe( true );
 	} );
 } );
