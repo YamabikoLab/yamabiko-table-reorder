@@ -8,7 +8,7 @@
 jest.mock( '@wordpress/rich-text', () => ( {
 	create: ( { html = '', text = '' } = {} ) => {
 		if ( html !== '' ) {
-			const container = document.createElement( 'div' );
+			const container = globalThis.document.createElement( 'div' );
 			container.innerHTML = html;
 			return { text: container.textContent ?? '' };
 		}
