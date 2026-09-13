@@ -8,6 +8,11 @@ import { rowReorderTargetResolution } from '@/reorder/row-reorder/responsibiliti
 
 import { RowHighlight } from './row-highlight';
 
+jest.mock( '@/reorder/row-reorder/responsibilities/dnd-interaction', () => ( {
+	getRowDndPhase: () => 'idle',
+	subscribeRowDndState: () => () => {},
+} ) );
+
 jest.mock( '@/reorder/row-reorder/responsibilities/target-resolution', () => ( {
 	rowReorderTargetResolution: {
 		createResolver: jest.fn(),
