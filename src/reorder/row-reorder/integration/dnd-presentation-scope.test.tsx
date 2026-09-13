@@ -73,10 +73,10 @@ describe( 'Row DnD presentation ownership', () => {
 	it( 'when multiple table DnD boundaries are mounted, should connect presentation only for the current table', () => {
 		render(
 			<>
-				<RowDnd enabled={ false } presentationEnabled tableIdentity="table-a">
+				<RowDnd presentationEnabled tableIdentity="table-a">
 					{ () => <div data-testid="table-a" /> }
 				</RowDnd>
-				<RowDnd enabled={ false } presentationEnabled={ false } tableIdentity="table-b">
+				<RowDnd presentationEnabled={ false } tableIdentity="table-b">
 					{ () => <div data-testid="table-b" /> }
 				</RowDnd>
 			</>
