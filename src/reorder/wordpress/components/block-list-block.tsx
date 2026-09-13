@@ -216,6 +216,25 @@ export const ReorderModeBlockListBlock = ( props: {
 		};
 	}, [ clientId, synchronizeCurrentWrapper ] );
 
+	/* Gutenberg自身の更新だけでBlock wrapper DOMが再接続される場合に備え、Table内部ではなく同じ描画先の直下変更だけから現在modeを再同期する。 */
+	useEffect( () => {
+		const anchor = modeDomAnchor.current;
+		const wrapperParent = anchor?.parentNode ?? null;
+		const editorWindow = anchor?.ownerDocument.defaultView ?? null;
+
+		if ( wrapperParent === null || editorWindow === null ) {
+			return;
+		}
+
+		const observer = new editorWindow.MutationObserver( () => {
+			synchronizeCurrentWrapper( reorderMode.getMode( clientId ) );
+		} );
+
+		observer.observe( wrapperParent, { childList: true } );
+
+		return () => observer.disconnect();
+	}, [ clientId, synchronizeCurrentWrapper ] );
+
 	const shouldPreventEditingStart = useCallback(
 		() => reorderMode.getMode( clientId ) !== 'edit',
 		[ clientId ]
