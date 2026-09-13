@@ -1,8 +1,8 @@
 /**
- * 確認付き大規模反映の完了通知が、正常完了だけを利用者へ一時表示することを確認する。
+ * Row / Columnの確認付き大規模反映結果通知が、再mount完了時の成功・失敗を共通Presentationへ接続することを確認する。
  */
 
-import { act, render, screen } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import type { ReactNode } from 'react';
 
 import { ReorderApplyCompletion } from './completion';
@@ -13,11 +13,12 @@ jest.mock( '@wordpress/components', () => ( {
 
 jest.mock( '@/messages', () => ( {
 	getLargeReorderCompletionMessage: () => 'Reordering complete.',
+	getRfApplyFailureMessage: () => 'Reordering failed. The table has not been changed.',
 } ) );
 
-describe( 'WordPress Reorder Apply completion notice', () => {
+describe( 'WordPress Reorder Apply completion entry', () => {
 	/**
-	 * 正常な大規模反映が完了した直後に、フォーカスを奪わない完了通知を表示することを確認する。
+	 * Row / Columnの大規模反映成功を再mount完了後に通知できることを確認する。
 	 *
 	 * 事前条件:
 	 * - 反映成功後の再mount中である。
@@ -26,62 +27,53 @@ describe( 'WordPress Reorder Apply completion notice', () => {
 	 * - 再mount完了状態へ移行する。
 	 *
 	 * 期待結果:
-	 * - 完了メッセージと成功を示す記号を含む一時通知が表示される。
+	 * - 成功結果の共通通知が表示される。
 	 */
-	it( 'when a successful remount finishes, should show a completion notice with a success mark', () => {
-		const { rerender } = render( <ReorderApplyCompletion isSuccessfulRemounting={ true } /> );
+	it( 'when a successful large reorder remount finishes, should show a success result notice', () => {
+		const { rerender } = render( <ReorderApplyCompletion remountingStatus="success" /> );
 
-		rerender( <ReorderApplyCompletion isSuccessfulRemounting={ false } /> );
+		rerender( <ReorderApplyCompletion remountingStatus={ null } /> );
 
 		expect( screen.getByText( 'Reordering complete.' ) ).not.toBeNull();
-		expect( screen.getByText( '✓' ) ).not.toBeNull();
 	} );
 
 	/**
-	 * 完了通知が表示された場合に、利用者が完了を確認できる時間を確保した後で自動的に終了することを確認する。
+	 * Row / Columnの大規模反映が成立しなかった場合も再mount完了後に失敗を通知できることを確認する。
 	 *
 	 * 事前条件:
-	 * - 正常な大規模反映後の再mountが完了している。
+	 * - Table再照合後に反映できず、失敗結果で再mount中である。
 	 *
 	 * 操作:
-	 * - 完了通知の表示開始から2秒経過させる。
+	 * - 再mount完了状態へ移行する。
 	 *
 	 * 期待結果:
-	 * - 2秒経過前は完了通知が表示されている。
-	 * - 2秒経過後は完了通知が終了する。
+	 * - Tableが変更されていないことを示す失敗通知が表示される。
 	 */
-	it( 'when a completion notice has been visible for two seconds, should remove the notice', () => {
-		jest.useFakeTimers();
-		const { rerender } = render( <ReorderApplyCompletion isSuccessfulRemounting={ true } /> );
-		rerender( <ReorderApplyCompletion isSuccessfulRemounting={ false } /> );
+	it( 'when a failed large reorder remount finishes, should show a failure result notice', () => {
+		const { rerender } = render( <ReorderApplyCompletion remountingStatus="failure" /> );
 
-		act( () => {
-			jest.advanceTimersByTime( 1999 );
-		} );
-		expect( screen.getByText( 'Reordering complete.' ) ).not.toBeNull();
+		rerender( <ReorderApplyCompletion remountingStatus={ null } /> );
 
-		act( () => {
-			jest.advanceTimersByTime( 1 );
-		} );
-		expect( screen.queryByText( 'Reordering complete.' ) ).toBeNull();
-		jest.useRealTimers();
+		expect(
+			screen.getByText( 'Reordering failed. The table has not been changed.' )
+		).not.toBeNull();
 	} );
 
 	/**
-	 * 正常な再mountを経ていない場合は、完了通知を表示しないことを確認する。
+	 * Row / Columnの再mount結果が発生していない場合は結果通知を開始しないことを確認する。
 	 *
 	 * 事前条件:
-	 * - 正常な大規模反映後の再mountは開始されていない。
+	 * - 大規模反映の再mount中ではない。
 	 *
 	 * 操作:
 	 * - 通常表示を継続する。
 	 *
 	 * 期待結果:
-	 * - 完了通知は表示されない。
+	 * - 結果通知は表示されない。
 	 */
-	it( 'when no successful remount completed, should not show a completion notice', () => {
-		render( <ReorderApplyCompletion isSuccessfulRemounting={ false } /> );
+	it( 'when no large reorder remount completed, should not show a result notice', () => {
+		render( <ReorderApplyCompletion remountingStatus={ null } /> );
 
-		expect( screen.queryByText( 'Reordering complete.' ) ).toBeNull();
+		expect( screen.queryByRole( 'status' ) ).toBeNull();
 	} );
 } );
