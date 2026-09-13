@@ -1,8 +1,9 @@
 /**
  * RF Interactionが所有する共有状態をReactへ接続する境界を提供する。
  *
- * React側はRF SessionやApply Outcomeの状態正本を持たず、対象Tableから見た現在Reorder Kindの表示状態と
- * 未消費のApply結果だけを継続購読する。Table変更の検知や再評価通知はこのHookの責務に含めない。
+ * React側はRF SessionやApply Outcomeの状態正本を持たず、対象Tableから見た現在Reorder Kindの表示状態、
+ * Lifecycle同期に必要なSession状態、未消費のApply結果だけを必要な粒度で継続購読する。
+ * Table変更の検知や再評価通知はこのHook群の責務に含めない。
  */
 
 import { useStore } from 'zustand';
@@ -117,6 +118,27 @@ export const useRfInteraction = ( tableIdentity: string ): RfInteractionReactSta
 	// Reorder Kindと評価結果が一致しない不完全なSessionはPresentationへ公開しない。
 	return CLOSED_STATE;
 };
+
+/**
+ * 対象Tableから見たRF Session状態だけをReact Lifecycle同期へ反映する。
+ *
+ * 入力、Reorder Kind、評価結果など同じSession状態内の変更では値を変えず、Lifecycle同期componentを再描画しない。
+ * 現在Session対象と異なるTableはclosedとして扱う。
+ *
+ * @param tableIdentity RF Session状態を購読するTable Identity。
+ * @return 対象Tableから見た現在RF Session状態。
+ */
+export const useRfInteractionStatus = (
+	tableIdentity: string
+): RfInteractionReactState[ 'status' ] =>
+	useStore( rfInteractionStore, ( store ) => {
+		const session = store.session;
+		if ( session.status === 'closed' || session.tableIdentity !== tableIdentity ) {
+			return 'closed';
+		}
+
+		return session.status;
+	} );
 
 /**
  * 対象Tableに対する未消費のRF反映結果をReact描画へ反映する。
