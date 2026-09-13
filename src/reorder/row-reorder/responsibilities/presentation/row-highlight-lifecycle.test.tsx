@@ -2,8 +2,9 @@
  * Row HighlightがTable解析を入力時まで遅延し、DnD LifecycleをReact再描画から分離してResolverを更新することを確認する。
  */
 
-import { fireEvent, render } from '@testing-library/react';
+import { act, fireEvent, render } from '@testing-library/react';
 
+import { reorderMode } from '@/reorder/reorder-mode';
 import {
 	getRowDndPhase,
 	subscribeRowDndState,
@@ -66,11 +67,25 @@ const TestTable = ( props: { childrenRender?: () => void } ) => (
 	</RowHighlight>
 );
 
+const activateRowMode = (): void => {
+	act( () => {
+		reorderMode.observeTable( 'table-a' );
+		reorderMode.select( 'row', 'table-a' );
+	} );
+};
+
+const resetReorderMode = (): void => {
+	act( () => {
+		reorderMode.observeTable( '__row-highlight-lifecycle-reset__' );
+	} );
+};
+
 describe( 'Row highlight resolver lifecycle', () => {
 	beforeEach( () => {
 		jest.clearAllMocks();
 		mockRowDndPhase = 'idle';
 		mockRowDndStateListener = null;
+		resetReorderMode();
 		createResolverMock.mockReturnValue( {
 			resolve: ( sourceRowIndex ) => ( {
 				status: 'resolved',
@@ -78,6 +93,10 @@ describe( 'Row highlight resolver lifecycle', () => {
 				initialConstraints: { rowCount: 2, blockedBoundaries: [] },
 			} ),
 		} );
+	} );
+
+	afterEach( () => {
+		resetReorderMode();
 	} );
 
 	/**
@@ -101,7 +120,7 @@ describe( 'Row highlight resolver lifecycle', () => {
 	 * 同一Highlight Lifecycleでは最初の有効な入力で生成したResolverを再利用することを確認する。
 	 *
 	 * 事前条件:
-	 * - Row DnDはidleである。
+	 * - Row Reorder Modeが有効で、Row DnDはidleである。
 	 *
 	 * 操作:
 	 * - 1行目、2行目の順にポインターを移動する。
@@ -110,6 +129,7 @@ describe( 'Row highlight resolver lifecycle', () => {
 	 * - Resolverは最初の入力時に1回だけ生成される。
 	 */
 	it( 'when multiple rows are highlighted before DnD, should reuse the lazily created resolver', () => {
+		activateRowMode();
 		const { getByTestId } = render( <TestTable /> );
 
 		fireEvent.pointerOver( getByTestId( 'row-0' ).querySelector( 'td' ) as HTMLTableCellElement );
@@ -123,7 +143,7 @@ describe( 'Row highlight resolver lifecycle', () => {
 	 * DnD開始後は古いResolverを破棄し、active中には新しいResolverを生成しないことを確認する。
 	 *
 	 * 事前条件:
-	 * - idle中の操作可否判定でResolverが生成済みである。
+	 * - Row Reorder Modeが有効で、idle中の操作可否判定でResolverが生成済みである。
 	 *
 	 * 操作:
 	 * - Row DnDをactiveへ移行し、別行へポインターを移動する。
@@ -134,6 +154,7 @@ describe( 'Row highlight resolver lifecycle', () => {
 	 * - idle復帰後の最初の有効な判定で新しいResolverを生成する。
 	 */
 	it( 'when row DnD runs after a resolver was created, should recreate it only after returning to idle', () => {
+		activateRowMode();
 		const { getByTestId } = render( <TestTable /> );
 
 		fireEvent.pointerOver( getByTestId( 'row-0' ).querySelector( 'td' ) as HTMLTableCellElement );
