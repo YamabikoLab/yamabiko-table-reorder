@@ -1,0 +1,115 @@
+/*
+ * Reorder Form（RF）のPopover入力画面と完了通知の表示責務を所有する。
+ *
+ * WordPress Editor上でTableを確認しながら入力できる大きさと、入力項目・案内・操作の視覚的なまとまりを提供する。
+ */
+.yamabiko-table-reorder-rf-popover .components-popover__content {
+	min-width: min(360px, calc(100vw - 32px));
+	max-width: min(420px, calc(100vw - 32px));
+	padding: 0;
+	background: #fff;
+	border: 1px solid #949494;
+	border-radius: 6px;
+}
+
+.yamabiko-table-reorder-rf {
+	display: grid;
+	gap: 16px;
+	padding: 16px;
+	cursor: grab;
+	touch-action: none;
+	user-select: none;
+}
+
+.yamabiko-table-reorder-rf:active {
+	cursor: grabbing;
+}
+
+.yamabiko-table-reorder-rf input,
+.yamabiko-table-reorder-rf select,
+.yamabiko-table-reorder-rf textarea,
+.yamabiko-table-reorder-rf button,
+.yamabiko-table-reorder-rf a,
+.yamabiko-table-reorder-rf [contenteditable='true'] {
+	cursor: auto;
+	touch-action: auto;
+	user-select: auto;
+}
+
+.yamabiko-table-reorder-rf__title {
+	margin: 0;
+	font-size: 16px;
+	line-height: 1.4;
+}
+
+.yamabiko-table-reorder-rf__fieldset {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 12px;
+	margin: 0;
+	padding: 0;
+	border: 0;
+}
+
+.yamabiko-table-reorder-rf__fieldset legend {
+	width: 100%;
+	margin-bottom: 4px;
+	font-weight: 600;
+}
+
+.yamabiko-table-reorder-rf__fieldset label {
+	display: inline-flex;
+	gap: 6px;
+	align-items: center;
+}
+
+.yamabiko-table-reorder-rf__fields {
+	display: grid;
+	gap: 12px;
+}
+
+.yamabiko-table-reorder-rf__fields > label {
+	display: grid;
+	gap: 6px;
+	font-weight: 600;
+}
+
+.yamabiko-table-reorder-rf__fields input[type='number'],
+.yamabiko-table-reorder-rf__fields select {
+	width: 100%;
+	min-height: 36px;
+}
+
+.yamabiko-table-reorder-rf__help,
+.yamabiko-table-reorder-rf__notice {
+	margin: 0;
+	font-size: 12px;
+	line-height: 1.5;
+}
+
+.yamabiko-table-reorder-rf__help {
+	color: #646970;
+}
+
+.yamabiko-table-reorder-rf__notice {
+	color: #d63638;
+}
+
+.yamabiko-table-reorder-rf__actions {
+	display: flex;
+	justify-content: flex-end;
+	gap: 8px;
+}
+
+.yamabiko-table-reorder-rf-completion {
+	position: fixed;
+	right: 24px;
+	bottom: 24px;
+	z-index: 100000;
+}
+
+.yamabiko-table-reorder-rf-completion__content {
+	display: inline-flex;
+	gap: 6px;
+	align-items: center;
+}

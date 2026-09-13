@@ -8,7 +8,7 @@
 
 import { store as blockEditorStore } from '@wordpress/block-editor';
 import { dispatch, select } from '@wordpress/data';
-import { decodeEntities } from '@wordpress/html-entities';
+import { create, getTextContent } from '@wordpress/rich-text';
 
 /** Column Reorderが現在のTableで移動可否を再照合するために利用する制約情報。 */
 export type ColumnReorderConstraints = {
@@ -106,6 +106,11 @@ type CurrentColumnTable = {
 	parsedTable: ParsedTable;
 };
 
+/** toPlainText()で現在の表示文字列を提供できるRichText互換表現。 */
+type PlainTextContent = {
+	toPlainText: () => unknown;
+};
+
 /** 列専用Table Integrationが受理する対応Table Block名。 */
 const SUPPORTED_TABLES = new Set< string >( [ 'core/table', 'flexible-table-block/table' ] );
 
@@ -122,6 +127,19 @@ const TABLE_SECTIONS: readonly TableSectionName[] = [ 'head', 'body', 'foot' ];
  */
 const isRecord = ( value: unknown ): value is Record< string, unknown > =>
 	value !== null && typeof value === 'object' && ! Array.isArray( value );
+
+/**
+ * セル内容がWordPress RichTextの表示文字列変換Contractを提供しているか判定する。
+ *
+ * RichTextの具体クラスには依存せず、現在のWordPressが公開するtoPlainText() capabilityだけを利用する。
+ *
+ * @param value 対応Table Blockから取得した未検証のセル内容。
+ * @return 表示用プレーンテキストへ変換できる場合はtrue。
+ */
+const hasPlainTextContent = ( value: unknown ): value is PlainTextContent => {
+	const canConvertToPlainText = isRecord( value ) && typeof value.toPlainText === 'function';
+	return canConvertToPlainText;
+};
 
 /**
  * Block名が列専用Table Integrationの対応対象か判定する。
@@ -431,30 +449,34 @@ const getConstraints = ( clientId: string ): ColumnReorderConstraints | null => 
 };
 
 /**
- * 見出しセルの内容を、RFで単一列を識別する表示値として利用できる場合だけ取得する。
+ * 見出しセルの内容を、RFで単一列を識別する表示用プレーンテキストへ正規化する。
  *
- * 実HTML markupを含むRichText保存表現は解釈せず列番号fallbackへ委ね、HTML entityだけWordPressの変換APIで利用者向け文字へ復元する。
+ * Core TableがEditor Storeで公開するRichText表現はtoPlainText() capabilityを利用し、文字列のRichText / HTML表現はWordPress RichText APIで表示文字列へ変換する。
+ * 対応Table固有の保存・編集表現はこの境界で吸収し、空または安全に表示文字列へ変換できない内容は列番号fallbackへ委ねる。
  *
  * @param cell 明示的なhead sectionの単一論理列セル。
  * @return 空でない表示用見出し。安全に表示値へ変換できない場合はnull。
  */
 const getHeadingValue = ( cell: Record< string, unknown > ): string | null => {
-	/* 文字列として安定して扱えないcontentは列見出しとして公開しない。 */
-	if ( typeof cell.content !== 'string' ) {
+	const content = cell.content;
+	let plainText: unknown;
+
+	/* 現在のWordPressがRichText表現自身に提供する表示文字列変換を具体クラスへ依存せず利用する。 */
+	if ( hasPlainTextContent( content ) ) {
+		plainText = content.toPlainText();
+	} else if ( typeof content === 'string' ) {
+		/* 文字列で公開される対応Table表現はWordPress RichText APIでmarkupとHTML entityを表示文字列へ正規化する。 */
+		plainText = getTextContent( create( { html: content } ) );
+	} else {
 		return null;
 	}
 
-	const content = cell.content.trim();
-	/* 空白だけの見出しは利用者が列を識別できないため、見出しなしとして扱う。 */
-	if ( content.length === 0 ) {
-		return null;
-	}
-	/* 実HTML markupを含む保存表現はTable Integrationで独自解釈せず、列番号fallbackへ委ねる。 */
-	if ( content.includes( '<' ) ) {
+	/* capabilityの戻り値もTable外部入力として扱い、文字列以外は見出しとして公開しない。 */
+	if ( typeof plainText !== 'string' ) {
 		return null;
 	}
 
-	const heading = decodeEntities( content ).trim();
+	const heading = plainText.trim();
 	const usableHeading = heading.length === 0 ? null : heading;
 	return usableHeading;
 };

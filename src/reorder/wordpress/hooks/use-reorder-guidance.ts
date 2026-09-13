@@ -2,7 +2,7 @@
  * Reorder GuidanceをWordPress EditorとReactへ接続する。
  *
  * 初回案内の表示契機、PC／タッチの操作環境判定、WordPress preferencesによる表示済み状態、
- * Reorder Mode選択時の案内終了をこの境界で接続し、Reorder Guidance本体へWordPress依存を持ち込まない。
+ * Row / Column / RF入口選択時の案内終了をこの境界で接続し、Reorder Guidance本体へWordPress依存を持ち込まない。
  */
 
 import { dispatch, select } from '@wordpress/data';
@@ -87,15 +87,18 @@ const acknowledgeInitialGuidance = ( environment: ReorderGuidanceEnvironment ): 
  *
  * ツールバー要素が現在のEditor DOMで利用可能になった時点で、その操作環境が未表示なら初回案内を開始する。
  * タッチ環境では案内開始時にツールバーへフォーカスを移し、セル編集とソフトウェアキーボードを残さない。
- * 初回案内中に行または列の並び替え入口が選択された場合は、表示済みとして保存して案内を終了する。
+ * 初回案内中にRow / Column / RF入口が選択された場合は、既存PC／タッチ設定を表示済みとして保存して案内を終了する。
+ * RFがopenまたは反映中の間は、新しい初回案内を開始しない。
  *
  * @param tableIdentity    初回案内の対象となるTable Identity。
  * @param referenceElement 現在のEditor DOMとPopover位置を特定するツールバー要素。
+ * @param rfActive         対象TableでRF Sessionがopenまたは反映中か。
  * @return 対象Tableの初回案内対象と、閉じる操作。
  */
 export const useReorderGuidance = (
 	tableIdentity: string,
-	referenceElement: HTMLElement | null
+	referenceElement: HTMLElement | null,
+	rfActive = false
 ) => {
 	const activeGuidance = useStore( reorderGuidanceStore, ( state ) => state.activeGuidance );
 	const { selectedKind } = useReorderMode( tableIdentity );
@@ -105,8 +108,8 @@ export const useReorderGuidance = (
 	const guidance = guidanceForTable === null ? null : { environment: guidanceForTable.environment };
 
 	useEffect( () => {
-		/* 配置基準がない間、または並び替えモード中は初回案内を新しく開始しない。 */
-		if ( referenceElement === null || selectedKind !== null ) {
+		/* 配置基準がない間、DnDモード中、またはRF中は初回案内を新しく開始しない。 */
+		if ( referenceElement === null || selectedKind !== null || rfActive ) {
 			return;
 		}
 
@@ -123,7 +126,7 @@ export const useReorderGuidance = (
 		}
 
 		reorderGuidance.show( tableIdentity, environment );
-	}, [ referenceElement, selectedKind, tableIdentity ] );
+	}, [ referenceElement, rfActive, selectedKind, tableIdentity ] );
 
 	const dismiss = useCallback( () => {
 		/* 現在のTableへ案内を表示していない場合は、表示済み状態を誤って更新しない。 */
@@ -136,14 +139,14 @@ export const useReorderGuidance = (
 	}, [ guidanceForTable, tableIdentity ] );
 
 	useEffect( () => {
-		/* 行または列の入口選択は、初回案内を完了した利用者操作として扱う。 */
-		if ( selectedKind === null || guidanceForTable === null ) {
+		/* いずれかの並び替え入口選択は、初回案内を完了した利用者操作として扱う。 */
+		if ( ( selectedKind === null && ! rfActive ) || guidanceForTable === null ) {
 			return;
 		}
 
 		acknowledgeInitialGuidance( guidanceForTable.environment );
 		reorderGuidance.hide( tableIdentity );
-	}, [ guidanceForTable, selectedKind, tableIdentity ] );
+	}, [ guidanceForTable, rfActive, selectedKind, tableIdentity ] );
 
 	return {
 		dismiss,

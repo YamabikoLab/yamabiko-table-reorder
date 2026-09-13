@@ -73,6 +73,12 @@ RFの入力画面では、現在対象としているTableを並び替えるた�
 | 日本語 | フォームで並び替え |
 | English | Reorder with form |
 
+入力画面は最初にTableツールバーのRF入口付近へ表示する。利用者は入力欄、選択欄、ボタンなど直接操作する部品を除く入力画面上をドラッグして、Tableを確認しやすい位置へ自由に移動できるようにする。PCのポインター操作とタッチ操作のどちらでも移動できるようにする。
+
+移動中も入力内容や選択状態は変更しない。入力画面は画面外へ完全に移動できないようにし、移動後も操作可能な範囲を画面内に残す。
+
+同じRF操作を続けている間にWordPress Editor側の再表示が発生しても、利用者が移動した入力画面の位置を維持する。RFを終了してから新しく開始した場合は前回の位置を引き継がず、Tableツールバー付近の初期位置へ戻す。
+
 ### 4.1 並び替える方向
 
 「行」と「列」をラジオボタンで表示し、一つだけ選択できるようにする。
@@ -398,7 +404,3 @@ Table Blockの違いによって、RFの基本的な入力方法や利用者に�
 - `docs/requirements/reorder-form-v1-requirements.md`
 - `docs/requirements/reorder-v1-requirements.md`
 - `reorder-v1-design.md`
-- `row-reorder-v1-design.md`
-- `column-reorder-v1-design.md`
-- [RF v1 UIプロトタイプ](./prototypes/reorder-form-v1-ui.html)
-- #898 RF v1 専用の要件定義書を作成する

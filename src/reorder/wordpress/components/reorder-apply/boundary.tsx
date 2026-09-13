@@ -18,6 +18,9 @@ import { useReorderApplyLifecycle } from './lifecycle';
 /**
  * 対象TableのBlockEditへ確認付き大規模反映UIと表示Lifecycleを接続する。
  *
+ * RFの完了通知はRF Presentationが通常反映と大規模反映を一つの経路で所有するため、
+ * このBoundaryではRow / Column大規模反映だけを完了通知対象とする。
+ *
  * @param props          対象Tableと通常表示。
  * @param props.clientId 対象Table個体のclientId。
  * @param props.children 通常時に表示するGutenberg本来のTable編集UI。
@@ -33,7 +36,8 @@ export const ReorderApplyTableBoundary = ( props: { clientId: string; children: 
 		return <ReorderApplying referenceElementRef={ applyingReferenceElementRef } />;
 	}
 
-	const isSuccessfulRemounting = presentation.phase === 'remounting' && presentation.applied;
+	const isSuccessfulRemounting =
+		presentation.phase === 'remounting' && presentation.applied && presentation.owner !== 'rf';
 
 	return (
 		<>
