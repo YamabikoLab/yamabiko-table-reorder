@@ -2,11 +2,9 @@
  * RF InteractionがApply結果をReact描画履歴から独立した未消費Outcomeとして保持・消費することを確認する。
  */
 
-import { columnTableIntegration } from '@/reorder/column-reorder/responsibilities/table-integration';
 import { rowTableIntegration } from '@/reorder/row-reorder/responsibilities/table-integration';
 
 import { receiveRfApplyRequest } from './apply-coordination';
-import { columnRfResolution } from './column-resolution';
 import { rfInteraction, rfInteractionStore, type RfApplyResult } from './interaction';
 import { rowRfResolution } from './row-resolution';
 
@@ -46,7 +44,6 @@ const arrangeResolvedRowApply = ( result: RfApplyResult ) => {
 		rowCount: 3,
 		blockedBoundaries: [],
 	} );
-	jest.spyOn( columnTableIntegration, 'getColumnInputDescriptors' ).mockReturnValue( [] );
 	jest.spyOn( rowRfResolution, 'resolve' ).mockReturnValue( {
 		status: 'resolved',
 		candidate: {
@@ -55,7 +52,6 @@ const arrangeResolvedRowApply = ( result: RfApplyResult ) => {
 			destinationBoundaryIndex: 3,
 		},
 	} );
-	jest.spyOn( columnRfResolution, 'resolve' ).mockReturnValue( { status: 'not-ready' } );
 	mockedReceiveRfApplyRequest.mockImplementation( ( _request, resolve ) => {
 		resolve( result );
 	} );
