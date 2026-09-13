@@ -118,9 +118,7 @@ export const ReorderFormCompletion = ( props: { tableIdentity: string } ) => {
 			<Snackbar onRemove={ removeNotice }>
 				<strong className={ contentClassName }>
 					<ReorderFormCompletionIcon isFailure={ isFailure } />
-					<span className="yamabiko-table-reorder-rf-completion__message">
-						{ message }
-					</span>
+					<span className="yamabiko-table-reorder-rf-completion__message">{ message }</span>
 				</strong>
 			</Snackbar>
 		</div>
