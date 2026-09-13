@@ -47,9 +47,10 @@ export const ReorderFormCompletion = ( props: {
 
 		const currentNoticeSequence = noticeSequence;
 		const timeoutId = setTimeout( () => {
-			setNoticeSequence( ( current ) =>
-				current === currentNoticeSequence ? null : current
-			);
+			setNoticeSequence( ( current ) => {
+				const nextSequence = current === currentNoticeSequence ? null : current;
+				return nextSequence;
+			} );
 		}, COMPLETION_NOTICE_DURATION_MS );
 
 		return () => clearTimeout( timeoutId );
@@ -60,7 +61,10 @@ export const ReorderFormCompletion = ( props: {
 	}
 
 	const removeNotice = (): void => {
-		setNoticeSequence( ( current ) => ( current === noticeSequence ? null : current ) );
+		setNoticeSequence( ( current ) => {
+			const nextSequence = current === noticeSequence ? null : current;
+			return nextSequence;
+		} );
 	};
 
 	return (
