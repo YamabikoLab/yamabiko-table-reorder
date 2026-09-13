@@ -9,7 +9,6 @@ jest.mock( '@wordpress/block-editor', () => ( {
 } ) );
 
 jest.mock( '@wordpress/data', () => ( {
-	...jest.requireActual< typeof import('@wordpress/data') >( '@wordpress/data' ),
 	dispatch: jest.fn(),
 	select: jest.fn(),
 } ) );
