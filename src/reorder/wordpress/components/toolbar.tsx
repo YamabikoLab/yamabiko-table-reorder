@@ -14,6 +14,7 @@ import { useRfInteraction } from '@/reorder/reorder-form/responsibilities/intera
 import type { ReorderKind } from '@/reorder/reorder-mode';
 import { useReorderMode } from '@/reorder/reorder-mode-react';
 import { ReorderFormPopover } from '@/reorder/wordpress/components/reorder-form';
+import { reorderFormPosition } from '@/reorder/wordpress/components/reorder-form-position';
 import { ReorderGuidance } from '@/reorder/wordpress/components/guidance';
 import { useReorderGuidance } from '@/reorder/wordpress/hooks/use-reorder-guidance';
 
@@ -147,6 +148,9 @@ export const ReorderModeToolbar = ( props: ReorderModeToolbarProps ) => {
 		if ( selectedKind !== null ) {
 			selectMode( selectedKind );
 		}
+
+		/* 新しいRF Sessionは前回の手動配置を引き継がず、Toolbar基準の初期位置から開始する。 */
+		reorderFormPosition.beginSession( tableIdentity );
 		rfInteraction.open( tableIdentity );
 	};
 
