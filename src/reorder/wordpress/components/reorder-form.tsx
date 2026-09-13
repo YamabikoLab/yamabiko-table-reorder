@@ -8,7 +8,10 @@
 
 import { Button, Popover } from '@wordpress/components';
 import { useRef } from '@wordpress/element';
-import type { PointerEvent as ReactPointerEvent } from 'react';
+import type {
+	MouseEvent as ReactMouseEvent,
+	PointerEvent as ReactPointerEvent,
+} from 'react';
 
 import {
 	getRfAboveLabel,
@@ -57,15 +60,40 @@ type ReorderFormPopoverProps = {
 /** RF入力Popoverのドラッグ開始から終了まで保持するPointer操作情報。 */
 type ReorderFormDragState = {
 	pointerId: number;
+	startX: number;
+	startY: number;
 	offsetX: number;
 	offsetY: number;
 	width: number;
 	height: number;
+	moved: boolean;
 	view: Window;
 };
 
+/** 意図しない小さなPointer移動をPopover移動として扱わない距離。 */
+const dragThreshold = 4;
+
 /** Popover外のTable操作だけではRF Sessionを終了しない。 */
 const ignorePopoverClose = () => undefined;
+
+/**
+ * Pointer操作対象がRF入力や確定操作そのものかを判定する。
+ *
+ * 直接操作する部品ではPopover移動を開始せず、通常の入力・選択・ボタン操作を優先する。
+ *
+ * @param target Pointer操作を開始したDOM EventTarget。
+ * @return RF入力や確定操作を直接受ける要素の場合はtrue。それ以外はfalse。
+ */
+const isDirectInteractionTarget = ( target: EventTarget | null ): boolean => {
+	const element = target as Element | null;
+	if ( element === null || typeof element.closest !== 'function' ) {
+		return false;
+	}
+
+	const directInteractionTarget =
+		element.closest( 'input, select, textarea, button, a, [contenteditable="true"]' ) !== null;
+	return directInteractionTarget;
+};
 
 /**
  * 現在列記述を利用者向け選択肢へ変換する。
@@ -134,7 +162,8 @@ const createManualPopoverAnchor = ( position: ReorderFormPosition, ownerDocument
 /**
  * 対応TableのRF入力画面をToolbar基準のPopoverとして表示する。
  *
- * 初期表示はRF Toolbar入口を基準とし、利用者がタイトル部をドラッグした後はその位置を同一RF Session中で維持する。
+ * 初期表示はRF Toolbar入口を基準とし、利用者が入力部品以外のPopover面をドラッグした後はその位置を
+ * 同一RF Session中で維持する。
  *
  * @param props               対象Table、Toolbar anchor、RF Interaction状態。
  * @param props.anchor        RF Toolbar入口のDOM要素。
@@ -145,6 +174,7 @@ const createManualPopoverAnchor = ( position: ReorderFormPosition, ownerDocument
 export const ReorderFormPopover = ( props: ReorderFormPopoverProps ) => {
 	const { anchor, state, tableIdentity } = props;
 	const dragStateRef = useRef< ReorderFormDragState | null >( null );
+	const suppressClickRef = useRef( false );
 	const { position, setPosition } = useReorderFormPosition( tableIdentity );
 
 	if ( anchor === null || state.status !== 'open' ) {
@@ -169,32 +199,34 @@ export const ReorderFormPopover = ( props: ReorderFormPopoverProps ) => {
 	const popoverOffset = manuallyPositioned ? 0 : 8;
 
 	/**
-	 * RF入力Popoverのタイトル部からPointer移動を開始する。
+	 * RF入力Popoverの直接操作部品以外からPointer移動を開始する。
 	 *
-	 * @param event タイトル部で開始されたprimary pointer操作。
+	 * @param event Popover面で開始されたprimary pointer操作。
 	 */
 	const startDragging = ( event: ReactPointerEvent< HTMLDivElement > ): void => {
-		if ( ! event.isPrimary || event.button !== 0 ) {
+		if ( ! event.isPrimary || event.button !== 0 || isDirectInteractionTarget( event.target ) ) {
 			return;
 		}
 
 		const popoverContent = event.currentTarget.closest( '.components-popover__content' );
 		const view = event.currentTarget.ownerDocument.defaultView;
-		if ( ! ( popoverContent instanceof HTMLElement ) || view === null ) {
+		if ( popoverContent === null || view === null ) {
 			return;
 		}
 
 		const rectangle = popoverContent.getBoundingClientRect();
 		dragStateRef.current = {
 			pointerId: event.pointerId,
+			startX: event.clientX,
+			startY: event.clientY,
 			offsetX: event.clientX - rectangle.left,
 			offsetY: event.clientY - rectangle.top,
 			width: rectangle.width,
 			height: rectangle.height,
+			moved: false,
 			view,
 		};
 		event.currentTarget.setPointerCapture( event.pointerId );
-		event.preventDefault();
 	};
 
 	/**
@@ -206,6 +238,17 @@ export const ReorderFormPopover = ( props: ReorderFormPopoverProps ) => {
 		const dragState = dragStateRef.current;
 		if ( dragState === null || dragState.pointerId !== event.pointerId ) {
 			return;
+		}
+
+		if ( ! dragState.moved ) {
+			const distance = Math.hypot(
+				event.clientX - dragState.startX,
+				event.clientY - dragState.startY
+			);
+			if ( distance < dragThreshold ) {
+				return;
+			}
+			dragState.moved = true;
 		}
 
 		const requestedPosition = {
@@ -224,6 +267,8 @@ export const ReorderFormPopover = ( props: ReorderFormPopoverProps ) => {
 	/**
 	 * RF入力PopoverのPointer移動を終了する。
 	 *
+	 * ドラッグ後にラベル等のclickが発火して入力値を変更しないよう、その直後のclickだけを無効にする。
+	 *
 	 * @param event 終了または取消されたPointer操作。
 	 */
 	const stopDragging = ( event: ReactPointerEvent< HTMLDivElement > ): void => {
@@ -236,6 +281,28 @@ export const ReorderFormPopover = ( props: ReorderFormPopoverProps ) => {
 			event.currentTarget.releasePointerCapture( event.pointerId );
 		}
 		dragStateRef.current = null;
+
+		if ( dragState.moved ) {
+			suppressClickRef.current = true;
+			dragState.view.setTimeout( () => {
+				suppressClickRef.current = false;
+			}, 0 );
+		}
+	};
+
+	/**
+	 * ドラッグ終了によって生成されたclickだけを入力操作として扱わない。
+	 *
+	 * @param event RF入力Popover内で発生したclick。
+	 */
+	const suppressDraggedClick = ( event: ReactMouseEvent< HTMLDivElement > ): void => {
+		if ( ! suppressClickRef.current ) {
+			return;
+		}
+
+		suppressClickRef.current = false;
+		event.preventDefault();
+		event.stopPropagation();
 	};
 
 	return (
@@ -252,16 +319,15 @@ export const ReorderFormPopover = ( props: ReorderFormPopoverProps ) => {
 			shift
 			variant="unstyled"
 		>
-			<div className="yamabiko-table-reorder-rf">
-				<div
-					className="yamabiko-table-reorder-rf__drag-handle"
-					onPointerCancel={ stopDragging }
-					onPointerDown={ startDragging }
-					onPointerMove={ moveDragging }
-					onPointerUp={ stopDragging }
-				>
-					<h2 className="yamabiko-table-reorder-rf__title">{ getRfReorderName() }</h2>
-				</div>
+			<div
+				className="yamabiko-table-reorder-rf"
+				onClickCapture={ suppressDraggedClick }
+				onPointerCancel={ stopDragging }
+				onPointerDown={ startDragging }
+				onPointerMove={ moveDragging }
+				onPointerUp={ stopDragging }
+			>
+				<h2 className="yamabiko-table-reorder-rf__title">{ getRfReorderName() }</h2>
 
 				<fieldset className="yamabiko-table-reorder-rf__fieldset">
 					<legend>{ getRfKindLegend() }</legend>
