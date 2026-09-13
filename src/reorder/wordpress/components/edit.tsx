@@ -9,7 +9,6 @@ import type { ComponentType } from '@wordpress/element';
 
 import { useRfInteraction } from '@/reorder/reorder-form/responsibilities/interaction-react';
 import { ReorderApplyTableBoundary } from '@/reorder/wordpress/components/reorder-apply';
-import { ReorderFormCompletion } from '@/reorder/wordpress/components/reorder-form-completion';
 import { ReorderModeToolbar } from '@/reorder/wordpress/components/toolbar';
 import { useRfTableLifecycle } from '@/reorder/wordpress/hooks/use-rf-table-lifecycle';
 import {
@@ -44,14 +43,10 @@ export const ReorderModeEdit = ( componentProps: ReorderModeEditProps ) => {
 	useRfTableLifecycle( clientId, isSelected, getSelectedTableIdentity, attributes, rfState.status );
 
 	return (
-		<>
-			<ReorderApplyTableBoundary clientId={ clientId }>
-				<BlockEdit { ...props } />
-				{ /* Toolbar入口は現在選択中の対応Tableだけに表示する。 */ }
-				{ isSelected && <ReorderModeToolbar tableIdentity={ clientId } /> }
-			</ReorderApplyTableBoundary>
-			{ /* RF完了通知は大規模反映Boundaryとは独立して通常 / 大規模の成功を一つの経路で扱う。 */ }
-			<ReorderFormCompletion status={ rfState.status } />
-		</>
+		<ReorderApplyTableBoundary clientId={ clientId } rfStatus={ rfState.status }>
+			<BlockEdit { ...props } />
+			{ /* Toolbar入口は現在選択中の対応Tableだけに表示する。 */ }
+			{ isSelected && <ReorderModeToolbar tableIdentity={ clientId } /> }
+		</ReorderApplyTableBoundary>
 	);
 };

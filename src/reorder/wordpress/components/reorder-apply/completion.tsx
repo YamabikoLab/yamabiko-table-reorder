@@ -1,13 +1,14 @@
 /**
- * 確認付き大規模反映の完了を、操作を妨げず認識しやすい一時通知として表示する。
+ * 行・列・RFの正常反映完了を、操作を妨げず認識しやすい一時通知として表示する。
  *
- * 反映成功後の再mount完了を検知して通知表示だけを所有し、Apply Lifecycleや方向固有状態は変更しない。
+ * 完了イベントの検知と通知Presentationを共通化し、並び替え手段ごとのSessionやApply Lifecycle自体は変更しない。
  */
 
 import { Snackbar } from '@wordpress/components';
 import { useEffect, useRef, useState } from '@wordpress/element';
 
 import { getLargeReorderCompletionMessage } from '@/messages';
+import type { RfInteractionReactState } from '@/reorder/reorder-form/responsibilities/interaction-react';
 
 import './completion.scss';
 
@@ -15,26 +16,37 @@ import './completion.scss';
 const COMPLETION_NOTICE_DURATION_MS = 2000;
 
 /**
- * 大規模反映が正常完了した場合に、フォーカスを奪わない完了通知を短時間だけ表示する。
+ * 正常な並び替え完了を共通の一時通知として表示する。
+ *
+ * Row / Columnでは反映成功後の再mount完了、RFではInteractionのapplyingからclosedへの正常終了を
+ * 完了イベントとして扱う。RFのfailure / cancelledはopenへ戻るため通知対象としない。
  *
  * @param props                        完了通知の表示条件。
- * @param props.isSuccessfulRemounting 反映成功後の再mount中であることを示す。
- * @return 完了直後だけ表示する一時通知。それ以外はnull。
+ * @param props.isSuccessfulRemounting Row / Columnの反映成功後に再mount中であることを示す。
+ * @param props.rfStatus               対象Tableから見たRF Interaction状態。
+ * @return 正常完了直後だけ表示する一時通知。それ以外はnull。
  */
-export const ReorderApplyCompletion = ( props: { isSuccessfulRemounting: boolean } ) => {
-	const { isSuccessfulRemounting } = props;
+export const ReorderApplyCompletion = ( props: {
+	isSuccessfulRemounting: boolean;
+	rfStatus: RfInteractionReactState[ 'status' ];
+} ) => {
+	const { isSuccessfulRemounting, rfStatus } = props;
 	const wasSuccessfulRemounting = useRef( false );
+	const previousRfStatus = useRef( rfStatus );
 	const [ noticeSequence, setNoticeSequence ] = useState< number | null >( null );
 
 	useEffect( () => {
-		const hasJustCompleted = wasSuccessfulRemounting.current && ! isSuccessfulRemounting;
+		const hasJustCompletedLargeApply =
+			wasSuccessfulRemounting.current && ! isSuccessfulRemounting;
+		const hasJustCompletedRfApply = previousRfStatus.current === 'applying' && rfStatus === 'closed';
 		wasSuccessfulRemounting.current = isSuccessfulRemounting;
+		previousRfStatus.current = rfStatus;
 
-		/* 正常な再mountが完了した直後だけ、新しい完了通知を開始する。 */
-		if ( hasJustCompleted ) {
+		/* いずれの並び替え手段でも正常反映が完了した直後だけ、新しい完了通知を開始する。 */
+		if ( hasJustCompletedLargeApply || hasJustCompletedRfApply ) {
 			setNoticeSequence( ( current ) => ( current ?? 0 ) + 1 );
 		}
-	}, [ isSuccessfulRemounting ] );
+	}, [ isSuccessfulRemounting, rfStatus ] );
 
 	useEffect( () => {
 		if ( noticeSequence === null ) {

@@ -1,5 +1,5 @@
 /*
- * Reorder Form（RF）のPopover入力画面と完了通知の表示責務を所有する。
+ * Reorder Form（RF）のPopover入力画面の表示責務を所有する。
  *
  * WordPress Editor上でTableを確認しながら入力できる大きさと、入力項目・案内・操作の視覚的なまとまりを提供する。
  */
@@ -99,17 +99,4 @@
 	display: flex;
 	justify-content: flex-end;
 	gap: 8px;
-}
-
-.yamabiko-table-reorder-rf-completion {
-	position: fixed;
-	right: 24px;
-	bottom: 24px;
-	z-index: 100000;
-}
-
-.yamabiko-table-reorder-rf-completion__content {
-	display: inline-flex;
-	gap: 6px;
-	align-items: center;
 }
