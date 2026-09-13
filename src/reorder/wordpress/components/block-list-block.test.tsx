@@ -12,6 +12,7 @@ import {
 	ReorderModeBlockListBlock,
 	type ReorderModeBlockListBlockProps,
 } from '@/reorder/wordpress/components/block-list-block';
+import { useState } from '@wordpress/element';
 
 jest.mock( '@/reorder/row-reorder/responsibilities/presentation/row-highlight', () => ( {
 	RowHighlight: ( {
@@ -82,6 +83,27 @@ const ReplacementBlockListBlock = ( props: ReorderModeBlockListBlockProps ) => {
 		>
 			Table replacement
 		</section>
+	);
+};
+
+const StatefulBlockListBlock = ( props: ReorderModeBlockListBlockProps ) => {
+	const [ replaced, setReplaced ] = useState( false );
+
+	if ( replaced ) {
+		return (
+			<section id={ `block-${ props.clientId }` } data-testid="block-wrapper">
+				Table replacement
+			</section>
+		);
+	}
+
+	return (
+		<div id={ `block-${ props.clientId }` } data-testid="block-wrapper">
+			<button type="button" onClick={ () => setReplaced( true ) }>
+				Replace wrapper
+			</button>
+			Table
+		</div>
 	);
 };
 
@@ -207,5 +229,47 @@ describe( 'Reorder Mode Block wrapper integration', () => {
 		expect(
 			getByTestId( 'block-wrapper' ).getAttribute( 'data-yamabiko-table-reorder-mode' )
 		).toBe( 'row' );
+	} );
+	/**
+	 * BlockListBlock自身の更新だけでwrapper DOMが置き換わった場合も、現在のReorder Modeを新しいwrapperへ同期できることを確認する。
+	 *
+	 * 事前条件:
+	 * - 行並び替えモードが有効である。
+	 * - ReorderModeBlockListBlockは再renderされない。
+	 *
+	 * 操作:
+	 * - BlockListBlock自身のstate更新によってroot wrapper DOMを置き換える。
+	 *
+	 * 期待結果:
+	 * - 置き換え後のwrapperにも現在のrow mode属性が同期される。
+	 */
+	it( 'when BlockListBlock replaces its wrapper without rerendering ReorderModeBlockListBlock, should resynchronize the current mode to the new wrapper', () => {
+		act( () => reorderMode.select( 'row', 'table-a' ) );
+
+		const { getByTestId, getByRole } = render(
+			<ReorderModeBlockListBlock
+				BlockListBlock={ StatefulBlockListBlock }
+				blockProps={ {
+					clientId: 'table-a',
+					isSelected: true,
+					name: 'core/table',
+					wrapperProps: { draggable: true },
+				} }
+			/>
+		);
+
+		const originalWrapper = getByTestId( 'block-wrapper' );
+
+		expect( originalWrapper.getAttribute( 'data-yamabiko-table-reorder-mode' ) ).toBe( 'row' );
+
+		act( () => {
+			getByRole( 'button', { name: 'Replace wrapper' } ).click();
+		} );
+
+		const replacedWrapper = getByTestId( 'block-wrapper' );
+
+		expect( replacedWrapper ).not.toBe( originalWrapper );
+		expect( replacedWrapper.tagName ).toBe( 'SECTION' );
+		expect( replacedWrapper.getAttribute( 'data-yamabiko-table-reorder-mode' ) ).toBe( 'row' );
 	} );
 } );
