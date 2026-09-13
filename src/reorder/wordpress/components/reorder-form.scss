@@ -17,6 +17,16 @@
 	padding: 16px;
 }
 
+.yamabiko-table-reorder-rf__drag-handle {
+	cursor: grab;
+	touch-action: none;
+	user-select: none;
+}
+
+.yamabiko-table-reorder-rf__drag-handle:active {
+	cursor: grabbing;
+}
+
 .yamabiko-table-reorder-rf__title {
 	margin: 0;
 	font-size: 16px;
