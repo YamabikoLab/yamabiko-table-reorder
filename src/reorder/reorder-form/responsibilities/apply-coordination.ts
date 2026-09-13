@@ -13,7 +13,7 @@ import { columnTableIntegration } from '@/reorder/column-reorder/responsibilitie
 import { requiresLargeReorderApply } from '@/reorder/reorder-apply-policy';
 import { rowTableIntegration } from '@/reorder/row-reorder/responsibilities/table-integration';
 
-import type { RfApplyRequest, RfApplyRequestReceiver, RfApplyResult } from './interaction';
+import type { RfApplyRequest, RfApplyResult } from './interaction';
 
 /**
  * WordPress Reorder Apply Integrationへ公開する確認付き大規模反映のライフサイクル状態。
@@ -259,7 +259,10 @@ const rfApplyCoordinationStore = createStore< RfApplyCoordinationStore >()(
  * @param request RF InteractionがApply要求時点で解決した候補。
  * @param resolve RF Interactionへライフサイクル結果を返すcallback。
  */
-export const receiveRfApplyRequest: RfApplyRequestReceiver = ( request, resolve ) => {
+export const receiveRfApplyRequest = (
+	request: RfApplyRequest,
+	resolve: ( result: RfApplyResult ) => void
+): void => {
 	/* 進行中ライフサイクルと競合する要求は黙って破棄せず、呼び出し元Interactionをfailureで解放する。 */
 	if ( rfApplyCoordinationStore.getState().snapshot.phase !== 'idle' ) {
 		resolve( 'failure' );

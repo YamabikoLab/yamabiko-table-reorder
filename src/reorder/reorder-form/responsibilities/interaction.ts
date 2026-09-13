@@ -19,6 +19,7 @@ import {
 	type RowBlockingMergedRange,
 } from '@/reorder/row-reorder/responsibilities/table-integration';
 
+import { receiveRfApplyRequest } from './apply-coordination';
 import {
 	interpretColumnRfInput,
 	interpretRowRfInput,
@@ -55,17 +56,6 @@ export type RfApplyRequest =
 
 /** RF Apply CoordinationがRF Interactionへ返すLifecycle結果。 */
 export type RfApplyResult = 'success' | 'failure' | 'cancelled';
-
-/**
- * RF Apply CoordinationがApply要求を受け取る内部接続境界。
- *
- * @param request Apply要求時点の現在Tableで成立したReorder Kind固有candidate。
- * @param resolve Apply Coordinationが確定したLifecycle結果をRF Interactionへ返す通知。
- */
-export type RfApplyRequestReceiver = (
-	request: RfApplyRequest,
-	resolve: ( result: RfApplyResult ) => void
-) => void;
 
 /** Row RFフォームの初期入力。 */
 const INITIAL_ROW_INPUT: RowRfFormInput = {
@@ -138,9 +128,6 @@ type RfInteractionStoreActions = {
 
 /** RF Interactionの状態と、その状態を変更できるStore内部操作。 */
 type RfInteractionStore = RfInteractionStoreState & RfInteractionStoreActions;
-
-/** RF Apply Coordination実装が接続されるまでApply要求を外部へ流さないための内部Receiver。 */
-let applyRequestReceiver: RfApplyRequestReceiver | null = null;
 
 /**
  * Row Resolution結果から、Presentationへ公開してよい現在結果だけを取り出す。
@@ -446,8 +433,8 @@ export const rfInteractionStore = createStore< RfInteractionStore >()(
 				}
 
 				const evaluated = evaluateOpenSession( session );
-				// freshな指定が未成立、またはApply Coordination未接続ならLifecycleを開始せず最新表示結果だけを反映する。
-				if ( evaluated.request === null || applyRequestReceiver === null ) {
+				// freshな指定が未成立ならLifecycleを開始せず最新表示結果だけを反映する。
+				if ( evaluated.request === null ) {
 					set(
 						{ session: { ...session, evaluation: evaluated.evaluation } },
 						undefined,
@@ -464,7 +451,7 @@ export const rfInteractionStore = createStore< RfInteractionStore >()(
 					columnInput: session.columnInput,
 				};
 				set( { session: applyingSession }, undefined, 'rf-interaction/request-apply' );
-				applyRequestReceiver( evaluated.request, ( result ) => {
+				receiveRfApplyRequest( evaluated.request, ( result ) => {
 					get().resolveApply( tableIdentity, result );
 				} );
 			},
@@ -531,23 +518,4 @@ export const rfInteraction = {
 	/** @param tableIdentity Applyを要求する現在RF Sessionの対象Table Identity。 */
 	requestApply: ( tableIdentity: string ) =>
 		rfInteractionStore.getState().requestApply( tableIdentity ),
-};
-
-/**
- * Phase 5のRF Apply CoordinationがApply要求を受け取るための内部接続境界。
- *
- * 一度に一つのReceiverだけを接続し、返却cleanupは同じReceiverが現在も接続中の場合だけ解除する。
- *
- * @param receiver RF Apply Coordinationが提供するApply要求受付。
- * @return 接続を解除するcleanup。
- */
-export const connectRfApplyCoordination = ( receiver: RfApplyRequestReceiver ): ( () => void ) => {
-	applyRequestReceiver = receiver;
-
-	return () => {
-		// 古いcleanupが後から呼ばれても、新しく接続されたReceiverを誤って解除しない。
-		if ( applyRequestReceiver === receiver ) {
-			applyRequestReceiver = null;
-		}
-	};
 };
