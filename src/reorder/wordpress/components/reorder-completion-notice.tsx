@@ -6,7 +6,7 @@
  */
 
 import { Snackbar } from '@wordpress/components';
-import { useEffect } from '@wordpress/element';
+import { useEffect, useRef } from '@wordpress/element';
 
 import './reorder-completion-notice.scss';
 
@@ -65,13 +65,15 @@ export const ReorderCompletionNotice = ( props: {
 	onRemove: () => void;
 } ) => {
 	const { status, message, onRemove } = props;
+	const onRemoveRef = useRef( onRemove );
+	onRemoveRef.current = onRemove;
 
 	useEffect( () => {
-		const timeoutId = setTimeout( onRemove, COMPLETION_NOTICE_DURATION_MS );
+		const timeoutId = setTimeout( () => onRemoveRef.current(), COMPLETION_NOTICE_DURATION_MS );
 		return () => {
 			clearTimeout( timeoutId );
 		};
-	}, [ message, onRemove, status ] );
+	}, [ message, status ] );
 
 	const contentClassName =
 		status === 'failure'
