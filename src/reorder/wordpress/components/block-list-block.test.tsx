@@ -5,12 +5,7 @@
  */
 
 import { act, render } from '@testing-library/react';
-import type {
-	DragEventHandler,
-	MouseEventHandler,
-	PointerEventHandler,
-	ReactNode,
-} from 'react';
+import type { DragEventHandler, MouseEventHandler, PointerEventHandler, ReactNode } from 'react';
 
 import { reorderMode } from '@/reorder/reorder-mode';
 import {

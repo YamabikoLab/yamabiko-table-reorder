@@ -5,11 +5,7 @@
  * WordPress wrapper同期や方向固有Lifecycle cleanupはこの契約を利用し、React renderを要求せずに現在状態へ追従する。
  */
 
-import {
-	reorderMode,
-	reorderModeStore,
-	type ReorderKind,
-} from '@/reorder/reorder-mode';
+import { reorderMode, reorderModeStore, type ReorderKind } from '@/reorder/reorder-mode';
 
 /** 対象Tableから見たReorder Modeを表す。 */
 export type TableReorderMode = ReorderKind | 'edit';

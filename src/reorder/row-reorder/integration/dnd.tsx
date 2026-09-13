@@ -173,7 +173,11 @@ export const RowDnd = ( props: {
 			onDragEnd={ onDragEnd }
 		>
 			{ presentationEnabled && <RowPresentation /> }
-			<RowInput enabled={ enabled } tableIdentity={ tableIdentity } activeDraggable={ activeDraggable }>
+			<RowInput
+				enabled={ enabled }
+				tableIdentity={ tableIdentity }
+				activeDraggable={ activeDraggable }
+			>
 				{ ( onPointerDownCapture ) =>
 					children( ( event ) => {
 						/* 現在modeが行でない入力は、安定した接続を維持したままRow Inputへ渡さない。 */

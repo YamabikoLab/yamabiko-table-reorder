@@ -25,10 +25,7 @@ import {
 	type ColumnHighlightPointerOverHandler,
 } from '@/reorder/column-reorder/responsibilities/presentation/column-highlight';
 import { reorderMode } from '@/reorder/reorder-mode';
-import {
-	subscribeReorderMode,
-	type TableReorderMode,
-} from '@/reorder/reorder-mode-subscription';
+import { subscribeReorderMode, type TableReorderMode } from '@/reorder/reorder-mode-subscription';
 import { RowDnd, type RowDndPointerDownHandler } from '@/reorder/row-reorder/integration/dnd';
 import {
 	RowHighlight,
@@ -235,11 +232,7 @@ export const ReorderModeBlockListBlock = ( props: {
 	return (
 		<RowHighlight enabled isActive={ isRowReorderActive } tableIdentity={ clientId }>
 			{ ( rowHighlightPointerOverCapture ) => (
-				<ColumnHighlight
-					enabled
-					isActive={ isColumnReorderActive }
-					tableIdentity={ clientId }
-				>
+				<ColumnHighlight enabled isActive={ isColumnReorderActive } tableIdentity={ clientId }>
 					{ ( columnHighlightPointerOverCapture, columnHighlightPointerOutCapture ) => (
 						<RowDnd
 							enabled

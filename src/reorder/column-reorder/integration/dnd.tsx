@@ -214,7 +214,11 @@ export const ColumnDnd = ( props: {
 			onDragEnd={ onDragEnd }
 		>
 			{ presentationActive && <ColumnPresentation /> }
-			<ColumnInput enabled={ enabled } tableIdentity={ tableIdentity } activeDraggable={ activeDraggable }>
+			<ColumnInput
+				enabled={ enabled }
+				tableIdentity={ tableIdentity }
+				activeDraggable={ activeDraggable }
+			>
 				{ ( onPointerDownCapture ) =>
 					children( ( event ) => {
 						/* 現在modeが列でない入力は、安定した接続を維持したままColumn Inputへ渡さない。 */
