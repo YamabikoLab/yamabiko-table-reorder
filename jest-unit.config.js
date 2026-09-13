@@ -20,6 +20,7 @@ module.exports = {
 	moduleNameMapper: {
 		...( defaultConfig.moduleNameMapper ?? {} ),
 		'^@/(.*)$': '<rootDir>/src/$1',
+		'^@wordpress/rich-text$': '<rootDir>/tests/jest/wordpress-rich-text.js',
 	},
 	testPathIgnorePatterns: [
 		...( defaultConfig.testPathIgnorePatterns ?? [] ),

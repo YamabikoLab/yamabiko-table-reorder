@@ -8,15 +8,19 @@
 import { columnTableIntegration } from '@/reorder/column-reorder/responsibilities/table-integration';
 import { rowTableIntegration } from '@/reorder/row-reorder/responsibilities/table-integration';
 
+import { receiveRfApplyRequest } from './apply-coordination';
 import { columnRfResolution } from './column-resolution';
 import {
-	connectRfApplyCoordination,
 	rfInteraction,
 	rfInteractionStore,
 	type RfApplyRequest,
 	type RfApplyResult,
 } from './interaction';
 import { rowRfResolution } from './row-resolution';
+
+jest.mock( './apply-coordination', () => ( {
+	receiveRfApplyRequest: jest.fn(),
+} ) );
 
 jest.mock( '@/reorder/row-reorder/responsibilities/table-integration', () => ( {
 	rowTableIntegration: {
@@ -47,12 +51,18 @@ const COLUMNS = [
 ];
 
 const resetInteraction = () => {
-	rfInteractionStore.setState( { session: { status: 'closed' } } );
+	rfInteractionStore.setState( {
+		session: { status: 'closed' },
+		applyOutcome: { status: 'idle' },
+	} );
 };
+
+const mockedReceiveRfApplyRequest = jest.mocked( receiveRfApplyRequest );
 
 describe( 'RF Interaction', () => {
 	beforeEach( () => {
 		resetInteraction();
+		mockedReceiveRfApplyRequest.mockReset();
 		jest.spyOn( rowTableIntegration, 'getConstraints' ).mockReturnValue( {
 			rowCount: 3,
 			blockedBoundaries: [],
@@ -241,7 +251,6 @@ describe( 'RF Interaction', () => {
 	 *
 	 * 事前条件:
 	 * - Table AのRow入力はresolvedとして表示されている。
-	 * - RF Apply Coordinationの受信境界が接続されている。
 	 *
 	 * 操作:
 	 * - Resolutionが返すcandidateを変更してからApplyを要求する。
@@ -261,7 +270,7 @@ describe( 'RF Interaction', () => {
 			},
 		} );
 		let received: RfApplyRequest | null = null;
-		const disconnect = connectRfApplyCoordination( ( request ) => {
+		mockedReceiveRfApplyRequest.mockImplementation( ( request ) => {
 			received = request;
 		} );
 
@@ -280,7 +289,6 @@ describe( 'RF Interaction', () => {
 			tableIdentity: 'table-a',
 			kind: 'row',
 		} );
-		disconnect();
 	} );
 
 	/**
@@ -289,7 +297,6 @@ describe( 'RF Interaction', () => {
 	 *
 	 * 事前条件:
 	 * - Table AのColumn入力はresolvedとして表示されている。
-	 * - RF Apply Coordinationの受信境界が接続されている。
 	 *
 	 * 操作:
 	 * - Column Resolutionが返すcandidateを変更してからApplyを要求する。
@@ -310,7 +317,7 @@ describe( 'RF Interaction', () => {
 			},
 		} );
 		let received: RfApplyRequest | null = null;
-		const disconnect = connectRfApplyCoordination( ( request ) => {
+		mockedReceiveRfApplyRequest.mockImplementation( ( request ) => {
 			received = request;
 		} );
 
@@ -329,7 +336,6 @@ describe( 'RF Interaction', () => {
 			tableIdentity: 'table-a',
 			kind: 'column',
 		} );
-		disconnect();
 	} );
 
 	/**
@@ -338,7 +344,6 @@ describe( 'RF Interaction', () => {
 	 *
 	 * 事前条件:
 	 * - Table AのRow入力は一度resolvedとして表示されている。
-	 * - RF Apply Coordinationの受信境界が接続されている。
 	 *
 	 * 操作:
 	 * - Apply要求時の再評価だけをno-opへ変化させる。
@@ -350,14 +355,10 @@ describe( 'RF Interaction', () => {
 		rfInteraction.open( 'table-a' );
 		rfInteraction.updateRowInput( 'table-a', ROW_INPUT );
 		jest.spyOn( rowRfResolution, 'resolve' ).mockReturnValue( { status: 'no-op' } );
-		let requestCount = 0;
-		const disconnect = connectRfApplyCoordination( () => {
-			requestCount++;
-		} );
 
 		rfInteraction.requestApply( 'table-a' );
 
-		expect( requestCount ).toBe( 0 );
+		expect( mockedReceiveRfApplyRequest ).not.toHaveBeenCalled();
 		expect( rfInteractionStore.getState().session ).toMatchObject( {
 			status: 'open',
 			tableIdentity: 'table-a',
@@ -367,7 +368,6 @@ describe( 'RF Interaction', () => {
 				result: { status: 'no-op' },
 			},
 		} );
-		disconnect();
 	} );
 
 	/**
@@ -384,10 +384,6 @@ describe( 'RF Interaction', () => {
 	 * - 現在のTable A / Row applying Sessionが変化せず、Apply要求も一回だけである。
 	 */
 	it( 'when applying is active, should ignore session-changing commands and duplicate apply requests', () => {
-		let requestCount = 0;
-		const disconnect = connectRfApplyCoordination( () => {
-			requestCount++;
-		} );
 		rfInteraction.open( 'table-a' );
 		rfInteraction.updateRowInput( 'table-a', ROW_INPUT );
 		rfInteraction.requestApply( 'table-a' );
@@ -402,14 +398,13 @@ describe( 'RF Interaction', () => {
 		rfInteraction.notifyTableChanged( 'table-a' );
 		rfInteraction.requestApply( 'table-a' );
 
-		expect( requestCount ).toBe( 1 );
+		expect( mockedReceiveRfApplyRequest ).toHaveBeenCalledTimes( 1 );
 		expect( rfInteractionStore.getState().session ).toMatchObject( {
 			status: 'applying',
 			tableIdentity: 'table-a',
 			kind: 'row',
 			rowInput: ROW_INPUT,
 		} );
-		disconnect();
 	} );
 
 	/**
@@ -433,7 +428,7 @@ describe( 'RF Interaction', () => {
 		'when apply resolves as %s, should transition to the expected session state',
 		( result, expectedSession ) => {
 			let resolveApply: ( result: RfApplyResult ) => void = () => undefined;
-			const disconnect = connectRfApplyCoordination( ( _request, resolve ) => {
+			mockedReceiveRfApplyRequest.mockImplementation( ( _request, resolve ) => {
 				resolveApply = resolve;
 			} );
 			rfInteraction.open( 'table-a' );
@@ -444,7 +439,6 @@ describe( 'RF Interaction', () => {
 
 			const session = rfInteractionStore.getState().session;
 			expect( session ).toMatchObject( expectedSession );
-			disconnect();
 		}
 	);
 } );

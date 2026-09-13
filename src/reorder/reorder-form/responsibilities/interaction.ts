@@ -1,7 +1,7 @@
 /**
- * RF Interactionとして、一つの対象Tableに対するRF入力Sessionと粗いApply Lifecycleを所有する。
+ * RF Interactionとして、一つの対象Tableに対するRF入力Session、粗いApply Lifecycle、未消費のApply結果を所有する。
  *
- * Zustandのvanilla storeを状態正本とし、React component lifecycleから独立してSessionを維持する。
+ * Zustandのvanilla storeを状態正本とし、React component lifecycleから独立してSessionとApply Outcomeを維持する。
  * 現在Tableに依存する表示結果は要求時点で既存Table Integration / Input Interpretation / Resolutionから再評価し、
  * 並び替え種別固有candidateはPresentationへ公開せずRF Apply Coordinationとの内部境界だけへ渡す。
  */
@@ -19,6 +19,7 @@ import {
 	type RowBlockingMergedRange,
 } from '@/reorder/row-reorder/responsibilities/table-integration';
 
+import { receiveRfApplyRequest } from './apply-coordination';
 import {
 	interpretColumnRfInput,
 	interpretRowRfInput,
@@ -53,19 +54,24 @@ export type RfApplyRequest =
 	| { kind: 'row'; candidate: RowRfMoveCandidate }
 	| { kind: 'column'; candidate: ColumnRfMoveCandidate };
 
-/** RF Apply CoordinationがRF Interactionへ返すLifecycle結果。 */
+/**
+ * RF Apply CoordinationがRF Interactionへ返す反映結果。
+ *
+ * `success`は反映完了、`failure`は反映失敗、`cancelled`は利用者が確認を取り消した結果を表す。
+ * 取消は失敗として通知せず、入力を保持したRF Sessionへ戻すために失敗と区別する。
+ */
 export type RfApplyResult = 'success' | 'failure' | 'cancelled';
 
 /**
- * RF Apply CoordinationがApply要求を受け取る内部接続境界。
+ * RF InteractionがPresentationへ公開する未消費の反映結果。
  *
- * @param request Apply要求時点の現在Tableで成立したReorder Kind固有candidate。
- * @param resolve Apply Coordinationが確定したLifecycle結果をRF Interactionへ返す通知。
+ * 成功または失敗だけを対象Tableと関連付けて保持し、利用者による取消は通知対象にしない。
+ * Reactのmount状態に依存せず、対象TableのPresentationが消費するか、新しいRF Sessionまたは反映を開始するまで維持する。
  */
-export type RfApplyRequestReceiver = (
-	request: RfApplyRequest,
-	resolve: ( result: RfApplyResult ) => void
-) => void;
+export type RfApplyOutcome =
+	| { status: 'idle' }
+	| { status: 'success'; tableIdentity: string }
+	| { status: 'failure'; tableIdentity: string };
 
 /** Row RFフォームの初期入力。 */
 const INITIAL_ROW_INPUT: RowRfFormInput = {
@@ -80,6 +86,9 @@ const INITIAL_COLUMN_INPUT: ColumnRfFormInput = {
 	targetColumnIndex: null,
 	position: null,
 };
+
+/** 未消費のApply結果が存在しない状態。 */
+const IDLE_APPLY_OUTCOME: RfApplyOutcome = { status: 'idle' };
 
 /** RF Sessionが保持するReorder Kind別入力。 */
 type RfSessionInputs = {
@@ -122,6 +131,7 @@ type RfSessionState =
 /** RF Interaction Storeが所有する状態。 */
 type RfInteractionStoreState = {
 	session: RfSessionState;
+	applyOutcome: RfApplyOutcome;
 };
 
 /** RF Interaction Storeが所有する状態遷移。 */
@@ -134,13 +144,11 @@ type RfInteractionStoreActions = {
 	notifyTableChanged: ( tableIdentity: string ) => void;
 	requestApply: ( tableIdentity: string ) => void;
 	resolveApply: ( tableIdentity: string, result: RfApplyResult ) => void;
+	consumeApplyOutcome: ( tableIdentity: string ) => void;
 };
 
 /** RF Interactionの状態と、その状態を変更できるStore内部操作。 */
 type RfInteractionStore = RfInteractionStoreState & RfInteractionStoreActions;
-
-/** RF Apply Coordination実装が接続されるまでApply要求を外部へ流さないための内部Receiver。 */
-let applyRequestReceiver: RfApplyRequestReceiver | null = null;
 
 /**
  * Row Resolution結果から、Presentationへ公開してよい現在結果だけを取り出す。
@@ -320,6 +328,7 @@ export const rfInteractionStore = createStore< RfInteractionStore >()(
 	devtools(
 		( set, get ) => ( {
 			session: { status: 'closed' },
+			applyOutcome: IDLE_APPLY_OUTCOME,
 			open: ( tableIdentity ) => {
 				const session = get().session;
 				// Apply結果待機中は現在Sessionを固定し、別Session開始や再初期化を受け付けない。
@@ -344,6 +353,7 @@ export const rfInteractionStore = createStore< RfInteractionStore >()(
 							columnInput,
 							evaluation: row.evaluation,
 						},
+						applyOutcome: IDLE_APPLY_OUTCOME,
 					},
 					undefined,
 					'rf-interaction/open'
@@ -446,8 +456,8 @@ export const rfInteractionStore = createStore< RfInteractionStore >()(
 				}
 
 				const evaluated = evaluateOpenSession( session );
-				// freshな指定が未成立、またはApply Coordination未接続ならLifecycleを開始せず最新表示結果だけを反映する。
-				if ( evaluated.request === null || applyRequestReceiver === null ) {
+				// freshな指定が未成立ならLifecycleを開始せず最新表示結果だけを反映する。
+				if ( evaluated.request === null ) {
 					set(
 						{ session: { ...session, evaluation: evaluated.evaluation } },
 						undefined,
@@ -463,8 +473,13 @@ export const rfInteractionStore = createStore< RfInteractionStore >()(
 					rowInput: session.rowInput,
 					columnInput: session.columnInput,
 				};
-				set( { session: applyingSession }, undefined, 'rf-interaction/request-apply' );
-				applyRequestReceiver( evaluated.request, ( result ) => {
+				/* 新しい反映開始時は前回の未消費結果を破棄し、今回の反映結果と混在させない。 */
+				set(
+					{ session: applyingSession, applyOutcome: IDLE_APPLY_OUTCOME },
+					undefined,
+					'rf-interaction/request-apply'
+				);
+				receiveRfApplyRequest( evaluated.request, ( result ) => {
 					get().resolveApply( tableIdentity, result );
 				} );
 			},
@@ -475,9 +490,16 @@ export const rfInteractionStore = createStore< RfInteractionStore >()(
 					return;
 				}
 
-				// 正常反映が完了したSessionは入力を残さず終了する。
+				// 正常反映が完了したSessionは入力を残さず終了し、成功事実をPresentationが消費するまで保持する。
 				if ( result === 'success' ) {
-					set( { session: { status: 'closed' } }, undefined, 'rf-interaction/apply-success' );
+					set(
+						{
+							session: { status: 'closed' },
+							applyOutcome: { status: 'success', tableIdentity },
+						},
+						undefined,
+						'rf-interaction/apply-success'
+					);
 					return;
 				}
 
@@ -494,7 +516,22 @@ export const rfInteractionStore = createStore< RfInteractionStore >()(
 					columnInput: session.columnInput,
 					evaluation,
 				};
-				set( { session: openSession }, undefined, `rf-interaction/apply-${ result }` );
+				const applyOutcome: RfApplyOutcome =
+					result === 'failure' ? { status: 'failure', tableIdentity } : IDLE_APPLY_OUTCOME;
+				set(
+					{ session: openSession, applyOutcome },
+					undefined,
+					`rf-interaction/apply-${ result }`
+				);
+			},
+			consumeApplyOutcome: ( tableIdentity ) => {
+				const applyOutcome = get().applyOutcome;
+				// 対象Table以外からの消費要求では未消費結果を失わない。
+				if ( applyOutcome.status === 'idle' || applyOutcome.tableIdentity !== tableIdentity ) {
+					return;
+				}
+
+				set( { applyOutcome: IDLE_APPLY_OUTCOME }, undefined, 'rf-interaction/consume-outcome' );
 			},
 		} ),
 		{ name: 'Yamabiko Table Reorder / RF Interaction' }
@@ -531,23 +568,7 @@ export const rfInteraction = {
 	/** @param tableIdentity Applyを要求する現在RF Sessionの対象Table Identity。 */
 	requestApply: ( tableIdentity: string ) =>
 		rfInteractionStore.getState().requestApply( tableIdentity ),
-};
-
-/**
- * Phase 5のRF Apply CoordinationがApply要求を受け取るための内部接続境界。
- *
- * 一度に一つのReceiverだけを接続し、返却cleanupは同じReceiverが現在も接続中の場合だけ解除する。
- *
- * @param receiver RF Apply Coordinationが提供するApply要求受付。
- * @return 接続を解除するcleanup。
- */
-export const connectRfApplyCoordination = ( receiver: RfApplyRequestReceiver ): ( () => void ) => {
-	applyRequestReceiver = receiver;
-
-	return () => {
-		// 古いcleanupが後から呼ばれても、新しく接続されたReceiverを誤って解除しない。
-		if ( applyRequestReceiver === receiver ) {
-			applyRequestReceiver = null;
-		}
-	};
+	/** @param tableIdentity 反映結果通知を表示済みのTable Identity。 */
+	consumeApplyOutcome: ( tableIdentity: string ) =>
+		rfInteractionStore.getState().consumeApplyOutcome( tableIdentity ),
 };

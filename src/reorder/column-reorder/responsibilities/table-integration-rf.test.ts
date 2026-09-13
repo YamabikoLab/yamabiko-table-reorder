@@ -59,22 +59,25 @@ describe( 'Column Table Integration RF contract', () => {
 	} );
 
 	/**
-	 * 保存用RichText表現を自前で解析せず、利用可能な見出しだけ表示値として公開することを確認する。
+	 * Core TableのRichText表現と文字列RichText表現を、利用者向け見出しへ正規化できることを確認する。
 	 *
 	 * 事前条件:
-	 * - 1列目は実HTML markupを含むRichText文字列である。
-	 * - 2列目はHTML entityを含む文字列である。
-	 * - 3列目は通常のプレーンテキスト見出しである。
+	 * - 1列目はtoPlainText()を提供する現在のRichText表現である。
+	 * - 2列目は装飾markupを含む文字列である。
+	 * - 3列目はHTML entityを含む文字列である。
 	 *
 	 * 操作:
 	 * - RF用最小列記述を取得する。
 	 *
 	 * 期待結果:
-	 * - 実HTML markupを含む1列目はheadingがnullになり、列番号fallbackへ委ねる。
-	 * - HTML entityはWordPressの変換APIで表示文字へ復元される。
-	 * - プレーンテキストはそのままheadingとして返る。
+	 * - RichText表現は表示用プレーンテキストとして公開される。
+	 * - 装飾markupは除かれ、表示文字だけが公開される。
+	 * - HTML entityは表示文字へ復元される。
 	 */
-	it( 'when head content contains markup or entities, should expose only safely normalized headings', () => {
+	it( 'when head content uses RichText or HTML representations, should expose normalized plain-text headings', () => {
+		const richTextHeading = {
+			toPlainText: jest.fn().mockReturnValue( '商品名' ),
+		};
 		selectMock.mockReturnValue( {
 			getBlock: jest.fn().mockReturnValue( {
 				name: 'core/table',
@@ -82,9 +85,9 @@ describe( 'Column Table Integration RF contract', () => {
 					head: [
 						{
 							cells: [
-								{ content: '<strong>商品名</strong>' },
+								{ content: richTextHeading },
+								{ content: '<strong>価格</strong>' },
 								{ content: 'A &amp; B' },
-								{ content: '価格' },
 							],
 						},
 					],
@@ -94,10 +97,11 @@ describe( 'Column Table Integration RF contract', () => {
 		} );
 
 		expect( columnTableIntegration.getColumnInputDescriptors( 'table-a' ) ).toEqual( [
-			{ columnIndex: 0, columnNumber: 1, heading: null },
-			{ columnIndex: 1, columnNumber: 2, heading: 'A & B' },
-			{ columnIndex: 2, columnNumber: 3, heading: '価格' },
+			{ columnIndex: 0, columnNumber: 1, heading: '商品名' },
+			{ columnIndex: 1, columnNumber: 2, heading: '価格' },
+			{ columnIndex: 2, columnNumber: 3, heading: 'A & B' },
 		] );
+		expect( richTextHeading.toPlainText ).toHaveBeenCalledTimes( 1 );
 	} );
 
 	/**

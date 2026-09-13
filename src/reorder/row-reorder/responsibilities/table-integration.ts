@@ -26,7 +26,7 @@ export type RowBlockingMergedRange = {
 };
 
 /** RF Apply前に現在Tableへ再照合した行移動の評価結果。 */
-export type RowApplyAssessment = {
+type RowApplyAssessment = {
 	/** 行移動によって表示位置が変わる範囲に含まれる物理セル数。 */
 	affectedCellCount: number;
 	/** 移動元行を除去した後に移動対象が配置される0-based最終行位置。 */

@@ -65,8 +65,8 @@ const LifecycleHarness = ( props: { presentation: ReorderApplyPresentationState 
 	if ( presentation.phase === 'applying' ) {
 		return <div ref={ applyingReferenceElementRef }>Applying</div>;
 	}
-	/* 再mount後は、復帰中表示を新しいEditor DOM Contextの基準要素として接続し直す。 */
-	if ( presentation.phase === 'remounting' ) {
+	/* 表示復帰時は、現在Tableと同じEditor DOM Contextに属する基準要素を接続する。 */
+	if ( presentation.phase === 'restoring' ) {
 		return <div ref={ restorationReferenceElementRef }>Restoring</div>;
 	}
 	return null;
@@ -158,11 +158,11 @@ describe( 'WordPress Reorder Apply Integration lifecycle', () => {
 
 	/**
 	 * 概要:
-	 * - 反映中から再mountへ移る際に以前のEditor DOM Contextを再利用せず、現在の表示環境で復帰することを確認する。
+	 * - 反映中から表示復帰へ移る際に以前のEditor DOM Contextを再利用せず、現在の表示環境で復帰することを確認する。
 	 *
 	 * 事前条件:
 	 * - 反映中表示はEditor DOM Context Aに属している。
-	 * - 行反映後の再mount表示は別のEditor DOM Context Bに属している。
+	 * - 行反映後の表示復帰は別のEditor DOM Context Bに属している。
 	 *
 	 * 操作:
 	 * - Context Aで反映開始まで進めた後、Context Bで表示復帰段階へ進める。
@@ -171,13 +171,13 @@ describe( 'WordPress Reorder Apply Integration lifecycle', () => {
 	 * - 表示復帰にはContext Bのdocumentと反映後最終行位置だけを利用する。
 	 * - 復帰表示の描画後にLifecycleを完了する。
 	 */
-	it( 'when remounting occurs in a new editor context, should restore only in the remounted context before completing', () => {
+	it( 'when restoration occurs in a new editor context, should restore only in the current context before completing', () => {
 		const apply = jest.fn();
 		const complete = jest.fn();
 		const applyingWindow = createEditorWindow();
 		const restorationWindow = createEditorWindow();
 		const applyingDocument = document.implementation.createHTMLDocument( 'applying-editor' );
-		const restorationDocument = document.implementation.createHTMLDocument( 'remounted-editor' );
+		const restorationDocument = document.implementation.createHTMLDocument( 'restored-editor' );
 		resolveEditorDomContextMock.mockReturnValueOnce( {
 			document: applyingDocument,
 			window: applyingWindow.window,
@@ -203,7 +203,8 @@ describe( 'WordPress Reorder Apply Integration lifecycle', () => {
 		view.rerender(
 			<LifecycleHarness
 				presentation={ {
-					phase: 'remounting',
+					phase: 'restoring',
+					owner: 'row',
 					kind: 'row',
 					tableIdentity: 'table-a',
 					applied: true,
@@ -223,20 +224,21 @@ describe( 'WordPress Reorder Apply Integration lifecycle', () => {
 
 	/**
 	 * 概要:
-	 * - Table更新が成立しなかった場合は誤った表示復帰を行わずLifecycleだけを完了することを確認する。
+	 * - Table更新が成立せず復帰先を確定できない場合も、誤った表示復帰を行わずLifecycleだけを完了することを確認する。
 	 *
 	 * 事前条件:
-	 * - 列の並び替えは反映されず、対象Tableは再mountされている。
-	 * - 再mount後のEditor DOM Contextを解決できる。
+	 * - 列の並び替えは反映されていない。
+	 * - 表示復帰先は確定していない。
+	 * - 現在のEditor DOM Contextを解決できる。
 	 *
 	 * 操作:
 	 * - 表示復帰段階をmountし、描画待ちを完了する。
 	 *
 	 * 期待結果:
 	 * - 行・列どちらの表示復帰も行わない。
-	 * - 再mount後の表示を描画した後にLifecycleを完了する。
+	 * - 現在表示を描画した後にLifecycleを完了する。
 	 */
-	it( 'when a column update was not applied, should complete remounting without restoring a destination', () => {
+	it( 'when an update was not applied and has no destination, should complete restoration without restoring a destination', () => {
 		const complete = jest.fn();
 		const editorWindow = createEditorWindow();
 		resolveEditorDomContextMock.mockReturnValue( {
@@ -247,11 +249,12 @@ describe( 'WordPress Reorder Apply Integration lifecycle', () => {
 		render(
 			<LifecycleHarness
 				presentation={ {
-					phase: 'remounting',
+					phase: 'restoring',
+					owner: 'rf',
 					kind: 'column',
 					tableIdentity: 'table-a',
 					applied: false,
-					destinationIndex: 2,
+					destinationIndex: null,
 					complete,
 				} }
 			/>
