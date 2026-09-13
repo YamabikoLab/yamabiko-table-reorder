@@ -1,5 +1,5 @@
 /**
- * RF Apply Coordinationが通常反映と確認付き大規模反映を分離し、現在Table再照合、ライフサイクル、表示用概要、結果返却を所有する契約を確認する。
+ * RF Apply Coordinationが通常反映と確認付き大規模反映を分離し、現在Table再照合、表示復帰、表示用概要、結果返却を所有する契約を確認する。
  */
 
 import { columnTableIntegration } from '@/reorder/column-reorder/responsibilities/table-integration';
@@ -60,21 +60,22 @@ describe( 'RF Apply Coordination', () => {
 	} );
 
 	/**
-	 * 小規模なRF候補は長期ライフサイクルを作らず同期的に反映できることを確認する。
+	 * 小規模なRF候補の正常反映後は、移動先の表示復帰を終えてから成功を確定することを確認する。
 	 *
 	 * 事前条件:
 	 * - Row候補は現在Tableで成立し、更新対象セル数は大規模反映閾値以下である。
 	 * - Table Integrationの確定更新も成功する。
 	 *
 	 * 操作:
-	 * - RF Apply要求を受け付ける。
+	 * - RF Apply要求を受け付け、表示復帰完了を通知する。
 	 *
 	 * 期待結果:
 	 * - 一回の確定更新だけが要求される。
-	 * - callbackへsuccessが一度返る。
-	 * - 大規模反映ライフサイクルと表示用概要は作られない。
+	 * - 表示復帰中は反映後の0-based最終位置を公開する。
+	 * - 表示復帰完了後にcallbackへsuccessが一度返る。
+	 * - 確認表示用概要は作られない。
 	 */
-	it( 'when a row request uses the direct path, should apply once and resolve success without long-lived state', () => {
+	it( 'when a direct row apply succeeds, should resolve success only after restoring its final destination', () => {
 		rowAssessmentMock.mockReturnValue( { affectedCellCount: 10, destinationRowIndex: 3 } );
 		rowApplyMock.mockReturnValue( true );
 		const resolve = jest.fn();
@@ -83,14 +84,24 @@ describe( 'RF Apply Coordination', () => {
 
 		expect( rowApplyMock ).toHaveBeenCalledTimes( 1 );
 		expect( rowApplyMock ).toHaveBeenCalledWith( rowRequest.candidate );
+		expect( getRfApplyCoordinationSnapshot() ).toEqual( {
+			phase: 'restoring',
+			tableIdentity: 'table-row',
+			kind: 'row',
+			applied: true,
+			destinationIndex: 3,
+		} );
+		expect( getRfApplySummary() ).toBeNull();
+		expect( resolve ).not.toHaveBeenCalled();
+
+		completeRfApplyRestoration();
 		expect( resolve ).toHaveBeenCalledTimes( 1 );
 		expect( resolve ).toHaveBeenCalledWith( 'success' );
 		expect( getRfApplyCoordinationSnapshot() ).toEqual( { phase: 'idle' } );
-		expect( getRfApplySummary() ).toBeNull();
 	} );
 
 	/**
-	 * 小規模なColumn候補の確定更新が失敗した場合に、要求を失敗として完了できることを確認する。
+	 * 小規模なColumn候補の確定更新が失敗した場合に、表示復帰へ進めず要求を失敗として完了できることを確認する。
 	 *
 	 * 事前条件:
 	 * - Column候補は現在Tableで成立し、更新対象セル数は大規模反映閾値以下である。
@@ -102,9 +113,9 @@ describe( 'RF Apply Coordination', () => {
 	 * 期待結果:
 	 * - Columnの確定更新が一度だけ要求される。
 	 * - callbackへfailureが一度返る。
-	 * - 大規模反映ライフサイクルは開始されない。
+	 * - 表示復帰ライフサイクルは開始されない。
 	 */
-	it( 'when a direct column apply fails, should resolve failure without starting a large lifecycle', () => {
+	it( 'when a direct column apply fails, should resolve failure without starting restoration', () => {
 		columnAssessmentMock.mockReturnValue( {
 			affectedCellCount: 10,
 			destinationColumnIndex: 0,
@@ -160,6 +171,7 @@ describe( 'RF Apply Coordination', () => {
 	 * 期待結果:
 	 * - Continue時点ではTableを変更しない。
 	 * - confirmingからapplying、restoring、idleへ遷移する。
+	 * - restoringはApply直前再照合で確定した0-based最終位置を保持する。
 	 * - callbackは内部状態の破棄後にsuccessで一度だけ呼ばれる。
 	 */
 	it( 'when a large row request completes, should resolve success only after restoration and cleanup', () => {
@@ -200,6 +212,7 @@ describe( 'RF Apply Coordination', () => {
 			tableIdentity: 'table-row',
 			kind: 'row',
 			applied: true,
+			destinationIndex: 3,
 		} );
 		expect( resolve ).not.toHaveBeenCalled();
 
@@ -258,9 +271,9 @@ describe( 'RF Apply Coordination', () => {
 	 *
 	 * 期待結果:
 	 * - Table Integrationの確定更新は呼ばれない。
-	 * - restoringを経由した後にfailureが返る。
+	 * - 復帰先を推測せずrestoringを経由した後にfailureが返る。
 	 */
-	it( 'when a large request becomes stale after continue, should restore without applying and resolve failure', () => {
+	it( 'when a large request becomes stale after continue, should restore without a destination and resolve failure', () => {
 		rowAssessmentMock
 			.mockReturnValueOnce( { affectedCellCount: 501, destinationRowIndex: 3 } )
 			.mockReturnValueOnce( null );
@@ -276,6 +289,7 @@ describe( 'RF Apply Coordination', () => {
 			tableIdentity: 'table-row',
 			kind: 'row',
 			applied: false,
+			destinationIndex: null,
 		} );
 		expect( resolve ).not.toHaveBeenCalled();
 
@@ -296,7 +310,7 @@ describe( 'RF Apply Coordination', () => {
 	 *
 	 * 期待結果:
 	 * - restoringではappliedがfalseになる。
-	 * - 表示復帰完了まではcallbackを呼ばない。
+	 * - Apply直前に確定した最終位置はsnapshotへ保持される。
 	 * - 表示復帰完了後にfailureを一度返す。
 	 */
 	it( 'when a large apply is rejected during the final update, should restore and resolve failure', () => {
@@ -315,6 +329,7 @@ describe( 'RF Apply Coordination', () => {
 			tableIdentity: 'table-row',
 			kind: 'row',
 			applied: false,
+			destinationIndex: 3,
 		} );
 		expect( resolve ).not.toHaveBeenCalled();
 
@@ -324,7 +339,7 @@ describe( 'RF Apply Coordination', () => {
 	} );
 
 	/**
-	 * 一つの大規模反映ライフサイクル中に別要求が来ても、二つ目のInteractionを未完了にしないことを確認する。
+	 * 一つの反映ライフサイクル中に別要求が来ても、二つ目のInteractionを未完了にしないことを確認する。
 	 *
 	 * 事前条件:
 	 * - Row候補がconfirmingとして保持されている。
@@ -337,7 +352,7 @@ describe( 'RF Apply Coordination', () => {
 	 * - 二つ目のcallbackへfailureが一度返る。
 	 * - 最初の確認ライフサイクルは維持される。
 	 */
-	it( 'when another request arrives during a large lifecycle, should fail the competing request without replacing the pending one', () => {
+	it( 'when another request arrives during an RF lifecycle, should fail the competing request without replacing the pending one', () => {
 		rowAssessmentMock.mockReturnValue( { affectedCellCount: 501, destinationRowIndex: 3 } );
 		const firstResolve = jest.fn();
 		const secondResolve = jest.fn();
