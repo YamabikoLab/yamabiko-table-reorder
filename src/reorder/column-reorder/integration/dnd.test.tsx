@@ -59,16 +59,16 @@ jest.mock( '@/reorder/column-reorder/integration/horizontal-auto-scroll', () => 
 	} ) ),
 } ) );
 
-let activeDraggableRef: { current: Draggable | null } | null = null;
-const columnInputPointerDownMock = jest.fn();
+let mockActiveDraggableRef: { current: Draggable | null } | null = null;
+const mockColumnInputPointerDown = jest.fn();
 
 jest.mock( '@/reorder/column-reorder/responsibilities/input', () => ( {
 	ColumnInput: ( props: {
 		activeDraggable: { current: Draggable | null };
 		children: ( handler: ( event: unknown ) => void ) => ReactNode;
 	} ) => {
-		activeDraggableRef = props.activeDraggable;
-		return props.children( columnInputPointerDownMock );
+		mockActiveDraggableRef = props.activeDraggable;
+		return props.children( mockColumnInputPointerDown );
 	},
 } ) );
 
@@ -124,7 +124,7 @@ const resetReorderMode = () => {
 describe( 'Column DnD Engine Integration', () => {
 	beforeEach( () => {
 		jest.clearAllMocks();
-		activeDraggableRef = null;
+		mockActiveDraggableRef = null;
 		resetReorderMode();
 		targetResolutionMock.resolve.mockReturnValue( resolvedTarget );
 		destinationResolverFactoryMock.mockReturnValue( {
@@ -152,13 +152,13 @@ describe( 'Column DnD Engine Integration', () => {
 		const event = {};
 
 		pointerDown( event );
-		expect( columnInputPointerDownMock ).not.toHaveBeenCalled();
+		expect( mockColumnInputPointerDown ).not.toHaveBeenCalled();
 
 		act( () => {
 			reorderMode.select( 'column', 'table-1' );
 		} );
 		pointerDown( event );
-		expect( columnInputPointerDownMock ).toHaveBeenCalledWith( event );
+		expect( mockColumnInputPointerDown ).toHaveBeenCalledWith( event );
 	} );
 
 	/**
@@ -267,11 +267,11 @@ describe( 'Column DnD Engine Integration', () => {
 			preventDefault: jest.fn(),
 		} as unknown as BeforeDragStartEvent );
 
-		if ( activeDraggableRef === null ) {
+		if ( mockActiveDraggableRef === null ) {
 			throw new Error( 'ColumnInput activeDraggable ref was not captured.' );
 		}
 		const destroy = jest.fn();
-		activeDraggableRef.current = { destroy } as unknown as Draggable;
+		mockActiveDraggableRef.current = { destroy } as unknown as Draggable;
 
 		act( () => {
 			reorderMode.select( 'column', 'table-1' );
