@@ -23,6 +23,148 @@ export const getRowReorderName = () => __( 'Reorder rows', 'yamabiko-table-reord
  */
 export const getColumnReorderName = () => __( 'Reorder columns', 'yamabiko-table-reorder' );
 
+/** RF入口と入力画面の表示名を取得する。 */
+export const getRfReorderName = () => __( 'Reorder with form', 'yamabiko-table-reorder' );
+
+/** RFで並び替える対象を選ぶ入力の表示名を取得する。 */
+export const getRfKindLegend = () => __( 'Reorder', 'yamabiko-table-reorder' );
+
+/** RFの行方向を示す表示名を取得する。 */
+export const getRfRowsLabel = () => __( 'Rows', 'yamabiko-table-reorder' );
+
+/** RFの列方向を示す表示名を取得する。 */
+export const getRfColumnsLabel = () => __( 'Columns', 'yamabiko-table-reorder' );
+
+/** RFで移動元行を指定する入力の表示名を取得する。 */
+export const getRfSourceRowLabel = () => __( 'Row to move', 'yamabiko-table-reorder' );
+
+/** RFで移動先行を指定する入力の表示名を取得する。 */
+export const getRfTargetRowLabel = () => __( 'Target row', 'yamabiko-table-reorder' );
+
+/** RFで移動先との位置関係を選ぶ入力の表示名を取得する。 */
+export const getRfPositionLegend = () => __( 'Position', 'yamabiko-table-reorder' );
+
+/** RFで移動先行の上を示す表示名を取得する。 */
+export const getRfAboveLabel = () => __( 'Above', 'yamabiko-table-reorder' );
+
+/** RFで移動先行の下を示す表示名を取得する。 */
+export const getRfBelowLabel = () => __( 'Below', 'yamabiko-table-reorder' );
+
+/**
+ * RFの現在行数に対応する有効な入力条件を取得する。
+ *
+ * @param rowCount 現在のtbody行数。
+ * @return 1から現在行数までの整数を指定する案内文。
+ */
+export const getRfRowRangeMessage = ( rowCount: number ) => {
+	/* translators: %d: current tbody row count */
+	const message = __( 'Enter an integer from 1 to %d.', 'yamabiko-table-reorder' );
+	return sprintf( message, rowCount );
+};
+
+/** RFの行移動先が上下関係で決まることを知らせる文言を取得する。 */
+export const getRfRowTargetHelp = () =>
+	__( 'Move the row above or below the target row.', 'yamabiko-table-reorder' );
+
+/** RFで移動元列を指定する入力の表示名を取得する。 */
+export const getRfSourceColumnLabel = () => __( 'Column to move', 'yamabiko-table-reorder' );
+
+/** RFで移動先列を指定する入力の表示名を取得する。 */
+export const getRfTargetColumnLabel = () => __( 'Target column', 'yamabiko-table-reorder' );
+
+/** RFの列選択が未指定であることを示す選択肢を取得する。 */
+export const getRfSelectColumnLabel = () => __( 'Select a column', 'yamabiko-table-reorder' );
+
+/** RFで移動先列の左を示す表示名を取得する。 */
+export const getRfLeftLabel = () => __( 'Left', 'yamabiko-table-reorder' );
+
+/** RFで移動先列の右を示す表示名を取得する。 */
+export const getRfRightLabel = () => __( 'Right', 'yamabiko-table-reorder' );
+
+/** RFの列移動先が左右関係で決まることを知らせる文言を取得する。 */
+export const getRfColumnTargetHelp = () =>
+	__( 'Move the column to the left or right of the target column.', 'yamabiko-table-reorder' );
+
+/**
+ * RFの列選択肢を現在見出しと1-based列番号から生成する。
+ *
+ * @param columnNumber 利用者向け1-based列番号。
+ * @param heading      現在Tableから取得した見出し。見出しがない場合はnull。
+ * @return 利用者が現在列を一意に識別できる表示名。
+ */
+export const getRfColumnOptionLabel = ( columnNumber: number, heading: string | null ) => {
+	if ( heading !== null && heading !== '' ) {
+		/* translators: 1: column heading, 2: 1-based column number */
+		const message = __( '%1$s (Column %2$d)', 'yamabiko-table-reorder' );
+		return sprintf( message, heading, columnNumber );
+	}
+
+	/* translators: %d: 1-based column number */
+	const message = __( 'Column %d', 'yamabiko-table-reorder' );
+	return sprintf( message, columnNumber );
+};
+
+/** RF指定で並び順が変わらないことを知らせる文言を取得する。 */
+export const getRfNoOpMessage = () =>
+	__( "This selection won't change the order.", 'yamabiko-table-reorder' );
+
+/** RF指定を現在Tableで安全に継続できないことを知らせる文言を取得する。 */
+export const getRfUnavailableMessage = () =>
+	__(
+		"This reorder can't continue with the current table. Check the table and try again.",
+		'yamabiko-table-reorder'
+	);
+
+/**
+ * RFの行移動を妨げる結合セル範囲を知らせる文言を取得する。
+ *
+ * @param rowStart 利用者向け1-based開始行番号。
+ * @param rowEnd   利用者向け1-based終了行番号。
+ * @return 最初に確認されたblocking merged rangeを示す案内文。
+ */
+export const getRfRowMergedRangeMessage = ( rowStart: number, rowEnd: number ) => {
+	if ( rowStart === rowEnd ) {
+		/* translators: %d: 1-based row number */
+		const message = __( 'A merged cell involving row %d prevents this move.', 'yamabiko-table-reorder' );
+		return sprintf( message, rowStart );
+	}
+
+	/* translators: 1: first 1-based row number, 2: last 1-based row number */
+	const message = __( 'A merged cell spanning rows %1$d–%2$d prevents this move.', 'yamabiko-table-reorder' );
+	return sprintf( message, rowStart, rowEnd );
+};
+
+/**
+ * RFの列移動を妨げる結合セル範囲を知らせる文言を取得する。
+ *
+ * @param columnStart 利用者向け1-based開始列番号。
+ * @param columnEnd   利用者向け1-based終了列番号。
+ * @return 最初に確認されたblocking merged rangeを示す案内文。
+ */
+export const getRfColumnMergedRangeMessage = ( columnStart: number, columnEnd: number ) => {
+	if ( columnStart === columnEnd ) {
+		/* translators: %d: 1-based column number */
+		const message = __(
+			'A merged cell involving column %d prevents this move.',
+			'yamabiko-table-reorder'
+		);
+		return sprintf( message, columnStart );
+	}
+
+	/* translators: 1: first 1-based column number, 2: last 1-based column number */
+	const message = __(
+		'A merged cell spanning columns %1$d–%2$d prevents this move.',
+		'yamabiko-table-reorder'
+	);
+	return sprintf( message, columnStart, columnEnd );
+};
+
+/** RF入力画面を終了する操作の表示名を取得する。 */
+export const getRfCancelLabel = () => __( 'Cancel', 'yamabiko-table-reorder' );
+
+/** RFで指定した並び替えを実行する操作の表示名を取得する。 */
+export const getRfApplyLabel = () => __( 'Reorder', 'yamabiko-table-reorder' );
+
 /**
  * 結合セルにより行DnDを開始できない理由を知らせる文言を取得する。
  *
