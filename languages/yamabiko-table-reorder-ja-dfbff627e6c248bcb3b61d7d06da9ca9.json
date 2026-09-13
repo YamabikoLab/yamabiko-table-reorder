@@ -46,6 +46,9 @@
 				"%1$d〜%2$d列目にまたがる結合セルがあるため、この指定では移動できません。"
 			],
 			"Reorder": [ "並び替え" ],
+			"Reordering failed. The table has not been changed.": [
+				"並び替えが失敗しました。テーブルは変更されていません。"
+			],
 			"Close reorder guidance": [ "並び替えの案内を閉じる" ],
 			"Reordering could not continue, so the operation was ended.": [
 				"並び替えを続けられないため、操作を終了しました。"
