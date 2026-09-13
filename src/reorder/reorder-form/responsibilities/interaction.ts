@@ -54,10 +54,20 @@ export type RfApplyRequest =
 	| { kind: 'row'; candidate: RowRfMoveCandidate }
 	| { kind: 'column'; candidate: ColumnRfMoveCandidate };
 
-/** RF Apply CoordinationがRF Interactionへ返すLifecycle結果。 */
+/**
+ * RF Apply CoordinationがRF Interactionへ返す反映結果。
+ *
+ * `success`は反映完了、`failure`は反映失敗、`cancelled`は利用者が確認を取り消した結果を表す。
+ * 取消は失敗として通知せず、入力を保持したRF Sessionへ戻すために失敗と区別する。
+ */
 export type RfApplyResult = 'success' | 'failure' | 'cancelled';
 
-/** RF InteractionがPresentationへ公開する未消費のApply結果。 */
+/**
+ * RF InteractionがPresentationへ公開する未消費の反映結果。
+ *
+ * 成功または失敗だけを対象Tableと関連付けて保持し、利用者による取消は通知対象にしない。
+ * Reactのmount状態に依存せず、対象TableのPresentationが消費するか、新しいRF Sessionまたは反映を開始するまで維持する。
+ */
 export type RfApplyOutcome =
 	| { status: 'idle' }
 	| { status: 'success'; tableIdentity: string }
@@ -463,6 +473,7 @@ export const rfInteractionStore = createStore< RfInteractionStore >()(
 					rowInput: session.rowInput,
 					columnInput: session.columnInput,
 				};
+				/* 新しい反映開始時は前回の未消費結果を破棄し、今回の反映結果と混在させない。 */
 				set(
 					{ session: applyingSession, applyOutcome: IDLE_APPLY_OUTCOME },
 					undefined,
@@ -557,7 +568,7 @@ export const rfInteraction = {
 	/** @param tableIdentity Applyを要求する現在RF Sessionの対象Table Identity。 */
 	requestApply: ( tableIdentity: string ) =>
 		rfInteractionStore.getState().requestApply( tableIdentity ),
-	/** @param tableIdentity 完了通知を表示済みのTable Identity。 */
+	/** @param tableIdentity 反映結果通知を表示済みのTable Identity。 */
 	consumeApplyOutcome: ( tableIdentity: string ) =>
 		rfInteractionStore.getState().consumeApplyOutcome( tableIdentity ),
 };
