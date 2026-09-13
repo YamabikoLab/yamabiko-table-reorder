@@ -3,14 +3,13 @@
  *
  * PCとタッチ端末の主ポインター入力から現在Tableのtbody直下行を開始候補として解決し、
  * Reorder Target Resolutionで開始可能な行だけをdnd-kitのDraggableへ必要時に登録する。
- * Reorder Modeは入力時に参照し、React renderを経由せず現在Tableで有効な方向だけを受け付ける。
+ * 結合範囲により開始できない行では物理DnDを登録せず、利用者向け開始不可理由を開始を試みた位置とともにPresentationへ通知する。
+ * DnD開始後の進行、移動先候補、確定、取消はDnD境界へ委ねる。
  */
 
 import { Draggable, PointerActivationConstraints, PointerSensor } from '@dnd-kit/dom';
 import { useDragDropManager } from '@dnd-kit/react';
 import type { PointerEvent, ReactNode } from 'react';
-
-import { rowReorderMode } from '@/reorder/reorder-mode';
 
 import { notifyRowStartRejection } from './presentation/start-rejection-notice-event';
 import { rowReorderTargetResolution, type RowReorderTarget } from './target-resolution';
@@ -27,10 +26,11 @@ export type RowDndPointerDownHandler = ( event: PointerEvent< Element > ) => voi
  *
  * PCとタッチ端末の主ポインター入力を共通のPointerSensor経路へ接続し、
  * Reorder Target Resolutionで開始可能と解決された行だけをDnD境界へ接続する。
- * 開始可否は入力時点のReorder Modeを正本として判断し、mode変更をReact propsとして要求しない。
+ * 開始不可理由が定義された行ではDraggableを登録せず、利用者向け理由を操作位置付近へ表示できる情報とともにPresentationへ通知する。
+ * 入力ごとに登録したDraggableは次の開始候補へ持ち越さず、常に現在の開始候補だけを有効にする。
  *
  * @param props                         ポインター入力接続に必要な値。
- * @param props.enabled                 接続境界自体が開始入力を受け付けられる場合はtrue。
+ * @param props.enabled                 現在のTableで行並び替え開始入力を受け付ける場合はtrue。
  * @param props.tableIdentity           行並び替え対象のTable Identity。
  * @param props.activeDraggable         現在のポインター入力で登録したDraggableを保持する参照。
  * @param props.activeDraggable.current 現在のポインター入力で登録したDraggable。未登録の場合はnull。
@@ -49,8 +49,8 @@ export const RowInput = ( props: {
 	const manager = useDragDropManager();
 
 	const onPointerDownCapture: RowDndPointerDownHandler = ( event ) => {
-		/* 接続境界が無効、現在Tableの行並び替えモード外、または物理DnD接続を利用できない場合は開始候補を受け付けない。 */
-		if ( ! enabled || ! rowReorderMode.isActive( tableIdentity ) || ! manager ) {
+		/* 行並び替えが無効、または物理DnD接続を利用できない場合は開始候補を受け付けない。 */
+		if ( ! enabled || ! manager ) {
 			return;
 		}
 
@@ -127,6 +127,7 @@ export const RowInput = ( props: {
 								} ),
 							];
 						},
+						/* Tableセル内部からのポインター入力もDnD開始対象として扱う。 */
 						preventActivation: () => false,
 					} ),
 				],
