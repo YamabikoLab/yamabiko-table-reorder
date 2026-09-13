@@ -3,9 +3,12 @@
  *
  * RF Interactionを状態正本として購読し、利用者の入力を同責務へ通知する。Table構造や移動可否は再解釈せず、
  * RF Interactionが公開する現在結果だけを利用者向け表示へ変換する。
+ * 入力Popoverの手動配置はRF Interactionから分離したPresentation状態として扱う。
  */
 
 import { Button, Popover } from '@wordpress/components';
+import { useRef } from '@wordpress/element';
+import type { PointerEvent as ReactPointerEvent } from 'react';
 
 import {
 	getRfAboveLabel,
@@ -36,6 +39,11 @@ import {
 import type { ColumnInputDescriptor } from '@/reorder/column-reorder/responsibilities/table-integration';
 import { rfInteraction } from '@/reorder/reorder-form/responsibilities/interaction';
 import type { RfInteractionReactState } from '@/reorder/reorder-form/responsibilities/interaction-react';
+import {
+	clampReorderFormPosition,
+	type ReorderFormPosition,
+	useReorderFormPosition,
+} from '@/reorder/wordpress/components/reorder-form-position';
 
 import './reorder-form.scss';
 
@@ -44,6 +52,16 @@ type ReorderFormPopoverProps = {
 	anchor: HTMLElement | null;
 	tableIdentity: string;
 	state: RfInteractionReactState;
+};
+
+/** RF入力Popoverのドラッグ開始から終了まで保持するPointer操作情報。 */
+type ReorderFormDragState = {
+	pointerId: number;
+	offsetX: number;
+	offsetY: number;
+	width: number;
+	height: number;
+	view: Window;
 };
 
 /** Popover外のTable操作だけではRF Sessionを終了しない。 */
@@ -91,7 +109,32 @@ const getCurrentResultMessage = ( state: RfInteractionReactState ): string | nul
 };
 
 /**
+ * 手動配置されたRF入力PopoverをWordPress Popoverへ渡す仮想配置基準へ変換する。
+ *
+ * @param position      Editor viewport基準のPopover左上位置。
+ * @param ownerDocument 現在のEditor DOMを所有するdocument。
+ * @return 指定位置を原点とするWordPress Popover用仮想配置基準。
+ */
+const createManualPopoverAnchor = ( position: ReorderFormPosition, ownerDocument: Document ) => ( {
+	ownerDocument,
+	getBoundingClientRect: (): DOMRect =>
+		( {
+			x: position.x,
+			y: position.y,
+			left: position.x,
+			top: position.y,
+			right: position.x,
+			bottom: position.y,
+			width: 0,
+			height: 0,
+			toJSON: () => ( {} ),
+		} ) as DOMRect,
+} );
+
+/**
  * 対応TableのRF入力画面をToolbar基準のPopoverとして表示する。
+ *
+ * 初期表示はRF Toolbar入口を基準とし、利用者がタイトル部をドラッグした後はその位置を同一RF Session中で維持する。
  *
  * @param props               対象Table、Toolbar anchor、RF Interaction状態。
  * @param props.anchor        RF Toolbar入口のDOM要素。
@@ -101,6 +144,8 @@ const getCurrentResultMessage = ( state: RfInteractionReactState ): string | nul
  */
 export const ReorderFormPopover = ( props: ReorderFormPopoverProps ) => {
 	const { anchor, state, tableIdentity } = props;
+	const dragStateRef = useRef< ReorderFormDragState | null >( null );
+	const { position, setPosition } = useReorderFormPosition( tableIdentity );
 
 	if ( anchor === null || state.status !== 'open' ) {
 		return null;
@@ -118,14 +163,89 @@ export const ReorderFormPopover = ( props: ReorderFormPopoverProps ) => {
 	const targetColumnId = `${ controlIdPrefix }-target-column`;
 	const columnLeftId = `${ controlIdPrefix }-column-left`;
 	const columnRightId = `${ controlIdPrefix }-column-right`;
+	const manuallyPositioned = position !== null;
+	const popoverAnchor =
+		position === null ? anchor : createManualPopoverAnchor( position, anchor.ownerDocument );
+	const popoverOffset = manuallyPositioned ? 0 : 8;
+
+	/**
+	 * RF入力Popoverのタイトル部からPointer移動を開始する。
+	 *
+	 * @param event タイトル部で開始されたprimary pointer操作。
+	 */
+	const startDragging = ( event: ReactPointerEvent< HTMLDivElement > ): void => {
+		if ( ! event.isPrimary || event.button !== 0 ) {
+			return;
+		}
+
+		const popoverContent = event.currentTarget.closest( '.components-popover__content' );
+		const view = event.currentTarget.ownerDocument.defaultView;
+		if ( ! ( popoverContent instanceof HTMLElement ) || view === null ) {
+			return;
+		}
+
+		const rectangle = popoverContent.getBoundingClientRect();
+		dragStateRef.current = {
+			pointerId: event.pointerId,
+			offsetX: event.clientX - rectangle.left,
+			offsetY: event.clientY - rectangle.top,
+			width: rectangle.width,
+			height: rectangle.height,
+			view,
+		};
+		event.currentTarget.setPointerCapture( event.pointerId );
+		event.preventDefault();
+	};
+
+	/**
+	 * 現在RF入力PopoverをPointer位置へ追従させ、Editor viewport内に操作可能な範囲を維持する。
+	 *
+	 * @param event ドラッグ中のprimary pointer操作。
+	 */
+	const moveDragging = ( event: ReactPointerEvent< HTMLDivElement > ): void => {
+		const dragState = dragStateRef.current;
+		if ( dragState === null || dragState.pointerId !== event.pointerId ) {
+			return;
+		}
+
+		const requestedPosition = {
+			x: event.clientX - dragState.offsetX,
+			y: event.clientY - dragState.offsetY,
+		};
+		const nextPosition = clampReorderFormPosition(
+			requestedPosition,
+			{ width: dragState.width, height: dragState.height },
+			{ width: dragState.view.innerWidth, height: dragState.view.innerHeight }
+		);
+		setPosition( nextPosition );
+		event.preventDefault();
+	};
+
+	/**
+	 * RF入力PopoverのPointer移動を終了する。
+	 *
+	 * @param event 終了または取消されたPointer操作。
+	 */
+	const stopDragging = ( event: ReactPointerEvent< HTMLDivElement > ): void => {
+		const dragState = dragStateRef.current;
+		if ( dragState === null || dragState.pointerId !== event.pointerId ) {
+			return;
+		}
+
+		if ( event.currentTarget.hasPointerCapture( event.pointerId ) ) {
+			event.currentTarget.releasePointerCapture( event.pointerId );
+		}
+		dragStateRef.current = null;
+	};
 
 	return (
 		<Popover
-			anchor={ anchor }
+			anchor={ popoverAnchor }
 			className="yamabiko-table-reorder-rf-popover"
-			flip
+			flip={ ! manuallyPositioned }
 			focusOnMount={ false }
-			offset={ 8 }
+			noArrow={ manuallyPositioned }
+			offset={ popoverOffset }
 			onClose={ ignorePopoverClose }
 			onFocusOutside={ ignorePopoverClose }
 			placement="bottom-start"
@@ -133,7 +253,15 @@ export const ReorderFormPopover = ( props: ReorderFormPopoverProps ) => {
 			variant="unstyled"
 		>
 			<div className="yamabiko-table-reorder-rf">
-				<h2 className="yamabiko-table-reorder-rf__title">{ getRfReorderName() }</h2>
+				<div
+					className="yamabiko-table-reorder-rf__drag-handle"
+					onPointerCancel={ stopDragging }
+					onPointerDown={ startDragging }
+					onPointerMove={ moveDragging }
+					onPointerUp={ stopDragging }
+				>
+					<h2 className="yamabiko-table-reorder-rf__title">{ getRfReorderName() }</h2>
+				</div>
 
 				<fieldset className="yamabiko-table-reorder-rf__fieldset">
 					<legend>{ getRfKindLegend() }</legend>
