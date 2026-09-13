@@ -204,6 +204,7 @@ describe( 'WordPress Reorder Apply Integration lifecycle', () => {
 			<LifecycleHarness
 				presentation={ {
 					phase: 'remounting',
+					owner: 'row',
 					kind: 'row',
 					tableIdentity: 'table-a',
 					applied: true,
@@ -248,6 +249,7 @@ describe( 'WordPress Reorder Apply Integration lifecycle', () => {
 			<LifecycleHarness
 				presentation={ {
 					phase: 'remounting',
+					owner: 'column',
 					kind: 'column',
 					tableIdentity: 'table-a',
 					applied: false,
