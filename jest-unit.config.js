@@ -21,6 +21,10 @@ module.exports = {
 		...( defaultConfig.moduleNameMapper ?? {} ),
 		'^@/(.*)$': '<rootDir>/src/$1',
 	},
+	setupFilesAfterEnv: [
+		...( defaultConfig.setupFilesAfterEnv ?? [] ),
+		'<rootDir>/tests/jest/setup.js',
+	],
 	testPathIgnorePatterns: [
 		...( defaultConfig.testPathIgnorePatterns ?? [] ),
 		'<rootDir>/scripts/architecture/',
