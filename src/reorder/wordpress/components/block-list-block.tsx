@@ -49,8 +49,6 @@ export type ReorderModeBlockListBlockProps = {
 /**
  * Gutenberg既存のpointerdown処理を維持したまま、方向固有DnDの開始入力を追加する。
  *
- * Row / Column両DnD境界へ入力を通知し、各入力境界がevent-timeのReorder Modeから有効な方向だけを受理する。
- *
  * @param existingHandler  Gutenberg本体または他のfilterが設定した既存handler。
  * @param rowDndHandler    Row DnDが提供する開始入力handler。
  * @param columnDndHandler Column DnDが提供する開始入力handler。
@@ -128,7 +126,6 @@ const preserveBlockDragStartHandler = (
 			( existingHandler as ( dragEvent: DragEvent< Element > ) => void )( event );
 		}
 
-		/* 通常編集ではGutenberg本来のBlock DnDを変更せず、Reorder Mode中だけnative dragを成立させない。 */
 		if ( reorderMode.getMode( tableIdentity ) !== 'edit' ) {
 			event.preventDefault();
 		}
@@ -156,8 +153,6 @@ const preserveWrapperRef = ( existingRef: unknown, element: HTMLElement | null )
 
 /**
  * YTRが所有するReorder Mode DOM状態だけを現在modeへ同期する。
- *
- * Gutenberg由来のclass、属性、handlerには触れず、通常編集ではYTR専用属性自体を残さない。
  *
  * @param element 現在のTable Block wrapper。
  * @param mode    対象Tableから見た現在のReorder Mode。
@@ -199,7 +194,6 @@ export const ReorderModeBlockListBlock = ( props: {
 		( element: HTMLElement | null ) => {
 			const previousElement = wrapperElement.current;
 
-			/* wrapper再接続時は旧要素へYTR専用状態を残さず、新しい要素だけを現在modeへ同期する。 */
 			if ( previousElement !== null && previousElement !== element ) {
 				previousElement.removeAttribute( REORDER_MODE_ATTRIBUTE );
 			}
@@ -227,16 +221,34 @@ export const ReorderModeBlockListBlock = ( props: {
 		() => reorderMode.getMode( clientId ) !== 'edit',
 		[ clientId ]
 	);
+	const isRowReorderActive = useCallback(
+		() => reorderMode.getMode( clientId ) === 'row',
+		[ clientId ]
+	);
+	const isColumnReorderActive = useCallback(
+		() => reorderMode.getMode( clientId ) === 'column',
+		[ clientId ]
+	);
 
 	return (
-		<RowHighlight enabled tableIdentity={ clientId }>
+		<RowHighlight enabled isActive={ isRowReorderActive } tableIdentity={ clientId }>
 			{ ( rowHighlightPointerOverCapture ) => (
-				<ColumnHighlight enabled tableIdentity={ clientId }>
+				<ColumnHighlight
+					enabled
+					isActive={ isColumnReorderActive }
+					tableIdentity={ clientId }
+				>
 					{ ( columnHighlightPointerOverCapture, columnHighlightPointerOutCapture ) => (
-						<RowDnd enabled presentationEnabled={ isSelected } tableIdentity={ clientId }>
+						<RowDnd
+							enabled
+							isActive={ isRowReorderActive }
+							presentationEnabled={ isSelected }
+							tableIdentity={ clientId }
+						>
 							{ ( rowDndPointerDownCapture ) => (
 								<ColumnDnd
 									enabled
+									isActive={ isColumnReorderActive }
 									presentationEnabled={ isSelected }
 									tableIdentity={ clientId }
 								>
