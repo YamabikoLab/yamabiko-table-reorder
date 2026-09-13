@@ -149,7 +149,7 @@ type ColumnReorderMode = {
  *
  * Zustandのvanilla storeを使用し、ReactやWordPressのライフサイクルとは独立して状態を維持する。
  * Redux DevToolsではReorder Modeの状態変更を操作単位で確認できる。
- * Reactからの直接参照は`reorder-mode-react.ts`だけに限定する。
+ * Storeへの直接参照はReact接続境界`reorder-mode-react.ts`と非React購読境界`reorder-mode-subscription.ts`に限定する。
  */
 export const reorderModeStore = createStore< ReorderModeStore >()(
 	devtools(
