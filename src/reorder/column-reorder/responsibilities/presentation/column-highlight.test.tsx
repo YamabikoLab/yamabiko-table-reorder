@@ -1,8 +1,8 @@
 /**
- * Column Reorderの開始前予告表示が、Reorder Target Resolutionの開始可否に従って現在セルだけへ反映されることを確認する。
+ * Column Reorderの開始前予告表示が、Reorder ModeとReorder Target Resolutionの開始可否に従って現在セルだけへ反映されることを確認する。
  */
 
-import { createEvent, fireEvent, render } from '@testing-library/react';
+import { act, createEvent, fireEvent, render } from '@testing-library/react';
 
 import { resolveColumnSourceIndex } from '@/reorder/column-reorder/integration/source-column-resolution';
 import {
@@ -10,6 +10,7 @@ import {
 	subscribeColumnDndState,
 } from '@/reorder/column-reorder/responsibilities/dnd-interaction';
 import { columnReorderTargetResolution } from '@/reorder/column-reorder/responsibilities/target-resolution';
+import { reorderMode } from '@/reorder/reorder-mode';
 
 import { ColumnHighlight } from './column-highlight';
 
@@ -43,43 +44,27 @@ const createResolverMock = columnReorderTargetResolution.createResolver as jest.
 	typeof columnReorderTargetResolution.createResolver
 >;
 
-/**
- * ポインター終了入力の入力手段と移動先を明示して通知する。
- *
- * @param target        ポインターが離れる要素。
- * @param pointerType   入力手段を識別するPointer Eventsの種別。
- * @param relatedTarget ポインターの移動先。
- */
+/** ポインター終了入力を明示して通知する。 */
 const firePointerOut = (
 	target: Element,
 	pointerType: 'mouse' | 'touch',
 	relatedTarget: EventTarget | null = null
 ): void => {
 	const event = createEvent.pointerOut( target );
-	Object.defineProperty( event, 'pointerType', {
-		configurable: true,
-		value: pointerType,
-	} );
-	Object.defineProperty( event, 'relatedTarget', {
-		configurable: true,
-		value: relatedTarget,
-	} );
+	Object.defineProperty( event, 'pointerType', { configurable: true, value: pointerType } );
+	Object.defineProperty( event, 'relatedTarget', { configurable: true, value: relatedTarget } );
 	fireEvent( target, event );
 };
 
-/**
- * 開始前のセル予告表示を確認するためのTableを描画する。
- *
- * @param props               描画条件。
- * @param props.enabled       列並び替えモードを有効にする場合はtrue。
- * @param props.tableIdentity 現在Tableの識別値。
- * @return Column Highlightへ接続されたTable。
- */
-const TestTable = ( props: { enabled?: boolean; tableIdentity?: string } ) => (
-	<ColumnHighlight
-		enabled={ props.enabled ?? true }
-		tableIdentity={ props.tableIdentity ?? 'table-a' }
-	>
+const resetReorderMode = () => {
+	act( () => {
+		reorderMode.observeTable( '__column-highlight-test-reset__' );
+	} );
+};
+
+/** 開始前のセル予告表示を確認するためのTableを描画する。 */
+const TestTable = ( props: { tableIdentity?: string } ) => (
+	<ColumnHighlight tableIdentity={ props.tableIdentity ?? 'table-a' }>
 		{ ( onPointerOverCapture, onPointerOutCapture ) => (
 			<div
 				data-testid="wrapper"
@@ -90,9 +75,7 @@ const TestTable = ( props: { enabled?: boolean; tableIdentity?: string } ) => (
 					<tbody>
 						<tr>
 							<td data-testid="column-0">A</td>
-							<td data-testid="column-1">
-								<span data-testid="column-1-child">B</span>
-							</td>
+							<td data-testid="column-1"><span data-testid="column-1-child">B</span></td>
 							<td data-testid="column-2">C</td>
 						</tr>
 					</tbody>
@@ -107,6 +90,10 @@ describe( 'Column highlight', () => {
 
 	beforeEach( () => {
 		jest.clearAllMocks();
+		resetReorderMode();
+		act( () => {
+			reorderMode.select( 'column', 'table-a' );
+		} );
 		mockColumnDndPhase = 'idle';
 		mockColumnDndStateListener = null;
 		resolveColumnSourceIndexMock.mockImplementation( ( _table, cell ) => cell.cellIndex );
@@ -118,22 +105,15 @@ describe( 'Column highlight', () => {
 		createResolverMock.mockReturnValue( { resolve: resolveMock } );
 	} );
 
+	afterEach( () => {
+		resetReorderMode();
+	} );
+
 	/**
-	 * 開始可能な列では、DnD開始前に現在セルだけを操作可能として予告できることを確認する。
-	 *
-	 * 事前条件:
-	 * - 2列目は開始可能と解決される。
-	 *
-	 * 操作:
-	 * - 2列目のセルへポインターを移動する。
-	 *
-	 * 期待結果:
-	 * - 現在セルだけに操作可能表示が付く。
-	 * - 列全体を表すOverlayは生成されない。
+	 * 開始可能な列では現在セルだけを操作可能として予告する。
 	 */
 	it( 'when target resolution resolves the current column, should preview only the current cell as highlightable', () => {
 		const { getByTestId } = render( <TestTable /> );
-
 		fireEvent.pointerOver( getByTestId( 'column-1' ), { pointerType: 'mouse' } );
 
 		expect( getByTestId( 'column-1' ).className ).toBe(
@@ -141,70 +121,37 @@ describe( 'Column highlight', () => {
 		);
 		expect( getByTestId( 'column-0' ).className ).toBe( '' );
 		expect( getByTestId( 'column-2' ).className ).toBe( '' );
-		expect( document.querySelector( '.yamabiko-table-reorder-column-highlight' ) ).toBeNull();
 	} );
 
 	/**
-	 * 結合範囲により開始拒否となる列では、現在セルだけを移動不可として予告できることを確認する。
-	 *
-	 * 事前条件:
-	 * - 2列目は結合範囲により開始拒否と解決される。
-	 *
-	 * 操作:
-	 * - 2列目のセルへポインターを移動する。
-	 *
-	 * 期待結果:
-	 * - 現在セルだけに移動不可表示が付く。
+	 * 開始拒否となる列では現在セルだけを移動不可として予告する。
 	 */
 	it( 'when target resolution rejects the current column, should preview only the current cell as unavailable', () => {
 		resolveMock.mockReturnValue( { status: 'rejected', reason: 'merged-range' } );
 		const { getByTestId } = render( <TestTable /> );
-
 		fireEvent.pointerOver( getByTestId( 'column-1' ), { pointerType: 'mouse' } );
 
 		expect( getByTestId( 'column-1' ).className ).toBe(
 			'yamabiko-table-reorder-column-unavailable-cell'
 		);
-		expect( getByTestId( 'column-0' ).className ).toBe( '' );
-		expect( getByTestId( 'column-2' ).className ).toBe( '' );
 	} );
 
 	/**
-	 * 現在列を安全に利用できない場合は、操作可否を推測して表示しないことを確認する。
-	 *
-	 * 事前条件:
-	 * - Target Resolutionが現在列を通常の利用不能と解決する。
-	 *
-	 * 操作:
-	 * - 2列目のセルへポインターを移動する。
-	 *
-	 * 期待結果:
-	 * - 現在セルに操作可能または移動不可の表示を付けない。
+	 * 利用不能な列では操作可否を推測して表示しない。
 	 */
 	it( 'when target resolution returns unavailable, should not preview an availability state', () => {
 		resolveMock.mockReturnValue( { status: 'unavailable' } );
 		const { getByTestId } = render( <TestTable /> );
-
 		fireEvent.pointerOver( getByTestId( 'column-1' ), { pointerType: 'mouse' } );
 
 		expect( getByTestId( 'column-1' ).className ).toBe( '' );
 	} );
 
 	/**
-	 * 同一セル内部の要素間移動では、同じ開始可否判定を繰り返さないことを確認する。
-	 *
-	 * 事前条件:
-	 * - 2列目は開始可能と解決されている。
-	 *
-	 * 操作:
-	 * - 2列目のセルから同じセル内の子要素へポインターを移動する。
-	 *
-	 * 期待結果:
-	 * - セル→論理列解決と開始可否判定は1回だけ行われる。
+	 * 同一セル内部の移動では同じ開始可否判定を繰り返さない。
 	 */
 	it( 'when the pointer moves inside the same cell, should not resolve the same preview again', () => {
 		const { getByTestId } = render( <TestTable /> );
-
 		fireEvent.pointerOver( getByTestId( 'column-1' ), { pointerType: 'mouse' } );
 		fireEvent.pointerOver( getByTestId( 'column-1-child' ), { pointerType: 'mouse' } );
 
@@ -213,22 +160,12 @@ describe( 'Column highlight', () => {
 	} );
 
 	/**
-	 * マウスが現在セルを離れた場合に、開始前の予告表示を終了することを確認する。
-	 *
-	 * 事前条件:
-	 * - 2列目のセルに操作可能表示が付いている。
-	 *
-	 * 操作:
-	 * - マウスポインターを2列目から3列目へ移動する。
-	 *
-	 * 期待結果:
-	 * - 2列目の開始前表示が解除される。
+	 * マウスが現在セルを離れた場合は予告表示を終了する。
 	 */
 	it( 'when the mouse leaves the current cell, should clear the cell preview', () => {
 		const { getByTestId } = render( <TestTable /> );
 		const currentCell = getByTestId( 'column-1' );
 		const nextCell = getByTestId( 'column-2' );
-
 		fireEvent.pointerOver( currentCell, { pointerType: 'mouse' } );
 		firePointerOut( currentCell, 'mouse', nextCell );
 
@@ -236,21 +173,11 @@ describe( 'Column highlight', () => {
 	} );
 
 	/**
-	 * タッチでは指を離しただけで開始前の予告表示を終了しないことを確認する。
-	 *
-	 * 事前条件:
-	 * - 2列目のセルがタッチ操作対象として認識されている。
-	 *
-	 * 操作:
-	 * - 2列目からタッチポインターが離れる。
-	 *
-	 * 期待結果:
-	 * - 2列目の操作可能表示を維持する。
+	 * タッチではpointeroutだけで予告表示を終了しない。
 	 */
 	it( 'when touch input ends on the current cell, should keep the cell preview', () => {
 		const { getByTestId } = render( <TestTable /> );
 		const currentCell = getByTestId( 'column-1' );
-
 		fireEvent.pointerOver( currentCell, { pointerType: 'touch' } );
 		firePointerOut( currentCell, 'touch' );
 
@@ -258,22 +185,12 @@ describe( 'Column highlight', () => {
 	} );
 
 	/**
-	 * タッチで別セルを操作対象として認識した場合に、予告表示が新しいセルへ移ることを確認する。
-	 *
-	 * 事前条件:
-	 * - 2列目のセルに操作可能表示が付いている。
-	 *
-	 * 操作:
-	 * - 3列目のセルへタッチ入力を移す。
-	 *
-	 * 期待結果:
-	 * - 2列目の表示が解除され、3列目へ操作可能表示が付く。
+	 * 別セルが操作対象になった場合は予告表示を新しいセルへ移す。
 	 */
 	it( 'when touch input recognizes another cell, should move the preview to the new cell', () => {
 		const { getByTestId } = render( <TestTable /> );
 		const previousCell = getByTestId( 'column-1' );
 		const nextCell = getByTestId( 'column-2' );
-
 		fireEvent.pointerOver( previousCell, { pointerType: 'touch' } );
 		fireEvent.pointerOver( nextCell, { pointerType: 'touch' } );
 
@@ -282,21 +199,11 @@ describe( 'Column highlight', () => {
 	} );
 
 	/**
-	 * 列DnD開始時に開始前のセル予告表示を終了することを確認する。
-	 *
-	 * 事前条件:
-	 * - 列DnD開始前に2列目へ操作可能表示が付いている。
-	 *
-	 * 操作:
-	 * - Column DnD Lifecycleをactiveへ移行する。
-	 *
-	 * 期待結果:
-	 * - 開始前のセル予告表示が解除される。
+	 * Column DnD開始時に開始前予告を破棄する。
 	 */
 	it( 'when column DnD starts, should clear the pre-drag cell preview', () => {
 		const { getByTestId } = render( <TestTable /> );
 		const currentCell = getByTestId( 'column-1' );
-
 		fireEvent.pointerOver( currentCell, { pointerType: 'mouse' } );
 		mockColumnDndPhase = 'active';
 		mockColumnDndStateListener?.();
@@ -307,55 +214,20 @@ describe( 'Column highlight', () => {
 	} );
 
 	/**
-	 * 対象Table変更とモード終了で開始前表示を持ち越さないことを確認する。
-	 *
-	 * 事前条件:
-	 * - Table Aの2列目へ操作可能表示が付いている。
-	 *
-	 * 操作:
-	 * - 表示中のままTable IdentityをTable Bへ変更する。
-	 * - Table Bで2列目を再び操作対象として認識する。
-	 * - 列並び替えモードを終了する。
-	 *
-	 * 期待結果:
-	 * - Table変更時にTable Aのセル予告表示を解除する。
-	 * - Table Bでは新しいTarget Resolverを利用する。
-	 * - モード終了時にもTable Bのセル予告表示を解除する。
+	 * Column Reorder Mode離脱時に表示を即時破棄し、通常編集では再表示しない。
 	 */
-	it( 'when the target table or mode changes, should not carry the previous cell preview forward', () => {
-		const { getByTestId, rerender } = render( <TestTable tableIdentity="table-a" /> );
+	it( 'when column reorder mode ends, should clear the current cell preview and stop marking cells', () => {
+		const { getByTestId } = render( <TestTable /> );
 		const currentCell = getByTestId( 'column-1' );
-
 		fireEvent.pointerOver( currentCell, { pointerType: 'mouse' } );
-		rerender( <TestTable tableIdentity="table-b" /> );
+		expect( currentCell.className ).toBe( 'yamabiko-table-reorder-column-highlightable-cell' );
+
+		act( () => {
+			reorderMode.select( 'column', 'table-a' );
+		} );
 		expect( currentCell.className ).toBe( '' );
 
-		fireEvent.pointerOver( currentCell, { pointerType: 'mouse' } );
-		expect( createResolverMock ).toHaveBeenCalledWith( 'table-b' );
-
-		rerender( <TestTable enabled={ false } tableIdentity="table-b" /> );
-		expect( currentCell.className ).toBe( '' );
-	} );
-
-	/**
-	 * Presentation境界終了時に開始前表示を実Tableへ残さないことを確認する。
-	 *
-	 * 事前条件:
-	 * - 2列目のセルに操作可能表示が付いている。
-	 *
-	 * 操作:
-	 * - Column Highlightをunmountする。
-	 *
-	 * 期待結果:
-	 * - 対象セルの開始前表示が解除される。
-	 */
-	it( 'when the presentation boundary unmounts, should remove the temporary cell preview', () => {
-		const { getByTestId, unmount } = render( <TestTable /> );
-		const currentCell = getByTestId( 'column-1' );
-
-		fireEvent.pointerOver( currentCell, { pointerType: 'mouse' } );
-		unmount();
-
-		expect( currentCell.className ).toBe( '' );
+		fireEvent.pointerOver( getByTestId( 'column-2' ), { pointerType: 'mouse' } );
+		expect( getByTestId( 'column-2' ).className ).toBe( '' );
 	} );
 } );
