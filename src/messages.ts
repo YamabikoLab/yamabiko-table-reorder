@@ -273,6 +273,10 @@ export const getLargeReorderApplyingMessage = () =>
 export const getLargeReorderApplyingDetail = () =>
 	__( 'Please wait until the update is complete.', 'yamabiko-table-reorder' );
 
+/** RF反映を完了できずTableを変更しなかったことを知らせる文言を取得する。 */
+export const getRfApplyFailureMessage = () =>
+	__( 'Reordering could not be applied. The Table was not changed.', 'yamabiko-table-reorder' );
+
 /** 大規模反映が完了したことを知らせる文言を取得する。 */
 export const getLargeReorderCompletionMessage = () =>
 	__( 'Reordering complete.', 'yamabiko-table-reorder' );

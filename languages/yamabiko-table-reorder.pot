@@ -124,6 +124,10 @@ msgid "Please wait until the update is complete."
 msgstr ""
 
 #: src/messages.ts:278
+msgid "Reordering could not be applied. The Table was not changed."
+msgstr ""
+
+#: src/messages.ts:282
 msgid "Reordering complete."
 msgstr ""
 

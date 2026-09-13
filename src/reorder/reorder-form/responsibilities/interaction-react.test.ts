@@ -45,7 +45,7 @@ const COLUMNS = [
 
 const resetInteraction = () => {
 	act( () => {
-		rfInteractionStore.setState( { session: { status: 'closed' } } );
+		rfInteractionStore.setState( { session: { status: 'closed' }, applyOutcome: null } );
 	} );
 };
 
@@ -109,8 +109,9 @@ describe( 'RF Interaction React connection', () => {
 			rowCount: 3,
 			result: { status: 'resolved' },
 			canApply: true,
+			applyOutcome: null,
 		} );
-		expect( tableB.result.current ).toEqual( { status: 'closed' } );
+		expect( tableB.result.current ).toEqual( { status: 'closed', applyOutcome: null } );
 	} );
 
 	/**
@@ -148,6 +149,7 @@ describe( 'RF Interaction React connection', () => {
 			rowCount: 1,
 			result: { status: 'not-ready' },
 			canApply: false,
+			applyOutcome: null,
 		} );
 	} );
 
@@ -244,6 +246,7 @@ describe( 'RF Interaction React connection', () => {
 			columns: COLUMNS,
 			result: { status: 'resolved' },
 			canApply: true,
+			applyOutcome: null,
 		} );
 	} );
 
@@ -277,6 +280,7 @@ describe( 'RF Interaction React connection', () => {
 			rowCount: 3,
 			result: { status: 'resolved' },
 			canApply: true,
+			applyOutcome: null,
 		} );
 	} );
 } );

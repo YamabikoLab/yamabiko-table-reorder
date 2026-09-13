@@ -7,6 +7,7 @@
 import type { BlockEditProps } from '@wordpress/blocks';
 import type { ComponentType } from '@wordpress/element';
 
+import { rfInteraction } from '@/reorder/reorder-form/responsibilities/interaction';
 import { useRfInteraction } from '@/reorder/reorder-form/responsibilities/interaction-react';
 import { ReorderApplyTableBoundary } from '@/reorder/wordpress/components/reorder-apply';
 import { ReorderFormCompletion } from '@/reorder/wordpress/components/reorder-form-completion';
@@ -50,8 +51,11 @@ export const ReorderModeEdit = ( componentProps: ReorderModeEditProps ) => {
 				{ /* Toolbar入口は現在選択中の対応Tableだけに表示する。 */ }
 				{ isSelected && <ReorderModeToolbar tableIdentity={ clientId } /> }
 			</ReorderApplyTableBoundary>
-			{ /* RF完了通知は大規模反映Boundaryとは独立して通常 / 大規模の成功を一つの経路で扱う。 */ }
-			<ReorderFormCompletion status={ rfState.status } />
+			{ /* RF確定結果は通常 / 大規模反映共通の一経路で通知し、表示開始時にInteractionから消費する。 */ }
+			<ReorderFormCompletion
+				applyOutcome={ rfState.applyOutcome }
+				consumeApplyOutcome={ rfInteraction.consumeApplyOutcome }
+			/>
 		</>
 	);
 };

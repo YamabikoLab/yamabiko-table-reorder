@@ -93,6 +93,10 @@ msgid "Please wait until the update is complete."
 msgstr "完了するまでしばらくお待ちください。"
 
 #: src/messages.ts:278
+msgid "Reordering could not be applied. The Table was not changed."
+msgstr "並び替えを反映できませんでした。Tableは変更されていません。"
+
+#: src/messages.ts:282
 msgid "Reordering complete."
 msgstr "並び替えが完了しました。"
 
