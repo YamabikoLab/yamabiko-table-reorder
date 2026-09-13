@@ -1,5 +1,5 @@
 /**
- * Reorder Form（RF）の完了通知がRF Interactionの未消費Apply結果から正常完了だけを一度通知することを確認する。
+ * Reorder Form（RF）の結果通知がRF Interactionの未消費Apply結果から成功・失敗を一度だけ通知することを確認する。
  */
 
 import { act, render, screen } from '@testing-library/react';
@@ -16,6 +16,7 @@ jest.mock( '@wordpress/components', () => ( {
 
 jest.mock( '@/messages', () => ( {
 	getLargeReorderCompletionMessage: () => 'Reordering complete.',
+	getRfApplyFailureMessage: () => 'Reordering failed. The table has not been changed.',
 } ) );
 
 jest.mock( '@/reorder/reorder-form/responsibilities/interaction', () => ( {
@@ -80,19 +81,19 @@ describe( 'Reorder Form completion presentation', () => {
 
 	/**
 	 * 概要:
-	 * - 対象Tableに未消費のRF成功結果がない場合は通知も消費も行わないことを確認する。
+	 * - 対象Tableに未消費のRF結果がない場合は通知も消費も行わないことを確認する。
 	 *
 	 * 事前条件:
 	 * - Table Bから見たRF Apply Outcomeはidleである。
 	 *
 	 * 操作:
-	 * - Table Bの完了通知を表示する。
+	 * - Table Bの結果通知を表示する。
 	 *
 	 * 期待結果:
-	 * - 完了通知を表示しない。
+	 * - 結果通知を表示しない。
 	 * - Apply Outcomeを消費しない。
 	 */
-	it( 'when the target table has no successful RF outcome, should not show or consume a notice', () => {
+	it( 'when the target table has no RF outcome, should not show or consume a notice', () => {
 		render( <ReorderFormCompletion tableIdentity="table-b" /> );
 
 		expect( screen.queryByRole( 'status' ) ).toBeNull();
@@ -101,19 +102,19 @@ describe( 'Reorder Form completion presentation', () => {
 
 	/**
 	 * 概要:
-	 * - RF反映失敗では成功通知を表示しないことを確認する。
+	 * - RF反映失敗を成功と区別した結果通知として表示できることを確認する。
 	 *
 	 * 事前条件:
-	 * - Table Aの反映失敗結果がRF Interactionから公開されている。
+	 * - Table Aの反映失敗結果がRF Interactionから未消費結果として公開されている。
 	 *
 	 * 操作:
-	 * - Table Aの完了通知を表示する。
+	 * - Table Aの結果通知を表示する。
 	 *
 	 * 期待結果:
-	 * - 成功通知は表示されない。
-	 * - 成功結果として消費しない。
+	 * - Tableが変更されていないことを含む失敗通知が表示される。
+	 * - Table Aの失敗結果が消費される。
 	 */
-	it( 'when RF apply fails, should not show a completion notice', () => {
+	it( 'when RF apply fails, should show a failure notice and consume the outcome', () => {
 		mockedUseRfApplyOutcome.mockReturnValue( {
 			status: 'failure',
 			tableIdentity: 'table-a',
@@ -121,19 +122,22 @@ describe( 'Reorder Form completion presentation', () => {
 
 		render( <ReorderFormCompletion tableIdentity="table-a" /> );
 
-		expect( screen.queryByRole( 'status' ) ).toBeNull();
-		expect( mockedConsumeApplyOutcome ).not.toHaveBeenCalled();
+		expect(
+			screen.getByText( 'Reordering failed. The table has not been changed.' )
+		).not.toBeNull();
+		expect( mockedConsumeApplyOutcome ).toHaveBeenCalledTimes( 1 );
+		expect( mockedConsumeApplyOutcome ).toHaveBeenCalledWith( 'table-a' );
 	} );
 
 	/**
 	 * 概要:
-	 * - 正常完了通知が利用者に認識できる時間だけ表示されることを確認する。
+	 * - RF結果通知が利用者に認識できる時間だけ表示されることを確認する。
 	 *
 	 * 事前条件:
 	 * - Table Aの正常反映結果がRF Interactionから未消費結果として公開されている。
 	 *
 	 * 操作:
-	 * - 完了通知の表示開始から2秒経過させる。
+	 * - 結果通知の表示開始から2秒経過させる。
 	 *
 	 * 期待結果:
 	 * - 2秒経過前は通知が表示され、2秒経過後は終了する。
