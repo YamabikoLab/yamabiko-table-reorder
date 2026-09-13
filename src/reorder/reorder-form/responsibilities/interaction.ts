@@ -3,7 +3,7 @@
  *
  * Zustandのvanilla storeを状態正本とし、React component lifecycleから独立してSessionを維持する。
  * 現在Tableに依存する表示結果は要求時点で既存Table Integration / Input Interpretation / Resolutionから再評価し、
- * 成立したApply要求はRF Apply Coordinationへ直接渡す。
+ * 並び替え種別固有candidateはPresentationへ公開せずRF Apply Coordinationとの内部境界だけへ渡す。
  */
 
 import { devtools } from 'zustand/middleware';
@@ -21,16 +21,16 @@ import {
 
 import { receiveRfApplyRequest } from './apply-coordination';
 import {
-	columnRfResolution,
-	type ColumnRfMoveCandidate,
-	type ColumnRfResolution,
-} from './column-resolution';
-import {
 	interpretColumnRfInput,
 	interpretRowRfInput,
 	type ColumnRfFormInput,
 	type RowRfFormInput,
 } from './input-interpretation';
+import {
+	columnRfResolution,
+	type ColumnRfMoveCandidate,
+	type ColumnRfResolution,
+} from './column-resolution';
 import { rowRfResolution, type RowRfMoveCandidate, type RowRfResolution } from './row-resolution';
 
 /** Row Reorderの現在表示結果。 */
@@ -71,25 +71,30 @@ const INITIAL_COLUMN_INPUT: ColumnRfFormInput = {
 	position: null,
 };
 
+/** RF Sessionが保持するReorder Kind別入力。 */
 type RfSessionInputs = {
 	rowInput: RowRfFormInput;
 	columnInput: ColumnRfFormInput;
 };
 
+/** Row Reorderの現在Table基準表示キャッシュ。 */
 type RowEvaluation = {
 	kind: 'row';
 	rowCount: number | null;
 	result: RfRowCurrentResult;
 };
 
+/** Column Reorderの現在Table基準表示キャッシュ。 */
 type ColumnEvaluation = {
 	kind: 'column';
 	columns: readonly ColumnInputDescriptor[];
 	result: RfColumnCurrentResult;
 };
 
+/** 現在Reorder Kindに対応する表示キャッシュ。 */
 type RfEvaluation = RowEvaluation | ColumnEvaluation;
 
+/** RF Interactionが所有するSession Lifecycle状態。 */
 type RfSessionState =
 	| { status: 'closed' }
 	| ( {
@@ -104,10 +109,12 @@ type RfSessionState =
 			kind: 'row' | 'column';
 	  } & RfSessionInputs );
 
+/** RF Interaction Storeが所有する状態。 */
 type RfInteractionStoreState = {
 	session: RfSessionState;
 };
 
+/** RF Interaction Storeが所有する状態遷移。 */
 type RfInteractionStoreActions = {
 	open: ( tableIdentity: string ) => void;
 	close: ( tableIdentity: string ) => void;
@@ -119,9 +126,20 @@ type RfInteractionStoreActions = {
 	resolveApply: ( tableIdentity: string, result: RfApplyResult ) => void;
 };
 
+/** RF Interactionの状態と、その状態を変更できるStore内部操作。 */
 type RfInteractionStore = RfInteractionStoreState & RfInteractionStoreActions;
 
+/**
+ * Row Resolution結果から、Presentationへ公開してよい現在結果だけを取り出す。
+ *
+ * candidateはApply Coordinationとの内部境界だけで扱い、結合セル制約で拒否された場合だけ
+ * 利用者が理由を確認できるようblockingMergedRangeを保持する。
+ *
+ * @param resolution 現在TableとRow指定を評価したResolution結果。
+ * @return candidateを含まないPresentation向け現在結果。
+ */
 const toRowCurrentResult = ( resolution: RowRfResolution ): RfRowCurrentResult => {
+	// 結合セル制約による拒否時だけ、利用者へ拒否理由を示す範囲情報を公開する。
 	if ( resolution.status === 'rejected' ) {
 		return {
 			status: 'rejected',
@@ -133,7 +151,17 @@ const toRowCurrentResult = ( resolution: RowRfResolution ): RfRowCurrentResult =
 	return result;
 };
 
+/**
+ * Column Resolution結果から、Presentationへ公開してよい現在結果だけを取り出す。
+ *
+ * candidateはApply Coordinationとの内部境界だけで扱い、結合セル制約で拒否された場合だけ
+ * 利用者が理由を確認できるようblockingMergedRangeを保持する。
+ *
+ * @param resolution 現在TableとColumn指定を評価したResolution結果。
+ * @return candidateを含まないPresentation向け現在結果。
+ */
 const toColumnCurrentResult = ( resolution: ColumnRfResolution ): RfColumnCurrentResult => {
+	// 結合セル制約による拒否時だけ、利用者へ拒否理由を示す範囲情報を公開する。
 	if ( resolution.status === 'rejected' ) {
 		return {
 			status: 'rejected',
@@ -145,11 +173,19 @@ const toColumnCurrentResult = ( resolution: ColumnRfResolution ): RfColumnCurren
 	return result;
 };
 
+/**
+ * 現在Tableと保持中Row入力から、Row表示状態とApply候補を同じ評価経路で解決する。
+ *
+ * @param tableIdentity 評価対象Table Identity。
+ * @param input         現在Sessionが保持するRow入力。
+ * @return Presentation向け評価と、成立時だけ内部Apply境界へ渡せるcandidate。
+ */
 const evaluateRow = (
 	tableIdentity: string,
 	input: RowRfFormInput
 ): { evaluation: RowEvaluation; candidate: RowRfMoveCandidate | null } => {
 	const constraints = rowTableIntegration.getConstraints( tableIdentity );
+	// 現在TableのRow構造を取得できない場合は成立可否を推測せず、利用不能として扱う。
 	if ( constraints === null ) {
 		return {
 			evaluation: {
@@ -162,6 +198,7 @@ const evaluateRow = (
 	}
 
 	const interpretation = interpretRowRfInput( input, constraints.rowCount );
+	// 入力指定が現在行数に対して未成立なら、構造制約の解決へ進めず入力待ちとして扱う。
 	if ( interpretation.status === 'not-ready' ) {
 		return {
 			evaluation: {
@@ -174,6 +211,7 @@ const evaluateRow = (
 	}
 
 	const resolution = rowRfResolution.resolve( tableIdentity, interpretation.specification );
+	// Apply候補は現在指定が成立した場合だけ内部境界へ渡せる。
 	const candidate = resolution.status === 'resolved' ? resolution.candidate : null;
 	return {
 		evaluation: {
@@ -185,11 +223,19 @@ const evaluateRow = (
 	};
 };
 
+/**
+ * 現在Tableと保持中Column入力から、Column表示状態とApply候補を同じ評価経路で解決する。
+ *
+ * @param tableIdentity 評価対象Table Identity。
+ * @param input         現在Sessionが保持するColumn入力。
+ * @return Presentation向け評価と、成立時だけ内部Apply境界へ渡せるcandidate。
+ */
 const evaluateColumn = (
 	tableIdentity: string,
 	input: ColumnRfFormInput
 ): { evaluation: ColumnEvaluation; candidate: ColumnRfMoveCandidate | null } => {
 	const columns = columnTableIntegration.getColumnInputDescriptors( tableIdentity );
+	// 現在TableのColumn構造を取得できない場合は成立可否を推測せず、利用不能として扱う。
 	if ( columns === null ) {
 		return {
 			evaluation: {
@@ -202,6 +248,7 @@ const evaluateColumn = (
 	}
 
 	const interpretation = interpretColumnRfInput( input, columns );
+	// 入力指定が現在の列記述に対して未成立なら、構造制約の解決へ進めず入力待ちとして扱う。
 	if ( interpretation.status === 'not-ready' ) {
 		return {
 			evaluation: {
@@ -214,6 +261,7 @@ const evaluateColumn = (
 	}
 
 	const resolution = columnRfResolution.resolve( tableIdentity, interpretation.specification );
+	// Apply候補は現在指定が成立した場合だけ内部境界へ渡せる。
 	const candidate = resolution.status === 'resolved' ? resolution.candidate : null;
 	return {
 		evaluation: {
@@ -225,32 +273,47 @@ const evaluateColumn = (
 	};
 };
 
+/**
+ * 現在Reorder Kindと保持入力を使い、要求時点の現在Table基準で共通再評価する。
+ *
+ * @param session 再評価対象のopen Session。
+ * @return 現在Reorder Kindの表示評価と、成立時だけkind固有candidate。
+ */
 const evaluateOpenSession = (
 	session: Extract< RfSessionState, { status: 'open' } >
 ): { evaluation: RfEvaluation; request: RfApplyRequest | null } => {
+	// 現在選択中のReorder Kindだけを再評価し、非表示kindの保持入力は評価結果へ混在させない。
 	if ( session.kind === 'row' ) {
 		const row = evaluateRow( session.tableIdentity, session.rowInput );
+		// Apply要求は現在Row指定が成立した場合だけ生成する。
 		const request =
 			row.candidate === null ? null : { kind: 'row' as const, candidate: row.candidate };
 		return { evaluation: row.evaluation, request };
 	}
 
 	const column = evaluateColumn( session.tableIdentity, session.columnInput );
+	// Apply要求は現在Column指定が成立した場合だけ生成する。
 	const request =
 		column.candidate === null ? null : { kind: 'column' as const, candidate: column.candidate };
 	return { evaluation: column.evaluation, request };
 };
 
-/** RF Interactionの状態正本。 */
+/**
+ * RF Interactionの状態正本。
+ *
+ * Store内部APIはRF Interaction / React接続境界の実装だけが利用し、Presentationへ直接公開しない。
+ */
 export const rfInteractionStore = createStore< RfInteractionStore >()(
 	devtools(
 		( set, get ) => ( {
 			session: { status: 'closed' },
 			open: ( tableIdentity ) => {
 				const session = get().session;
+				// Apply結果待機中は現在Sessionを固定し、別Session開始や再初期化を受け付けない。
 				if ( session.status === 'applying' ) {
 					return;
 				}
+				// 同じTableの再openはReact remount等で既存入力やReorder Kindを失わないため無視する。
 				if ( session.status === 'open' && session.tableIdentity === tableIdentity ) {
 					return;
 				}
@@ -275,6 +338,7 @@ export const rfInteractionStore = createStore< RfInteractionStore >()(
 			},
 			close: ( tableIdentity ) => {
 				const session = get().session;
+				// Cancel / closeは現在open中の対象Tableからの要求だけを受理し、古い要求で別Sessionを閉じない。
 				if ( session.status !== 'open' || session.tableIdentity !== tableIdentity ) {
 					return;
 				}
@@ -282,9 +346,11 @@ export const rfInteractionStore = createStore< RfInteractionStore >()(
 			},
 			selectKind: ( tableIdentity, kind ) => {
 				const session = get().session;
+				// Reorder Kind変更は現在open中の対象Tableからの要求だけを受理する。
 				if ( session.status !== 'open' || session.tableIdentity !== tableIdentity ) {
 					return;
 				}
+				// 同じReorder Kindの再選択では保持入力や現在評価を不要に更新しない。
 				if ( session.kind === kind ) {
 					return;
 				}
@@ -299,6 +365,7 @@ export const rfInteractionStore = createStore< RfInteractionStore >()(
 			},
 			updateRowInput: ( tableIdentity, input ) => {
 				const session = get().session;
+				// Row入力は現在open中の同じTableでRow Reorderが選択されている場合だけ更新する。
 				if (
 					session.status !== 'open' ||
 					session.tableIdentity !== tableIdentity ||
@@ -309,13 +376,20 @@ export const rfInteractionStore = createStore< RfInteractionStore >()(
 
 				const row = evaluateRow( tableIdentity, input );
 				set(
-					{ session: { ...session, rowInput: input, evaluation: row.evaluation } },
+					{
+						session: {
+							...session,
+							rowInput: input,
+							evaluation: row.evaluation,
+						},
+					},
 					undefined,
 					'rf-interaction/update-row-input'
 				);
 			},
 			updateColumnInput: ( tableIdentity, input ) => {
 				const session = get().session;
+				// Column入力は現在open中の同じTableでColumn Reorderが選択されている場合だけ更新する。
 				if (
 					session.status !== 'open' ||
 					session.tableIdentity !== tableIdentity ||
@@ -326,13 +400,20 @@ export const rfInteractionStore = createStore< RfInteractionStore >()(
 
 				const column = evaluateColumn( tableIdentity, input );
 				set(
-					{ session: { ...session, columnInput: input, evaluation: column.evaluation } },
+					{
+						session: {
+							...session,
+							columnInput: input,
+							evaluation: column.evaluation,
+						},
+					},
 					undefined,
 					'rf-interaction/update-column-input'
 				);
 			},
 			notifyTableChanged: ( tableIdentity ) => {
 				const session = get().session;
+				// Table変更通知は現在open中の対象Tableに対してだけ再評価を発生させる。
 				if ( session.status !== 'open' || session.tableIdentity !== tableIdentity ) {
 					return;
 				}
@@ -346,11 +427,13 @@ export const rfInteractionStore = createStore< RfInteractionStore >()(
 			},
 			requestApply: ( tableIdentity ) => {
 				const session = get().session;
+				// Apply要求は現在open中の対象Tableからの要求だけを受理する。
 				if ( session.status !== 'open' || session.tableIdentity !== tableIdentity ) {
 					return;
 				}
 
 				const evaluated = evaluateOpenSession( session );
+				// freshな指定が未成立ならLifecycleを開始せず最新表示結果だけを反映する。
 				if ( evaluated.request === null ) {
 					set(
 						{ session: { ...session, evaluation: evaluated.evaluation } },
@@ -374,15 +457,18 @@ export const rfInteractionStore = createStore< RfInteractionStore >()(
 			},
 			resolveApply: ( tableIdentity, result ) => {
 				const session = get().session;
+				// Apply結果は現在結果待ち中の同じTableに対する通知だけを受理し、古い完了通知を無視する。
 				if ( session.status !== 'applying' || session.tableIdentity !== tableIdentity ) {
 					return;
 				}
 
+				// 正常反映が完了したSessionは入力を残さず終了する。
 				if ( result === 'success' ) {
 					set( { session: { status: 'closed' } }, undefined, 'rf-interaction/apply-success' );
 					return;
 				}
 
+				// failure / cancelledでは入力を保持して再開し、現在Reorder Kindだけを最新Table基準で再評価する。
 				const evaluation =
 					session.kind === 'row'
 						? evaluateRow( session.tableIdentity, session.rowInput ).evaluation
@@ -410,19 +496,19 @@ export const rfInteraction = {
 	close: ( tableIdentity: string ) => rfInteractionStore.getState().close( tableIdentity ),
 	/**
 	 * @param tableIdentity 現在RF Sessionの対象Table Identity。
-	 * @param kind 選択するReorder Kind。
+	 * @param kind          選択するReorder Kind。
 	 */
 	selectKind: ( tableIdentity: string, kind: 'row' | 'column' ) =>
 		rfInteractionStore.getState().selectKind( tableIdentity, kind ),
 	/**
 	 * @param tableIdentity 現在RF Sessionの対象Table Identity。
-	 * @param input 利用者が現在指定しているRow入力。
+	 * @param input         利用者が現在指定しているRow入力。
 	 */
 	updateRowInput: ( tableIdentity: string, input: RowRfFormInput ) =>
 		rfInteractionStore.getState().updateRowInput( tableIdentity, input ),
 	/**
 	 * @param tableIdentity 現在RF Sessionの対象Table Identity。
-	 * @param input 利用者が現在指定しているColumn入力。
+	 * @param input         利用者が現在指定しているColumn入力。
 	 */
 	updateColumnInput: ( tableIdentity: string, input: ColumnRfFormInput ) =>
 		rfInteractionStore.getState().updateColumnInput( tableIdentity, input ),
