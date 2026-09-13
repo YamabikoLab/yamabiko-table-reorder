@@ -8,10 +8,7 @@
 
 import { Button, Popover } from '@wordpress/components';
 import { useRef } from '@wordpress/element';
-import type {
-	MouseEvent as ReactMouseEvent,
-	PointerEvent as ReactPointerEvent,
-} from 'react';
+import type { MouseEvent as ReactMouseEvent, PointerEvent as ReactPointerEvent } from 'react';
 
 import {
 	getRfAboveLabel,
