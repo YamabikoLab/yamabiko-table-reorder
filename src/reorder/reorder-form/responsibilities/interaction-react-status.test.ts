@@ -9,6 +9,18 @@ import { act, renderHook } from '@testing-library/react';
 import { useRfInteractionStatus } from './interaction-react';
 import { rfInteractionStore } from './interaction';
 
+jest.mock( '@/reorder/row-reorder/responsibilities/table-integration', () => ( {
+	rowTableIntegration: {
+		getConstraints: jest.fn(),
+	},
+} ) );
+
+jest.mock( '@/reorder/column-reorder/responsibilities/table-integration', () => ( {
+	columnTableIntegration: {
+		getColumnInputDescriptors: jest.fn(),
+	},
+} ) );
+
 const ROW_INPUT = {
 	sourceRowNumber: '1',
 	targetRowNumber: '3',
