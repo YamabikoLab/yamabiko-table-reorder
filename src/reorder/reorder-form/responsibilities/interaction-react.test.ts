@@ -1,8 +1,8 @@
 /**
- * RF InteractionのReact接続境界が、対象Tableに必要な表示状態だけを継続購読することを確認する。
+ * RF InteractionのReact接続境界が、対象Tableに必要な表示状態と未消費の反映結果だけを継続購読することを確認する。
  *
- * RF Sessionの状態変更をReact外から行い、対象Table / 別Tableの見え方、Reorder Kind固有公開状態、
- * notifyTableChangedによる再評価結果への追従をHook境界から検証する。
+ * RF SessionとApply Outcomeの状態変更をReact外から行い、対象Table / 別Tableの見え方、Reorder Kind固有公開状態、
+ * notifyTableChangedによる再評価結果への追従、再mount後の結果保持をHook境界から検証する。
  */
 
 import { act, renderHook } from '@testing-library/react';
@@ -11,7 +11,7 @@ import { columnTableIntegration } from '@/reorder/column-reorder/responsibilitie
 import { rowTableIntegration } from '@/reorder/row-reorder/responsibilities/table-integration';
 
 import { columnRfResolution } from './column-resolution';
-import { useRfInteraction } from './interaction-react';
+import { useRfApplyOutcome, useRfInteraction } from './interaction-react';
 import { rfInteraction, rfInteractionStore } from './interaction';
 import { rowRfResolution } from './row-resolution';
 
@@ -45,7 +45,10 @@ const COLUMNS = [
 
 const resetInteraction = () => {
 	act( () => {
-		rfInteractionStore.setState( { session: { status: 'closed' } } );
+		rfInteractionStore.setState( {
+			session: { status: 'closed' },
+			applyOutcome: { status: 'idle' },
+		} );
 	} );
 };
 
@@ -277,6 +280,43 @@ describe( 'RF Interaction React connection', () => {
 			rowCount: 3,
 			result: { status: 'resolved' },
 			canApply: true,
+		} );
+	} );
+
+	/**
+	 * 概要:
+	 * - 未消費のRF反映結果を対象Tableだけへ公開し、React再mountでは失わないことを確認する。
+	 *
+	 * 事前条件:
+	 * - Table Aのfailure OutcomeがRF Interactionに保持されている。
+	 *
+	 * 操作:
+	 * - Table A / BでOutcomeを購読し、Table Aの購読をunmountして再度mountする。
+	 *
+	 * 期待結果:
+	 * - Table Aだけがfailureを受け取り、Table Bはidleとなる。
+	 * - Table Aの再mount後も未消費failureを引き続き購読できる。
+	 */
+	it( 'when an RF apply outcome remains unconsumed, should expose it only to the owning table across remounts', () => {
+		act( () => {
+			rfInteractionStore.setState( {
+				applyOutcome: { status: 'failure', tableIdentity: 'table-a' },
+			} );
+		} );
+		const tableA = renderHook( () => useRfApplyOutcome( 'table-a' ) );
+		const tableB = renderHook( () => useRfApplyOutcome( 'table-b' ) );
+
+		expect( tableA.result.current ).toEqual( {
+			status: 'failure',
+			tableIdentity: 'table-a',
+		} );
+		expect( tableB.result.current ).toEqual( { status: 'idle' } );
+
+		tableA.unmount();
+		const remounted = renderHook( () => useRfApplyOutcome( 'table-a' ) );
+		expect( remounted.result.current ).toEqual( {
+			status: 'failure',
+			tableIdentity: 'table-a',
 		} );
 	} );
 } );
