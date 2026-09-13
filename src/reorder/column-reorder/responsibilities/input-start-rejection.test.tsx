@@ -54,7 +54,7 @@ const renderColumnInput = (): ColumnDndPointerDownHandler => {
 	const capturedHandler: { current: ColumnDndPointerDownHandler | null } = { current: null };
 
 	render(
-		<ColumnInput enabled tableIdentity="table-a" activeDraggable={ { current: null } }>
+		<ColumnInput tableIdentity="table-a" activeDraggable={ { current: null } }>
 			{ ( handler ) => {
 				capturedHandler.current = handler;
 				return <div />;
