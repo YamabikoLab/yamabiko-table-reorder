@@ -61,7 +61,7 @@ export type ReorderApplyPresentationState =
 			apply: () => void;
 	  }
 	| {
-			phase: 'remounting';
+			phase: 'restoring';
 			owner: ReorderApplyOwner;
 			kind: ReorderKind;
 			tableIdentity: string;
@@ -160,7 +160,7 @@ const adaptRowReorderApply = (
 	}
 
 	return {
-		phase: 'remounting',
+		phase: 'restoring',
 		owner: 'row',
 		kind: 'row',
 		tableIdentity: state.move.tableIdentity,
@@ -216,7 +216,7 @@ const adaptColumnReorderApply = (
 	}
 
 	return {
-		phase: 'remounting',
+		phase: 'restoring',
 		owner: 'column',
 		kind: 'column',
 		tableIdentity: state.move.tableIdentity,
@@ -291,7 +291,7 @@ const adaptRfApply = (
 	}
 
 	return {
-		phase: 'remounting',
+		phase: 'restoring',
 		owner: 'rf',
 		kind: snapshot.kind,
 		tableIdentity: snapshot.tableIdentity,
