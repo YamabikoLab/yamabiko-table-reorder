@@ -17,7 +17,7 @@ A WordPress block editor plugin for reordering Table rows and columns.
 
 ## Current Status
 
-Version 0.9.0 provides **Row Reorder, Column Reorder, and Reorder Form (RF)** for the supported Table blocks listed above.
+Version 0.9.1 provides **Row Reorder, Column Reorder, and Reorder Form (RF)** for the supported Table blocks listed above.
 
 Switch to Row Reorder or Column Reorder mode from the Table toolbar, then reorder `tbody` rows or Table columns with Mouse or Touch drag-and-drop. During DnD, the plugin shows the moving row or column and the current destination. During Row Reorder, surrounding rows are displaced to preview the result before it is committed. During Column Reorder, surrounding columns are displaced in iframe editors. In non-iframe editors, surrounding column displacement is intentionally omitted to preserve responsiveness, while the moving column and insertion line continue to show the source and destination.
 
@@ -27,7 +27,7 @@ For Tables with merged cells, only destinations that preserve the supported Tabl
 
 When a reorder affects enough cells that applying the change may take some time, the plugin shows a confirmation before applying it. If continued, only the target Table enters a temporary applying state, and editing resumes after the update completes. Row Reorder, Column Reorder, and RF share the same user-facing completion feedback, while preserving their independent interaction responsibilities.
 
-RF uses a movable Popover when enough editor space is available. In a narrow editor area it switches to a bottom dock that can be collapsed so the target Table remains easier to inspect while choosing rows or columns.
+RF uses a movable Popover when enough editor space is available. In a narrow editor area it switches to a bottom dock that can be collapsed, resized vertically, and scrolled internally so the target Table and required form controls remain easier to inspect and reach.
 
 ## Demo
 
@@ -43,7 +43,7 @@ Use the `prototype-final` tag when you need to refer to the Prototype v0.4.0 imp
 
 The distribution history through 0.4.0 is preserved as-is. The term formal v1 describes a new design and implementation generation and does not mean the distribution version changes to `1.0.0`.
 
-0.5.0 was the first formal v1 Row Reorder release. 0.7.0 added formal v1 Column Reorder. 0.8.0 added a confirmation flow for reorders whose affected range may take time to apply. 0.8.1 fixed a conflict between Column Reorder Touch long-presses and cell editing. 0.8.2 improves Column Reorder responsiveness in non-iframe editors, fixes first-use Touch guidance focus behavior, and corrects moving-column feedback when an iframe editor has a horizontal offset. 0.8.3 prevents Gutenberg's native block dragging from competing with Row / Column Reorder while Reorder Mode is active. 0.8.4 prevents browser text selection, search, and long-press callout actions from interfering with touch Row / Column Reorder while Reorder Mode is active. 0.8.5 improves first-use guidance by showing PC- and Touch-specific instructions, including long-press guidance for Touch drag-and-drop. 0.9.0 adds Reorder Form v1 for drag-free row and column moves, responsive RF presentation, clearer merged-cell diagnostics, and shared reorder completion feedback.
+0.5.0 was the first formal v1 Row Reorder release. 0.7.0 added formal v1 Column Reorder. 0.8.0 added a confirmation flow for reorders whose affected range may take time to apply. 0.8.1 fixed a conflict between Column Reorder Touch long-presses and cell editing. 0.8.2 improves Column Reorder responsiveness in non-iframe editors, fixes first-use Touch guidance focus behavior, and corrects moving-column feedback when an iframe editor has a horizontal offset. 0.8.3 prevents Gutenberg's native block dragging from competing with Row / Column Reorder while Reorder Mode is active. 0.8.4 prevents browser text selection, search, and long-press callout actions from interfering with touch Row / Column Reorder while Reorder Mode is active. 0.8.5 improves first-use guidance by showing PC- and Touch-specific instructions, including long-press guidance for Touch drag-and-drop. 0.9.0 adds Reorder Form v1 for drag-free row and column moves, responsive RF presentation, clearer merged-cell diagnostics, and shared reorder completion feedback. 0.9.1 improves narrow RF height adjustment and internal scrolling, and prevents confirmed reorder result focus from automatically entering cell editing or opening the software keyboard on mobile devices.
 
 ## Requirements
 
