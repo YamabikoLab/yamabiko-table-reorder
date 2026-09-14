@@ -3,7 +3,7 @@
  *
  * PCとタッチ端末の主ポインター入力から現在Table内のセルを移動元論理列へ解決し、
  * 第一段階のReorder Target Resolutionで開始可能な列だけをdnd-kitのDraggableへ一時登録する。
- * 結合範囲により開始できない列では物理DnDを登録せず、利用者向け開始不可理由を開始を試みた位置とともにPresentationへ通知する。
+ * 結合範囲により開始できない列では物理DnDを登録せず、原因となるblocking merged rangeを開始を試みた位置とともにPresentationへ通知する。
  * タッチ入力は通常スクロールと競合しない長押し条件で開始し、DnD開始後の進行、移動先解決、確定、取消はこの責務では扱わない。
  */
 
@@ -28,7 +28,7 @@ export type ColumnDndPointerDownHandler = ( event: PointerEvent< Element > ) => 
  *
  * PCとタッチ端末の主ポインター入力を共通の第一段階Reorder Target ResolutionとDraggable登録経路へ接続する。
  * マウスは短い移動距離、タッチは通常スクロールとの競合を避ける長押しを開始条件とする。
- * Design上の開始拒否理由がある場合はDraggableを登録せず、操作位置とともにPresentationへ通知する。
+ * 開始を妨げる結合範囲がある場合はDraggableを登録せず、原因範囲を操作位置とともにPresentationへ通知する。
  * DnD Engineがidleで新しいポインター入力を受け付けられる場合は前回の開始候補を破棄し、現在入力だけを有効にする。
  * active DnD中は現在のDraggableを破棄せず、新しい開始候補も受け付けない。
  * Reorder Modeの判定はDnD接続境界が入力を渡す前に行い、この責務では扱わない。
@@ -113,7 +113,7 @@ export const ColumnInput = ( props: {
 		if ( resolution.status !== 'resolved' ) {
 			if ( resolution.status === 'rejected' ) {
 				notifyColumnStartRejection( {
-					reason: resolution.reason,
+					blockingMergedRange: resolution.blockingMergedRange,
 					clientX: event.clientX,
 					clientY: event.clientY,
 				} );
