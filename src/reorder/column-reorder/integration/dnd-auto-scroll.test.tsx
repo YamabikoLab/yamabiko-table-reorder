@@ -131,7 +131,19 @@ describe( 'Column DnD horizontal auto scroll integration', () => {
 	} );
 
 	/**
-	 * 水平自動スクロールでTableの画面位置だけが変化した場合も、現在の移動先を更新できることを確認する。
+	 * 概要:
+	 * - 水平自動スクロールでTableの画面位置だけが変化した場合も、現在の移動先を更新できることを確認する。
+	 *
+	 * 事前条件:
+	 * - Column DnD Sessionが開始している。
+	 * - 最新のポインター移動からDestination Resolutionが利用できる。
+	 *
+	 * 操作:
+	 * - 通常のmove通知後、ポインターを動かさずに水平自動スクロール完了を通知する。
+	 *
+	 * 期待結果:
+	 * - 最新の物理入力位置を使ってDestination Resolutionが再実行される。
+	 * - 再解決した論理列間境界がDnD Interactionへ反映される。
 	 */
 	it( 'when horizontal auto scroll moves the table without a new pointer move, should resolve and update the destination again', () => {
 		const resolver = { resolve: jest.fn().mockReturnValue( 2 ) };
@@ -163,7 +175,18 @@ describe( 'Column DnD horizontal auto scroll integration', () => {
 	} );
 
 	/**
-	 * 物理DnD終了時に水平自動スクロールのSession状態を破棄することを確認する。
+	 * 概要:
+	 * - 物理DnD終了時に水平自動スクロールのSession状態を破棄することを確認する。
+	 *
+	 * 事前条件:
+	 * - Column DnD Session開始時に水平自動スクロールが対象Tableへ接続されている。
+	 *
+	 * 操作:
+	 * - 物理DnDを正常終了する。
+	 *
+	 * 期待結果:
+	 * - 水平自動スクロールの停止が要求される。
+	 * - Column DnD Sessionは通常どおりcompleteされる。
 	 */
 	it( 'when the physical column drag ends, should stop horizontal auto scroll before completing the session', () => {
 		destinationResolverFactoryMock.mockReturnValue( {

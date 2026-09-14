@@ -137,7 +137,17 @@ describe( 'Column DnD Engine Integration', () => {
 	} );
 
 	/**
-	 * Reorder Modeをevent-timeで確認し、列modeの入力だけをColumn Inputへ渡すことを確認する。
+	 * 概要:
+	 * - Reorder Modeをevent-timeで確認し、列modeの入力だけをColumn Inputへ渡すことを確認する。
+	 *
+	 * 事前条件:
+	 * - DnD境界は通常編集状態から同じReact identityで存在している。
+	 *
+	 * 操作:
+	 * - 通常編集状態と列mode状態で同じpointer handlerへ入力する。
+	 *
+	 * 期待結果:
+	 * - 通常編集の入力はColumn Inputへ渡らず、列modeの入力だけが渡る。
 	 */
 	it( 'when pointer input occurs, should forward it to Column Input only while column reorder mode is active', () => {
 		let pointerDown: ( event: unknown ) => void = () => {};
@@ -162,7 +172,20 @@ describe( 'Column DnD Engine Integration', () => {
 	} );
 
 	/**
-	 * 第二段階解決が成立した物理DnDをColumn DnD Sessionへ接続することを確認する。
+	 * 概要:
+	 * - 第二段階解決が成立した物理DnDをColumn DnD Sessionへ接続し、論理移動先だけを進行へ渡すことを確認する。
+	 *
+	 * 事前条件:
+	 * - 第一段階で登録されたTargetが第二段階でも開始可能である。
+	 * - Destination Resolutionは現在位置を論理列間境界3として解決する。
+	 *
+	 * 操作:
+	 * - before start、start、move、正常endの順に物理DnD通知を行う。
+	 *
+	 * 期待結果:
+	 * - 第二段階の解決済みTargetと開始時制約でSessionが開始される。
+	 * - moveでは論理列間境界3だけがDnD Interactionへ渡される。
+	 * - 正常endはcompleteへ変換され、cancelは呼ばれない。
 	 */
 	it( 'when second-stage resolution succeeds and the physical drag completes, should connect the resolved target, logical destination, and complete lifecycle', () => {
 		render( <ColumnDnd tableIdentity="table-1">{ () => <div /> }</ColumnDnd> );
@@ -183,16 +206,28 @@ describe( 'Column DnD Engine Integration', () => {
 		provider.onDragEnd( { canceled: false } as unknown as DragEndEvent );
 
 		expect( preventDefault ).not.toHaveBeenCalled();
+		expect( targetResolutionMock.resolve ).toHaveBeenCalledWith( target );
 		expect( dndInteractionMock.start ).toHaveBeenCalledWith(
 			resolvedTarget.target,
 			resolvedTarget.initialConstraints
 		);
 		expect( dndInteractionMock.updateDestination ).toHaveBeenCalledWith( 3 );
 		expect( dndInteractionMock.complete ).toHaveBeenCalledTimes( 1 );
+		expect( dndInteractionMock.cancel ).not.toHaveBeenCalled();
 	} );
 
 	/**
-	 * DnD EngineのAuto ScrollをColumn Reorderでは無効化することを確認する。
+	 * 概要:
+	 * - Column ReorderではDnD EngineのAuto Scrollを利用しないことを確認する。
+	 *
+	 * 事前条件:
+	 * - DnD Engineの既定pluginにAutoScrollerとその他の標準pluginが含まれる。
+	 *
+	 * 操作:
+	 * - Column DnD境界のplugin構成を解決する。
+	 *
+	 * 期待結果:
+	 * - Column Reorderで利用しない既定pluginは除外され、その他のpluginだけが維持される。
 	 */
 	it( 'when DnD engine plugins are configured, should disable engine auto scroll for column reorder', () => {
 		render( <ColumnDnd tableIdentity="table-1">{ () => <div /> }</ColumnDnd> );
@@ -209,7 +244,18 @@ describe( 'Column DnD Engine Integration', () => {
 	} );
 
 	/**
-	 * Destination Resolverを開始時に生成できない場合は最初のmoveで再試行する。
+	 * 概要:
+	 * - Destination Resolutionを開始時に生成できなくても、最初のmoveで再解決して論理移動先へ接続できることを確認する。
+	 *
+	 * 事前条件:
+	 * - 第二段階Target Resolutionは開始可能である。
+	 * - DnD開始時はDestination Resolverを生成できないが、最初のmoveでは生成できる。
+	 *
+	 * 操作:
+	 * - before start、start、moveの順に物理DnD通知を行う。
+	 *
+	 * 期待結果:
+	 * - move時にResolver生成が再試行され、解決された論理列間境界がDnD Interactionへ渡される。
 	 */
 	it( 'when destination resolution is unavailable at drag start but available on move, should retry and forward the resolved logical boundary', () => {
 		const resolver = { resolve: jest.fn().mockReturnValue( 2 ) };
@@ -235,7 +281,18 @@ describe( 'Column DnD Engine Integration', () => {
 	} );
 
 	/**
-	 * 第二段階が成立しない場合は物理DnD開始を抑止する。
+	 * 概要:
+	 * - 第一段階後のTable変化で第二段階が成立しない場合にColumn DnD Sessionを開始しないことを確認する。
+	 *
+	 * 事前条件:
+	 * - active DnD成立直前のTarget Resolutionが利用不能を返す。
+	 *
+	 * 操作:
+	 * - before start通知後にstart通知を行う。
+	 *
+	 * 期待結果:
+	 * - 入力Targetが第二段階解決へ渡される。
+	 * - 物理DnD開始は抑止され、DnD InteractionのSessionは開始されない。
 	 */
 	it( 'when second-stage target resolution becomes unavailable, should prevent the physical drag and not start a column session', () => {
 		targetResolutionMock.resolve.mockReturnValue( { status: 'unavailable' } );
@@ -249,12 +306,23 @@ describe( 'Column DnD Engine Integration', () => {
 		} as unknown as BeforeDragStartEvent );
 		provider.onDragStart();
 
+		expect( targetResolutionMock.resolve ).toHaveBeenCalledWith( target );
 		expect( preventDefault ).toHaveBeenCalledTimes( 1 );
 		expect( dndInteractionMock.start ).not.toHaveBeenCalled();
 	} );
 
 	/**
-	 * Column Reorder Mode離脱時に未使用の解決結果とDraggable登録を即時破棄することを確認する。
+	 * 概要:
+	 * - Column Reorder Mode離脱時に未使用の解決結果とDraggable登録を即時破棄することを確認する。
+	 *
+	 * 事前条件:
+	 * - 列modeで第二段階解決済みの開始対象とDraggable登録が存在する。
+	 *
+	 * 操作:
+	 * - React再描画を行わずColumn Reorder Modeから離脱する。
+	 *
+	 * 期待結果:
+	 * - Draggableが破棄され、離脱前の解決結果ではSessionを開始できない。
 	 */
 	it( 'when column reorder mode ends, should discard the resolved start and active draggable without a React rerender', () => {
 		act( () => {
@@ -283,7 +351,17 @@ describe( 'Column DnD Engine Integration', () => {
 	} );
 
 	/**
-	 * 取消終了はColumn DnD Sessionのcancelへ変換する。
+	 * 概要:
+	 * - 物理DnDの取消終了をColumn DnD Sessionのcancelへ変換することを確認する。
+	 *
+	 * 事前条件:
+	 * - Column DnD境界が接続されている。
+	 *
+	 * 操作:
+	 * - canceledなend通知を行う。
+	 *
+	 * 期待結果:
+	 * - completeではなくcancelだけが要求される。
 	 */
 	it( 'when the physical drag ends as canceled, should cancel the column session without completing it', () => {
 		render( <ColumnDnd tableIdentity="table-1">{ () => <div /> }</ColumnDnd> );

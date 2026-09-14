@@ -73,10 +73,17 @@ describe( 'Row highlight', () => {
 	} );
 
 	/**
-	 * Target Resolutionが開始可能とした行だけが操作可能表示の対象になることを確認する。
+	 * 概要:
+	 * - Target Resolutionが開始可能とした行だけが操作可能表示の対象になることを確認する。
+	 *
+	 * 事前条件:
+	 * - Row Reorder Mode中で、現在Tableの各行は行単位で移動可能と解決される。
+	 *
+	 * 操作:
+	 * - 3行目へポインターを移動する。
 	 *
 	 * 期待結果:
-	 * - 3行目だけがホバー表示対象として識別される。
+	 * - 3行目だけが操作可能表示の対象として識別される。
 	 */
 	it( 'when target resolution resolves the hovered row, should mark only that row as highlightable', () => {
 		const { getByTestId } = render( <TestTable /> );
@@ -88,10 +95,17 @@ describe( 'Row highlight', () => {
 	} );
 
 	/**
-	 * 結合範囲により開始拒否となる行を移動不可表示として識別できることを確認する。
+	 * 概要:
+	 * - 結合範囲により開始拒否となる行を移動不可表示として識別できることを確認する。
+	 *
+	 * 事前条件:
+	 * - Row Reorder Mode中で、2行目は結合範囲により開始拒否、3行目は開始可能と解決される。
+	 *
+	 * 操作:
+	 * - 3行目から2行目へポインターを移動する。
 	 *
 	 * 期待結果:
-	 * - 既存表示が解除され、拒否対象行に移動不可表示が付く。
+	 * - 3行目の操作可能表示が解除され、2行目に移動不可表示が付く。
 	 */
 	it( 'when target resolution rejects the hovered row, should show the row as unavailable', () => {
 		createResolverMock.mockReturnValue( {
@@ -114,7 +128,17 @@ describe( 'Row highlight', () => {
 	} );
 
 	/**
-	 * Target Resolutionが利用不能の場合は可否表示を推測しないことを確認する。
+	 * 概要:
+	 * - 現在の移動対象を安全に解決できない場合に操作可能または移動不可と推測しないことを確認する。
+	 *
+	 * 事前条件:
+	 * - Row Reorder Mode中で、Target Resolutionが現在行を通常の利用不能と解決する。
+	 *
+	 * 操作:
+	 * - Table内の行へポインターを移動する。
+	 *
+	 * 期待結果:
+	 * - 行に操作可能表示も移動不可表示も付けない。
 	 */
 	it( 'when target resolution returns unavailable, should not mark the hovered row with an availability state', () => {
 		createResolverMock.mockReturnValue( { resolve: () => ( { status: 'unavailable' } ) } );
@@ -125,13 +149,17 @@ describe( 'Row highlight', () => {
 	} );
 
 	/**
-	 * Row Reorder Mode離脱時に表示を即時破棄し、その後の通常編集入力で再表示しないことを確認する。
+	 * 概要:
+	 * - Row Reorder Mode離脱時に既存の操作可否表示を残さず、その後の通常編集入力でも再表示しないことを確認する。
+	 *
+	 * 事前条件:
+	 * - Row Reorder Mode中に移動可能な行へ操作可能表示が出ている。
 	 *
 	 * 操作:
-	 * - 表示成立後に同じToolbar入口を再選択して通常編集へ戻し、別行へポインターを移動する。
+	 * - 同じToolbar入口を再選択して通常編集へ戻し、その後に別行へポインターを移動する。
 	 *
 	 * 期待結果:
-	 * - 既存表示が解除され、通常編集では新しい表示も付かない。
+	 * - 既存の操作可能表示が解除され、通常編集では新しい操作可否表示も付かない。
 	 */
 	it( 'when row reorder mode ends, should clear the current row state and stop marking rows', () => {
 		const { getByTestId } = render( <TestTable /> );

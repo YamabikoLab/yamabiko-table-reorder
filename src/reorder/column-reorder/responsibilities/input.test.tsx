@@ -144,10 +144,19 @@ describe( 'Column DnD input boundary', () => {
 	} );
 
 	/**
-	 * 縦結合を考慮した論理列で開始候補を登録し、次の候補で前回登録を破棄する。
+	 * 概要:
+	 * - 縦結合を考慮した論理列で開始候補を登録し、次の候補で前回登録を破棄することを確認する。
+	 *
+	 * 事前条件:
+	 * - 前行から継続する縦結合により、対象セルのDOM上の位置と論理列位置が異なる。
+	 *
+	 * 操作:
+	 * - 同じ行の2つのセルへ順に主マウス入力を行う。
 	 *
 	 * 期待結果:
 	 * - 対象セルは論理列1、次セルは論理列2として解決される。
+	 * - 解決済み列は入力対象セルをelement、解決済みTargetをdataとしてDraggableへ登録される。
+	 * - 2回目の開始候補登録前に1回目のDraggableが破棄される。
 	 */
 	it( 'when primary mouse input targets cells after a continuing rowspan, should register the logical column and replace the previous candidate', () => {
 		const { currentTarget, target, next } = createTableTarget();
@@ -155,12 +164,20 @@ describe( 'Column DnD input boundary', () => {
 
 		pointerDownHandler( createPointerEvent( { target, currentTarget } ) );
 		const firstDraggable = activeDraggable.current;
-		pointerDownHandler( createPointerEvent( { target: next, currentTarget } ) );
-
 		expect( targetResolutionMock.resolve ).toHaveBeenNthCalledWith( 1, {
 			tableIdentity: 'table-1',
 			sourceColumnIndex: 1,
 		} );
+		expect( draggableConstructorMock ).toHaveBeenNthCalledWith(
+			1,
+			expect.objectContaining( {
+				element: target,
+				data: { tableIdentity: 'table-1', sourceColumnIndex: 1 },
+			} ),
+			expect.anything()
+		);
+
+		pointerDownHandler( createPointerEvent( { target: next, currentTarget } ) );
 		expect( firstDraggable?.destroy ).toHaveBeenCalledTimes( 1 );
 		expect( targetResolutionMock.resolve ).toHaveBeenNthCalledWith( 2, {
 			tableIdentity: 'table-1',
@@ -169,7 +186,14 @@ describe( 'Column DnD input boundary', () => {
 	} );
 
 	/**
-	 * 横結合セルの後続セルをTable全体の論理列位置で解決する。
+	 * 概要:
+	 * - 横結合セルの後続セルをTable全体の論理列位置で解決することを確認する。
+	 *
+	 * 事前条件:
+	 * - 対象セルの直前に2論理列を占有する横結合セルが存在する。
+	 *
+	 * 操作:
+	 * - 横結合セルの後続セルへ主マウス入力を行う。
 	 *
 	 * 期待結果:
 	 * - 対象セルは論理列2として解決される。
@@ -186,7 +210,14 @@ describe( 'Column DnD input boundary', () => {
 	} );
 
 	/**
-	 * 第一段階で開始不可となった列は物理DnDへ登録しない。
+	 * 概要:
+	 * - 第一段階で開始不可となった列は物理DnDへ登録しないことを確認する。
+	 *
+	 * 事前条件:
+	 * - Reorder Target Resolutionが対象列を開始拒否として解決する。
+	 *
+	 * 操作:
+	 * - 対象セルへ主マウス入力を行う。
 	 *
 	 * 期待結果:
 	 * - Draggableは登録されない。
@@ -201,7 +232,14 @@ describe( 'Column DnD input boundary', () => {
 	} );
 
 	/**
-	 * activeな物理DnD中は現在の開始候補を維持する。
+	 * 概要:
+	 * - activeな物理DnD中は現在の開始候補を維持することを確認する。
+	 *
+	 * 事前条件:
+	 * - idle中の入力でDraggableが登録された後、DnD Engineがactiveになっている。
+	 *
+	 * 操作:
+	 * - active DnD中に別セルへ主入力を行う。
 	 *
 	 * 期待結果:
 	 * - 現在のDraggableは破棄されず、新しい解決も行われない。
@@ -224,17 +262,32 @@ describe( 'Column DnD input boundary', () => {
 	} );
 
 	/**
-	 * タッチ入力を共通の開始対象解決経路へ接続する。
+	 * 概要:
+	 * - タッチ入力を共通の開始対象解決経路へ接続し、通常スクロールを開始時点で妨げないことを確認する。
+	 *
+	 * 事前条件:
+	 * - 対象列は開始可能で、DnD Engineはidleである。
+	 *
+	 * 操作:
+	 * - 対象セルへ主タッチ入力を行う。
 	 *
 	 * 期待結果:
-	 * - Draggableが登録され、タッチ用Delay制約が利用される。
+	 * - マウスと同じTarget Resolutionを経てDraggableが登録される。
+	 * - pointerdown時点ではブラウザー既定動作を抑止しない。
+	 * - タッチ用Delay制約が利用される。
 	 */
 	it( 'when primary touch input targets a resolvable column, should register it through the shared path with a delay constraint', () => {
 		const { currentTarget, target } = createTableTarget();
 		const { pointerDownHandler } = renderColumnInput();
-		pointerDownHandler( createPointerEvent( { target, currentTarget, pointerType: 'touch' } ) );
+		const event = createPointerEvent( { target, currentTarget, pointerType: 'touch' } );
+		pointerDownHandler( event );
 
+		expect( targetResolutionMock.resolve ).toHaveBeenCalledWith( {
+			tableIdentity: 'table-1',
+			sourceColumnIndex: 1,
+		} );
 		expect( draggableConstructorMock ).toHaveBeenCalledTimes( 1 );
+		expect( event.preventDefault ).not.toHaveBeenCalled();
 		const activationConstraints =
 			pointerSensorConfigureMock.mock.calls[ 0 ]?.[ 0 ]?.activationConstraints;
 		if ( typeof activationConstraints !== 'function' ) {
@@ -245,16 +298,26 @@ describe( 'Column DnD input boundary', () => {
 	} );
 
 	/**
-	 * マウス入力には短い移動距離の開始条件を適用する。
+	 * 概要:
+	 * - マウス入力には短い移動距離の開始条件を適用し、開始時点でブラウザー既定動作を抑止することを確認する。
+	 *
+	 * 事前条件:
+	 * - 対象列は開始可能で、DnD Engineはidleである。
+	 *
+	 * 操作:
+	 * - 対象セルへ主マウス入力を行う。
 	 *
 	 * 期待結果:
+	 * - pointerdown時点でブラウザー既定動作を抑止する。
 	 * - Distance制約が利用される。
 	 */
 	it( 'when mouse input is registered, should use the mouse distance activation constraint', () => {
 		const { currentTarget, target } = createTableTarget();
 		const { pointerDownHandler } = renderColumnInput();
-		pointerDownHandler( createPointerEvent( { target, currentTarget } ) );
+		const event = createPointerEvent( { target, currentTarget } );
+		pointerDownHandler( event );
 
+		expect( event.preventDefault ).toHaveBeenCalledTimes( 1 );
 		const activationConstraints =
 			pointerSensorConfigureMock.mock.calls[ 0 ]?.[ 0 ]?.activationConstraints;
 		if ( typeof activationConstraints !== 'function' ) {
@@ -265,7 +328,69 @@ describe( 'Column DnD input boundary', () => {
 	} );
 
 	/**
-	 * 対象外ポインター入力は開始候補として扱わない。
+	 * 概要:
+	 * - タッチ入力のTarget Resolutionが開始拒否となる場合も通常スクロールを開始時点で妨げないことを確認する。
+	 *
+	 * 事前条件:
+	 * - Reorder Target Resolutionが対象列を開始拒否として解決する。
+	 *
+	 * 操作:
+	 * - 対象セルへ主タッチ入力を行う。
+	 *
+	 * 期待結果:
+	 * - Draggableは登録されず、pointerdown時点のブラウザー既定動作も抑止しない。
+	 */
+	it( 'when touch target resolution rejects the column, should not register a draggable or prevent the initial browser action', () => {
+		targetResolutionMock.resolve.mockReturnValue( { status: 'rejected', reason: 'merged-range' } );
+		const { currentTarget, target } = createTableTarget();
+		const { pointerDownHandler } = renderColumnInput();
+		const event = createPointerEvent( { target, currentTarget, pointerType: 'touch' } );
+		pointerDownHandler( event );
+
+		expect( targetResolutionMock.resolve ).toHaveBeenCalledTimes( 1 );
+		expect( draggableConstructorMock ).not.toHaveBeenCalled();
+		expect( event.preventDefault ).not.toHaveBeenCalled();
+	} );
+
+	/**
+	 * 概要:
+	 * - 現在Table内の入れ子Tableセルを列並び替え開始対象にしないことを確認する。
+	 *
+	 * 事前条件:
+	 * - 現在Tableのセル内部に別Tableが存在する。
+	 *
+	 * 操作:
+	 * - 入れ子Tableのセルへ主タッチ入力を行う。
+	 *
+	 * 期待結果:
+	 * - 第一段階解決もDraggable登録も行われない。
+	 */
+	it( 'when touch input targets a nested table cell, should not treat it as a column of the current table', () => {
+		const currentTarget = document.createElement( 'div' );
+		currentTarget.innerHTML = `
+			<table><tbody><tr><td>
+				<table><tbody><tr><td data-testid="nested">nested</td></tr></tbody></table>
+			</td></tr></tbody></table>
+		`;
+		const nested = currentTarget.querySelector( '[data-testid="nested"]' );
+		if ( nested === null ) {
+			throw new Error( 'Nested column input test target could not be created.' );
+		}
+		const { pointerDownHandler } = renderColumnInput();
+		pointerDownHandler(
+			createPointerEvent( { target: nested, currentTarget, pointerType: 'touch' } )
+		);
+
+		expect( targetResolutionMock.resolve ).not.toHaveBeenCalled();
+		expect( draggableConstructorMock ).not.toHaveBeenCalled();
+	} );
+
+	/**
+	 * 概要:
+	 * - 対象外ポインター入力は開始候補として扱わないことを確認する。
+	 *
+	 * 操作:
+	 * - pen、非主ポインター、副ボタン入力を行う。
 	 *
 	 * 期待結果:
 	 * - Draggableは登録されない。

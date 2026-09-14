@@ -157,16 +157,19 @@ describe( 'Row DnD input boundary', () => {
 	} );
 
 	/**
-	 * 有効な主マウス入力で現在Tableの行を開始候補として登録し、次の候補で前回登録を破棄する。
+	 * 概要:
+	 * - 有効な主マウス入力で現在Tableのtbody直下行を開始候補として登録し、次の候補で前回登録を破棄することを確認する。
 	 *
 	 * 事前条件:
-	 * - DnD Engineはidleで、tbody直下に2行存在する。
+	 * - DnD Engineは新しいDnDを開始でき、tbody直下に2行存在する。
 	 *
 	 * 操作:
 	 * - 1行目、続けて2行目へ主マウス入力を行う。
 	 *
 	 * 期待結果:
-	 * - 各入力の行がDraggableとして登録され、2回目の前に前回登録が破棄される。
+	 * - 各入力の行がTable Identityと0-based行位置を持つDraggableとして登録される。
+	 * - 2回目の登録前に1回目のDraggableが破棄される。
+	 * - Tableセル内部からの開始を許可する行DnD設定が適用される。
 	 */
 	it( 'when primary mouse input targets direct tbody rows, should register the current row and replace the previous candidate', () => {
 		const { currentTarget, rows, cells } = createDirectRowTarget();
@@ -202,7 +205,8 @@ describe( 'Row DnD input boundary', () => {
 	} );
 
 	/**
-	 * Reorder Target Resolutionが開始拒否した行は、理由を通知して物理DnDへ登録しない。
+	 * 概要:
+	 * - Reorder Target Resolutionが開始拒否した行では理由を通知し、物理DnDへ登録しないことを確認する。
 	 *
 	 * 事前条件:
 	 * - 対象行は結合範囲により開始拒否となる。
@@ -211,6 +215,7 @@ describe( 'Row DnD input boundary', () => {
 	 * - 対象行から主マウス入力を行う。
 	 *
 	 * 期待結果:
+	 * - 対象行が正しいTable Identityと行位置でTarget Resolutionへ渡される。
 	 * - 拒否理由と操作位置が通知され、Draggableは登録されない。
 	 */
 	it( 'when target resolution rejects the row, should notify the rejection without registering a draggable', () => {
@@ -225,6 +230,10 @@ describe( 'Row DnD input boundary', () => {
 			createPointerEvent( { target: cells[ 0 ], currentTarget, clientX: 120, clientY: 240 } )
 		);
 
+		expect( targetResolutionMock.resolve ).toHaveBeenCalledWith( {
+			tableIdentity: 'table-1',
+			sourceRowIndex: 0,
+		} );
 		expect( notifyRowStartRejectionMock ).toHaveBeenCalledWith( {
 			reason: 'merged-range',
 			clientX: 120,
@@ -234,7 +243,14 @@ describe( 'Row DnD input boundary', () => {
 	} );
 
 	/**
-	 * 通常の利用不能結果は通知せず、物理DnDへ登録しない。
+	 * 概要:
+	 * - 通常の利用不能結果では通知せず、物理DnDへ登録しないことを確認する。
+	 *
+	 * 事前条件:
+	 * - Reorder Target Resolutionは対象行を通常の利用不能として解決する。
+	 *
+	 * 操作:
+	 * - 対象行へ主マウス入力を行う。
 	 *
 	 * 期待結果:
 	 * - 開始拒否通知もDraggable登録も発生しない。
@@ -250,7 +266,14 @@ describe( 'Row DnD input boundary', () => {
 	} );
 
 	/**
-	 * 主タッチ入力も行DnD開始候補として登録できる。
+	 * 概要:
+	 * - 主タッチ入力も行DnD開始候補として登録できることを確認する。
+	 *
+	 * 事前条件:
+	 * - DnD Engineは新しいDnDを開始でき、tbody直下行へタッチ入力できる。
+	 *
+	 * 操作:
+	 * - 行のセルから主タッチ入力を行う。
 	 *
 	 * 期待結果:
 	 * - 対象行がDraggableとして登録される。
@@ -269,7 +292,8 @@ describe( 'Row DnD input boundary', () => {
 	} );
 
 	/**
-	 * DnD開始条件を満たさない入力は開始候補へ登録しない。
+	 * 概要:
+	 * - DnD開始条件を満たさない入力は開始候補へ登録しないことを確認する。
 	 *
 	 * 操作:
 	 * - 非主ポインター、副ボタン、進行中DnDへの追加入力を行う。
@@ -307,7 +331,14 @@ describe( 'Row DnD input boundary', () => {
 	);
 
 	/**
-	 * 現在Table内の入れ子Table行は開始対象にしない。
+	 * 概要:
+	 * - 現在Table内の入れ子Table行は開始対象にしないことを確認する。
+	 *
+	 * 事前条件:
+	 * - 現在Tableのセル内部に別Tableが存在する。
+	 *
+	 * 操作:
+	 * - 入れ子Tableの行へ主ポインター入力を行う。
 	 *
 	 * 期待結果:
 	 * - 入れ子Tableの行はDraggableとして登録されない。
