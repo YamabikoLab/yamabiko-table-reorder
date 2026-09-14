@@ -6,6 +6,11 @@
  * スクロール限界では不要な更新を停止し、Session終了時には保持中のDOM参照と描画フレームを破棄する。
  */
 
+import {
+	COLUMN_AUTO_SCROLL_EDGE_THRESHOLD_RATIO,
+	COLUMN_AUTO_SCROLL_STEP_PX,
+} from '@/reorder/reorder-tuning';
+
 /** 列DnD中に保持する、対象要素のDocumentと同じ座標系の現在ポインター位置。 */
 export type ColumnPointerPosition = {
 	/** 表示領域左端を基準とする横位置。 */
@@ -31,12 +36,6 @@ export type ColumnHorizontalAutoScroll = {
 	/** 現在の水平自動スクロールを終了し、次のDnDへ持ち越せない一時状態を破棄する。 */
 	stop: () => void;
 };
-
-/** 横スクロール領域の左右20%を、自動スクロールを開始・継続する端領域として扱う。 */
-const EDGE_THRESHOLD_RATIO = 0.2;
-
-/** 継続中の水平自動スクロールは、1描画フレームにつき16pxずつ進める。 */
-const SCROLL_STEP_PX = 16;
 
 /** 画面上の物理方向に対する水平自動スクロール方向。 */
 type ScrollDirection = -1 | 1;
@@ -96,7 +95,7 @@ const resolveScrollDirection = (
 		return null;
 	}
 
-	const threshold = rectangle.width * EDGE_THRESHOLD_RATIO;
+	const threshold = rectangle.width * COLUMN_AUTO_SCROLL_EDGE_THRESHOLD_RATIO;
 
 	if ( position.clientX <= rectangle.left + threshold ) {
 		return -1;
@@ -150,7 +149,7 @@ export const createColumnHorizontalAutoScroll = (
 		}
 
 		const previousScrollLeft = scrollArea.scrollLeft;
-		scrollArea.scrollLeft += direction * SCROLL_STEP_PX;
+		scrollArea.scrollLeft += direction * COLUMN_AUTO_SCROLL_STEP_PX;
 
 		/* スクロール限界では同じ描画処理を予約し続けず、ポインターが再び動くまで停止する。 */
 		if ( scrollArea.scrollLeft === previousScrollLeft ) {
