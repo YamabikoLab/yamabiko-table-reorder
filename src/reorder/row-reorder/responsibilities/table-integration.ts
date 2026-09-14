@@ -2,7 +2,7 @@
  * 行専用Table Integrationとして、対応Table Block固有の表現差とWordPress Block Editor Storeとの接続を吸収し、Row Reorderへ現在のtbody行構造、構造診断、反映前評価、確定済み行移動の反映を提供する。
  *
  * このファイルはCore TableとFlexible Table Blockの結合セル属性差、および対応Tableへの行順反映を所有する。
- * Row ReorderとRFへは現在行数、rowspanを分断できない挿入位置、blocking merged cellの位置、更新対象セル数、反映後の最終行位置、および確定更新だけを公開し、Tableデータや対応Block固有の表現は外へ公開しない。
+ * Row ReorderとRFへは現在行数、rowspanを分断できない挿入位置、移動を妨げる結合セル位置、更新対象セル数、反映後の最終行位置、および確定更新だけを公開し、Tableデータや対応Block固有の表現は外へ公開しない。
  * Tableデータや構造結果は保持せず、各要求時点のWordPress Blockを直接参照する。
  */
 
@@ -66,6 +66,8 @@ const SUPPORTED_TABLES = new Set< string >( [ 'core/table', 'flexible-table-bloc
 /**
  * 外部から取得したTableデータを、属性・行・セルとして解釈可能か判定する。
  *
+ * 配列やnullなど、キーを持つTable要素として扱えない値は解釈対象にしない。
+ *
  * @param value 対応Table Blockから取得した未検証の値。
  * @return Table要素としてキー参照可能なオブジェクトである場合はtrue。
  */
@@ -94,19 +96,23 @@ const getCellSpan = (
 	cell: Record< string, unknown >,
 	direction: 'row' | 'column'
 ): number | null => {
+	/* 対応Block間で異なる結合属性名はこの境界でだけ解釈し、方向固有処理へ差を公開しない。 */
 	const coreProperty = direction === 'row' ? 'rowspan' : 'colspan';
 	const flexibleProperty = direction === 'row' ? 'rowSpan' : 'colSpan';
 	const property = tableName === 'core/table' ? coreProperty : flexibleProperty;
 	const rawSpan = cell[ property ];
 
+	/* 結合指定のない通常セルは一つの行または列だけを占有する。 */
 	if ( rawSpan === undefined ) {
 		return 1;
 	}
+	/* 占有数として解釈できない値を含むTableでは、安全な論理位置を確定しない。 */
 	if ( typeof rawSpan !== 'number' && typeof rawSpan !== 'string' ) {
 		return null;
 	}
 
 	const span = Number( rawSpan );
+	/* 結合セルの占有数は1以上の整数だけを有効とする。 */
 	const normalizedSpan = Number.isInteger( span ) && span >= 1 ? span : null;
 	return normalizedSpan;
 };
@@ -130,11 +136,13 @@ const findAvailableColumnStart = (
 	while ( true ) {
 		let available = true;
 		for ( let offset = 0; offset < requiredColumns; offset++ ) {
+			/* 必要範囲に既存セルの占有列が一つでも含まれる候補は利用しない。 */
 			if ( occupied[ columnStart + offset ] ) {
 				available = false;
 				break;
 			}
 		}
+		/* 必要な連続列をすべて確保できた最初の位置を論理開始列とする。 */
 		if ( available ) {
 			return columnStart;
 		}
@@ -161,6 +169,7 @@ const parseRowTable = (
 	/* tbodyを論理グリッドとして解釈し、行制約と原因セル位置を同じ解析から確定する。 */
 	for ( let rowIndex = 0; rowIndex < body.length; rowIndex++ ) {
 		const row = body[ rowIndex ];
+		/* 行をセル集合として解釈できない場合は、Table全体の行構造を安全に提供できない。 */
 		if ( ! isRecord( row ) || ! Array.isArray( row.cells ) ) {
 			return null;
 		}
@@ -170,12 +179,14 @@ const parseRowTable = (
 
 		/* 各物理セルを論理列へ配置し、縦結合が塞ぐ境界と原因セル矩形を記録する。 */
 		for ( const cell of row.cells ) {
+			/* セル属性を解釈できない場合は、方向固有制約と診断位置を確定できない。 */
 			if ( ! isRecord( cell ) ) {
 				return null;
 			}
 
 			const rowSpan = getCellSpan( tableName, cell, 'row' );
 			const columnSpan = getCellSpan( tableName, cell, 'column' );
+			/* 無効な結合、またはtbody末尾を越える縦結合を含むTableは解析対象にしない。 */
 			if ( rowSpan === null || columnSpan === null || rowIndex + rowSpan > body.length ) {
 				return null;
 			}
@@ -191,6 +202,7 @@ const parseRowTable = (
 			}
 			searchFrom = columnEnd + 1;
 
+			/* 通常セルと横結合だけのセルは行間境界を塞がないため、行移動の診断対象に含めない。 */
 			if ( rowSpan === 1 ) {
 				continue;
 			}
@@ -226,11 +238,13 @@ const parseRowTable = (
  */
 const getParsedRowTable = ( clientId: string ): ParsedRowTable | null => {
 	const block = select( blockEditorStore ).getBlock( clientId );
+	/* 対象Blockが存在しない、非対応、または属性を解釈できない場合は現在Tableとして利用しない。 */
 	if ( ! block || ! isSupportedTable( block.name ) || ! isRecord( block.attributes ) ) {
 		return null;
 	}
 
 	const body = block.attributes.body;
+	/* 対応Tableでもtbody行集合を取得できない場合は、行方向の判定を提供しない。 */
 	if ( ! Array.isArray( body ) ) {
 		return null;
 	}
@@ -246,6 +260,7 @@ const getParsedRowTable = ( clientId: string ): ParsedRowTable | null => {
  */
 const getConstraints = ( clientId: string ): RowReorderConstraints | null => {
 	const parsedTable = getParsedRowTable( clientId );
+	/* 現在Tableを安全に解析できない場合は、部分的な制約情報を返さない。 */
 	if ( parsedTable === null ) {
 		return null;
 	}
@@ -273,6 +288,7 @@ const isRowMoveAllowed = ( parsedTable: ParsedRowTable, move: RowMove ): boolean
 		Number.isInteger( move.destinationBoundaryIndex ) &&
 		move.destinationBoundaryIndex >= 0 &&
 		move.destinationBoundaryIndex <= rowCount;
+	/* 現在Table上に存在しない移動元または移動先は、解決済み候補として成立しない。 */
 	if ( ! sourceInRange || ! destinationInRange ) {
 		return false;
 	}
@@ -290,13 +306,14 @@ const isRowMoveAllowed = ( parsedTable: ParsedRowTable, move: RowMove ): boolean
 /**
  * 行移動を成立させない最初の結合セル位置を取得する。
  *
- * source側をdestination側より優先し、同じ側ではrowStart、rowEnd、columnStart、columnEndの昇順を利用する。
+ * 移動元側を移動先側より優先し、同じ側ではrowStart、rowEnd、columnStart、columnEndの昇順を利用する。
  *
  * @param move 現在のtbodyを基準とする行移動。
  * @return 候補を妨げる0-based・両端inclusiveの結合セル位置。構造拒否がない場合はnull。
  */
 const getBlockingMergedRange = ( move: RowMove ): RowBlockingMergedRange | null => {
 	const parsedTable = getParsedRowTable( move.clientId );
+	/* 診断元となる現在Tableを解析できない場合は、結合セル位置を推測しない。 */
 	if ( parsedTable === null ) {
 		return null;
 	}
@@ -304,6 +321,7 @@ const getBlockingMergedRange = ( move: RowMove ): RowBlockingMergedRange | null 
 	const sourceRange = parsedTable.mergedRanges.find(
 		( range ) => move.sourceRowIndex >= range.rowStart && move.sourceRowIndex <= range.rowEnd
 	);
+	/* 利用者が移動元そのものの制約を先に修正できるよう、移動先より移動元側の原因セルを優先する。 */
 	if ( sourceRange !== undefined ) {
 		return sourceRange;
 	}
@@ -319,6 +337,8 @@ const getBlockingMergedRange = ( move: RowMove ): RowBlockingMergedRange | null 
 
 /**
  * 移動前の行間境界を、移動元除去後の最終行位置へ解釈する。
+ *
+ * Assessmentと確定更新が同じ方向固有Move意味を利用するため、この境界を行移動の正本とする。
  *
  * @param move 現在のtbodyを基準とする行移動。
  * @return 移動対象が反映後に配置される0-based行位置。
@@ -347,6 +367,7 @@ const countAffectedCells = ( parsedTable: ParsedRowTable, move: RowMove ): numbe
 	/* 表示位置が変わる行範囲に存在する物理セルを、結合セルの論理占有数へ展開せず数える。 */
 	for ( let rowIndex = start; rowIndex <= end; rowIndex++ ) {
 		const cells = parsedTable.body[ rowIndex ].cells;
+		/* 解析済み行からcellsが失われる状態はTable Integration内部Contract違反として扱う。 */
 		if ( ! Array.isArray( cells ) ) {
 			throw new Error( 'Parsed row cells must remain available.' );
 		}
@@ -359,11 +380,15 @@ const countAffectedCells = ( parsedTable: ParsedRowTable, move: RowMove ): numbe
 /**
  * 行移動によって表示位置が変わる範囲に含まれる物理セル数を取得する。
  *
+ * colspan / rowspanによる論理占有数へ展開せず、Table属性上に存在するcell objectを1セルとして数える。
+ * 対象Tableまたは移動候補を現在構造へ安全に照合できない場合はnullを返す。
+ *
  * @param move 現在のtbodyを基準とする行移動。
  * @return 今回の移動に含まれる物理セル数。安全に評価できない場合はnull。
  */
 const getAffectedCellCount = ( move: RowMove ): number | null => {
 	const parsedTable = getParsedRowTable( move.clientId );
+	/* DnD候補を現在構造へ再照合できない場合は、更新対象セル数を提供しない。 */
 	if ( parsedTable === null || ! isRowMoveAllowed( parsedTable, move ) ) {
 		return null;
 	}
@@ -379,6 +404,7 @@ const getAffectedCellCount = ( move: RowMove ): number | null => {
  */
 const assessRowMoveForApply = ( move: RowMove ): RowApplyAssessment | null => {
 	const parsedTable = getParsedRowTable( move.clientId );
+	/* RF候補が現在Tableで成立しない場合は、反映経路へ進める評価結果を返さない。 */
 	if ( parsedTable === null || ! isRowMoveAllowed( parsedTable, move ) ) {
 		return null;
 	}
@@ -392,11 +418,15 @@ const assessRowMoveForApply = ( move: RowMove ): RowApplyAssessment | null => {
 /**
  * 確定済み行移動を、要求時点の対応Tableへ反映する。
  *
+ * assessment後の外部変更を成立保証として扱わず、更新直前にsource・destination・結合セル制約を現在Tableへ再照合する。
+ * 成立した更新は一回のWordPress属性更新として反映する。
+ *
  * @param move 更新直前のTable構造を基準とする確定済み行移動。
  * @return 現在も安全に更新できた場合はtrue、外部状態変化等で更新できない場合はfalse。
  */
 const applyRowMove = ( move: RowMove ): boolean => {
 	const parsedTable = getParsedRowTable( move.clientId );
+	/* assessment結果を成立保証にせず、更新直前の現在Tableで成立しない候補は反映しない。 */
 	if ( parsedTable === null || ! isRowMoveAllowed( parsedTable, move ) ) {
 		return false;
 	}
