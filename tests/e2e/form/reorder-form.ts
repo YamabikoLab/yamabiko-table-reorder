@@ -45,7 +45,7 @@ export async function setPreferences( page: Page ) {
 /**
  * 行列位置をセル内容へ置き、RF結果を確認できる再現可能なTableを作る。
  *
- * @param rowCount 行数。
+ * @param rowCount    行数。
  * @param columnCount 列数。
  * @return RFのSupported Table Blockへ渡す編集属性。
  */
@@ -64,9 +64,9 @@ export function tableAttributes( rowCount = 4, columnCount = 4 ) {
 /**
  * WordPressの公開操作でTableを挿入し、現在の編集領域にある対象Tableを返す。
  *
- * @param page 管理画面。
- * @param editor WordPressの編集操作。
- * @param name 対応Table Block名。
+ * @param page       管理画面。
+ * @param editor     WordPressの編集操作。
+ * @param name       対応Table Block名。
  * @param attributes テストで必要な編集データ。
  * @return 挿入したTableの編集領域、Block、Table、本文行。
  */
@@ -122,10 +122,10 @@ export async function openReorderForm( page: Page ): Promise< Locator > {
 /**
  * RFへ行の移動元、移動先、上下関係を入力する。
  *
- * @param form RF入力画面。
+ * @param form      RF入力画面。
  * @param sourceRow 移動する行の1-based位置。
  * @param targetRow 移動先行の1-based位置。
- * @param position 移動先行との位置関係。
+ * @param position  移動先行との位置関係。
  */
 export async function fillRowReorder(
 	form: Locator,
@@ -141,10 +141,10 @@ export async function fillRowReorder(
 /**
  * RFへ列の移動元、移動先、左右関係を入力する。
  *
- * @param form RF入力画面。
+ * @param form         RF入力画面。
  * @param sourceColumn 移動する列の1-based位置。
  * @param targetColumn 移動先列の1-based位置。
- * @param position 移動先列との位置関係。
+ * @param position     移動先列との位置関係。
  */
 export async function fillColumnReorder(
 	form: Locator,
@@ -208,8 +208,8 @@ export async function columnOrder( row: Locator ) {
 /**
  * 通常セルだけで構成されるTable属性に対し、列移動後の期待値を作る。
  *
- * @param attributes 移動前のTable属性。
- * @param sourceColumnIndex 移動元列。
+ * @param attributes               移動前のTable属性。
+ * @param sourceColumnIndex        移動元列。
  * @param destinationBoundaryIndex 移動先境界。
  * @return 列だけを移動したTable属性。
  */
