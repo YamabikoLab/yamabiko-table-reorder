@@ -43,14 +43,18 @@ Use the following prefixes unless another category or requirement scope is expli
 | `FR` | Functional Requirement | Capabilities or behavior that users or the product must be able to achieve. |
 | `QR` | Quality Requirement | Qualities or constraints the product must satisfy, such as performance, reliability, compatibility, usability, or security. |
 | `RF-FR` | Reorder Form Functional Requirement | Functional requirements specific to the Reorder Form requirement scope. |
+| `A11Y-FR` | Accessibility Functional Requirement | Functional requirements specific to the independently managed Accessibility requirement scope. |
 
 Examples:
 
 - `FR-01`: A supported table row can be reordered.
 - `QR-01`: YTR does not substantially increase the update cost of the supported table it reorders.
 - `RF-FR-01`: A user can uniquely specify the row or column to move with Reorder Form.
+- `A11Y-FR-01`: A user can complete the required Reorder Form operation using only a keyboard.
 
 `RF-FR-XX` is a scoped Functional Requirement ID. `RF` identifies the Reorder Form requirement scope, while `FR` keeps the requirement category explicit. Requirements shared by multiple reorder methods continue to use the common `FR-XX` IDs and must not be duplicated under an RF-scoped ID.
+
+`A11Y-FR-XX` is a scoped Functional Requirement ID. `A11Y` identifies the independently managed Accessibility requirement scope, while `FR` keeps the requirement category explicit. Existing Reorder or Reorder Form capabilities remain defined by their original requirement IDs; Accessibility requirements add only the capabilities needed to make those existing behaviors accessible and must not redefine them.
 
 Do not introduce a new requirement prefix or scope only to make a document look more structured. Add another prefix or scope only when a distinct requirement category or independently managed requirement scope is actually needed, and define its meaning and intended use here before using it in requirements documents.
 
