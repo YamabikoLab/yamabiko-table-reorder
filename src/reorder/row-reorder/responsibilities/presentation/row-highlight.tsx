@@ -3,11 +3,14 @@
  *
  * 移動可能な行は従来どおり操作可能表示とし、結合範囲により移動できない行は移動不可表示として区別する。
  * Presentation自身では行構造制約を解釈せず、Reorder Target Resolutionが返す開始可否だけを表示へ反映する。
+ * Reorder Mode離脱は非React購読で受け取り、React renderを要求せず表示とResolverを破棄する。
  */
 
 import { useEffect, useRef } from '@wordpress/element';
 import type { PointerEvent, ReactNode } from 'react';
 
+import { rowReorderMode } from '@/reorder/reorder-mode';
+import { subscribeReorderMode } from '@/reorder/reorder-mode-subscription';
 import {
 	getRowDndPhase,
 	subscribeRowDndState,
@@ -26,21 +29,19 @@ export type RowHighlightPointerOverHandler = ( event: PointerEvent< Element > ) 
  * 現在のTarget Resolution結果に応じて、行へ操作可能または移動不可の表示状態を反映する。
  *
  * Resolverは最初の有効な操作可否判定で生成し、同一Highlight Lifecycle内で再利用する。
- * DnD開始時は一時Resolverを破棄し、DnD終了後の次の有効な判定で現在Table構造から生成し直す。
- * DnD開始時はTarget Resolutionが要求時点の現在構造を再取得して最終判断するため、この表示は開始可否の権威を持たない。
+ * DnD開始時とRow Reorder Mode離脱時は一時Resolverと表示を破棄する。
+ * 開始可否は方向固有Reorder Mode APIから入力時に直接参照し、mode変更をReact props更新として要求しない。
  *
  * @param props               行表示に必要な値。
- * @param props.enabled       現在のTableで行並び替えモードが有効な場合はtrue。
  * @param props.tableIdentity 行並び替え対象のTable Identity。
  * @param props.children      既存DOMへホバー判定処理を接続する描画処理。
  * @return 行の操作可否表示へ接続された子要素。
  */
 export const RowHighlight = ( props: {
-	enabled: boolean;
 	tableIdentity: string;
 	children: ( onPointerOverCapture: RowHighlightPointerOverHandler ) => ReactNode;
 } ) => {
-	const { enabled, tableIdentity, children } = props;
+	const { tableIdentity, children } = props;
 	const currentRow = useRef< HTMLTableRowElement | null >( null );
 	const resolver = useRef< ReturnType< typeof rowReorderTargetResolution.createResolver > | null >(
 		null
@@ -56,25 +57,32 @@ export const RowHighlight = ( props: {
 			currentRow.current = null;
 		};
 
-		const synchronizeDndLifecycle = (): void => {
-			/* active DnDでは開始前表示とそのTable構造snapshotを次の操作へ持ち越さない。 */
-			if ( getRowDndPhase() === 'active' ) {
-				clearHighlightState();
-				resolver.current = null;
-				resolverTableIdentity.current = null;
-			}
-		};
-
-		const unsubscribe = enabled ? subscribeRowDndState( synchronizeDndLifecycle ) : () => {};
-
-		/* モード終了、対象Table変更、またはPresentation境界終了時に一時的な操作可否表示を実Tableへ残さない。 */
-		return () => {
-			unsubscribe();
+		const clearTransientHighlightState = (): void => {
 			clearHighlightState();
 			resolver.current = null;
 			resolverTableIdentity.current = null;
 		};
-	}, [ enabled, tableIdentity ] );
+
+		const synchronizeDndLifecycle = (): void => {
+			if ( getRowDndPhase() === 'active' ) {
+				clearTransientHighlightState();
+			}
+		};
+
+		const unsubscribeDnd = subscribeRowDndState( synchronizeDndLifecycle );
+		const unsubscribeMode = subscribeReorderMode( tableIdentity, () => {
+			/* Row Reorder Modeから離脱した時点で、React renderを待たず開始前表示とResolverを破棄する。 */
+			if ( ! rowReorderMode.isActive( tableIdentity ) ) {
+				clearTransientHighlightState();
+			}
+		} );
+
+		return () => {
+			unsubscribeDnd();
+			unsubscribeMode();
+			clearTransientHighlightState();
+		};
+	}, [ tableIdentity ] );
 
 	const onPointerOverCapture: RowHighlightPointerOverHandler = ( event ) => {
 		const target = event.target as Element | null;
@@ -83,7 +91,6 @@ export const RowHighlight = ( props: {
 		const tableBody = table?.tBodies.item( 0 ) ?? null;
 		const row = target?.closest( 'tr' ) as HTMLTableRowElement | null;
 
-		/* 同じ行の内部要素間を移動している間は、同じ表示判定を繰り返さない。 */
 		if ( row !== null && row === currentRow.current ) {
 			return;
 		}
@@ -91,9 +98,8 @@ export const RowHighlight = ( props: {
 		currentRow.current?.classList.remove( HIGHLIGHTABLE_ROW_CLASS, UNAVAILABLE_ROW_CLASS );
 		currentRow.current = null;
 
-		/* 行並び替えモード外、active DnD中、または対象Tableのtbody直下行でない位置は操作可否表示の対象にしない。 */
 		if (
-			! enabled ||
+			! rowReorderMode.isActive( tableIdentity ) ||
 			getRowDndPhase() !== 'idle' ||
 			! tableBody ||
 			! row ||
@@ -102,7 +108,6 @@ export const RowHighlight = ( props: {
 			return;
 		}
 
-		/* Reorder Mode切替renderではTable解析を行わず、最初の有効な操作可否判定でだけResolverを生成する。 */
 		if ( resolver.current === null || resolverTableIdentity.current !== tableIdentity ) {
 			resolver.current = rowReorderTargetResolution.createResolver( tableIdentity );
 			resolverTableIdentity.current = tableIdentity;
@@ -110,14 +115,12 @@ export const RowHighlight = ( props: {
 
 		const resolution = resolver.current.resolve( row.sectionRowIndex );
 
-		/* 開始可能な行だけを操作可能として示す。 */
 		if ( resolution.status === 'resolved' ) {
 			row.classList.add( HIGHLIGHTABLE_ROW_CLASS );
 			currentRow.current = row;
 			return;
 		}
 
-		/* Designで理由を提示する開始拒否だけを、利用者が事前に識別できる移動不可表示として示す。 */
 		if ( resolution.status === 'rejected' ) {
 			row.classList.add( UNAVAILABLE_ROW_CLASS );
 			currentRow.current = row;

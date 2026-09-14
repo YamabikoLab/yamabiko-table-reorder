@@ -46,16 +46,3 @@ export const useReorderMode = ( tableIdentity: string ) => {
 
 	return { selectedKind, select: selectMode };
 };
-
-/**
- * 対象Tableで通常編集を開始できるかをReactへ提供する。
- *
- * @param tableIdentity 編集可否を購読するTable Identity。
- * @return 対象Tableで通常編集を開始できる場合はtrue。それ以外はfalse。
- */
-export const useEditingAllowed = ( tableIdentity: string ) => {
-	const selectedKind = useSelectedReorderKind( tableIdentity );
-	const editingAllowed = selectedKind === null;
-
-	return editingAllowed;
-};

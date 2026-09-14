@@ -2,7 +2,7 @@
  * Column HighlightがTable解析を入力時まで遅延し、DnD LifecycleをReact再描画から分離してResolverを更新することを確認する。
  */
 
-import { fireEvent, render } from '@testing-library/react';
+import { act, fireEvent, render } from '@testing-library/react';
 
 import { resolveColumnSourceIndex } from '@/reorder/column-reorder/integration/source-column-resolution';
 import {
@@ -10,6 +10,7 @@ import {
 	subscribeColumnDndState,
 } from '@/reorder/column-reorder/responsibilities/dnd-interaction';
 import { columnReorderTargetResolution } from '@/reorder/column-reorder/responsibilities/target-resolution';
+import { reorderMode } from '@/reorder/reorder-mode';
 
 import { ColumnHighlight } from './column-highlight';
 
@@ -53,7 +54,7 @@ const createResolverMock = columnReorderTargetResolution.createResolver as jest.
  * @param props.childrenRender
  */
 const TestTable = ( props: { childrenRender?: () => void } ) => (
-	<ColumnHighlight enabled tableIdentity="table-a">
+	<ColumnHighlight tableIdentity="table-a">
 		{ ( onPointerOverCapture, onPointerOutCapture ) => {
 			props.childrenRender?.();
 			return (
@@ -76,11 +77,25 @@ const TestTable = ( props: { childrenRender?: () => void } ) => (
 	</ColumnHighlight>
 );
 
+const activateColumnMode = (): void => {
+	act( () => {
+		reorderMode.observeTable( 'table-a' );
+		reorderMode.select( 'column', 'table-a' );
+	} );
+};
+
+const resetReorderMode = (): void => {
+	act( () => {
+		reorderMode.observeTable( '__column-highlight-lifecycle-reset__' );
+	} );
+};
+
 describe( 'Column highlight resolver lifecycle', () => {
 	beforeEach( () => {
 		jest.clearAllMocks();
 		mockColumnDndPhase = 'idle';
 		mockColumnDndStateListener = null;
+		resetReorderMode();
 		resolveColumnSourceIndexMock.mockImplementation( ( _table, cell ) => cell.cellIndex );
 		createResolverMock.mockReturnValue( {
 			resolve: ( sourceColumnIndex ) => ( {
@@ -91,17 +106,21 @@ describe( 'Column highlight resolver lifecycle', () => {
 		} );
 	} );
 
+	afterEach( () => {
+		resetReorderMode();
+	} );
+
 	/**
-	 * Column Reorderモードを有効にしただけではTable全体解析を開始しないことを確認する。
+	 * Column Highlightを接続しただけではTable全体解析を開始しないことを確認する。
 	 *
 	 * 操作:
-	 * - Column Highlightを有効状態で描画する。
+	 * - Column Highlightを描画する。
 	 *
 	 * 期待結果:
 	 * - Target Resolverは生成されない。
 	 * - DnD Lifecycle監視だけが接続される。
 	 */
-	it( 'when column reorder mode renders as enabled, should defer resolver creation until a valid highlight request', () => {
+	it( 'when column highlight is rendered, should defer resolver creation until a valid highlight request', () => {
 		render( <TestTable /> );
 
 		expect( createResolverMock ).not.toHaveBeenCalled();
@@ -112,7 +131,7 @@ describe( 'Column highlight resolver lifecycle', () => {
 	 * 同一Highlight Lifecycleでは最初の有効な入力で生成したResolverを再利用することを確認する。
 	 *
 	 * 事前条件:
-	 * - Column DnDはidleである。
+	 * - Column Reorder Modeが有効で、Column DnDはidleである。
 	 *
 	 * 操作:
 	 * - 1列目、2列目の順にポインターを移動する。
@@ -121,6 +140,7 @@ describe( 'Column highlight resolver lifecycle', () => {
 	 * - Resolverは最初の入力時に1回だけ生成される。
 	 */
 	it( 'when multiple columns are highlighted before DnD, should reuse the lazily created resolver', () => {
+		activateColumnMode();
 		const { getByTestId } = render( <TestTable /> );
 
 		fireEvent.pointerOver( getByTestId( 'column-0' ) );
@@ -134,7 +154,7 @@ describe( 'Column highlight resolver lifecycle', () => {
 	 * DnD開始後は古いResolverを破棄し、active中には新しいResolverを生成しないことを確認する。
 	 *
 	 * 事前条件:
-	 * - idle中の操作可否判定でResolverが生成済みである。
+	 * - Column Reorder Modeが有効で、idle中の操作可否判定でResolverが生成済みである。
 	 *
 	 * 操作:
 	 * - Column DnDをactiveへ移行し、別セルへポインターを移動する。
@@ -145,6 +165,7 @@ describe( 'Column highlight resolver lifecycle', () => {
 	 * - idle復帰後の最初の有効な判定で新しいResolverを生成する。
 	 */
 	it( 'when column DnD runs after a resolver was created, should recreate it only after returning to idle', () => {
+		activateColumnMode();
 		const { getByTestId } = render( <TestTable /> );
 
 		fireEvent.pointerOver( getByTestId( 'column-0' ) );

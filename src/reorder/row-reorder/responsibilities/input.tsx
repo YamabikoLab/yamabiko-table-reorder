@@ -28,9 +28,9 @@ export type RowDndPointerDownHandler = ( event: PointerEvent< Element > ) => voi
  * Reorder Target Resolutionで開始可能と解決された行だけをDnD境界へ接続する。
  * 開始不可理由が定義された行ではDraggableを登録せず、利用者向け理由を操作位置付近へ表示できる情報とともにPresentationへ通知する。
  * 入力ごとに登録したDraggableは次の開始候補へ持ち越さず、常に現在の開始候補だけを有効にする。
+ * Reorder Modeの判定はDnD接続境界が入力を渡す前に行い、この責務では扱わない。
  *
  * @param props                         ポインター入力接続に必要な値。
- * @param props.enabled                 現在のTableで行並び替え開始入力を受け付ける場合はtrue。
  * @param props.tableIdentity           行並び替え対象のTable Identity。
  * @param props.activeDraggable         現在のポインター入力で登録したDraggableを保持する参照。
  * @param props.activeDraggable.current 現在のポインター入力で登録したDraggable。未登録の場合はnull。
@@ -38,19 +38,18 @@ export type RowDndPointerDownHandler = ( event: PointerEvent< Element > ) => voi
  * @return ポインター入力による行DnD開始へ接続された子要素。
  */
 export const RowInput = ( props: {
-	enabled: boolean;
 	tableIdentity: string;
 	activeDraggable: {
 		current: Draggable | null;
 	};
 	children: ( onPointerDownCapture: RowDndPointerDownHandler ) => ReactNode;
 } ) => {
-	const { enabled, tableIdentity, activeDraggable, children } = props;
+	const { tableIdentity, activeDraggable, children } = props;
 	const manager = useDragDropManager();
 
 	const onPointerDownCapture: RowDndPointerDownHandler = ( event ) => {
-		/* 行並び替えが無効、または物理DnD接続を利用できない場合は開始候補を受け付けない。 */
-		if ( ! enabled || ! manager ) {
+		/* 物理DnD接続を利用できない場合は開始候補を受け付けない。 */
+		if ( ! manager ) {
 			return;
 		}
 
