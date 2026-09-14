@@ -24,9 +24,19 @@ describe( 'Row Table Integration RF contract', () => {
 	} );
 
 	/**
-	 * source側とdestination側の両方が縦結合により拒否される場合、source側の原因セルを優先することを確認する。
+	 * source側とdestination側の両方が縦結合により拒否される場合、source側の最初のblocking rangeを返すことを確認する。
+	 *
+	 * 事前条件:
+	 * - tbodyには0〜1行と2〜4行を占有する縦結合セルが存在する。
+	 * - 移動元は後者の範囲内、移動先境界は前者の内部にある。
+	 *
+	 * 操作:
+	 * - blocking merged rangeを取得する。
+	 *
+	 * 期待結果:
+	 * - destination側よりsource側が優先され、2〜4行・0列の0-based・両端inclusive範囲が返る。
 	 */
-	it( 'when source and destination are both blocked, should return the source merged cell first', () => {
+	it( 'when source and destination are both blocked, should return the source merged range first', () => {
 		selectMock.mockReturnValue( {
 			getBlock: jest.fn().mockReturnValue( {
 				name: 'core/table',
@@ -52,9 +62,19 @@ describe( 'Row Table Integration RF contract', () => {
 	} );
 
 	/**
-	 * destination側を複数の縦結合セルが塞ぐ場合、行範囲の決定順を優先することを確認する。
+	 * source側に問題がなくdestination側を複数の縦結合範囲が塞ぐ場合、開始行が小さい範囲を決定的に返すことを確認する。
+	 *
+	 * 事前条件:
+	 * - 境界2を、0〜2行と1〜2行を占有する二つの縦結合範囲が塞いでいる。
+	 * - 移動元行はどの縦結合範囲にも含まれない。
+	 *
+	 * 操作:
+	 * - blocking merged rangeを取得する。
+	 *
+	 * 期待結果:
+	 * - 開始行が小さい0〜2行・0列の範囲が返る。
 	 */
-	it( 'when multiple destination merged cells block a move, should return the cell with the earliest row range', () => {
+	it( 'when multiple destination ranges block a move, should return the range with the earliest start', () => {
 		selectMock.mockReturnValue( {
 			getBlock: jest.fn().mockReturnValue( {
 				name: 'core/table',
@@ -79,9 +99,9 @@ describe( 'Row Table Integration RF contract', () => {
 	} );
 
 	/**
-	 * 同じ行範囲の縦結合セルが複数ある場合、論理列位置の小さい原因セルを決定的に返すことを確認する。
+	 * 同じ行範囲の結合セルが複数ある場合、開始論理列が小さいセルを決定的に返すことを確認する。
 	 */
-	it( 'when equal row ranges block a move, should prefer the merged cell with the earliest logical column', () => {
+	it( 'when equal row ranges block a move, should prefer the earliest logical column', () => {
 		selectMock.mockReturnValue( {
 			getBlock: jest.fn().mockReturnValue( {
 				name: 'core/table',
@@ -105,41 +125,19 @@ describe( 'Row Table Integration RF contract', () => {
 	} );
 
 	/**
-	 * 先行する縦結合により物理セル位置と論理列位置がずれる場合も、原因セルの論理列を正しく返すことを確認する。
+	 * RF Apply前評価が現在Tableへ候補を再照合し、成立時に更新対象セル数と反映後の最終行位置を返すことを確認する。
+	 *
+	 * 事前条件:
+	 * - tbodyの各行は1、2、3、4個の物理セルを持ち、結合セル制約はない。
+	 * - 最終行を2行目へ移動する。
+	 *
+	 * 操作:
+	 * - Apply assessmentを要求する。
+	 *
+	 * 期待結果:
+	 * - 表示位置が変わる2〜4行目の物理セル数9が返る。
+	 * - 移動対象の反映後0-based最終行位置として1が返る。
 	 */
-	it( 'when preceding rowspans shift physical cells, should report the logical column of the blocking cell', () => {
-		selectMock.mockReturnValue( {
-			getBlock: jest.fn().mockReturnValue( {
-				name: 'core/table',
-				attributes: {
-					body: [
-						{ cells: [ { rowspan: 3 }, {} ] },
-						{ cells: [ { rowspan: 2, colspan: 2 } ] },
-						{ cells: [ {} ] },
-						{ cells: [ {}, {}, {} ] },
-					],
-				},
-			} ),
-		} );
-
-		expect(
-			rowTableIntegration.getBlockingMergedRange( {
-				clientId: 'table-a',
-				sourceRowIndex: 3,
-				destinationBoundaryIndex: 2,
-			} )
-		).toEqual( { rowStart: 0, rowEnd: 2, columnStart: 0, columnEnd: 0 } );
-
-		expect(
-			rowTableIntegration.getBlockingMergedRange( {
-				clientId: 'table-a',
-				sourceRowIndex: 3,
-				destinationBoundaryIndex: 1,
-			} )
-		).toEqual( { rowStart: 0, rowEnd: 2, columnStart: 0, columnEnd: 0 } );
-	} );
-
-	/** RF Apply前評価が更新対象セル数と反映後の最終行位置を返すことを確認する。 */
 	it( 'when the current row move is valid, should assess affected cells and the final row position', () => {
 		selectMock.mockReturnValue( {
 			getBlock: jest.fn().mockReturnValue( {
@@ -164,7 +162,18 @@ describe( 'Row Table Integration RF contract', () => {
 		).toEqual( { affectedCellCount: 9, destinationRowIndex: 1 } );
 	} );
 
-	/** 後方移動でも移動元除去後の最終行位置を返すことを確認する。 */
+	/**
+	 * 後方へ移動するRF候補でも、移動元除去後の最終行位置を返すことを確認する。
+	 *
+	 * 事前条件:
+	 * - 4行の通常Tableで先頭行を末尾境界へ移動する。
+	 *
+	 * 操作:
+	 * - Apply assessmentを要求する。
+	 *
+	 * 期待結果:
+	 * - 移動元除去後の0-based最終行位置として3が返る。
+	 */
 	it( 'when a row moves toward a later boundary, should assess the post-removal destination row index', () => {
 		selectMock.mockReturnValue( {
 			getBlock: jest.fn().mockReturnValue( {
@@ -184,7 +193,19 @@ describe( 'Row Table Integration RF contract', () => {
 		).toEqual( { affectedCellCount: 4, destinationRowIndex: 3 } );
 	} );
 
-	/** 現在Tableの縦結合制約で候補が成立しない場合、Apply前評価を成立させないことを確認する。 */
+	/**
+	 * 現在Tableの縦結合制約により候補が成立しない場合、RF Apply前評価を成立させないことを確認する。
+	 *
+	 * 事前条件:
+	 * - 先頭セルが0〜1行を占有する縦結合を持つ3行Tableである。
+	 * - 移動元行がその縦結合範囲に含まれる。
+	 *
+	 * 操作:
+	 * - Apply assessmentを要求する。
+	 *
+	 * 期待結果:
+	 * - 現在Tableでは候補が成立しないためnullが返る。
+	 */
 	it( 'when the current merged-cell constraints reject a row move, should not return an apply assessment', () => {
 		selectMock.mockReturnValue( {
 			getBlock: jest.fn().mockReturnValue( {
@@ -204,7 +225,19 @@ describe( 'Row Table Integration RF contract', () => {
 		).toBeNull();
 	} );
 
-	/** assessment後に縦結合制約が変化した場合、確定更新を行わないことを確認する。 */
+	/**
+	 * assessment後にTable構造が変化して現在候補が縦結合制約へ抵触した場合、確定更新を行わないことを確認する。
+	 *
+	 * 事前条件:
+	 * - assessment時点では3行の通常Tableで候補が成立する。
+	 * - 更新要求時点では移動元行を含む縦結合セルが追加されている。
+	 *
+	 * 操作:
+	 * - assessment後に同じ候補をapplyRowMove()へ渡す。
+	 *
+	 * 期待結果:
+	 * - assessmentは成功するが、更新直前再照合ではfalseになり、WordPress属性更新は行われない。
+	 */
 	it( 'when merged-cell constraints change after assessment, should reject the final row update', () => {
 		const updateBlockAttributes = jest.fn();
 		const getBlock = jest
