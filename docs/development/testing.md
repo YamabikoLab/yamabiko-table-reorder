@@ -6,7 +6,7 @@ Run application commands from the repository root. Use the narrowest relevant ch
 
 - Jest verifies Row Reorder responsibilities, React / WordPress integration, editor lifecycle, and i18n source.
 - Node.js architecture tests verify deterministic Markdown parsing, architecture validation, and Structurizr DSL generation.
-- Playwright verifies the direction-independent administration smoke test, Table alignment, and the major Row / Column Reorder browser contracts (mouse / touch, guidance, merged cells, data preservation / Undo, and direction-specific scrolling).
+- Playwright verifies the direction-independent administration smoke test, Table alignment, and the major Row / Column / Reorder Form browser contracts (mouse / touch, guidance, merged cells, data preservation / Undo, responsive Reorder Form presentation, and direction-specific scrolling).
 - The [Row Reorder validation matrix](../plans/row-reorder-v1-plan.md#698-validation-matrix) assigns contracts to existing Jest tests, major Playwright E2E, and separate performance measurement.
 - The [Column Reorder validation matrix](../plans/column-reorder-v1-plan.md#904-validation-matrix) assigns Column contracts to existing Jest tests, major Playwright E2E, and separate performance measurement.
 - Prototype-specific unit and E2E behavior is available from the `prototype-final` tag and is reference material, not the active formal v1 specification.
@@ -129,14 +129,15 @@ With the `wp-dev` Dev Container open and Yamabiko Table Reorder and Flexible Tab
 npm run test:e2e
 ```
 
-The normal suite uses the `common`, `row`, and `column` Playwright projects. Run one direction independently when narrowing local feedback:
+The normal suite uses the `common`, `row`, `column`, and `form` Playwright projects. Run one direction or Reorder Form independently when narrowing local feedback:
 
 ```bash
 npm run test:e2e:row
 npm run test:e2e:column
+npm run test:e2e:form
 ```
 
-`common` owns only direction-independent contracts. Tests that select a Row / Column entry or perform direction-specific DnD remain in the corresponding direction project.
+`common` owns only direction-independent contracts. Tests that select a Row / Column entry or perform direction-specific DnD remain in the corresponding direction project. Reorder Form owns one entry and both directions, so its browser contracts remain in the independent `form` project.
 
 Refresh authentication only:
 
@@ -150,13 +151,13 @@ Start Playwright UI Mode:
 npm run test:e2e:ui
 ```
 
-UI Mode includes the normal `common`, `row`, and `column` projects.
+UI Mode includes the normal `common`, `row`, `column`, and `form` projects.
 
 ### PR Validation E2E
 
-PR Validation uses the CI-only environment defined in `tests/e2e/compose.ci.yaml`. For manually triggered validation, `Run E2E`, `Row Reorder`, and `Column Reorder` all default to enabled. Disabling `Run E2E` skips the E2E job. When E2E runs, `common` always runs, and the direction checkboxes select `row` and `column` within the existing WordPress environment matrix. If both direction checkboxes are disabled, only `common` runs.
+PR Validation uses the CI-only environment defined in `tests/e2e/compose.ci.yaml`. For manually triggered validation, `Run E2E`, `Row Reorder`, `Column Reorder`, and `Reorder Form` all default to enabled. Disabling `Run E2E` skips the E2E job. When E2E runs, `common` always runs, and the feature checkboxes select `row`, `column`, and `form` within the existing WordPress environment matrix. If all three feature checkboxes are disabled, only `common` runs.
 
-CI checks the smoke test and selected major Row / Column Reorder suites against these representative supported environments:
+CI checks the smoke test and selected major Row / Column / Reorder Form suites against these representative supported environments:
 
 - WordPress 6.8.3: non-iframe editor, Flexible Table Block 3.6.0
 - WordPress 7.0.4: iframe editor, Flexible Table Block 3.9.0

@@ -8,7 +8,7 @@ const isPerformance = process.env.E2E_PERFORMANCE === '1';
  * @param suite E2E契約を所有する責務単位。
  * @return 現在の実行目的に対応するtestMatch。
  */
-const suiteMatch = ( suite: 'common' | 'row' | 'column' ) => {
+const suiteMatch = ( suite: 'common' | 'row' | 'column' | 'form' ) => {
 	const extension = isPerformance ? 'performance' : 'spec';
 	return `**/${ suite }/**/*.${ extension }.ts`;
 };
@@ -56,6 +56,12 @@ export default defineConfig( {
 		{
 			name: 'column',
 			testMatch: suiteMatch( 'column' ),
+			dependencies: [ 'setup' ],
+			use: authenticatedUse,
+		},
+		{
+			name: 'form',
+			testMatch: suiteMatch( 'form' ),
 			dependencies: [ 'setup' ],
 			use: authenticatedUse,
 		},
