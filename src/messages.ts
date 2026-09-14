@@ -135,22 +135,34 @@ export const getRfRowMergedRangeMessage = (
 ) => {
 	if ( rowStart === rowEnd && columnStart === columnEnd ) {
 		/* translators: 1: 1-based row number, 2: 1-based column number */
-		const message = __( 'A merged cell in row %1$d, column %2$d prevents this move.', 'yamabiko-table-reorder' );
+		const message = __(
+			'A merged cell in row %1$d, column %2$d prevents this move.',
+			'yamabiko-table-reorder'
+		);
 		return sprintf( message, rowStart, columnStart );
 	}
 	if ( rowStart === rowEnd ) {
 		/* translators: 1: 1-based row number, 2: first 1-based column number, 3: last 1-based column number */
-		const message = __( 'A merged cell in row %1$d spanning columns %2$d–%3$d prevents this move.', 'yamabiko-table-reorder' );
+		const message = __(
+			'A merged cell in row %1$d spanning columns %2$d–%3$d prevents this move.',
+			'yamabiko-table-reorder'
+		);
 		return sprintf( message, rowStart, columnStart, columnEnd );
 	}
 	if ( columnStart === columnEnd ) {
 		/* translators: 1: first 1-based row number, 2: last 1-based row number, 3: 1-based column number */
-		const message = __( 'A merged cell spanning rows %1$d–%2$d in column %3$d prevents this move.', 'yamabiko-table-reorder' );
+		const message = __(
+			'A merged cell spanning rows %1$d–%2$d in column %3$d prevents this move.',
+			'yamabiko-table-reorder'
+		);
 		return sprintf( message, rowStart, rowEnd, columnStart );
 	}
 
 	/* translators: 1: first 1-based row number, 2: last 1-based row number, 3: first 1-based column number, 4: last 1-based column number */
-	const message = __( 'A merged cell spanning rows %1$d–%2$d and columns %3$d–%4$d prevents this move.', 'yamabiko-table-reorder' );
+	const message = __(
+		'A merged cell spanning rows %1$d–%2$d and columns %3$d–%4$d prevents this move.',
+		'yamabiko-table-reorder'
+	);
 	return sprintf( message, rowStart, rowEnd, columnStart, columnEnd );
 };
 
@@ -175,25 +187,40 @@ export const getRfColumnMergedRangeMessage = (
 		return getRfRowMergedRangeMessage( rowStart, rowEnd, columnStart, columnEnd );
 	}
 
-	const sectionName = section === 'head' ? __( 'header', 'yamabiko-table-reorder' ) : __( 'footer', 'yamabiko-table-reorder' );
+	const sectionName =
+		section === 'head'
+			? __( 'header', 'yamabiko-table-reorder' )
+			: __( 'footer', 'yamabiko-table-reorder' );
 	if ( rowStart === rowEnd && columnStart === columnEnd ) {
 		/* translators: 1: table section name, 2: 1-based row number, 3: 1-based column number */
-		const message = __( 'A merged cell in %1$s row %2$d, column %3$d prevents this move.', 'yamabiko-table-reorder' );
+		const message = __(
+			'A merged cell in %1$s row %2$d, column %3$d prevents this move.',
+			'yamabiko-table-reorder'
+		);
 		return sprintf( message, sectionName, rowStart, columnStart );
 	}
 	if ( rowStart === rowEnd ) {
 		/* translators: 1: table section name, 2: 1-based row number, 3: first 1-based column number, 4: last 1-based column number */
-		const message = __( 'A merged cell in %1$s row %2$d spanning columns %3$d–%4$d prevents this move.', 'yamabiko-table-reorder' );
+		const message = __(
+			'A merged cell in %1$s row %2$d spanning columns %3$d–%4$d prevents this move.',
+			'yamabiko-table-reorder'
+		);
 		return sprintf( message, sectionName, rowStart, columnStart, columnEnd );
 	}
 	if ( columnStart === columnEnd ) {
 		/* translators: 1: table section name, 2: first 1-based row number, 3: last 1-based row number, 4: 1-based column number */
-		const message = __( 'A merged cell spanning %1$s rows %2$d–%3$d in column %4$d prevents this move.', 'yamabiko-table-reorder' );
+		const message = __(
+			'A merged cell spanning %1$s rows %2$d–%3$d in column %4$d prevents this move.',
+			'yamabiko-table-reorder'
+		);
 		return sprintf( message, sectionName, rowStart, rowEnd, columnStart );
 	}
 
 	/* translators: 1: table section name, 2: first 1-based row number, 3: last 1-based row number, 4: first 1-based column number, 5: last 1-based column number */
-	const message = __( 'A merged cell spanning %1$s rows %2$d–%3$d and columns %4$d–%5$d prevents this move.', 'yamabiko-table-reorder' );
+	const message = __(
+		'A merged cell spanning %1$s rows %2$d–%3$d and columns %4$d–%5$d prevents this move.',
+		'yamabiko-table-reorder'
+	);
 	return sprintf( message, sectionName, rowStart, rowEnd, columnStart, columnEnd );
 };
 
