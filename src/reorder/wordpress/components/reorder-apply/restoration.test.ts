@@ -60,9 +60,7 @@ describe( 'WordPress Reorder Apply restoration', () => {
 		expect( cell.getAttribute( 'tabindex' ) ).toBe( '-1' );
 		expect( cell.classList.contains( RESTORED_CELL_CLASS ) ).toBe( true );
 
-		cell.dispatchEvent(
-			new FocusEvent( 'focusout', { bubbles: true, relatedTarget: outside } )
-		);
+		cell.dispatchEvent( new FocusEvent( 'focusout', { bubbles: true, relatedTarget: outside } ) );
 		expect( cell.classList.contains( RESTORED_CELL_CLASS ) ).toBe( false );
 		expect( cell.hasAttribute( 'tabindex' ) ).toBe( false );
 	} );
@@ -214,9 +212,7 @@ describe( 'WordPress Reorder Apply restoration', () => {
 		restoreMovedRow( editorDocument, 'table-a', 0 );
 		expect( cell.getAttribute( 'tabindex' ) ).toBe( '-1' );
 
-		cell.dispatchEvent(
-			new FocusEvent( 'focusout', { bubbles: true, relatedTarget: outside } )
-		);
+		cell.dispatchEvent( new FocusEvent( 'focusout', { bubbles: true, relatedTarget: outside } ) );
 
 		expect( cell.getAttribute( 'tabindex' ) ).toBe( '3' );
 	} );
