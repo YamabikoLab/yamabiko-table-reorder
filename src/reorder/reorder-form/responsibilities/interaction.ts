@@ -286,11 +286,11 @@ const evaluateColumn = (
 	const candidate = resolution.status === 'resolved' ? resolution.candidate : null;
 	return {
 		evaluation: {
-				kind: 'column',
-				columns,
-				result: toColumnCurrentResult( resolution ),
-			},
-			candidate,
+			kind: 'column',
+			columns,
+			result: toColumnCurrentResult( resolution ),
+		},
+		candidate,
 	};
 };
 
