@@ -34,10 +34,6 @@ msgid "This reorder can't continue with the current table. Check the table and t
 msgstr ""
 
 #: src/messages.ts
-msgid "A merged cell in row %1$d, column %2$d prevents this move."
-msgstr ""
-
-#: src/messages.ts
 msgid "A merged cell in row %1$d spanning columns %2$d–%3$d prevents this move."
 msgstr ""
 
@@ -58,15 +54,7 @@ msgid "footer"
 msgstr ""
 
 #: src/messages.ts
-msgid "A merged cell in %1$s row %2$d, column %3$d prevents this move."
-msgstr ""
-
-#: src/messages.ts
 msgid "A merged cell in %1$s row %2$d spanning columns %3$d–%4$d prevents this move."
-msgstr ""
-
-#: src/messages.ts
-msgid "A merged cell spanning %1$s rows %2$d–%3$d in column %4$d prevents this move."
 msgstr ""
 
 #: src/messages.ts
