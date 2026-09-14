@@ -11,6 +11,7 @@ import {
 	RowStartRejectionNotice,
 	type RowStartRejectionNoticeHandle,
 } from './start-rejection-notice';
+import { DND_START_REJECTION_NOTICE_DURATION_MS } from '@/reorder/reorder-tuning';
 
 let snackbarRemove: ( () => void ) | undefined;
 
@@ -126,12 +127,16 @@ describe( 'RowStartRejectionNotice', () => {
 		act( () => {
 			noticeRef.current?.show( request );
 			jest.advanceTimersByTime( 1000 );
+
 			noticeRef.current?.show( { ...request, clientX: 180 } );
-			jest.advanceTimersByTime( 500 );
+
+			jest.advanceTimersByTime( DND_START_REJECTION_NOTICE_DURATION_MS - 1 );
 		} );
+
 		expect( screen.queryByText( 'row:1-2:3-4' ) ).not.toBeNull();
 
-		act( () => jest.advanceTimersByTime( 1000 ) );
+		act( () => jest.advanceTimersByTime( 1 ) );
+
 		expect( screen.queryByText( 'row:1-2:3-4' ) ).toBeNull();
 	} );
 } );
