@@ -394,3 +394,35 @@ RFは、Reorder v1が対応する次のTable Blockで同じ操作方針とする
 - Flexible Table Block
 
 Table Blockの違いによって、RFの基本的な入力方法や利用者に示す位置番号の意味を変更しない。
+
+## 14. 要件との対応
+
+| 要件ID | 基本設計 |
+| --- | --- |
+| RF-FR-01 | 2、4、5 |
+| RF-FR-02 | 2、4、5 |
+| RF-FR-03 | 2、4、8 |
+| RF-FR-04 | 11 |
+| RF-FR-05 | 5 |
+| RF-FR-06 | 3 |
+| RF-FR-07 | 3 |
+| FR-03 | 8 |
+| FR-04 | 6、8 |
+| FR-05 | 4、5、6、9、12 |
+| FR-06 | 8 |
+| FR-07 | 3 |
+| FR-08 | 4 |
+| FR-09 | 3 |
+| FR-13 | 13 |
+| FR-17 | 6、7 |
+| FR-18 | 9 |
+| FR-19 | 10 |
+| FR-20 | 10 |
+| FR-21 | 7 |
+| FR-22 | 12 |
+
+## 関連
+
+- `docs/requirements/reorder-form-v1-requirements.md`
+- `docs/requirements/reorder-v1-requirements.md`
+- `reorder-v1-design.md`
