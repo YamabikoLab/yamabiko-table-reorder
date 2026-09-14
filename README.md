@@ -1,49 +1,76 @@
 # Yamabiko Table Reorder
 
-A WordPress block editor plugin for reordering Table rows and columns.
+[![Latest Release](https://img.shields.io/github/v/release/YamabikoLab/yamabiko-table-reorder?label=version)](https://github.com/YamabikoLab/yamabiko-table-reorder/releases)
+![WordPress](https://img.shields.io/badge/WordPress-6.8%2B-21759b)
+![PHP](https://img.shields.io/badge/PHP-8.1%2B-777bb4)
+[![License](https://img.shields.io/badge/license-GPLv2%20or%20later-blue)](LICENSE)
+
+Reorder rows and columns in supported WordPress Table blocks with drag-and-drop or a form.
+
+Yamabiko Table Reorder adds Row Reorder, Column Reorder, and Reorder Form to the WordPress block editor while preserving supported Table structure, including merged-cell constraints.
+
+<img width="1897" height="842" alt="Yamabiko Table Reorder demo" src="https://github.com/user-attachments/assets/f055a4e6-d03c-41d0-b9a6-fd55c223a6dc" />
+
+## Quick Start
+
+1. Select a supported Table block.
+2. Choose **Reorder rows**, **Reorder columns**, or **Reorder with form** from the Table toolbar.
+3. Move the row or column to its new position.
+
+[▶ Try Yamabiko Table Reorder in WordPress Playground](https://playground.wordpress.net/?blueprint-url=https://raw.githubusercontent.com/YamabikoLab/yamabiko-table-reorder/main/demo/blueprint.json)
+
+The Playground demo uses the latest stable release and includes WordPress Core Table and Flexible Table Block examples.
+
+## Key Features
+
+- **Row Reorder** — Move `tbody` rows with Mouse or Touch drag-and-drop.
+- **Column Reorder** — Move Table columns with Mouse or Touch drag-and-drop.
+- **Reorder Form** — Move a row or column without drag-and-drop by choosing the source, destination, and destination side.
+- **Merged-cell aware** — Prevents moves that would break the supported Table structure and identifies blocked rows or columns in advance.
+- **Large-table handling** — Keeps drag interactions lightweight and confirms reorders that may take noticeable time to apply.
+- **Responsive Reorder Form** — Uses a movable Popover when space allows and a collapsible, vertically resizable, internally scrollable bottom dock in narrow editor areas.
+
+## Supported Table Blocks
 
 > [!IMPORTANT]
-> **Supported Table blocks**
->
 > Yamabiko Table Reorder currently supports only:
 >
 > - WordPress **Core Table**
 > - [**Flexible Table Block**](https://wordpress.org/plugins/flexible-table-block/)
 >
 > Other Table blocks provided by plugins or themes are not currently supported.
-> Yamabiko Table Reorder's Row / Column Reorder features will not work with unsupported Table blocks.
 
-<img width="1897" height="842" alt="demo" src="https://github.com/user-attachments/assets/f055a4e6-d03c-41d0-b9a6-fd55c223a6dc" />
+## How It Works
 
-## Current Status
+### Row Reorder
 
-Version 0.9.1 provides **Row Reorder, Column Reorder, and Reorder Form (RF)** for the supported Table blocks listed above.
+Choose **Reorder rows** from the Table toolbar, then drag a `tbody` row with Mouse or Touch. During the drag, the moving row and destination are shown, and surrounding rows are displaced to preview the result before it is committed.
 
-Switch to Row Reorder or Column Reorder mode from the Table toolbar, then reorder `tbody` rows or Table columns with Mouse or Touch drag-and-drop. During DnD, the plugin shows the moving row or column and the current destination. During Row Reorder, surrounding rows are displaced to preview the result before it is committed. During Column Reorder, surrounding columns are displaced in iframe editors. In non-iframe editors, surrounding column displacement is intentionally omitted to preserve responsiveness, while the moving column and insertion line continue to show the source and destination.
+### Column Reorder
 
-Use **Reorder with form** from the same Table toolbar when you want to reorder without drag-and-drop. RF lets you choose whether to move a row or column, select the source and destination, and specify the destination side. Row inputs use 1-based row numbers, while Column inputs use the currently available logical columns and their headings when available. The operation is applied only when the requested move is valid and changes the order.
+Choose **Reorder columns** from the Table toolbar, then drag a Table column with Mouse or Touch. The moving column and insertion line show the source and destination.
 
-For Tables with merged cells, only destinations that preserve the supported Table structure are accepted. Rows or columns that cannot be moved because of merged-cell constraints are identified in advance. RF also explains structural rejections using the location of the merged cell that prevents the move.
+In iframe editors, surrounding columns are also displaced to preview the result. In non-iframe editors, surrounding-column displacement is intentionally omitted to preserve responsiveness.
 
-When a reorder affects enough cells that applying the change may take some time, the plugin shows a confirmation before applying it. If continued, only the target Table enters a temporary applying state, and editing resumes after the update completes. Row Reorder, Column Reorder, and RF share the same user-facing completion feedback, while preserving their independent interaction responsibilities.
+### Reorder Form
 
-RF uses a movable Popover when enough editor space is available. In a narrow editor area it switches to a bottom dock that can be collapsed, resized vertically, and scrolled internally so the target Table and required form controls remain easier to inspect and reach.
+Choose **Reorder with form** when you want to reorder without drag-and-drop. Select whether to move a row or column, choose the source and destination, specify the destination side, and apply the move.
+
+Row inputs use 1-based row numbers. Column inputs use the currently available logical columns and include column headings when available. A move is applied only when the request is valid and changes the order.
+
+## Merged Cells and Large Tables
+
+For Tables with merged cells, only destinations that preserve the supported Table structure are accepted. Rows or columns that cannot be moved because of merged-cell constraints are identified in advance. Reorder Form also explains structural rejections using the location of the merged cell that prevents the move.
+
+When a reorder affects enough cells that applying the change may take noticeable time, Yamabiko Table Reorder shows a confirmation first. If you continue, only the target Table enters a temporary applying state, and editing resumes after the update completes.
+
+Row Reorder, Column Reorder, and Reorder Form share user-facing completion feedback after the result is known.
 
 ## Demo
 
-Try the **currently released Yamabiko Table Reorder Row / Column Reorder and Reorder Form** in WordPress Playground.
+Try Row Reorder, Column Reorder, Reorder Form, Touch interaction, and merged-cell constraints in WordPress Playground.
 
 [▶ Open the demo](https://playground.wordpress.net/?blueprint-url=https://raw.githubusercontent.com/YamabikoLab/yamabiko-table-reorder/main/demo/blueprint.json)
-
-The demo includes WordPress Core Table and Flexible Table Block examples for Mouse / Touch row and column DnD and Reorder Form, including movement constraints for Tables with merged cells. Yamabiko Table Reorder uses the latest stable release in the demo.
-
-Use the `prototype-final` tag when you need to refer to the Prototype v0.4.0 implementation or design.
-
-## Versioning
-
-The distribution history through 0.4.0 is preserved as-is. The term formal v1 describes a new design and implementation generation and does not mean the distribution version changes to `1.0.0`.
-
-0.5.0 was the first formal v1 Row Reorder release. 0.7.0 added formal v1 Column Reorder. 0.8.0 added a confirmation flow for reorders whose affected range may take time to apply. 0.8.1 fixed a conflict between Column Reorder Touch long-presses and cell editing. 0.8.2 improves Column Reorder responsiveness in non-iframe editors, fixes first-use Touch guidance focus behavior, and corrects moving-column feedback when an iframe editor has a horizontal offset. 0.8.3 prevents Gutenberg's native block dragging from competing with Row / Column Reorder while Reorder Mode is active. 0.8.4 prevents browser text selection, search, and long-press callout actions from interfering with touch Row / Column Reorder while Reorder Mode is active. 0.8.5 improves first-use guidance by showing PC- and Touch-specific instructions, including long-press guidance for Touch drag-and-drop. 0.9.0 adds Reorder Form v1 for drag-free row and column moves, responsive RF presentation, clearer merged-cell diagnostics, and shared reorder completion feedback. 0.9.1 improves narrow RF height adjustment and internal scrolling, and prevents confirmed reorder result focus from automatically entering cell editing or opening the software keyboard on mobile devices.
 
 ## Requirements
 
@@ -52,7 +79,29 @@ The distribution history through 0.4.0 is preserved as-is. The term formal v1 de
 
 ## Installation
 
-For a released version, download the distribution ZIP from [GitHub Releases](https://github.com/YamabikoLab/yamabiko-table-reorder/releases).
+Download the latest distribution ZIP from [GitHub Releases](https://github.com/YamabikoLab/yamabiko-table-reorder/releases), then install it from **Plugins → Add Plugin → Upload Plugin** in WordPress.
+
+## FAQ
+
+### Which Table blocks are supported?
+
+WordPress Core Table and Flexible Table Block are currently supported. Other Table blocks provided by plugins or themes are not supported.
+
+### Can I reorder Tables with merged cells?
+
+Yes, when the requested move preserves the supported Table structure. Destinations blocked by merged-cell constraints are rejected rather than applying an invalid reorder.
+
+### Does it work on touch devices?
+
+Yes. Row Reorder and Column Reorder support Touch drag-and-drop as well as Mouse input.
+
+### Can I reorder without drag-and-drop?
+
+Yes. **Reorder with form** lets you choose the row or column to move and its destination without using drag-and-drop.
+
+### What happens with large Tables?
+
+Drag interactions avoid applying the actual Table reorder while the drag is in progress. If applying the final reorder may take noticeable time, the plugin shows a confirmation before updating the target Table.
 
 ## Reporting Bugs and Requests
 
@@ -68,7 +117,7 @@ Released under the [GNU General Public License v2.0 or later](LICENSE).
 
 ## Development
 
-The active formal v1 source is in [`src/`](src/). Use the `prototype-final` tag when referring to the Prototype implementation.
+The plugin source is in [`src/`](src/).
 
 ### Install dependencies
 
