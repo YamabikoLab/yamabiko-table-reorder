@@ -1,17 +1,31 @@
 /**
- * Reorder Form（RF）が行番号の入力範囲と列選択肢を利用者向けPresentationへ正しく公開することを確認する。
+ * Reorder Form（RF）が行番号の入力範囲、列選択肢、表示領域に応じたPresentationを利用者へ正しく公開することを確認する。
  */
 
-import { render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 import type { ReactNode } from 'react';
 
 import type { RfInteractionReactState } from '@/reorder/reorder-form/responsibilities/interaction-react';
 
 import { ReorderFormPopover } from './reorder-form';
 
+type MockButtonProps = {
+	children: ReactNode;
+	disabled?: boolean;
+	onClick?: () => void;
+	label?: string;
+	'aria-expanded'?: boolean;
+};
+
 jest.mock( '@wordpress/components', () => ( {
-	Button: ( props: { children: ReactNode; disabled?: boolean; onClick?: () => void } ) => (
-		<button disabled={ props.disabled } onClick={ props.onClick } type="button">
+	Button: ( props: MockButtonProps ) => (
+		<button
+			aria-expanded={ props[ 'aria-expanded' ] }
+			aria-label={ props.label }
+			disabled={ props.disabled }
+			onClick={ props.onClick }
+			type="button"
+		>
 			{ props.children }
 		</button>
 	),
@@ -67,7 +81,55 @@ jest.mock( '@/reorder/wordpress/components/reorder-form-position', () => ( {
 	} ),
 } ) );
 
+/** Row RFを表示する標準状態を作成する。 */
+const createRowState = (): RfInteractionReactState => ( {
+	status: 'open',
+	kind: 'row',
+	input: {
+		sourceRowNumber: '2',
+		targetRowNumber: '5',
+		position: 'above',
+	},
+	rowCount: 20,
+	result: { status: 'not-ready' },
+	canApply: false,
+} );
+
+/**
+ * RF Presentationが参照する表示環境の幅を指定する。
+ *
+ * @param view  RF anchorと同じ表示環境のwindow。
+ * @param width 利用可能な表示幅。
+ */
+const setViewportWidth = ( view: Window, width: number ): void => {
+	Object.defineProperty( view, 'visualViewport', {
+		configurable: true,
+		value: undefined,
+	} );
+	Object.defineProperty( view, 'innerWidth', {
+		configurable: true,
+		value: width,
+	} );
+};
+
+/**
+ * RF Presentationへ現在表示領域の変更を通知する。
+ *
+ * @param view RF anchorと同じ表示環境のwindow。
+ */
+const notifyViewportResize = ( view: Window ): void => {
+	act( () => {
+		const event = view.document.createEvent( 'Event' );
+		event.initEvent( 'resize', false, false );
+		view.dispatchEvent( event );
+	} );
+};
+
 describe( 'Reorder Form presentation', () => {
+	beforeEach( () => {
+		setViewportWidth( window, 1024 );
+	} );
+
 	/**
 	 * Row RFの行番号入力が現在Tableの有効範囲をHTML標準制約として公開することを確認する。
 	 *
@@ -145,5 +207,106 @@ describe( 'Reorder Form presentation', () => {
 
 		expect( screen.getAllByRole( 'option', { name: '商品名（1列目）' } ) ).toHaveLength( 2 );
 		expect( screen.getAllByRole( 'option', { name: '2列目' } ) ).toHaveLength( 2 );
+	} );
+
+	/**
+	 * 狭い表示領域ではRFを折りたたんでTable確認へ退避できることを確認する。
+	 *
+	 * 事前条件:
+	 * - RF Sessionがopenである。
+	 * - RF anchorが属する表示環境はnarrow表示である。
+	 *
+	 * 操作:
+	 * - RFを折りたたむ。
+	 *
+	 * 期待結果:
+	 * - 入力欄が隠れる。
+	 * - 現在の移動元、移動先、位置関係の要約が表示される。
+	 * - RFを再展開できる操作が残る。
+	 */
+	it( 'when the editor viewport is narrow and the form is collapsed, should leave a summary and an expand control', () => {
+		setViewportWidth( window, 640 );
+		const anchor = document.createElement( 'button' );
+
+		render(
+			<ReorderFormPopover anchor={ anchor } state={ createRowState() } tableIdentity="table-a" />
+		);
+
+		fireEvent.click( screen.getByRole( 'button', { name: 'Collapse reorder form' } ) );
+
+		expect( screen.queryByRole( 'spinbutton', { name: '移動する行' } ) ).toBeNull();
+		expect( screen.getByText( '2 → 5 · 上' ) ).toBeTruthy();
+		expect( screen.getByRole( 'button', { name: 'Expand reorder form' } ) ).toBeTruthy();
+	} );
+
+	/**
+	 * 同じRF Session中にwideとnarrowを往復してもnarrowの折りたたみ状態を維持することを確認する。
+	 *
+	 * 事前条件:
+	 * - narrow表示のRFを利用者が折りたたんでいる。
+	 *
+	 * 操作:
+	 * - 表示領域をwideへ広げる。
+	 * - その後、同じRF Sessionのままnarrowへ戻す。
+	 *
+	 * 期待結果:
+	 * - wide表示では通常の入力画面が表示される。
+	 * - narrowへ戻ると折りたたみ状態が復元される。
+	 */
+	it( 'when a collapsed narrow form switches to wide and back during the same session, should restore the collapsed narrow state', () => {
+		setViewportWidth( window, 640 );
+		const anchor = document.createElement( 'button' );
+
+		render(
+			<ReorderFormPopover anchor={ anchor } state={ createRowState() } tableIdentity="table-a" />
+		);
+		fireEvent.click( screen.getByRole( 'button', { name: 'Collapse reorder form' } ) );
+
+		setViewportWidth( window, 1024 );
+		notifyViewportResize( window );
+		expect( screen.queryByRole( 'button', { name: 'Expand reorder form' } ) ).toBeNull();
+		expect( screen.getByRole( 'spinbutton', { name: '移動する行' } ) ).toBeTruthy();
+
+		setViewportWidth( window, 640 );
+		notifyViewportResize( window );
+		expect( screen.getByRole( 'button', { name: 'Expand reorder form' } ) ).toBeTruthy();
+		expect( screen.queryByRole( 'spinbutton', { name: '移動する行' } ) ).toBeNull();
+	} );
+
+	/**
+	 * RFのnarrow判定がglobal windowではなく現在のEditor表示環境を基準にすることを確認する。
+	 *
+	 * 事前条件:
+	 * - 外側の表示環境はwideである。
+	 * - RF anchorは幅の狭いiframe内のEditor表示環境に属している。
+	 *
+	 * 操作:
+	 * - iframe内のanchorを基準にRFを表示する。
+	 *
+	 * 期待結果:
+	 * - iframe側の表示幅に従ってnarrow表示の折りたたみ操作が提供される。
+	 */
+	it( 'when the RF anchor belongs to a narrow iframe editor, should use that editor viewport instead of the global window', () => {
+		setViewportWidth( window, 1200 );
+		const iframe = document.createElement( 'iframe' );
+		document.body.appendChild( iframe );
+		const iframeDocument = iframe.contentDocument;
+		const iframeWindow = iframe.contentWindow;
+		expect( iframeDocument ).not.toBeNull();
+		expect( iframeWindow ).not.toBeNull();
+		if ( iframeDocument === null || iframeWindow === null ) {
+			return;
+		}
+		setViewportWidth( iframeWindow, 640 );
+		const anchor = iframeDocument.createElement( 'button' );
+
+		const rendered = render(
+			<ReorderFormPopover anchor={ anchor } state={ createRowState() } tableIdentity="table-a" />
+		);
+
+		expect( screen.getByRole( 'button', { name: 'Collapse reorder form' } ) ).toBeTruthy();
+
+		rendered.unmount();
+		iframe.remove();
 	} );
 } );
