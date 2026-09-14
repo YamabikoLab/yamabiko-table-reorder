@@ -71,8 +71,7 @@ export const useReorderFormCollapse = ( tableIdentity: string ) => {
 		return collapsedForTable;
 	} );
 	const setCollapsed = useCallback(
-		( nextCollapsed: boolean ) =>
-			reorderFormCollapse.setCollapsed( tableIdentity, nextCollapsed ),
+		( nextCollapsed: boolean ) => reorderFormCollapse.setCollapsed( tableIdentity, nextCollapsed ),
 		[ tableIdentity ]
 	);
 

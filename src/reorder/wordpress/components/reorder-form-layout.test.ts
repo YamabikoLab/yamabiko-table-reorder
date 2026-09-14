@@ -49,8 +49,7 @@ describe( 'Reorder Form responsive layout', () => {
 
 		const editorContent = document.createElement( 'div' );
 		editorContent.className = 'interface-interface-skeleton__content';
-		editorContent.getBoundingClientRect = () =>
-			( { width: contentWidth } as DOMRect );
+		editorContent.getBoundingClientRect = () => ( { width: contentWidth } ) as DOMRect;
 		document.body.appendChild( editorContent );
 		const anchor = document.createElement( 'button' );
 

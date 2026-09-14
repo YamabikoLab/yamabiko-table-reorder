@@ -160,8 +160,8 @@ const getCollapsedSummary = ( state: RfInteractionReactState ): string => {
 			state.input.position === null
 				? '–'
 				: state.input.position === 'above'
-					? getRfAboveLabel()
-					: getRfBelowLabel();
+				? getRfAboveLabel()
+				: getRfBelowLabel();
 		return `${ source } → ${ target } · ${ position }`;
 	}
 
@@ -177,8 +177,8 @@ const getCollapsedSummary = ( state: RfInteractionReactState ): string => {
 		state.input.position === null
 			? '–'
 			: state.input.position === 'left'
-				? getRfLeftLabel()
-				: getRfRightLabel();
+			? getRfLeftLabel()
+			: getRfRightLabel();
 	return `${ source } → ${ target } · ${ position }`;
 };
 
