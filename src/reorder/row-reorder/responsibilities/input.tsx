@@ -3,7 +3,7 @@
  *
  * PCとタッチ端末の主ポインター入力から現在Tableのtbody直下行を開始候補として解決し、
  * Reorder Target Resolutionで開始可能な行だけをdnd-kitのDraggableへ必要時に登録する。
- * 結合範囲により開始できない行では物理DnDを登録せず、利用者向け開始不可理由を開始を試みた位置とともにPresentationへ通知する。
+ * 結合範囲により開始できない行では物理DnDを登録せず、原因となるblocking merged rangeを開始を試みた位置とともにPresentationへ通知する。
  * DnD開始後の進行、移動先候補、確定、取消はDnD境界へ委ねる。
  */
 
@@ -26,7 +26,7 @@ export type RowDndPointerDownHandler = ( event: PointerEvent< Element > ) => voi
  *
  * PCとタッチ端末の主ポインター入力を共通のPointerSensor経路へ接続し、
  * Reorder Target Resolutionで開始可能と解決された行だけをDnD境界へ接続する。
- * 開始不可理由が定義された行ではDraggableを登録せず、利用者向け理由を操作位置付近へ表示できる情報とともにPresentationへ通知する。
+ * 開始を妨げる結合範囲がある行ではDraggableを登録せず、原因範囲を操作位置付近へ表示できる情報とともにPresentationへ通知する。
  * 入力ごとに登録したDraggableは次の開始候補へ持ち越さず、常に現在の開始候補だけを有効にする。
  * Reorder Modeの判定はDnD接続境界が入力を渡す前に行い、この責務では扱わない。
  *
@@ -94,7 +94,7 @@ export const RowInput = ( props: {
 		if ( resolution.status !== 'resolved' ) {
 			if ( resolution.status === 'rejected' ) {
 				notifyRowStartRejection( {
-					reason: resolution.reason,
+					blockingMergedRange: resolution.blockingMergedRange,
 					clientX: event.clientX,
 					clientY: event.clientY,
 				} );
