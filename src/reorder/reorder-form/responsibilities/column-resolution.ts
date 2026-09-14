@@ -37,7 +37,7 @@ export type ColumnRfResolution =
 	| {
 			/** 結合セル制約により現在Table上で列移動が成立しない。 */
 			status: 'rejected';
-			/** 利用者向け理由表示に利用する最初の横結合範囲。 */
+			/** 利用者向け理由表示に利用する、移動を妨げる最初の結合セル位置。 */
 			blockingMergedRange: ColumnBlockingMergedRange;
 	  }
 	| {
