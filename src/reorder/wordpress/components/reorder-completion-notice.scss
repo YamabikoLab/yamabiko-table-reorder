@@ -4,13 +4,18 @@
  * RFの完了通知デザインを基準に画面右下へ白背景と明確な枠線で表示し、成功・失敗を
  * アイコンと色の両方で識別できるようにする。
  */
+
+@use '@/reorder/reorder-tuning' as tuning;
+
 .yamabiko-table-reorder-completion {
 	position: fixed;
 	right: 24px;
 	bottom: 24px;
 	z-index: 100000;
 	width: min(440px, calc(100vw - 48px));
-	animation: yamabiko-table-reorder-completion-enter 180ms ease-out;
+	animation: yamabiko-table-reorder-completion-enter
+		tuning.$reorder-completion-notice-enter-duration
+		tuning.$reorder-completion-notice-enter-easing;
 
 	.components-snackbar {
 		width: 100%;
