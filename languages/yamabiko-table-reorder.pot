@@ -9,7 +9,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-09-14T13:56:13+09:00\n"
+"POT-Creation-Date: 2026-09-14T14:22:45+09:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: yamabiko-table-reorder\n"
@@ -34,17 +34,17 @@ msgid "This reorder can't continue with the current table. Check the table and t
 msgstr ""
 
 #. 1: 1-based row number, 2: first 1-based column number, 3: last 1-based column number
-#: src/messages.ts:138
+#: src/messages.ts:139
 msgid "A merged cell in row %1$d spanning columns %2$d–%3$d prevents this move."
 msgstr ""
 
 #. 1: first 1-based row number, 2: last 1-based row number, 3: 1-based column number
-#: src/messages.ts:146
+#: src/messages.ts:149
 msgid "A merged cell spanning rows %1$d–%2$d in column %3$d prevents this move."
 msgstr ""
 
 #. 1: first 1-based row number, 2: last 1-based row number, 3: first 1-based column number, 4: last 1-based column number
-#: src/messages.ts:154
+#: src/messages.ts:158
 msgid "A merged cell spanning rows %1$d–%2$d and columns %3$d–%4$d prevents this move."
 msgstr ""
 
@@ -52,100 +52,100 @@ msgstr ""
 msgid "Reorder rows"
 msgstr ""
 
-#: src/messages.ts:184
+#: src/messages.ts:190
 msgid "header"
 msgstr ""
 
-#: src/messages.ts:185
+#: src/messages.ts:191
 msgid "footer"
 msgstr ""
 
 #. 1: table section name, 2: 1-based row number, 3: first 1-based column number, 4: last 1-based column number
-#: src/messages.ts:188
+#: src/messages.ts:196
 msgid "A merged cell in %1$s row %2$d spanning columns %3$d–%4$d prevents this move."
 msgstr ""
 
 #. 1: table section name, 2: first 1-based row number, 3: last 1-based row number, 4: first 1-based column number, 5: last 1-based column number
-#: src/messages.ts:196
+#: src/messages.ts:205
 msgid "A merged cell spanning %1$s rows %2$d–%3$d and columns %4$d–%5$d prevents this move."
 msgstr ""
 
-#: src/messages.ts:207
+#: src/messages.ts:216
 msgid "Reorder"
 msgstr ""
 
-#: src/messages.ts:215
+#: src/messages.ts:224
 msgid "Reordering failed. The table has not been changed."
-msgstr ""
-
-#: src/messages.ts:231
-msgid "Cannot move because cells are merged."
-msgstr ""
-
-#: src/messages.ts:239
-msgid "Reordering could not continue, so the operation was ended."
 msgstr ""
 
 #: src/messages.ts:24
 msgid "Reorder columns"
 msgstr ""
 
-#: src/messages.ts:247
+#: src/messages.ts:240
+msgid "Cannot move because cells are merged."
+msgstr ""
+
+#: src/messages.ts:248
+msgid "Reordering could not continue, so the operation was ended."
+msgstr ""
+
+#: src/messages.ts:256
 msgid "Reorder rows and columns."
 msgstr ""
 
-#: src/messages.ts:255
+#: src/messages.ts:264
 msgid "Long press a cell, then drag to reorder rows and columns."
-msgstr ""
-
-#: src/messages.ts:263
-msgid "Close reorder guidance"
-msgstr ""
-
-#: src/messages.ts:267
-msgid "Apply the new order?"
 msgstr ""
 
 #: src/messages.ts:27
 msgid "Reorder with form"
 msgstr ""
 
+#: src/messages.ts:272
+msgid "Close reorder guidance"
+msgstr ""
+
+#: src/messages.ts:276
+msgid "Apply the new order?"
+msgstr ""
+
 #. 1: 移動元の行番号, 2: 移動先の行番号
-#: src/messages.ts:281
+#: src/messages.ts:290
 msgid "Row %1$d → %2$d"
 msgstr ""
 
 #. 1: 移動元の列番号, 2: 移動先の列番号
-#: src/messages.ts:297
+#: src/messages.ts:306
 msgid "Column %1$d → %2$d"
 msgstr ""
 
-#: src/messages.ts:303
+#: src/messages.ts:312
 msgid "Applying this reorder may take some time."
 msgstr ""
 
-#: src/messages.ts:306
+#: src/messages.ts:315
 msgid "Continue"
 msgstr ""
 
-#: src/messages.ts:309
+#: src/messages.ts:318
 msgid "Cancel"
 msgstr ""
 
-#: src/messages.ts:313
+#: src/messages.ts:322
 msgid "Applying the new order…"
 msgstr ""
 
-#: src/messages.ts:317
+#: src/messages.ts:326
 msgid "Please wait until the update is complete."
-msgstr ""
-
-#: src/messages.ts:321
-msgid "Reordering complete."
 msgstr ""
 
 #: src/messages.ts:33
 msgid "Rows"
+msgstr ""
+
+#: src/messages.ts:330
+msgid "Reordering complete."
 msgstr ""
 
 #: src/messages.ts:36
