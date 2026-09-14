@@ -119,7 +119,8 @@ const setViewportWidth = ( view: Window, width: number ): void => {
  */
 const notifyViewportResize = ( view: Window ): void => {
 	act( () => {
-		view.dispatchEvent( new view.Event( 'resize' ) );
+		const EventConstructor = ( view as Window & typeof globalThis ).Event;
+		view.dispatchEvent( new EventConstructor( 'resize' ) );
 	} );
 };
 
