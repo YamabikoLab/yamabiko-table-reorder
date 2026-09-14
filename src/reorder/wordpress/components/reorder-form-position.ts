@@ -100,14 +100,8 @@ export const clampReorderFormPosition = (
 		RF_POPOVER_VIEWPORT_MARGIN_PX,
 		viewport.height - size.height - RF_POPOVER_VIEWPORT_MARGIN_PX
 	);
-	const x = Math.min(
-		Math.max( requestedPosition.x, RF_POPOVER_VIEWPORT_MARGIN_PX ),
-		maximumX
-	);
-	const y = Math.min(
-		Math.max( requestedPosition.y, RF_POPOVER_VIEWPORT_MARGIN_PX ),
-		maximumY
-	);
+	const x = Math.min( Math.max( requestedPosition.x, RF_POPOVER_VIEWPORT_MARGIN_PX ), maximumX );
+	const y = Math.min( Math.max( requestedPosition.y, RF_POPOVER_VIEWPORT_MARGIN_PX ), maximumY );
 
 	return { x, y };
 };

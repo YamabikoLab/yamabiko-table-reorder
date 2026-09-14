@@ -40,10 +40,7 @@ import {
 import type { ColumnInputDescriptor } from '@/reorder/column-reorder/responsibilities/table-integration';
 import { rfInteraction } from '@/reorder/reorder-form/responsibilities/interaction';
 import type { RfInteractionReactState } from '@/reorder/reorder-form/responsibilities/interaction-react';
-import {
-	RF_POPOVER_DRAG_THRESHOLD_PX,
-	RF_POPOVER_OFFSET_PX,
-} from '@/reorder/reorder-tuning';
+import { RF_POPOVER_DRAG_THRESHOLD_PX, RF_POPOVER_OFFSET_PX } from '@/reorder/reorder-tuning';
 import { useReorderFormCollapse } from '@/reorder/wordpress/components/reorder-form-collapse';
 import { useReorderFormNarrowLayout } from '@/reorder/wordpress/components/reorder-form-layout';
 import {
