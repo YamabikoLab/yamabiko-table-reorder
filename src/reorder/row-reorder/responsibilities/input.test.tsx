@@ -50,10 +50,6 @@ const notifyRowStartRejectionMock = notifyRowStartRejection as jest.MockedFuncti
 	typeof notifyRowStartRejection
 >;
 
-/**
- * DnD Engineの開始可否状態を生成する。
- * @param idle
- */
 const createManager = ( idle = true ) =>
 	( {
 		dragOperation: {
@@ -61,7 +57,6 @@ const createManager = ( idle = true ) =>
 		},
 	} ) as ReturnType< typeof useDragDropManager >;
 
-/** 現在Tableのtbody直下行を含む入力対象DOMを生成する。 */
 const createDirectRowTarget = () => {
 	const currentTarget = document.createElement( 'div' );
 	currentTarget.innerHTML = `
@@ -75,7 +70,6 @@ const createDirectRowTarget = () => {
 	return { currentTarget, rows, cells };
 };
 
-/** 現在Table内の入れ子Table行を開始位置とする入力対象DOMを生成する。 */
 const createNestedRowTarget = () => {
 	const currentTarget = document.createElement( 'div' );
 	currentTarget.innerHTML = `
@@ -90,19 +84,6 @@ const createNestedRowTarget = () => {
 	return { currentTarget, target };
 };
 
-/**
- * 行DnD開始処理へ渡すReactポインターイベントを生成する。
- *
- * @param options               イベント生成条件。
- * @param options.target        入力開始位置。
- * @param options.currentTarget 現在Tableの基準要素。
- * @param options.isPrimary     主ポインター入力の場合はtrue。
- * @param options.button        入力ボタン番号。
- * @param options.pointerType   ポインター入力方式。
- * @param options.clientX       ビューポート内の水平操作位置。
- * @param options.clientY       ビューポート内の垂直操作位置。
- * @return 行DnD開始処理へ渡すポインターイベント。
- */
 const createPointerEvent = ( options: {
 	target: Element;
 	currentTarget: Element;
@@ -123,7 +104,6 @@ const createPointerEvent = ( options: {
 		preventDefault: jest.fn(),
 	} ) as unknown as ReactPointerEvent< Element >;
 
-/** RowInputが子要素へ公開する開始処理を取得する。 */
 const renderRowInput = () => {
 	const capturedHandler: { current: RowDndPointerDownHandler | null } = { current: null };
 	const activeDraggable: { current: Draggable | null } = { current: null };
@@ -156,21 +136,6 @@ describe( 'Row DnD input boundary', () => {
 		} ) );
 	} );
 
-	/**
-	 * 概要:
-	 * - 有効な主マウス入力で現在Tableのtbody直下行を開始候補として登録し、次の候補で前回登録を破棄することを確認する。
-	 *
-	 * 事前条件:
-	 * - DnD Engineは新しいDnDを開始でき、tbody直下に2行存在する。
-	 *
-	 * 操作:
-	 * - 1行目、続けて2行目へ主マウス入力を行う。
-	 *
-	 * 期待結果:
-	 * - 各入力の行がTable Identityと0-based行位置を持つDraggableとして登録される。
-	 * - 2回目の登録前に1回目のDraggableが破棄される。
-	 * - Tableセル内部からの開始を許可する行DnD設定が適用される。
-	 */
 	it( 'when primary mouse input targets direct tbody rows, should register the current row and replace the previous candidate', () => {
 		const { currentTarget, rows, cells } = createDirectRowTarget();
 		const { pointerDownHandler, activeDraggable } = renderRowInput();
@@ -204,24 +169,16 @@ describe( 'Row DnD input boundary', () => {
 		).toBe( false );
 	} );
 
-	/**
-	 * 概要:
-	 * - Reorder Target Resolutionが開始拒否した行ではblocking merged rangeを通知し、物理DnDへ登録しないことを確認する。
-	 *
-	 * 事前条件:
-	 * - 対象行は結合範囲により開始拒否となる。
-	 *
-	 * 操作:
-	 * - 対象行から主マウス入力を行う。
-	 *
-	 * 期待結果:
-	 * - 対象行が正しいTable Identityと行位置でTarget Resolutionへ渡される。
-	 * - blocking merged rangeと操作位置が通知され、Draggableは登録されない。
-	 */
-	it( 'when target resolution rejects the row, should notify the blocking range without registering a draggable', () => {
+	it( 'when target resolution rejects the row, should notify the blocking cell without registering a draggable', () => {
+		const blockingMergedCell = {
+			rowStart: 0,
+			rowEnd: 1,
+			columnStart: 1,
+			columnEnd: 2,
+		};
 		targetResolutionMock.resolve.mockReturnValue( {
 			status: 'rejected',
-			blockingMergedRange: { rowStart: 0, rowEnd: 1 },
+			blockingMergedCell,
 		} );
 		const { currentTarget, cells } = createDirectRowTarget();
 		const { pointerDownHandler } = renderRowInput();
@@ -235,26 +192,13 @@ describe( 'Row DnD input boundary', () => {
 			sourceRowIndex: 0,
 		} );
 		expect( notifyRowStartRejectionMock ).toHaveBeenCalledWith( {
-			blockingMergedRange: { rowStart: 0, rowEnd: 1 },
+			blockingMergedCell,
 			clientX: 120,
 			clientY: 240,
 		} );
 		expect( draggableConstructorMock ).not.toHaveBeenCalled();
 	} );
 
-	/**
-	 * 概要:
-	 * - 通常の利用不能結果では通知せず、物理DnDへ登録しないことを確認する。
-	 *
-	 * 事前条件:
-	 * - Reorder Target Resolutionは対象行を通常の利用不能として解決する。
-	 *
-	 * 操作:
-	 * - 対象行へ主マウス入力を行う。
-	 *
-	 * 期待結果:
-	 * - 開始拒否通知もDraggable登録も発生しない。
-	 */
 	it( 'when target resolution is unavailable, should not notify or register a draggable', () => {
 		targetResolutionMock.resolve.mockReturnValue( { status: 'unavailable' } );
 		const { currentTarget, cells } = createDirectRowTarget();
@@ -265,19 +209,6 @@ describe( 'Row DnD input boundary', () => {
 		expect( draggableConstructorMock ).not.toHaveBeenCalled();
 	} );
 
-	/**
-	 * 概要:
-	 * - 主タッチ入力も行DnD開始候補として登録できることを確認する。
-	 *
-	 * 事前条件:
-	 * - DnD Engineは新しいDnDを開始でき、tbody直下行へタッチ入力できる。
-	 *
-	 * 操作:
-	 * - 行のセルから主タッチ入力を行う。
-	 *
-	 * 期待結果:
-	 * - 対象行がDraggableとして登録される。
-	 */
 	it( 'when primary touch input targets a direct tbody row, should register that row as the drag source', () => {
 		const { currentTarget, rows, cells } = createDirectRowTarget();
 		const { pointerDownHandler } = renderRowInput();
@@ -291,16 +222,6 @@ describe( 'Row DnD input boundary', () => {
 		);
 	} );
 
-	/**
-	 * 概要:
-	 * - DnD開始条件を満たさない入力は開始候補へ登録しないことを確認する。
-	 *
-	 * 操作:
-	 * - 非主ポインター、副ボタン、進行中DnDへの追加入力を行う。
-	 *
-	 * 期待結果:
-	 * - Draggableは登録されない。
-	 */
 	it.each( [
 		{ label: 'non-primary pointer', isPrimary: false, button: 0, pointerType: 'mouse', idle: true },
 		{ label: 'secondary button', isPrimary: true, button: 1, pointerType: 'mouse', idle: true },
@@ -330,19 +251,6 @@ describe( 'Row DnD input boundary', () => {
 		}
 	);
 
-	/**
-	 * 概要:
-	 * - 現在Table内の入れ子Table行は開始対象にしないことを確認する。
-	 *
-	 * 事前条件:
-	 * - 現在Tableのセル内部に別Tableが存在する。
-	 *
-	 * 操作:
-	 * - 入れ子Tableの行へ主ポインター入力を行う。
-	 *
-	 * 期待結果:
-	 * - 入れ子Tableの行はDraggableとして登録されない。
-	 */
 	it( 'when pointer input targets a nested table row, should not register that row as the current table drag source', () => {
 		const { currentTarget, target } = createNestedRowTarget();
 		const { pointerDownHandler } = renderRowInput();
