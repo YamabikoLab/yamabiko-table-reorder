@@ -33,19 +33,6 @@ describe( 'Row RF Resolution', () => {
 		getBlockingMergedRangeMock.mockReturnValue( null );
 	} );
 
-	/**
-	 * 移動前Table上のtargetと上下指定を、現在tbody基準の移動先境界へ変換できることを確認する。
-	 *
-	 * 事前条件:
-	 * - 現在Tableには6行存在し、結合セル制約はない。
-	 * - sourceとtargetは現在範囲内に存在する。
-	 *
-	 * 操作:
-	 * - targetの上または下へのRow RF指定を解決する。
-	 *
-	 * 期待結果:
-	 * - 移動前Table基準の正しいdestination boundaryを持つ`resolved`候補が返る。
-	 */
 	it.each( [
 		[ 'above' as const, 4 ],
 		[ 'below' as const, 5 ],
@@ -69,19 +56,6 @@ describe( 'Row RF Resolution', () => {
 		}
 	);
 
-	/**
-	 * 並び順が変わらないRow指定では結合セル制約よりno-opを優先することを確認する。
-	 *
-	 * 事前条件:
-	 * - sourceの直前または直後を移動先境界とする指定が成立している。
-	 *
-	 * 操作:
-	 * - Row RF指定を解決する。
-	 *
-	 * 期待結果:
-	 * - `no-op`が返る。
-	 * - 結合セル診断は要求されない。
-	 */
 	it.each( [
 		[ 2, 'above' as const ],
 		[ 1, 'below' as const ],
@@ -99,15 +73,6 @@ describe( 'Row RF Resolution', () => {
 		}
 	);
 
-	/**
-	 * 現在Tableを利用できない場合や、入力成立後にsource / targetが現在範囲外になった場合を候補成立と区別することを確認する。
-	 *
-	 * 操作:
-	 * - 利用不能なTable、または現在範囲へ照合できないRow指定を解決する。
-	 *
-	 * 期待結果:
-	 * - `unavailable`が返り、候補は推測されない。
-	 */
 	it( 'when the current Row table or selected positions cannot be resolved, should return unavailable', () => {
 		getConstraintsMock.mockReturnValueOnce( null );
 		expect(
@@ -129,20 +94,15 @@ describe( 'Row RF Resolution', () => {
 	} );
 
 	/**
-	 * 実際に並び順が変わる候補が縦結合制約に抵触した場合、Table Integrationの方向固有診断をそのまま公開することを確認する。
-	 *
-	 * 事前条件:
-	 * - source / target / destinationは現在Tableに存在する。
-	 * - 候補を妨げる縦結合範囲が存在する。
-	 *
-	 * 操作:
-	 * - Row RF指定を解決する。
-	 *
-	 * 期待結果:
-	 * - `rejected`と最初の`RowBlockingMergedRange`が返る。
+	 * Table Integrationが返す原因セルの行・列位置を加工せず公開することを確認する。
 	 */
-	it( 'when a changing Row move is blocked by a merged range, should return rejected with the blocking range', () => {
-		getBlockingMergedRangeMock.mockReturnValue( { rowStart: 2, rowEnd: 4 } );
+	it( 'when a changing Row move is blocked by a merged cell, should return rejected with the blocking cell position', () => {
+		getBlockingMergedRangeMock.mockReturnValue( {
+			rowStart: 2,
+			rowEnd: 4,
+			columnStart: 1,
+			columnEnd: 2,
+		} );
 
 		expect(
 			rowRfResolution.resolve( 'table-a', {
@@ -152,7 +112,12 @@ describe( 'Row RF Resolution', () => {
 			} )
 		).toEqual( {
 			status: 'rejected',
-			blockingMergedRange: { rowStart: 2, rowEnd: 4 },
+			blockingMergedRange: {
+				rowStart: 2,
+				rowEnd: 4,
+				columnStart: 1,
+				columnEnd: 2,
+			},
 		} );
 	} );
 } );
