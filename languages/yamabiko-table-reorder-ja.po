@@ -39,10 +39,6 @@ msgid "Reorder columns"
 msgstr "列を並び替え"
 
 #: src/messages.ts
-msgid "A merged cell in row %1$d, column %2$d prevents this move."
-msgstr "%1$d行目の%2$d列目に結合セルがあるため、この指定では移動できません。"
-
-#: src/messages.ts
 msgid "A merged cell in row %1$d spanning columns %2$d–%3$d prevents this move."
 msgstr "%1$d行目の%2$d〜%3$d列目に結合セルがあるため、この指定では移動できません。"
 
@@ -63,16 +59,8 @@ msgid "footer"
 msgstr "フッター"
 
 #: src/messages.ts
-msgid "A merged cell in %1$s row %2$d, column %3$d prevents this move."
-msgstr "%1$sの%2$d行目の%3$d列目に結合セルがあるため、この指定では移動できません。"
-
-#: src/messages.ts
 msgid "A merged cell in %1$s row %2$d spanning columns %3$d–%4$d prevents this move."
 msgstr "%1$sの%2$d行目の%3$d〜%4$d列目に結合セルがあるため、この指定では移動できません。"
-
-#: src/messages.ts
-msgid "A merged cell spanning %1$s rows %2$d–%3$d in column %4$d prevents this move."
-msgstr "%1$sの%2$d〜%3$d行目の%4$d列目に結合セルがあるため、この指定では移動できません。"
 
 #: src/messages.ts
 msgid "A merged cell spanning %1$s rows %2$d–%3$d and columns %4$d–%5$d prevents this move."
