@@ -11,11 +11,11 @@ import { useRef } from '@wordpress/element';
 import type { MouseEvent as ReactMouseEvent, PointerEvent as ReactPointerEvent } from 'react';
 
 import {
+	getColumnMergedRangeMessage,
 	getRfAboveLabel,
 	getRfApplyLabel,
 	getRfBelowLabel,
 	getRfCancelLabel,
-	getRfColumnMergedRangeMessage,
 	getRfColumnOptionLabel,
 	getRfColumnTargetHelp,
 	getRfColumnsLabel,
@@ -25,7 +25,6 @@ import {
 	getRfPositionLegend,
 	getRfReorderName,
 	getRfRightLabel,
-	getRfRowMergedRangeMessage,
 	getRfRowRangeMessage,
 	getRfRowsLabel,
 	getRfRowTargetHelp,
@@ -35,6 +34,7 @@ import {
 	getRfTargetColumnLabel,
 	getRfTargetRowLabel,
 	getRfUnavailableMessage,
+	getRowMergedRangeMessage,
 } from '@/messages';
 import type { ColumnInputDescriptor } from '@/reorder/column-reorder/responsibilities/table-integration';
 import { rfInteraction } from '@/reorder/reorder-form/responsibilities/interaction';
@@ -126,11 +126,11 @@ const getCurrentResultMessage = ( state: RfInteractionReactState ): string | nul
 
 	if ( state.kind === 'row' ) {
 		const { rowStart, rowEnd } = state.result.blockingMergedRange;
-		return getRfRowMergedRangeMessage( rowStart + 1, rowEnd + 1 );
+		return getRowMergedRangeMessage( rowStart + 1, rowEnd + 1 );
 	}
 
 	const { columnStart, columnEnd } = state.result.blockingMergedRange;
-	return getRfColumnMergedRangeMessage( columnStart + 1, columnEnd + 1 );
+	return getColumnMergedRangeMessage( columnStart + 1, columnEnd + 1 );
 };
 
 /**
