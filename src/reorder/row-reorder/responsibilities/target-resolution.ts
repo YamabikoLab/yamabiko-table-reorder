@@ -7,7 +7,11 @@
  * 解決結果は保持せず、DnD Sessionや表示状態を所有しない。
  */
 
-import { rowTableIntegration, type RowBlockingMergedRange, type RowReorderConstraints } from './table-integration';
+import {
+	rowTableIntegration,
+	type RowBlockingMergedRange,
+	type RowReorderConstraints,
+} from './table-integration';
 import {
 	isRowReorderTargetBlockedByMergedRange,
 	isRowReorderTargetInRange,

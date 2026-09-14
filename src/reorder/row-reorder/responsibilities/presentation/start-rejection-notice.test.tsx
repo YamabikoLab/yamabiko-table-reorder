@@ -13,7 +13,8 @@ import { RowStartRejectionNotice } from './start-rejection-notice';
 let snackbarRemove: ( () => void ) | undefined;
 
 jest.mock( '@/messages', () => ( {
-	getRowMergedRangeMessage: ( rowStart: number, rowEnd: number ) => `rows ${ rowStart }-${ rowEnd }`,
+	getRowMergedRangeMessage: ( rowStart: number, rowEnd: number ) =>
+		`rows ${ rowStart }-${ rowEnd }`,
 } ) );
 
 jest.mock( '@wordpress/components', () => ( {
