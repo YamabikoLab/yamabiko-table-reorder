@@ -10,17 +10,14 @@ import { useEffect } from '@wordpress/element';
 import { useStore } from 'zustand';
 import { createStore } from 'zustand/vanilla';
 
+import {
+	RF_MINIMUM_NARROW_HEIGHT_PX,
+	RF_NARROW_MAXIMUM_VIEWPORT_RATIO,
+	RF_NARROW_RESIZE_HANDLE_HEIGHT_PX,
+} from '@/reorder/reorder-tuning';
+
 /** RFの狭い表示へ適用する利用者指定高さを公開するCSS custom property。 */
 const narrowHeightProperty = '--yamabiko-table-reorder-rf-narrow-height';
-
-/** 高さ変更用グリップとして扱うheader上端の操作領域。 */
-const resizeHandleHeight = 18;
-
-/** RF入力画面を低くしすぎず、主要な操作へ内部スクロールで到達できる最小高さ。 */
-const minimumNarrowHeight = 180;
-
-/** RF入力画面を高くしすぎず、対象Tableを確認する領域を残す表示領域比率。 */
-const maximumViewportRatio = 0.8;
 
 /** RFの狭い表示で利用者が指定した高さを表す。 */
 type ReorderFormHeightStore = {
@@ -150,7 +147,7 @@ export const useReorderFormNarrowHeight = (
 			}
 
 			const headerRect = header.getBoundingClientRect();
-			if ( event.clientY - headerRect.top > resizeHandleHeight ) {
+			if ( event.clientY - headerRect.top > RF_NARROW_RESIZE_HANDLE_HEIGHT_PX ) {
 				return;
 			}
 
@@ -175,9 +172,15 @@ export const useReorderFormNarrowHeight = (
 			}
 
 			const viewportHeight = view.visualViewport?.height ?? view.innerHeight;
-			const maximumHeight = Math.max( minimumNarrowHeight, viewportHeight * maximumViewportRatio );
+			const maximumHeight = Math.max(
+				RF_MINIMUM_NARROW_HEIGHT_PX,
+				viewportHeight * RF_NARROW_MAXIMUM_VIEWPORT_RATIO
+			);
 			const requested = startHeight + startY - event.clientY;
-			const nextHeight = Math.min( Math.max( requested, minimumNarrowHeight ), maximumHeight );
+			const nextHeight = Math.min(
+				Math.max( requested, RF_MINIMUM_NARROW_HEIGHT_PX ),
+				maximumHeight
+			);
 			reorderFormHeightStore.getState().setHeight( tableIdentity, nextHeight );
 			event.preventDefault();
 		};
