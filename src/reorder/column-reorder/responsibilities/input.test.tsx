@@ -223,7 +223,10 @@ describe( 'Column DnD input boundary', () => {
 	 * - Draggableは登録されない。
 	 */
 	it( 'when first-stage target resolution rejects the column, should not register a draggable', () => {
-		targetResolutionMock.resolve.mockReturnValue( { status: 'rejected', reason: 'merged-range' } );
+		targetResolutionMock.resolve.mockReturnValue( {
+			status: 'rejected',
+			blockingMergedRange: { columnStart: 0, columnEnd: 1 },
+		} );
 		const { currentTarget, target } = createTableTarget();
 		const { pointerDownHandler } = renderColumnInput();
 		pointerDownHandler( createPointerEvent( { target, currentTarget } ) );
@@ -341,7 +344,10 @@ describe( 'Column DnD input boundary', () => {
 	 * - Draggableは登録されず、pointerdown時点のブラウザー既定動作も抑止しない。
 	 */
 	it( 'when touch target resolution rejects the column, should not register a draggable or prevent the initial browser action', () => {
-		targetResolutionMock.resolve.mockReturnValue( { status: 'rejected', reason: 'merged-range' } );
+		targetResolutionMock.resolve.mockReturnValue( {
+			status: 'rejected',
+			blockingMergedRange: { columnStart: 0, columnEnd: 1 },
+		} );
 		const { currentTarget, target } = createTableTarget();
 		const { pointerDownHandler } = renderColumnInput();
 		const event = createPointerEvent( { target, currentTarget, pointerType: 'touch' } );
