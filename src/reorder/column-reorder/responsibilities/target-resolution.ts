@@ -3,25 +3,25 @@
  *
  * 要求時点のTable制約に対して指定された論理列が移動対象として成立するかを解決し、
  * 開始可能な場合はReorder Targetと開始時制約を同じ解決結果として返す。
+ * 実際のDnD開始拒否では原因となる横結合範囲もTable Integrationから取得する。
  * 解決結果は保持せず、DnD Sessionや表示状態を所有しない。
  */
 
-import { columnTableIntegration, type ColumnReorderConstraints } from './table-integration';
+import {
+	columnTableIntegration,
+	type ColumnBlockingMergedRange,
+	type ColumnReorderConstraints,
+} from './table-integration';
 import {
 	isColumnReorderTargetBlockedByMergedRange,
 	isColumnReorderTargetInRange,
 	type ColumnReorderTarget,
 } from '@/reorder/column-reorder/domain/target-validity';
 
-/** Designで利用者へ理由を提示する開始拒否理由。 */
-export type ColumnReorderTargetRejectionReason = 'merged-range';
-
 /**
- * Reorder Target Resolutionの解決結果。
+ * Reorder Target Resolutionの一回性解決結果。
  *
- * Reorder Target自体には開始時制約や拒否理由を含めず、解決時点だけに必要な情報は解決結果で扱う。
- * `resolved`は後続DnD SessionへTargetと開始時制約を引き継ぎ、`rejected`はDesign上の開始不可、
- * `unavailable`は対象Tableまたは論理列を安全に利用できない通常結果を表す。
+ * Reorder Target自体には開始時制約や構造診断を含めず、解決時点だけに必要な情報は解決結果で扱う。
  */
 export type ColumnReorderTargetResolution =
 	| {
@@ -31,7 +31,21 @@ export type ColumnReorderTargetResolution =
 	  }
 	| {
 			status: 'rejected';
-			reason: ColumnReorderTargetRejectionReason;
+			blockingMergedRange: ColumnBlockingMergedRange;
+	  }
+	| {
+			status: 'unavailable';
+	  };
+
+/** 同一Table内の開始可否表示に利用する、構造診断を持たない軽量な解決結果。 */
+type ColumnReorderTargetPreviewResolution =
+	| {
+			status: 'resolved';
+			target: ColumnReorderTarget;
+			initialConstraints: ColumnReorderConstraints;
+	  }
+	| {
+			status: 'rejected';
 	  }
 	| {
 			status: 'unavailable';
@@ -47,33 +61,29 @@ type ColumnReorderTargetResolver = {
 	 * 指定列を現在の解決基準に対するReorder Targetとして解決する。
 	 *
 	 * @param sourceColumnIndex Table全体の0-based移動元論理列位置。
-	 * @return 開始可能なTargetと開始時制約、開始拒否理由、または通常の利用不能結果。
+	 * @return 開始可能なTargetと開始時制約、開始拒否、または通常の利用不能結果。
 	 */
-	resolve: ( sourceColumnIndex: number ) => ColumnReorderTargetResolution;
+	resolve: ( sourceColumnIndex: number ) => ColumnReorderTargetPreviewResolution;
 };
 
 /**
- * 指定された列制約に対してReorder Targetを解決する。
+ * 指定された列制約に対してReorder Targetの開始可否を解決する。
  *
  * @param target             解決するReorder Target。
  * @param initialConstraints 解決基準とする開始時の列制約。
- * @return 開始可能なTargetと開始時制約、Design上の開始拒否理由、または通常の利用不能結果。
+ * @return 開始可能なTargetと開始時制約、開始拒否、または通常の利用不能結果。
  */
 const resolveWithConstraints = (
 	target: ColumnReorderTarget,
 	initialConstraints: ColumnReorderConstraints
-): ColumnReorderTargetResolution => {
-	/* 現在Tableに実在する論理列として解釈できない対象は、利用者向け拒否理由を作らず通常の利用不能とする。 */
+): ColumnReorderTargetPreviewResolution => {
+	/* 現在Tableに実在する論理列として解釈できない対象は、利用者向け拒否通知を作らず通常の利用不能とする。 */
 	if ( ! isColumnReorderTargetInRange( target, initialConstraints ) ) {
 		return { status: 'unavailable' };
 	}
 
-	/* 横結合範囲に含まれる列だけをDesign上の開始拒否として区別し、後続表示へ理由を渡す。 */
 	if ( isColumnReorderTargetBlockedByMergedRange( target, initialConstraints ) ) {
-		return {
-			status: 'rejected',
-			reason: 'merged-range',
-		};
+		return { status: 'rejected' };
 	}
 
 	return {
@@ -87,7 +97,7 @@ const resolveWithConstraints = (
  * 同一Tableの要求時点の列制約を基準とする一時的なTarget Resolverを生成する。
  *
  * Table制約を取得できない場合もresolver自体は成立させ、各候補を通常の利用不能として解決する。
- * これによりPresentationはTable Integrationへ直接依存せず、開始可否判定の意味をTarget Resolutionへ統一できる。
+ * 表示判定ではblocking merged range診断を取得せず、同じ制約を複数候補で再利用する。
  *
  * @param tableIdentity 解決対象となるTable個体の識別値。
  * @return 同じTable制約を基準に複数の移動対象候補を解決するResolver。
@@ -116,22 +126,38 @@ const createResolver = ( tableIdentity: string ): ColumnReorderTargetResolver =>
  * 要求時点のTable構造から列DnD開始対象を解決する。
  *
  * 対象Tableまたは移動元論理列を安全に解釈できない場合は通常の利用不能とし、
- * colspanによる結合範囲により列単位で移動できない場合だけDesign上の開始拒否理由を返す。
- * この責務は判定だけを行い、Tableデータや他責務の状態を変更しない。
+ * colspanによる結合範囲により列単位で移動できない場合だけ原因となる横結合範囲を返す。
+ * 開始拒否判定後に現在Tableから診断範囲を取得できなくなった場合は、範囲を推測せず利用不能として扱う。
  *
  * @param target 開始を試行するReorder Target。
- * @return 開始可能なTargetと開始時制約、Design上の開始拒否理由、または通常の利用不能結果。
+ * @return 開始可能なTargetと開始時制約、開始拒否のblocking merged range、または通常の利用不能結果。
  */
 const resolve = ( target: ColumnReorderTarget ): ColumnReorderTargetResolution => {
 	const resolver = createResolver( target.tableIdentity );
 	const resolution = resolver.resolve( target.sourceColumnIndex );
-	return resolution;
+	if ( resolution.status !== 'rejected' ) {
+		return resolution;
+	}
+
+	const blockingMergedRange = columnTableIntegration.getSourceBlockingMergedRange(
+		target.tableIdentity,
+		target.sourceColumnIndex
+	);
+	/* 開始拒否を説明する現在の結合範囲を取得できない場合は、古い判定だけから理由を推測しない。 */
+	if ( blockingMergedRange === null ) {
+		return { status: 'unavailable' };
+	}
+
+	return {
+		status: 'rejected',
+		blockingMergedRange,
+	};
 };
 
 /**
  * 列並び替え開始前の移動対象解決境界。
  *
- * 要求時点の現在制約だけから開始候補を解決し、Table更新やDnD Session開始は行わない。
+ * 要求時点の現在制約から開始候補を解決し、実際の開始拒否時だけ現在のblocking merged rangeを診断する。
  */
 export const columnReorderTargetResolution = {
 	createResolver,
