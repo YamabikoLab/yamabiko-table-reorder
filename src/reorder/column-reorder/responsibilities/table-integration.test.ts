@@ -183,6 +183,39 @@ describe( 'Column Table Integration', () => {
 	} );
 
 	/**
+	 * 列DnD開始対象を妨げる横結合セルの具体的位置を取得できることを確認する。
+	 *
+	 * 事前条件:
+	 * - headerとbodyに同じ論理列を妨げる横結合セルが存在する。
+	 *
+	 * 操作:
+	 * - 2列目を移動元として開始対象の構造診断を要求する。
+	 *
+	 * 期待結果:
+	 * - 移動先指定を必要とせず、診断順で最初のheader結合セル位置が返る。
+	 */
+	it( 'when a drag source column intersects merged cells, should return the first source blocking range', () => {
+		selectMock.mockReturnValue( {
+			getBlock: jest.fn().mockReturnValue( {
+				name: 'core/table',
+				attributes: {
+					head: [ { cells: [ { colspan: 2 }, {} ] } ],
+					body: [ { cells: [ { colspan: 2 }, {} ] } ],
+				},
+			} ),
+		} );
+
+		expect( columnTableIntegration.getSourceBlockingMergedRange( 'table-a', 1 ) ).toEqual( {
+			section: 'head',
+			rowStart: 0,
+			rowEnd: 0,
+			columnStart: 0,
+			columnEnd: 1,
+		} );
+		expect( columnTableIntegration.getSourceBlockingMergedRange( 'table-a', 2 ) ).toBeNull();
+	} );
+
+	/**
 	 * 右方向への確定済み列移動をhead・body・footへ一つの更新として反映できることを確認する。
 	 *
 	 * 事前条件:

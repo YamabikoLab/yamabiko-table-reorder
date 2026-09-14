@@ -1,13 +1,14 @@
 /**
- * Reorder Target Resolutionが、現在のTable制約から列開始対象の成立可否と理由を副作用なく解決することを確認する。
+ * Reorder Target Resolutionが、要求時点のTable制約から列開始対象と結合セル拒否位置を解決することを確認する。
  */
 
 import { columnTableIntegration } from './table-integration';
-import { columnReorderTargetResolution } from './target-resolution';
+import { resolveColumnReorderTarget } from './target-resolution';
 
 jest.mock( './table-integration', () => ( {
 	columnTableIntegration: {
 		getConstraints: jest.fn(),
+		getSourceBlockingMergedRange: jest.fn(),
 		applyColumnMove: jest.fn(),
 	},
 } ) );
@@ -15,6 +16,10 @@ jest.mock( './table-integration', () => ( {
 const getConstraintsMock = columnTableIntegration.getConstraints as jest.MockedFunction<
 	typeof columnTableIntegration.getConstraints
 >;
+const getSourceBlockingMergedRangeMock =
+	columnTableIntegration.getSourceBlockingMergedRange as jest.MockedFunction<
+		typeof columnTableIntegration.getSourceBlockingMergedRange
+	>;
 const applyColumnMoveMock = columnTableIntegration.applyColumnMove as jest.MockedFunction<
 	typeof columnTableIntegration.applyColumnMove
 >;
@@ -23,201 +28,145 @@ const target = {
 	tableIdentity: 'table-a',
 	sourceColumnIndex: 1,
 };
+const blockingMergedRange = {
+	section: 'body' as const,
+	rowStart: 0,
+	rowEnd: 0,
+	columnStart: 0,
+	columnEnd: 1,
+};
 
 describe( 'Column Reorder Target Resolution', () => {
 	beforeEach( () => {
 		jest.clearAllMocks();
 		getConstraintsMock.mockReset();
+		getSourceBlockingMergedRangeMock.mockReset();
 		applyColumnMoveMock.mockReset();
 	} );
 
 	/**
 	 * 列単位で移動可能な対象ではTargetと開始時制約を同じ解決結果で返すことを確認する。
 	 *
-	 * 事前条件:
-	 * - 対象Tableを取得でき、移動元列の前後に分断不可境界がない。
-	 *
-	 * 操作:
-	 * - Target Resolutionを実行する。
-	 *
 	 * 期待結果:
 	 * - resolvedとしてTargetと取得した列制約が返る。
+	 * - 結合セル位置の追加診断は行われない。
 	 */
 	it( 'when the target column is movable, should resolve the target with the current constraints', () => {
 		const constraints = { columnCount: 5, blockedBoundaries: [] };
 		getConstraintsMock.mockReturnValue( constraints );
 
-		const result = columnReorderTargetResolution.resolve( target );
-
-		expect( result ).toEqual( {
+		expect( resolveColumnReorderTarget( target ) ).toEqual( {
 			status: 'resolved',
 			target,
 			initialConstraints: constraints,
 		} );
+		expect( getSourceBlockingMergedRangeMock ).not.toHaveBeenCalled();
 	} );
 
 	/**
-	 * colspanの左端側にある列も前後の分断不可境界から開始拒否になることを確認する。
+	 * colspan範囲に含まれる列では原因セル位置を開始拒否結果として返すことを確認する。
 	 *
 	 * 事前条件:
 	 * - 移動元列の直後が分断不可境界である。
 	 *
-	 * 操作:
-	 * - Target Resolutionを実行する。
+	 * 期待結果:
+	 * - blockingMergedRangeを持つrejectedが返る。
+	 * - 移動先を必要としない開始対象専用の診断が要求される。
+	 */
+	it( 'when the target column is blocked by a merged range, should reject it with the blocking range', () => {
+		getConstraintsMock.mockReturnValue( { columnCount: 5, blockedBoundaries: [ 2 ] } );
+		getSourceBlockingMergedRangeMock.mockReturnValue( blockingMergedRange );
+
+		const result = resolveColumnReorderTarget( target );
+
+		expect( getSourceBlockingMergedRangeMock ).toHaveBeenCalledWith( 'table-a', 1 );
+		expect( result ).toEqual( { status: 'rejected', blockingMergedRange } );
+	} );
+
+	/**
+	 * colspanの右端側にある列も直前の分断不可境界から開始拒否になることを確認する。
 	 *
 	 * 期待結果:
-	 * - merged-range理由のrejectedが返る。
+	 * - 原因セル位置を持つrejectedが返る。
 	 */
-	it( 'when the boundary after the target column is blocked, should reject it with the merged-range reason', () => {
-		getConstraintsMock.mockReturnValue( {
-			columnCount: 5,
-			blockedBoundaries: [ 2 ],
-		} );
+	it( 'when the boundary before the target column is blocked, should reject it with the blocking range', () => {
+		getConstraintsMock.mockReturnValue( { columnCount: 5, blockedBoundaries: [ 1 ] } );
+		getSourceBlockingMergedRangeMock.mockReturnValue( blockingMergedRange );
 
-		const result = columnReorderTargetResolution.resolve( target );
-
-		expect( result ).toEqual( {
+		expect( resolveColumnReorderTarget( target ) ).toEqual( {
 			status: 'rejected',
-			reason: 'merged-range',
+			blockingMergedRange,
 		} );
 	} );
 
 	/**
-	 * colspanの右端側にある列も前後の分断不可境界から開始拒否になることを確認する。
-	 *
-	 * 事前条件:
-	 * - 移動元列の直前が分断不可境界である。
-	 *
-	 * 操作:
-	 * - Target Resolutionを実行する。
+	 * 開始拒否の原因位置を現在Tableから確定できない場合は理由を推測しないことを確認する。
 	 *
 	 * 期待結果:
-	 * - merged-range理由のrejectedが返る。
+	 * - unavailableが返る。
 	 */
-	it( 'when the boundary before the target column is blocked, should reject it with the merged-range reason', () => {
-		getConstraintsMock.mockReturnValue( {
-			columnCount: 5,
-			blockedBoundaries: [ 1 ],
-		} );
+	it( 'when the current blocking range cannot be diagnosed, should return unavailable', () => {
+		getConstraintsMock.mockReturnValue( { columnCount: 5, blockedBoundaries: [ 2 ] } );
+		getSourceBlockingMergedRangeMock.mockReturnValue( null );
 
-		const result = columnReorderTargetResolution.resolve( target );
+		expect( resolveColumnReorderTarget( target ) ).toEqual( { status: 'unavailable' } );
+	} );
 
-		expect( result ).toEqual( {
+	/**
+	 * 解決要求ごとに現在Table制約を取得し直すことを確認する。
+	 *
+	 * 事前条件:
+	 * - 同じ列が最初の要求では移動可能で、次の要求時には結合範囲に含まれる。
+	 *
+	 * 期待結果:
+	 * - Table制約を要求ごとに取得し、2回目は現在の原因セル位置を持つ開始拒否になる。
+	 */
+	it( 'when the same target is resolved again, should use the current table for each request', () => {
+		getConstraintsMock
+			.mockReturnValueOnce( { columnCount: 3, blockedBoundaries: [] } )
+			.mockReturnValueOnce( { columnCount: 3, blockedBoundaries: [ 1, 2 ] } );
+		getSourceBlockingMergedRangeMock.mockReturnValue( blockingMergedRange );
+
+		expect( resolveColumnReorderTarget( target ).status ).toBe( 'resolved' );
+		expect( resolveColumnReorderTarget( target ) ).toEqual( {
 			status: 'rejected',
-			reason: 'merged-range',
+			blockingMergedRange,
 		} );
+		expect( getConstraintsMock ).toHaveBeenCalledTimes( 2 );
 	} );
 
 	/**
-	 * 同一Tableの複数列を解決する場合に要求時点の列制約を一度だけ取得することを確認する。
-	 *
-	 * 事前条件:
-	 * - 3列Tableで境界1が分断不可である。
-	 *
-	 * 操作:
-	 * - Table単位のResolverを生成し、1列目と3列目を順に解決する。
-	 *
-	 * 期待結果:
-	 * - Table制約取得は1回だけで、1列目は開始拒否、3列目は開始可能として同じ制約を基準に解決される。
-	 */
-	it( 'when one table resolver checks multiple columns, should reuse one current constraint snapshot', () => {
-		const constraints = { columnCount: 3, blockedBoundaries: [ 1 ] };
-		getConstraintsMock.mockReturnValue( constraints );
-		const resolver = columnReorderTargetResolution.createResolver( 'table-a' );
-
-		const first = resolver.resolve( 0 );
-		const third = resolver.resolve( 2 );
-
-		expect( getConstraintsMock ).toHaveBeenCalledTimes( 1 );
-		expect( first ).toEqual( { status: 'rejected', reason: 'merged-range' } );
-		expect( third ).toEqual( {
-			status: 'resolved',
-			target: { tableIdentity: 'table-a', sourceColumnIndex: 2 },
-			initialConstraints: constraints,
-		} );
-	} );
-
-	/**
-	 * Table制約を取得できない場合は利用者向け拒否理由を作らず通常の利用不能とすることを確認する。
-	 *
-	 * 事前条件:
-	 * - 対象Tableの現在制約を取得できない。
-	 *
-	 * 操作:
-	 * - Target Resolutionを実行する。
+	 * Table制約を取得できない場合は通常の利用不能とすることを確認する。
 	 *
 	 * 期待結果:
 	 * - unavailableが返る。
 	 */
 	it( 'when current table constraints are unavailable, should return unavailable', () => {
 		getConstraintsMock.mockReturnValue( null );
-
-		const result = columnReorderTargetResolution.resolve( target );
-
-		expect( result ).toEqual( { status: 'unavailable' } );
+		expect( resolveColumnReorderTarget( target ) ).toEqual( { status: 'unavailable' } );
 	} );
 
 	/**
-	 * 論理列範囲外の対象は利用者向け拒否理由を作らず通常の利用不能とすることを確認する。
-	 *
-	 * 事前条件:
-	 * - Table制約は取得できるが移動元列が論理列範囲外である。
-	 *
-	 * 操作:
-	 * - Target Resolutionを実行する。
+	 * 論理列範囲外または整数でない対象を通常の利用不能とすることを確認する。
 	 *
 	 * 期待結果:
-	 * - unavailableが返る。
+	 * - どちらもunavailableが返る。
 	 */
-	it( 'when the target column is outside the logical column range, should return unavailable', () => {
-		getConstraintsMock.mockReturnValue( {
-			columnCount: 5,
-			blockedBoundaries: [],
-		} );
-
-		const result = columnReorderTargetResolution.resolve( {
-			tableIdentity: 'table-a',
-			sourceColumnIndex: 5,
-		} );
-
-		expect( result ).toEqual( { status: 'unavailable' } );
-	} );
-
-	/**
-	 * 整数の論理列位置として解釈できない対象を通常の利用不能として扱うことを確認する。
-	 *
-	 * 事前条件:
-	 * - Table制約は取得できる。
-	 * - 移動元列位置が整数ではない。
-	 *
-	 * 操作:
-	 * - Target Resolutionを実行する。
-	 *
-	 * 期待結果:
-	 * - unavailableが返る。
-	 */
-	it( 'when the target column index is not an integer, should return unavailable', () => {
-		getConstraintsMock.mockReturnValue( {
-			columnCount: 5,
-			blockedBoundaries: [],
-		} );
-
-		const result = columnReorderTargetResolution.resolve( {
-			tableIdentity: 'table-a',
-			sourceColumnIndex: 1.5,
-		} );
-
-		expect( result ).toEqual( { status: 'unavailable' } );
-	} );
+	it.each( [ 5, 1.5 ] )(
+		'when target column index %s is invalid, should return unavailable',
+		( sourceColumnIndex ) => {
+			getConstraintsMock.mockReturnValue( { columnCount: 5, blockedBoundaries: [] } );
+			expect(
+				resolveColumnReorderTarget( { tableIdentity: 'table-a', sourceColumnIndex } )
+			).toEqual( { status: 'unavailable' } );
+		}
+	);
 
 	/**
 	 * Target Resolutionが開始可否の判定だけを行い、Tableデータを変更しないことを確認する。
 	 *
-	 * 事前条件:
-	 * - 開始可能、横結合による開始拒否、Table利用不能の各結果を解決できる。
-	 *
 	 * 操作:
-	 * - 各条件でTarget Resolutionを実行する。
+	 * - 開始可能、開始拒否、Table利用不能の各条件で解決する。
 	 *
 	 * 期待結果:
 	 * - いずれの結果でもTableへの列移動は要求されない。
@@ -227,10 +176,11 @@ describe( 'Column Reorder Target Resolution', () => {
 			.mockReturnValueOnce( { columnCount: 3, blockedBoundaries: [] } )
 			.mockReturnValueOnce( { columnCount: 3, blockedBoundaries: [ 2 ] } )
 			.mockReturnValueOnce( null );
+		getSourceBlockingMergedRangeMock.mockReturnValue( blockingMergedRange );
 
-		columnReorderTargetResolution.resolve( target );
-		columnReorderTargetResolution.resolve( target );
-		columnReorderTargetResolution.resolve( target );
+		resolveColumnReorderTarget( target );
+		resolveColumnReorderTarget( target );
+		resolveColumnReorderTarget( target );
 
 		expect( applyColumnMoveMock ).not.toHaveBeenCalled();
 	} );

@@ -5,7 +5,7 @@
  * 現在選択中のTableだけが所有し、1回の行DnD通知へ複数の表示が反応しない構造を維持する。
  */
 
-import { render, screen } from '@testing-library/react';
+import { act, render, screen } from '@testing-library/react';
 import type { ReactNode } from 'react';
 
 import { RowDnd } from './dnd';
@@ -38,24 +38,46 @@ jest.mock( '@/reorder/row-reorder/integration/destination-resolution', () => ( {
 } ) );
 
 jest.mock( '@/reorder/row-reorder/responsibilities/target-resolution', () => ( {
-	rowReorderTargetResolution: {
-		resolve: jest.fn(),
-	},
+	resolveRowReorderTarget: jest.fn(),
 } ) );
+
+let mockOnStartRejection: ( ( request: unknown ) => void ) | null = null;
 
 jest.mock( '@/reorder/row-reorder/responsibilities/input', () => ( {
 	RowInput: ( {
 		children,
+		onStartRejection,
 	}: {
 		children: ( handler: React.PointerEventHandler< Element > ) => ReactNode;
-	} ) => children( () => undefined ),
+		onStartRejection: ( request: unknown ) => void;
+	} ) => {
+		mockOnStartRejection = onStartRejection;
+		return children( () => undefined );
+	},
 } ) );
 
 jest.mock( '@/reorder/row-reorder/responsibilities/presentation/row-presentation', () => ( {
-	RowPresentation: () => <div data-testid="row-presentation" />,
+	RowPresentation: ( props: {
+		startRejectionNoticeRef: React.MutableRefObject< {
+			show: ( request: unknown ) => void;
+		} | null >;
+	} ) => {
+		const React = jest.requireActual< typeof import('react') >( 'react' );
+		const [ noticeCount, setNoticeCount ] = React.useState( 0 );
+		React.useImperativeHandle(
+			props.startRejectionNoticeRef,
+			() => ( { show: () => setNoticeCount( ( current ) => current + 1 ) } ),
+			[]
+		);
+		return <div data-testid="row-presentation">{ noticeCount }</div>;
+	},
 } ) );
 
 describe( 'Row DnD presentation ownership', () => {
+	beforeEach( () => {
+		mockOnStartRejection = null;
+	} );
+
 	/**
 	 * 複数TableのDnD境界が存在しても、現在の操作対象だけがPresentationを所有することを確認する。
 	 *
@@ -85,5 +107,43 @@ describe( 'Row DnD presentation ownership', () => {
 		expect( screen.queryByTestId( 'table-a' ) ).not.toBeNull();
 		expect( screen.queryByTestId( 'table-b' ) ).not.toBeNull();
 		expect( screen.getAllByTestId( 'row-presentation' ) ).toHaveLength( 1 );
+	} );
+
+	/**
+	 * 開始拒否通知がNoticeだけを更新し、Table subtreeを再描画しないことを確認する。
+	 *
+	 * 事前条件:
+	 * - 現在TableのDnD境界にPresentationとInputが接続されている。
+	 *
+	 * 操作:
+	 * - Inputから結合セルによる開始拒否を通知する。
+	 *
+	 * 期待結果:
+	 * - Noticeの表示状態だけが更新され、既存Block subtreeの描画回数は増えない。
+	 */
+	it( 'when input reports a start rejection, should update only the notice without rerendering the table subtree', () => {
+		const childrenRender = jest.fn( () => <div data-testid="table" /> );
+		render(
+			<RowDnd presentationEnabled tableIdentity="table-a">
+				{ childrenRender }
+			</RowDnd>
+		);
+		const initialRenderCount = childrenRender.mock.calls.length;
+
+		act( () => {
+			mockOnStartRejection?.( {
+				blockingMergedRange: {
+					rowStart: 0,
+					rowEnd: 1,
+					columnStart: 0,
+					columnEnd: 0,
+				},
+				clientX: 10,
+				clientY: 20,
+			} );
+		} );
+
+		expect( screen.getByTestId( 'row-presentation' ).textContent ).toBe( '1' );
+		expect( childrenRender ).toHaveBeenCalledTimes( initialRenderCount );
 	} );
 } );

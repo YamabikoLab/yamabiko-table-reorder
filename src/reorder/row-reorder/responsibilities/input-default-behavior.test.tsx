@@ -24,16 +24,14 @@ jest.mock( '@dnd-kit/react', () => ( {
 } ) );
 
 jest.mock( './target-resolution', () => ( {
-	rowReorderTargetResolution: {
-		resolve: jest.fn( ( target ) => ( {
-			status: 'resolved',
-			target,
-			initialConstraints: {
-				rowCount: 1,
-				blockedBoundaries: [],
-			},
-		} ) ),
-	},
+	resolveRowReorderTarget: jest.fn( ( target ) => ( {
+		status: 'resolved',
+		target,
+		initialConstraints: {
+			rowCount: 1,
+			blockedBoundaries: [],
+		},
+	} ) ),
 } ) );
 
 const draggableConstructorMock = Draggable as unknown as jest.Mock;
@@ -60,7 +58,11 @@ const createTarget = () => {
 const renderPointerHandler = (): RowDndPointerDownHandler => {
 	let handler: RowDndPointerDownHandler | null = null;
 	render(
-		<RowInput tableIdentity="table-1" activeDraggable={ { current: null } }>
+		<RowInput
+			tableIdentity="table-1"
+			activeDraggable={ { current: null } }
+			onStartRejection={ jest.fn() }
+		>
 			{ ( currentHandler ) => {
 				handler = currentHandler;
 				return <div />;

@@ -35,8 +35,12 @@ import {
 	type RowDndPointerDownHandler,
 } from '@/reorder/row-reorder/responsibilities/input';
 import { RowPresentation } from '@/reorder/row-reorder/responsibilities/presentation/row-presentation';
+import type {
+	RowStartRejectionNoticeHandle,
+	RowStartRejectionNoticeRequest,
+} from '@/reorder/row-reorder/responsibilities/presentation/start-rejection-notice';
 import {
-	rowReorderTargetResolution,
+	resolveRowReorderTarget,
 	type RowReorderTarget,
 	type RowReorderTargetResolution,
 } from '@/reorder/row-reorder/responsibilities/target-resolution';
@@ -65,6 +69,7 @@ export const RowDnd = ( props: {
 	const { presentationEnabled = true, tableIdentity, children } = props;
 	const activeDraggable = useRef< Draggable | null >( null );
 	const destinationResolver = useRef< RowDestinationResolver | null >( null );
+	const startRejectionNotice = useRef< RowStartRejectionNoticeHandle | null >( null );
 	const resolvedStart = useRef< Extract<
 		RowReorderTargetResolution,
 		{ status: 'resolved' }
@@ -76,6 +81,11 @@ export const RowDnd = ( props: {
 		destinationResolver.current = null;
 		activeDraggable.current?.destroy();
 		activeDraggable.current = null;
+	}, [] );
+
+	/** 開始拒否表示の更新をTable subtreeへ伝播させず、所有するNoticeへ直接渡す。 */
+	const onStartRejection = useCallback( ( request: RowStartRejectionNoticeRequest ): void => {
+		startRejectionNotice.current?.show( request );
 	}, [] );
 
 	useEffect( () => {
@@ -96,7 +106,7 @@ export const RowDnd = ( props: {
 
 	const onBeforeDragStart = ( event: BeforeDragStartEvent ) => {
 		const target = event?.operation?.source?.data as RowReorderTarget;
-		const resolution = rowReorderTargetResolution.resolve( target );
+		const resolution = resolveRowReorderTarget( target );
 
 		/* 開始入力後のTable状態変化で開始対象が成立しなくなった場合は、利用者向け通知を重複させず物理DnDだけを開始しない。 */
 		if ( resolution.status !== 'resolved' ) {
@@ -162,8 +172,14 @@ export const RowDnd = ( props: {
 			onDragMove={ onDragMove }
 			onDragEnd={ onDragEnd }
 		>
-			{ presentationEnabled && <RowPresentation /> }
-			<RowInput tableIdentity={ tableIdentity } activeDraggable={ activeDraggable }>
+			{ presentationEnabled && (
+				<RowPresentation startRejectionNoticeRef={ startRejectionNotice } />
+			) }
+			<RowInput
+				tableIdentity={ tableIdentity }
+				activeDraggable={ activeDraggable }
+				onStartRejection={ onStartRejection }
+			>
 				{ ( onPointerDownCapture ) =>
 					children( ( event ) => {
 						/* 現在modeが行でない入力は、安定した接続を維持したままRow Inputへ渡さない。 */

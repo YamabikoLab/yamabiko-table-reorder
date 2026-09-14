@@ -4,7 +4,7 @@ import {
 	insertTable,
 	moveMouse,
 	pointIn,
-	REJECTION,
+	MERGED_RANGE_REJECTION,
 	ROW_BUTTON,
 	rowOrder,
 	setPreferences,
@@ -169,7 +169,7 @@ test.describe( 'merged cells', () => {
 	 *
 	 * 期待結果:
 	 * - DnDは開始されない。
-	 * - 開始を試みた位置の近くに移動できない理由が表示される。
+	 * - 開始を試みた位置の近くに、原因セルが1〜2行目の1列目にあることが表示される。
 	 * - Tableの編集データは変更されない。
 	 * - 理由の表示は一定時間後に自動終了する。
 	 */
@@ -183,9 +183,9 @@ test.describe( 'merged cells', () => {
 		const point = await pointIn( rows.first().locator( 'td' ).last() );
 		await page.mouse.move( point.x, point.y );
 		await page.mouse.down();
-		const notice = canvas.getByTestId( 'snackbar' ).filter( { hasText: REJECTION } );
+		const notice = canvas.getByTestId( 'snackbar' ).filter( { hasText: MERGED_RANGE_REJECTION } );
 		await expect( notice ).toBeVisible();
-		await expect( notice ).toHaveText( REJECTION );
+		await expect( notice ).toHaveText( MERGED_RANGE_REJECTION );
 		const shown = Date.now();
 		const box = ( await notice.boundingBox() )!;
 		expect( Math.abs( box.x - point.x ) ).toBeLessThan( 100 );

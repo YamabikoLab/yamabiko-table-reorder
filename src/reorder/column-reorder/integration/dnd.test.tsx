@@ -21,7 +21,7 @@ import { act, render } from '@testing-library/react';
 import type { ReactNode } from 'react';
 
 import { columnDndInteraction } from '@/reorder/column-reorder/responsibilities/dnd-interaction';
-import { columnReorderTargetResolution } from '@/reorder/column-reorder/responsibilities/target-resolution';
+import { resolveColumnReorderTarget } from '@/reorder/column-reorder/responsibilities/target-resolution';
 import { reorderMode } from '@/reorder/reorder-mode';
 import { createColumnDestinationResolver } from './destination-resolution';
 import { ColumnDnd } from './dnd';
@@ -77,17 +77,15 @@ jest.mock( '@/reorder/column-reorder/responsibilities/presentation/column-presen
 } ) );
 
 jest.mock( '@/reorder/column-reorder/responsibilities/target-resolution', () => ( {
-	columnReorderTargetResolution: {
-		resolve: jest.fn(),
-	},
+	resolveColumnReorderTarget: jest.fn(),
 } ) );
 
 const dragDropProviderMock = DragDropProvider as unknown as jest.Mock;
 const destinationResolverFactoryMock = createColumnDestinationResolver as jest.MockedFunction<
 	typeof createColumnDestinationResolver
 >;
-const targetResolutionMock = columnReorderTargetResolution as jest.Mocked<
-	typeof columnReorderTargetResolution
+const resolveColumnReorderTargetMock = resolveColumnReorderTarget as jest.MockedFunction<
+	typeof resolveColumnReorderTarget
 >;
 const dndInteractionMock = columnDndInteraction as jest.Mocked< typeof columnDndInteraction >;
 
@@ -126,7 +124,7 @@ describe( 'Column DnD Engine Integration', () => {
 		jest.clearAllMocks();
 		mockActiveDraggableRef = null;
 		resetReorderMode();
-		targetResolutionMock.resolve.mockReturnValue( resolvedTarget );
+		resolveColumnReorderTargetMock.mockReturnValue( resolvedTarget );
 		destinationResolverFactoryMock.mockReturnValue( {
 			resolve: jest.fn().mockReturnValue( 3 ),
 		} );
@@ -206,7 +204,7 @@ describe( 'Column DnD Engine Integration', () => {
 		provider.onDragEnd( { canceled: false } as unknown as DragEndEvent );
 
 		expect( preventDefault ).not.toHaveBeenCalled();
-		expect( targetResolutionMock.resolve ).toHaveBeenCalledWith( target );
+		expect( resolveColumnReorderTargetMock ).toHaveBeenCalledWith( target );
 		expect( dndInteractionMock.start ).toHaveBeenCalledWith(
 			resolvedTarget.target,
 			resolvedTarget.initialConstraints
@@ -295,7 +293,7 @@ describe( 'Column DnD Engine Integration', () => {
 	 * - 物理DnD開始は抑止され、DnD InteractionのSessionは開始されない。
 	 */
 	it( 'when second-stage target resolution becomes unavailable, should prevent the physical drag and not start a column session', () => {
-		targetResolutionMock.resolve.mockReturnValue( { status: 'unavailable' } );
+		resolveColumnReorderTargetMock.mockReturnValue( { status: 'unavailable' } );
 		render( <ColumnDnd tableIdentity="table-1">{ () => <div /> }</ColumnDnd> );
 		const provider = getProviderProps();
 		const preventDefault = jest.fn();
@@ -306,7 +304,7 @@ describe( 'Column DnD Engine Integration', () => {
 		} as unknown as BeforeDragStartEvent );
 		provider.onDragStart();
 
-		expect( targetResolutionMock.resolve ).toHaveBeenCalledWith( target );
+		expect( resolveColumnReorderTargetMock ).toHaveBeenCalledWith( target );
 		expect( preventDefault ).toHaveBeenCalledTimes( 1 );
 		expect( dndInteractionMock.start ).not.toHaveBeenCalled();
 	} );

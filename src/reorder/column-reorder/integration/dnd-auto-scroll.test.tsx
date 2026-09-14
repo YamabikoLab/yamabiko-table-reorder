@@ -20,7 +20,7 @@ import {
 	type ColumnPointerPosition,
 } from '@/reorder/column-reorder/integration/horizontal-auto-scroll';
 import { columnDndInteraction } from '@/reorder/column-reorder/responsibilities/dnd-interaction';
-import { columnReorderTargetResolution } from '@/reorder/column-reorder/responsibilities/target-resolution';
+import { resolveColumnReorderTarget } from '@/reorder/column-reorder/responsibilities/target-resolution';
 import { ColumnDnd } from './dnd';
 
 jest.mock( '@dnd-kit/dom', () => ( {
@@ -62,9 +62,7 @@ jest.mock( '@/reorder/column-reorder/responsibilities/presentation/column-presen
 } ) );
 
 jest.mock( '@/reorder/column-reorder/responsibilities/target-resolution', () => ( {
-	columnReorderTargetResolution: {
-		resolve: jest.fn(),
-	},
+	resolveColumnReorderTarget: jest.fn(),
 } ) );
 
 const dragDropProviderMock = DragDropProvider as unknown as jest.Mock;
@@ -74,8 +72,8 @@ const destinationResolverFactoryMock = createColumnDestinationResolver as jest.M
 const autoScrollFactoryMock = createColumnHorizontalAutoScroll as jest.MockedFunction<
 	typeof createColumnHorizontalAutoScroll
 >;
-const targetResolutionMock = columnReorderTargetResolution as jest.Mocked<
-	typeof columnReorderTargetResolution
+const resolveColumnReorderTargetMock = resolveColumnReorderTarget as jest.MockedFunction<
+	typeof resolveColumnReorderTarget
 >;
 const dndInteractionMock = columnDndInteraction as jest.Mocked< typeof columnDndInteraction >;
 
@@ -119,7 +117,7 @@ describe( 'Column DnD horizontal auto scroll integration', () => {
 
 	beforeEach( () => {
 		jest.clearAllMocks();
-		targetResolutionMock.resolve.mockReturnValue( resolvedTarget );
+		resolveColumnReorderTargetMock.mockReturnValue( resolvedTarget );
 		autoScrollFactoryMock.mockImplementation( ( onScroll ) => {
 			onAutoScroll = onScroll;
 			return {

@@ -485,6 +485,32 @@ const getConstraints = ( clientId: string ): ColumnReorderConstraints | null => 
 };
 
 /**
+ * 列DnD開始対象を成立させない結合セル位置を取得する。
+ *
+ * 複数sectionに同じ論理列を妨げる結合セルがある場合は、決定済みの診断順で最初の位置を返す。
+ *
+ * @param clientId          対象Table個体を識別するclientId。
+ * @param sourceColumnIndex 現在のTableを基準とする0-based移動元論理列位置。
+ * @return 移動元を妨げる0-based・両端inclusiveの結合セル位置。構造拒否がない場合はnull。
+ */
+const getSourceBlockingMergedRange = (
+	clientId: string,
+	sourceColumnIndex: number
+): ColumnBlockingMergedRange | null => {
+	const currentTable = getCurrentColumnTable( clientId );
+	/* 診断元となる現在Tableを解析できない場合は、結合セル位置を推測しない。 */
+	if ( currentTable === null ) {
+		return null;
+	}
+
+	const sourceRange = currentTable.parsedTable.mergedRanges.find(
+		( range ) => sourceColumnIndex >= range.columnStart && sourceColumnIndex <= range.columnEnd
+	);
+	const blockingRange = sourceRange ?? null;
+	return blockingRange;
+};
+
+/**
  * 見出しセルの内容を、RFで単一列を識別する表示用プレーンテキストへ正規化する。
  *
  * @param cell 明示的なhead sectionの単一論理列セル。
@@ -808,6 +834,7 @@ const applyColumnMove = ( move: ColumnMove ): boolean => {
 export const columnTableIntegration = {
 	getConstraints,
 	getColumnInputDescriptors,
+	getSourceBlockingMergedRange,
 	getBlockingMergedRange,
 	getAffectedCellCount,
 	resolveDestinationColumnIndex,

@@ -63,7 +63,7 @@ Column Reorderは、共通状態、WordPress接続、入力、開始対象解決
 
 Reorder Modeは排他状態とTable単位Lifecycleだけを所有し、WordPress Reorder IntegrationがTableツールバー入口と既存Block wrapperをReorder Modeへ接続する。Reorder Guidanceは現在表示中の案内状態だけを所有し、Reorder Guidance IntegrationがEditor環境、WordPress preferences、Reorder Modeとの接続を所有する。
 
-Input InteractionはWordPress Reorder IntegrationからColumn DnD Engine Integrationを通じて有効化され、入力方式固有の開始条件を判断する。開始候補はReorder Target Resolutionで第一段階解決し、開始可能な場合だけDnD Engineへ一時的に登録する。Designで通知対象となる開始拒否理由はInput InteractionからReorder Presentationへ渡す。
+Input InteractionはWordPress Reorder IntegrationからColumn DnD Engine Integrationを通じて有効化され、入力方式固有の開始条件を判断する。開始候補はReorder Target Resolutionで第一段階解決し、開始可能な場合だけDnD Engineへ一時的に登録する。結合セルによる開始拒否では、原因セル位置をInput InteractionからReorder Presentationへ渡す。
 
 Column DnD Engine IntegrationはDnD Engineのactive DnD成立直前にReorder Target Resolutionの第二段階を要求する。第二段階が成立した場合だけ解決済みReorder Targetと開始時制約をDnD Interactionへ渡し、DnD開始時にDestination ResolutionをそのDnDの論理配置へ接続する。同じDnDの対象Tableに対する横スクロール領域を固定し、DnD Engineが変換した位置ではなく対象Editor環境と同じ座標系の現在物理入力位置から水平自動スクロールを判断する。実際にスクロールした場合は、ポインターが停止していても最新の物理入力位置からDestination Resolutionを再要求して現在の論理移動先へ追従させる。
 
@@ -389,7 +389,7 @@ PC / タッチの入力方式固有の列DnD開始条件を判断し、開始候
 
 ##### Contract
 
-Column DnD Engine Integrationから有効化された入力境界として開始入力を受ける。対象Tableと論理列の開始候補をReorder Target Resolutionへ渡し、`resolved`の場合だけDnD Engineへ登録する。Designで利用者へ示す`rejected`理由の場合は、その操作位置と理由をReorder Presentationの一回性通知へ渡す。通常の`unavailable`では通知しない。
+Column DnD Engine Integrationから有効化された入力境界として開始入力を受ける。対象Tableと論理列の開始候補をReorder Target Resolutionへ渡し、`resolved`の場合だけDnD Engineへ登録する。結合セル位置を持つ`rejected`の場合は、その原因位置と操作位置をReorder Presentationの一回性通知へ渡す。通常の`unavailable`では通知しない。
 
 ##### Lifecycle
 
@@ -474,7 +474,7 @@ Table Identity、DnD Session、入力状態を所有しない。外部Tableデ�
 
 ##### Contract
 
-呼び出し側からTable Identityを受け、その要求時点の対応Tableから論理列数、`colspan`で単独移動できない列、結合セルを分断するため挿入できない列間境界を判断できるColumn Reorder用制約を返す。対応Tableを安全に解釈できない場合は正常な利用不能を返す。
+呼び出し側からTable Identityを受け、その要求時点の対応Tableから論理列数、`colspan`で単独移動できない列、結合セルを分断するため挿入できない列間境界を判断できるColumn Reorder用制約を返す。DnD開始診断では移動元列だけから原因となる結合セル位置を返し、確定候補の診断では移動元と移動先を含むMove全体から原因位置を返す。対応Tableを安全に解釈できない場合は正常な利用不能を返す。
 
 DnD Interactionから再照合済みの移動元論理列と移動先境界を受け、要求時点のTableでも更新範囲が成立する場合だけ、`thead`、`tbody`、`tfoot`を含むTable全体の列順を一つの確定済み更新として反映する。更新要求時点で安全に反映できない場合は部分更新せず利用不能結果を返す。
 
@@ -505,7 +505,7 @@ active DnD成立前に、要求時点のTable制約に対してReorder Targetが
 
 ##### Contract
 
-Reorder Targetを受け取り、Table Integrationから指定Tableの要求時点の列制約を取得する。対象列が存在し、`colspan`で単独移動できない範囲に含まれず、列単位の移動対象として成立する場合は`resolved`としてReorder Targetと開始時制約を返す。`colspan`による開始不可はDesign上の`rejected`理由を返す。Tableまたは対象列を安全に解釈できない場合は`unavailable`を返す。`rowspan`だけを開始拒否理由にしない。
+Reorder Targetを受け取り、Table Integrationから指定Tableの要求時点の列制約を取得する。対象列が存在し、`colspan`で単独移動できない範囲に含まれず、列単位の移動対象として成立する場合は`resolved`としてReorder Targetと開始時制約を返す。`colspan`による開始不可ではTable Integrationの移動元専用診断から原因セル位置を取得し、`rejected`として返す。Table、対象列、または原因位置を安全に解釈できない場合は`unavailable`を返す。`rowspan`だけを開始拒否理由にしない。
 
 ##### Lifecycle
 
@@ -594,7 +594,7 @@ Column Reorderの開始可否、active DnD意味状態、現在のEditor表示�
 
 ##### Contract
 
-Input InteractionからDesign上の開始拒否理由と操作位置を一回性通知として受ける。操作可能列の事前表示等ではReorder Target Resolutionを利用し、構造制約を重複判定しない。DnD Interactionのactive状態と現在有効移動先を購読し、DnD Engineの物理情報は表示に必要な時点だけ利用する。
+Input Interactionから原因となる結合セル位置と操作位置を一回性通知として受ける。通知の一時状態は通知表示自身が所有し、Table subtreeの再描画状態へ混入させない。操作可能列の事前表示等ではReorder Target Resolutionを利用し、構造制約を重複判定しない。DnD Interactionのactive状態と現在有効移動先を購読し、DnD Engineの物理情報は表示に必要な時点だけ利用する。
 
 移動対象列は元Tableの列幅とセル高さの配置関係を保ち、Tableの縦方向から不必要にはみ出さない。現在の有効移動先はTable全体の列間に垂直挿入線で示す。iframe Editorでは実際に位置が変わる周囲列だけを移動表示する。non-iframe EditorではPerformance fallbackとして周囲列移動を成立させず、移動対象列と垂直挿入位置を維持する。この表示差によってDnD Interactionの有効移動先、drop後の列順、確定・cancelの意味を変更しない。
 
@@ -821,7 +821,9 @@ Table Integrationが現在構造から算出した更新対象セル数を共通
 - DnD Engine Integrationを独立責務とし、第二段階Target Resolutionと物理DnD LifecycleからDnD Interactionへの接続を所有する。
 - Destination Resolutionを独立責務とし、物理位置から論理列間境界への変換をDnD Interactionから分離する。
 - Column専用のDrop Target Resolution責務は設けない。Destination Resolutionは物理位置の意味変換だけを担い、構造制約に対する移動先の有効性はDnD Interactionが所有する。
-- 開始拒否通知は第一段階解決結果を受けたInput InteractionからReorder Presentationへ渡す。
+- 開始拒否通知は第一段階解決結果の原因セル位置と操作位置をInput InteractionからReorder Presentationへ渡し、通知表示自身の一時状態だけを更新する。
+- Reorder Target ResolutionはResolverや制約snapshotを保持せず、Input Interaction、DnD Engine Integration、Presentationからの各要求時点の現在Tableを直接解決する。
+- Table Integrationの結合セル診断は、DnD開始時の移動元診断とRFを含むMove全体の診断を別Contractとして提供する。
 - Reorder Targetは移動する論理列だけを表し、開始時制約や開始不可理由を含めない。
 - Session中の移動先判定は第二段階で得た開始時制約を基準とし、`progress`ごとに現在構造を取得し直さない。
 - `complete`だけは現在構造へ再照合してから確定する。

@@ -17,8 +17,8 @@ import {
 	DND_TOUCH_ACTIVATION_TOLERANCE_PX,
 } from '@/reorder/reorder-tuning';
 
-import { notifyRowStartRejection } from './presentation/start-rejection-notice-event';
-import { rowReorderTargetResolution, type RowReorderTarget } from './target-resolution';
+import type { RowStartRejectionNoticeRequest } from './presentation/start-rejection-notice';
+import { resolveRowReorderTarget, type RowReorderTarget } from './target-resolution';
 
 /**
  * 行DnDが既存DOMのポインター入力へ接続する開始処理。
@@ -40,6 +40,7 @@ export type RowDndPointerDownHandler = ( event: PointerEvent< Element > ) => voi
  * @param props.tableIdentity           行並び替え対象のTable Identity。
  * @param props.activeDraggable         現在のポインター入力で登録したDraggableを保持する参照。
  * @param props.activeDraggable.current 現在のポインター入力で登録したDraggable。未登録の場合はnull。
+ * @param props.onStartRejection        結合セルによる開始拒否をPresentationへ渡す処理。
  * @param props.children                既存DOMへポインター開始処理を接続する描画処理。
  * @return ポインター入力による行DnD開始へ接続された子要素。
  */
@@ -48,9 +49,10 @@ export const RowInput = ( props: {
 	activeDraggable: {
 		current: Draggable | null;
 	};
+	onStartRejection: ( request: RowStartRejectionNoticeRequest ) => void;
 	children: ( onPointerDownCapture: RowDndPointerDownHandler ) => ReactNode;
 } ) => {
-	const { tableIdentity, activeDraggable, children } = props;
+	const { tableIdentity, activeDraggable, onStartRejection, children } = props;
 	const manager = useDragDropManager();
 
 	const onPointerDownCapture: RowDndPointerDownHandler = ( event ) => {
@@ -94,13 +96,13 @@ export const RowInput = ( props: {
 			tableIdentity,
 			sourceRowIndex: row.sectionRowIndex,
 		};
-		const resolution = rowReorderTargetResolution.resolve( source );
+		const resolution = resolveRowReorderTarget( source );
 
 		/* 現在のTable制約で開始対象が成立しない行は、物理DnDへ登録しない。 */
 		if ( resolution.status !== 'resolved' ) {
 			if ( resolution.status === 'rejected' ) {
-				notifyRowStartRejection( {
-					reason: resolution.reason,
+				onStartRejection( {
+					blockingMergedRange: resolution.blockingMergedRange,
 					clientX: event.clientX,
 					clientY: event.clientY,
 				} );

@@ -116,6 +116,41 @@ describe( 'Table Integration', () => {
 	} );
 
 	/**
+	 * 行DnD開始対象を妨げる縦結合セルの具体的位置を取得できることを確認する。
+	 *
+	 * 事前条件:
+	 * - 1〜2行目・2〜3列目を占有する結合セルが存在する。
+	 *
+	 * 操作:
+	 * - 2行目を移動元として開始対象の構造診断を要求する。
+	 *
+	 * 期待結果:
+	 * - 移動先指定を必要とせず、原因セルの0-based行・列範囲が返る。
+	 */
+	it( 'when a drag source row intersects a merged cell, should return the source blocking range', () => {
+		selectMock.mockReturnValue( {
+			getBlock: jest.fn().mockReturnValue( {
+				name: 'core/table',
+				attributes: {
+					body: [
+						{ cells: [ {}, { rowspan: 2, colspan: 2 } ] },
+						{ cells: [ {} ] },
+						{ cells: [ {}, {}, {} ] },
+					],
+				},
+			} ),
+		} );
+
+		expect( rowTableIntegration.getSourceBlockingMergedRange( 'table-a', 1 ) ).toEqual( {
+			rowStart: 0,
+			rowEnd: 1,
+			columnStart: 1,
+			columnEnd: 2,
+		} );
+		expect( rowTableIntegration.getSourceBlockingMergedRange( 'table-a', 2 ) ).toBeNull();
+	} );
+
+	/**
 	 * 概要:
 	 * - 下方向への確定済み行移動で、移動前の境界位置を移動元行の削除後も同じ移動先を表す位置へ変換できることを確認する。
 	 *

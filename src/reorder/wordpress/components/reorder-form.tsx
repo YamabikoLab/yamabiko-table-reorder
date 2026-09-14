@@ -16,7 +16,7 @@ import {
 	getRfApplyLabel,
 	getRfBelowLabel,
 	getRfCancelLabel,
-	getRfColumnMergedRangeMessage,
+	getColumnMergedRangeMessage,
 	getRfColumnOptionLabel,
 	getRfColumnTargetHelp,
 	getRfColumnsLabel,
@@ -26,7 +26,7 @@ import {
 	getRfPositionLegend,
 	getRfReorderName,
 	getRfRightLabel,
-	getRfRowMergedRangeMessage,
+	getRowMergedRangeMessage,
 	getRfRowRangeMessage,
 	getRfRowsLabel,
 	getRfRowTargetHelp,
@@ -133,11 +133,11 @@ const getCurrentResultMessage = ( state: RfInteractionReactState ): string | nul
 
 	if ( state.kind === 'row' ) {
 		const { rowStart, rowEnd, columnStart, columnEnd } = state.result.blockingMergedRange;
-		return getRfRowMergedRangeMessage( rowStart + 1, rowEnd + 1, columnStart + 1, columnEnd + 1 );
+		return getRowMergedRangeMessage( rowStart + 1, rowEnd + 1, columnStart + 1, columnEnd + 1 );
 	}
 
 	const { section, rowStart, rowEnd, columnStart, columnEnd } = state.result.blockingMergedRange;
-	return getRfColumnMergedRangeMessage(
+	return getColumnMergedRangeMessage(
 		section,
 		rowStart + 1,
 		rowEnd + 1,

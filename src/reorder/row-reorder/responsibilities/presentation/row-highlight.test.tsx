@@ -5,7 +5,7 @@
 import { act, fireEvent, render } from '@testing-library/react';
 
 import { reorderMode } from '@/reorder/reorder-mode';
-import { rowReorderTargetResolution } from '@/reorder/row-reorder/responsibilities/target-resolution';
+import { resolveRowReorderTarget } from '@/reorder/row-reorder/responsibilities/target-resolution';
 
 import { RowHighlight } from './row-highlight';
 
@@ -15,13 +15,11 @@ jest.mock( '@/reorder/row-reorder/responsibilities/dnd-interaction', () => ( {
 } ) );
 
 jest.mock( '@/reorder/row-reorder/responsibilities/target-resolution', () => ( {
-	rowReorderTargetResolution: {
-		createResolver: jest.fn(),
-	},
+	resolveRowReorderTarget: jest.fn(),
 } ) );
 
-const createResolverMock = rowReorderTargetResolution.createResolver as jest.MockedFunction<
-	typeof rowReorderTargetResolution.createResolver
+const resolveRowReorderTargetMock = resolveRowReorderTarget as jest.MockedFunction<
+	typeof resolveRowReorderTarget
 >;
 
 const resetReorderMode = () => {
@@ -59,13 +57,11 @@ describe( 'Row highlight', () => {
 		act( () => {
 			reorderMode.select( 'row', 'table-a' );
 		} );
-		createResolverMock.mockReturnValue( {
-			resolve: ( sourceRowIndex ) => ( {
-				status: 'resolved',
-				target: { tableIdentity: 'table-a', sourceRowIndex },
-				initialConstraints: { rowCount: 3, blockedBoundaries: [] },
-			} ),
-		} );
+		resolveRowReorderTargetMock.mockImplementation( ( target ) => ( {
+			status: 'resolved',
+			target,
+			initialConstraints: { rowCount: 3, blockedBoundaries: [] },
+		} ) );
 	} );
 
 	afterEach( () => {
@@ -108,16 +104,23 @@ describe( 'Row highlight', () => {
 	 * - 3行目の操作可能表示が解除され、2行目に移動不可表示が付く。
 	 */
 	it( 'when target resolution rejects the hovered row, should show the row as unavailable', () => {
-		createResolverMock.mockReturnValue( {
-			resolve: ( sourceRowIndex ) =>
-				sourceRowIndex === 1
-					? { status: 'rejected', reason: 'merged-range' }
-					: {
-							status: 'resolved',
-							target: { tableIdentity: 'table-a', sourceRowIndex },
-							initialConstraints: { rowCount: 3, blockedBoundaries: [ 1 ] },
-					  },
-		} );
+		resolveRowReorderTargetMock.mockImplementation( ( target ) =>
+			target.sourceRowIndex === 1
+				? {
+						status: 'rejected',
+						blockingMergedRange: {
+							rowStart: 0,
+							rowEnd: 1,
+							columnStart: 0,
+							columnEnd: 0,
+						},
+				  }
+				: {
+						status: 'resolved',
+						target,
+						initialConstraints: { rowCount: 3, blockedBoundaries: [ 1 ] },
+				  }
+		);
 		const { getByTestId } = render( <TestTable /> );
 
 		fireEvent.pointerOver( getByTestId( 'row-2' ).querySelector( 'td' ) as HTMLTableCellElement );
@@ -141,7 +144,7 @@ describe( 'Row highlight', () => {
 	 * - 行に操作可能表示も移動不可表示も付けない。
 	 */
 	it( 'when target resolution returns unavailable, should not mark the hovered row with an availability state', () => {
-		createResolverMock.mockReturnValue( { resolve: () => ( { status: 'unavailable' } ) } );
+		resolveRowReorderTargetMock.mockReturnValue( { status: 'unavailable' } );
 		const { getByTestId } = render( <TestTable /> );
 		fireEvent.pointerOver( getByTestId( 'row-2' ).querySelector( 'td' ) as HTMLTableCellElement );
 
