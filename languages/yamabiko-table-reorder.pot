@@ -65,10 +65,6 @@ msgstr ""
 msgid "Reordering failed. The table has not been changed."
 msgstr ""
 
-#: src/messages.ts:188
-msgid "Cannot move because cells are merged."
-msgstr ""
-
 #: src/messages.ts:196
 msgid "Reordering could not continue, so the operation was ended."
 msgstr ""
