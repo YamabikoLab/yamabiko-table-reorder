@@ -189,7 +189,13 @@ const getParsedRowTable = ( clientId: string ): ParsedRowTable | null => {
 		return null;
 	}
 
-	return parseRowTable( block.name, body );
+	const analysisStart = performance.now();
+	const parsedTable = parseRowTable( block.name, body );
+	performance.measure( 'YTR #1000 Row Table Parse', {
+		start: analysisStart,
+		end: performance.now(),
+	} );
+	return parsedTable;
 };
 
 /**
