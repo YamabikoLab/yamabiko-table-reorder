@@ -122,9 +122,11 @@
 
 /*
  * 狭いEditor表示領域ではPopoverのアンカー位置から切り離し、Tableを確認しやすい画面下部へ固定する。
- * 内容が表示領域へ収まらない場合も、dock内部だけをスクロールできる状態を維持する。
+ * 利用者指定高さは現在の利用可能高さで表示上だけ制限し、内容が収まらない場合はdock内部をスクロールできる。
  */
 .yamabiko-table-reorder-rf-popover.is-narrow {
+	--yamabiko-table-reorder-rf-narrow-default-height: min(52dvh, 430px);
+
 	position: fixed !important;
 	top: auto !important;
 	right: 0 !important;
@@ -139,7 +141,13 @@
 	width: 100%;
 	min-width: 0;
 	max-width: none;
-	max-height: min(52dvh, 430px);
+	max-height: min(
+		var(
+			--yamabiko-table-reorder-rf-narrow-height,
+			var(--yamabiko-table-reorder-rf-narrow-default-height)
+		),
+		calc(100dvh - 24px)
+	);
 	overflow-y: auto;
 	border-right: 0;
 	border-bottom: 0;
@@ -149,10 +157,36 @@
 
 .yamabiko-table-reorder-rf-popover.is-narrow .yamabiko-table-reorder-rf {
 	gap: 12px;
-	padding: 12px 16px calc(12px + env(safe-area-inset-bottom));
+	padding: 0 16px calc(12px + env(safe-area-inset-bottom));
 	cursor: auto;
 	touch-action: auto;
 	user-select: auto;
+}
+
+/*
+ * 狭い表示のheader上端は高さ変更用グリップと折りたたみ操作を常に利用できるよう、内部スクロール中も上端へ残す。
+ * グリップ領域だけPointerの通常スクロールから分離し、フォーム本文の縦スクロールには介入しない。
+ */
+.yamabiko-table-reorder-rf-popover.is-narrow .yamabiko-table-reorder-rf__header {
+	position: sticky;
+	top: 0;
+	z-index: 1;
+	padding-top: 18px;
+	padding-bottom: 8px;
+	background: #fff;
+	touch-action: none;
+}
+
+.yamabiko-table-reorder-rf-popover.is-narrow .yamabiko-table-reorder-rf__header::before {
+	position: absolute;
+	top: 7px;
+	left: 50%;
+	width: 44px;
+	height: 4px;
+	border-radius: 999px;
+	background: #949494;
+	content: '';
+	transform: translateX(-50%);
 }
 
 .yamabiko-table-reorder-rf-popover.is-narrow .yamabiko-table-reorder-rf__actions {
@@ -163,8 +197,7 @@
 }
 
 @media (max-width: 420px) {
-	
-	.yamabiko-table-reorder-rf-popover.is-narrow .components-popover__content {
-		max-height: 48dvh;
+	.yamabiko-table-reorder-rf-popover.is-narrow {
+		--yamabiko-table-reorder-rf-narrow-default-height: 48dvh;
 	}
 }
