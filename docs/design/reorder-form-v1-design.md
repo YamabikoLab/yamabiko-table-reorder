@@ -239,7 +239,6 @@ RFの入力画面を開いた直後は、未入力または未選択であるこ
 
 | 条件 | 日本語 | English |
 | --- | --- | --- |
-| 1行・1列 | 3行目の2列目に結合セルがあるため、この指定では移動できません。 | A merged cell in row 3, column 2 prevents this move. |
 | 1行・複数列 | 3行目の2〜3列目に結合セルがあるため、この指定では移動できません。 | A merged cell in row 3 spanning columns 2–3 prevents this move. |
 | 複数行・1列 | 2〜3行目の4列目に結合セルがあるため、この指定では移動できません。 | A merged cell spanning rows 2–3 in column 4 prevents this move. |
 | 複数行・複数列 | 2〜3行目の4〜5列目に結合セルがあるため、この指定では移動できません。 | A merged cell spanning rows 2–3 and columns 4–5 prevents this move. |
