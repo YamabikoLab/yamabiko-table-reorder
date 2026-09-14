@@ -331,10 +331,7 @@ describe( 'Column Table Integration RF contract', () => {
 			getBlock: jest.fn().mockReturnValue( {
 				name: 'core/table',
 				attributes: {
-					body: [
-						{ cells: [ { rowspan: 2, colspan: 2 }, {}, {} ] },
-						{ cells: [ {}, {} ] },
-					],
+					body: [ { cells: [ { rowspan: 2, colspan: 2 }, {}, {} ] }, { cells: [ {}, {} ] } ],
 				},
 			} ),
 		} );
