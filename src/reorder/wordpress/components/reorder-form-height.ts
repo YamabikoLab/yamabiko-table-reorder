@@ -89,19 +89,30 @@ export const useReorderFormNarrowHeight = (
 			return;
 		}
 
-		const ownerDocument = anchor.ownerDocument;
-		const view = ownerDocument.defaultView;
-		if ( view === null ) {
-			return;
-		}
-
-		const root = ownerDocument.documentElement;
+		const root = anchor.ownerDocument.documentElement;
 		if ( requestedHeight === null ) {
 			root.style.removeProperty( narrowHeightProperty );
 		} else {
 			root.style.setProperty( narrowHeightProperty, `${ requestedHeight }px` );
 		}
 
+		return () => {
+			root.style.removeProperty( narrowHeightProperty );
+		};
+	}, [ active, anchor, requestedHeight ] );
+
+	useEffect( () => {
+		if ( anchor === null || ! active ) {
+			return;
+		}
+
+		const ownerDocument = anchor.ownerDocument;
+		const view = ownerDocument.defaultView;
+		if ( view === null ) {
+			return;
+		}
+
+		const HTMLElementConstructor = ( view as Window & typeof globalThis ).HTMLElement;
 		let pointerId: number | null = null;
 		let startY = 0;
 		let startHeight = 0;
@@ -173,7 +184,7 @@ export const useReorderFormNarrowHeight = (
 			}
 
 			if (
-				resizeTarget instanceof HTMLElement &&
+				resizeTarget instanceof HTMLElementConstructor &&
 				resizeTarget.hasPointerCapture?.( event.pointerId )
 			) {
 				resizeTarget.releasePointerCapture( event.pointerId );
@@ -192,7 +203,6 @@ export const useReorderFormNarrowHeight = (
 			ownerDocument.removeEventListener( 'pointermove', resize );
 			ownerDocument.removeEventListener( 'pointerup', stopResizing );
 			ownerDocument.removeEventListener( 'pointercancel', stopResizing );
-			root.style.removeProperty( narrowHeightProperty );
 		};
-	}, [ active, anchor, requestedHeight, tableIdentity ] );
+	}, [ active, anchor, tableIdentity ] );
 };
