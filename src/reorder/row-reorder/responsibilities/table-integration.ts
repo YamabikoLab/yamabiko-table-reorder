@@ -1,8 +1,8 @@
 /**
  * 行専用Table Integrationとして、対応Table Block固有の表現差とWordPress Block Editor Storeとの接続を吸収し、Row Reorderへ現在のtbody行構造、構造診断、反映前評価、確定済み行移動の反映を提供する。
  *
- * このファイルはCore TableとFlexible Table Blockの縦結合属性差、および対応Tableへの行順反映を所有する。
- * Row ReorderとRFへは現在行数、rowspanを分断できない挿入位置、blocking merged range、更新対象セル数、反映後の最終行位置、および確定更新だけを公開し、Tableデータや対応Block固有の表現は外へ公開しない。
+ * このファイルはCore TableとFlexible Table Blockの結合セル属性差、および対応Tableへの行順反映を所有する。
+ * Row ReorderとRFへは現在行数、rowspanを分断できない挿入位置、移動を妨げる結合セル位置、更新対象セル数、反映後の最終行位置、および確定更新だけを公開し、Tableデータや対応Block固有の表現は外へ公開しない。
  * Tableデータや構造結果は保持せず、各要求時点のWordPress Blockを直接参照する。
  */
 
@@ -17,12 +17,16 @@ export type RowReorderConstraints = {
 	blockedBoundaries: readonly number[];
 };
 
-/** 行移動を成立させない縦結合範囲。 */
+/** 行移動を成立させない結合セルの論理位置。 */
 export type RowBlockingMergedRange = {
 	/** 0-based・inclusiveの開始行。 */
 	rowStart: number;
 	/** 0-based・inclusiveの終了行。 */
 	rowEnd: number;
+	/** 0-based・inclusiveの開始論理列。 */
+	columnStart: number;
+	/** 0-based・inclusiveの終了論理列。 */
+	columnEnd: number;
 };
 
 /** RF Apply前に現在Tableへ再照合した行移動の評価結果。 */
@@ -52,7 +56,7 @@ type ParsedRowTable = {
 	body: readonly Record< string, unknown >[];
 	/** 縦結合を分断するため移動先にできない行間境界。 */
 	blockedBoundaries: readonly number[];
-	/** 構造拒否理由として公開できる一意な縦結合範囲。 */
+	/** 構造拒否理由として公開できる結合セル単位の論理位置。 */
 	mergedRanges: readonly RowBlockingMergedRange[];
 };
 
@@ -80,31 +84,70 @@ const isSupportedTable = ( blockName: string ): blockName is SupportedTable =>
 	SUPPORTED_TABLES.has( blockName );
 
 /**
- * 対応Table Block固有の縦結合属性を、共通の縦結合行数として解釈する。
+ * 対応Table Block固有の結合属性を、共通の占有数として解釈する。
  *
- * @param tableName 縦結合属性名の解釈対象となる対応Table Block種別。
+ * @param tableName 対応Table Block種別。
  * @param cell      対応Table Blockから取得した未検証のセル属性。
- * @return セルが占有する行数。縦結合指定がない場合は1、行数として解釈できない場合はnull。
+ * @param direction 解釈する結合方向。
+ * @return セルが占有する行数または列数。結合指定がない場合は1、占有数として解釈できない場合はnull。
  */
-const getRowSpan = (
+const getCellSpan = (
 	tableName: SupportedTable,
-	cell: Record< string, unknown >
+	cell: Record< string, unknown >,
+	direction: 'row' | 'column'
 ): number | null => {
-	/* 対応Block間で異なる縦結合属性名はこの境界でのみ解釈し、外側へ差を公開しない。 */
-	const rawRowSpan = tableName === 'core/table' ? cell.rowspan : cell.rowSpan;
-	/* 縦結合指定のない通常セルは1行だけを占有する。 */
-	if ( rawRowSpan === undefined ) {
+	/* 対応Block間で異なる結合属性名はこの境界でだけ解釈し、方向固有処理へ差を公開しない。 */
+	const coreProperty = direction === 'row' ? 'rowspan' : 'colspan';
+	const flexibleProperty = direction === 'row' ? 'rowSpan' : 'colSpan';
+	const property = tableName === 'core/table' ? coreProperty : flexibleProperty;
+	const rawSpan = cell[ property ];
+
+	/* 結合指定のない通常セルは一つの行または列だけを占有する。 */
+	if ( rawSpan === undefined ) {
 		return 1;
 	}
-	/* 縦結合数として解釈できない値を含むTableは、安全な行制約を提供できない。 */
-	if ( typeof rawRowSpan !== 'number' && typeof rawRowSpan !== 'string' ) {
+	/* 占有数として解釈できない値を含むTableでは、安全な論理位置を確定しない。 */
+	if ( typeof rawSpan !== 'number' && typeof rawSpan !== 'string' ) {
 		return null;
 	}
 
-	const rowSpan = Number( rawRowSpan );
-	/* 縦結合は1以上の整数だけを有効な行数として扱う。 */
-	const normalizedRowSpan = Number.isInteger( rowSpan ) && rowSpan >= 1 ? rowSpan : null;
-	return normalizedRowSpan;
+	const span = Number( rawSpan );
+	/* 結合セルの占有数は1以上の整数だけを有効とする。 */
+	const normalizedSpan = Number.isInteger( span ) && span >= 1 ? span : null;
+	return normalizedSpan;
+};
+
+/**
+ * 既存の縦結合を避けて、現在セルが連続して占有できる最初の論理列位置を取得する。
+ *
+ * @param occupied        現在行で既に占有されている論理列。
+ * @param searchFrom      探索を開始する論理列位置。
+ * @param requiredColumns 現在セルが必要とする連続論理列数。
+ * @return 現在セルを配置できる最初の論理列位置。
+ */
+const findAvailableColumnStart = (
+	occupied: readonly boolean[],
+	searchFrom: number,
+	requiredColumns: number
+): number => {
+	let columnStart = searchFrom;
+
+	/* 前行から継続するrowspanを避け、現在セルが必要とする連続列を確保できる位置を探す。 */
+	while ( true ) {
+		let available = true;
+		for ( let offset = 0; offset < requiredColumns; offset++ ) {
+			/* 必要範囲に既存セルの占有列が一つでも含まれる候補は利用しない。 */
+			if ( occupied[ columnStart + offset ] ) {
+				available = false;
+				break;
+			}
+		}
+		/* 必要な連続列をすべて確保できた最初の位置を論理開始列とする。 */
+		if ( available ) {
+			return columnStart;
+		}
+		columnStart++;
+	}
 };
 
 /**
@@ -120,9 +163,10 @@ const parseRowTable = (
 ): ParsedRowTable | null => {
 	const rows: Record< string, unknown >[] = [];
 	const blockedBoundaries = new Set< number >();
-	const mergedRanges = new Map< string, RowBlockingMergedRange >();
+	const mergedRanges: RowBlockingMergedRange[] = [];
+	let occupied: boolean[][];
 
-	/* tbodyの各行を縦結合の開始行として確認し、行制約と診断範囲を同じ解析から確定する。 */
+	/* tbodyを論理グリッドとして解釈し、行制約と原因セル位置を同じ解析から確定する。 */
 	for ( let rowIndex = 0; rowIndex < body.length; rowIndex++ ) {
 		const row = body[ rowIndex ];
 		/* 行をセル集合として解釈できない場合は、Table全体の行構造を安全に提供できない。 */
@@ -130,31 +174,43 @@ const parseRowTable = (
 			return null;
 		}
 		rows.push( row );
+		occupied ??= Array.from( { length: body.length }, () => [] as boolean[] );
+		let searchFrom = 0;
 
-		/* 各セルが占有する行範囲を確認し、縦結合が跨ぐ行間を行移動の禁止境界へ反映する。 */
+		/* 各物理セルを論理列へ配置し、縦結合が塞ぐ境界と原因セル矩形を記録する。 */
 		for ( const cell of row.cells ) {
-			/* セル属性を解釈できない場合は、方向固有制約と診断範囲を確定できない。 */
+			/* セル属性を解釈できない場合は、方向固有制約と診断位置を確定できない。 */
 			if ( ! isRecord( cell ) ) {
 				return null;
 			}
 
-			const rowSpan = getRowSpan( tableName, cell );
-			/* 無効な縦結合、またはtbody末尾を越える縦結合を含むTableは解析対象にしない。 */
-			if ( rowSpan === null || rowIndex + rowSpan > body.length ) {
+			const rowSpan = getCellSpan( tableName, cell, 'row' );
+			const columnSpan = getCellSpan( tableName, cell, 'column' );
+			/* 無効な結合、またはtbody末尾を越える縦結合を含むTableは解析対象にしない。 */
+			if ( rowSpan === null || columnSpan === null || rowIndex + rowSpan > body.length ) {
 				return null;
 			}
-			/* 通常セルは行間境界を塞がないため、結合範囲の診断対象に含めない。 */
+
+			const columnStart = findAvailableColumnStart( occupied[ rowIndex ], searchFrom, columnSpan );
+			const columnEnd = columnStart + columnSpan - 1;
+
+			/* セルが占有する論理位置を後続セル・後続行の列解決へ反映する。 */
+			for ( let occupiedRow = rowIndex; occupiedRow < rowIndex + rowSpan; occupiedRow++ ) {
+				for ( let column = columnStart; column <= columnEnd; column++ ) {
+					occupied[ occupiedRow ][ column ] = true;
+				}
+			}
+			searchFrom = columnEnd + 1;
+
+			/* 通常セルと横結合だけのセルは行間境界を塞がないため、行移動の診断対象に含めない。 */
 			if ( rowSpan === 1 ) {
 				continue;
 			}
 
 			const rowEnd = rowIndex + rowSpan - 1;
-			mergedRanges.set( `${ rowIndex }:${ rowEnd }`, {
-				rowStart: rowIndex,
-				rowEnd,
-			} );
+			mergedRanges.push( { rowStart: rowIndex, rowEnd, columnStart, columnEnd } );
 
-			/* 縦結合の開始行から終了行までの内部境界は、行を挿入すると結合を分断するためすべて移動先として禁止する。 */
+			/* 縦結合内部の行間境界は、セルを分断するため移動先として禁止する。 */
 			for ( let boundary = rowIndex + 1; boundary <= rowEnd; boundary++ ) {
 				blockedBoundaries.add( boundary );
 			}
@@ -164,8 +220,12 @@ const parseRowTable = (
 	return {
 		body: rows,
 		blockedBoundaries: [ ...blockedBoundaries ].sort( ( left, right ) => left - right ),
-		mergedRanges: [ ...mergedRanges.values() ].sort(
-			( left, right ) => left.rowStart - right.rowStart || left.rowEnd - right.rowEnd
+		mergedRanges: mergedRanges.sort(
+			( left, right ) =>
+				left.rowStart - right.rowStart ||
+				left.rowEnd - right.rowEnd ||
+				left.columnStart - right.columnStart ||
+				left.columnEnd - right.columnEnd
 		),
 	};
 };
@@ -244,16 +304,16 @@ const isRowMoveAllowed = ( parsedTable: ParsedRowTable, move: RowMove ): boolean
 };
 
 /**
- * 行移動を成立させない最初の縦結合範囲を取得する。
+ * 行移動を成立させない最初の結合セル位置を取得する。
  *
- * source側をdestination側より優先し、同じ側では開始行が小さい範囲を優先する。
+ * 移動元側を移動先側より優先し、同じ側ではrowStart、rowEnd、columnStart、columnEndの昇順を利用する。
  *
  * @param move 現在のtbodyを基準とする行移動。
- * @return 候補を妨げる0-based・両端inclusiveの行範囲。構造拒否がない場合はnull。
+ * @return 候補を妨げる0-based・両端inclusiveの結合セル位置。構造拒否がない場合はnull。
  */
 const getBlockingMergedRange = ( move: RowMove ): RowBlockingMergedRange | null => {
 	const parsedTable = getParsedRowTable( move.clientId );
-	/* 診断元となる現在Tableを解析できない場合は、結合範囲を推測しない。 */
+	/* 診断元となる現在Tableを解析できない場合は、結合セル位置を推測しない。 */
 	if ( parsedTable === null ) {
 		return null;
 	}
@@ -261,7 +321,7 @@ const getBlockingMergedRange = ( move: RowMove ): RowBlockingMergedRange | null 
 	const sourceRange = parsedTable.mergedRanges.find(
 		( range ) => move.sourceRowIndex >= range.rowStart && move.sourceRowIndex <= range.rowEnd
 	);
-	/* 移動元の構造拒否を利用者へ先に示せるよう、移動先よりsource側を優先する。 */
+	/* 利用者が移動元そのものの制約を先に修正できるよう、移動先より移動元側の原因セルを優先する。 */
 	if ( sourceRange !== undefined ) {
 		return sourceRange;
 	}

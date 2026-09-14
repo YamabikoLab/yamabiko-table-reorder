@@ -133,16 +133,21 @@ describe( 'Row RF Resolution', () => {
 	 *
 	 * 事前条件:
 	 * - source / target / destinationは現在Tableに存在する。
-	 * - 候補を妨げる縦結合範囲が存在する。
+	 * - 候補を妨げる縦結合セルが存在する。
 	 *
 	 * 操作:
 	 * - Row RF指定を解決する。
 	 *
 	 * 期待結果:
-	 * - `rejected`と最初の`RowBlockingMergedRange`が返る。
+	 * - `rejected`と最初の`RowBlockingMergedRange`が行・列位置を含めて返る。
 	 */
 	it( 'when a changing Row move is blocked by a merged range, should return rejected with the blocking range', () => {
-		getBlockingMergedRangeMock.mockReturnValue( { rowStart: 2, rowEnd: 4 } );
+		getBlockingMergedRangeMock.mockReturnValue( {
+			rowStart: 2,
+			rowEnd: 4,
+			columnStart: 1,
+			columnEnd: 2,
+		} );
 
 		expect(
 			rowRfResolution.resolve( 'table-a', {
@@ -152,7 +157,12 @@ describe( 'Row RF Resolution', () => {
 			} )
 		).toEqual( {
 			status: 'rejected',
-			blockingMergedRange: { rowStart: 2, rowEnd: 4 },
+			blockingMergedRange: {
+				rowStart: 2,
+				rowEnd: 4,
+				columnStart: 1,
+				columnEnd: 2,
+			},
 		} );
 	} );
 } );

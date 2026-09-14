@@ -133,16 +133,22 @@ describe( 'Column RF Resolution', () => {
 	 *
 	 * 事前条件:
 	 * - source / target / destinationは現在Tableに存在する。
-	 * - 候補を妨げる横結合範囲が存在する。
+	 * - 候補を妨げる横結合セルが存在する。
 	 *
 	 * 操作:
 	 * - Column RF指定を解決する。
 	 *
 	 * 期待結果:
-	 * - `rejected`と最初の`ColumnBlockingMergedRange`が返る。
+	 * - `rejected`と最初の`ColumnBlockingMergedRange`がsection・行・列位置を含めて返る。
 	 */
 	it( 'when a changing Column move is blocked by a merged range, should return rejected with the blocking range', () => {
-		getBlockingMergedRangeMock.mockReturnValue( { columnStart: 2, columnEnd: 4 } );
+		getBlockingMergedRangeMock.mockReturnValue( {
+			section: 'head',
+			rowStart: 0,
+			rowEnd: 1,
+			columnStart: 2,
+			columnEnd: 4,
+		} );
 
 		expect(
 			columnRfResolution.resolve( 'table-a', {
@@ -152,7 +158,13 @@ describe( 'Column RF Resolution', () => {
 			} )
 		).toEqual( {
 			status: 'rejected',
-			blockingMergedRange: { columnStart: 2, columnEnd: 4 },
+			blockingMergedRange: {
+				section: 'head',
+				rowStart: 0,
+				rowEnd: 1,
+				columnStart: 2,
+				columnEnd: 4,
+			},
 		} );
 	} );
 } );

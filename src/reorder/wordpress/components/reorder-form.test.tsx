@@ -38,7 +38,13 @@ jest.mock( '@/messages', () => ( {
 	getRfApplyLabel: () => '並び替え',
 	getRfBelowLabel: () => '下',
 	getRfCancelLabel: () => 'キャンセル',
-	getRfColumnMergedRangeMessage: () => '列結合',
+	getRfColumnMergedRangeMessage: (
+		section: string,
+		rowStart: number,
+		rowEnd: number,
+		columnStart: number,
+		columnEnd: number
+	) => `column:${ section }:${ rowStart }-${ rowEnd }:${ columnStart }-${ columnEnd }`,
 	getRfColumnOptionLabel: ( columnNumber: number, heading: string | null ) => {
 		const label =
 			heading === null ? `${ columnNumber }列目` : `${ heading }（${ columnNumber }列目）`;
@@ -52,7 +58,12 @@ jest.mock( '@/messages', () => ( {
 	getRfPositionLegend: () => '位置',
 	getRfReorderName: () => 'フォームで並び替え',
 	getRfRightLabel: () => '右',
-	getRfRowMergedRangeMessage: () => '行結合',
+	getRfRowMergedRangeMessage: (
+		rowStart: number,
+		rowEnd: number,
+		columnStart: number,
+		columnEnd: number
+	) => `row:${ rowStart }-${ rowEnd }:${ columnStart }-${ columnEnd }`,
 	getRfRowRangeMessage: () => '行範囲',
 	getRfRowsLabel: () => '行',
 	getRfRowTargetHelp: () => '対象行の上下へ移動',
@@ -208,6 +219,91 @@ describe( 'Reorder Form presentation', () => {
 
 		expect( screen.getAllByRole( 'option', { name: '商品名（1列目）' } ) ).toHaveLength( 2 );
 		expect( screen.getAllByRole( 'option', { name: '2列目' } ) ).toHaveLength( 2 );
+	} );
+
+	/**
+	 * Row RFの結合セル拒否結果を表示するとき、Table Integrationの0-based位置を利用者向け1-based位置へ変換することを確認する。
+	 *
+	 * 事前条件:
+	 * - Row RFは0〜1行・2〜3列を占有する結合セルを原因として拒否されている。
+	 *
+	 * 操作:
+	 * - RF入力Popoverを表示する。
+	 *
+	 * 期待結果:
+	 * - 行結合メッセージ境界へ1〜2行・3〜4列として渡される。
+	 */
+	it( 'when a row merged-cell rejection is shown, should pass user-facing 1-based positions to the message boundary', () => {
+		const state: RfInteractionReactState = {
+			status: 'open',
+			kind: 'row',
+			input: {
+				sourceRowNumber: '1',
+				targetRowNumber: '3',
+				position: 'below',
+			},
+			rowCount: 4,
+			result: {
+				status: 'rejected',
+				blockingMergedRange: {
+					rowStart: 0,
+					rowEnd: 1,
+					columnStart: 2,
+					columnEnd: 3,
+				},
+			},
+			canApply: false,
+		};
+		const anchor = document.createElement( 'button' );
+
+		render( <ReorderFormPopover anchor={ anchor } state={ state } tableIdentity="table-a" /> );
+
+		expect( screen.getByText( 'row:1-2:3-4' ) ).toBeTruthy();
+	} );
+
+	/**
+	 * Column RFの結合セル拒否結果を表示するとき、sectionを保ったまま内部位置を利用者向け1-based位置へ変換することを確認する。
+	 *
+	 * 事前条件:
+	 * - Column RFはfootの1〜2行・3〜4列を占有する結合セルを原因として拒否されている。
+	 *
+	 * 操作:
+	 * - RF入力Popoverを表示する。
+	 *
+	 * 期待結果:
+	 * - 列結合メッセージ境界へfoot・2〜3行・4〜5列として渡される。
+	 */
+	it( 'when a column merged-cell rejection is shown, should preserve the section and pass user-facing 1-based positions to the message boundary', () => {
+		const state: RfInteractionReactState = {
+			status: 'open',
+			kind: 'column',
+			input: {
+				sourceColumnIndex: 0,
+				targetColumnIndex: 2,
+				position: 'right',
+			},
+			columns: [
+				{ columnIndex: 0, columnNumber: 1, heading: null },
+				{ columnIndex: 1, columnNumber: 2, heading: null },
+				{ columnIndex: 2, columnNumber: 3, heading: null },
+			],
+			result: {
+				status: 'rejected',
+				blockingMergedRange: {
+					section: 'foot',
+					rowStart: 1,
+					rowEnd: 2,
+					columnStart: 3,
+					columnEnd: 4,
+				},
+			},
+			canApply: false,
+		};
+		const anchor = document.createElement( 'button' );
+
+		render( <ReorderFormPopover anchor={ anchor } state={ state } tableIdentity="table-a" /> );
+
+		expect( screen.getByText( 'column:foot:2-3:4-5' ) ).toBeTruthy();
 	} );
 
 	/**

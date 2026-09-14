@@ -115,54 +115,100 @@ export const getRfUnavailableMessage = () =>
 		'yamabiko-table-reorder'
 	);
 
+/** RFの結合セル位置表示で利用するTable section。 */
+type RfMergedCellSection = 'head' | 'body' | 'foot';
+
 /**
- * RFの行移動を妨げる結合セル範囲を知らせる文言を取得する。
+ * RFの行移動を妨げる結合セル位置を知らせる文言を取得する。
  *
- * @param rowStart 利用者向け1-based開始行番号。
- * @param rowEnd   利用者向け1-based終了行番号。
- * @return 最初に確認されたblocking merged rangeを示す案内文。
+ * 単一行では行番号と列範囲、複数行かつ単一列では行範囲と列番号、それ以外では行・列の両範囲を示す。
+ *
+ * @param rowStart    利用者向け1-based開始行番号。
+ * @param rowEnd      利用者向け1-based終了行番号。
+ * @param columnStart 利用者向け1-based開始列番号。
+ * @param columnEnd   利用者向け1-based終了列番号。
+ * @return 最初に確認された移動を妨げる結合セルを示す案内文。
  */
-export const getRfRowMergedRangeMessage = ( rowStart: number, rowEnd: number ) => {
+export const getRfRowMergedRangeMessage = (
+	rowStart: number,
+	rowEnd: number,
+	columnStart: number,
+	columnEnd: number
+) => {
+	/* 原因セルが単一行に収まる場合は、行番号と占有する列範囲を示す。 */
 	if ( rowStart === rowEnd ) {
-		/* translators: %d: 1-based row number */
+		/* translators: 1: 1-based row number, 2: first 1-based column number, 3: last 1-based column number */
 		const message = __(
-			'A merged cell involving row %d prevents this move.',
+			'A merged cell in row %1$d spanning columns %2$d–%3$d prevents this move.',
 			'yamabiko-table-reorder'
 		);
-		return sprintf( message, rowStart );
+		return sprintf( message, rowStart, columnStart, columnEnd );
 	}
 
-	/* translators: 1: first 1-based row number, 2: last 1-based row number */
+	/* 複数行にまたがる原因セルが単一列だけを占有する場合は、行範囲と列番号を示す。 */
+	if ( columnStart === columnEnd ) {
+		/* translators: 1: first 1-based row number, 2: last 1-based row number, 3: 1-based column number */
+		const message = __(
+			'A merged cell spanning rows %1$d–%2$d in column %3$d prevents this move.',
+			'yamabiko-table-reorder'
+		);
+		return sprintf( message, rowStart, rowEnd, columnStart );
+	}
+
+	/* translators: 1: first 1-based row number, 2: last 1-based row number, 3: first 1-based column number, 4: last 1-based column number */
 	const message = __(
-		'A merged cell spanning rows %1$d–%2$d prevents this move.',
+		'A merged cell spanning rows %1$d–%2$d and columns %3$d–%4$d prevents this move.',
 		'yamabiko-table-reorder'
 	);
-	return sprintf( message, rowStart, rowEnd );
+	return sprintf( message, rowStart, rowEnd, columnStart, columnEnd );
 };
 
 /**
- * RFの列移動を妨げる結合セル範囲を知らせる文言を取得する。
+ * RFの列移動を妨げる結合セル位置を知らせる文言を取得する。
  *
+ * bodyではRow RFと同じ位置表現を使用し、headとfootでは領域名を併記する。section内の単一行では行番号、複数行では行範囲を示す。
+ *
+ * @param section     原因セルが存在するTable section。
+ * @param rowStart    利用者向け1-based開始行番号。
+ * @param rowEnd      利用者向け1-based終了行番号。
  * @param columnStart 利用者向け1-based開始列番号。
  * @param columnEnd   利用者向け1-based終了列番号。
- * @return 最初に確認されたblocking merged rangeを示す案内文。
+ * @return 最初に確認された移動を妨げる結合セルを示す案内文。
  */
-export const getRfColumnMergedRangeMessage = ( columnStart: number, columnEnd: number ) => {
-	if ( columnStart === columnEnd ) {
-		/* translators: %d: 1-based column number */
-		const message = __(
-			'A merged cell involving column %d prevents this move.',
-			'yamabiko-table-reorder'
-		);
-		return sprintf( message, columnStart );
+export const getRfColumnMergedRangeMessage = (
+	section: RfMergedCellSection,
+	rowStart: number,
+	rowEnd: number,
+	columnStart: number,
+	columnEnd: number
+) => {
+	/* tbodyの原因セルはRow RFと同じ行・列位置表現で利用者が特定できる。 */
+	if ( section === 'body' ) {
+		return getRfRowMergedRangeMessage( rowStart, rowEnd, columnStart, columnEnd );
 	}
 
-	/* translators: 1: first 1-based column number, 2: last 1-based column number */
+	/* headとfootではsection内行番号だけではTable上の位置を区別できないため、領域名を併記する。 */
+	const sectionName =
+		section === 'head'
+			? __( 'header', 'yamabiko-table-reorder' )
+			: __( 'footer', 'yamabiko-table-reorder' );
+
+	/* 原因セルがsection内の単一行に収まる場合は、領域名、行番号、列範囲を示す。 */
+	if ( rowStart === rowEnd ) {
+		/* translators: 1: table section name, 2: 1-based row number, 3: first 1-based column number, 4: last 1-based column number */
+		const message = __(
+			'A merged cell in %1$s row %2$d spanning columns %3$d–%4$d prevents this move.',
+			'yamabiko-table-reorder'
+		);
+		return sprintf( message, sectionName, rowStart, columnStart, columnEnd );
+	}
+
+	/* translators: 1: table section name, 2: first 1-based row number, 3: last 1-based row number, 4: first 1-based column number, 5: last 1-based column number */
 	const message = __(
-		'A merged cell spanning columns %1$d–%2$d prevents this move.',
+		'A merged cell spanning %1$s rows %2$d–%3$d and columns %4$d–%5$d prevents this move.',
 		'yamabiko-table-reorder'
 	);
-	return sprintf( message, columnStart, columnEnd );
+	return sprintf( message, sectionName, rowStart, rowEnd, columnStart, columnEnd );
 };
 
 /** RF入力画面を終了する操作の表示名を取得する。 */

@@ -154,13 +154,13 @@ type RfInteractionStore = RfInteractionStoreState & RfInteractionStoreActions;
  * Row Resolution結果から、Presentationへ公開してよい現在結果だけを取り出す。
  *
  * candidateはApply Coordinationとの内部境界だけで扱い、結合セル制約で拒否された場合だけ
- * 利用者が理由を確認できるようblockingMergedRangeを保持する。
+ * 利用者が理由を確認できるよう、移動を妨げる結合セル位置をblockingMergedRangeとして保持する。
  *
  * @param resolution 現在TableとRow指定を評価したResolution結果。
  * @return candidateを含まないPresentation向け現在結果。
  */
 const toRowCurrentResult = ( resolution: RowRfResolution ): RfRowCurrentResult => {
-	// 結合セル制約による拒否時だけ、利用者へ拒否理由を示す範囲情報を公開する。
+	// 結合セル制約による拒否時だけ、利用者へ拒否理由となる結合セル位置を公開する。
 	if ( resolution.status === 'rejected' ) {
 		return {
 			status: 'rejected',
@@ -176,13 +176,13 @@ const toRowCurrentResult = ( resolution: RowRfResolution ): RfRowCurrentResult =
  * Column Resolution結果から、Presentationへ公開してよい現在結果だけを取り出す。
  *
  * candidateはApply Coordinationとの内部境界だけで扱い、結合セル制約で拒否された場合だけ
- * 利用者が理由を確認できるようblockingMergedRangeを保持する。
+ * 利用者が理由を確認できるよう、移動を妨げる結合セル位置をblockingMergedRangeとして保持する。
  *
  * @param resolution 現在TableとColumn指定を評価したResolution結果。
  * @return candidateを含まないPresentation向け現在結果。
  */
 const toColumnCurrentResult = ( resolution: ColumnRfResolution ): RfColumnCurrentResult => {
-	// 結合セル制約による拒否時だけ、利用者へ拒否理由を示す範囲情報を公開する。
+	// 結合セル制約による拒否時だけ、利用者へ拒否理由となる結合セル位置を公開する。
 	if ( resolution.status === 'rejected' ) {
 		return {
 			status: 'rejected',

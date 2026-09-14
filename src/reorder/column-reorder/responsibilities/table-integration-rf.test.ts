@@ -1,5 +1,5 @@
 /**
- * 列専用Table IntegrationがRFへ提供する最小列記述、構造診断、Apply前評価、更新直前再照合のContractを確認する。
+ * 列専用Table IntegrationがRFへ提供する最小列記述、構造診断、反映前評価、更新直前再照合の契約を確認する。
  */
 
 import { columnTableIntegration } from './table-integration';
@@ -133,7 +133,7 @@ describe( 'Column Table Integration RF contract', () => {
 	} );
 
 	/**
-	 * 複数行headでは単一論理列の安定した見出しを決めず、列番号fallbackをPresentationへ委ねることを確認する。
+	 * 複数行headでは単一論理列の安定した見出しを決めず、列番号による表示へ委ねることを確認する。
 	 *
 	 * 事前条件:
 	 * - headは2行で構成され、各行に同じ2論理列の文字列contentがある。
@@ -197,19 +197,19 @@ describe( 'Column Table Integration RF contract', () => {
 	} );
 
 	/**
-	 * source側とdestination側の両方が横結合により拒否される場合、source側のblocking rangeを優先することを確認する。
+	 * 移動元側と移動先側の両方が横結合により拒否される場合、移動元側の原因セルを優先することを確認する。
 	 *
 	 * 事前条件:
 	 * - 0〜1列と2〜3列を占有する二つの横結合セルがある。
 	 * - 移動元は後者の範囲内、移動先境界は前者の内部にある。
 	 *
 	 * 操作:
-	 * - blocking merged rangeを取得する。
+	 * - 移動を妨げる結合セル位置を取得する。
 	 *
 	 * 期待結果:
-	 * - destination側よりsource側が優先され、2〜3列の0-based・両端inclusive範囲が返る。
+	 * - 移動先側より移動元側が優先され、bodyの0行・2〜3列の原因セルが返る。
 	 */
-	it( 'when source and destination are both blocked, should return the source column range first', () => {
+	it( 'when source and destination are both blocked, should return the source merged cell first', () => {
 		selectMock.mockReturnValue( {
 			getBlock: jest.fn().mockReturnValue( {
 				name: 'core/table',
@@ -225,23 +225,29 @@ describe( 'Column Table Integration RF contract', () => {
 				sourceColumnIndex: 2,
 				destinationBoundaryIndex: 1,
 			} )
-		).toEqual( { columnStart: 2, columnEnd: 3 } );
+		).toEqual( {
+			section: 'body',
+			rowStart: 0,
+			rowEnd: 0,
+			columnStart: 2,
+			columnEnd: 3,
+		} );
 	} );
 
 	/**
-	 * source側に問題がなくdestination側を複数の横結合範囲が塞ぐ場合、開始論理列が小さい範囲を決定的に返すことを確認する。
+	 * 移動先側を複数の結合セルが塞ぐ場合、開始論理列が小さい原因セルを決定的に返すことを確認する。
 	 *
 	 * 事前条件:
 	 * - headには0〜2列を占有する横結合セル、bodyには1〜2列を占有する横結合セルがある。
-	 * - 移動元列はどの横結合範囲にも含まれず、移動先境界2を両方の範囲が塞ぐ。
+	 * - 移動元列はどの結合セルにも含まれず、移動先境界2を両方のセルが塞ぐ。
 	 *
 	 * 操作:
-	 * - blocking merged rangeを取得する。
+	 * - 移動を妨げる結合セル位置を取得する。
 	 *
 	 * 期待結果:
-	 * - sectionの解析順序に依存せず、開始論理列が小さい0〜2列の範囲が返る。
+	 * - sectionの解析順序ではなく、開始論理列が小さいheadの0〜2列のセルが返る。
 	 */
-	it( 'when multiple destination column ranges block a move, should return the range with the earliest start', () => {
+	it( 'when multiple destination merged cells block a move, should return the cell with the earliest column range', () => {
 		selectMock.mockReturnValue( {
 			getBlock: jest.fn().mockReturnValue( {
 				name: 'core/table',
@@ -258,17 +264,101 @@ describe( 'Column Table Integration RF contract', () => {
 				sourceColumnIndex: 3,
 				destinationBoundaryIndex: 2,
 			} )
-		).toEqual( { columnStart: 0, columnEnd: 2 } );
+		).toEqual( {
+			section: 'head',
+			rowStart: 0,
+			rowEnd: 0,
+			columnStart: 0,
+			columnEnd: 2,
+		} );
 	} );
 
 	/**
-	 * RF Apply前評価が現在Tableへ候補を再照合し、成立時に更新対象セル数と反映後の最終列位置を返すことを確認する。
+	 * 同じ列範囲の原因セルが複数sectionにある場合、head、body、footの順で決定することを確認する。
+	 *
+	 * 事前条件:
+	 * - head、body、footに同じ0〜1列を占有する横結合セルがある。
+	 * - 移動元列は原因セル外、移動先境界1はすべての原因セル内部にある。
+	 *
+	 * 操作:
+	 * - 移動を妨げる結合セル位置を取得する。
+	 *
+	 * 期待結果:
+	 * - 同じ列範囲では定義済みsection順によりheadのセルが返る。
+	 */
+	it( 'when equal column ranges block a move in multiple sections, should prefer the documented section order', () => {
+		selectMock.mockReturnValue( {
+			getBlock: jest.fn().mockReturnValue( {
+				name: 'core/table',
+				attributes: {
+					head: [ { cells: [ { colspan: 2 }, {} ] } ],
+					body: [ { cells: [ { colspan: 2 }, {} ] } ],
+					foot: [ { cells: [ { colspan: 2 }, {} ] } ],
+				},
+			} ),
+		} );
+
+		expect(
+			columnTableIntegration.getBlockingMergedRange( {
+				clientId: 'table-a',
+				sourceColumnIndex: 2,
+				destinationBoundaryIndex: 1,
+			} )
+		).toEqual( {
+			section: 'head',
+			rowStart: 0,
+			rowEnd: 0,
+			columnStart: 0,
+			columnEnd: 1,
+		} );
+	} );
+
+	/**
+	 * 原因セルが縦横の両方向へ結合している場合、Column RFへsection内の完全な矩形位置を返すことを確認する。
+	 *
+	 * 事前条件:
+	 * - body先頭セルは0〜1行・0〜1列を占有する2行×2列の結合セルである。
+	 * - 移動元列は結合セル外にあり、移動先境界1が原因セル内部にある。
+	 *
+	 * 操作:
+	 * - 移動を妨げる結合セル位置を取得する。
+	 *
+	 * 期待結果:
+	 * - 原因セルがbodyにあり、0〜1行・0〜1列を占有することが返る。
+	 */
+	it( 'when a blocking cell spans rows and columns, should return its full section-local rectangle', () => {
+		selectMock.mockReturnValue( {
+			getBlock: jest.fn().mockReturnValue( {
+				name: 'core/table',
+				attributes: {
+					body: [ { cells: [ { rowspan: 2, colspan: 2 }, {}, {} ] }, { cells: [ {}, {} ] } ],
+				},
+			} ),
+		} );
+
+		expect(
+			columnTableIntegration.getBlockingMergedRange( {
+				clientId: 'table-a',
+				sourceColumnIndex: 3,
+				destinationBoundaryIndex: 1,
+			} )
+		).toEqual( {
+			section: 'body',
+			rowStart: 0,
+			rowEnd: 1,
+			columnStart: 0,
+			columnEnd: 1,
+		} );
+	} );
+
+	/**
+	 * RF反映前評価が現在Tableへ候補を再照合し、成立時に更新対象セル数と反映後の最終列位置を返すことを確認する。
 	 *
 	 * 事前条件:
 	 * - 4論理列の通常Tableで3列目を先頭へ移動する。
 	 *
 	 * 操作:
-	 * - Apply assessmentを要求する。
+	 * - 反映前評価を要求する。
 	 *
 	 * 期待結果:
 	 * - 影響する0〜2列の物理セル数3が返る。
@@ -300,7 +390,7 @@ describe( 'Column Table Integration RF contract', () => {
 	 * - 4論理列の通常Tableで先頭列を末尾境界へ移動する。
 	 *
 	 * 操作:
-	 * - Apply assessmentを要求する。
+	 * - 反映前評価を要求する。
 	 *
 	 * 期待結果:
 	 * - 移動元除去後の0-based最終列位置として3が返る。
@@ -325,14 +415,14 @@ describe( 'Column Table Integration RF contract', () => {
 	} );
 
 	/**
-	 * 現在Tableの横結合制約により候補が成立しない場合、RF Apply前評価を成立させないことを確認する。
+	 * 現在Tableの横結合制約により候補が成立しない場合、RF反映前評価を成立させないことを確認する。
 	 *
 	 * 事前条件:
 	 * - 0〜1列を占有する横結合セルを含む3論理列Tableである。
 	 * - 移動元論理列がその横結合範囲に含まれる。
 	 *
 	 * 操作:
-	 * - Apply assessmentを要求する。
+	 * - 反映前評価を要求する。
 	 *
 	 * 期待結果:
 	 * - 現在Tableでは候補が成立しないためnullが返る。
@@ -357,17 +447,17 @@ describe( 'Column Table Integration RF contract', () => {
 	} );
 
 	/**
-	 * assessment後にTable構造が変化して現在候補が横結合制約へ抵触した場合、確定更新を行わないことを確認する。
+	 * 反映前評価後にTable構造が変化して現在候補が横結合制約へ抵触した場合、確定更新を行わないことを確認する。
 	 *
 	 * 事前条件:
-	 * - assessment時点では4列の通常Tableで候補が成立する。
+	 * - 反映前評価時点では4列の通常Tableで候補が成立する。
 	 * - 更新要求時点では移動元列を含む横結合セルが追加されている。
 	 *
 	 * 操作:
-	 * - assessment後に同じ候補をapplyColumnMove()へ渡す。
+	 * - 反映前評価後に同じ候補をapplyColumnMove()へ渡す。
 	 *
 	 * 期待結果:
-	 * - assessmentは成功するが、更新直前再照合ではfalseになり、WordPress属性更新は行われない。
+	 * - 反映前評価は成功するが、更新直前再照合ではfalseになり、WordPress属性更新は行われない。
 	 */
 	it( 'when merged-cell constraints change after assessment, should reject the final column update', () => {
 		const updateBlockAttributes = jest.fn();
