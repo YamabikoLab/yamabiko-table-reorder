@@ -22,12 +22,13 @@ Keyboard操作、ドラッグを必要としない操作、focus、announcement�
 
 PCでは、行並び替えモード中にポインターが移動できない行へ入った場合、その行を控えめなグレー表示にし、掴めるカーソルを表示しない。移動可能な行の操作可能表示と区別することで、DnDを開始する前に移動できない行であることを確認できるようにする。
 
-PCとタッチ端末の両方で、移動できない行から操作を開始しようとした位置の近くに、移動を妨げている結合セルの行範囲を表示し、どの行範囲が理由なのかをその場で確認できるようにする。表示する行番号は利用者向けの1-basedとする。
+PCとタッチ端末の両方で、移動できない行から操作を開始しようとした位置の近くに、移動を妨げている結合セルの行位置と論理列位置を表示する。行番号と列番号はいずれも利用者向けの1-basedとし、複数行または複数列にまたがる場合は範囲で示す。
 
-- 単一行の場合: `A merged cell involving row 3 prevents this move.`
-- 複数行の場合: `A merged cell spanning rows 3–5 prevents this move.`
+- 例: `A merged cell at rows 2–4 and columns 3 prevents this move.`
+- 例: `A merged cell at rows 3 and columns 2–4 prevents this move.`
+- 例: `A merged cell at rows 2–4 and columns 2–3 prevents this move.`
 
-日本語でも同じ行範囲を示す。
+日本語では、例えば`2–4行目の2–3列目にまたがる結合セルがあるため、移動できません。`のように同じ位置を示す。
 
 移動不可メッセージは、利用者が内容を確認できる時間だけ表示し、数秒後に自動的に終了する。
 
