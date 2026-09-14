@@ -137,9 +137,8 @@ export const useReorderFormNarrowHeight = (
 
 			/* 折りたたみ中は高さ調整ではなくTable確認への退避状態として扱う。 */
 			if (
-				header.querySelector(
-					'.yamabiko-table-reorder-rf__collapse[aria-expanded="false"]'
-				) !== null
+				header.querySelector( '.yamabiko-table-reorder-rf__collapse[aria-expanded="false"]' ) !==
+				null
 			) {
 				return;
 			}
