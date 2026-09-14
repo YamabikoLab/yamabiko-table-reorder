@@ -37,9 +37,9 @@ const createNarrowForm = () => {
 /**
  * Pointer Event相当の入力を現在documentへ通知する。
  *
- * @param type     Pointer Event種別。
- * @param target   Eventの対象要素。
- * @param clientY  viewport上の縦位置。
+ * @param type      Pointer Event種別。
+ * @param target    Eventの対象要素。
+ * @param clientY   viewport上の縦位置。
  * @param pointerId Pointer操作の識別子。
  */
 const dispatchPointer = (
@@ -61,9 +61,7 @@ const dispatchPointer = (
 describe( 'Reorder Form narrow height presentation state', () => {
 	beforeEach( () => {
 		document.body.replaceChildren();
-		document.documentElement.style.removeProperty(
-			'--yamabiko-table-reorder-rf-narrow-height'
-		);
+		document.documentElement.style.removeProperty( '--yamabiko-table-reorder-rf-narrow-height' );
 	} );
 
 	/**
@@ -93,9 +91,7 @@ describe( 'Reorder Form narrow height presentation state', () => {
 		} );
 
 		expect(
-			document.documentElement.style.getPropertyValue(
-				'--yamabiko-table-reorder-rf-narrow-height'
-			)
+			document.documentElement.style.getPropertyValue( '--yamabiko-table-reorder-rf-narrow-height' )
 		).toBe( '340px' );
 
 		firstRender.unmount();
@@ -104,9 +100,7 @@ describe( 'Reorder Form narrow height presentation state', () => {
 		);
 
 		expect(
-			document.documentElement.style.getPropertyValue(
-				'--yamabiko-table-reorder-rf-narrow-height'
-			)
+			document.documentElement.style.getPropertyValue( '--yamabiko-table-reorder-rf-narrow-height' )
 		).toBe( '340px' );
 		secondRender.unmount();
 	} );
@@ -140,9 +134,7 @@ describe( 'Reorder Form narrow height presentation state', () => {
 		} );
 
 		expect(
-			document.documentElement.style.getPropertyValue(
-				'--yamabiko-table-reorder-rf-narrow-height'
-			)
+			document.documentElement.style.getPropertyValue( '--yamabiko-table-reorder-rf-narrow-height' )
 		).toBe( '' );
 		heightHook.unmount();
 	} );
