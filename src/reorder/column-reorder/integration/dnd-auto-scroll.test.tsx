@@ -97,13 +97,11 @@ const getProviderProps = () => {
 	};
 };
 
-/** テストで利用するColumn Reorder Target。 */
 const target = {
 	tableIdentity: 'table-1',
 	sourceColumnIndex: 1,
 };
 
-/** 第二段階解決が成立する既定結果。 */
 const resolvedTarget = {
 	status: 'resolved' as const,
 	target,
@@ -133,7 +131,8 @@ describe( 'Column DnD horizontal auto scroll integration', () => {
 	} );
 
 	/**
-	 * 水平自動スクロールでTableの画面位置だけが変化した場合も、現在の移動先を更新できることを確認する。
+	 * 概要:
+	 * - 水平自動スクロールでTableの画面位置だけが変化した場合も、現在の移動先を更新できることを確認する。
 	 *
 	 * 事前条件:
 	 * - Column DnD Sessionが開始している。
@@ -147,40 +146,22 @@ describe( 'Column DnD horizontal auto scroll integration', () => {
 	 * - 再解決した論理列間境界がDnD Interactionへ反映される。
 	 */
 	it( 'when horizontal auto scroll moves the table without a new pointer move, should resolve and update the destination again', () => {
-		const resolver = {
-			resolve: jest.fn().mockReturnValue( 2 ),
-		};
+		const resolver = { resolve: jest.fn().mockReturnValue( 2 ) };
 		destinationResolverFactoryMock.mockReturnValue( resolver );
-		render(
-			<ColumnDnd enabled tableIdentity="table-1">
-				{ () => <div /> }
-			</ColumnDnd>
-		);
+		render( <ColumnDnd tableIdentity="table-1">{ () => <div /> }</ColumnDnd> );
 		const provider = getProviderProps();
 		const sourceElement = document.createElement( 'td' );
 		const moveEvent = {
 			nativeEvent: { clientX: 190, clientY: 50 },
-			operation: {
-				source: {
-					element: sourceElement,
-				},
-			},
+			operation: { source: { element: sourceElement } },
 		} as unknown as DragMoveEvent;
 
 		provider.onBeforeDragStart( {
-			operation: {
-				source: {
-					data: target,
-				},
-			},
+			operation: { source: { data: target } },
 			preventDefault: jest.fn(),
 		} as unknown as BeforeDragStartEvent );
 		provider.onDragStart( {
-			operation: {
-				source: {
-					element: sourceElement,
-				},
-			},
+			operation: { source: { element: sourceElement } },
 		} as unknown as DragStartEvent );
 		provider.onDragMove( moveEvent );
 		resolver.resolve.mockClear();
@@ -194,7 +175,8 @@ describe( 'Column DnD horizontal auto scroll integration', () => {
 	} );
 
 	/**
-	 * 物理DnD終了時に水平自動スクロールのSession状態を破棄することを確認する。
+	 * 概要:
+	 * - 物理DnD終了時に水平自動スクロールのSession状態を破棄することを確認する。
 	 *
 	 * 事前条件:
 	 * - Column DnD Session開始時に水平自動スクロールが対象Tableへ接続されている。
@@ -210,28 +192,16 @@ describe( 'Column DnD horizontal auto scroll integration', () => {
 		destinationResolverFactoryMock.mockReturnValue( {
 			resolve: jest.fn().mockReturnValue( 2 ),
 		} );
-		render(
-			<ColumnDnd enabled tableIdentity="table-1">
-				{ () => <div /> }
-			</ColumnDnd>
-		);
+		render( <ColumnDnd tableIdentity="table-1">{ () => <div /> }</ColumnDnd> );
 		const provider = getProviderProps();
 		const sourceElement = document.createElement( 'td' );
 
 		provider.onBeforeDragStart( {
-			operation: {
-				source: {
-					data: target,
-				},
-			},
+			operation: { source: { data: target } },
 			preventDefault: jest.fn(),
 		} as unknown as BeforeDragStartEvent );
 		provider.onDragStart( {
-			operation: {
-				source: {
-					element: sourceElement,
-				},
-			},
+			operation: { source: { element: sourceElement } },
 		} as unknown as DragStartEvent );
 		autoScrollStop.mockClear();
 

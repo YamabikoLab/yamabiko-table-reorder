@@ -1,8 +1,8 @@
 /**
- * Column DnD Engine Integrationが、二段階Target Resolutionを経て物理DnD LifecycleをColumn DnD Interactionへ接続することを確認する。
+ * Column DnD Engine Integrationが、Reorder Modeと二段階Target Resolutionを経て物理DnD LifecycleをColumn DnD Interactionへ接続することを確認する。
  *
- * dnd-kit自体の挙動は再現せず、第二段階解決、Session開始、論理移動先、complete / cancel変換、
- * DnD Engine Auto Scrollの無効化、および無効化時に開始前状態を持ち越さないLifecycleを責務境界から観測できる振る舞いとして検証する。
+ * dnd-kit自体の挙動は再現せず、event-timeのmode判定、mode離脱cleanup、第二段階解決、
+ * Session開始、論理移動先、complete / cancel変換、DnD Engine Auto Scrollの無効化を検証する。
  */
 
 import {
@@ -14,13 +14,15 @@ import {
 	type DragEndEvent,
 	type DragMoveEvent,
 	type DragStartEvent,
+	type Draggable,
 } from '@dnd-kit/dom';
 import { DragDropProvider } from '@dnd-kit/react';
-import { render } from '@testing-library/react';
+import { act, render } from '@testing-library/react';
 import type { ReactNode } from 'react';
 
 import { columnDndInteraction } from '@/reorder/column-reorder/responsibilities/dnd-interaction';
 import { columnReorderTargetResolution } from '@/reorder/column-reorder/responsibilities/target-resolution';
+import { reorderMode } from '@/reorder/reorder-mode';
 import { createColumnDestinationResolver } from './destination-resolution';
 import { ColumnDnd } from './dnd';
 
@@ -49,9 +51,25 @@ jest.mock( './destination-resolution', () => ( {
 	createColumnDestinationResolver: jest.fn(),
 } ) );
 
+jest.mock( '@/reorder/column-reorder/integration/horizontal-auto-scroll', () => ( {
+	createColumnHorizontalAutoScroll: jest.fn( () => ( {
+		start: jest.fn(),
+		updatePointer: jest.fn(),
+		stop: jest.fn(),
+	} ) ),
+} ) );
+
+let mockActiveDraggableRef: { current: Draggable | null } | null = null;
+const mockColumnInputPointerDown = jest.fn();
+
 jest.mock( '@/reorder/column-reorder/responsibilities/input', () => ( {
-	ColumnInput: ( props: { children: ( handler: () => void ) => ReactNode } ) =>
-		props.children( () => undefined ),
+	ColumnInput: ( props: {
+		activeDraggable: { current: Draggable | null };
+		children: ( handler: ( event: unknown ) => void ) => ReactNode;
+	} ) => {
+		mockActiveDraggableRef = props.activeDraggable;
+		return props.children( mockColumnInputPointerDown );
+	},
 } ) );
 
 jest.mock( '@/reorder/column-reorder/responsibilities/presentation/column-presentation', () => ( {
@@ -75,29 +93,19 @@ const dndInteractionMock = columnDndInteraction as jest.Mocked< typeof columnDnd
 
 /** 現在のDragDropProviderへ渡された物理DnD Lifecycle処理とplugin構成処理を取得する。 */
 const getProviderProps = () => {
-	const call = dragDropProviderMock.mock.calls[ dragDropProviderMock.mock.calls.length - 1 ];
+	const call = dragDropProviderMock.mock.calls.at( -1 );
 	const props = call?.[ 0 ];
-
 	if ( ! props ) {
 		throw new Error( 'ColumnDnd did not render DragDropProvider.' );
 	}
-
-	return props as {
-		plugins: ( defaults: unknown[] ) => unknown[];
-		onBeforeDragStart: ( event: BeforeDragStartEvent ) => void;
-		onDragStart: ( event?: DragStartEvent ) => void;
-		onDragMove: ( event: DragMoveEvent ) => void;
-		onDragEnd: ( event: DragEndEvent ) => void;
-	};
+	return props;
 };
 
-/** テストで利用するColumn Reorder Target。 */
 const target = {
 	tableIdentity: 'table-1',
 	sourceColumnIndex: 1,
 };
 
-/** 第二段階解決が成立する既定結果。 */
 const resolvedTarget = {
 	status: 'resolved' as const,
 	target,
@@ -107,17 +115,65 @@ const resolvedTarget = {
 	},
 };
 
+const resetReorderMode = () => {
+	act( () => {
+		reorderMode.observeTable( '__column-dnd-test-reset__' );
+	} );
+};
+
 describe( 'Column DnD Engine Integration', () => {
 	beforeEach( () => {
 		jest.clearAllMocks();
+		mockActiveDraggableRef = null;
+		resetReorderMode();
 		targetResolutionMock.resolve.mockReturnValue( resolvedTarget );
 		destinationResolverFactoryMock.mockReturnValue( {
 			resolve: jest.fn().mockReturnValue( 3 ),
 		} );
 	} );
 
+	afterEach( () => {
+		resetReorderMode();
+	} );
+
 	/**
-	 * 第二段階解決が成立した物理DnDをColumn DnD Sessionへ接続し、論理移動先だけを進行へ渡すことを確認する。
+	 * 概要:
+	 * - Reorder Modeをevent-timeで確認し、列modeの入力だけをColumn Inputへ渡すことを確認する。
+	 *
+	 * 事前条件:
+	 * - DnD境界は通常編集状態から同じReact identityで存在している。
+	 *
+	 * 操作:
+	 * - 通常編集状態と列mode状態で同じpointer handlerへ入力する。
+	 *
+	 * 期待結果:
+	 * - 通常編集の入力はColumn Inputへ渡らず、列modeの入力だけが渡る。
+	 */
+	it( 'when pointer input occurs, should forward it to Column Input only while column reorder mode is active', () => {
+		let pointerDown: ( event: unknown ) => void = () => {};
+		render(
+			<ColumnDnd tableIdentity="table-1">
+				{ ( handler ) => {
+					pointerDown = handler as unknown as ( event: unknown ) => void;
+					return <div />;
+				} }
+			</ColumnDnd>
+		);
+		const event = {};
+
+		pointerDown( event );
+		expect( mockColumnInputPointerDown ).not.toHaveBeenCalled();
+
+		act( () => {
+			reorderMode.select( 'column', 'table-1' );
+		} );
+		pointerDown( event );
+		expect( mockColumnInputPointerDown ).toHaveBeenCalledWith( event );
+	} );
+
+	/**
+	 * 概要:
+	 * - 第二段階解決が成立した物理DnDをColumn DnD Sessionへ接続し、論理移動先だけを進行へ渡すことを確認する。
 	 *
 	 * 事前条件:
 	 * - 第一段階で登録されたTargetが第二段階でも開始可能である。
@@ -129,39 +185,23 @@ describe( 'Column DnD Engine Integration', () => {
 	 * 期待結果:
 	 * - 第二段階の解決済みTargetと開始時制約でSessionが開始される。
 	 * - moveでは論理列間境界3だけがDnD Interactionへ渡される。
-	 * - 正常endはcompleteへ変換される。
+	 * - 正常endはcompleteへ変換され、cancelは呼ばれない。
 	 */
 	it( 'when second-stage resolution succeeds and the physical drag completes, should connect the resolved target, logical destination, and complete lifecycle', () => {
-		render(
-			<ColumnDnd enabled tableIdentity="table-1">
-				{ () => <div /> }
-			</ColumnDnd>
-		);
+		render( <ColumnDnd tableIdentity="table-1">{ () => <div /> }</ColumnDnd> );
 		const provider = getProviderProps();
 		const sourceElement = document.createElement( 'td' );
 		const preventDefault = jest.fn();
 
 		provider.onBeforeDragStart( {
-			operation: {
-				source: {
-					data: target,
-				},
-			},
+			operation: { source: { data: target } },
 			preventDefault,
 		} as unknown as BeforeDragStartEvent );
 		provider.onDragStart( {
-			operation: {
-				source: {
-					element: sourceElement,
-				},
-			},
+			operation: { source: { element: sourceElement } },
 		} as unknown as DragStartEvent );
 		provider.onDragMove( {
-			operation: {
-				source: {
-					element: sourceElement,
-				},
-			},
+			operation: { source: { element: sourceElement } },
 		} as unknown as DragMoveEvent );
 		provider.onDragEnd( { canceled: false } as unknown as DragEndEvent );
 
@@ -177,28 +217,22 @@ describe( 'Column DnD Engine Integration', () => {
 	} );
 
 	/**
-	 * Column DnD Engine IntegrationがDnD EngineのAuto Scrollを利用しないことを確認する。
+	 * 概要:
+	 * - Column ReorderではDnD EngineのAuto Scrollを利用しないことを確認する。
 	 *
 	 * 事前条件:
-	 * - DnD Engineの既定pluginにはAutoScrollerとその他の標準pluginが含まれる。
+	 * - DnD Engineの既定pluginにAutoScrollerとその他の標準pluginが含まれる。
 	 *
 	 * 操作:
-	 * - Column DnD境界のplugin構成を要求する。
+	 * - Column DnD境界のplugin構成を解決する。
 	 *
 	 * 期待結果:
-	 * - 既定AutoScrollerは除外され、Column Reorderの物理スクロールと競合しない。
-	 * - その他の除外対象外pluginだけが維持される。
+	 * - Column Reorderで利用しない既定pluginは除外され、その他のpluginだけが維持される。
 	 */
 	it( 'when DnD engine plugins are configured, should disable engine auto scroll for column reorder', () => {
-		render(
-			<ColumnDnd enabled tableIdentity="table-1">
-				{ () => <div /> }
-			</ColumnDnd>
-		);
-		const provider = getProviderProps();
+		render( <ColumnDnd tableIdentity="table-1">{ () => <div /> }</ColumnDnd> );
 		const preservedPlugin = { name: 'preserved' };
-
-		const plugins = provider.plugins( [
+		const plugins = getProviderProps().plugins( [
 			Cursor,
 			PreventSelection,
 			Feedback,
@@ -210,7 +244,8 @@ describe( 'Column DnD Engine Integration', () => {
 	} );
 
 	/**
-	 * Destination Resolutionを開始時に生成できなくても、最初のmoveで再解決して論理移動先へ接続できることを確認する。
+	 * 概要:
+	 * - Destination Resolutionを開始時に生成できなくても、最初のmoveで再解決して論理移動先へ接続できることを確認する。
 	 *
 	 * 事前条件:
 	 * - 第二段階Target Resolutionは開始可能である。
@@ -222,40 +257,21 @@ describe( 'Column DnD Engine Integration', () => {
 	 * 期待結果:
 	 * - move時にResolver生成が再試行され、解決された論理列間境界がDnD Interactionへ渡される。
 	 */
-	it( 'when destination resolution is unavailable at drag start but available on move, should retry once and forward the resolved logical boundary', () => {
-		const resolver = {
-			resolve: jest.fn().mockReturnValue( 2 ),
-		};
+	it( 'when destination resolution is unavailable at drag start but available on move, should retry and forward the resolved logical boundary', () => {
+		const resolver = { resolve: jest.fn().mockReturnValue( 2 ) };
 		destinationResolverFactoryMock.mockReturnValueOnce( null ).mockReturnValueOnce( resolver );
-		render(
-			<ColumnDnd enabled tableIdentity="table-1">
-				{ () => <div /> }
-			</ColumnDnd>
-		);
+		render( <ColumnDnd tableIdentity="table-1">{ () => <div /> }</ColumnDnd> );
 		const provider = getProviderProps();
 		const sourceElement = document.createElement( 'td' );
-
 		provider.onBeforeDragStart( {
-			operation: {
-				source: {
-					data: target,
-				},
-			},
+			operation: { source: { data: target } },
 			preventDefault: jest.fn(),
 		} as unknown as BeforeDragStartEvent );
 		provider.onDragStart( {
-			operation: {
-				source: {
-					element: sourceElement,
-				},
-			},
+			operation: { source: { element: sourceElement } },
 		} as unknown as DragStartEvent );
 		const moveEvent = {
-			operation: {
-				source: {
-					element: sourceElement,
-				},
-			},
+			operation: { source: { element: sourceElement } },
 		} as unknown as DragMoveEvent;
 		provider.onDragMove( moveEvent );
 
@@ -265,7 +281,8 @@ describe( 'Column DnD Engine Integration', () => {
 	} );
 
 	/**
-	 * 第一段階後のTable変化で第二段階が成立しない場合にColumn DnD Sessionを開始しないことを確認する。
+	 * 概要:
+	 * - 第一段階後のTable変化で第二段階が成立しない場合にColumn DnD Sessionを開始しないことを確認する。
 	 *
 	 * 事前条件:
 	 * - active DnD成立直前のTarget Resolutionが利用不能を返す。
@@ -274,41 +291,71 @@ describe( 'Column DnD Engine Integration', () => {
 	 * - before start通知後にstart通知を行う。
 	 *
 	 * 期待結果:
+	 * - 入力Targetが第二段階解決へ渡される。
 	 * - 物理DnD開始は抑止され、DnD InteractionのSessionは開始されない。
 	 */
 	it( 'when second-stage target resolution becomes unavailable, should prevent the physical drag and not start a column session', () => {
 		targetResolutionMock.resolve.mockReturnValue( { status: 'unavailable' } );
-		render(
-			<ColumnDnd enabled tableIdentity="table-1">
-				{ () => <div /> }
-			</ColumnDnd>
-		);
+		render( <ColumnDnd tableIdentity="table-1">{ () => <div /> }</ColumnDnd> );
 		const provider = getProviderProps();
 		const preventDefault = jest.fn();
 
 		provider.onBeforeDragStart( {
-			operation: {
-				source: {
-					data: target,
-				},
-			},
+			operation: { source: { data: target } },
 			preventDefault,
 		} as unknown as BeforeDragStartEvent );
-		provider.onDragStart( {
-			operation: {
-				source: {},
-			},
-		} as unknown as DragStartEvent );
+		provider.onDragStart();
 
+		expect( targetResolutionMock.resolve ).toHaveBeenCalledWith( target );
 		expect( preventDefault ).toHaveBeenCalledTimes( 1 );
 		expect( dndInteractionMock.start ).not.toHaveBeenCalled();
 	} );
 
 	/**
-	 * 物理DnDの取消終了をColumn DnD Sessionのcancelへ変換することを確認する。
+	 * 概要:
+	 * - Column Reorder Mode離脱時に未使用の解決結果とDraggable登録を即時破棄することを確認する。
 	 *
 	 * 事前条件:
-	 * - 第二段階解決が成立しColumn DnD Sessionが開始している。
+	 * - 列modeで第二段階解決済みの開始対象とDraggable登録が存在する。
+	 *
+	 * 操作:
+	 * - React再描画を行わずColumn Reorder Modeから離脱する。
+	 *
+	 * 期待結果:
+	 * - Draggableが破棄され、離脱前の解決結果ではSessionを開始できない。
+	 */
+	it( 'when column reorder mode ends, should discard the resolved start and active draggable without a React rerender', () => {
+		act( () => {
+			reorderMode.select( 'column', 'table-1' );
+		} );
+		render( <ColumnDnd tableIdentity="table-1">{ () => <div /> }</ColumnDnd> );
+		const provider = getProviderProps();
+		provider.onBeforeDragStart( {
+			operation: { source: { data: target } },
+			preventDefault: jest.fn(),
+		} as unknown as BeforeDragStartEvent );
+
+		if ( mockActiveDraggableRef === null ) {
+			throw new Error( 'ColumnInput activeDraggable ref was not captured.' );
+		}
+		const destroy = jest.fn();
+		mockActiveDraggableRef.current = { destroy } as unknown as Draggable;
+
+		act( () => {
+			reorderMode.select( 'column', 'table-1' );
+		} );
+		provider.onDragStart();
+
+		expect( destroy ).toHaveBeenCalledTimes( 1 );
+		expect( dndInteractionMock.start ).not.toHaveBeenCalled();
+	} );
+
+	/**
+	 * 概要:
+	 * - 物理DnDの取消終了をColumn DnD Sessionのcancelへ変換することを確認する。
+	 *
+	 * 事前条件:
+	 * - Column DnD境界が接続されている。
 	 *
 	 * 操作:
 	 * - canceledなend通知を行う。
@@ -317,78 +364,10 @@ describe( 'Column DnD Engine Integration', () => {
 	 * - completeではなくcancelだけが要求される。
 	 */
 	it( 'when the physical drag ends as canceled, should cancel the column session without completing it', () => {
-		render(
-			<ColumnDnd enabled tableIdentity="table-1">
-				{ () => <div /> }
-			</ColumnDnd>
-		);
-		const provider = getProviderProps();
-
-		provider.onBeforeDragStart( {
-			operation: {
-				source: {
-					data: target,
-				},
-			},
-			preventDefault: jest.fn(),
-		} as unknown as BeforeDragStartEvent );
-		provider.onDragStart( {
-			operation: {
-				source: {},
-			},
-		} as unknown as DragStartEvent );
-		provider.onDragEnd( { canceled: true } as unknown as DragEndEvent );
+		render( <ColumnDnd tableIdentity="table-1">{ () => <div /> }</ColumnDnd> );
+		getProviderProps().onDragEnd( { canceled: true } as unknown as DragEndEvent );
 
 		expect( dndInteractionMock.cancel ).toHaveBeenCalledTimes( 1 );
 		expect( dndInteractionMock.complete ).not.toHaveBeenCalled();
-	} );
-
-	/**
-	 * Column Reorder無効化後の再有効化で、無効化前の開始候補を持ち越さないことを確認する。
-	 *
-	 * 事前条件:
-	 * - 第二段階Target Resolutionだけが成立し、まだSession開始通知は行われていない。
-	 *
-	 * 操作:
-	 * - Column Reorderを無効化してから再度有効化し、新しい入力なしでstart通知を行う。
-	 *
-	 * 期待結果:
-	 * - 無効化前の解決結果ではColumn DnD Sessionを開始できない。
-	 */
-	it( 'when column reorder is disabled and enabled again, should not start from the candidate resolved before disablement', () => {
-		const { rerender } = render(
-			<ColumnDnd enabled tableIdentity="table-1">
-				{ () => <div /> }
-			</ColumnDnd>
-		);
-		let provider = getProviderProps();
-
-		provider.onBeforeDragStart( {
-			operation: {
-				source: {
-					data: target,
-				},
-			},
-			preventDefault: jest.fn(),
-		} as unknown as BeforeDragStartEvent );
-
-		rerender(
-			<ColumnDnd enabled={ false } tableIdentity="table-1">
-				{ () => <div /> }
-			</ColumnDnd>
-		);
-		rerender(
-			<ColumnDnd enabled tableIdentity="table-1">
-				{ () => <div /> }
-			</ColumnDnd>
-		);
-		provider = getProviderProps();
-		provider.onDragStart( {
-			operation: {
-				source: {},
-			},
-		} as unknown as DragStartEvent );
-
-		expect( dndInteractionMock.start ).not.toHaveBeenCalled();
 	} );
 } );
