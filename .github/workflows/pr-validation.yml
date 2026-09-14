@@ -18,6 +18,11 @@ on:
         required: true
         type: boolean
         default: true
+      run_form_e2e:
+        description: 'Reorder Form'
+        required: true
+        type: boolean
+        default: true
       run_knip:
         description: 'Run Knip'
         required: true
@@ -154,6 +159,7 @@ jobs:
       WP_PASSWORD: admin
       RUN_ROW_E2E: ${{ inputs.run_row_e2e }}
       RUN_COLUMN_E2E: ${{ inputs.run_column_e2e }}
+      RUN_FORM_E2E: ${{ inputs.run_form_e2e }}
 
     steps:
       - name: Check out repository
@@ -232,6 +238,9 @@ jobs:
           fi
           if [[ "${RUN_COLUMN_E2E}" == "true" ]]; then
             projects+=(--project=column)
+          fi
+          if [[ "${RUN_FORM_E2E}" == "true" ]]; then
+            projects+=(--project=form)
           fi
 
           docker run --rm \
