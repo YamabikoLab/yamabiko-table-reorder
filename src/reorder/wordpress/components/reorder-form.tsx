@@ -11,7 +11,10 @@ import { useRef } from '@wordpress/element';
 import type { MouseEvent as ReactMouseEvent, PointerEvent as ReactPointerEvent } from 'react';
 
 import {
-	getColumnMergedRangeMessage,
+	getBodyBlockingMergedCellMessage,
+	getSectionBlockingMergedCellMessage,
+} from '@/blocking-merged-cell-message';
+import {
 	getRfAboveLabel,
 	getRfApplyLabel,
 	getRfBelowLabel,
@@ -34,7 +37,6 @@ import {
 	getRfTargetColumnLabel,
 	getRfTargetRowLabel,
 	getRfUnavailableMessage,
-	getRowMergedRangeMessage,
 } from '@/messages';
 import type { ColumnInputDescriptor } from '@/reorder/column-reorder/responsibilities/table-integration';
 import { rfInteraction } from '@/reorder/reorder-form/responsibilities/interaction';
@@ -47,14 +49,12 @@ import {
 
 import './reorder-form.scss';
 
-/** RF入力Popoverの表示に必要な対象Table、配置基準、現在状態。 */
 type ReorderFormPopoverProps = {
 	anchor: HTMLElement | null;
 	tableIdentity: string;
 	state: RfInteractionReactState;
 };
 
-/** RF入力Popoverのドラッグ開始から終了まで保持するPointer操作情報。 */
 type ReorderFormDragState = {
 	pointerId: number;
 	startX: number;
@@ -67,46 +67,21 @@ type ReorderFormDragState = {
 	view: Window;
 };
 
-/** 意図しない小さなPointer移動をPopover移動として扱わない距離。 */
 const dragThreshold = 4;
-
-/** Popover外のTable操作だけではRF Sessionを終了しない。 */
 const ignorePopoverClose = () => undefined;
 
-/**
- * Pointer操作対象がRF入力や確定操作そのものかを判定する。
- *
- * 直接操作する部品ではPopover移動を開始せず、通常の入力・選択・ボタン操作を優先する。
- *
- * @param target Pointer操作を開始したDOM EventTarget。
- * @return RF入力や確定操作を直接受ける要素の場合はtrue。それ以外はfalse。
- */
 const isDirectInteractionTarget = ( target: EventTarget | null ): boolean => {
 	const element = target as Element | null;
 	if ( element === null || typeof element.closest !== 'function' ) {
 		return false;
 	}
 
-	const directInteractionTarget =
-		element.closest( 'input, select, textarea, button, a, [contenteditable="true"]' ) !== null;
-	return directInteractionTarget;
+	return element.closest( 'input, select, textarea, button, a, [contenteditable="true"]' ) !== null;
 };
 
-/**
- * 現在列記述を利用者向け選択肢へ変換する。
- *
- * @param descriptor RF Interactionが公開する現在列記述。
- * @return 見出しがある場合は見出しと列番号、ない場合は列番号だけを示す表示名。
- */
 const getColumnOptionLabel = ( descriptor: ColumnInputDescriptor ): string =>
 	getRfColumnOptionLabel( descriptor.columnNumber, descriptor.heading );
 
-/**
- * RF Interactionの現在結果を、利用者が指定を修正できる一つの案内へ変換する。
- *
- * @param state 現在Tableから見たRF Interaction状態。
- * @return 表示すべき案内。入力待ちまたは並び替え可能ならnull。
- */
 const getCurrentResultMessage = ( state: RfInteractionReactState ): string | null => {
 	if (
 		state.status !== 'open' ||
@@ -124,22 +99,23 @@ const getCurrentResultMessage = ( state: RfInteractionReactState ): string | nul
 		return getRfNoOpMessage();
 	}
 
-	if ( state.kind === 'row' ) {
-		const { rowStart, rowEnd } = state.result.blockingMergedRange;
-		return getRowMergedRangeMessage( rowStart + 1, rowEnd + 1 );
+	const location = {
+		rowStart: state.result.blockingMergedCell.rowStart + 1,
+		rowEnd: state.result.blockingMergedCell.rowEnd + 1,
+		columnStart: state.result.blockingMergedCell.columnStart + 1,
+		columnEnd: state.result.blockingMergedCell.columnEnd + 1,
+	};
+
+	if ( state.kind === 'row' || state.result.blockingMergedCell.section === 'body' ) {
+		return getBodyBlockingMergedCellMessage( location );
 	}
 
-	const { columnStart, columnEnd } = state.result.blockingMergedRange;
-	return getColumnMergedRangeMessage( columnStart + 1, columnEnd + 1 );
+	return getSectionBlockingMergedCellMessage(
+		state.result.blockingMergedCell.section,
+		location
+	);
 };
 
-/**
- * 手動配置されたRF入力PopoverをWordPress Popoverへ渡す仮想配置基準へ変換する。
- *
- * @param position      Editor viewport基準のPopover左上位置。
- * @param ownerDocument 現在のEditor DOMを所有するdocument。
- * @return 指定位置を原点とするWordPress Popover用仮想配置基準。
- */
 const createManualPopoverAnchor = ( position: ReorderFormPosition, ownerDocument: Document ) => ( {
 	ownerDocument,
 	getBoundingClientRect: (): DOMRect =>
@@ -156,18 +132,6 @@ const createManualPopoverAnchor = ( position: ReorderFormPosition, ownerDocument
 		} ) as DOMRect,
 } );
 
-/**
- * 対応TableのRF入力画面をToolbar基準のPopoverとして表示する。
- *
- * 初期表示はRF Toolbar入口を基準とし、利用者が入力部品以外のPopover面をドラッグした後はその位置を
- * 同一RF Session中で維持する。
- *
- * @param props               対象Table、Toolbar anchor、RF Interaction状態。
- * @param props.anchor        RF Toolbar入口のDOM要素。
- * @param props.tableIdentity RF Session対象Table Identity。
- * @param props.state         対象Tableから見た現在RF Interaction状態。
- * @return RFがopenで配置基準を取得できている場合の入力Popover。それ以外はnull。
- */
 export const ReorderFormPopover = ( props: ReorderFormPopoverProps ) => {
 	const { anchor, state, tableIdentity } = props;
 	const dragStateRef = useRef< ReorderFormDragState | null >( null );
@@ -195,11 +159,6 @@ export const ReorderFormPopover = ( props: ReorderFormPopoverProps ) => {
 		position === null ? anchor : createManualPopoverAnchor( position, anchor.ownerDocument );
 	const popoverOffset = manuallyPositioned ? 0 : 8;
 
-	/**
-	 * RF入力Popoverの直接操作部品以外からPointer移動を開始する。
-	 *
-	 * @param event Popover面で開始されたprimary pointer操作。
-	 */
 	const startDragging = ( event: ReactPointerEvent< HTMLDivElement > ): void => {
 		if ( ! event.isPrimary || event.button !== 0 || isDirectInteractionTarget( event.target ) ) {
 			return;
@@ -226,11 +185,6 @@ export const ReorderFormPopover = ( props: ReorderFormPopoverProps ) => {
 		event.currentTarget.setPointerCapture( event.pointerId );
 	};
 
-	/**
-	 * 現在RF入力PopoverをPointer位置へ追従させ、Editor viewport内に操作可能な範囲を維持する。
-	 *
-	 * @param event ドラッグ中のprimary pointer操作。
-	 */
 	const moveDragging = ( event: ReactPointerEvent< HTMLDivElement > ): void => {
 		const dragState = dragStateRef.current;
 		if ( dragState === null || dragState.pointerId !== event.pointerId ) {
@@ -261,13 +215,6 @@ export const ReorderFormPopover = ( props: ReorderFormPopoverProps ) => {
 		event.preventDefault();
 	};
 
-	/**
-	 * RF入力PopoverのPointer移動を終了する。
-	 *
-	 * ドラッグ後にラベル等のclickが発火して入力値を変更しないよう、その直後のclickだけを無効にする。
-	 *
-	 * @param event 終了または取消されたPointer操作。
-	 */
 	const stopDragging = ( event: ReactPointerEvent< HTMLDivElement > ): void => {
 		const dragState = dragStateRef.current;
 		if ( dragState === null || dragState.pointerId !== event.pointerId ) {
@@ -287,11 +234,6 @@ export const ReorderFormPopover = ( props: ReorderFormPopoverProps ) => {
 		}
 	};
 
-	/**
-	 * ドラッグ終了によって生成されたclickだけを入力操作として扱わない。
-	 *
-	 * @param event RF入力Popover内で発生したclick。
-	 */
 	const suppressDraggedClick = ( event: ReactMouseEvent< HTMLDivElement > ): void => {
 		if ( ! suppressClickRef.current ) {
 			return;
