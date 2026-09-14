@@ -29,7 +29,7 @@ export type ColumnInputDescriptor = {
 };
 
 /** Table全体で列順更新の対象となるsection。 */
-export type TableSectionName = 'head' | 'body' | 'foot';
+type TableSectionName = 'head' | 'body' | 'foot';
 
 /** 列移動を成立させない結合セルの論理位置。 */
 export type ColumnBlockingMergedRange = {
