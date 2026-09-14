@@ -592,6 +592,30 @@ const getBlockingMergedRange = ( move: ColumnMove ): ColumnBlockingMergedRange |
 };
 
 /**
+ * DnD開始対象となる列が属する最初の横結合範囲を取得する。
+ *
+ * @param clientId          対象Table個体を識別するclientId。
+ * @param sourceColumnIndex Table全体の0-based移動元論理列位置。
+ * @return 移動元列を含む0-based・両端inclusiveの論理列範囲。構造拒否がない場合はnull。
+ */
+const getSourceBlockingMergedRange = (
+	clientId: string,
+	sourceColumnIndex: number
+): ColumnBlockingMergedRange | null => {
+	const currentTable = getCurrentColumnTable( clientId );
+	/* 診断元となる現在Tableを解析できない場合は、横結合範囲を推測しない。 */
+	if ( currentTable === null ) {
+		return null;
+	}
+
+	const sourceRange = currentTable.parsedTable.mergedRanges.find(
+		( range ) => sourceColumnIndex >= range.columnStart && sourceColumnIndex <= range.columnEnd
+	);
+	const blockingRange = sourceRange ?? null;
+	return blockingRange;
+};
+
+/**
  * 移動前の列間境界を、移動元除去後の最終論理列位置へ解釈する。
  *
  * Assessmentと確定更新が同じ方向固有Move意味を利用するため、この境界を列移動の正本とする。
@@ -783,6 +807,7 @@ export const columnTableIntegration = {
 	getConstraints,
 	getColumnInputDescriptors,
 	getBlockingMergedRange,
+	getSourceBlockingMergedRange,
 	getAffectedCellCount,
 	resolveDestinationColumnIndex,
 	assessColumnMoveForApply,
