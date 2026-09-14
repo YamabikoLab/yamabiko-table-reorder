@@ -4,8 +4,8 @@ import type { Editor } from '@wordpress/e2e-test-utils-playwright';
 import { getEditorContext } from '../editor-context';
 
 export const COLUMN_BUTTON = /^(Reorder columns|列を並び替え|列を並べ替え)$/;
-export const REJECTION =
-	/^(Cannot move because cells are merged\.|セルが結合されているため、移動できません。)$/;
+export const MERGED_RANGE_REJECTION =
+	/^(A merged cell in row 1 spanning columns 1–2 prevents this move\.|1行目の1〜2列目に結合セルがあるため、この指定では移動できません。)$/;
 
 export type TableName = 'core/table' | 'flexible-table-block/table';
 export type Point = { x: number; y: number };

@@ -35,8 +35,12 @@ import {
 	type ColumnDndPointerDownHandler,
 } from '@/reorder/column-reorder/responsibilities/input';
 import { ColumnPresentation } from '@/reorder/column-reorder/responsibilities/presentation/column-presentation';
+import type {
+	ColumnStartRejectionNoticeHandle,
+	ColumnStartRejectionNoticeRequest,
+} from '@/reorder/column-reorder/responsibilities/presentation/start-rejection-notice';
 import {
-	columnReorderTargetResolution,
+	resolveColumnReorderTarget,
 	type ColumnReorderTarget,
 	type ColumnReorderTargetResolution,
 } from '@/reorder/column-reorder/responsibilities/target-resolution';
@@ -85,6 +89,7 @@ export const ColumnDnd = ( props: {
 	const { presentationEnabled = false, tableIdentity, children } = props;
 	const activeDraggable = useRef< Draggable | null >( null );
 	const destinationResolver = useRef< ColumnDestinationResolver | null >( null );
+	const startRejectionNotice = useRef< ColumnStartRejectionNoticeHandle | null >( null );
 	const latestDragMoveEvent = useRef< DragMoveEvent | null >( null );
 	const resolvedStart = useRef< Extract<
 		ColumnReorderTargetResolution,
@@ -116,6 +121,11 @@ export const ColumnDnd = ( props: {
 		activeDraggable.current = null;
 	}, [ horizontalAutoScroll ] );
 
+	/** 開始拒否表示の更新をTable subtreeへ伝播させず、所有するNoticeへ直接渡す。 */
+	const onStartRejection = useCallback( ( request: ColumnStartRejectionNoticeRequest ): void => {
+		startRejectionNotice.current?.show( request );
+	}, [] );
+
 	useEffect( () => {
 		const unsubscribe = subscribeReorderMode( tableIdentity, () => {
 			/* Column Reorder Modeから離脱した時点で、React renderを待たず一時状態を破棄する。 */
@@ -133,7 +143,7 @@ export const ColumnDnd = ( props: {
 
 	const onBeforeDragStart = ( event: BeforeDragStartEvent ) => {
 		const target = event?.operation?.source?.data as ColumnReorderTarget;
-		const resolution = columnReorderTargetResolution.resolve( target );
+		const resolution = resolveColumnReorderTarget( target );
 
 		if ( resolution.status !== 'resolved' ) {
 			event.preventDefault();
@@ -202,8 +212,14 @@ export const ColumnDnd = ( props: {
 			onDragMove={ onDragMove }
 			onDragEnd={ onDragEnd }
 		>
-			{ presentationEnabled && <ColumnPresentation /> }
-			<ColumnInput tableIdentity={ tableIdentity } activeDraggable={ activeDraggable }>
+			{ presentationEnabled && (
+				<ColumnPresentation startRejectionNoticeRef={ startRejectionNotice } />
+			) }
+			<ColumnInput
+				tableIdentity={ tableIdentity }
+				activeDraggable={ activeDraggable }
+				onStartRejection={ onStartRejection }
+			>
 				{ ( onPointerDownCapture ) =>
 					children( ( event ) => {
 						/* 現在modeが列でない入力は、安定した接続を維持したままColumn Inputへ渡さない。 */

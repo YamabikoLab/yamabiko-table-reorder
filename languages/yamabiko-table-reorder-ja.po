@@ -71,61 +71,57 @@ msgstr "%1$sの%2$d行目の%3$d〜%4$d列目に結合セルがあるため、�
 msgid "A merged cell spanning %1$s rows %2$d–%3$d and columns %4$d–%5$d prevents this move."
 msgstr "%1$sの%2$d〜%3$d行目の%4$d〜%5$d列目に結合セルがあるため、この指定では移動できません。"
 
-#: src/messages.ts:242
-msgid "Cannot move because cells are merged."
-msgstr "セルが結合されているため、移動できません。"
-
-#: src/messages.ts:250
+#: src/messages.ts:234
 msgid "Reordering could not continue, so the operation was ended."
 msgstr "並び替えを続けられないため、操作を終了しました。"
 
-#: src/messages.ts:258
+#: src/messages.ts:242
 msgid "Reorder rows and columns."
 msgstr "行・列を並び替えられます。"
 
-#: src/messages.ts:266
+#: src/messages.ts:250
 msgid "Long press a cell, then drag to reorder rows and columns."
 msgstr "セルを長押ししてからドラッグすると、行・列を並び替えられます。"
 
-#: src/messages.ts:274
+#: src/messages.ts:258
 msgid "Close reorder guidance"
 msgstr "並び替えの案内を閉じる"
 
-#: src/messages.ts:278
+#: src/messages.ts:262
 msgid "Apply the new order?"
 msgstr "並び替えを反映しますか？"
 
 #. 1: 移動元の行番号, 2: 移動先の行番号
-#: src/messages.ts:292
+#: src/messages.ts:276
 msgid "Row %1$d → %2$d"
 msgstr "%1$d行目 → %2$d行目"
 
 #. 1: 移動元の列番号, 2: 移動先の列番号
-#: src/messages.ts:308
+#: src/messages.ts:292
 msgid "Column %1$d → %2$d"
 msgstr "%1$d列目 → %2$d列目"
 
-#: src/messages.ts:314
+#: src/messages.ts:298
 msgid "Applying this reorder may take some time."
 msgstr "この並び替えの反映には時間がかかる場合があります。"
 
-#: src/messages.ts:317
+#: src/messages.ts:301
 msgid "Continue"
 msgstr "続行"
 
-#: src/messages.ts:320
+#: src/messages.ts:304
 msgid "Cancel"
 msgstr "キャンセル"
 
-#: src/messages.ts:324
+#: src/messages.ts:308
 msgid "Applying the new order…"
 msgstr "並び替えを反映しています…"
 
-#: src/messages.ts:328
+#: src/messages.ts:312
 msgid "Please wait until the update is complete."
 msgstr "完了するまでしばらくお待ちください。"
 
-#: src/messages.ts:332
+#: src/messages.ts:316
 msgid "Reordering complete."
 msgstr "並び替えが完了しました。"
 

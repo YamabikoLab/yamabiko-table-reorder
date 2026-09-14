@@ -7,8 +7,7 @@ import { render } from '@testing-library/react';
 import type { PointerEvent as ReactPointerEvent } from 'react';
 
 import { ColumnInput, type ColumnDndPointerDownHandler } from './input';
-import { notifyColumnStartRejection } from './presentation/start-rejection-notice-event';
-import { columnReorderTargetResolution } from './target-resolution';
+import { resolveColumnReorderTarget } from './target-resolution';
 
 jest.mock( '@dnd-kit/dom', () => ( {
 	Draggable: jest.fn(),
@@ -29,32 +28,28 @@ jest.mock( '@/reorder/column-reorder/integration/source-column-resolution', () =
 	resolveColumnSourceIndex: jest.fn( () => 1 ),
 } ) );
 
-jest.mock( './presentation/start-rejection-notice-event', () => ( {
-	notifyColumnStartRejection: jest.fn(),
-} ) );
-
 jest.mock( './target-resolution', () => ( {
-	columnReorderTargetResolution: {
-		resolve: jest.fn(),
-	},
+	resolveColumnReorderTarget: jest.fn(),
 } ) );
 
 const useDragDropManagerMock = useDragDropManager as jest.MockedFunction<
 	typeof useDragDropManager
 >;
-const targetResolutionMock = columnReorderTargetResolution.resolve as jest.MockedFunction<
-	typeof columnReorderTargetResolution.resolve
->;
-const notifyColumnStartRejectionMock = notifyColumnStartRejection as jest.MockedFunction<
-	typeof notifyColumnStartRejection
+const resolveColumnReorderTargetMock = resolveColumnReorderTarget as jest.MockedFunction<
+	typeof resolveColumnReorderTarget
 >;
 
 /** Column Inputが公開する開始処理を取得する。 */
-const renderColumnInput = (): ColumnDndPointerDownHandler => {
+const renderColumnInput = () => {
 	const capturedHandler: { current: ColumnDndPointerDownHandler | null } = { current: null };
+	const onStartRejection = jest.fn();
 
 	render(
-		<ColumnInput tableIdentity="table-a" activeDraggable={ { current: null } }>
+		<ColumnInput
+			tableIdentity="table-a"
+			activeDraggable={ { current: null } }
+			onStartRejection={ onStartRejection }
+		>
 			{ ( handler ) => {
 				capturedHandler.current = handler;
 				return <div />;
@@ -66,7 +61,7 @@ const renderColumnInput = (): ColumnDndPointerDownHandler => {
 		throw new Error( 'ColumnInput did not provide a pointer handler.' );
 	}
 
-	return capturedHandler.current;
+	return { pointerDownHandler: capturedHandler.current, onStartRejection };
 };
 
 /** 開始拒否確認に必要なTableとポインター入力を生成する。 */
@@ -116,16 +111,23 @@ describe( 'Column input start rejection', () => {
 	 * - 開始拒否理由と操作位置がPresentationへ一回通知される。
 	 */
 	it( 'when target resolution rejects the column, should notify the presentation with the rejection reason and interaction position', () => {
-		targetResolutionMock.mockReturnValue( {
+		const blockingMergedRange = {
+			section: 'body' as const,
+			rowStart: 0,
+			rowEnd: 0,
+			columnStart: 0,
+			columnEnd: 1,
+		};
+		resolveColumnReorderTargetMock.mockReturnValue( {
 			status: 'rejected',
-			reason: 'merged-range',
+			blockingMergedRange,
 		} );
-		const pointerDownHandler = renderColumnInput();
+		const { pointerDownHandler, onStartRejection } = renderColumnInput();
 
 		pointerDownHandler( createPointerInput() );
 
-		expect( notifyColumnStartRejectionMock ).toHaveBeenCalledWith( {
-			reason: 'merged-range',
+		expect( onStartRejection ).toHaveBeenCalledWith( {
+			blockingMergedRange,
 			clientX: 120,
 			clientY: 240,
 		} );
@@ -144,11 +146,11 @@ describe( 'Column input start rejection', () => {
 	 * - 開始拒否通知は発生しない。
 	 */
 	it( 'when target resolution returns unavailable, should not notify a start rejection', () => {
-		targetResolutionMock.mockReturnValue( { status: 'unavailable' } );
-		const pointerDownHandler = renderColumnInput();
+		resolveColumnReorderTargetMock.mockReturnValue( { status: 'unavailable' } );
+		const { pointerDownHandler, onStartRejection } = renderColumnInput();
 
 		pointerDownHandler( createPointerInput() );
 
-		expect( notifyColumnStartRejectionMock ).not.toHaveBeenCalled();
+		expect( onStartRejection ).not.toHaveBeenCalled();
 	} );
 } );

@@ -3,7 +3,7 @@
  *
  * 移動可能な列は現在セルだけを操作可能表示とし、結合範囲により移動できない列は現在セルだけを移動不可表示として区別する。
  * Presentation自身では列構造制約を解釈せず、Reorder Target Resolutionが返す開始可否だけを表示へ反映する。
- * Reorder Mode離脱は非React購読で受け取り、React renderを要求せず表示とResolverを破棄する。
+ * Reorder Mode離脱は非React購読で受け取り、React renderを要求せず表示を破棄する。
  */
 
 import { useEffect, useRef } from '@wordpress/element';
@@ -14,7 +14,7 @@ import {
 	getColumnDndPhase,
 	subscribeColumnDndState,
 } from '@/reorder/column-reorder/responsibilities/dnd-interaction';
-import { columnReorderTargetResolution } from '@/reorder/column-reorder/responsibilities/target-resolution';
+import { resolveColumnReorderTarget } from '@/reorder/column-reorder/responsibilities/target-resolution';
 import { columnReorderMode } from '@/reorder/reorder-mode';
 import { subscribeReorderMode } from '@/reorder/reorder-mode-subscription';
 
@@ -49,8 +49,8 @@ const clearVisualState = ( cell: HTMLTableCellElement | null ): void => {
 /**
  * 現在のTarget Resolution結果に応じて、DnD開始前のセルへ操作可能または移動不可を予告表示する。
  *
- * Resolverは最初の有効な開始可否判定で生成し、同一Highlight Lifecycle内で再利用する。
- * DnD開始時とColumn Reorder Mode離脱時は開始前表示とResolverを破棄する。
+ * hover対象が変わるたびに要求時点のTableから開始可否を解決する。
+ * DnD開始時とColumn Reorder Mode離脱時は開始前表示を破棄する。
  * 開始可否は方向固有Reorder Mode APIから入力時に直接参照し、mode変更をReact props更新として要求しない。
  *
  * @param props               セル予告表示に必要な値。
@@ -67,44 +67,31 @@ export const ColumnHighlight = ( props: {
 } ) => {
 	const { tableIdentity, children } = props;
 	const currentCell = useRef< HTMLTableCellElement | null >( null );
-	const resolver = useRef< ReturnType<
-		typeof columnReorderTargetResolution.createResolver
-	> | null >( null );
-	const resolverTableIdentity = useRef< string | null >( null );
 
 	useEffect( () => {
-		resolver.current = null;
-		resolverTableIdentity.current = null;
-
 		const clearHighlightState = (): void => {
 			clearVisualState( currentCell.current );
 			currentCell.current = null;
 		};
 
-		const clearTransientHighlightState = (): void => {
-			clearHighlightState();
-			resolver.current = null;
-			resolverTableIdentity.current = null;
-		};
-
 		const synchronizeDndLifecycle = (): void => {
 			if ( getColumnDndPhase() === 'active' ) {
-				clearTransientHighlightState();
+				clearHighlightState();
 			}
 		};
 
 		const unsubscribeDnd = subscribeColumnDndState( synchronizeDndLifecycle );
 		const unsubscribeMode = subscribeReorderMode( tableIdentity, () => {
-			/* Column Reorder Modeから離脱した時点で、React renderを待たず開始前表示とResolverを破棄する。 */
+			/* Column Reorder Modeから離脱した時点で、React renderを待たず開始前表示を破棄する。 */
 			if ( ! columnReorderMode.isActive( tableIdentity ) ) {
-				clearTransientHighlightState();
+				clearHighlightState();
 			}
 		} );
 
 		return () => {
 			unsubscribeDnd();
 			unsubscribeMode();
-			clearTransientHighlightState();
+			clearHighlightState();
 		};
 	}, [ tableIdentity ] );
 
@@ -137,12 +124,10 @@ export const ColumnHighlight = ( props: {
 			return;
 		}
 
-		if ( resolver.current === null || resolverTableIdentity.current !== tableIdentity ) {
-			resolver.current = columnReorderTargetResolution.createResolver( tableIdentity );
-			resolverTableIdentity.current = tableIdentity;
-		}
-
-		const resolution = resolver.current.resolve( sourceColumnIndex );
+		const resolution = resolveColumnReorderTarget( {
+			tableIdentity,
+			sourceColumnIndex,
+		} );
 		currentCell.current = cell;
 
 		if ( resolution.status === 'resolved' ) {

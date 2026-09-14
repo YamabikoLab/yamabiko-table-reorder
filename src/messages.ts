@@ -115,11 +115,11 @@ export const getRfUnavailableMessage = () =>
 		'yamabiko-table-reorder'
 	);
 
-/** RFの結合セル位置表示で利用するTable section。 */
-type RfMergedCellSection = 'head' | 'body' | 'foot';
+/** 結合セル位置表示で利用するTable section。 */
+type MergedCellSection = 'head' | 'body' | 'foot';
 
 /**
- * RFの行移動を妨げる結合セル位置を知らせる文言を取得する。
+ * 行移動を妨げる結合セル位置を知らせる文言を取得する。
  *
  * 単一行では行番号と列範囲、複数行かつ単一列では行範囲と列番号、それ以外では行・列の両範囲を示す。
  *
@@ -129,7 +129,7 @@ type RfMergedCellSection = 'head' | 'body' | 'foot';
  * @param columnEnd   利用者向け1-based終了列番号。
  * @return 最初に確認された移動を妨げる結合セルを示す案内文。
  */
-export const getRfRowMergedRangeMessage = (
+export const getRowMergedRangeMessage = (
 	rowStart: number,
 	rowEnd: number,
 	columnStart: number,
@@ -164,9 +164,9 @@ export const getRfRowMergedRangeMessage = (
 };
 
 /**
- * RFの列移動を妨げる結合セル位置を知らせる文言を取得する。
+ * 列移動を妨げる結合セル位置を知らせる文言を取得する。
  *
- * bodyではRow RFと同じ位置表現を使用し、headとfootでは領域名を併記する。section内の単一行では行番号、複数行では行範囲を示す。
+ * bodyでは行方向と同じ位置表現を使用し、headとfootでは領域名を併記する。section内の単一行では行番号、複数行では行範囲を示す。
  *
  * @param section     原因セルが存在するTable section。
  * @param rowStart    利用者向け1-based開始行番号。
@@ -175,16 +175,16 @@ export const getRfRowMergedRangeMessage = (
  * @param columnEnd   利用者向け1-based終了列番号。
  * @return 最初に確認された移動を妨げる結合セルを示す案内文。
  */
-export const getRfColumnMergedRangeMessage = (
-	section: RfMergedCellSection,
+export const getColumnMergedRangeMessage = (
+	section: MergedCellSection,
 	rowStart: number,
 	rowEnd: number,
 	columnStart: number,
 	columnEnd: number
 ) => {
-	/* tbodyの原因セルはRow RFと同じ行・列位置表現で利用者が特定できる。 */
+	/* tbodyの原因セルは行方向と同じ行・列位置表現で利用者が特定できる。 */
 	if ( section === 'body' ) {
-		return getRfRowMergedRangeMessage( rowStart, rowEnd, columnStart, columnEnd );
+		return getRowMergedRangeMessage( rowStart, rowEnd, columnStart, columnEnd );
 	}
 
 	/* headとfootではsection内行番号だけではTable上の位置を区別できないため、領域名を併記する。 */
@@ -224,22 +224,6 @@ export const getRfApplyLabel = () => __( 'Reorder', 'yamabiko-table-reorder' );
  */
 export const getRfApplyFailureMessage = () =>
 	__( 'Reordering failed. The table has not been changed.', 'yamabiko-table-reorder' );
-
-/**
- * 結合セルにより行DnDを開始できない理由を知らせる文言を取得する。
- *
- * @return 現在の言語に対応した行DnD開始拒否メッセージ。
- */
-export const getRowDndStartRejectionMessage = () =>
-	__( 'Cannot move because cells are merged.', 'yamabiko-table-reorder' );
-
-/**
- * 結合セルにより列DnDを開始できない理由を知らせる文言を取得する。
- *
- * @return 現在の言語に対応した列DnD開始拒否メッセージ。
- */
-export const getColumnDndStartRejectionMessage = () =>
-	__( 'Cannot move because cells are merged.', 'yamabiko-table-reorder' );
 
 /**
  * 行DnDを安全に継続できず終了したことを知らせる文言を取得する。

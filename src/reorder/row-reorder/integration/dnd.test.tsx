@@ -19,7 +19,7 @@ import type { ReactNode } from 'react';
 import { reorderMode } from '@/reorder/reorder-mode';
 import { createRowDestinationResolver } from '@/reorder/row-reorder/integration/destination-resolution';
 import { rowDndInteraction } from '@/reorder/row-reorder/responsibilities/dnd-interaction';
-import { rowReorderTargetResolution } from '@/reorder/row-reorder/responsibilities/target-resolution';
+import { resolveRowReorderTarget } from '@/reorder/row-reorder/responsibilities/target-resolution';
 import { RowDnd } from './dnd';
 
 jest.mock( '@dnd-kit/dom', () => ( {
@@ -42,9 +42,7 @@ jest.mock( '@/reorder/row-reorder/responsibilities/dnd-interaction', () => ( {
 } ) );
 
 jest.mock( '@/reorder/row-reorder/responsibilities/target-resolution', () => ( {
-	rowReorderTargetResolution: {
-		resolve: jest.fn(),
-	},
+	resolveRowReorderTarget: jest.fn(),
 } ) );
 
 jest.mock( '@/reorder/row-reorder/integration/destination-resolution', () => ( {
@@ -75,8 +73,8 @@ jest.mock( '@dnd-kit/react', () => ( {
 const dragDropProviderMock = DragDropProvider as unknown as jest.Mock;
 const autoScrollerConfigureMock = AutoScroller.configure as jest.Mock;
 const interactionMock = rowDndInteraction as jest.Mocked< typeof rowDndInteraction >;
-const targetResolutionMock = rowReorderTargetResolution as jest.Mocked<
-	typeof rowReorderTargetResolution
+const resolveRowReorderTargetMock = resolveRowReorderTarget as jest.MockedFunction<
+	typeof resolveRowReorderTarget
 >;
 const destinationResolverFactoryMock = createRowDestinationResolver as jest.MockedFunction<
 	typeof createRowDestinationResolver
@@ -98,7 +96,7 @@ const getProviderProps = () => {
 const mockResolvedTarget = ( sourceRowIndex = 0 ) => {
 	const target = { tableIdentity: 'table-1', sourceRowIndex };
 	const initialConstraints = { rowCount: 3, blockedBoundaries: [] as number[] };
-	targetResolutionMock.resolve.mockReturnValue( {
+	resolveRowReorderTargetMock.mockReturnValue( {
 		status: 'resolved',
 		target,
 		initialConstraints,
@@ -205,7 +203,7 @@ describe( 'Row DnD engine connection', () => {
 	 * - 物理DnD開始が取消され、DnD Interactionのstartは呼ばれない。
 	 */
 	it( 'when target resolution rejects the source, should prevent the physical drag from starting', () => {
-		targetResolutionMock.resolve.mockReturnValue( { status: 'unavailable' } );
+		resolveRowReorderTargetMock.mockReturnValue( { status: 'unavailable' } );
 		render( <RowDnd tableIdentity="table-1">{ () => <div /> }</RowDnd> );
 		const props = getProviderProps();
 		const preventDefault = jest.fn();
@@ -217,7 +215,7 @@ describe( 'Row DnD engine connection', () => {
 		} as unknown as BeforeDragStartEvent );
 		props.onDragStart();
 
-		expect( targetResolutionMock.resolve ).toHaveBeenCalledWith( target );
+		expect( resolveRowReorderTargetMock ).toHaveBeenCalledWith( target );
 		expect( preventDefault ).toHaveBeenCalledTimes( 1 );
 		expect( interactionMock.start ).not.toHaveBeenCalled();
 	} );

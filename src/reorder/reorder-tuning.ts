@@ -46,7 +46,7 @@ export const DND_DROP_ANIMATION_EASING = 'ease-out';
 export const DND_MOVING_SOURCE_OPACITY = '0.35';
 
 /** 結合セルによりDnDを開始できない場合の通知表示時間（ミリ秒）。 */
-export const DND_START_REJECTION_NOTICE_DURATION_MS = 1500;
+export const DND_START_REJECTION_NOTICE_DURATION_MS = 2500;
 
 // RF Interaction
 

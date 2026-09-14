@@ -38,7 +38,7 @@ jest.mock( '@/messages', () => ( {
 	getRfApplyLabel: () => '並び替え',
 	getRfBelowLabel: () => '下',
 	getRfCancelLabel: () => 'キャンセル',
-	getRfColumnMergedRangeMessage: (
+	getColumnMergedRangeMessage: (
 		section: string,
 		rowStart: number,
 		rowEnd: number,
@@ -58,7 +58,7 @@ jest.mock( '@/messages', () => ( {
 	getRfPositionLegend: () => '位置',
 	getRfReorderName: () => 'フォームで並び替え',
 	getRfRightLabel: () => '右',
-	getRfRowMergedRangeMessage: (
+	getRowMergedRangeMessage: (
 		rowStart: number,
 		rowEnd: number,
 		columnStart: number,

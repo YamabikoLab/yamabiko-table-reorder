@@ -1,5 +1,5 @@
 /**
- * Column HighlightがTable解析を入力時まで遅延し、DnD LifecycleをReact再描画から分離してResolverを更新することを確認する。
+ * Column HighlightがTable解析を入力時まで遅延し、各対象を現在Tableから直接解決しながらDnD LifecycleをReact再描画から分離することを確認する。
  */
 
 import { act, fireEvent, render } from '@testing-library/react';
@@ -9,7 +9,7 @@ import {
 	getColumnDndPhase,
 	subscribeColumnDndState,
 } from '@/reorder/column-reorder/responsibilities/dnd-interaction';
-import { columnReorderTargetResolution } from '@/reorder/column-reorder/responsibilities/target-resolution';
+import { resolveColumnReorderTarget } from '@/reorder/column-reorder/responsibilities/target-resolution';
 import { reorderMode } from '@/reorder/reorder-mode';
 
 import { ColumnHighlight } from './column-highlight';
@@ -32,9 +32,7 @@ jest.mock( '@/reorder/column-reorder/responsibilities/dnd-interaction', () => ( 
 } ) );
 
 jest.mock( '@/reorder/column-reorder/responsibilities/target-resolution', () => ( {
-	columnReorderTargetResolution: {
-		createResolver: jest.fn(),
-	},
+	resolveColumnReorderTarget: jest.fn(),
 } ) );
 
 const resolveColumnSourceIndexMock = resolveColumnSourceIndex as jest.MockedFunction<
@@ -44,8 +42,8 @@ const getColumnDndPhaseMock = getColumnDndPhase as jest.MockedFunction< typeof g
 const subscribeColumnDndStateMock = subscribeColumnDndState as jest.MockedFunction<
 	typeof subscribeColumnDndState
 >;
-const createResolverMock = columnReorderTargetResolution.createResolver as jest.MockedFunction<
-	typeof columnReorderTargetResolution.createResolver
+const resolveColumnReorderTargetMock = resolveColumnReorderTarget as jest.MockedFunction<
+	typeof resolveColumnReorderTarget
 >;
 
 /**
@@ -90,20 +88,18 @@ const resetReorderMode = (): void => {
 	} );
 };
 
-describe( 'Column highlight resolver lifecycle', () => {
+describe( 'Column highlight resolution lifecycle', () => {
 	beforeEach( () => {
 		jest.clearAllMocks();
 		mockColumnDndPhase = 'idle';
 		mockColumnDndStateListener = null;
 		resetReorderMode();
 		resolveColumnSourceIndexMock.mockImplementation( ( _table, cell ) => cell.cellIndex );
-		createResolverMock.mockReturnValue( {
-			resolve: ( sourceColumnIndex ) => ( {
-				status: 'resolved',
-				target: { tableIdentity: 'table-a', sourceColumnIndex },
-				initialConstraints: { columnCount: 2, blockedBoundaries: [] },
-			} ),
-		} );
+		resolveColumnReorderTargetMock.mockImplementation( ( target ) => ( {
+			status: 'resolved',
+			target,
+			initialConstraints: { columnCount: 2, blockedBoundaries: [] },
+		} ) );
 	} );
 
 	afterEach( () => {
@@ -117,18 +113,18 @@ describe( 'Column highlight resolver lifecycle', () => {
 	 * - Column Highlightを描画する。
 	 *
 	 * 期待結果:
-	 * - Target Resolverは生成されない。
+	 * - Target Resolutionは実行されない。
 	 * - DnD Lifecycle監視だけが接続される。
 	 */
-	it( 'when column highlight is rendered, should defer resolver creation until a valid highlight request', () => {
+	it( 'when column highlight is rendered, should defer target resolution until a valid highlight request', () => {
 		render( <TestTable /> );
 
-		expect( createResolverMock ).not.toHaveBeenCalled();
+		expect( resolveColumnReorderTargetMock ).not.toHaveBeenCalled();
 		expect( subscribeColumnDndStateMock ).toHaveBeenCalledTimes( 1 );
 	} );
 
 	/**
-	 * 同一Highlight Lifecycleでは最初の有効な入力で生成したResolverを再利用することを確認する。
+	 * hover対象が変わるたびに要求時点のTableから直接解決することを確認する。
 	 *
 	 * 事前条件:
 	 * - Column Reorder Modeが有効で、Column DnDはidleである。
@@ -137,49 +133,55 @@ describe( 'Column highlight resolver lifecycle', () => {
 	 * - 1列目、2列目の順にポインターを移動する。
 	 *
 	 * 期待結果:
-	 * - Resolverは最初の入力時に1回だけ生成される。
+	 * - 各列がそれぞれ現在Tableに対するTargetとして解決される。
 	 */
-	it( 'when multiple columns are highlighted before DnD, should reuse the lazily created resolver', () => {
+	it( 'when multiple columns are highlighted before DnD, should resolve each target directly', () => {
 		activateColumnMode();
 		const { getByTestId } = render( <TestTable /> );
 
 		fireEvent.pointerOver( getByTestId( 'column-0' ) );
 		fireEvent.pointerOver( getByTestId( 'column-1' ) );
 
-		expect( createResolverMock ).toHaveBeenCalledTimes( 1 );
-		expect( createResolverMock ).toHaveBeenCalledWith( 'table-a' );
+		expect( resolveColumnReorderTargetMock ).toHaveBeenNthCalledWith( 1, {
+			tableIdentity: 'table-a',
+			sourceColumnIndex: 0,
+		} );
+		expect( resolveColumnReorderTargetMock ).toHaveBeenNthCalledWith( 2, {
+			tableIdentity: 'table-a',
+			sourceColumnIndex: 1,
+		} );
 	} );
 
 	/**
-	 * DnD開始後は古いResolverを破棄し、active中には新しいResolverを生成しないことを確認する。
+	 * DnD開始後は表示を破棄し、active中にはTarget Resolutionを実行しないことを確認する。
 	 *
 	 * 事前条件:
-	 * - Column Reorder Modeが有効で、idle中の操作可否判定でResolverが生成済みである。
+	 * - Column Reorder Modeが有効で、idle中に操作可否を解決済みである。
 	 *
 	 * 操作:
 	 * - Column DnDをactiveへ移行し、別セルへポインターを移動する。
 	 * - その後idleへ戻して再びセルへポインターを移動する。
 	 *
 	 * 期待結果:
-	 * - active中はResolverを生成しない。
-	 * - idle復帰後の最初の有効な判定で新しいResolverを生成する。
+	 * - active中はTarget Resolutionを実行しない。
+	 * - idle復帰後の最初の有効な判定で現在対象を直接解決する。
 	 */
-	it( 'when column DnD runs after a resolver was created, should recreate it only after returning to idle', () => {
+	it( 'when column DnD becomes active, should resolve another target only after returning to idle', () => {
 		activateColumnMode();
 		const { getByTestId } = render( <TestTable /> );
 
 		fireEvent.pointerOver( getByTestId( 'column-0' ) );
-		expect( createResolverMock ).toHaveBeenCalledTimes( 1 );
+		expect( resolveColumnReorderTargetMock ).toHaveBeenCalledTimes( 1 );
 
 		mockColumnDndPhase = 'active';
 		mockColumnDndStateListener?.();
 		fireEvent.pointerOver( getByTestId( 'column-1' ) );
-		expect( createResolverMock ).toHaveBeenCalledTimes( 1 );
+		expect( resolveColumnReorderTargetMock ).toHaveBeenCalledTimes( 1 );
 
 		mockColumnDndPhase = 'idle';
 		mockColumnDndStateListener?.();
 		fireEvent.pointerOver( getByTestId( 'column-1' ) );
-		expect( createResolverMock ).toHaveBeenCalledTimes( 2 );
+		expect( resolveColumnReorderTargetMock ).toHaveBeenCalledTimes( 2 );
 	} );
 
 	/**

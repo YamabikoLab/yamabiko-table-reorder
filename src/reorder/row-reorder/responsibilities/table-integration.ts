@@ -272,6 +272,30 @@ const getConstraints = ( clientId: string ): RowReorderConstraints | null => {
 };
 
 /**
+ * 行DnD開始対象を成立させない結合セル位置を取得する。
+ *
+ * @param clientId       対象Table個体を識別するclientId。
+ * @param sourceRowIndex 現在のtbodyを基準とする0-based移動元行位置。
+ * @return 移動元を妨げる0-based・両端inclusiveの結合セル位置。構造拒否がない場合はnull。
+ */
+const getSourceBlockingMergedRange = (
+	clientId: string,
+	sourceRowIndex: number
+): RowBlockingMergedRange | null => {
+	const parsedTable = getParsedRowTable( clientId );
+	/* 診断元となる現在Tableを解析できない場合は、結合セル位置を推測しない。 */
+	if ( parsedTable === null ) {
+		return null;
+	}
+
+	const sourceRange = parsedTable.mergedRanges.find(
+		( range ) => sourceRowIndex >= range.rowStart && sourceRowIndex <= range.rowEnd
+	);
+	const blockingRange = sourceRange ?? null;
+	return blockingRange;
+};
+
+/**
  * 現在の行構造に対して移動候補が成立するか方向固有ルールで判定する。
  *
  * @param parsedTable 要求時点の解析済みtbody。
@@ -450,6 +474,7 @@ const applyRowMove = ( move: RowMove ): boolean => {
  */
 export const rowTableIntegration = {
 	getConstraints,
+	getSourceBlockingMergedRange,
 	getBlockingMergedRange,
 	getAffectedCellCount,
 	resolveDestinationRowIndex,

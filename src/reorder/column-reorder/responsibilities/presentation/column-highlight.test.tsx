@@ -9,7 +9,7 @@ import {
 	getColumnDndPhase,
 	subscribeColumnDndState,
 } from '@/reorder/column-reorder/responsibilities/dnd-interaction';
-import { columnReorderTargetResolution } from '@/reorder/column-reorder/responsibilities/target-resolution';
+import { resolveColumnReorderTarget } from '@/reorder/column-reorder/responsibilities/target-resolution';
 import { reorderMode } from '@/reorder/reorder-mode';
 
 import { ColumnHighlight } from './column-highlight';
@@ -32,16 +32,14 @@ jest.mock( '@/reorder/column-reorder/integration/source-column-resolution', () =
 } ) );
 
 jest.mock( '@/reorder/column-reorder/responsibilities/target-resolution', () => ( {
-	columnReorderTargetResolution: {
-		createResolver: jest.fn(),
-	},
+	resolveColumnReorderTarget: jest.fn(),
 } ) );
 
 const resolveColumnSourceIndexMock = resolveColumnSourceIndex as jest.MockedFunction<
 	typeof resolveColumnSourceIndex
 >;
-const createResolverMock = columnReorderTargetResolution.createResolver as jest.MockedFunction<
-	typeof columnReorderTargetResolution.createResolver
+const resolveColumnReorderTargetMock = resolveColumnReorderTarget as jest.MockedFunction<
+	typeof resolveColumnReorderTarget
 >;
 
 /**
@@ -97,8 +95,6 @@ const TestTable = ( props: { tableIdentity?: string } ) => (
 );
 
 describe( 'Column highlight', () => {
-	let resolveMock: jest.Mock;
-
 	beforeEach( () => {
 		jest.clearAllMocks();
 		resetReorderMode();
@@ -108,12 +104,11 @@ describe( 'Column highlight', () => {
 		mockColumnDndPhase = 'idle';
 		mockColumnDndStateListener = null;
 		resolveColumnSourceIndexMock.mockImplementation( ( _table, cell ) => cell.cellIndex );
-		resolveMock = jest.fn( ( sourceColumnIndex: number ) => ( {
+		resolveColumnReorderTargetMock.mockImplementation( ( target ) => ( {
 			status: 'resolved',
-			target: { tableIdentity: 'table-a', sourceColumnIndex },
+			target,
 			initialConstraints: { columnCount: 3, blockedBoundaries: [] },
 		} ) );
-		createResolverMock.mockReturnValue( { resolve: resolveMock } );
 	} );
 
 	afterEach( () => {
@@ -151,7 +146,16 @@ describe( 'Column highlight', () => {
 	 * - 現在セルだけに移動不可表示が付き、他セルには表示が付かない。
 	 */
 	it( 'when target resolution rejects the current column, should preview only the current cell as unavailable', () => {
-		resolveMock.mockReturnValue( { status: 'rejected', reason: 'merged-range' } );
+		resolveColumnReorderTargetMock.mockReturnValue( {
+			status: 'rejected',
+			blockingMergedRange: {
+				section: 'body',
+				rowStart: 0,
+				rowEnd: 0,
+				columnStart: 0,
+				columnEnd: 1,
+			},
+		} );
 		const { getByTestId } = render( <TestTable /> );
 		fireEvent.pointerOver( getByTestId( 'column-1' ), { pointerType: 'mouse' } );
 
@@ -170,7 +174,7 @@ describe( 'Column highlight', () => {
 	 * - 現在セルに操作可能または移動不可の表示を付けない。
 	 */
 	it( 'when target resolution returns unavailable, should not preview an availability state', () => {
-		resolveMock.mockReturnValue( { status: 'unavailable' } );
+		resolveColumnReorderTargetMock.mockReturnValue( { status: 'unavailable' } );
 		const { getByTestId } = render( <TestTable /> );
 		fireEvent.pointerOver( getByTestId( 'column-1' ), { pointerType: 'mouse' } );
 		expect( getByTestId( 'column-1' ).className ).toBe( '' );
@@ -191,7 +195,7 @@ describe( 'Column highlight', () => {
 		fireEvent.pointerOver( getByTestId( 'column-1' ), { pointerType: 'mouse' } );
 		fireEvent.pointerOver( getByTestId( 'column-1-child' ), { pointerType: 'mouse' } );
 		expect( resolveColumnSourceIndexMock ).toHaveBeenCalledTimes( 1 );
-		expect( resolveMock ).toHaveBeenCalledTimes( 1 );
+		expect( resolveColumnReorderTargetMock ).toHaveBeenCalledTimes( 1 );
 	} );
 
 	/**
@@ -268,7 +272,7 @@ describe( 'Column highlight', () => {
 
 	/**
 	 * 概要:
-	 * - Table Identity変更時に前Tableの予告表示とResolverを持ち越さないことを確認する。
+	 * - Table Identity変更時に前Tableの予告表示を持ち越さないことを確認する。
 	 *
 	 * 事前条件:
 	 * - Table Aのセルに操作可能表示が付いている。
@@ -277,9 +281,9 @@ describe( 'Column highlight', () => {
 	 * - Table IdentityをTable Bへ変更し、Table Bのセルへ再びポインターを移動する。
 	 *
 	 * 期待結果:
-	 * - Table Aの表示が解除され、Table B用のTarget Resolverが新しく利用される。
+	 * - Table Aの表示が解除され、Table Bの現在対象がTarget Resolutionへ渡される。
 	 */
-	it( 'when the target table changes, should clear the previous preview and use a resolver for the new table', () => {
+	it( 'when the target table changes, should clear the previous preview and resolve the new table target', () => {
 		const { getByTestId, rerender } = render( <TestTable tableIdentity="table-a" /> );
 		const currentCell = getByTestId( 'column-1' );
 		fireEvent.pointerOver( currentCell, { pointerType: 'mouse' } );
@@ -292,7 +296,10 @@ describe( 'Column highlight', () => {
 		expect( currentCell.className ).toBe( '' );
 
 		fireEvent.pointerOver( currentCell, { pointerType: 'mouse' } );
-		expect( createResolverMock ).toHaveBeenCalledWith( 'table-b' );
+		expect( resolveColumnReorderTargetMock ).toHaveBeenLastCalledWith( {
+			tableIdentity: 'table-b',
+			sourceColumnIndex: 1,
+		} );
 	} );
 
 	/**

@@ -1,5 +1,5 @@
 /**
- * Row HighlightがTable解析を入力時まで遅延し、DnD LifecycleをReact再描画から分離してResolverを更新することを確認する。
+ * Row HighlightがTable解析を入力時まで遅延し、各対象を現在Tableから直接解決しながらDnD LifecycleをReact再描画から分離することを確認する。
  */
 
 import { act, fireEvent, render } from '@testing-library/react';
@@ -9,7 +9,7 @@ import {
 	getRowDndPhase,
 	subscribeRowDndState,
 } from '@/reorder/row-reorder/responsibilities/dnd-interaction';
-import { rowReorderTargetResolution } from '@/reorder/row-reorder/responsibilities/target-resolution';
+import { resolveRowReorderTarget } from '@/reorder/row-reorder/responsibilities/target-resolution';
 
 import { RowHighlight } from './row-highlight';
 
@@ -27,17 +27,15 @@ jest.mock( '@/reorder/row-reorder/responsibilities/dnd-interaction', () => ( {
 } ) );
 
 jest.mock( '@/reorder/row-reorder/responsibilities/target-resolution', () => ( {
-	rowReorderTargetResolution: {
-		createResolver: jest.fn(),
-	},
+	resolveRowReorderTarget: jest.fn(),
 } ) );
 
 const getRowDndPhaseMock = getRowDndPhase as jest.MockedFunction< typeof getRowDndPhase >;
 const subscribeRowDndStateMock = subscribeRowDndState as jest.MockedFunction<
 	typeof subscribeRowDndState
 >;
-const createResolverMock = rowReorderTargetResolution.createResolver as jest.MockedFunction<
-	typeof rowReorderTargetResolution.createResolver
+const resolveRowReorderTargetMock = resolveRowReorderTarget as jest.MockedFunction<
+	typeof resolveRowReorderTarget
 >;
 
 /**
@@ -80,19 +78,17 @@ const resetReorderMode = (): void => {
 	} );
 };
 
-describe( 'Row highlight resolver lifecycle', () => {
+describe( 'Row highlight resolution lifecycle', () => {
 	beforeEach( () => {
 		jest.clearAllMocks();
 		mockRowDndPhase = 'idle';
 		mockRowDndStateListener = null;
 		resetReorderMode();
-		createResolverMock.mockReturnValue( {
-			resolve: ( sourceRowIndex ) => ( {
-				status: 'resolved',
-				target: { tableIdentity: 'table-a', sourceRowIndex },
-				initialConstraints: { rowCount: 2, blockedBoundaries: [] },
-			} ),
-		} );
+		resolveRowReorderTargetMock.mockImplementation( ( target ) => ( {
+			status: 'resolved',
+			target,
+			initialConstraints: { rowCount: 2, blockedBoundaries: [] },
+		} ) );
 	} );
 
 	afterEach( () => {
@@ -106,18 +102,18 @@ describe( 'Row highlight resolver lifecycle', () => {
 	 * - Row Highlightを描画する。
 	 *
 	 * 期待結果:
-	 * - Target Resolverは生成されない。
+	 * - Target Resolutionは実行されない。
 	 * - DnD Lifecycle監視だけが接続される。
 	 */
-	it( 'when row highlight is rendered, should defer resolver creation until a valid highlight request', () => {
+	it( 'when row highlight is rendered, should defer target resolution until a valid highlight request', () => {
 		render( <TestTable /> );
 
-		expect( createResolverMock ).not.toHaveBeenCalled();
+		expect( resolveRowReorderTargetMock ).not.toHaveBeenCalled();
 		expect( subscribeRowDndStateMock ).toHaveBeenCalledTimes( 1 );
 	} );
 
 	/**
-	 * 同一Highlight Lifecycleでは最初の有効な入力で生成したResolverを再利用することを確認する。
+	 * hover対象が変わるたびに要求時点のTableから直接解決することを確認する。
 	 *
 	 * 事前条件:
 	 * - Row Reorder Modeが有効で、Row DnDはidleである。
@@ -126,49 +122,55 @@ describe( 'Row highlight resolver lifecycle', () => {
 	 * - 1行目、2行目の順にポインターを移動する。
 	 *
 	 * 期待結果:
-	 * - Resolverは最初の入力時に1回だけ生成される。
+	 * - 各行がそれぞれ現在Tableに対するTargetとして解決される。
 	 */
-	it( 'when multiple rows are highlighted before DnD, should reuse the lazily created resolver', () => {
+	it( 'when multiple rows are highlighted before DnD, should resolve each target directly', () => {
 		activateRowMode();
 		const { getByTestId } = render( <TestTable /> );
 
 		fireEvent.pointerOver( getByTestId( 'row-0' ).querySelector( 'td' ) as HTMLTableCellElement );
 		fireEvent.pointerOver( getByTestId( 'row-1' ).querySelector( 'td' ) as HTMLTableCellElement );
 
-		expect( createResolverMock ).toHaveBeenCalledTimes( 1 );
-		expect( createResolverMock ).toHaveBeenCalledWith( 'table-a' );
+		expect( resolveRowReorderTargetMock ).toHaveBeenNthCalledWith( 1, {
+			tableIdentity: 'table-a',
+			sourceRowIndex: 0,
+		} );
+		expect( resolveRowReorderTargetMock ).toHaveBeenNthCalledWith( 2, {
+			tableIdentity: 'table-a',
+			sourceRowIndex: 1,
+		} );
 	} );
 
 	/**
-	 * DnD開始後は古いResolverを破棄し、active中には新しいResolverを生成しないことを確認する。
+	 * DnD開始後は表示を破棄し、active中にはTarget Resolutionを実行しないことを確認する。
 	 *
 	 * 事前条件:
-	 * - Row Reorder Modeが有効で、idle中の操作可否判定でResolverが生成済みである。
+	 * - Row Reorder Modeが有効で、idle中に操作可否を解決済みである。
 	 *
 	 * 操作:
 	 * - Row DnDをactiveへ移行し、別行へポインターを移動する。
 	 * - その後idleへ戻して再び行へポインターを移動する。
 	 *
 	 * 期待結果:
-	 * - active中はResolverを生成しない。
-	 * - idle復帰後の最初の有効な判定で新しいResolverを生成する。
+	 * - active中はTarget Resolutionを実行しない。
+	 * - idle復帰後の最初の有効な判定で現在対象を直接解決する。
 	 */
-	it( 'when row DnD runs after a resolver was created, should recreate it only after returning to idle', () => {
+	it( 'when row DnD becomes active, should resolve another target only after returning to idle', () => {
 		activateRowMode();
 		const { getByTestId } = render( <TestTable /> );
 
 		fireEvent.pointerOver( getByTestId( 'row-0' ).querySelector( 'td' ) as HTMLTableCellElement );
-		expect( createResolverMock ).toHaveBeenCalledTimes( 1 );
+		expect( resolveRowReorderTargetMock ).toHaveBeenCalledTimes( 1 );
 
 		mockRowDndPhase = 'active';
 		mockRowDndStateListener?.();
 		fireEvent.pointerOver( getByTestId( 'row-1' ).querySelector( 'td' ) as HTMLTableCellElement );
-		expect( createResolverMock ).toHaveBeenCalledTimes( 1 );
+		expect( resolveRowReorderTargetMock ).toHaveBeenCalledTimes( 1 );
 
 		mockRowDndPhase = 'idle';
 		mockRowDndStateListener?.();
 		fireEvent.pointerOver( getByTestId( 'row-1' ).querySelector( 'td' ) as HTMLTableCellElement );
-		expect( createResolverMock ).toHaveBeenCalledTimes( 2 );
+		expect( resolveRowReorderTargetMock ).toHaveBeenCalledTimes( 2 );
 	} );
 
 	/**

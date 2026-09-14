@@ -12,22 +12,30 @@ import { ColumnDropAnimation } from './drop-animation';
 import { ColumnInsertionGap } from './insertion-gap';
 import { ColumnInsertionLine } from './insertion-line';
 import { ColumnMovingDisplay } from './moving-column';
-import { ColumnStartRejectionNotice } from './start-rejection-notice';
+import {
+	ColumnStartRejectionNotice,
+	type ColumnStartRejectionNoticeHandle,
+} from './start-rejection-notice';
+import type { Ref } from 'react';
 
 /**
  * 列並び替えに必要なPresentationを同じDnD Engine境界へ接続する。
  *
  * このcomponent自身はDnD SessionやTable選択状態を所有せず、配下の表示責務を接続する境界だけを提供する。
  *
+ * @param props                         列DnD表示に必要な値。
+ * @param props.startRejectionNoticeRef 開始拒否表示要求をNoticeだけへ接続する参照。
  * @return 列並び替えの一時表示群。
  */
-export const ColumnPresentation = () => (
+export const ColumnPresentation = ( props: {
+	startRejectionNoticeRef: Ref< ColumnStartRejectionNoticeHandle >;
+} ) => (
 	<>
 		<ColumnDisplacement />
 		<ColumnInsertionGap />
 		<ColumnInsertionLine />
 		<ColumnMovingDisplay />
 		<ColumnDropAnimation />
-		<ColumnStartRejectionNotice />
+		<ColumnStartRejectionNotice ref={ props.startRejectionNoticeRef } />
 	</>
 );

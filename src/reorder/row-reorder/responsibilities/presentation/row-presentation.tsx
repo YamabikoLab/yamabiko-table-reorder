@@ -10,22 +10,30 @@ import { RowInsertionGap } from './insertion-gap';
 import { RowInsertionLine } from './insertion-line';
 import { RowMovingDisplay } from './moving-row';
 import { RowDisplacement } from './row-displacement';
-import { RowStartRejectionNotice } from './start-rejection-notice';
+import {
+	RowStartRejectionNotice,
+	type RowStartRejectionNoticeHandle,
+} from './start-rejection-notice';
 import { RowTerminationNotice } from './termination-notice';
+import type { Ref } from 'react';
 
 /**
  * 行DnDに必要なPresentationを同じDnD Engine境界へ接続する。
  *
+ * @param props                         行DnD表示に必要な値。
+ * @param props.startRejectionNoticeRef 開始拒否表示要求をNoticeだけへ接続する参照。
  * @return 行DnDの一時表示群。
  */
-export const RowPresentation = () => (
+export const RowPresentation = ( props: {
+	startRejectionNoticeRef: Ref< RowStartRejectionNoticeHandle >;
+} ) => (
 	<>
 		<RowDisplacement />
 		<RowInsertionGap />
 		<RowMovingDisplay />
 		<RowDropAnimation />
 		<RowInsertionLine />
-		<RowStartRejectionNotice />
+		<RowStartRejectionNotice ref={ props.startRejectionNoticeRef } />
 		<RowTerminationNotice />
 	</>
 );
