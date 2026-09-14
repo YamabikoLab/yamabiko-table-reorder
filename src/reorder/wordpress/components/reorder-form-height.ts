@@ -64,11 +64,12 @@ export const reorderFormHeight = {
 };
 
 /**
- * 狭いRF入力画面の高さ変更操作と同一Session中の高さ復元を現在Editor DOMへ接続する。
+ * 狭いRF入力画面の展開中に、高さ変更操作と同一Session中の高さ復元を現在Editor DOMへ接続する。
  *
  * header上端のグリップから開始したPointer操作だけを高さ変更として扱い、フォーム内容の通常スクロールや
- * input操作には介入しない。利用可能高さが縮小した場合の表示上の制限はCSSへ委ねるため、利用者指定高さを
- * 上書きせず、表示領域が戻った場合は元の高さを復元できる。
+ * input操作には介入しない。折りたたみ中はTable確認へ退避する状態として高さ変更を受け付けない。
+ * 利用可能高さが縮小した場合の表示上の制限はCSSへ委ねるため、利用者指定高さを上書きせず、
+ * 表示領域が戻った場合は元の高さを復元できる。
  *
  * @param tableIdentity RF Session対象Table Identity。
  * @param anchor        RF Toolbar入口のDOM要素。現在Editor DOM Contextの基準として利用する。
@@ -131,6 +132,15 @@ export const useReorderFormNarrowHeight = (
 			const target = event.target as Element | null;
 			const header = target?.closest( '.yamabiko-table-reorder-rf__header' ) ?? null;
 			if ( header === null || target?.closest( 'button, input, select, textarea, a' ) !== null ) {
+				return;
+			}
+
+			/* 折りたたみ中は高さ調整ではなくTable確認への退避状態として扱う。 */
+			if (
+				header.querySelector(
+					'.yamabiko-table-reorder-rf__collapse[aria-expanded="false"]'
+				) !== null
+			) {
 				return;
 			}
 
