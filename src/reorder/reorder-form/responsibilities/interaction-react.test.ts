@@ -171,8 +171,24 @@ describe( 'RF Interaction React connection', () => {
 		[ 'no-op', { status: 'no-op' } as const, { status: 'no-op' } as const ],
 		[
 			'rejected',
-			{ status: 'rejected', blockingMergedRange: { rowStart: 0, rowEnd: 2 } } as const,
-			{ status: 'rejected', blockingMergedRange: { rowStart: 0, rowEnd: 2 } } as const,
+			{
+				status: 'rejected',
+				blockingMergedRange: {
+					rowStart: 0,
+					rowEnd: 2,
+					columnStart: 1,
+					columnEnd: 1,
+				},
+			} as const,
+			{
+				status: 'rejected',
+				blockingMergedRange: {
+					rowStart: 0,
+					rowEnd: 2,
+					columnStart: 1,
+					columnEnd: 1,
+				},
+			} as const,
 		],
 	] )(
 		'when row resolution is %s, should publish the result as not applicable',
