@@ -176,6 +176,12 @@
 	border-radius: 12px 12px 0 0;
 }
 
+/* 折りたたみ時は要約表示の内容量まで縮め、Table確認へ退避できる高さにする。 */
+.yamabiko-table-reorder-rf-popover.is-narrow
+	.components-popover__content:has(.yamabiko-table-reorder-rf__collapse[aria-expanded='false']) {
+	height: auto;
+}
+
 .yamabiko-table-reorder-rf-popover.is-narrow .yamabiko-table-reorder-rf {
 	gap: 12px;
 	padding: 0 16px calc(12px + env(safe-area-inset-bottom));
@@ -218,7 +224,6 @@
 }
 
 @media (max-width: 420px) {
-	
 	.yamabiko-table-reorder-rf-popover.is-narrow {
 		--yamabiko-table-reorder-rf-narrow-default-height: 48dvh;
 	}
