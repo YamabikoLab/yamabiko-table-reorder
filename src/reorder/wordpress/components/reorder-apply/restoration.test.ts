@@ -9,7 +9,7 @@ const RESTORED_CELL_CLASS = 'yamabiko-table-reorder-restored-cell';
 describe( 'WordPress Reorder Apply restoration', () => {
 	/**
 	 * 概要:
-	 * - 行反映後に最終行を表示し、編集可能な先頭位置へフォーカスを戻して復帰先セルを強調することを確認する。
+	 * - 行反映後に最終行を表示し、先頭セルへ結果確認用フォーカスを戻して復帰先セルを強調することを確認する。
 	 *
 	 * 事前条件:
 	 * - 再mount後のTableに反映後最終行が存在する。
@@ -21,10 +21,11 @@ describe( 'WordPress Reorder Apply restoration', () => {
 	 *
 	 * 期待結果:
 	 * - 最終行の編集位置が利用者から確認できる位置へ表示される。
-	 * - 同じ編集位置へスクロールを発生させずにフォーカスが戻る。
+	 * - contenteditableではなくセル自体へスクロールを発生させずにフォーカスが戻る。
 	 * - フォーカス中は復帰先セルが強調され、セル外へ移ると強調が終了する。
+	 * - 復帰のために追加したtabindexはセル外へ移ると削除される。
 	 */
-	it( 'when the moved row exists after remounting, should reveal, focus, and highlight its first editable cell until focus leaves', () => {
+	it( 'when the moved row exists after remounting, should reveal and focus its first cell without focusing editable content', () => {
 		const editorDocument = document.implementation.createHTMLDocument( 'editor' );
 		editorDocument.body.innerHTML = `
 			<div data-block="table-a">
@@ -48,18 +49,20 @@ describe( 'WordPress Reorder Apply restoration', () => {
 			configurable: true,
 			value: scrollIntoView,
 		} );
-		const focus = jest.spyOn( editable, 'focus' );
+		const editableFocus = jest.spyOn( editable, 'focus' );
+		const cellFocus = jest.spyOn( cell, 'focus' );
 
 		restoreMovedRow( editorDocument, 'table-a', 1 );
 
 		expect( scrollIntoView ).toHaveBeenCalledWith( { block: 'center', inline: 'start' } );
-		expect( focus ).toHaveBeenCalledWith( { preventScroll: true } );
+		expect( editableFocus ).not.toHaveBeenCalled();
+		expect( cellFocus ).toHaveBeenCalledWith( { preventScroll: true } );
+		expect( cell.getAttribute( 'tabindex' ) ).toBe( '-1' );
 		expect( cell.classList.contains( RESTORED_CELL_CLASS ) ).toBe( true );
 
-		editable.dispatchEvent(
-			new FocusEvent( 'focusout', { bubbles: true, relatedTarget: outside } )
-		);
+		cell.dispatchEvent( new FocusEvent( 'focusout', { bubbles: true, relatedTarget: outside } ) );
 		expect( cell.classList.contains( RESTORED_CELL_CLASS ) ).toBe( false );
+		expect( cell.hasAttribute( 'tabindex' ) ).toBe( false );
 	} );
 
 	/**
@@ -74,7 +77,7 @@ describe( 'WordPress Reorder Apply restoration', () => {
 	 * - 最終行へ表示復帰した後、同じセル内の別の位置へフォーカスを移す。
 	 *
 	 * 期待結果:
-	 * - iframe / non-iframeのDOM環境差に影響されず、復帰先セルの強調は維持される。
+	 * - iframe / non-iframeのDOM環境差に影響されず、復帰先セルの強調と一時tabindexは維持される。
 	 */
 	it( 'when focus moves within the restored cell in an editor iframe, should keep the restored cell highlighted', () => {
 		const iframe = document.createElement( 'iframe' );
@@ -113,17 +116,18 @@ describe( 'WordPress Reorder Apply restoration', () => {
 		expect( inside ).not.toBeInstanceOf( Node );
 
 		restoreMovedRow( editorDocument, 'table-a', 0 );
-		editable.dispatchEvent(
+		cell.dispatchEvent(
 			new editorWindow.FocusEvent( 'focusout', { bubbles: true, relatedTarget: inside } )
 		);
 
 		expect( cell.classList.contains( RESTORED_CELL_CLASS ) ).toBe( true );
+		expect( cell.getAttribute( 'tabindex' ) ).toBe( '-1' );
 		iframe.remove();
 	} );
 
 	/**
 	 * 概要:
-	 * - 列反映後の最終論理列が結合セル内にある場合、その結合セルを表示復帰先として扱って強調することを確認する。
+	 * - 列反映後の最終論理列が結合セル内にある場合、その結合セル自体を結果確認用フォーカス先として扱うことを確認する。
 	 *
 	 * 事前条件:
 	 * - 再mount後のTable先頭行で、1つのセルが複数の論理列を占有している。
@@ -134,10 +138,10 @@ describe( 'WordPress Reorder Apply restoration', () => {
 	 *
 	 * 期待結果:
 	 * - 最終論理列を占有する結合セルの編集位置が表示される。
-	 * - 同じ編集位置へスクロールを発生させずにフォーカスが戻る。
+	 * - contenteditableではなく結合セル自体へスクロールを発生させずにフォーカスが戻る。
 	 * - フォーカスを戻した結合セルが反映結果として強調される。
 	 */
-	it( 'when the moved logical column is covered by a merged cell, should restore and highlight the merged cell that owns it', () => {
+	it( 'when the moved logical column is covered by a merged cell, should restore and focus the merged cell that owns it', () => {
 		const editorDocument = document.implementation.createHTMLDocument( 'editor' );
 		editorDocument.body.innerHTML = `
 			<div data-block="table-a">
@@ -159,12 +163,57 @@ describe( 'WordPress Reorder Apply restoration', () => {
 			configurable: true,
 			value: scrollIntoView,
 		} );
-		const focus = jest.spyOn( editable, 'focus' );
+		const editableFocus = jest.spyOn( editable, 'focus' );
+		const cellFocus = jest.spyOn( cell, 'focus' );
 
 		restoreMovedColumn( editorDocument, 'table-a', 1 );
 
 		expect( scrollIntoView ).toHaveBeenCalledWith( { block: 'center', inline: 'center' } );
-		expect( focus ).toHaveBeenCalledWith( { preventScroll: true } );
+		expect( editableFocus ).not.toHaveBeenCalled();
+		expect( cellFocus ).toHaveBeenCalledWith( { preventScroll: true } );
+		expect( cell.getAttribute( 'tabindex' ) ).toBe( '-1' );
 		expect( cell.classList.contains( RESTORED_CELL_CLASS ) ).toBe( true );
+	} );
+
+	/**
+	 * 概要:
+	 * - 復帰先セルが元からtabindexを持つ場合、一時的な結果確認用フォーカスによって元の値を失わないことを確認する。
+	 *
+	 * 事前条件:
+	 * - 反映後の復帰先セルに既存のtabindexが設定されている。
+	 *
+	 * 操作:
+	 * - 行反映後の表示復帰を要求する。
+	 * - その後、フォーカスを復帰先セルの外へ移す。
+	 *
+	 * 期待結果:
+	 * - 復帰中はプログラムからフォーカスできる一時tabindexが設定される。
+	 * - セル外へフォーカスが移ると、元のtabindex値が復元される。
+	 */
+	it( 'when the restored cell already has tabindex, should restore its original value after focus leaves', () => {
+		const editorDocument = document.implementation.createHTMLDocument( 'editor' );
+		editorDocument.body.innerHTML = `
+			<div data-block="table-a">
+				<table><tbody><tr><td tabindex="3"><span contenteditable="true">A</span></td></tr></tbody></table>
+			</div>
+			<button type="button">Outside</button>
+		`;
+		const editable = editorDocument.querySelector< HTMLElement >( '[contenteditable="true"]' );
+		const cell = editable?.closest< HTMLElement >( 'td' ) ?? null;
+		const outside = editorDocument.querySelector< HTMLButtonElement >( 'button' );
+		if ( editable === null || cell === null || outside === null ) {
+			throw new Error( 'Expected restored cell with existing tabindex.' );
+		}
+		Object.defineProperty( editable, 'scrollIntoView', {
+			configurable: true,
+			value: jest.fn(),
+		} );
+
+		restoreMovedRow( editorDocument, 'table-a', 0 );
+		expect( cell.getAttribute( 'tabindex' ) ).toBe( '-1' );
+
+		cell.dispatchEvent( new FocusEvent( 'focusout', { bubbles: true, relatedTarget: outside } ) );
+
+		expect( cell.getAttribute( 'tabindex' ) ).toBe( '3' );
 	} );
 } );
