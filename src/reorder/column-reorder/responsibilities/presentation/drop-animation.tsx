@@ -16,12 +16,15 @@ import {
 	subscribeColumnDndTerminationNotice,
 } from '@/reorder/column-reorder/responsibilities/dnd-interaction';
 import { resolveEditorDomContext, type EditorDomContext } from '@/reorder/editor-dom-context';
+import {
+	DND_DROP_ANIMATION_DURATION_MS,
+	DND_DROP_ANIMATION_EASING,
+	DND_MOVING_SOURCE_OPACITY,
+} from '@/reorder/reorder-tuning';
 
 const MOVING_DISPLAY_SELECTOR = '.yamabiko-table-reorder-moving-column';
 const INSERTION_GAP_SELECTOR = '.yamabiko-table-reorder-column-insertion-gap';
-const DROP_ANIMATION_DURATION_MS = 350;
 const REDUCED_MOTION_QUERY = '(prefers-reduced-motion: reduce)';
-const RETURNING_SOURCE_OPACITY = '0.35';
 const VIEWPORT_SCAN_STEP = 8;
 
 /** 終了アニメーションで固定するeditor表示領域内の矩形。 */
@@ -438,7 +441,7 @@ export const ColumnDropAnimation = () => {
 			/* 元列への帰還中だけ、Moving Columnの到着先となる実セルを移動元として識別できる表示に維持する。 */
 			target.sourceCells.forEach( ( cell ) => {
 				previousSourceOpacities.set( cell, cell.style.opacity );
-				cell.style.opacity = RETURNING_SOURCE_OPACITY;
+				cell.style.opacity = DND_MOVING_SOURCE_OPACITY;
 			} );
 
 			/* Web Animations APIを利用できない表示環境では、一時表示を残さず実Tableをそのまま表示する。 */
@@ -459,8 +462,8 @@ export const ColumnDropAnimation = () => {
 					},
 				],
 				{
-					duration: DROP_ANIMATION_DURATION_MS,
-					easing: 'ease-out',
+					duration: DND_DROP_ANIMATION_DURATION_MS,
+					easing: DND_DROP_ANIMATION_EASING,
 					fill: 'forwards',
 				}
 			);
