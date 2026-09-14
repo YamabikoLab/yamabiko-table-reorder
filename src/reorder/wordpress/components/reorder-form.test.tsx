@@ -19,11 +19,11 @@ jest.mock( '@wordpress/components', () => ( {
 } ) );
 
 jest.mock( '@/messages', () => ( {
+	getColumnMergedRangeMessage: () => '列結合',
 	getRfAboveLabel: () => '上',
 	getRfApplyLabel: () => '並び替え',
 	getRfBelowLabel: () => '下',
 	getRfCancelLabel: () => 'キャンセル',
-	getRfColumnMergedRangeMessage: () => '列結合',
 	getRfColumnOptionLabel: ( columnNumber: number, heading: string | null ) => {
 		const label =
 			heading === null ? `${ columnNumber }列目` : `${ heading }（${ columnNumber }列目）`;
@@ -37,7 +37,6 @@ jest.mock( '@/messages', () => ( {
 	getRfPositionLegend: () => '位置',
 	getRfReorderName: () => 'フォームで並び替え',
 	getRfRightLabel: () => '右',
-	getRfRowMergedRangeMessage: () => '行結合',
 	getRfRowRangeMessage: () => '行範囲',
 	getRfRowsLabel: () => '行',
 	getRfRowTargetHelp: () => '対象行の上下へ移動',
@@ -47,6 +46,7 @@ jest.mock( '@/messages', () => ( {
 	getRfTargetColumnLabel: () => '移動先の列',
 	getRfTargetRowLabel: () => '移動先の行',
 	getRfUnavailableMessage: () => '利用不可',
+	getRowMergedRangeMessage: () => '行結合',
 } ) );
 
 jest.mock( '@/reorder/reorder-form/responsibilities/interaction', () => ( {
