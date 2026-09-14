@@ -206,7 +206,7 @@ describe( 'Row DnD input boundary', () => {
 
 	/**
 	 * 概要:
-	 * - Reorder Target Resolutionが開始拒否した行では理由を通知し、物理DnDへ登録しないことを確認する。
+	 * - Reorder Target Resolutionが開始拒否した行ではblocking merged rangeを通知し、物理DnDへ登録しないことを確認する。
 	 *
 	 * 事前条件:
 	 * - 対象行は結合範囲により開始拒否となる。
@@ -216,12 +216,12 @@ describe( 'Row DnD input boundary', () => {
 	 *
 	 * 期待結果:
 	 * - 対象行が正しいTable Identityと行位置でTarget Resolutionへ渡される。
-	 * - 拒否理由と操作位置が通知され、Draggableは登録されない。
+	 * - blocking merged rangeと操作位置が通知され、Draggableは登録されない。
 	 */
-	it( 'when target resolution rejects the row, should notify the rejection without registering a draggable', () => {
+	it( 'when target resolution rejects the row, should notify the blocking range without registering a draggable', () => {
 		targetResolutionMock.resolve.mockReturnValue( {
 			status: 'rejected',
-			reason: 'merged-range',
+			blockingMergedRange: { rowStart: 0, rowEnd: 1 },
 		} );
 		const { currentTarget, cells } = createDirectRowTarget();
 		const { pointerDownHandler } = renderRowInput();
@@ -235,7 +235,7 @@ describe( 'Row DnD input boundary', () => {
 			sourceRowIndex: 0,
 		} );
 		expect( notifyRowStartRejectionMock ).toHaveBeenCalledWith( {
-			reason: 'merged-range',
+			blockingMergedRange: { rowStart: 0, rowEnd: 1 },
 			clientX: 120,
 			clientY: 240,
 		} );
