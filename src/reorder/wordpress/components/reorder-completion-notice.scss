@@ -79,6 +79,7 @@
 }
 
 @keyframes yamabiko-table-reorder-completion-enter {
+
 	from {
 		opacity: 0;
 		transform: translateX(calc(100% + 24px));
@@ -91,6 +92,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
+
 	.yamabiko-table-reorder-completion {
 		animation: none;
 	}
