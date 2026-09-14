@@ -83,7 +83,9 @@ export const useReorderFormNarrowLayout = ( anchor: HTMLElement | null ): boolea
 			editorContent !== null && ResizeObserverConstructor !== undefined
 				? new ResizeObserverConstructor( updateLayout )
 				: null;
-		resizeObserver?.observe( editorContent );
+		if ( resizeObserver !== null && editorContent !== null ) {
+			resizeObserver.observe( editorContent );
+		}
 
 		return () => {
 			view.removeEventListener( 'resize', updateLayout );

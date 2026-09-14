@@ -156,12 +156,10 @@ const getCollapsedSummary = ( state: RfInteractionReactState ): string => {
 	if ( state.kind === 'row' ) {
 		const source = state.input.sourceRowNumber || '–';
 		const target = state.input.targetRowNumber || '–';
-		const position =
-			state.input.position === null
-				? '–'
-				: state.input.position === 'above'
-				? getRfAboveLabel()
-				: getRfBelowLabel();
+		let position = '–';
+		if ( state.input.position !== null ) {
+			position = state.input.position === 'above' ? getRfAboveLabel() : getRfBelowLabel();
+		}
 		return `${ source } → ${ target } · ${ position }`;
 	}
 
@@ -173,12 +171,10 @@ const getCollapsedSummary = ( state: RfInteractionReactState ): string => {
 	);
 	const source = sourceDescriptor === undefined ? '–' : getColumnOptionLabel( sourceDescriptor );
 	const target = targetDescriptor === undefined ? '–' : getColumnOptionLabel( targetDescriptor );
-	const position =
-		state.input.position === null
-			? '–'
-			: state.input.position === 'left'
-			? getRfLeftLabel()
-			: getRfRightLabel();
+	let position = '–';
+	if ( state.input.position !== null ) {
+		position = state.input.position === 'left' ? getRfLeftLabel() : getRfRightLabel();
+	}
 	return `${ source } → ${ target } · ${ position }`;
 };
 
