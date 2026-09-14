@@ -1,7 +1,7 @@
 /**
  * 結合セルにより行DnDを開始できない場合の利用者向け通知表示を所有する。
  *
- * Reorder Target Resolutionが返した開始拒否理由と開始を試みた位置を受け取り、
+ * Reorder Target Resolutionが返したblocking merged rangeと開始を試みた位置を受け取り、
  * 表示中かどうかと表示位置という一時状態はPresentation内に閉じる。
  * 利用不能や内部Errorではこの通知を表示しない。
  */
@@ -9,7 +9,7 @@
 import { Snackbar } from '@wordpress/components';
 import { useEffect, useRef, useState } from '@wordpress/element';
 
-import { getRowDndStartRejectionMessage } from '@/messages';
+import { getRowMergedRangeMessage } from '@/messages';
 
 import {
 	subscribeRowStartRejection,
@@ -90,6 +90,8 @@ export const RowStartRejectionNotice = () => {
 		} );
 	};
 
+	const { rowStart, rowEnd } = notice.blockingMergedRange;
+
 	return (
 		<div
 			className="yamabiko-table-reorder-start-rejection-notice"
@@ -99,7 +101,7 @@ export const RowStartRejectionNotice = () => {
 			} }
 		>
 			<Snackbar key={ notice.sequence } onRemove={ removeNotice }>
-				{ getRowDndStartRejectionMessage() }
+				{ getRowMergedRangeMessage( rowStart + 1, rowEnd + 1 ) }
 			</Snackbar>
 		</div>
 	);
