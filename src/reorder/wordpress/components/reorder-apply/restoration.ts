@@ -1,7 +1,7 @@
 /**
  * 確認付き大規模反映後の行・列表示復帰を担当する。
  *
- * Lifecycleから渡された現在のEditor DOM Contextのdocumentだけを利用し、反映後の最終位置へ表示位置とフォーカスを戻す。
+ * Lifecycleから渡された現在のEditor DOM Contextのdocumentだけを利用し、反映後の最終位置へ表示位置と結果確認用フォーカスを戻す。
  * フォーカスを戻したセルはフォーカス中だけ強調し、Editor DOM Contextの解決や保持、方向固有の移動先解釈は所有しない。
  */
 
@@ -11,14 +11,15 @@ import './restoration.scss';
 const RESTORED_CELL_CLASS = 'yamabiko-table-reorder-restored-cell';
 
 /**
- * 大規模反映後の復帰先セルをフォーカス中だけ強調する。
+ * 大規模反映後の復帰先セルを結果確認用にフォーカスし、フォーカス中だけ強調する。
  *
- * セル内部でフォーカスが移動する間は強調を維持し、セル外へ移った時点で一時表示classと監視を破棄する。
+ * セル内部でフォーカスが移動する間は強調を維持し、セル外へ移った時点で一時表示class、監視、一時tabindexを破棄して元の状態へ戻す。
  *
- * @param cell     反映後のフォーカス復帰先セル。
- * @param editable 実際にフォーカスを戻す編集位置。
+ * @param cell 反映後のフォーカス復帰先セル。
  */
-const focusRestoredCell = ( cell: HTMLElement, editable: HTMLElement ): void => {
+const focusRestoredCell = ( cell: HTMLElement ): void => {
+	const previousTabIndex = cell.getAttribute( 'tabindex' );
+	cell.setAttribute( 'tabindex', '-1' );
 	cell.classList.add( RESTORED_CELL_CLASS );
 	const handleFocusOut = ( event: FocusEvent ): void => {
 		const nextTarget = event.relatedTarget;
@@ -32,13 +33,18 @@ const focusRestoredCell = ( cell: HTMLElement, editable: HTMLElement ): void => 
 		}
 		cell.classList.remove( RESTORED_CELL_CLASS );
 		cell.removeEventListener( 'focusout', handleFocusOut );
+		if ( previousTabIndex === null ) {
+			cell.removeAttribute( 'tabindex' );
+		} else {
+			cell.setAttribute( 'tabindex', previousTabIndex );
+		}
 	};
 	cell.addEventListener( 'focusout', handleFocusOut );
-	editable.focus( { preventScroll: true } );
+	cell.focus( { preventScroll: true } );
 };
 
 /**
- * 行反映後の最終行を利用者が確認できる位置へ表示し、編集可能な場合はその行の先頭編集位置へフォーカスを戻す。
+ * 行反映後の最終行を利用者が確認できる位置へ表示し、その行の先頭セルへ結果確認用フォーカスを戻す。
  *
  * フォーカスを戻したセルは、利用者が別のセルやUIへ移るまで反映結果として強調する。
  *
@@ -62,14 +68,14 @@ export const restoreMovedRow = (
 	const firstCell = row.querySelector< HTMLElement >( 'th, td' );
 	const displayTarget = editable ?? firstCell ?? ( row as HTMLElement );
 	displayTarget.scrollIntoView( { block: 'center', inline: 'start' } );
-	const focusCell = editable?.closest< HTMLElement >( 'th, td' ) ?? null;
-	if ( editable !== null && focusCell !== null ) {
-		focusRestoredCell( focusCell, editable );
+	const focusCell = editable?.closest< HTMLElement >( 'th, td' ) ?? firstCell;
+	if ( focusCell !== null ) {
+		focusRestoredCell( focusCell );
 	}
 };
 
 /**
- * 列反映後の最終論理列を利用者が確認できる位置へ表示し、編集可能な場合は対応セルへフォーカスを戻す。
+ * 列反映後の最終論理列を利用者が確認できる位置へ表示し、対応セルへ結果確認用フォーカスを戻す。
  *
  * 結合セルが最終論理列を占有する場合は、その結合セルを表示復帰先として扱う。フォーカスを戻したセルは、
  * 利用者が別のセルやUIへ移るまで反映結果として強調する。
@@ -110,7 +116,5 @@ export const restoreMovedColumn = (
 	const editable = targetCell.querySelector< HTMLElement >( '[contenteditable="true"]' );
 	const displayTarget = editable ?? targetCell;
 	displayTarget.scrollIntoView( { block: 'center', inline: 'center' } );
-	if ( editable !== null ) {
-		focusRestoredCell( targetCell, editable );
-	}
+	focusRestoredCell( targetCell );
 };
