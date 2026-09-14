@@ -24,6 +24,7 @@ import type { ReactNode } from 'react';
 
 import { rowReorderMode } from '@/reorder/reorder-mode';
 import { subscribeReorderMode } from '@/reorder/reorder-mode-subscription';
+import { ROW_AUTO_SCROLL_EDGE_THRESHOLD_RATIO } from '@/reorder/reorder-tuning';
 import {
 	createRowDestinationResolver,
 	type RowDestinationResolver,
@@ -153,7 +154,7 @@ export const RowDnd = ( props: {
 						plugin !== AutoScroller
 				),
 				AutoScroller.configure( {
-					threshold: { x: 0, y: 0.2 },
+					threshold: { x: 0, y: ROW_AUTO_SCROLL_EDGE_THRESHOLD_RATIO },
 				} ),
 			] }
 			onBeforeDragStart={ onBeforeDragStart }
