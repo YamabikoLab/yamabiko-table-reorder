@@ -7,7 +7,7 @@
  */
 
 import { Button, Popover } from '@wordpress/components';
-import { useEffect, useRef, useState } from '@wordpress/element';
+import { useRef } from '@wordpress/element';
 import { __ } from '@wordpress/i18n';
 import type { MouseEvent as ReactMouseEvent, PointerEvent as ReactPointerEvent } from 'react';
 
@@ -40,6 +40,8 @@ import {
 import type { ColumnInputDescriptor } from '@/reorder/column-reorder/responsibilities/table-integration';
 import { rfInteraction } from '@/reorder/reorder-form/responsibilities/interaction';
 import type { RfInteractionReactState } from '@/reorder/reorder-form/responsibilities/interaction-react';
+import { useReorderFormCollapse } from '@/reorder/wordpress/components/reorder-form-collapse';
+import { useReorderFormNarrowLayout } from '@/reorder/wordpress/components/reorder-form-layout';
 import {
 	clampReorderFormPosition,
 	type ReorderFormPosition,
@@ -67,9 +69,6 @@ type ReorderFormDragState = {
 	moved: boolean;
 	view: Window;
 };
-
-/** TableとRFを同時に確認しやすいwide表示から下部dockへ切り替える基準幅。 */
-const narrowViewportWidth = 700;
 
 /** 意図しない小さなPointer移動をPopover移動として扱わない距離。 */
 const dragThreshold = 4;
@@ -157,7 +156,12 @@ const getCollapsedSummary = ( state: RfInteractionReactState ): string => {
 	if ( state.kind === 'row' ) {
 		const source = state.input.sourceRowNumber || '–';
 		const target = state.input.targetRowNumber || '–';
-		const position = state.input.position === 'above' ? getRfAboveLabel() : getRfBelowLabel();
+		const position =
+			state.input.position === null
+				? '–'
+				: state.input.position === 'above'
+					? getRfAboveLabel()
+					: getRfBelowLabel();
 		return `${ source } → ${ target } · ${ position }`;
 	}
 
@@ -169,7 +173,12 @@ const getCollapsedSummary = ( state: RfInteractionReactState ): string => {
 	);
 	const source = sourceDescriptor === undefined ? '–' : getColumnOptionLabel( sourceDescriptor );
 	const target = targetDescriptor === undefined ? '–' : getColumnOptionLabel( targetDescriptor );
-	const position = state.input.position === 'left' ? getRfLeftLabel() : getRfRightLabel();
+	const position =
+		state.input.position === null
+			? '–'
+			: state.input.position === 'left'
+				? getRfLeftLabel()
+				: getRfRightLabel();
 	return `${ source } → ${ target } · ${ position }`;
 };
 
@@ -212,43 +221,9 @@ export const ReorderFormPopover = ( props: ReorderFormPopoverProps ) => {
 	const { anchor, state, tableIdentity } = props;
 	const dragStateRef = useRef< ReorderFormDragState | null >( null );
 	const suppressClickRef = useRef( false );
-	const [ isNarrow, setIsNarrow ] = useState( false );
-	const [ collapsed, setCollapsed ] = useState( false );
+	const isNarrow = useReorderFormNarrowLayout( anchor );
+	const { collapsed, setCollapsed } = useReorderFormCollapse( tableIdentity );
 	const { position, setPosition } = useReorderFormPosition( tableIdentity );
-
-	useEffect( () => {
-		if ( anchor === null ) {
-			setIsNarrow( false );
-			return;
-		}
-
-		const view = anchor.ownerDocument.defaultView;
-		if ( view === null ) {
-			setIsNarrow( false );
-			return;
-		}
-
-		const visualViewport = view.visualViewport;
-		const updateLayout = (): void => {
-			const availableWidth = visualViewport?.width ?? view.innerWidth;
-			setIsNarrow( availableWidth <= narrowViewportWidth );
-		};
-
-		updateLayout();
-		view.addEventListener( 'resize', updateLayout );
-		visualViewport?.addEventListener( 'resize', updateLayout );
-
-		return () => {
-			view.removeEventListener( 'resize', updateLayout );
-			visualViewport?.removeEventListener( 'resize', updateLayout );
-		};
-	}, [ anchor ] );
-
-	useEffect( () => {
-		if ( state.status === 'closed' ) {
-			setCollapsed( false );
-		}
-	}, [ state.status ] );
 
 	if ( anchor === null || state.status !== 'open' ) {
 		return null;
@@ -420,7 +395,7 @@ export const ReorderFormPopover = ( props: ReorderFormPopoverProps ) => {
 							aria-expanded={ ! collapsed }
 							className="yamabiko-table-reorder-rf__collapse"
 							label={ collapsed ? getRfExpandLabel() : getRfCollapseLabel() }
-							onClick={ () => setCollapsed( ( current ) => ! current ) }
+							onClick={ () => setCollapsed( ! collapsed ) }
 							variant="tertiary"
 						>
 							<span aria-hidden="true">{ collapsed ? '⌃' : '⌄' }</span>
