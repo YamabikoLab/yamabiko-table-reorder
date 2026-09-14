@@ -49,7 +49,6 @@ const notifyColumnStartRejectionMock = notifyColumnStartRejection as jest.Mocked
 	typeof notifyColumnStartRejection
 >;
 
-/** Column Inputが公開する開始処理を取得する。 */
 const renderColumnInput = (): ColumnDndPointerDownHandler => {
 	const capturedHandler: { current: ColumnDndPointerDownHandler | null } = { current: null };
 
@@ -69,7 +68,6 @@ const renderColumnInput = (): ColumnDndPointerDownHandler => {
 	return capturedHandler.current;
 };
 
-/** 開始拒否確認に必要なTableとポインター入力を生成する。 */
 const createPointerInput = (): ReactPointerEvent< Element > => {
 	const currentTarget = document.createElement( 'div' );
 	currentTarget.innerHTML = '<table><tbody><tr><td data-target="true">A</td></tr></tbody></table>';
@@ -103,46 +101,29 @@ describe( 'Column input start rejection', () => {
 		} as ReturnType< typeof useDragDropManager > );
 	} );
 
-	/**
-	 * 結合範囲により列DnD開始を拒否した場合、blocking merged rangeと操作位置を通知することを確認する。
-	 *
-	 * 事前条件:
-	 * - Reorder Target Resolutionが対象列を結合範囲による開始拒否として解決する。
-	 *
-	 * 操作:
-	 * - 対象セルで主マウス入力を行う。
-	 *
-	 * 期待結果:
-	 * - blocking merged rangeと操作位置がPresentationへ一回通知される。
-	 */
-	it( 'when target resolution rejects the column, should notify the presentation with the blocking range and interaction position', () => {
+	it( 'when target resolution rejects the column, should notify the presentation with the blocking cell and interaction position', () => {
+		const blockingMergedCell = {
+			section: 'body' as const,
+			rowStart: 2,
+			rowEnd: 2,
+			columnStart: 1,
+			columnEnd: 2,
+		};
 		targetResolutionMock.mockReturnValue( {
 			status: 'rejected',
-			blockingMergedRange: { columnStart: 1, columnEnd: 2 },
+			blockingMergedCell,
 		} );
 		const pointerDownHandler = renderColumnInput();
 
 		pointerDownHandler( createPointerInput() );
 
 		expect( notifyColumnStartRejectionMock ).toHaveBeenCalledWith( {
-			blockingMergedRange: { columnStart: 1, columnEnd: 2 },
+			blockingMergedCell,
 			clientX: 120,
 			clientY: 240,
 		} );
 	} );
 
-	/**
-	 * 通常の利用不能結果を利用者向け開始拒否として通知しないことを確認する。
-	 *
-	 * 事前条件:
-	 * - Reorder Target Resolutionが対象列を通常の利用不能として解決する。
-	 *
-	 * 操作:
-	 * - 対象セルで主マウス入力を行う。
-	 *
-	 * 期待結果:
-	 * - 開始拒否通知は発生しない。
-	 */
 	it( 'when target resolution returns unavailable, should not notify a start rejection', () => {
 		targetResolutionMock.mockReturnValue( { status: 'unavailable' } );
 		const pointerDownHandler = renderColumnInput();
