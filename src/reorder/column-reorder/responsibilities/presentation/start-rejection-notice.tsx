@@ -10,14 +10,13 @@ import { Snackbar } from '@wordpress/components';
 import { useEffect, useRef, useState } from '@wordpress/element';
 
 import { getColumnDndStartRejectionMessage } from '@/messages';
+import { DND_START_REJECTION_NOTICE_DURATION_MS } from '@/reorder/reorder-tuning';
 
 import {
 	subscribeColumnStartRejection,
 	type ColumnStartRejectionNoticeEvent,
 } from './start-rejection-notice-event';
 import './start-rejection-notice.scss';
-
-const NOTICE_DURATION = 1500;
 
 type ColumnStartRejectionNoticeState = ColumnStartRejectionNoticeEvent & {
 	sequence: number;
@@ -60,7 +59,7 @@ export const ColumnStartRejectionNotice = () => {
 
 					return null;
 				} );
-			}, NOTICE_DURATION );
+			}, DND_START_REJECTION_NOTICE_DURATION_MS );
 		} );
 
 		return () => {
