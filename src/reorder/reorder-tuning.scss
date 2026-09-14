@@ -15,6 +15,14 @@ $reorder-displacement-easing: ease;
 // Row / ColumnのDnD中に移動元を表示する不透明度。
 $reorder-moving-source-opacity: 0.35;
 
+// Reorder Completion Notice
+
+// 並び替え完了通知が右側から表示されるアニメーション時間。
+$reorder-completion-notice-enter-duration: 180ms;
+
+// 並び替え完了通知が右側から表示されるアニメーションのeasing。
+$reorder-completion-notice-enter-easing: ease-out;
+
 // RF Interaction
 
 // RF narrow表示で高さ変更グリップとして確保する表示領域の高さ。
