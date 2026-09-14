@@ -1,7 +1,7 @@
 /*
- * Reorder Form（RF）のPopover入力画面の表示責務を所有する。
+ * Reorder Form（RF）の入力画面の表示責務を所有する。
  *
- * WordPress Editor上でTableを確認しながら入力できる大きさと、入力項目・案内・操作の視覚的なまとまりを提供する。
+ * 十分な表示領域では移動可能なPopoverとして表示し、狭い表示領域ではTable確認へ退避できる下部dockとして表示する。
  */
 .yamabiko-table-reorder-rf-popover .components-popover__content {
 	min-width: min(360px, calc(100vw - 32px));
@@ -36,10 +36,29 @@
 	user-select: auto;
 }
 
+.yamabiko-table-reorder-rf__header {
+	display: flex;
+	gap: 8px;
+	align-items: center;
+	justify-content: space-between;
+}
+
 .yamabiko-table-reorder-rf__title {
 	margin: 0;
 	font-size: 16px;
 	line-height: 1.4;
+}
+
+.yamabiko-table-reorder-rf__collapse {
+	flex: 0 0 auto;
+	min-width: 36px;
+}
+
+.yamabiko-table-reorder-rf__summary {
+	margin: 0;
+	color: #646970;
+	font-size: 13px;
+	line-height: 1.5;
 }
 
 .yamabiko-table-reorder-rf__fieldset {
@@ -99,4 +118,52 @@
 	display: flex;
 	justify-content: flex-end;
 	gap: 8px;
+}
+
+/*
+ * 狭いEditor表示領域ではPopoverのアンカー位置から切り離し、Tableを確認しやすい画面下部へ固定する。
+ * 内容が表示領域へ収まらない場合も、dock内部だけをスクロールできる状態を維持する。
+ */
+.yamabiko-table-reorder-rf-popover.is-narrow {
+	position: fixed !important;
+	top: auto !important;
+	right: 0 !important;
+	bottom: 0 !important;
+	left: 0 !important;
+	width: 100% !important;
+	max-width: none !important;
+	transform: none !important;
+}
+
+.yamabiko-table-reorder-rf-popover.is-narrow .components-popover__content {
+	width: 100%;
+	min-width: 0;
+	max-width: none;
+	max-height: min(52dvh, 430px);
+	overflow-y: auto;
+	border-right: 0;
+	border-bottom: 0;
+	border-left: 0;
+	border-radius: 12px 12px 0 0;
+}
+
+.yamabiko-table-reorder-rf-popover.is-narrow .yamabiko-table-reorder-rf {
+	gap: 12px;
+	padding: 12px 16px calc(12px + env(safe-area-inset-bottom));
+	cursor: auto;
+	touch-action: auto;
+	user-select: auto;
+}
+
+.yamabiko-table-reorder-rf-popover.is-narrow .yamabiko-table-reorder-rf__actions {
+	position: sticky;
+	bottom: 0;
+	padding-top: 8px;
+	background: #fff;
+}
+
+@media (max-width: 420px) {
+	.yamabiko-table-reorder-rf-popover.is-narrow .components-popover__content {
+		max-height: 48dvh;
+	}
 }
