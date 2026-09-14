@@ -156,7 +156,7 @@ const parseRowTable = (
 	const rows: Record< string, unknown >[] = [];
 	const blockedBoundaries = new Set< number >();
 	const mergedRanges: RowBlockingMergedRange[] = [];
-	const occupied = Array.from( { length: body.length }, () => [] as boolean[] );
+	let occupied: boolean[][];
 
 	/* tbodyを論理グリッドとして解釈し、行制約と原因セル位置を同じ解析から確定する。 */
 	for ( let rowIndex = 0; rowIndex < body.length; rowIndex++ ) {
@@ -165,6 +165,7 @@ const parseRowTable = (
 			return null;
 		}
 		rows.push( row );
+		occupied ??= Array.from( { length: body.length }, () => [] as boolean[] );
 		let searchFrom = 0;
 
 		/* 各物理セルを論理列へ配置し、縦結合が塞ぐ境界と原因セル矩形を記録する。 */
@@ -179,11 +180,7 @@ const parseRowTable = (
 				return null;
 			}
 
-			const columnStart = findAvailableColumnStart(
-				occupied[ rowIndex ],
-				searchFrom,
-				columnSpan
-			);
+			const columnStart = findAvailableColumnStart( occupied[ rowIndex ], searchFrom, columnSpan );
 			const columnEnd = columnStart + columnSpan - 1;
 
 			/* セルが占有する論理位置を後続セル・後続行の列解決へ反映する。 */
