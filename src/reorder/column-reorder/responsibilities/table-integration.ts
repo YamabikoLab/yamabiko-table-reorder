@@ -2,7 +2,7 @@
  * 列専用Table Integrationとして、対応Table Block固有の表現差とWordPress Block Editor Storeとの接続を吸収し、Column Reorderへ現在の列制約、RF入力記述、構造診断、反映前評価、確定済み列移動の反映を提供する。
  *
  * このファイルはCore TableとFlexible Table Blockの結合セル属性差、Table全体の論理列解釈、および対応Tableへの列順反映を所有する。
- * Column ReorderとRFへは論理列数、結合セルを分断する挿入位置、最小列記述、blocking merged cellの位置、更新対象セル数、反映後の最終列位置、および確定更新だけを公開し、Tableデータや対応Block固有の表現は外へ公開しない。
+ * Column ReorderとRFへは論理列数、結合セルを分断する挿入位置、最小列記述、移動を妨げる結合セル位置、更新対象セル数、反映後の最終列位置、および確定更新だけを公開し、Tableデータや対応Block固有の表現は外へ公開しない。
  * Tableデータや構造結果は保持せず、各要求時点のWordPress Blockを直接参照する。
  */
 
@@ -137,6 +137,8 @@ const SECTION_ORDER: Record< TableSectionName, number > = {
 /**
  * 外部から取得したTableデータを、属性・行・セルとして解釈可能か判定する。
  *
+ * 配列やnullなど、キーを持つTable要素として扱えない値は解釈対象にしない。
+ *
  * @param value 対応Table Blockから取得した未検証の値。
  * @return Table要素としてキー参照可能なオブジェクトである場合はtrue。
  */
@@ -176,19 +178,23 @@ const getCellSpan = (
 	cell: Record< string, unknown >,
 	direction: 'row' | 'column'
 ): number | null => {
+	/* 対応Block間で異なる結合属性名はこの境界でだけ解釈し、方向固有処理へ差を公開しない。 */
 	const coreProperty = direction === 'row' ? 'rowspan' : 'colspan';
 	const flexibleProperty = direction === 'row' ? 'rowSpan' : 'colSpan';
 	const property = tableName === 'core/table' ? coreProperty : flexibleProperty;
 	const rawSpan = cell[ property ];
 
+	/* 結合指定のない通常セルは一つの行または列だけを占有する。 */
 	if ( rawSpan === undefined ) {
 		return 1;
 	}
+	/* 占有数として解釈できない値を含むTableでは、安全な論理位置を確定しない。 */
 	if ( typeof rawSpan !== 'number' && typeof rawSpan !== 'string' ) {
 		return null;
 	}
 
 	const span = Number( rawSpan );
+	/* 結合セルの占有数は1以上の整数だけを有効とする。 */
 	const normalizedSpan = Number.isInteger( span ) && span >= 1 ? span : null;
 	return normalizedSpan;
 };
@@ -212,11 +218,13 @@ const findAvailableColumnStart = (
 	while ( true ) {
 		let available = true;
 		for ( let offset = 0; offset < requiredColumns; offset++ ) {
+			/* 必要範囲に既存セルの占有列が一つでも含まれる候補は利用しない。 */
 			if ( occupied[ columnStart + offset ] ) {
 				available = false;
 				break;
 			}
 		}
+		/* 必要な連続列をすべて確保できた最初の位置を論理開始列とする。 */
 		if ( available ) {
 			return columnStart;
 		}
@@ -237,6 +245,7 @@ const parseSection = (
 	sectionRows: readonly unknown[],
 	blockedBoundaries: Set< number >
 ): ParsedSection | null => {
+	/* 空sectionは他sectionの論理列数を制約しない。 */
 	if ( sectionRows.length === 0 ) {
 		return { rows: [], columnCount: null };
 	}
@@ -247,6 +256,7 @@ const parseSection = (
 	/* section内の各行を、rowspanで前行から占有される列を含めた論理グリッドへ順に配置する。 */
 	for ( let rowIndex = 0; rowIndex < sectionRows.length; rowIndex++ ) {
 		const row = sectionRows[ rowIndex ];
+		/* 行をセル集合として解釈できないsectionは、論理列構造を安全に提供できない。 */
 		if ( ! isRecord( row ) || ! Array.isArray( row.cells ) ) {
 			return null;
 		}
@@ -256,16 +266,19 @@ const parseSection = (
 
 		/* 各物理セルを既存の縦結合と重ならない論理列位置へ配置する。 */
 		for ( const cell of row.cells ) {
+			/* セル属性を解釈できない場合は、論理位置と列制約を確定できない。 */
 			if ( ! isRecord( cell ) ) {
 				return null;
 			}
 
 			const rowSpan = getCellSpan( tableName, cell, 'row' );
 			const columnSpan = getCellSpan( tableName, cell, 'column' );
+			/* 無効な結合、またはsection末尾を越える縦結合を含むsectionは解析対象にしない。 */
 			if ( rowSpan === null || columnSpan === null || rowIndex + rowSpan > sectionRows.length ) {
 				return null;
 			}
 
+			/* 最初のセルを処理するときに、section全行分の論理占有領域を用意する。 */
 			if ( occupied === undefined ) {
 				occupied = Array.from( { length: sectionRows.length }, () => [] );
 			}
@@ -294,21 +307,25 @@ const parseSection = (
 		parsedRows.push( { row, cells: parsedCells } );
 	}
 
+	/* 行は存在しても有効なセルを一つも配置できないsectionは論理列構造として扱わない。 */
 	if ( occupied === undefined ) {
 		return null;
 	}
 
 	const firstRowColumnCount = occupied[ 0 ].length;
+	/* 一つも論理列を持たないsectionは列並び替え対象として成立しない。 */
 	if ( firstRowColumnCount === 0 ) {
 		return null;
 	}
 
 	/* section内の全行が同じ論理列数を持ち、論理グリッドに欠損がないことを確認する。 */
 	for ( const occupiedRow of occupied ) {
+		/* 行ごとに論理列数が異なるTableは安全な列移動へ正規化しない。 */
 		if ( occupiedRow.length !== firstRowColumnCount ) {
 			return null;
 		}
 		for ( let columnIndex = 0; columnIndex < firstRowColumnCount; columnIndex++ ) {
+			/* 結合解釈後に空き論理列が残る行は、完全なTableグリッドとして扱わない。 */
 			if ( ! occupiedRow[ columnIndex ] ) {
 				return null;
 			}
@@ -330,6 +347,7 @@ const parseTable = (
 	attributes: Record< string, unknown >
 ): ParsedTable | null => {
 	const body = attributes.body;
+	/* bodyを行集合として取得できないTableは列並び替え対象として扱わない。 */
 	if ( ! Array.isArray( body ) ) {
 		return null;
 	}
@@ -343,9 +361,11 @@ const parseTable = (
 	/* 任意sectionが存在する場合は、bodyと同じく行集合として安全に解釈できることを要求する。 */
 	for ( const optionalSection of [ 'head', 'foot' ] as const ) {
 		const rawSection = attributes[ optionalSection ];
+		/* 未設定の任意sectionは空sectionとして扱う。 */
 		if ( rawSection === undefined ) {
 			continue;
 		}
+		/* 存在する任意sectionを行集合として解釈できない場合はTable全体を解析しない。 */
 		if ( ! Array.isArray( rawSection ) ) {
 			return null;
 		}
@@ -359,23 +379,28 @@ const parseTable = (
 	/* 全sectionを同じ論理列数で解釈できる場合だけ、Table全体の列構造として確定する。 */
 	for ( const sectionName of TABLE_SECTIONS ) {
 		const parsedSection = parseSection( tableName, rawSections[ sectionName ], blockedBoundaries );
+		/* 一つでもsectionを安全に解釈できなければ、Table全体の列構造を提供しない。 */
 		if ( parsedSection === null ) {
 			return null;
 		}
 		sections[ sectionName ] = parsedSection;
 
+		/* 空sectionはTable全体の論理列数の決定に参加しない。 */
 		if ( parsedSection.columnCount === null ) {
 			continue;
 		}
+		/* 最初の非空sectionの列数をTable全体の基準とする。 */
 		if ( columnCount === null ) {
 			columnCount = parsedSection.columnCount;
 			continue;
 		}
+		/* 非空section間で列数が一致しないTableは一つの列順として更新しない。 */
 		if ( parsedSection.columnCount !== columnCount ) {
 			return null;
 		}
 	}
 
+	/* 全sectionが空のTableには列並び替え対象となる論理列が存在しない。 */
 	if ( columnCount === null ) {
 		return null;
 	}
@@ -385,6 +410,7 @@ const parseTable = (
 	for ( const sectionName of TABLE_SECTIONS ) {
 		for ( const parsedRow of sections[ sectionName ].rows ) {
 			for ( const parsedCell of parsedRow.cells ) {
+				/* 単一列セルは列間境界を塞がないため、列移動の構造拒否診断には含めない。 */
 				if ( parsedCell.columnSpan === 1 ) {
 					continue;
 				}
@@ -422,11 +448,13 @@ const parseTable = (
  */
 const getCurrentColumnTable = ( clientId: string ): CurrentColumnTable | null => {
 	const block = select( blockEditorStore ).getBlock( clientId );
+	/* 対象Blockが存在しない、非対応、または属性を解釈できない場合は現在Tableとして利用しない。 */
 	if ( ! block || ! isSupportedTable( block.name ) || ! isRecord( block.attributes ) ) {
 		return null;
 	}
 
 	const parsedTable = parseTable( block.name, block.attributes );
+	/* 対応Tableでも一つの論理列構造へ解釈できない場合は列方向機能へ公開しない。 */
 	if ( parsedTable === null ) {
 		return null;
 	}
@@ -445,6 +473,7 @@ const getCurrentColumnTable = ( clientId: string ): CurrentColumnTable | null =>
  */
 const getConstraints = ( clientId: string ): ColumnReorderConstraints | null => {
 	const currentTable = getCurrentColumnTable( clientId );
+	/* 現在Tableを安全に解析できない場合は、部分的な制約情報を返さない。 */
 	if ( currentTable === null ) {
 		return null;
 	}
@@ -465,14 +494,18 @@ const getHeadingValue = ( cell: Record< string, unknown > ): string | null => {
 	const content = cell.content;
 	let plainText: unknown;
 
+	/* RichText互換表現は、その表現が提供する表示文字列を利用する。 */
 	if ( hasPlainTextContent( content ) ) {
 		plainText = content.toPlainText();
 	} else if ( typeof content === 'string' ) {
+		/* HTML文字列はWordPress RichText経由で装飾を除いた表示文字列へ変換する。 */
 		plainText = getTextContent( create( { html: content } ) );
 	} else {
+		/* 安全に表示文字列へ変換できない内容を見出しとして推測しない。 */
 		return null;
 	}
 
+	/* 変換結果が文字列でない場合は利用者向け見出しとして公開しない。 */
 	if ( typeof plainText !== 'string' ) {
 		return null;
 	}
@@ -490,6 +523,7 @@ const getHeadingValue = ( cell: Record< string, unknown > ): string | null => {
  */
 const getColumnInputDescriptors = ( clientId: string ): readonly ColumnInputDescriptor[] | null => {
 	const currentTable = getCurrentColumnTable( clientId );
+	/* 現在Tableを安全に解析できない場合は列選択肢を推測しない。 */
 	if ( currentTable === null ) {
 		return null;
 	}
@@ -503,12 +537,14 @@ const getColumnInputDescriptors = ( clientId: string ): readonly ColumnInputDesc
 		} )
 	);
 	const headRows = currentTable.parsedTable.sections.head.rows;
+	/* 単一行headでない場合は一意な列見出しを推測せず、列番号だけを利用する。 */
 	if ( headRows.length !== 1 ) {
 		return descriptors;
 	}
 
 	/* 単一行headのうち、一つの論理列だけを占有するセルをその列の見出し候補として利用する。 */
 	for ( const parsedCell of headRows[ 0 ].cells ) {
+		/* 複数列を占有する見出しを特定の一列だけの見出しとして流用しない。 */
 		if ( parsedCell.columnSpan !== 1 ) {
 			continue;
 		}
@@ -538,6 +574,7 @@ const isColumnMoveAllowed = ( parsedTable: ParsedTable, move: ColumnMove ): bool
 		Number.isInteger( move.destinationBoundaryIndex ) &&
 		move.destinationBoundaryIndex >= 0 &&
 		move.destinationBoundaryIndex <= parsedTable.columnCount;
+	/* 現在Table上に存在しない移動元または移動先は、解決済み候補として成立しない。 */
 	if ( ! sourceInRange || ! destinationInRange ) {
 		return false;
 	}
@@ -555,13 +592,14 @@ const isColumnMoveAllowed = ( parsedTable: ParsedTable, move: ColumnMove ): bool
 /**
  * 列移動を成立させない最初の結合セル位置を取得する。
  *
- * source側をdestination側より優先し、同じ側ではcolumnStart、columnEnd、section、rowStart、rowEndの昇順を利用する。
+ * 移動元側を移動先側より優先し、同じ側ではcolumnStart、columnEnd、section、rowStart、rowEndの昇順を利用する。
  *
  * @param move 現在のTableを基準とする列移動。
  * @return 候補を妨げる0-based・両端inclusiveの結合セル位置。構造拒否がない場合はnull。
  */
 const getBlockingMergedRange = ( move: ColumnMove ): ColumnBlockingMergedRange | null => {
 	const currentTable = getCurrentColumnTable( move.clientId );
+	/* 診断元となる現在Tableを解析できない場合は、結合セル位置を推測しない。 */
 	if ( currentTable === null ) {
 		return null;
 	}
@@ -570,6 +608,7 @@ const getBlockingMergedRange = ( move: ColumnMove ): ColumnBlockingMergedRange |
 		( range ) =>
 			move.sourceColumnIndex >= range.columnStart && move.sourceColumnIndex <= range.columnEnd
 	);
+	/* 利用者が移動元そのものの制約を先に修正できるよう、移動先より移動元側の原因セルを優先する。 */
 	if ( sourceRange !== undefined ) {
 		return sourceRange;
 	}
@@ -623,6 +662,7 @@ const countAffectedCells = ( parsedTable: ParsedTable, move: ColumnMove ): numbe
 			for ( const parsedCell of parsedRow.cells ) {
 				const cellEnd = parsedCell.columnStart + parsedCell.columnSpan - 1;
 				const intersectsAffectedRange = parsedCell.columnStart <= end && cellEnd >= start;
+				/* 表示位置が変わる列範囲に一部でも重なる物理セルを更新対象として一度だけ数える。 */
 				if ( intersectsAffectedRange ) {
 					affectedCellCount++;
 				}
@@ -641,6 +681,7 @@ const countAffectedCells = ( parsedTable: ParsedTable, move: ColumnMove ): numbe
  */
 const getAffectedCellCount = ( move: ColumnMove ): number | null => {
 	const currentTable = getCurrentColumnTable( move.clientId );
+	/* DnD候補を現在構造へ再照合できない場合は、更新対象セル数を提供しない。 */
 	if ( currentTable === null || ! isColumnMoveAllowed( currentTable.parsedTable, move ) ) {
 		return null;
 	}
@@ -656,6 +697,7 @@ const getAffectedCellCount = ( move: ColumnMove ): number | null => {
  */
 const assessColumnMoveForApply = ( move: ColumnMove ): ColumnApplyAssessment | null => {
 	const currentTable = getCurrentColumnTable( move.clientId );
+	/* RF候補が現在Tableで成立しない場合は、反映経路へ進める評価結果を返さない。 */
 	if ( currentTable === null || ! isColumnMoveAllowed( currentTable.parsedTable, move ) ) {
 		return null;
 	}
@@ -729,6 +771,7 @@ const reorderRow = (
  */
 const applyColumnMove = ( move: ColumnMove ): boolean => {
 	const currentTable = getCurrentColumnTable( move.clientId );
+	/* 反映前評価結果を成立保証にせず、更新直前の現在Tableで成立しない候補は反映しない。 */
 	if ( currentTable === null || ! isColumnMoveAllowed( currentTable.parsedTable, move ) ) {
 		return false;
 	}
@@ -743,6 +786,7 @@ const applyColumnMove = ( move: ColumnMove ): boolean => {
 	/* 存在する各sectionへ同じ論理列移動を適用し、一回の属性更新へまとめる。 */
 	for ( const sectionName of TABLE_SECTIONS ) {
 		const rawSection = currentTable.attributes[ sectionName ];
+		/* 元Tableに存在しない任意sectionは更新属性へ新設しない。 */
 		if ( rawSection === undefined ) {
 			continue;
 		}
