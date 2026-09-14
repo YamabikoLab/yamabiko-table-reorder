@@ -1,16 +1,16 @@
 /*
  * 並び替え反映結果通知の共通Presentationを所有する。
  *
- * RFの完了通知デザインを基準に画面中央へ白背景と明確な枠線で表示し、成功・失敗を
+ * RFの完了通知デザインを基準に画面右下へ白背景と明確な枠線で表示し、成功・失敗を
  * アイコンと色の両方で識別できるようにする。
  */
 .yamabiko-table-reorder-completion {
 	position: fixed;
-	top: 50%;
-	left: 50%;
+	right: 24px;
+	bottom: 24px;
 	z-index: 100000;
 	width: min(440px, calc(100vw - 48px));
-	transform: translate(-50%, -50%);
+	animation: yamabiko-table-reorder-completion-enter 180ms ease-out;
 
 	.components-snackbar {
 		width: 100%;
@@ -71,4 +71,22 @@
 
 .yamabiko-table-reorder-completion__content--failure {
 	color: #d63638;
+}
+
+@keyframes yamabiko-table-reorder-completion-enter {
+	from {
+		opacity: 0;
+		transform: translateX(calc(100% + 24px));
+	}
+
+	to {
+		opacity: 1;
+		transform: translateX(0);
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.yamabiko-table-reorder-completion {
+		animation: none;
+	}
 }
