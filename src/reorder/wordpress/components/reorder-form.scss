@@ -50,8 +50,29 @@
 }
 
 .yamabiko-table-reorder-rf__collapse {
-	flex: 0 0 auto;
-	min-width: 36px;
+	display: flex;
+	flex: 0 0 44px;
+	align-items: center;
+	justify-content: center;
+	width: 44px;
+	min-width: 44px;
+	height: 44px;
+	padding: 0;
+}
+
+.yamabiko-table-reorder-rf__collapse span {
+	display: block;
+	width: 24px;
+	height: 24px;
+	font-size: 0;
+	background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none'%3E%3Cpath d='m6.5 9 5.5 5.5L17.5 9' stroke='%231e1e1e' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+	background-position: center;
+	background-repeat: no-repeat;
+	background-size: 24px 24px;
+}
+
+.yamabiko-table-reorder-rf__collapse[aria-expanded='false'] span {
+	transform: rotate(180deg);
 }
 
 .yamabiko-table-reorder-rf__summary {
@@ -122,9 +143,11 @@
 
 /*
  * 狭いEditor表示領域ではPopoverのアンカー位置から切り離し、Tableを確認しやすい画面下部へ固定する。
- * 内容が表示領域へ収まらない場合も、dock内部だけをスクロールできる状態を維持する。
+ * 利用者指定高さは現在の利用可能高さで表示上だけ制限し、内容が収まらない場合はdock内部をスクロールできる。
  */
 .yamabiko-table-reorder-rf-popover.is-narrow {
+	--yamabiko-table-reorder-rf-narrow-default-height: min(52dvh, 430px);
+
 	position: fixed !important;
 	top: auto !important;
 	right: 0 !important;
@@ -139,7 +162,13 @@
 	width: 100%;
 	min-width: 0;
 	max-width: none;
-	max-height: min(52dvh, 430px);
+	height: min(
+		var(
+			--yamabiko-table-reorder-rf-narrow-height,
+			var(--yamabiko-table-reorder-rf-narrow-default-height)
+		),
+		calc(100dvh - 24px)
+	);
 	overflow-y: auto;
 	border-right: 0;
 	border-bottom: 0;
@@ -147,12 +176,55 @@
 	border-radius: 12px 12px 0 0;
 }
 
+/* 折りたたみ時は要約表示の内容量まで縮め、Table確認へ退避できる高さにする。 */
+.yamabiko-table-reorder-rf-popover.is-narrow
+	.components-popover__content:has(.yamabiko-table-reorder-rf__collapse[aria-expanded='false']) {
+	height: auto;
+}
+
 .yamabiko-table-reorder-rf-popover.is-narrow .yamabiko-table-reorder-rf {
 	gap: 12px;
-	padding: 12px 16px calc(12px + env(safe-area-inset-bottom));
+	padding: 0 16px calc(12px + env(safe-area-inset-bottom));
 	cursor: auto;
 	touch-action: auto;
 	user-select: auto;
+}
+
+/*
+ * 狭い表示のheader上端は高さ変更用グリップと折りたたみ操作を常に利用できるよう、内部スクロール中も上端へ残す。
+ * グリップ領域だけPointerの通常スクロールから分離し、フォーム本文の縦スクロールには介入しない。
+ */
+.yamabiko-table-reorder-rf-popover.is-narrow .yamabiko-table-reorder-rf__header {
+	position: sticky;
+	top: 0;
+	z-index: 1;
+	padding-top: 18px;
+	padding-bottom: 8px;
+	background: #fff;
+	touch-action: none;
+}
+
+.yamabiko-table-reorder-rf-popover.is-narrow .yamabiko-table-reorder-rf__header::before {
+	position: absolute;
+	top: 7px;
+	left: 50%;
+	width: 44px;
+	height: 4px;
+	border-radius: 999px;
+	background: #949494;
+	content: '';
+	transform: translateX(-50%);
+}
+
+/* 折りたたみ中は高さ変更を提供せず、headerを通常操作だけに戻す。 */
+.yamabiko-table-reorder-rf-popover.is-narrow
+	.yamabiko-table-reorder-rf__header:has(.yamabiko-table-reorder-rf__collapse[aria-expanded='false']) {
+	touch-action: auto;
+}
+
+.yamabiko-table-reorder-rf-popover.is-narrow
+	.yamabiko-table-reorder-rf__header:has(.yamabiko-table-reorder-rf__collapse[aria-expanded='false'])::before {
+	display: none;
 }
 
 .yamabiko-table-reorder-rf-popover.is-narrow .yamabiko-table-reorder-rf__actions {
@@ -163,8 +235,9 @@
 }
 
 @media (max-width: 420px) {
-	
-	.yamabiko-table-reorder-rf-popover.is-narrow .components-popover__content {
-		max-height: 48dvh;
+
+	.yamabiko-table-reorder-rf-popover.is-narrow {
+		
+		--yamabiko-table-reorder-rf-narrow-default-height: 48dvh;
 	}
 }
