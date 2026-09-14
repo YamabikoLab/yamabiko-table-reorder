@@ -1,5 +1,5 @@
 /**
- * Reorder Form（RF）の列選択肢がColumn Table Integrationから受け取った見出しと列番号を利用者向け表示へ反映することを確認する。
+ * Reorder Form（RF）が行番号の入力範囲と列選択肢を利用者向けPresentationへ正しく公開することを確認する。
  */
 
 import { render, screen } from '@testing-library/react';
@@ -68,6 +68,47 @@ jest.mock( '@/reorder/wordpress/components/reorder-form-position', () => ( {
 } ) );
 
 describe( 'Reorder Form presentation', () => {
+	/**
+	 * Row RFの行番号入力が現在Tableの有効範囲をHTML標準制約として公開することを確認する。
+	 *
+	 * 事前条件:
+	 * - RFはRow入力を表示している。
+	 * - 現在Tableは20行である。
+	 *
+	 * 操作:
+	 * - RF入力Popoverを表示する。
+	 *
+	 * 期待結果:
+	 * - 移動元・移動先の両方が1から20までを1刻みで入力可能な数値入力として公開される。
+	 */
+	it( 'when row input is shown for a table with a known row count, should expose the valid row range on both number inputs', () => {
+		const state: RfInteractionReactState = {
+			status: 'open',
+			kind: 'row',
+			input: {
+				sourceRowNumber: '',
+				targetRowNumber: '',
+				position: null,
+			},
+			rowCount: 20,
+			result: { status: 'not-ready' },
+			canApply: false,
+		};
+		const anchor = document.createElement( 'button' );
+
+		render( <ReorderFormPopover anchor={ anchor } state={ state } tableIdentity="table-a" /> );
+
+		const sourceInput = screen.getByRole( 'spinbutton', { name: '移動する行' } );
+		const targetInput = screen.getByRole( 'spinbutton', { name: '移動先の行' } );
+
+		expect( sourceInput.getAttribute( 'min' ) ).toBe( '1' );
+		expect( sourceInput.getAttribute( 'max' ) ).toBe( '20' );
+		expect( sourceInput.getAttribute( 'step' ) ).toBe( '1' );
+		expect( targetInput.getAttribute( 'min' ) ).toBe( '1' );
+		expect( targetInput.getAttribute( 'max' ) ).toBe( '20' );
+		expect( targetInput.getAttribute( 'step' ) ).toBe( '1' );
+	} );
+
 	/**
 	 * Column Table Integrationから見出し付き列記述を受け取った場合、列番号と組み合わせた選択肢を表示することを確認する。
 	 *

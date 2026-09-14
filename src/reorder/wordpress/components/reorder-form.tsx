@@ -357,12 +357,15 @@ export const ReorderFormPopover = ( props: ReorderFormPopoverProps ) => {
 							<input
 								id={ sourceRowId }
 								inputMode="numeric"
+								max={ state.rowCount ?? undefined }
+								min={ 1 }
 								onChange={ ( event ) =>
 									rfInteraction.updateRowInput( tableIdentity, {
 										...state.input,
 										sourceRowNumber: event.currentTarget.value,
 									} )
 								}
+								step={ 1 }
 								type="number"
 								value={ state.input.sourceRowNumber }
 							/>
@@ -372,12 +375,15 @@ export const ReorderFormPopover = ( props: ReorderFormPopoverProps ) => {
 							<input
 								id={ targetRowId }
 								inputMode="numeric"
+								max={ state.rowCount ?? undefined }
+								min={ 1 }
 								onChange={ ( event ) =>
 									rfInteraction.updateRowInput( tableIdentity, {
 										...state.input,
 										targetRowNumber: event.currentTarget.value,
 									} )
 								}
+								step={ 1 }
 								type="number"
 								value={ state.input.targetRowNumber }
 							/>
