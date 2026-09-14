@@ -12,6 +12,11 @@ import { useDragDropManager } from '@dnd-kit/react';
 import type { PointerEvent, ReactNode } from 'react';
 
 import { resolveColumnSourceIndex } from '@/reorder/column-reorder/integration/source-column-resolution';
+import {
+	DND_MOUSE_ACTIVATION_DISTANCE_PX,
+	DND_TOUCH_ACTIVATION_DELAY_MS,
+	DND_TOUCH_ACTIVATION_TOLERANCE_PX,
+} from '@/reorder/reorder-tuning';
 
 import { notifyColumnStartRejection } from './presentation/start-rejection-notice-event';
 import { columnReorderTargetResolution, type ColumnReorderTarget } from './target-resolution';
@@ -133,15 +138,15 @@ export const ColumnInput = ( props: {
 							if ( activationEvent.pointerType === 'mouse' ) {
 								return [
 									new PointerActivationConstraints.Distance( {
-										value: 5,
+										value: DND_MOUSE_ACTIVATION_DISTANCE_PX,
 									} ),
 								];
 							}
 
 							return [
 								new PointerActivationConstraints.Delay( {
-									value: 250,
-									tolerance: 5,
+									value: DND_TOUCH_ACTIVATION_DELAY_MS,
+									tolerance: DND_TOUCH_ACTIVATION_TOLERANCE_PX,
 								} ),
 							];
 						},
