@@ -1,15 +1,15 @@
 /**
- * 行DnD開始拒否のblocking merged rangeと開始を試みた位置をReorder Presentationへ渡す一回性イベント境界を所有する。
+ * 行DnD開始拒否のblocking merged cellと開始を試みた位置をReorder Presentationへ渡す一回性イベント境界を所有する。
  *
- * 表示部品や表示状態を持たず、Reorder Target Resolutionが返した原因となる縦結合範囲と、
- * その範囲を利用者の操作位置付近へ提示するために必要な位置だけを現在のPresentation購読へ伝える。
+ * 表示部品や表示状態を持たず、Reorder Target Resolutionが返した原因となる結合セル位置と、
+ * その位置を利用者の操作位置付近へ提示するために必要な座標だけを現在のPresentation購読へ伝える。
  */
 
-import type { RowBlockingMergedRange } from '@/reorder/row-reorder/responsibilities/table-integration';
+import type { RowBlockingMergedCell } from '@/reorder/row-reorder/responsibilities/blocking-merged-cell-diagnostics';
 
-/** 利用者が行DnD開始を試みた位置と、開始を妨げる縦結合範囲。 */
+/** 利用者が行DnD開始を試みた位置と、開始を妨げる結合セル位置。 */
 export type RowStartRejectionNoticeEvent = {
-	blockingMergedRange: RowBlockingMergedRange;
+	blockingMergedCell: RowBlockingMergedCell;
 	clientX: number;
 	clientY: number;
 };
@@ -21,9 +21,9 @@ type RowStartRejectionListener = ( event: RowStartRejectionNoticeEvent ) => void
 const rowStartRejectionListeners = new Set< RowStartRejectionListener >();
 
 /**
- * Reorder Target Resolutionが返したblocking merged rangeを、開始を試みた位置とともに現在のPresentationへ通知する。
+ * Reorder Target Resolutionが返したblocking merged cellを、開始を試みた位置とともに現在のPresentationへ通知する。
  *
- * @param event 利用者へ提示する縦結合範囲と、その表示基準となる操作位置。
+ * @param event 利用者へ提示する結合セル位置と、その表示基準となる操作位置。
  */
 export const notifyRowStartRejection = ( event: RowStartRejectionNoticeEvent ): void => {
 	rowStartRejectionListeners.forEach( ( listener ) => {
