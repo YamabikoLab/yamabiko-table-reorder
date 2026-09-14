@@ -116,7 +116,7 @@ export const getRfUnavailableMessage = () =>
 	);
 
 /** RFの結合セル位置表示で利用するTable section。 */
-export type RfMergedCellSection = 'head' | 'body' | 'foot';
+type RfMergedCellSection = 'head' | 'body' | 'foot';
 
 /**
  * RFの行移動を妨げる結合セル位置を知らせる文言を取得する。
@@ -133,14 +133,6 @@ export const getRfRowMergedRangeMessage = (
 	columnStart: number,
 	columnEnd: number
 ) => {
-	if ( rowStart === rowEnd && columnStart === columnEnd ) {
-		/* translators: 1: 1-based row number, 2: 1-based column number */
-		const message = __(
-			'A merged cell in row %1$d, column %2$d prevents this move.',
-			'yamabiko-table-reorder'
-		);
-		return sprintf( message, rowStart, columnStart );
-	}
 	if ( rowStart === rowEnd ) {
 		/* translators: 1: 1-based row number, 2: first 1-based column number, 3: last 1-based column number */
 		const message = __(
@@ -191,14 +183,6 @@ export const getRfColumnMergedRangeMessage = (
 		section === 'head'
 			? __( 'header', 'yamabiko-table-reorder' )
 			: __( 'footer', 'yamabiko-table-reorder' );
-	if ( rowStart === rowEnd && columnStart === columnEnd ) {
-		/* translators: 1: table section name, 2: 1-based row number, 3: 1-based column number */
-		const message = __(
-			'A merged cell in %1$s row %2$d, column %3$d prevents this move.',
-			'yamabiko-table-reorder'
-		);
-		return sprintf( message, sectionName, rowStart, columnStart );
-	}
 	if ( rowStart === rowEnd ) {
 		/* translators: 1: table section name, 2: 1-based row number, 3: first 1-based column number, 4: last 1-based column number */
 		const message = __(
@@ -206,14 +190,6 @@ export const getRfColumnMergedRangeMessage = (
 			'yamabiko-table-reorder'
 		);
 		return sprintf( message, sectionName, rowStart, columnStart, columnEnd );
-	}
-	if ( columnStart === columnEnd ) {
-		/* translators: 1: table section name, 2: first 1-based row number, 3: last 1-based row number, 4: 1-based column number */
-		const message = __(
-			'A merged cell spanning %1$s rows %2$d–%3$d in column %4$d prevents this move.',
-			'yamabiko-table-reorder'
-		);
-		return sprintf( message, sectionName, rowStart, rowEnd, columnStart );
 	}
 
 	/* translators: 1: table section name, 2: first 1-based row number, 3: last 1-based row number, 4: first 1-based column number, 5: last 1-based column number */
