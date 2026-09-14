@@ -19,7 +19,6 @@ import {
 	SOURCE_ROW,
 	tableAttributes,
 	tableData,
-	TARGET_COLUMN,
 	TARGET_ROW,
 	columnOrder,
 } from './reorder-form';
