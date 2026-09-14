@@ -276,6 +276,30 @@ const getBlockingMergedRange = ( move: RowMove ): RowBlockingMergedRange | null 
 };
 
 /**
+ * DnD開始対象となる行が属する最初の縦結合範囲を取得する。
+ *
+ * @param clientId       対象Table個体を識別するclientId。
+ * @param sourceRowIndex tbody内の0-based移動元行位置。
+ * @return 移動元行を含む0-based・両端inclusiveの行範囲。構造拒否がない場合はnull。
+ */
+const getSourceBlockingMergedRange = (
+	clientId: string,
+	sourceRowIndex: number
+): RowBlockingMergedRange | null => {
+	const parsedTable = getParsedRowTable( clientId );
+	/* 診断元となる現在Tableを解析できない場合は、結合範囲を推測しない。 */
+	if ( parsedTable === null ) {
+		return null;
+	}
+
+	const sourceRange = parsedTable.mergedRanges.find(
+		( range ) => sourceRowIndex >= range.rowStart && sourceRowIndex <= range.rowEnd
+	);
+	const blockingRange = sourceRange ?? null;
+	return blockingRange;
+};
+
+/**
  * 移動前の行間境界を、移動元除去後の最終行位置へ解釈する。
  *
  * Assessmentと確定更新が同じ方向固有Move意味を利用するため、この境界を行移動の正本とする。
@@ -391,6 +415,7 @@ const applyRowMove = ( move: RowMove ): boolean => {
 export const rowTableIntegration = {
 	getConstraints,
 	getBlockingMergedRange,
+	getSourceBlockingMergedRange,
 	getAffectedCellCount,
 	resolveDestinationRowIndex,
 	assessRowMoveForApply,
