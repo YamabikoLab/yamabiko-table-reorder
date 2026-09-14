@@ -3,15 +3,15 @@
  *
  * 要求時点のTable制約に対して指定された行が移動対象として成立するかを解決し、
  * 開始可能な場合はReorder Targetと開始時制約を同じ解決結果として返す。
- * 実際のDnD開始拒否では原因となる縦結合範囲もTable Integrationから取得する。
+ * 実際のDnD開始拒否では原因となる結合セル位置もTable Integration診断から取得する。
  * 解決結果は保持せず、DnD Sessionや表示状態を所有しない。
  */
 
 import {
-	rowTableIntegration,
-	type RowBlockingMergedRange,
-	type RowReorderConstraints,
-} from './table-integration';
+	rowBlockingMergedCellDiagnostics,
+	type RowBlockingMergedCell,
+} from './blocking-merged-cell-diagnostics';
+import { rowTableIntegration, type RowReorderConstraints } from './table-integration';
 import {
 	isRowReorderTargetBlockedByMergedRange,
 	isRowReorderTargetInRange,
@@ -31,7 +31,7 @@ export type RowReorderTargetResolution =
 	  }
 	| {
 			status: 'rejected';
-			blockingMergedRange: RowBlockingMergedRange;
+			blockingMergedCell: RowBlockingMergedCell;
 	  }
 	| {
 			status: 'unavailable';
@@ -96,7 +96,7 @@ const resolveWithConstraints = (
  * 同一Tableの要求時点の行制約を基準とする一時的なTarget Resolverを生成する。
  *
  * Table制約を取得できない場合もresolver自体は成立させ、各候補を通常の利用不能として解決する。
- * 表示判定ではblocking merged range診断を取得せず、同じ制約を複数候補で再利用する。
+ * 表示判定ではblocking merged cell診断を取得せず、同じ制約を複数候補で再利用する。
  *
  * @param tableIdentity 解決対象となるTable個体の識別値。
  * @return 同じTable制約を基準に複数の移動対象候補を解決するResolver。
@@ -124,11 +124,11 @@ const createResolver = ( tableIdentity: string ): RowReorderTargetResolver => {
  * 要求時点のTable構造から行DnD開始対象を解決する。
  *
  * 対象Tableまたは移動元行を安全に解釈できない場合は通常の利用不能とし、
- * 結合範囲により行単位で移動できない場合だけ原因となる縦結合範囲を返す。
- * 開始拒否判定後に現在Tableから診断範囲を取得できなくなった場合は、範囲を推測せず利用不能として扱う。
+ * 結合範囲により行単位で移動できない場合だけ原因となる結合セルの行・列位置を返す。
+ * 開始拒否判定後に現在Tableから診断位置を取得できなくなった場合は、位置を推測せず利用不能として扱う。
  *
  * @param target 開始を試行するReorder Target。
- * @return 開始可能なTargetと開始時制約、開始拒否のblocking merged range、または通常の利用不能結果。
+ * @return 開始可能なTargetと開始時制約、開始拒否のblocking merged cell、または通常の利用不能結果。
  */
 const resolve = ( target: RowReorderTarget ): RowReorderTargetResolution => {
 	const resolver = createResolver( target.tableIdentity );
@@ -137,18 +137,18 @@ const resolve = ( target: RowReorderTarget ): RowReorderTargetResolution => {
 		return resolution;
 	}
 
-	const blockingMergedRange = rowTableIntegration.getSourceBlockingMergedRange(
+	const blockingMergedCell = rowBlockingMergedCellDiagnostics.getSourceBlockingMergedCell(
 		target.tableIdentity,
 		target.sourceRowIndex
 	);
-	/* 開始拒否を説明する現在の結合範囲を取得できない場合は、古い判定だけから理由を推測しない。 */
-	if ( blockingMergedRange === null ) {
+	/* 開始拒否を説明する現在の結合セル位置を取得できない場合は、古い判定だけから理由を推測しない。 */
+	if ( blockingMergedCell === null ) {
 		return { status: 'unavailable' };
 	}
 
 	return {
 		status: 'rejected',
-		blockingMergedRange,
+		blockingMergedCell,
 	};
 };
 
