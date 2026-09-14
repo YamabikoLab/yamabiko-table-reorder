@@ -91,15 +91,15 @@ test( 'when a Core Table row is reordered with the form and undone, should use t
 	attributes.body[ 1 ].cells[ 1 ].content =
 		'<strong>R2C2</strong> <a href="https://example.test/">Link</a>';
 	Object.assign( attributes.body[ 1 ].cells[ 1 ], { align: 'right' } );
-	const { rows } = await insertTable( page, editor, 'core/table', attributes );
+	const { canvas, rows } = await insertTable( page, editor, 'core/table', attributes );
 	const before = await tableData( editor );
 	const form = await openReorderForm( page );
 	await fillRowReorder( form, 2, 4, 'below' );
 	await expect( form.getByRole( 'button', { name: APPLY } ) ).toBeEnabled();
 	await form.getByRole( 'button', { name: APPLY } ).click();
 
+	await expect( canvas.getByText( COMPLETION ) ).toBeVisible();
 	await expect( form ).toBeHidden();
-	await expect( page.getByText( COMPLETION ) ).toBeVisible();
 	await expect.poll( () => rowOrder( rows ) ).toEqual( [ 'R1C1', 'R3C1', 'R4C1', 'R2C1' ] );
 	const body = before[ 0 ].body as unknown[];
 	await expect

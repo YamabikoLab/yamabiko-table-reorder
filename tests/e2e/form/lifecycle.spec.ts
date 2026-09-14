@@ -66,7 +66,7 @@ test( 'when the form is cancelled, toggled, or left for another block, should pr
 	await expect( form ).toBeHidden();
 
 	form = await openReorderForm( page );
-	await paragraph.click();
+	await editor.selectBlocks( paragraph );
 	await expect( form ).toBeHidden();
 	await editor.selectBlocks( block );
 	await expect( reorderForm( page ) ).toBeHidden();
@@ -172,7 +172,12 @@ test( 'when a 310-cell column reorder is continued, should restore ordinary edit
 	page,
 	editor,
 } ) => {
-	const { rows } = await insertTable( page, editor, 'core/table', tableAttributes( 31, 10 ) );
+	const { canvas, rows } = await insertTable(
+		page,
+		editor,
+		'core/table',
+		tableAttributes( 31, 10 )
+	);
 	const before = await tableData( editor );
 	const form = await openReorderForm( page );
 	await form.getByRole( 'radio', { name: COLUMNS } ).click();
@@ -182,9 +187,9 @@ test( 'when a 310-cell column reorder is continued, should restore ordinary edit
 	const confirmation = page.getByRole( 'dialog', { name: LARGE_CONFIRMATION } );
 	await expect( confirmation ).toBeVisible();
 	await confirmation.getByRole( 'button', { name: CONTINUE } ).click();
+	await expect( canvas.getByText( COMPLETION ) ).toBeVisible();
 	await expect( confirmation ).toBeHidden();
 	await expect( reorderForm( page ) ).toBeHidden();
-	await expect( page.getByText( COMPLETION ) ).toBeVisible();
 	await expect
 		.poll( () => columnOrder( rows.first() ) )
 		.toEqual( [ 'R1C2', 'R1C3', 'R1C4', 'R1C5', 'R1C6', 'R1C7', 'R1C8', 'R1C9', 'R1C10', 'R1C1' ] );
