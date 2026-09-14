@@ -179,11 +179,7 @@ const parseRowTable = (
 				return null;
 			}
 
-			const columnStart = findAvailableColumnStart(
-				occupied[ rowIndex ],
-				searchFrom,
-				columnSpan
-			);
+			const columnStart = findAvailableColumnStart( occupied[ rowIndex ], searchFrom, columnSpan );
 			const columnEnd = columnStart + columnSpan - 1;
 
 			/* セルが占有する論理位置を後続セル・後続行の列解決へ反映する。 */
