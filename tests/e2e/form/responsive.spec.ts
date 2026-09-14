@@ -1,3 +1,4 @@
+import type { Locator } from '@playwright/test';
 import { expect, test } from '@wordpress/e2e-test-utils-playwright';
 
 import {
@@ -12,6 +13,23 @@ import {
 	SOURCE_ROW,
 	TARGET_ROW,
 } from './reorder-form';
+
+type BoundingBox = NonNullable< Awaited< ReturnType< Locator[ 'boundingBox' ] > > >;
+
+/**
+ * 表示中の操作対象から現在の座標と寸法を取得する。
+ *
+ * @param locator 座標と寸法を取得する操作対象。
+ * @return 現在の座標と寸法。
+ */
+async function getVisibleBoundingBox( locator: Locator ): Promise< BoundingBox > {
+	await expect( locator ).toBeVisible();
+	const box = await locator.boundingBox();
+	if ( box === null ) {
+		throw new Error( 'The Reorder Form operation target is not visible.' );
+	}
+	return box;
+}
 
 test.beforeEach( async ( { admin, page } ) => {
 	await admin.createNewPost();
@@ -42,12 +60,9 @@ test.describe( 'wide Reorder Form presentation', () => {
 		const { rows } = await insertTable( page, editor );
 		const form = await openReorderForm( page );
 		await fillRowReorder( form, 2, 4, 'below' );
-		const before = await form.boundingBox();
+		const before = await getVisibleBoundingBox( form );
 		const title = form.getByRole( 'heading' );
-		const titleBox = await title.boundingBox();
-		if ( before === null || titleBox === null ) {
-			throw new Error( 'The desktop Reorder Form is not visible.' );
-		}
+		const titleBox = await getVisibleBoundingBox( title );
 
 		await page.mouse.move( titleBox.x + titleBox.width / 2, titleBox.y + titleBox.height / 2 );
 		await page.mouse.down();
@@ -136,11 +151,8 @@ test.describe( 'narrow Reorder Form presentation', () => {
 		const content = popover.locator( '.components-popover__content' );
 		const header = form.locator( '.yamabiko-table-reorder-rf__header' );
 		await fillRowReorder( form, 2, 4, 'below' );
-		const initialHeight = ( await content.boundingBox() )?.height;
-		const headerBox = await header.boundingBox();
-		if ( initialHeight === undefined || headerBox === null ) {
-			throw new Error( 'The narrow Reorder Form is not visible.' );
-		}
+		const initialHeight = ( await getVisibleBoundingBox( content ) ).height;
+		const headerBox = await getVisibleBoundingBox( header );
 
 		const handleX = headerBox.x + headerBox.width / 2;
 		const handleY = headerBox.y + 6;
@@ -152,10 +164,7 @@ test.describe( 'narrow Reorder Form presentation', () => {
 			.poll( async () => ( await content.boundingBox() )?.height )
 			.toBeGreaterThan( initialHeight + 50 );
 
-		const raisedHeaderBox = await header.boundingBox();
-		if ( raisedHeaderBox === null ) {
-			throw new Error( 'The resized Reorder Form header is not visible.' );
-		}
+		const raisedHeaderBox = await getVisibleBoundingBox( header );
 		await page.mouse.move( raisedHeaderBox.x + raisedHeaderBox.width / 2, raisedHeaderBox.y + 6 );
 		await page.mouse.down();
 		await page.mouse.move( raisedHeaderBox.x + raisedHeaderBox.width / 2, raisedHeaderBox.y + 306, {
