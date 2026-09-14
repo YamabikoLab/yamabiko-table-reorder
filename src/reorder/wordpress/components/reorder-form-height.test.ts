@@ -9,18 +9,22 @@ import { reorderFormHeight, useReorderFormNarrowHeight } from './reorder-form-he
 /**
  * 高さ変更操作を受ける狭いRF入力画面を現在documentへ作成する。
  *
- * @return RF Toolbar入口と高さ変更用header。
+ * @return RF Toolbar入口、高さ変更用header、折りたたみ操作。
  */
 const createNarrowForm = () => {
 	const anchor = document.createElement( 'button' );
 	const popover = document.createElement( 'div' );
 	const content = document.createElement( 'div' );
 	const header = document.createElement( 'div' );
+	const collapse = document.createElement( 'button' );
 	popover.className = 'yamabiko-table-reorder-rf-popover is-narrow';
 	content.className = 'components-popover__content';
 	header.className = 'yamabiko-table-reorder-rf__header';
+	collapse.className = 'yamabiko-table-reorder-rf__collapse';
+	collapse.setAttribute( 'aria-expanded', 'true' );
 	popover.append( content );
 	content.append( header );
+	header.append( collapse );
 	document.body.append( anchor, popover );
 
 	header.getBoundingClientRect = () => ( { top: 100 } ) as DOMRect;
@@ -31,7 +35,7 @@ const createNarrowForm = () => {
 		setPointerCapture: jest.fn(),
 	} );
 
-	return { anchor, header, popover };
+	return { anchor, collapse, header, popover };
 };
 
 /**
@@ -103,6 +107,48 @@ describe( 'Reorder Form narrow height presentation state', () => {
 			document.documentElement.style.getPropertyValue( '--yamabiko-table-reorder-rf-narrow-height' )
 		).toBe( '340px' );
 		secondRender.unmount();
+	} );
+
+	/**
+	 * 折りたたみ中のRFでは高さ変更操作を受け付けず、展開前に指定した高さを維持することを確認する。
+	 *
+	 * 事前条件:
+	 * - 狭いRF入力画面で利用者指定高さが340pxに変更されている。
+	 * - RFが折りたたまれている。
+	 *
+	 * 操作:
+	 * - 折りたたみ表示の上端をさらに40px上へドラッグする。
+	 *
+	 * 期待結果:
+	 * - 利用者指定高さは340pxのまま変更されない。
+	 */
+	it( 'when the narrow form is collapsed, should ignore resize gestures and preserve the requested height', () => {
+		reorderFormHeight.beginSession( 'table-collapsed' );
+		const { anchor, collapse, header } = createNarrowForm();
+		const heightHook = renderHook( () =>
+			useReorderFormNarrowHeight( 'table-collapsed', anchor, true )
+		);
+
+		act( () => {
+			dispatchPointer( 'pointerdown', header, 108 );
+			dispatchPointer( 'pointermove', header, 68 );
+			dispatchPointer( 'pointerup', header, 68 );
+		} );
+		expect(
+			document.documentElement.style.getPropertyValue( '--yamabiko-table-reorder-rf-narrow-height' )
+		).toBe( '340px' );
+
+		collapse.setAttribute( 'aria-expanded', 'false' );
+		act( () => {
+			dispatchPointer( 'pointerdown', header, 108 );
+			dispatchPointer( 'pointermove', header, 68 );
+			dispatchPointer( 'pointerup', header, 68 );
+		} );
+
+		expect(
+			document.documentElement.style.getPropertyValue( '--yamabiko-table-reorder-rf-narrow-height' )
+		).toBe( '340px' );
+		heightHook.unmount();
 	} );
 
 	/**
