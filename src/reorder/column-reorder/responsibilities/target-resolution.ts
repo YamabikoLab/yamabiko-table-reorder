@@ -3,15 +3,15 @@
  *
  * 要求時点のTable制約に対して指定された論理列が移動対象として成立するかを解決し、
  * 開始可能な場合はReorder Targetと開始時制約を同じ解決結果として返す。
- * 実際のDnD開始拒否では原因となる横結合範囲もTable Integrationから取得する。
+ * 実際のDnD開始拒否では原因となる結合セル位置もTable Integration診断から取得する。
  * 解決結果は保持せず、DnD Sessionや表示状態を所有しない。
  */
 
 import {
-	columnTableIntegration,
-	type ColumnBlockingMergedRange,
-	type ColumnReorderConstraints,
-} from './table-integration';
+	columnBlockingMergedCellDiagnostics,
+	type ColumnBlockingMergedCell,
+} from './blocking-merged-cell-diagnostics';
+import { columnTableIntegration, type ColumnReorderConstraints } from './table-integration';
 import {
 	isColumnReorderTargetBlockedByMergedRange,
 	isColumnReorderTargetInRange,
@@ -31,7 +31,7 @@ export type ColumnReorderTargetResolution =
 	  }
 	| {
 			status: 'rejected';
-			blockingMergedRange: ColumnBlockingMergedRange;
+			blockingMergedCell: ColumnBlockingMergedCell;
 	  }
 	| {
 			status: 'unavailable';
@@ -97,7 +97,7 @@ const resolveWithConstraints = (
  * 同一Tableの要求時点の列制約を基準とする一時的なTarget Resolverを生成する。
  *
  * Table制約を取得できない場合もresolver自体は成立させ、各候補を通常の利用不能として解決する。
- * 表示判定ではblocking merged range診断を取得せず、同じ制約を複数候補で再利用する。
+ * 表示判定ではblocking merged cell診断を取得せず、同じ制約を複数候補で再利用する。
  *
  * @param tableIdentity 解決対象となるTable個体の識別値。
  * @return 同じTable制約を基準に複数の移動対象候補を解決するResolver。
@@ -126,11 +126,11 @@ const createResolver = ( tableIdentity: string ): ColumnReorderTargetResolver =>
  * 要求時点のTable構造から列DnD開始対象を解決する。
  *
  * 対象Tableまたは移動元論理列を安全に解釈できない場合は通常の利用不能とし、
- * colspanによる結合範囲により列単位で移動できない場合だけ原因となる横結合範囲を返す。
- * 開始拒否判定後に現在Tableから診断範囲を取得できなくなった場合は、範囲を推測せず利用不能として扱う。
+ * colspanによる結合範囲により列単位で移動できない場合だけ原因となる結合セルのsection・行・列位置を返す。
+ * 開始拒否判定後に現在Tableから診断位置を取得できなくなった場合は、位置を推測せず利用不能として扱う。
  *
  * @param target 開始を試行するReorder Target。
- * @return 開始可能なTargetと開始時制約、開始拒否のblocking merged range、または通常の利用不能結果。
+ * @return 開始可能なTargetと開始時制約、開始拒否のblocking merged cell、または通常の利用不能結果。
  */
 const resolve = ( target: ColumnReorderTarget ): ColumnReorderTargetResolution => {
 	const resolver = createResolver( target.tableIdentity );
@@ -139,25 +139,25 @@ const resolve = ( target: ColumnReorderTarget ): ColumnReorderTargetResolution =
 		return resolution;
 	}
 
-	const blockingMergedRange = columnTableIntegration.getSourceBlockingMergedRange(
+	const blockingMergedCell = columnBlockingMergedCellDiagnostics.getSourceBlockingMergedCell(
 		target.tableIdentity,
 		target.sourceColumnIndex
 	);
-	/* 開始拒否を説明する現在の結合範囲を取得できない場合は、古い判定だけから理由を推測しない。 */
-	if ( blockingMergedRange === null ) {
+	/* 開始拒否を説明する現在の結合セル位置を取得できない場合は、古い判定だけから理由を推測しない。 */
+	if ( blockingMergedCell === null ) {
 		return { status: 'unavailable' };
 	}
 
 	return {
 		status: 'rejected',
-		blockingMergedRange,
+		blockingMergedCell,
 	};
 };
 
 /**
  * 列並び替え開始前の移動対象解決境界。
  *
- * 要求時点の現在制約から開始候補を解決し、実際の開始拒否時だけ現在のblocking merged rangeを診断する。
+ * 要求時点の現在制約から開始候補を解決し、実際の開始拒否時だけ現在のblocking merged cellを診断する。
  */
 export const columnReorderTargetResolution = {
 	createResolver,
