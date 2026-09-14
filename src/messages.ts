@@ -125,7 +125,7 @@ type RfMergedCellSection = 'head' | 'body' | 'foot';
  * @param rowEnd      利用者向け1-based終了行番号。
  * @param columnStart 利用者向け1-based開始列番号。
  * @param columnEnd   利用者向け1-based終了列番号。
- * @return 最初に確認されたblocking merged cellを示す案内文。
+ * @return 最初に確認された移動を妨げる結合セルを示す案内文。
  */
 export const getRfRowMergedRangeMessage = (
 	rowStart: number,
@@ -133,6 +133,7 @@ export const getRfRowMergedRangeMessage = (
 	columnStart: number,
 	columnEnd: number
 ) => {
+	/* 原因セルが単一行に収まる場合は、行番号と占有する列範囲を示す。 */
 	if ( rowStart === rowEnd ) {
 		/* translators: 1: 1-based row number, 2: first 1-based column number, 3: last 1-based column number */
 		const message = __(
@@ -141,6 +142,8 @@ export const getRfRowMergedRangeMessage = (
 		);
 		return sprintf( message, rowStart, columnStart, columnEnd );
 	}
+
+	/* 複数行にまたがる原因セルが単一列だけを占有する場合は、行範囲と列番号を示す。 */
 	if ( columnStart === columnEnd ) {
 		/* translators: 1: first 1-based row number, 2: last 1-based row number, 3: 1-based column number */
 		const message = __(
@@ -150,6 +153,7 @@ export const getRfRowMergedRangeMessage = (
 		return sprintf( message, rowStart, rowEnd, columnStart );
 	}
 
+	/* 複数行・複数列を占有する原因セルは、Table上で一意に特定できるよう両方の範囲を示す。 */
 	/* translators: 1: first 1-based row number, 2: last 1-based row number, 3: first 1-based column number, 4: last 1-based column number */
 	const message = __(
 		'A merged cell spanning rows %1$d–%2$d and columns %3$d–%4$d prevents this move.',
@@ -166,7 +170,7 @@ export const getRfRowMergedRangeMessage = (
  * @param rowEnd      利用者向け1-based終了行番号。
  * @param columnStart 利用者向け1-based開始列番号。
  * @param columnEnd   利用者向け1-based終了列番号。
- * @return 最初に確認されたblocking merged cellを示す案内文。
+ * @return 最初に確認された移動を妨げる結合セルを示す案内文。
  */
 export const getRfColumnMergedRangeMessage = (
 	section: RfMergedCellSection,
@@ -175,14 +179,18 @@ export const getRfColumnMergedRangeMessage = (
 	columnStart: number,
 	columnEnd: number
 ) => {
+	/* tbodyの原因セルはRow RFと同じ行・列位置表現で利用者が特定できる。 */
 	if ( section === 'body' ) {
 		return getRfRowMergedRangeMessage( rowStart, rowEnd, columnStart, columnEnd );
 	}
 
+	/* headとfootではsection内行番号だけではTable上の位置を区別できないため、領域名を併記する。 */
 	const sectionName =
 		section === 'head'
 			? __( 'header', 'yamabiko-table-reorder' )
 			: __( 'footer', 'yamabiko-table-reorder' );
+
+	/* 原因セルがsection内の単一行に収まる場合は、領域名、行番号、列範囲を示す。 */
 	if ( rowStart === rowEnd ) {
 		/* translators: 1: table section name, 2: 1-based row number, 3: first 1-based column number, 4: last 1-based column number */
 		const message = __(
@@ -192,6 +200,7 @@ export const getRfColumnMergedRangeMessage = (
 		return sprintf( message, sectionName, rowStart, columnStart, columnEnd );
 	}
 
+	/* section内の複数行にまたがる原因セルは、領域名と行・列の両範囲を示す。 */
 	/* translators: 1: table section name, 2: first 1-based row number, 3: last 1-based row number, 4: first 1-based column number, 5: last 1-based column number */
 	const message = __(
 		'A merged cell spanning %1$s rows %2$d–%3$d and columns %4$d–%5$d prevents this move.',
