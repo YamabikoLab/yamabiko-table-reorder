@@ -1,14 +1,20 @@
 /**
- * Reorder Target Resolutionが、現在のTable制約から開始対象の成立可否とblocking merged rangeを解決することを確認する。
+ * Reorder Target Resolutionが、現在のTable制約から開始対象の成立可否とblocking merged cellを解決することを確認する。
  */
 
+import { rowBlockingMergedCellDiagnostics } from './blocking-merged-cell-diagnostics';
 import { rowTableIntegration } from './table-integration';
 import { rowReorderTargetResolution } from './target-resolution';
+
+jest.mock( './blocking-merged-cell-diagnostics', () => ( {
+	rowBlockingMergedCellDiagnostics: {
+		getSourceBlockingMergedCell: jest.fn(),
+	},
+} ) );
 
 jest.mock( './table-integration', () => ( {
 	rowTableIntegration: {
 		getConstraints: jest.fn(),
-		getSourceBlockingMergedRange: jest.fn(),
 		applyRowMove: jest.fn(),
 	},
 } ) );
@@ -16,9 +22,9 @@ jest.mock( './table-integration', () => ( {
 const getConstraintsMock = rowTableIntegration.getConstraints as jest.MockedFunction<
 	typeof rowTableIntegration.getConstraints
 >;
-const getSourceBlockingMergedRangeMock =
-	rowTableIntegration.getSourceBlockingMergedRange as jest.MockedFunction<
-		typeof rowTableIntegration.getSourceBlockingMergedRange
+const getSourceBlockingMergedCellMock =
+	rowBlockingMergedCellDiagnostics.getSourceBlockingMergedCell as jest.MockedFunction<
+		typeof rowBlockingMergedCellDiagnostics.getSourceBlockingMergedCell
 	>;
 
 const target = {
@@ -30,21 +36,10 @@ describe( 'Row Reorder Target Resolution', () => {
 	beforeEach( () => {
 		jest.clearAllMocks();
 		getConstraintsMock.mockReset();
-		getSourceBlockingMergedRangeMock.mockReset();
+		getSourceBlockingMergedCellMock.mockReset();
 	} );
 
-	/**
-	 * 概要:
-	 * - 行単位で移動可能な対象ではTargetと開始時制約を同じ解決結果で返すことを確認する。
-	 * 事前条件:
-	 * - 対象Tableを取得でき、移動元行の前後に分断不可境界がない。
-	 * 操作:
-	 * - Target Resolutionを実行する。
-	 * 期待結果:
-	 * - resolvedとしてTargetと取得した行制約が返る。
-	 * - blocking merged range診断は要求されない。
-	 */
-	it( 'when the target row is movable, should resolve the target without requesting a blocking range', () => {
+	it( 'when the target row is movable, should resolve the target without requesting blocking cell diagnostics', () => {
 		const constraints = { rowCount: 5, blockedBoundaries: [] };
 		getConstraintsMock.mockReturnValue( constraints );
 
@@ -55,68 +50,45 @@ describe( 'Row Reorder Target Resolution', () => {
 			target,
 			initialConstraints: constraints,
 		} );
-		expect( getSourceBlockingMergedRangeMock ).not.toHaveBeenCalled();
+		expect( getSourceBlockingMergedCellMock ).not.toHaveBeenCalled();
 	} );
 
-	/**
-	 * 概要:
-	 * - rowspan等の結合範囲に含まれる行は原因範囲を持つ開始拒否として解決することを確認する。
-	 * 事前条件:
-	 * - 移動元行の直後が分断不可境界である。
-	 * - 現在Tableから1〜2行目の0-based縦結合範囲を取得できる。
-	 * 操作:
-	 * - Target Resolutionを実行する。
-	 * 期待結果:
-	 * - rejectedとしてblocking merged rangeが返る。
-	 */
-	it( 'when the target row is blocked by a merged range, should reject it with that blocking range', () => {
+	it( 'when the target row is blocked by a merged cell, should reject it with that cell location', () => {
 		getConstraintsMock.mockReturnValue( {
 			rowCount: 5,
 			blockedBoundaries: [ 2 ],
 		} );
-		getSourceBlockingMergedRangeMock.mockReturnValue( { rowStart: 1, rowEnd: 2 } );
+		getSourceBlockingMergedCellMock.mockReturnValue( {
+			rowStart: 1,
+			rowEnd: 2,
+			columnStart: 2,
+			columnEnd: 3,
+		} );
 
 		const result = rowReorderTargetResolution.resolve( target );
 
-		expect( getSourceBlockingMergedRangeMock ).toHaveBeenCalledWith( 'table-a', 1 );
+		expect( getSourceBlockingMergedCellMock ).toHaveBeenCalledWith( 'table-a', 1 );
 		expect( result ).toEqual( {
 			status: 'rejected',
-			blockingMergedRange: { rowStart: 1, rowEnd: 2 },
+			blockingMergedCell: {
+				rowStart: 1,
+				rowEnd: 2,
+				columnStart: 2,
+				columnEnd: 3,
+			},
 		} );
 	} );
 
-	/**
-	 * 概要:
-	 * - 開始拒否判定後に現在の結合範囲を取得できなくなった場合は範囲を推測しないことを確認する。
-	 * 事前条件:
-	 * - 開始時制約では対象行が結合範囲により拒否される。
-	 * - 診断時点では現在Tableからblocking merged rangeを取得できない。
-	 * 操作:
-	 * - Target Resolutionを実行する。
-	 * 期待結果:
-	 * - unavailableが返る。
-	 */
-	it( 'when a rejected row no longer has a diagnosable blocking range, should return unavailable', () => {
+	it( 'when a rejected row no longer has a diagnosable blocking cell, should return unavailable', () => {
 		getConstraintsMock.mockReturnValue( { rowCount: 5, blockedBoundaries: [ 2 ] } );
-		getSourceBlockingMergedRangeMock.mockReturnValue( null );
+		getSourceBlockingMergedCellMock.mockReturnValue( null );
 
 		const result = rowReorderTargetResolution.resolve( target );
 
 		expect( result ).toEqual( { status: 'unavailable' } );
 	} );
 
-	/**
-	 * 概要:
-	 * - 同一Tableの複数行を表示判定する場合にTable制約を一度だけ取得し、構造診断を行わないことを確認する。
-	 * 事前条件:
-	 * - 3行Tableで境界1が分断不可である。
-	 * 操作:
-	 * - Table単位のResolverを生成し、1行目と3行目を順に解決する。
-	 * 期待結果:
-	 * - Table制約取得は1回だけで、1行目は開始拒否、3行目は開始可能として同じ制約を基準に解決される。
-	 * - blocking merged range診断は要求されない。
-	 */
-	it( 'when one table resolver checks multiple rows, should reuse constraints without diagnosing blocking ranges', () => {
+	it( 'when one table resolver checks multiple rows, should reuse constraints without diagnosing blocking cells', () => {
 		const constraints = { rowCount: 3, blockedBoundaries: [ 1 ] };
 		getConstraintsMock.mockReturnValue( constraints );
 		const resolver = rowReorderTargetResolution.createResolver( 'table-a' );
@@ -125,7 +97,7 @@ describe( 'Row Reorder Target Resolution', () => {
 		const third = resolver.resolve( 2 );
 
 		expect( getConstraintsMock ).toHaveBeenCalledTimes( 1 );
-		expect( getSourceBlockingMergedRangeMock ).not.toHaveBeenCalled();
+		expect( getSourceBlockingMergedCellMock ).not.toHaveBeenCalled();
 		expect( first ).toEqual( { status: 'rejected' } );
 		expect( third ).toEqual( {
 			status: 'resolved',
@@ -134,45 +106,25 @@ describe( 'Row Reorder Target Resolution', () => {
 		} );
 	} );
 
-	/**
-	 * 概要:
-	 * - Table制約を取得できない場合は利用者向け拒否範囲を作らず通常の利用不能とすることを確認する。
-	 * 事前条件:
-	 * - 対象Tableの現在制約を取得できない。
-	 * 操作:
-	 * - Target Resolutionを実行する。
-	 * 期待結果:
-	 * - unavailableが返る。
-	 */
 	it( 'when current table constraints are unavailable, should return unavailable', () => {
 		getConstraintsMock.mockReturnValue( null );
 
-		const result = rowReorderTargetResolution.resolve( target );
-
-		expect( result ).toEqual( { status: 'unavailable' } );
+		expect( rowReorderTargetResolution.resolve( target ) ).toEqual( {
+			status: 'unavailable',
+		} );
 	} );
 
-	/**
-	 * 概要:
-	 * - tbody範囲外の対象は利用者向け拒否範囲を作らず通常の利用不能とすることを確認する。
-	 * 事前条件:
-	 * - Table制約は取得できるが移動元行がtbody範囲外である。
-	 * 操作:
-	 * - Target Resolutionを実行する。
-	 * 期待結果:
-	 * - unavailableが返る。
-	 */
 	it( 'when the target row is outside tbody, should return unavailable', () => {
 		getConstraintsMock.mockReturnValue( {
 			rowCount: 5,
 			blockedBoundaries: [],
 		} );
 
-		const result = rowReorderTargetResolution.resolve( {
-			tableIdentity: 'table-a',
-			sourceRowIndex: 5,
-		} );
-
-		expect( result ).toEqual( { status: 'unavailable' } );
+		expect(
+			rowReorderTargetResolution.resolve( {
+				tableIdentity: 'table-a',
+				sourceRowIndex: 5,
+			} )
+		).toEqual( { status: 'unavailable' } );
 	} );
 } );
