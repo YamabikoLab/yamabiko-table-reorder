@@ -7,73 +7,93 @@
 		"messages": {
 			"": { "domain": "messages", "lang": "ja", "plural-forms": "nplurals=1; plural=0;" },
 			"Yamabiko Table Reorder": [ "Yamabiko Table Reorder" ],
-			"Reorder rows": [ "行を並び替え" ],
-			"Reorder columns": [ "列を並び替え" ],
-			"Reorder with form": [ "フォームで並び替え" ],
-			"Rows": [ "行" ],
-			"Columns": [ "列" ],
-			"Row to move": [ "移動する行" ],
-			"Target row": [ "移動先の行" ],
-			"Position": [ "位置" ],
-			"Above": [ "上" ],
-			"Below": [ "下" ],
-			"Enter an integer from 1 to %d.": [ "1〜%dの整数を入力してください。" ],
-			"Move the row above or below the target row.": [ "移動先の行の上または下へ移動します。" ],
-			"Column to move": [ "移動する列" ],
-			"Target column": [ "移動先の列" ],
-			"Select a column": [ "列を選択" ],
-			"Left": [ "左" ],
-			"Right": [ "右" ],
-			"Move the column to the left or right of the target column.": [
-				"移動先の列の左または右へ移動します。"
+			"Reorder rows": [ "\u884c\u3092\u4e26\u3073\u66ff\u3048" ],
+			"Reorder columns": [ "\u5217\u3092\u4e26\u3073\u66ff\u3048" ],
+			"A merged cell in row %1$d spanning columns %2$d\u2013%3$d prevents this move.": [
+				"%1$d\u884c\u76ee\u306e%2$d\u301c%3$d\u5217\u76ee\u306b\u7d50\u5408\u30bb\u30eb\u304c\u3042\u308b\u305f\u3081\u3001\u3053\u306e\u6307\u5b9a\u3067\u306f\u79fb\u52d5\u3067\u304d\u307e\u305b\u3093\u3002"
 			],
-			"%1$s (Column %2$d)": [ "%1$s（%2$d列目）" ],
-			"Column %d": [ "%d列目" ],
-			"This selection won't change the order.": [ "この指定では並び順は変わりません。" ],
-			"This reorder can't continue with the current table. Check the table and try again.": [
-				"現在のテーブルでは、この並び替えを続行できません。テーブルの状態を確認して、もう一度お試しください。"
+			"A merged cell spanning rows %1$d\u2013%2$d in column %3$d prevents this move.": [
+				"%1$d\u301c%2$d\u884c\u76ee\u306e%3$d\u5217\u76ee\u306b\u7d50\u5408\u30bb\u30eb\u304c\u3042\u308b\u305f\u3081\u3001\u3053\u306e\u6307\u5b9a\u3067\u306f\u79fb\u52d5\u3067\u304d\u307e\u305b\u3093\u3002"
 			],
-			"A merged cell in row %1$d spanning columns %2$d–%3$d prevents this move.": [
-				"%1$d行目の%2$d〜%3$d列目に結合セルがあるため、この指定では移動できません。"
+			"A merged cell spanning rows %1$d\u2013%2$d and columns %3$d\u2013%4$d prevents this move.": [
+				"%1$d\u301c%2$d\u884c\u76ee\u306e%3$d\u301c%4$d\u5217\u76ee\u306b\u7d50\u5408\u30bb\u30eb\u304c\u3042\u308b\u305f\u3081\u3001\u3053\u306e\u6307\u5b9a\u3067\u306f\u79fb\u52d5\u3067\u304d\u307e\u305b\u3093\u3002"
 			],
-			"A merged cell spanning rows %1$d–%2$d in column %3$d prevents this move.": [
-				"%1$d〜%2$d行目の%3$d列目に結合セルがあるため、この指定では移動できません。"
+			"header": [ "\u30d8\u30c3\u30c0\u30fc" ],
+			"footer": [ "\u30d5\u30c3\u30bf\u30fc" ],
+			"A merged cell in %1$s row %2$d spanning columns %3$d\u2013%4$d prevents this move.": [
+				"%1$s\u306e%2$d\u884c\u76ee\u306e%3$d\u301c%4$d\u5217\u76ee\u306b\u7d50\u5408\u30bb\u30eb\u304c\u3042\u308b\u305f\u3081\u3001\u3053\u306e\u6307\u5b9a\u3067\u306f\u79fb\u52d5\u3067\u304d\u307e\u305b\u3093\u3002"
 			],
-			"A merged cell spanning rows %1$d–%2$d and columns %3$d–%4$d prevents this move.": [
-				"%1$d〜%2$d行目の%3$d〜%4$d列目に結合セルがあるため、この指定では移動できません。"
+			"A merged cell spanning %1$s rows %2$d\u2013%3$d and columns %4$d\u2013%5$d prevents this move.": [
+				"%1$s\u306e%2$d\u301c%3$d\u884c\u76ee\u306e%4$d\u301c%5$d\u5217\u76ee\u306b\u7d50\u5408\u30bb\u30eb\u304c\u3042\u308b\u305f\u3081\u3001\u3053\u306e\u6307\u5b9a\u3067\u306f\u79fb\u52d5\u3067\u304d\u307e\u305b\u3093\u3002"
 			],
-			"header": [ "ヘッダー" ],
-			"footer": [ "フッター" ],
-			"A merged cell in %1$s row %2$d spanning columns %3$d–%4$d prevents this move.": [
-				"%1$sの%2$d行目の%3$d〜%4$d列目に結合セルがあるため、この指定では移動できません。"
+			"Cannot move because cells are merged.": [
+				"\u30bb\u30eb\u304c\u7d50\u5408\u3055\u308c\u3066\u3044\u308b\u305f\u3081\u3001\u79fb\u52d5\u3067\u304d\u307e\u305b\u3093\u3002"
 			],
-			"A merged cell spanning %1$s rows %2$d–%3$d and columns %4$d–%5$d prevents this move.": [
-				"%1$sの%2$d〜%3$d行目の%4$d〜%5$d列目に結合セルがあるため、この指定では移動できません。"
-			],
-			"Reorder": [ "並び替え" ],
-			"Reordering failed. The table has not been changed.": [
-				"並び替えが失敗しました。テーブルは変更されていません。"
-			],
-			"Close reorder guidance": [ "並び替えの案内を閉じる" ],
 			"Reordering could not continue, so the operation was ended.": [
-				"並び替えを続けられないため、操作を終了しました。"
+				"\u4e26\u3073\u66ff\u3048\u3092\u7d9a\u3051\u3089\u308c\u306a\u3044\u305f\u3081\u3001\u64cd\u4f5c\u3092\u7d42\u4e86\u3057\u307e\u3057\u305f\u3002"
 			],
-			"Cannot move because cells are merged.": [ "セルが結合されているため、移動できません。" ],
-			"Reorder rows and columns.": [ "行・列を並び替えられます。" ],
+			"Reorder rows and columns.": [
+				"\u884c\u30fb\u5217\u3092\u4e26\u3073\u66ff\u3048\u3089\u308c\u307e\u3059\u3002"
+			],
 			"Long press a cell, then drag to reorder rows and columns.": [
-				"セルを長押ししてからドラッグすると、行・列を並び替えられます。"
+				"\u30bb\u30eb\u3092\u9577\u62bc\u3057\u3057\u3066\u304b\u3089\u30c9\u30e9\u30c3\u30b0\u3059\u308b\u3068\u3001\u884c\u30fb\u5217\u3092\u4e26\u3073\u66ff\u3048\u3089\u308c\u307e\u3059\u3002"
 			],
-			"Apply the new order?": [ "並び替えを反映しますか？" ],
-			"Row %1$d → %2$d": [ "%1$d行目 → %2$d行目" ],
-			"Column %1$d → %2$d": [ "%1$d列目 → %2$d列目" ],
+			"Close reorder guidance": [
+				"\u4e26\u3073\u66ff\u3048\u306e\u6848\u5185\u3092\u9589\u3058\u308b"
+			],
+			"Apply the new order?": [
+				"\u4e26\u3073\u66ff\u3048\u3092\u53cd\u6620\u3057\u307e\u3059\u304b\uff1f"
+			],
+			"Row %1$d \u2192 %2$d": [ "%1$d\u884c\u76ee \u2192 %2$d\u884c\u76ee" ],
+			"Column %1$d \u2192 %2$d": [ "%1$d\u5217\u76ee \u2192 %2$d\u5217\u76ee" ],
 			"Applying this reorder may take some time.": [
-				"この並び替えの反映には時間がかかる場合があります。"
+				"\u3053\u306e\u4e26\u3073\u66ff\u3048\u306e\u53cd\u6620\u306b\u306f\u6642\u9593\u304c\u304b\u304b\u308b\u5834\u5408\u304c\u3042\u308a\u307e\u3059\u3002"
 			],
-			"Continue": [ "続行" ],
-			"Cancel": [ "キャンセル" ],
-			"Applying the new order…": [ "並び替えを反映しています…" ],
-			"Please wait until the update is complete.": [ "完了するまでしばらくお待ちください。" ],
-			"Reordering complete.": [ "並び替えが完了しました。" ]
+			"Continue": [ "\u7d9a\u884c" ],
+			"Cancel": [ "\u30ad\u30e3\u30f3\u30bb\u30eb" ],
+			"Applying the new order\u2026": [
+				"\u4e26\u3073\u66ff\u3048\u3092\u53cd\u6620\u3057\u3066\u3044\u307e\u3059\u2026"
+			],
+			"Please wait until the update is complete.": [
+				"\u5b8c\u4e86\u3059\u308b\u307e\u3067\u3057\u3070\u3089\u304f\u304a\u5f85\u3061\u304f\u3060\u3055\u3044\u3002"
+			],
+			"Reordering complete.": [
+				"\u4e26\u3073\u66ff\u3048\u304c\u5b8c\u4e86\u3057\u307e\u3057\u305f\u3002"
+			],
+			"Column %d": [ "%d\u5217\u76ee" ],
+			"This selection won't change the order.": [
+				"\u3053\u306e\u6307\u5b9a\u3067\u306f\u4e26\u3073\u9806\u306f\u5909\u308f\u308a\u307e\u305b\u3093\u3002"
+			],
+			"This reorder can't continue with the current table. Check the table and try again.": [
+				"\u73fe\u5728\u306e\u30c6\u30fc\u30d6\u30eb\u3067\u306f\u3001\u3053\u306e\u4e26\u3073\u66ff\u3048\u3092\u7d9a\u884c\u3067\u304d\u307e\u305b\u3093\u3002\u30c6\u30fc\u30d6\u30eb\u306e\u72b6\u614b\u3092\u78ba\u8a8d\u3057\u3066\u3001\u3082\u3046\u4e00\u5ea6\u304a\u8a66\u3057\u304f\u3060\u3055\u3044\u3002"
+			],
+			"Reorder": [ "\u4e26\u3073\u66ff\u3048" ],
+			"Reorder with form": [ "\u30d5\u30a9\u30fc\u30e0\u3067\u4e26\u3073\u66ff\u3048" ],
+			"Rows": [ "\u884c" ],
+			"Columns": [ "\u5217" ],
+			"Row to move": [ "\u79fb\u52d5\u3059\u308b\u884c" ],
+			"Target row": [ "\u79fb\u52d5\u5148\u306e\u884c" ],
+			"Position": [ "\u4f4d\u7f6e" ],
+			"Above": [ "\u4e0a" ],
+			"Below": [ "\u4e0b" ],
+			"Enter an integer from 1 to %d.": [
+				"1\u301c%d\u306e\u6574\u6570\u3092\u5165\u529b\u3057\u3066\u304f\u3060\u3055\u3044\u3002"
+			],
+			"Move the row above or below the target row.": [
+				"\u79fb\u52d5\u5148\u306e\u884c\u306e\u4e0a\u307e\u305f\u306f\u4e0b\u3078\u79fb\u52d5\u3057\u307e\u3059\u3002"
+			],
+			"Column to move": [ "\u79fb\u52d5\u3059\u308b\u5217" ],
+			"Target column": [ "\u79fb\u52d5\u5148\u306e\u5217" ],
+			"Select a column": [ "\u5217\u3092\u9078\u629e" ],
+			"Left": [ "\u5de6" ],
+			"Right": [ "\u53f3" ],
+			"Move the column to the left or right of the target column.": [
+				"\u79fb\u52d5\u5148\u306e\u5217\u306e\u5de6\u307e\u305f\u306f\u53f3\u3078\u79fb\u52d5\u3057\u307e\u3059\u3002"
+			],
+			"%1$s (Column %2$d)": [ "%1$s\uff08%2$d\u5217\u76ee\uff09" ],
+			"Reordering failed. The table has not been changed.": [
+				"\u4e26\u3073\u66ff\u3048\u304c\u5931\u6557\u3057\u307e\u3057\u305f\u3002\u30c6\u30fc\u30d6\u30eb\u306f\u5909\u66f4\u3055\u308c\u3066\u3044\u307e\u305b\u3093\u3002"
+			]
 		}
 	}
 }
