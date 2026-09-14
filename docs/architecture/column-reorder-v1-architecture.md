@@ -594,7 +594,7 @@ Column Reorderの開始可否、active DnD意味状態、現在のEditor表示�
 
 ##### Contract
 
-Input Interactionから原因となる結合セル位置と操作位置を一回性通知として受ける。通知の一時状態は通知表示自身が所有し、Table subtreeの再描画状態へ混入させない。操作可能列の事前表示等ではReorder Target Resolutionを利用し、構造制約を重複判定しない。DnD Interactionのactive状態と現在有効移動先を購読し、DnD Engineの物理情報は表示に必要な時点だけ利用する。
+Input Interactionから原因となる結合セル位置と操作位置を一回性通知として受ける。開始拒否通知の一時状態はReorder Presentationが所有し、DnD SessionやTable本体の意味状態から分離する。操作可能列の事前表示等ではReorder Target Resolutionを利用し、構造制約を重複判定しない。DnD Interactionのactive状態と現在有効移動先を購読し、DnD Engineの物理情報は表示に必要な時点だけ利用する。
 
 移動対象列は元Tableの列幅とセル高さの配置関係を保ち、Tableの縦方向から不必要にはみ出さない。現在の有効移動先はTable全体の列間に垂直挿入線で示す。iframe Editorでは実際に位置が変わる周囲列だけを移動表示する。non-iframe EditorではPerformance fallbackとして周囲列移動を成立させず、移動対象列と垂直挿入位置を維持する。この表示差によってDnD Interactionの有効移動先、drop後の列順、確定・cancelの意味を変更しない。
 
@@ -821,8 +821,8 @@ Table Integrationが現在構造から算出した更新対象セル数を共通
 - DnD Engine Integrationを独立責務とし、第二段階Target Resolutionと物理DnD LifecycleからDnD Interactionへの接続を所有する。
 - Destination Resolutionを独立責務とし、物理位置から論理列間境界への変換をDnD Interactionから分離する。
 - Column専用のDrop Target Resolution責務は設けない。Destination Resolutionは物理位置の意味変換だけを担い、構造制約に対する移動先の有効性はDnD Interactionが所有する。
-- 開始拒否通知は第一段階解決結果の原因セル位置と操作位置をInput InteractionからReorder Presentationへ渡し、通知表示自身の一時状態だけを更新する。
-- Reorder Target ResolutionはResolverや制約snapshotを保持せず、Input Interaction、DnD Engine Integration、Presentationからの各要求時点の現在Tableを直接解決する。
+- 開始拒否通知は第一段階解決結果の原因セル位置と操作位置をInput InteractionからReorder Presentationへ渡す。通知の一時状態はReorder Presentationが所有し、DnD SessionやTable本体の意味状態から分離する。
+- Reorder Target Resolutionは開始試行を越える制約状態を所有せず、Input Interaction、DnD Engine Integration、Presentationからの各要求時点の現在Tableを基準に解決する。
 - Table Integrationの結合セル診断は、DnD開始時の移動元診断とRFを含むMove全体の診断を別Contractとして提供する。
 - Reorder Targetは移動する論理列だけを表し、開始時制約や開始不可理由を含めない。
 - Session中の移動先判定は第二段階で得た開始時制約を基準とし、`progress`ごとに現在構造を取得し直さない。

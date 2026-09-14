@@ -495,7 +495,7 @@ active DnD成立前に、要求時点のTable制約に対してReorder Targetが
 
 ##### State ownership
 
-開始試行を越える共有状態、制約snapshot、DnD Session、入力状態、表示状態、Tableデータを所有しない。
+開始試行を越える制約状態、DnD Session、入力状態、表示状態、Tableデータを所有しない。
 
 ##### Contract
 
@@ -592,7 +592,7 @@ Row Reorderの開始可否、active DnD意味状態、および必要なDnD Engi
 
 ##### Contract
 
-Input Interactionから原因となる結合セル位置と操作位置を一回性通知として受ける。通知の一時状態は通知表示自身が所有し、Table subtreeの再描画状態へ混入させない。行並び替えモード中の操作可能・移動不可表示ではReorder Target Resolutionを利用し、`rowspan`等の構造制約を重複判定しない。DnD Interactionのactive状態と現在有効移動先を購読し、DnD Engineの物理情報は表示に必要な時点だけ利用する。
+Input Interactionから原因となる結合セル位置と操作位置を一回性通知として受ける。開始拒否通知の一時状態はReorder Presentationが所有し、DnD SessionやTable本体の意味状態から分離する。行並び替えモード中の操作可能・移動不可表示ではReorder Target Resolutionを利用し、`rowspan`等の構造制約を重複判定しない。DnD Interactionのactive状態と現在有効移動先を購読し、DnD Engineの物理情報は表示に必要な時点だけ利用する。
 
 操作可否表示の判定はDnD開始可否を確定しない。実際の開始試行ではInput InteractionとDnD Engine Integrationが現在制約による第一段階・第二段階解決を要求する。
 
@@ -826,8 +826,8 @@ Core TableとFlexible Table Blockの保存表現差はTable Integrationが吸収
 - Destination Resolutionを独立責務とし、物理位置から論理行間境界への変換をDnD Interactionから分離する。
 - Destination Resolutionの成立はDnD InteractionのSession開始条件としない。
 - Row専用のDrop Target Resolution責務は設けない。Destination Resolutionは物理位置の意味変換だけを担い、構造制約に対する移動先の有効性はDnD Interactionが所有する。
-- 開始拒否通知は第一段階解決結果の原因セル位置と操作位置をInput InteractionからReorder Presentationへ渡し、通知表示自身の一時状態だけを更新する。
-- Reorder Target ResolutionはResolverや制約snapshotを保持せず、Input Interaction、DnD Engine Integration、Presentationからの各要求時点の現在Tableを直接解決する。
+- 開始拒否通知は第一段階解決結果の原因セル位置と操作位置をInput InteractionからReorder Presentationへ渡す。通知の一時状態はReorder Presentationが所有し、DnD SessionやTable本体の意味状態から分離する。
+- Reorder Target Resolutionは開始試行を越える制約状態を所有せず、Input Interaction、DnD Engine Integration、Presentationからの各要求時点の現在Tableを基準に解決する。
 - Table Integrationの結合セル診断は、DnD開始時の移動元診断とRFを含むMove全体の診断を別Contractとして提供する。
 - Reorder Presentationは操作可能・移動不可表示のためにReorder Target Resolutionを再利用し、構造制約を重複実装しない。
 - 操作可否表示はDnD開始可否の権威とせず、開始時は第一段階・第二段階の現在制約解決を必須とする。
@@ -847,7 +847,7 @@ Core TableとFlexible Table Blockの保存表現差はTable Integrationが吸収
 - DnD中は実Tableの行順を変更せず、表示更新と確定更新を分離する。
 - 1回の成立した行移動は1回の更新境界を通り、部分確定や複数Undo単位を作らない。
 - WordPress固有UI、WordPress Preferences、Supported Table Block固有表現、DnD Engine固有物理状態を、それぞれを所有する統合境界の外へ漏らさない。
-- 操作可否表示は同じ行内の入力では解決を繰り返さず、対象行が変わった時点の現在TableをTarget Resolutionで直接解決する。
+- 操作可否表示に伴う現在Tableの制約取得は、利用者入力に対する応答性を損なわない範囲に抑える。
 
 ## 11. Risks and Technical Debt
 
