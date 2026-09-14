@@ -40,6 +40,7 @@ import {
 import type { ColumnInputDescriptor } from '@/reorder/column-reorder/responsibilities/table-integration';
 import { rfInteraction } from '@/reorder/reorder-form/responsibilities/interaction';
 import type { RfInteractionReactState } from '@/reorder/reorder-form/responsibilities/interaction-react';
+import { RF_POPOVER_DRAG_THRESHOLD_PX, RF_POPOVER_OFFSET_PX } from '@/reorder/reorder-tuning';
 import { useReorderFormCollapse } from '@/reorder/wordpress/components/reorder-form-collapse';
 import { useReorderFormNarrowLayout } from '@/reorder/wordpress/components/reorder-form-layout';
 import {
@@ -69,9 +70,6 @@ type ReorderFormDragState = {
 	moved: boolean;
 	view: Window;
 };
-
-/** 意図しない小さなPointer移動をPopover移動として扱わない距離。 */
-const dragThreshold = 4;
 
 /** Popover外のTable操作だけではRF Sessionを終了しない。 */
 const ignorePopoverClose = () => undefined;
@@ -248,7 +246,7 @@ export const ReorderFormPopover = ( props: ReorderFormPopoverProps ) => {
 		manuallyPositioned && position !== null
 			? createManualPopoverAnchor( position, anchor.ownerDocument )
 			: anchor;
-	const popoverOffset = manuallyPositioned ? 0 : 8;
+	const popoverOffset = manuallyPositioned ? 0 : RF_POPOVER_OFFSET_PX;
 	const narrowCollapsed = isNarrow && collapsed;
 	const popoverClassName = isNarrow
 		? 'yamabiko-table-reorder-rf-popover is-narrow'
@@ -308,7 +306,7 @@ export const ReorderFormPopover = ( props: ReorderFormPopoverProps ) => {
 				event.clientX - dragState.startX,
 				event.clientY - dragState.startY
 			);
-			if ( distance < dragThreshold ) {
+			if ( distance < RF_POPOVER_DRAG_THRESHOLD_PX ) {
 				return;
 			}
 			dragState.moved = true;

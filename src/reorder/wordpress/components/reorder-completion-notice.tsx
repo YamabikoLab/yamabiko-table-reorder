@@ -8,13 +8,12 @@
 import { Snackbar } from '@wordpress/components';
 import { useEffect, useRef } from '@wordpress/element';
 
+import { REORDER_COMPLETION_NOTICE_DURATION_MS } from '@/reorder/reorder-tuning';
+
 import './reorder-completion-notice.scss';
 
 /** 並び替え結果通知として表示する結果種別。 */
 export type ReorderCompletionNoticeStatus = 'success' | 'failure';
-
-/** 完了結果を認識できる時間を確保しつつ、Editorを長く覆わない表示時間。 */
-const COMPLETION_NOTICE_DURATION_MS = 2000;
 
 /**
  * 成功・失敗を色だけに依存せず識別できる結果アイコンを表示する。
@@ -69,7 +68,10 @@ export const ReorderCompletionNotice = ( props: {
 	onRemoveRef.current = onRemove;
 
 	useEffect( () => {
-		const timeoutId = setTimeout( () => onRemoveRef.current(), COMPLETION_NOTICE_DURATION_MS );
+		const timeoutId = setTimeout(
+			() => onRemoveRef.current(),
+			REORDER_COMPLETION_NOTICE_DURATION_MS
+		);
 		return () => {
 			clearTimeout( timeoutId );
 		};

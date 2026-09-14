@@ -11,6 +11,12 @@ import { Draggable, PointerActivationConstraints, PointerSensor } from '@dnd-kit
 import { useDragDropManager } from '@dnd-kit/react';
 import type { PointerEvent, ReactNode } from 'react';
 
+import {
+	DND_MOUSE_ACTIVATION_DISTANCE_PX,
+	DND_TOUCH_ACTIVATION_DELAY_MS,
+	DND_TOUCH_ACTIVATION_TOLERANCE_PX,
+} from '@/reorder/reorder-tuning';
+
 import { notifyRowStartRejection } from './presentation/start-rejection-notice-event';
 import { rowReorderTargetResolution, type RowReorderTarget } from './target-resolution';
 
@@ -114,15 +120,15 @@ export const RowInput = ( props: {
 							if ( activationEvent.pointerType === 'mouse' ) {
 								return [
 									new PointerActivationConstraints.Distance( {
-										value: 5,
+										value: DND_MOUSE_ACTIVATION_DISTANCE_PX,
 									} ),
 								];
 							}
 
 							return [
 								new PointerActivationConstraints.Delay( {
-									value: 250,
-									tolerance: 5,
+									value: DND_TOUCH_ACTIVATION_DELAY_MS,
+									tolerance: DND_TOUCH_ACTIVATION_TOLERANCE_PX,
 								} ),
 							];
 						},

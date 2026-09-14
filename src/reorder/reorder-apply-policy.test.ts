@@ -2,10 +2,8 @@
  * 確認付き大規模反映へ切り替える共通閾値の境界を確認する。
  */
 
-import {
-	REORDER_APPLY_CONFIRM_CELL_THRESHOLD,
-	requiresLargeReorderApply,
-} from './reorder-apply-policy';
+import { REORDER_APPLY_CONFIRM_CELL_THRESHOLD } from './reorder-tuning';
+import { requiresLargeReorderApply } from './reorder-apply-policy';
 
 describe( 'Reorder apply policy', () => {
 	/**

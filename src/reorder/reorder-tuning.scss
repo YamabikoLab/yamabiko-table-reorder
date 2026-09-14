@@ -1,0 +1,35 @@
+/*
+ * Reorder全体で実機検証により調整するSCSS側の静的なチューニング値を所有する。
+ *
+ * TypeScript側と同じ意味の値が必要な場合も無理に1ソース化せず、表示責務から参照する対の値として管理する。
+ */
+
+// DnD Presentation
+
+// Row / Columnの押しのけ表示に使うtransition時間。
+$reorder-displacement-duration: 150ms;
+
+// Row / Columnの押しのけ表示に使うtransitionのeasing。
+$reorder-displacement-easing: ease;
+
+// Row / ColumnのDnD中に移動元を表示する不透明度。
+$reorder-moving-source-opacity: 0.35;
+
+// RF Interaction
+
+// RF narrow表示で高さ変更グリップとして確保する表示領域の高さ。
+$rf-narrow-resize-handle-height: 18px;
+
+// RF Layout / Presentation
+
+// RF narrow表示で利用者指定がない場合に使う既定高さ。
+$rf-narrow-default-height: min(52dvh, 430px);
+
+// RF narrow表示でTable確認領域を残すためviewport高さから差し引く余白。
+$rf-narrow-maximum-viewport-gap: 24px;
+
+// RFの小さい画面で利用者指定がない場合に使う既定高さ。
+$rf-small-default-height: 48dvh;
+
+// RFの小さい画面向け既定高さへ切り替えるviewport幅。
+$rf-small-viewport-width: 420px;

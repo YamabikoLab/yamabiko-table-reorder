@@ -11,6 +11,11 @@ import { useCallback, useEffect, useRef } from '@wordpress/element';
 
 import { resolveEditorDomContext, type EditorDomContext } from '@/reorder/editor-dom-context';
 import {
+	DND_DROP_ANIMATION_DURATION_MS,
+	DND_DROP_ANIMATION_EASING,
+	DND_MOVING_SOURCE_OPACITY,
+} from '@/reorder/reorder-tuning';
+import {
 	getRowDndDestinationBoundaryIndex,
 	getRowDndPhase,
 	subscribeRowDndState,
@@ -19,9 +24,7 @@ import {
 
 const MOVING_DISPLAY_SELECTOR = '.yamabiko-table-reorder-moving-row';
 const INSERTION_GAP_SELECTOR = '.yamabiko-table-reorder-insertion-gap';
-const DROP_ANIMATION_DURATION_MS = 350;
 const REDUCED_MOTION_QUERY = '(prefers-reduced-motion: reduce)';
-const RETURNING_SOURCE_OPACITY = '0.35';
 
 /** 終了アニメーションで固定するeditor表示領域内の矩形。 */
 type DropAnimationRectangle = {
@@ -308,7 +311,7 @@ export const RowDropAnimation = () => {
 			if ( target.sourceRow !== null ) {
 				previousSourceOpacity = target.sourceRow.style.opacity;
 				/* Moving Rowが元位置へ到着するまで、実Table上の元行を移動元として識別できる半透明表示に維持する。 */
-				target.sourceRow.style.opacity = RETURNING_SOURCE_OPACITY;
+				target.sourceRow.style.opacity = DND_MOVING_SOURCE_OPACITY;
 			}
 
 			/* Web Animations APIを利用できない表示環境では、一時表示を残さず実Tableをそのまま表示する。 */
@@ -329,8 +332,8 @@ export const RowDropAnimation = () => {
 					},
 				],
 				{
-					duration: DROP_ANIMATION_DURATION_MS,
-					easing: 'ease-out',
+					duration: DND_DROP_ANIMATION_DURATION_MS,
+					easing: DND_DROP_ANIMATION_EASING,
 					fill: 'forwards',
 				}
 			);

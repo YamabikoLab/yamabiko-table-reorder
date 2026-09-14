@@ -9,6 +9,8 @@ import { useCallback } from '@wordpress/element';
 import { useStore } from 'zustand';
 import { createStore } from 'zustand/vanilla';
 
+import { RF_POPOVER_VIEWPORT_MARGIN_PX } from '@/reorder/reorder-tuning';
+
 /** RF入力Popoverの左上位置を、現在Editor viewport基準の座標で表す。 */
 export type ReorderFormPosition = {
 	x: number;
@@ -26,9 +28,6 @@ type ReorderFormViewport = {
 	width: number;
 	height: number;
 };
-
-/** RF入力Popoverをviewport端へ密着させず操作可能な余白を残す。 */
-const viewportMargin = 8;
 
 /** RF入力Popoverの手動配置状態を表す。 */
 type ReorderFormPositionStore = {
@@ -93,10 +92,16 @@ export const clampReorderFormPosition = (
 	size: ReorderFormSize,
 	viewport: ReorderFormViewport
 ): ReorderFormPosition => {
-	const maximumX = Math.max( viewportMargin, viewport.width - size.width - viewportMargin );
-	const maximumY = Math.max( viewportMargin, viewport.height - size.height - viewportMargin );
-	const x = Math.min( Math.max( requestedPosition.x, viewportMargin ), maximumX );
-	const y = Math.min( Math.max( requestedPosition.y, viewportMargin ), maximumY );
+	const maximumX = Math.max(
+		RF_POPOVER_VIEWPORT_MARGIN_PX,
+		viewport.width - size.width - RF_POPOVER_VIEWPORT_MARGIN_PX
+	);
+	const maximumY = Math.max(
+		RF_POPOVER_VIEWPORT_MARGIN_PX,
+		viewport.height - size.height - RF_POPOVER_VIEWPORT_MARGIN_PX
+	);
+	const x = Math.min( Math.max( requestedPosition.x, RF_POPOVER_VIEWPORT_MARGIN_PX ), maximumX );
+	const y = Math.min( Math.max( requestedPosition.y, RF_POPOVER_VIEWPORT_MARGIN_PX ), maximumY );
 
 	return { x, y };
 };

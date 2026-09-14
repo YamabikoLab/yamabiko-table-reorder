@@ -5,9 +5,11 @@
  * 動きを抑制する利用者設定では位置変更自体は保ちつつ、遷移だけを無効にする。
  */
 
+@use '@/reorder/reorder-tuning' as tuning;
+
 .yamabiko-table-reorder-displaced-row {
 	transform: translateY(var(--yamabiko-table-reorder-row-displacement, 0));
-	transition: transform 150ms ease;
+	transition: transform tuning.$reorder-displacement-duration tuning.$reorder-displacement-easing;
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -3,6 +3,9 @@
  *
  * 十分な表示領域では移動可能なPopoverとして表示し、狭い表示領域ではTable確認へ退避できる下部dockとして表示する。
  */
+
+@use '@/reorder/reorder-tuning' as tuning;
+
 .yamabiko-table-reorder-rf-popover .components-popover__content {
 	min-width: min(360px, calc(100vw - 32px));
 	max-width: min(420px, calc(100vw - 32px));
@@ -146,7 +149,7 @@
  * 利用者指定高さは現在の利用可能高さで表示上だけ制限し、内容が収まらない場合はdock内部をスクロールできる。
  */
 .yamabiko-table-reorder-rf-popover.is-narrow {
-	--yamabiko-table-reorder-rf-narrow-default-height: min(52dvh, 430px);
+	--yamabiko-table-reorder-rf-narrow-default-height: #{tuning.$rf-narrow-default-height};
 
 	position: fixed !important;
 	top: auto !important;
@@ -167,7 +170,7 @@
 			--yamabiko-table-reorder-rf-narrow-height,
 			var(--yamabiko-table-reorder-rf-narrow-default-height)
 		),
-		calc(100dvh - 24px)
+		calc(100dvh - #{tuning.$rf-narrow-maximum-viewport-gap})
 	);
 	overflow-y: auto;
 	border-right: 0;
@@ -198,7 +201,7 @@
 	position: sticky;
 	top: 0;
 	z-index: 1;
-	padding-top: 18px;
+	padding-top: tuning.$rf-narrow-resize-handle-height;
 	padding-bottom: 8px;
 	background: #fff;
 	touch-action: none;
@@ -234,10 +237,9 @@
 	background: #fff;
 }
 
-@media (max-width: 420px) {
+@media (max-width: tuning.$rf-small-viewport-width) {
 
 	.yamabiko-table-reorder-rf-popover.is-narrow {
-		
-		--yamabiko-table-reorder-rf-narrow-default-height: 48dvh;
+		--yamabiko-table-reorder-rf-narrow-default-height: #{tuning.$rf-small-default-height};
 	}
 }

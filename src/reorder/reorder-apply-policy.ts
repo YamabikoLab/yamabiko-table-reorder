@@ -5,12 +5,7 @@
  * 直接反映または確認付き大規模反映のどちらを使うかを判定する。
  */
 
-/**
- * 確認付き大規模反映へ切り替える更新対象セル数の初期チューニング値。
- *
- * 要件上の固定値ではなく、実機検証に基づいて調整する。
- */
-export const REORDER_APPLY_CONFIRM_CELL_THRESHOLD = 300;
+import { REORDER_APPLY_CONFIRM_CELL_THRESHOLD } from '@/reorder/reorder-tuning';
 
 /**
  * 更新対象セル数が確認付き大規模反映を必要とするか判定する。

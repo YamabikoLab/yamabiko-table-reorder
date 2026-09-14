@@ -4,9 +4,11 @@
  * 移動元の配置を維持したまま半透明化し、移動表示は開始時に取得したeditor表示領域だけを描画する。
  */
 
+@use '@/reorder/reorder-tuning' as tuning;
+
 /* 移動元は配置を変えず、移動表示との区別に必要な視覚差だけを付ける。 */
 .yamabiko-table-reorder-moving-column-source {
-	opacity: 0.35;
+	opacity: tuning.$reorder-moving-source-opacity;
 }
 
 /* 移動表示はDnD入力を遮らず、開始時snapshotの列幅と縦配置を維持する。 */

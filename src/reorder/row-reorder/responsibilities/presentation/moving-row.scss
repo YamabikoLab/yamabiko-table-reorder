@@ -5,9 +5,11 @@
  * DnD中はポインター下の要素に依存せず、掴んでいる状態をeditor全体へ示す。
  */
 
+@use '@/reorder/reorder-tuning' as tuning;
+
 /* 移動元は配置を変えず、移動表示との区別に必要な視覚差だけを付ける。 */
 .yamabiko-table-reorder-moving-row-source {
-	opacity: 0.35;
+	opacity: tuning.$reorder-moving-source-opacity;
 }
 
 /* 移動表示はDnD入力を遮らず、対象Tableとeditor表示領域が重なる範囲だけを表示する。 */

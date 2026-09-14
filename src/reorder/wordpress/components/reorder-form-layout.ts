@@ -6,8 +6,7 @@
 
 import { useEffect, useState } from '@wordpress/element';
 
-/** TableとRFを同時に確認しやすいwide表示から下部dockへ切り替える基準幅。 */
-const narrowViewportWidth = 700;
+import { RF_NARROW_AVAILABLE_WIDTH_PX } from '@/reorder/reorder-tuning';
 
 /** WordPress Editorの主要な編集表示領域。Sidebar開閉による利用可能幅の変化を反映する。 */
 const editorContentSelector = '.interface-interface-skeleton__content';
@@ -71,7 +70,7 @@ export const useReorderFormNarrowLayout = ( anchor: HTMLElement | null ): boolea
 		const visualViewport = view.visualViewport;
 		const updateLayout = (): void => {
 			const availableWidth = getAvailableWidth( anchor, editorContent );
-			setIsNarrow( availableWidth !== null && availableWidth <= narrowViewportWidth );
+			setIsNarrow( availableWidth !== null && availableWidth <= RF_NARROW_AVAILABLE_WIDTH_PX );
 		};
 
 		updateLayout();
