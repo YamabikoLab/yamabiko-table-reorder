@@ -111,7 +111,7 @@ describe( 'Row highlight', () => {
 		createResolverMock.mockReturnValue( {
 			resolve: ( sourceRowIndex ) =>
 				sourceRowIndex === 1
-					? { status: 'rejected', reason: 'merged-range' }
+					? { status: 'rejected' }
 					: {
 							status: 'resolved',
 							target: { tableIdentity: 'table-a', sourceRowIndex },
