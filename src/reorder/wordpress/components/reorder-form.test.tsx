@@ -101,12 +101,12 @@ describe( 'Reorder Form presentation', () => {
 		const sourceInput = screen.getByRole( 'spinbutton', { name: '移動する行' } );
 		const targetInput = screen.getByRole( 'spinbutton', { name: '移動先の行' } );
 
-		expect( sourceInput ).toHaveAttribute( 'min', '1' );
-		expect( sourceInput ).toHaveAttribute( 'max', '20' );
-		expect( sourceInput ).toHaveAttribute( 'step', '1' );
-		expect( targetInput ).toHaveAttribute( 'min', '1' );
-		expect( targetInput ).toHaveAttribute( 'max', '20' );
-		expect( targetInput ).toHaveAttribute( 'step', '1' );
+		expect( sourceInput.getAttribute( 'min' ) ).toBe( '1' );
+		expect( sourceInput.getAttribute( 'max' ) ).toBe( '20' );
+		expect( sourceInput.getAttribute( 'step' ) ).toBe( '1' );
+		expect( targetInput.getAttribute( 'min' ) ).toBe( '1' );
+		expect( targetInput.getAttribute( 'max' ) ).toBe( '20' );
+		expect( targetInput.getAttribute( 'step' ) ).toBe( '1' );
 	} );
 
 	/**
