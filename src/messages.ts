@@ -121,6 +121,8 @@ type RfMergedCellSection = 'head' | 'body' | 'foot';
 /**
  * RFの行移動を妨げる結合セル位置を知らせる文言を取得する。
  *
+ * 単一行では行番号と列範囲、複数行かつ単一列では行範囲と列番号、それ以外では行・列の両範囲を示す。
+ *
  * @param rowStart    利用者向け1-based開始行番号。
  * @param rowEnd      利用者向け1-based終了行番号。
  * @param columnStart 利用者向け1-based開始列番号。
@@ -153,7 +155,6 @@ export const getRfRowMergedRangeMessage = (
 		return sprintf( message, rowStart, rowEnd, columnStart );
 	}
 
-	/* 複数行・複数列を占有する原因セルは、Table上で一意に特定できるよう両方の範囲を示す。 */
 	/* translators: 1: first 1-based row number, 2: last 1-based row number, 3: first 1-based column number, 4: last 1-based column number */
 	const message = __(
 		'A merged cell spanning rows %1$d–%2$d and columns %3$d–%4$d prevents this move.',
@@ -164,6 +165,8 @@ export const getRfRowMergedRangeMessage = (
 
 /**
  * RFの列移動を妨げる結合セル位置を知らせる文言を取得する。
+ *
+ * bodyではRow RFと同じ位置表現を使用し、headとfootでは領域名を併記する。section内の単一行では行番号、複数行では行範囲を示す。
  *
  * @param section     原因セルが存在するTable section。
  * @param rowStart    利用者向け1-based開始行番号。
@@ -200,7 +203,6 @@ export const getRfColumnMergedRangeMessage = (
 		return sprintf( message, sectionName, rowStart, columnStart, columnEnd );
 	}
 
-	/* section内の複数行にまたがる原因セルは、領域名と行・列の両範囲を示す。 */
 	/* translators: 1: table section name, 2: first 1-based row number, 3: last 1-based row number, 4: first 1-based column number, 5: last 1-based column number */
 	const message = __(
 		'A merged cell spanning %1$s rows %2$d–%3$d and columns %4$d–%5$d prevents this move.',
