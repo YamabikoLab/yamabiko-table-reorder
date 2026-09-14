@@ -418,12 +418,7 @@ const getCurrentColumnTable = ( clientId: string ): CurrentColumnTable | null =>
 		return null;
 	}
 
-	const analysisStart = performance.now();
 	const parsedTable = parseTable( block.name, block.attributes );
-	performance.measure( 'YTR #1000 Column Table Parse', {
-		start: analysisStart,
-		end: performance.now(),
-	} );
 	/* Table全体を同じ論理列構造として解析できない場合は、部分的な情報を外へ公開しない。 */
 	if ( parsedTable === null ) {
 		return null;
