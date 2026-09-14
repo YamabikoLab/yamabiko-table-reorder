@@ -13,6 +13,7 @@ const mockSelectMode = jest.fn();
 const mockOpenRf = jest.fn();
 const mockCloseRf = jest.fn();
 const mockBeginRfPositionSession = jest.fn();
+const mockBeginRfHeightSession = jest.fn();
 
 jest.mock( '@wordpress/block-editor', () => ( {
 	BlockControls: ( props: { children: ReactNode } ) => <div>{ props.children }</div>,
@@ -71,6 +72,13 @@ jest.mock( '@/reorder/reorder-form/responsibilities/interaction', () => ( {
 
 jest.mock( '@/reorder/wordpress/components/reorder-form', () => ( {
 	ReorderFormPopover: () => null,
+} ) );
+
+jest.mock( '@/reorder/wordpress/components/reorder-form-height', () => ( {
+	reorderFormHeight: {
+		beginSession: ( tableIdentity: string ) => mockBeginRfHeightSession( tableIdentity ),
+	},
+	useReorderFormNarrowHeight: jest.fn(),
 } ) );
 
 jest.mock( '@/reorder/wordpress/components/reorder-form-position', () => ( {
@@ -133,9 +141,9 @@ describe( 'Reorder toolbar RF exclusivity', () => {
 	 *
 	 * 期待結果:
 	 * - Rowモードの再選択によるedit遷移がRF openより先に要求される。
-	 * - 新しいRF SessionのPopover位置が初期化されてからRFが開く。
+	 * - 新しいRF SessionのPopover位置とnarrow表示高さが初期化されてからRFが開く。
 	 */
-	it( 'when RF starts from a DnD mode, should return to edit mode and reset position before opening RF', () => {
+	it( 'when RF starts from a DnD mode, should return to edit mode and reset presentation state before opening RF', () => {
 		mockSelectedKind = 'row';
 		render( <ReorderModeToolbar tableIdentity="table-a" /> );
 
@@ -143,11 +151,15 @@ describe( 'Reorder toolbar RF exclusivity', () => {
 
 		expect( mockSelectMode ).toHaveBeenCalledWith( 'row' );
 		expect( mockBeginRfPositionSession ).toHaveBeenCalledWith( 'table-a' );
+		expect( mockBeginRfHeightSession ).toHaveBeenCalledWith( 'table-a' );
 		expect( mockOpenRf ).toHaveBeenCalledWith( 'table-a' );
 		expect( mockSelectMode.mock.invocationCallOrder[ 0 ] ).toBeLessThan(
 			mockBeginRfPositionSession.mock.invocationCallOrder[ 0 ]
 		);
 		expect( mockBeginRfPositionSession.mock.invocationCallOrder[ 0 ] ).toBeLessThan(
+			mockBeginRfHeightSession.mock.invocationCallOrder[ 0 ]
+		);
+		expect( mockBeginRfHeightSession.mock.invocationCallOrder[ 0 ] ).toBeLessThan(
 			mockOpenRf.mock.invocationCallOrder[ 0 ]
 		);
 	} );
