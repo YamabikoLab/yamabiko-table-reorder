@@ -107,6 +107,53 @@ export const getRfUnavailableMessage = () =>
 		'yamabiko-table-reorder'
 	);
 
+/** 結合セル位置の利用者向け1-based範囲。 */
+export type BlockingMergedCellLocation = {
+	rowStart: number;
+	rowEnd: number;
+	columnStart: number;
+	columnEnd: number;
+};
+
+/** Table sectionを含む結合セル位置の表示対象。 */
+export type BlockingMergedCellSection = 'head' | 'body' | 'foot';
+
+const getMergedCellRangeLabel = ( start: number, end: number ): string =>
+	start === end ? String( start ) : `${ start }–${ end }`;
+
+/** tbody内の結合セル位置を行・列の両方で知らせる。 */
+export const getBodyBlockingMergedCellMessage = (
+	location: BlockingMergedCellLocation
+): string => {
+	const rowRange = getMergedCellRangeLabel( location.rowStart, location.rowEnd );
+	const columnRange = getMergedCellRangeLabel( location.columnStart, location.columnEnd );
+	/* translators: 1: 1-based row number or range, 2: 1-based column number or range */
+	const message = __(
+		'A merged cell at rows %1$s and columns %2$s prevents this move.',
+		'yamabiko-table-reorder'
+	);
+	return sprintf( message, rowRange, columnRange );
+};
+
+/** thead / tfoot内の結合セル位置をsection・行・列で知らせる。 */
+export const getSectionBlockingMergedCellMessage = (
+	section: Exclude< BlockingMergedCellSection, 'body' >,
+	location: BlockingMergedCellLocation
+): string => {
+	const rowRange = getMergedCellRangeLabel( location.rowStart, location.rowEnd );
+	const columnRange = getMergedCellRangeLabel( location.columnStart, location.columnEnd );
+	const sectionLabel =
+		section === 'head'
+			? __( 'header', 'yamabiko-table-reorder' )
+			: __( 'footer', 'yamabiko-table-reorder' );
+	/* translators: 1: table section label, 2: 1-based row number or range, 3: 1-based column number or range */
+	const message = __(
+		'A merged cell at %1$s rows %2$s and columns %3$s prevents this move.',
+		'yamabiko-table-reorder'
+	);
+	return sprintf( message, sectionLabel, rowRange, columnRange );
+};
+
 /** RF入力画面を終了する操作の表示名を取得する。 */
 export const getRfCancelLabel = () => __( 'Cancel', 'yamabiko-table-reorder' );
 
