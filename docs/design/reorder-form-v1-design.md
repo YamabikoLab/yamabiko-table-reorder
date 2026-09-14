@@ -8,7 +8,7 @@ RF固有の要件は`docs/requirements/reorder-form-v1-requirements.md`、DnDと
 
 データ保持、構造保持、Undo、対応Table Block、反映に時間がかかる場合、並び順が変わらない場合、反映を完了できない場合など、RFにも適用される共通要件に従う。
 
-Keyboardのみでの操作、focus、announcement、支援技術への情報提供など、別要件として扱うアクセシビリティ設計は本書の対象外とする。
+Keyboardのみでの操作、focus、announcement、支援技術への情報提供など、別要件として扱うアクセシビリティ設計は本書の対象外とする。ただし、Accessibility v1 の検討によって RF 共通の利用者向けメッセージを改訂する場合は、その改訂後のメッセージを本書へ反映し、RF 共通メッセージの正本は本書に維持する。
 
 ## 2. 基本方針
 
@@ -337,6 +337,15 @@ Tableのデータは変更せず、「並び替え」を実行できない状態
 
 並び替えの反映に時間がかかる可能性があると判断された場合は、反映を開始する前に、続行するか中止するかを選択できる確認を表示する。
 
+確認には、反映後に移動対象が配置される位置を文章で示す。記号だけで移動元と移動先を示さない。
+
+| 用途 | 日本語 | English |
+| --- | --- | --- |
+| 行の移動内容 | `{移動元}行目を{反映後位置}行目の位置へ移動します。` | `Move row {source} to position {destination}.` |
+| 列の移動内容 | `{移動元}列目を{反映後位置}列目の位置へ移動します。` | `Move column {source} to position {destination}.` |
+
+ここで「移動元」は並び替え前の1-based位置、「反映後位置」は並び替え完了後に移動対象が配置される1-based位置を表す。
+
 確認を表示している間は、対象Tableで新しい行DnD、列DnD、またはRFを開始できない。
 
 利用者が続行を選択した場合だけ反映を開始する。
@@ -386,11 +395,12 @@ Tableのデータは変更せず、「並び替え」を実行できない状態
 
 Tableは並び替え開始前の状態を保つ。
 
-利用者には、並び替えを完了できなかったことを短いメッセージで知らせる。
+利用者には、並び替えを完了できなかったこととTableが変更されていないことを次のメッセージで知らせる。
 
-表示例:
-
-`並び替えを反映できませんでした。Tableは変更されていません。`
+| 言語 | メッセージ |
+| --- | --- |
+| 日本語 | 並び替えを完了できませんでした。テーブルは変更されていません。 |
+| English | The reorder could not be completed. The table was not changed. |
 
 反映失敗後は、入力内容を保持したRFの入力画面へ戻し、利用者が指定を修正または再実行できる状態にする。
 
@@ -436,3 +446,4 @@ Table Blockの違いによって、RFの基本的な入力方法や利用者に�
 - `docs/requirements/reorder-form-v1-requirements.md`
 - `docs/requirements/reorder-v1-requirements.md`
 - `reorder-v1-design.md`
+- `accessibility-v1-design.md`
