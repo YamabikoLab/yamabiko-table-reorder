@@ -104,7 +104,7 @@ describe( 'Column input start rejection', () => {
 	} );
 
 	/**
-	 * 結合範囲により列DnD開始を拒否した場合、利用者向け理由と操作位置を通知することを確認する。
+	 * 結合範囲により列DnD開始を拒否した場合、blocking merged rangeと操作位置を通知することを確認する。
 	 *
 	 * 事前条件:
 	 * - Reorder Target Resolutionが対象列を結合範囲による開始拒否として解決する。
@@ -113,19 +113,19 @@ describe( 'Column input start rejection', () => {
 	 * - 対象セルで主マウス入力を行う。
 	 *
 	 * 期待結果:
-	 * - 開始拒否理由と操作位置がPresentationへ一回通知される。
+	 * - blocking merged rangeと操作位置がPresentationへ一回通知される。
 	 */
-	it( 'when target resolution rejects the column, should notify the presentation with the rejection reason and interaction position', () => {
+	it( 'when target resolution rejects the column, should notify the presentation with the blocking range and interaction position', () => {
 		targetResolutionMock.mockReturnValue( {
 			status: 'rejected',
-			reason: 'merged-range',
+			blockingMergedRange: { columnStart: 1, columnEnd: 2 },
 		} );
 		const pointerDownHandler = renderColumnInput();
 
 		pointerDownHandler( createPointerInput() );
 
 		expect( notifyColumnStartRejectionMock ).toHaveBeenCalledWith( {
-			reason: 'merged-range',
+			blockingMergedRange: { columnStart: 1, columnEnd: 2 },
 			clientX: 120,
 			clientY: 240,
 		} );
