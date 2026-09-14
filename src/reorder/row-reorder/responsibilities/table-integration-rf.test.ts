@@ -172,6 +172,42 @@ describe( 'Row Table Integration RF contract', () => {
 	} );
 
 	/**
+	 * Flexible Table BlockのrowSpanとcolSpanをRow RFの原因セル論理位置へ適用できることを確認する。
+	 *
+	 * 事前条件:
+	 * - Flexible Table Blockの先頭セルが0〜1行・0〜1列を占有する。
+	 * - 移動元行がその結合セルに含まれる。
+	 *
+	 * 操作:
+	 * - 移動を妨げる結合セル位置を取得する。
+	 *
+	 * 期待結果:
+	 * - Flexible Table Block固有属性を解釈し、0〜1行・0〜1列の論理位置が返る。
+	 */
+	it( 'when a Flexible Table Block cell has rowSpan and colSpan, should return its logical row and column range', () => {
+		selectMock.mockReturnValue( {
+			getBlock: jest.fn().mockReturnValue( {
+				name: 'flexible-table-block/table',
+				attributes: {
+					body: [
+						{ cells: [ { rowSpan: 2, colSpan: 2 }, {} ] },
+						{ cells: [ {} ] },
+						{ cells: [ {}, {}, {} ] },
+					],
+				},
+			} ),
+		} );
+
+		expect(
+			rowTableIntegration.getBlockingMergedRange( {
+				clientId: 'table-a',
+				sourceRowIndex: 1,
+				destinationBoundaryIndex: 3,
+			} )
+		).toEqual( { rowStart: 0, rowEnd: 1, columnStart: 0, columnEnd: 1 } );
+	} );
+
+	/**
 	 * RF反映前評価が現在Tableへ候補を再照合し、成立時に更新対象セル数と反映後の最終行位置を返すことを確認する。
 	 *
 	 * 事前条件:
