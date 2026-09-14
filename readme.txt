@@ -3,7 +3,7 @@ Tags: block editor, gutenberg, table
 Requires at least: 6.8
 Tested up to: 7.1
 Requires PHP: 8.1
-Stable tag: 0.8.5
+Stable tag: 0.9.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -11,13 +11,17 @@ Reorder table rows and columns in supported blocks in the WordPress block editor
 
 == Description ==
 
-Yamabiko Table Reorder 0.8.5 provides Row Reorder and Column Reorder for WordPress Core Table and Flexible Table Block.
+Yamabiko Table Reorder 0.9.0 provides Row Reorder, Column Reorder, and Reorder Form for WordPress Core Table and Flexible Table Block.
 
 Use Row Reorder or Column Reorder mode from the Table toolbar, then drag body rows or Table columns with Mouse or Touch. During DnD, the plugin shows the moving row or column and the current destination. During Row Reorder, surrounding rows are displaced to preview the result before it is committed. During Column Reorder, surrounding columns are displaced in iframe editors. In non-iframe editors, surrounding column displacement is intentionally omitted to preserve responsiveness, while the moving column and insertion line continue to show the source and destination.
 
-Row and Column Reorder preserve supported Table structure, including merged-cell constraints, and update the order only when the drop is valid. Rows or columns that cannot be moved because of merged-cell constraints are identified in advance, and a short message explains the reason when a drag is attempted. Automatic scrolling follows the active reorder direction when needed.
+Use Reorder with form from the same Table toolbar to move a row or column without drag-and-drop. Choose the source and destination, select the destination side, and apply the move when it is valid and changes the order. RF shows current row limits and available logical columns, including column headings when available.
 
-When a reorder affects enough cells that applying it may take some time, the plugin shows a confirmation before applying the change. If continued, only the target Table enters a temporary applying state, and editing resumes after the update is complete.
+Row Reorder, Column Reorder, and RF preserve supported Table structure, including merged-cell constraints, and update the order only when the requested move is valid. RF reports structural rejection using the location of the merged cell that prevents the move.
+
+When a reorder affects enough cells that applying it may take some time, the plugin shows a confirmation before applying the change. If continued, only the target Table enters a temporary applying state, and editing resumes after the update is complete. Reorder operations also provide shared success and failure feedback after the result is known.
+
+RF uses a movable Popover when enough editor space is available. In a narrow editor area it switches to a bottom dock that can be collapsed so the target Table remains easier to inspect while choosing rows or columns.
 
 A WordPress Playground demo is available from the GitHub repository and uses the current latest stable release.
 
@@ -39,6 +43,12 @@ The generated archive is `yamabiko-table-reorder.zip`.
 4. Activate Yamabiko Table Reorder.
 
 == Changelog ==
+
+= 0.9.0 =
+
+* Added: Added Reorder Form v1 for WordPress Core Table and Flexible Table Block, allowing rows and columns to be moved by specifying source and destination positions without drag-and-drop.
+* Changed: Improved Reorder Form feedback for merged-cell constraints, apply results, and narrow editor layouts, including a collapsible bottom dock when space is limited.
+* Changed: Unified user-facing completion feedback for Row Reorder, Column Reorder, and Reorder Form, and reduced unnecessary Table subtree updates when switching Reorder Mode on large Tables.
 
 = 0.8.5 =
 

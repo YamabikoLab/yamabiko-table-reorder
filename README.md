@@ -17,21 +17,25 @@ A WordPress block editor plugin for reordering Table rows and columns.
 
 ## Current Status
 
-Version 0.8.5 provides **Row Reorder and Column Reorder** for the supported Table blocks listed above.
+Version 0.9.0 provides **Row Reorder, Column Reorder, and Reorder Form (RF)** for the supported Table blocks listed above.
 
 Switch to Row Reorder or Column Reorder mode from the Table toolbar, then reorder `tbody` rows or Table columns with Mouse or Touch drag-and-drop. During DnD, the plugin shows the moving row or column and the current destination. During Row Reorder, surrounding rows are displaced to preview the result before it is committed. During Column Reorder, surrounding columns are displaced in iframe editors. In non-iframe editors, surrounding column displacement is intentionally omitted to preserve responsiveness, while the moving column and insertion line continue to show the source and destination.
 
-For Tables with merged cells, only destinations that preserve the supported Table structure are accepted. Rows or columns that cannot be moved because of merged-cell constraints are identified in advance, and a short message explains the reason when a drag is attempted. Row and Column Reorder also support automatic scrolling in the active reorder direction when needed.
+Use **Reorder with form** from the same Table toolbar when you want to reorder without drag-and-drop. RF lets you choose whether to move a row or column, select the source and destination, and specify the destination side. Row inputs use 1-based row numbers, while Column inputs use the currently available logical columns and their headings when available. The operation is applied only when the requested move is valid and changes the order.
 
-When a reorder affects enough cells that applying the change may take some time, the plugin shows a confirmation before applying it. If continued, only the target Table enters a temporary applying state, and editing resumes after the update completes.
+For Tables with merged cells, only destinations that preserve the supported Table structure are accepted. Rows or columns that cannot be moved because of merged-cell constraints are identified in advance. RF also explains structural rejections using the location of the merged cell that prevents the move.
+
+When a reorder affects enough cells that applying the change may take some time, the plugin shows a confirmation before applying it. If continued, only the target Table enters a temporary applying state, and editing resumes after the update completes. Row Reorder, Column Reorder, and RF share the same user-facing completion feedback, while preserving their independent interaction responsibilities.
+
+RF uses a movable Popover when enough editor space is available. In a narrow editor area it switches to a bottom dock that can be collapsed so the target Table remains easier to inspect while choosing rows or columns.
 
 ## Demo
 
-Try the **currently released Yamabiko Table Reorder Row / Column Reorder** in WordPress Playground.
+Try the **currently released Yamabiko Table Reorder Row / Column Reorder and Reorder Form** in WordPress Playground.
 
 [▶ Open the demo](https://playground.wordpress.net/?blueprint-url=https://raw.githubusercontent.com/YamabikoLab/yamabiko-table-reorder/main/demo/blueprint.json)
 
-The demo includes WordPress Core Table and Flexible Table Block examples for Mouse / Touch row and column DnD, including movement constraints for Tables with merged cells. Yamabiko Table Reorder uses the latest stable release in the demo.
+The demo includes WordPress Core Table and Flexible Table Block examples for Mouse / Touch row and column DnD and Reorder Form, including movement constraints for Tables with merged cells. Yamabiko Table Reorder uses the latest stable release in the demo.
 
 Use the `prototype-final` tag when you need to refer to the Prototype v0.4.0 implementation or design.
 
@@ -39,7 +43,7 @@ Use the `prototype-final` tag when you need to refer to the Prototype v0.4.0 imp
 
 The distribution history through 0.4.0 is preserved as-is. The term formal v1 describes a new design and implementation generation and does not mean the distribution version changes to `1.0.0`.
 
-0.5.0 was the first formal v1 Row Reorder release. 0.7.0 added formal v1 Column Reorder. 0.8.0 added a confirmation flow for reorders whose affected range may take time to apply. 0.8.1 fixed a conflict between Column Reorder Touch long-presses and cell editing. 0.8.2 improves Column Reorder responsiveness in non-iframe editors, fixes first-use Touch guidance focus behavior, and corrects moving-column feedback when an iframe editor has a horizontal offset. 0.8.3 prevents Gutenberg's native block dragging from competing with Row / Column Reorder while Reorder Mode is active. 0.8.4 prevents browser text selection, search, and long-press callout actions from interfering with touch Row / Column Reorder while Reorder Mode is active. 0.8.5 improves first-use guidance by showing PC- and Touch-specific instructions, including long-press guidance for Touch drag-and-drop.
+0.5.0 was the first formal v1 Row Reorder release. 0.7.0 added formal v1 Column Reorder. 0.8.0 added a confirmation flow for reorders whose affected range may take time to apply. 0.8.1 fixed a conflict between Column Reorder Touch long-presses and cell editing. 0.8.2 improves Column Reorder responsiveness in non-iframe editors, fixes first-use Touch guidance focus behavior, and corrects moving-column feedback when an iframe editor has a horizontal offset. 0.8.3 prevents Gutenberg's native block dragging from competing with Row / Column Reorder while Reorder Mode is active. 0.8.4 prevents browser text selection, search, and long-press callout actions from interfering with touch Row / Column Reorder while Reorder Mode is active. 0.8.5 improves first-use guidance by showing PC- and Touch-specific instructions, including long-press guidance for Touch drag-and-drop. 0.9.0 adds Reorder Form v1 for drag-free row and column moves, responsive RF presentation, clearer merged-cell diagnostics, and shared reorder completion feedback.
 
 ## Requirements
 
