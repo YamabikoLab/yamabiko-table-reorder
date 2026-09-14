@@ -6,6 +6,7 @@ import { act, fireEvent, render, screen } from '@testing-library/react';
 import type { ReactNode } from 'react';
 
 import type { RfInteractionReactState } from '@/reorder/reorder-form/responsibilities/interaction-react';
+import { reorderFormCollapse } from '@/reorder/wordpress/components/reorder-form-collapse';
 
 import { ReorderFormPopover } from './reorder-form';
 
@@ -127,6 +128,7 @@ const notifyViewportResize = ( view: Window ): void => {
 describe( 'Reorder Form presentation', () => {
 	beforeEach( () => {
 		setViewportWidth( window, 1024 );
+		reorderFormCollapse.beginSession( 'table-a' );
 	} );
 
 	/**
@@ -236,6 +238,40 @@ describe( 'Reorder Form presentation', () => {
 		expect( screen.queryByRole( 'spinbutton', { name: '移動する行' } ) ).toBeNull();
 		expect( screen.getByText( '2 → 5 · 上' ) ).toBeTruthy();
 		expect( screen.getByRole( 'button', { name: 'Expand reorder form' } ) ).toBeTruthy();
+	} );
+
+	/**
+	 * 折りたたみ時に未指定の位置関係を選択済みとして表示しないことを確認する。
+	 *
+	 * 事前条件:
+	 * - narrow表示のRow RFで移動元、移動先、位置関係が未指定である。
+	 *
+	 * 操作:
+	 * - RFを折りたたむ。
+	 *
+	 * 期待結果:
+	 * - 未指定の各値が「–」として要約表示される。
+	 */
+	it( 'when an incomplete row input is collapsed, should show the unselected position as unspecified', () => {
+		setViewportWidth( window, 640 );
+		const state: RfInteractionReactState = {
+			status: 'open',
+			kind: 'row',
+			input: {
+				sourceRowNumber: '',
+				targetRowNumber: '',
+				position: null,
+			},
+			rowCount: 20,
+			result: { status: 'not-ready' },
+			canApply: false,
+		};
+		const anchor = document.createElement( 'button' );
+
+		render( <ReorderFormPopover anchor={ anchor } state={ state } tableIdentity="table-a" /> );
+		fireEvent.click( screen.getByRole( 'button', { name: 'Collapse reorder form' } ) );
+
+		expect( screen.getByText( '– → – · –' ) ).toBeTruthy();
 	} );
 
 	/**
