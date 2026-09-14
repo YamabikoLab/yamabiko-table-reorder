@@ -181,13 +181,21 @@ test.describe( 'narrow Reorder Form presentation', () => {
 		await expect
 			.poll( () => content.evaluate( ( element ) => element.scrollHeight > element.clientHeight ) )
 			.toBe( true );
-		await content.evaluate( ( element ) => {
-			element.scrollTop = element.scrollHeight;
-		} );
+		const scrollHeight = await content.evaluate( ( element ) => element.scrollHeight );
+		await content.hover();
+		await page.mouse.wheel( 0, scrollHeight );
 		await expect
-			.poll( () => content.evaluate( ( element ) => element.scrollTop ) )
-			.toBeGreaterThan( 0 );
-		await expect( form.getByRole( 'button', { name: APPLY } ) ).toBeVisible();
-		await expect( form.getByRole( 'button', { name: /^(Cancel|キャンセル)$/ } ) ).toBeVisible();
+			.poll( () =>
+				content.evaluate(
+					( element ) => element.scrollTop + element.clientHeight >= element.scrollHeight
+				)
+			)
+			.toBe( true );
+		const applyButton = form.getByRole( 'button', { name: APPLY } );
+		const cancelButton = form.getByRole( 'button', { name: /^(Cancel|キャンセル)$/ } );
+		await expect( applyButton ).toBeVisible();
+		await expect( applyButton ).toBeInViewport();
+		await expect( cancelButton ).toBeVisible();
+		await expect( cancelButton ).toBeInViewport();
 	} );
 } );
