@@ -48,6 +48,11 @@ import {
 /** 行DnDを既存DOMのポインター入力へ接続する開始処理型を、DnD接続境界から公開する。 */
 export type { RowDndPointerDownHandler } from '@/reorder/row-reorder/responsibilities/input';
 
+/** 一回の物理DnD試行が、対応する行DnD Sessionを開始できたかを表す接続状態。 */
+type RowPhysicalDragAttempt = {
+	phase: 'awaiting-session-start' | 'session-started';
+};
+
 /**
  * 対象Tableへdnd-kitの物理DnD進行を接続する。
  *
@@ -70,6 +75,7 @@ export const RowDnd = ( props: {
 	const activeDraggable = useRef< Draggable | null >( null );
 	const destinationResolver = useRef< RowDestinationResolver | null >( null );
 	const startRejectionNotice = useRef< RowStartRejectionNoticeHandle | null >( null );
+	const physicalDragAttempt = useRef< RowPhysicalDragAttempt | null >( null );
 	const resolvedStart = useRef< Extract<
 		RowReorderTargetResolution,
 		{ status: 'resolved' }
@@ -105,12 +111,14 @@ export const RowDnd = ( props: {
 	}, [ clearTransientDndState ] );
 
 	const onBeforeDragStart = ( event: BeforeDragStartEvent ) => {
+		physicalDragAttempt.current = { phase: 'awaiting-session-start' };
 		const target = event?.operation?.source?.data as RowReorderTarget;
 		const resolution = resolveRowReorderTarget( target );
 
 		/* 開始入力後のTable状態変化で開始対象が成立しなくなった場合は、利用者向け通知を重複させず物理DnDだけを開始しない。 */
 		if ( resolution.status !== 'resolved' ) {
 			event.preventDefault();
+			physicalDragAttempt.current = null;
 			clearTransientDndState();
 			return;
 		}
@@ -129,6 +137,7 @@ export const RowDnd = ( props: {
 		resolvedStart.current = null;
 		destinationResolver.current = createRowDestinationResolver( event?.operation.source?.element );
 		rowDndInteraction.start( resolution.target, resolution.initialConstraints );
+		physicalDragAttempt.current = { phase: 'session-started' };
 	};
 
 	const onDragMove = ( event: DragMoveEvent ) => {
@@ -143,7 +152,14 @@ export const RowDnd = ( props: {
 	};
 
 	const onDragEnd = ( event: DragEndEvent ) => {
+		const sessionStarted = physicalDragAttempt.current?.phase === 'session-started';
+		physicalDragAttempt.current = null;
 		clearTransientDndState();
+
+		/* Session開始前に終わった物理DnD試行は、意味的な終了処理へ接続しない。 */
+		if ( ! sessionStarted ) {
+			return;
+		}
 
 		if ( event.canceled ) {
 			rowDndInteraction.cancel();
