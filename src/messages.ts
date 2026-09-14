@@ -116,13 +116,13 @@ export const getRfUnavailableMessage = () =>
 	);
 
 /**
- * RFの行移動を妨げる結合セル範囲を知らせる文言を取得する。
+ * 行移動を妨げる結合セル範囲を知らせる文言を取得する。
  *
  * @param rowStart 利用者向け1-based開始行番号。
  * @param rowEnd   利用者向け1-based終了行番号。
- * @return 最初に確認されたblocking merged rangeを示す案内文。
+ * @return blocking merged rangeを示す案内文。
  */
-export const getRfRowMergedRangeMessage = ( rowStart: number, rowEnd: number ) => {
+export const getRowMergedRangeMessage = ( rowStart: number, rowEnd: number ) => {
 	if ( rowStart === rowEnd ) {
 		/* translators: %d: 1-based row number */
 		const message = __(
@@ -141,13 +141,13 @@ export const getRfRowMergedRangeMessage = ( rowStart: number, rowEnd: number ) =
 };
 
 /**
- * RFの列移動を妨げる結合セル範囲を知らせる文言を取得する。
+ * 列移動を妨げる結合セル範囲を知らせる文言を取得する。
  *
  * @param columnStart 利用者向け1-based開始列番号。
  * @param columnEnd   利用者向け1-based終了列番号。
- * @return 最初に確認されたblocking merged rangeを示す案内文。
+ * @return blocking merged rangeを示す案内文。
  */
-export const getRfColumnMergedRangeMessage = ( columnStart: number, columnEnd: number ) => {
+export const getColumnMergedRangeMessage = ( columnStart: number, columnEnd: number ) => {
 	if ( columnStart === columnEnd ) {
 		/* translators: %d: 1-based column number */
 		const message = __(
@@ -178,22 +178,6 @@ export const getRfApplyLabel = () => __( 'Reorder', 'yamabiko-table-reorder' );
  */
 export const getRfApplyFailureMessage = () =>
 	__( 'Reordering failed. The table has not been changed.', 'yamabiko-table-reorder' );
-
-/**
- * 結合セルにより行DnDを開始できない理由を知らせる文言を取得する。
- *
- * @return 現在の言語に対応した行DnD開始拒否メッセージ。
- */
-export const getRowDndStartRejectionMessage = () =>
-	__( 'Cannot move because cells are merged.', 'yamabiko-table-reorder' );
-
-/**
- * 結合セルにより列DnDを開始できない理由を知らせる文言を取得する。
- *
- * @return 現在の言語に対応した列DnD開始拒否メッセージ。
- */
-export const getColumnDndStartRejectionMessage = () =>
-	__( 'Cannot move because cells are merged.', 'yamabiko-table-reorder' );
 
 /**
  * 行DnDを安全に継続できず終了したことを知らせる文言を取得する。
