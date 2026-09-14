@@ -311,6 +311,60 @@ describe( 'Column DnD Engine Integration', () => {
 
 	/**
 	 * 概要:
+	 * - Session開始前に正常終了した物理DnD試行を意味的な終了処理へ接続しないことを確認する。
+	 *
+	 * 事前条件:
+	 * - 第二段階解決は成立しているが、物理DnD開始通知はまだ行われていない。
+	 *
+	 * 操作:
+	 * - canceledではない終了通知を行う。
+	 *
+	 * 期待結果:
+	 * - Sessionのcompleteとcancelはどちらも要求されない。
+	 */
+	it( 'when a physical drag ends normally before the column session starts, should not complete or cancel a session', () => {
+		render( <ColumnDnd tableIdentity="table-1">{ () => <div /> }</ColumnDnd> );
+		const provider = getProviderProps();
+		provider.onBeforeDragStart( {
+			operation: { source: { data: target } },
+			preventDefault: jest.fn(),
+		} as unknown as BeforeDragStartEvent );
+
+		provider.onDragEnd( { canceled: false } as unknown as DragEndEvent );
+
+		expect( dndInteractionMock.complete ).not.toHaveBeenCalled();
+		expect( dndInteractionMock.cancel ).not.toHaveBeenCalled();
+	} );
+
+	/**
+	 * 概要:
+	 * - Session開始前に取消終了した物理DnD試行を意味的な終了処理へ接続しないことを確認する。
+	 *
+	 * 事前条件:
+	 * - 第二段階解決は成立しているが、物理DnD開始通知はまだ行われていない。
+	 *
+	 * 操作:
+	 * - canceledな終了通知を行う。
+	 *
+	 * 期待結果:
+	 * - Sessionのcompleteとcancelはどちらも要求されない。
+	 */
+	it( 'when a physical drag is canceled before the column session starts, should not complete or cancel a session', () => {
+		render( <ColumnDnd tableIdentity="table-1">{ () => <div /> }</ColumnDnd> );
+		const provider = getProviderProps();
+		provider.onBeforeDragStart( {
+			operation: { source: { data: target } },
+			preventDefault: jest.fn(),
+		} as unknown as BeforeDragStartEvent );
+
+		provider.onDragEnd( { canceled: true } as unknown as DragEndEvent );
+
+		expect( dndInteractionMock.complete ).not.toHaveBeenCalled();
+		expect( dndInteractionMock.cancel ).not.toHaveBeenCalled();
+	} );
+
+	/**
+	 * 概要:
 	 * - Column Reorder Mode離脱時に未使用の解決結果とDraggable登録を即時破棄することを確認する。
 	 *
 	 * 事前条件:
@@ -353,7 +407,7 @@ describe( 'Column DnD Engine Integration', () => {
 	 * - 物理DnDの取消終了をColumn DnD Sessionのcancelへ変換することを確認する。
 	 *
 	 * 事前条件:
-	 * - Column DnD境界が接続されている。
+	 * - 物理DnD開始通知によってColumn DnD Sessionが開始されている。
 	 *
 	 * 操作:
 	 * - canceledなend通知を行う。
@@ -363,9 +417,84 @@ describe( 'Column DnD Engine Integration', () => {
 	 */
 	it( 'when the physical drag ends as canceled, should cancel the column session without completing it', () => {
 		render( <ColumnDnd tableIdentity="table-1">{ () => <div /> }</ColumnDnd> );
-		getProviderProps().onDragEnd( { canceled: true } as unknown as DragEndEvent );
+		const provider = getProviderProps();
+		provider.onBeforeDragStart( {
+			operation: { source: { data: target } },
+			preventDefault: jest.fn(),
+		} as unknown as BeforeDragStartEvent );
+		provider.onDragStart();
+
+		provider.onDragEnd( { canceled: true } as unknown as DragEndEvent );
 
 		expect( dndInteractionMock.cancel ).toHaveBeenCalledTimes( 1 );
 		expect( dndInteractionMock.complete ).not.toHaveBeenCalled();
+	} );
+
+	/**
+	 * 概要:
+	 * - Session開始後の一時状態cleanupが、後続の意味的な終了処理を妨げないことを確認する。
+	 *
+	 * 事前条件:
+	 * - Column Reorder Modeで列DnD Sessionが開始されている。
+	 *
+	 * 操作:
+	 * - mode離脱によるcleanup後に物理DnDを正常終了する。
+	 *
+	 * 期待結果:
+	 * - 開始済みSessionのcompleteが1回要求される。
+	 */
+	it( 'when transient state is cleared after the column session starts, should still complete the session on drag end', () => {
+		act( () => {
+			reorderMode.select( 'column', 'table-1' );
+		} );
+		render( <ColumnDnd tableIdentity="table-1">{ () => <div /> }</ColumnDnd> );
+		const provider = getProviderProps();
+		provider.onBeforeDragStart( {
+			operation: { source: { data: target } },
+			preventDefault: jest.fn(),
+		} as unknown as BeforeDragStartEvent );
+		provider.onDragStart();
+		act( () => {
+			reorderMode.select( 'column', 'table-1' );
+		} );
+
+		provider.onDragEnd( { canceled: false } as unknown as DragEndEvent );
+
+		expect( dndInteractionMock.complete ).toHaveBeenCalledTimes( 1 );
+	} );
+
+	/**
+	 * 概要:
+	 * - 終了済みの物理DnD試行情報を次の試行へ持ち越さないことを確認する。
+	 *
+	 * 事前条件:
+	 * - 一回目の物理DnDはSessionを開始して正常終了している。
+	 * - 二回目は第二段階解決後、Session開始前に終了する。
+	 *
+	 * 操作:
+	 * - 二回目の物理DnDを正常終了する。
+	 *
+	 * 期待結果:
+	 * - 一回目の開始成立情報ではcompleteもcancelも要求されない。
+	 */
+	it( 'when a later physical column drag ends before session start, should not reuse the prior attempt state', () => {
+		render( <ColumnDnd tableIdentity="table-1">{ () => <div /> }</ColumnDnd> );
+		const provider = getProviderProps();
+		provider.onBeforeDragStart( {
+			operation: { source: { data: target } },
+			preventDefault: jest.fn(),
+		} as unknown as BeforeDragStartEvent );
+		provider.onDragStart();
+		provider.onDragEnd( { canceled: false } as unknown as DragEndEvent );
+
+		jest.clearAllMocks();
+		provider.onBeforeDragStart( {
+			operation: { source: { data: target } },
+			preventDefault: jest.fn(),
+		} as unknown as BeforeDragStartEvent );
+		provider.onDragEnd( { canceled: false } as unknown as DragEndEvent );
+
+		expect( dndInteractionMock.complete ).not.toHaveBeenCalled();
+		expect( dndInteractionMock.cancel ).not.toHaveBeenCalled();
 	} );
 } );

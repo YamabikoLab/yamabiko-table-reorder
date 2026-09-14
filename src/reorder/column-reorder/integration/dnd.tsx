@@ -50,6 +50,11 @@ import { subscribeReorderMode } from '@/reorder/reorder-mode-subscription';
 /** 列DnDを既存DOMのポインター入力へ接続する開始処理型を、DnD接続境界から公開する。 */
 export type { ColumnDndPointerDownHandler } from '@/reorder/column-reorder/responsibilities/input';
 
+/** 一回の物理DnD試行が、対応する列DnD Sessionを開始できたかを表す接続状態。 */
+type ColumnPhysicalDragAttempt = {
+	phase: 'awaiting-session-start' | 'session-started';
+};
+
 /**
  * DnD移動通知からeditor document基準のnative pointer位置を取得する。
  *
@@ -91,6 +96,7 @@ export const ColumnDnd = ( props: {
 	const destinationResolver = useRef< ColumnDestinationResolver | null >( null );
 	const startRejectionNotice = useRef< ColumnStartRejectionNoticeHandle | null >( null );
 	const latestDragMoveEvent = useRef< DragMoveEvent | null >( null );
+	const physicalDragAttempt = useRef< ColumnPhysicalDragAttempt | null >( null );
 	const resolvedStart = useRef< Extract<
 		ColumnReorderTargetResolution,
 		{ status: 'resolved' }
@@ -142,11 +148,13 @@ export const ColumnDnd = ( props: {
 	}, [ clearTransientDndState ] );
 
 	const onBeforeDragStart = ( event: BeforeDragStartEvent ) => {
+		physicalDragAttempt.current = { phase: 'awaiting-session-start' };
 		const target = event?.operation?.source?.data as ColumnReorderTarget;
 		const resolution = resolveColumnReorderTarget( target );
 
 		if ( resolution.status !== 'resolved' ) {
 			event.preventDefault();
+			physicalDragAttempt.current = null;
 			clearTransientDndState();
 			return;
 		}
@@ -166,6 +174,7 @@ export const ColumnDnd = ( props: {
 		destinationResolver.current = createColumnDestinationResolver( sourceElement );
 		horizontalAutoScroll.start( sourceElement );
 		columnDndInteraction.start( resolution.target, resolution.initialConstraints );
+		physicalDragAttempt.current = { phase: 'session-started' };
 	};
 
 	const onDragMove = ( event: DragMoveEvent ) => {
@@ -186,7 +195,14 @@ export const ColumnDnd = ( props: {
 	};
 
 	const onDragEnd = ( event: DragEndEvent ) => {
+		const sessionStarted = physicalDragAttempt.current?.phase === 'session-started';
+		physicalDragAttempt.current = null;
 		clearTransientDndState();
+
+		/* Session開始前に終わった物理DnD試行は、意味的な終了処理へ接続しない。 */
+		if ( ! sessionStarted ) {
+			return;
+		}
 
 		if ( event.canceled ) {
 			columnDndInteraction.cancel();

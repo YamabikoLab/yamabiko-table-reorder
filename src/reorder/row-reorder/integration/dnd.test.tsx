@@ -425,26 +425,184 @@ describe( 'Row DnD engine connection', () => {
 
 	/**
 	 * 概要:
-	 * - 物理DnDのcancelと通常終了をSessionの取消と確定へ分岐して接続することを確認する。
+	 * - Session開始前に正常終了した物理DnD試行を意味的な終了処理へ接続しないことを確認する。
+	 *
+	 * 事前条件:
+	 * - 開始前解決は成立しているが、物理DnD開始通知はまだ行われていない。
 	 *
 	 * 操作:
-	 * - canceledな終了通知と通常終了通知をそれぞれ行う。
+	 * - canceledではない終了通知を行う。
 	 *
 	 * 期待結果:
-	 * - canceled時はcancelだけが呼ばれcompleteは呼ばれない。
-	 * - 通常終了時はcompleteだけが呼ばれcancelは呼ばれない。
+	 * - Sessionのcompleteとcancelはどちらも要求されない。
 	 */
-	it( 'when physical drag ends, should cancel a canceled drag and complete a normal drag', () => {
+	it( 'when a physical drag ends normally before the row session starts, should not complete or cancel a session', () => {
+		const { target } = mockResolvedTarget();
 		render( <RowDnd tableIdentity="table-1">{ () => <div /> }</RowDnd> );
 		const props = getProviderProps();
+		props.onBeforeDragStart( {
+			operation: { source: { data: target } },
+			preventDefault: jest.fn(),
+		} as unknown as BeforeDragStartEvent );
+
+		props.onDragEnd( { canceled: false } as DragEndEvent );
+
+		expect( interactionMock.complete ).not.toHaveBeenCalled();
+		expect( interactionMock.cancel ).not.toHaveBeenCalled();
+	} );
+
+	/**
+	 * 概要:
+	 * - Session開始前に取消終了した物理DnD試行を意味的な終了処理へ接続しないことを確認する。
+	 *
+	 * 事前条件:
+	 * - 開始前解決は成立しているが、物理DnD開始通知はまだ行われていない。
+	 *
+	 * 操作:
+	 * - canceledな終了通知を行う。
+	 *
+	 * 期待結果:
+	 * - Sessionのcompleteとcancelはどちらも要求されない。
+	 */
+	it( 'when a physical drag is canceled before the row session starts, should not complete or cancel a session', () => {
+		const { target } = mockResolvedTarget();
+		render( <RowDnd tableIdentity="table-1">{ () => <div /> }</RowDnd> );
+		const props = getProviderProps();
+		props.onBeforeDragStart( {
+			operation: { source: { data: target } },
+			preventDefault: jest.fn(),
+		} as unknown as BeforeDragStartEvent );
+
+		props.onDragEnd( { canceled: true } as DragEndEvent );
+
+		expect( interactionMock.complete ).not.toHaveBeenCalled();
+		expect( interactionMock.cancel ).not.toHaveBeenCalled();
+	} );
+
+	/**
+	 * 概要:
+	 * - Session開始済みの物理DnD正常終了を確定へ接続することを確認する。
+	 *
+	 * 事前条件:
+	 * - 物理DnD開始通知によって行DnD Sessionが開始されている。
+	 *
+	 * 操作:
+	 * - canceledではない終了通知を行う。
+	 *
+	 * 期待結果:
+	 * - completeだけが1回要求される。
+	 */
+	it( 'when a started physical row drag ends normally, should complete the session exactly once', () => {
+		const { target } = mockResolvedTarget();
+		render( <RowDnd tableIdentity="table-1">{ () => <div /> }</RowDnd> );
+		const props = getProviderProps();
+		props.onBeforeDragStart( {
+			operation: { source: { data: target } },
+			preventDefault: jest.fn(),
+		} as unknown as BeforeDragStartEvent );
+		props.onDragStart();
+
+		props.onDragEnd( { canceled: false } as DragEndEvent );
+
+		expect( interactionMock.complete ).toHaveBeenCalledTimes( 1 );
+		expect( interactionMock.cancel ).not.toHaveBeenCalled();
+	} );
+
+	/**
+	 * 概要:
+	 * - Session開始済みの物理DnD取消終了をSession取消へ接続することを確認する。
+	 *
+	 * 事前条件:
+	 * - 物理DnD開始通知によって行DnD Sessionが開始されている。
+	 *
+	 * 操作:
+	 * - canceledな終了通知を行う。
+	 *
+	 * 期待結果:
+	 * - cancelだけが1回要求される。
+	 */
+	it( 'when a started physical row drag is canceled, should cancel the session exactly once', () => {
+		const { target } = mockResolvedTarget();
+		render( <RowDnd tableIdentity="table-1">{ () => <div /> }</RowDnd> );
+		const props = getProviderProps();
+		props.onBeforeDragStart( {
+			operation: { source: { data: target } },
+			preventDefault: jest.fn(),
+		} as unknown as BeforeDragStartEvent );
+		props.onDragStart();
 
 		props.onDragEnd( { canceled: true } as DragEndEvent );
 		expect( interactionMock.cancel ).toHaveBeenCalledTimes( 1 );
 		expect( interactionMock.complete ).not.toHaveBeenCalled();
+	} );
+
+	/**
+	 * 概要:
+	 * - Session開始後の一時状態cleanupが、後続の意味的な終了処理を妨げないことを確認する。
+	 *
+	 * 事前条件:
+	 * - 行Reorder Modeで行DnD Sessionが開始されている。
+	 *
+	 * 操作:
+	 * - mode離脱によるcleanup後に物理DnDを正常終了する。
+	 *
+	 * 期待結果:
+	 * - 開始済みSessionのcompleteが1回要求される。
+	 */
+	it( 'when transient state is cleared after the row session starts, should still complete the session on drag end', () => {
+		act( () => {
+			reorderMode.select( 'row', 'table-1' );
+		} );
+		const { target } = mockResolvedTarget();
+		render( <RowDnd tableIdentity="table-1">{ () => <div /> }</RowDnd> );
+		const props = getProviderProps();
+		props.onBeforeDragStart( {
+			operation: { source: { data: target } },
+			preventDefault: jest.fn(),
+		} as unknown as BeforeDragStartEvent );
+		props.onDragStart();
+		act( () => {
+			reorderMode.select( 'row', 'table-1' );
+		} );
+
+		props.onDragEnd( { canceled: false } as DragEndEvent );
+
+		expect( interactionMock.complete ).toHaveBeenCalledTimes( 1 );
+	} );
+
+	/**
+	 * 概要:
+	 * - 終了済みの物理DnD試行情報を次の試行へ持ち越さないことを確認する。
+	 *
+	 * 事前条件:
+	 * - 一回目の物理DnDはSessionを開始して正常終了している。
+	 * - 二回目は開始前解決後、Session開始前に終了する。
+	 *
+	 * 操作:
+	 * - 二回目の物理DnDを正常終了する。
+	 *
+	 * 期待結果:
+	 * - 一回目の開始成立情報ではcompleteもcancelも要求されない。
+	 */
+	it( 'when a later physical row drag ends before session start, should not reuse the prior attempt state', () => {
+		const { target } = mockResolvedTarget();
+		render( <RowDnd tableIdentity="table-1">{ () => <div /> }</RowDnd> );
+		const props = getProviderProps();
+		props.onBeforeDragStart( {
+			operation: { source: { data: target } },
+			preventDefault: jest.fn(),
+		} as unknown as BeforeDragStartEvent );
+		props.onDragStart();
+		props.onDragEnd( { canceled: false } as DragEndEvent );
 
 		jest.clearAllMocks();
+		props.onBeforeDragStart( {
+			operation: { source: { data: target } },
+			preventDefault: jest.fn(),
+		} as unknown as BeforeDragStartEvent );
 		props.onDragEnd( { canceled: false } as DragEndEvent );
-		expect( interactionMock.complete ).toHaveBeenCalledTimes( 1 );
+
+		expect( interactionMock.complete ).not.toHaveBeenCalled();
 		expect( interactionMock.cancel ).not.toHaveBeenCalled();
 	} );
 } );
