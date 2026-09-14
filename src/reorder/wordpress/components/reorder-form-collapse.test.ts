@@ -54,7 +54,9 @@ describe( 'Reorder Form collapse presentation state', () => {
 			collapseHook.result.current.setCollapsed( true );
 		} );
 
-		reorderFormCollapse.beginSession( 'table-reopen' );
+		act( () => {
+			reorderFormCollapse.beginSession( 'table-reopen' );
+		} );
 
 		expect( collapseHook.result.current.collapsed ).toBe( false );
 	} );
