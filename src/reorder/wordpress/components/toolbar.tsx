@@ -15,6 +15,10 @@ import type { ReorderKind } from '@/reorder/reorder-mode';
 import { useReorderMode } from '@/reorder/reorder-mode-react';
 import { reorderFormCollapse } from '@/reorder/wordpress/components/reorder-form-collapse';
 import { ReorderFormPopover } from '@/reorder/wordpress/components/reorder-form';
+import {
+	reorderFormHeight,
+	useReorderFormNarrowHeight,
+} from '@/reorder/wordpress/components/reorder-form-height';
 import { reorderFormPosition } from '@/reorder/wordpress/components/reorder-form-position';
 import { ReorderGuidance } from '@/reorder/wordpress/components/guidance';
 import { useReorderGuidance } from '@/reorder/wordpress/hooks/use-reorder-guidance';
@@ -121,6 +125,7 @@ export const ReorderModeToolbar = ( props: ReorderModeToolbarProps ) => {
 	const rfActive = rfState.status !== 'closed';
 	const rfApplying = rfState.status === 'applying';
 	const { dismiss, guidance } = useReorderGuidance( tableIdentity, guidanceAnchor, rfActive );
+	useReorderFormNarrowHeight( tableIdentity, rfAnchor, rfState.status === 'open' );
 
 	/* 初回案内中は、3つの入口を共通の開始位置として通常時より強調する。 */
 	const guidanceTargetClassName =
@@ -162,6 +167,7 @@ export const ReorderModeToolbar = ( props: ReorderModeToolbarProps ) => {
 		/* 新しいRF Sessionは前回のPresentation状態を引き継がず初期状態から開始する。 */
 		reorderFormPosition.beginSession( tableIdentity );
 		reorderFormCollapse.beginSession( tableIdentity );
+		reorderFormHeight.beginSession( tableIdentity );
 		rfInteraction.open( tableIdentity );
 	};
 
