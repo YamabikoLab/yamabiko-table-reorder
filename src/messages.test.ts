@@ -5,6 +5,8 @@
 import {
 	getLargeColumnReorderMoveSummary,
 	getLargeRowReorderMoveSummary,
+	getRfColumnMergedRangeMessage,
+	getRfRowMergedRangeMessage,
 	PLUGIN_NAME,
 } from './messages';
 
@@ -43,5 +45,95 @@ describe( 'User-facing messages', () => {
 	 */
 	it( 'when column positions are provided, should format the large column move summary', () => {
 		expect( getLargeColumnReorderMoveSummary( 10, 4 ) ).toBe( 'Column 10 → 4' );
+	} );
+
+	/**
+	 * 原因セルが単一行で複数列を占有する場合のRow RF文言を確認する。
+	 *
+	 * 操作:
+	 * - 2行目・3〜5列目を占有する原因セルの文言を取得する。
+	 *
+	 * 期待結果:
+	 * - 行番号と列範囲が正しいplaceholder順で表示される。
+	 */
+	it( 'when a row blocking merged cell spans one row and multiple columns, should format its row and column range', () => {
+		expect( getRfRowMergedRangeMessage( 2, 2, 3, 5 ) ).toBe(
+			'A merged cell in row 2 spanning columns 3–5 prevents this move.'
+		);
+	} );
+
+	/**
+	 * 原因セルが複数行の単一列を占有する場合のRow RF文言を確認する。
+	 *
+	 * 操作:
+	 * - 2〜4行目・3列目を占有する原因セルの文言を取得する。
+	 *
+	 * 期待結果:
+	 * - 行範囲と列番号が正しいplaceholder順で表示される。
+	 */
+	it( 'when a row blocking merged cell spans multiple rows and one column, should format its row range and column', () => {
+		expect( getRfRowMergedRangeMessage( 2, 4, 3, 3 ) ).toBe(
+			'A merged cell spanning rows 2–4 in column 3 prevents this move.'
+		);
+	} );
+
+	/**
+	 * 原因セルが複数行・複数列を占有する場合のRow RF文言を確認する。
+	 *
+	 * 操作:
+	 * - 2〜4行目・3〜5列目を占有する原因セルの文言を取得する。
+	 *
+	 * 期待結果:
+	 * - 行範囲と列範囲が正しいplaceholder順で表示される。
+	 */
+	it( 'when a row blocking merged cell spans multiple rows and columns, should format both ranges', () => {
+		expect( getRfRowMergedRangeMessage( 2, 4, 3, 5 ) ).toBe(
+			'A merged cell spanning rows 2–4 and columns 3–5 prevents this move.'
+		);
+	} );
+
+	/**
+	 * tbodyの原因セルをColumn RFでも通常の行・列位置として表示することを確認する。
+	 *
+	 * 操作:
+	 * - tbodyの2〜4行目・3〜5列目を占有する原因セルの文言を取得する。
+	 *
+	 * 期待結果:
+	 * - section名を付けず、tbody内の行範囲と列範囲が表示される。
+	 */
+	it( 'when a column blocking merged cell is in the body, should format the body row and column range', () => {
+		expect( getRfColumnMergedRangeMessage( 'body', 2, 4, 3, 5 ) ).toBe(
+			'A merged cell spanning rows 2–4 and columns 3–5 prevents this move.'
+		);
+	} );
+
+	/**
+	 * ヘッダー内の原因セル位置が本文と区別できることを確認する。
+	 *
+	 * 操作:
+	 * - ヘッダー1行目・2〜3列目を占有する原因セルの文言を取得する。
+	 *
+	 * 期待結果:
+	 * - header領域名、行番号、列範囲が正しいplaceholder順で表示される。
+	 */
+	it( 'when a column blocking merged cell is in one header row, should include the header section', () => {
+		expect( getRfColumnMergedRangeMessage( 'head', 1, 1, 2, 3 ) ).toBe(
+			'A merged cell in header row 1 spanning columns 2–3 prevents this move.'
+		);
+	} );
+
+	/**
+	 * フッター内で複数行を占有する原因セル位置が本文と区別できることを確認する。
+	 *
+	 * 操作:
+	 * - フッター2〜3行目・4〜5列目を占有する原因セルの文言を取得する。
+	 *
+	 * 期待結果:
+	 * - footer領域名、行範囲、列範囲が正しいplaceholder順で表示される。
+	 */
+	it( 'when a column blocking merged cell spans footer rows, should include the footer section', () => {
+		expect( getRfColumnMergedRangeMessage( 'foot', 2, 3, 4, 5 ) ).toBe(
+			'A merged cell spanning footer rows 2–3 and columns 4–5 prevents this move.'
+		);
 	} );
 } );
