@@ -33,17 +33,31 @@
 			"This reorder can't continue with the current table. Check the table and try again.": [
 				"現在のテーブルでは、この並び替えを続行できません。テーブルの状態を確認して、もう一度お試しください。"
 			],
-			"A merged cell involving row %d prevents this move.": [
-				"%d行目にある結合セルのため、この指定では移動できません。"
+			"A merged cell in row %1$d, column %2$d prevents this move.": [
+				"%1$d行目の%2$d列目に結合セルがあるため、この指定では移動できません。"
 			],
-			"A merged cell spanning rows %1$d–%2$d prevents this move.": [
-				"%1$d〜%2$d行目にまたがる結合セルがあるため、この指定では移動できません。"
+			"A merged cell in row %1$d spanning columns %2$d–%3$d prevents this move.": [
+				"%1$d行目の%2$d〜%3$d列目に結合セルがあるため、この指定では移動できません。"
 			],
-			"A merged cell involving column %d prevents this move.": [
-				"%d列目にある結合セルのため、この指定では移動できません。"
+			"A merged cell spanning rows %1$d–%2$d in column %3$d prevents this move.": [
+				"%1$d〜%2$d行目の%3$d列目に結合セルがあるため、この指定では移動できません。"
 			],
-			"A merged cell spanning columns %1$d–%2$d prevents this move.": [
-				"%1$d〜%2$d列目にまたがる結合セルがあるため、この指定では移動できません。"
+			"A merged cell spanning rows %1$d–%2$d and columns %3$d–%4$d prevents this move.": [
+				"%1$d〜%2$d行目の%3$d〜%4$d列目に結合セルがあるため、この指定では移動できません。"
+			],
+			"header": [ "ヘッダー" ],
+			"footer": [ "フッター" ],
+			"A merged cell in %1$s row %2$d, column %3$d prevents this move.": [
+				"%1$sの%2$d行目の%3$d列目に結合セルがあるため、この指定では移動できません。"
+			],
+			"A merged cell in %1$s row %2$d spanning columns %3$d–%4$d prevents this move.": [
+				"%1$sの%2$d行目の%3$d〜%4$d列目に結合セルがあるため、この指定では移動できません。"
+			],
+			"A merged cell spanning %1$s rows %2$d–%3$d in column %4$d prevents this move.": [
+				"%1$sの%2$d〜%3$d行目の%4$d列目に結合セルがあるため、この指定では移動できません。"
+			],
+			"A merged cell spanning %1$s rows %2$d–%3$d and columns %4$d–%5$d prevents this move.": [
+				"%1$sの%2$d〜%3$d行目の%4$d〜%5$d列目に結合セルがあるため、この指定では移動できません。"
 			],
 			"Reorder": [ "並び替え" ],
 			"Reordering failed. The table has not been changed.": [
