@@ -3,7 +3,7 @@ Tags: block editor, gutenberg, table
 Requires at least: 6.8
 Tested up to: 7.1
 Requires PHP: 8.1
-Stable tag: 0.9.0
+Stable tag: 0.9.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -11,7 +11,7 @@ Reorder table rows and columns in supported blocks in the WordPress block editor
 
 == Description ==
 
-Yamabiko Table Reorder 0.9.0 provides Row Reorder, Column Reorder, and Reorder Form for WordPress Core Table and Flexible Table Block.
+Yamabiko Table Reorder 0.9.1 provides Row Reorder, Column Reorder, and Reorder Form for WordPress Core Table and Flexible Table Block.
 
 Use Row Reorder or Column Reorder mode from the Table toolbar, then drag body rows or Table columns with Mouse or Touch. During DnD, the plugin shows the moving row or column and the current destination. During Row Reorder, surrounding rows are displaced to preview the result before it is committed. During Column Reorder, surrounding columns are displaced in iframe editors. In non-iframe editors, surrounding column displacement is intentionally omitted to preserve responsiveness, while the moving column and insertion line continue to show the source and destination.
 
@@ -21,7 +21,7 @@ Row Reorder, Column Reorder, and RF preserve supported Table structure, includin
 
 When a reorder affects enough cells that applying it may take some time, the plugin shows a confirmation before applying the change. If continued, only the target Table enters a temporary applying state, and editing resumes after the update is complete. Reorder operations also provide shared success and failure feedback after the result is known.
 
-RF uses a movable Popover when enough editor space is available. In a narrow editor area it switches to a bottom dock that can be collapsed so the target Table remains easier to inspect while choosing rows or columns.
+RF uses a movable Popover when enough editor space is available. In a narrow editor area it switches to a bottom dock that can be collapsed, resized vertically, and scrolled internally so the target Table and required form controls remain easier to inspect and reach.
 
 A WordPress Playground demo is available from the GitHub repository and uses the current latest stable release.
 
@@ -43,6 +43,11 @@ The generated archive is `yamabiko-table-reorder.zip`.
 4. Activate Yamabiko Table Reorder.
 
 == Changelog ==
+
+= 0.9.1 =
+
+* Changed: Improved Reorder Form narrow layouts by allowing the bottom dock height to be adjusted and the form content to scroll within the available space.
+* Fixed: Prevented result focus after confirmed reorders from automatically entering cell editing or opening the software keyboard on mobile devices.
 
 = 0.9.0 =
 
