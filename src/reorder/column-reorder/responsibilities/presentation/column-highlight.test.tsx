@@ -151,7 +151,7 @@ describe( 'Column highlight', () => {
 	 * - 現在セルだけに移動不可表示が付き、他セルには表示が付かない。
 	 */
 	it( 'when target resolution rejects the current column, should preview only the current cell as unavailable', () => {
-		resolveMock.mockReturnValue( { status: 'rejected', reason: 'merged-range' } );
+		resolveMock.mockReturnValue( { status: 'rejected' } );
 		const { getByTestId } = render( <TestTable /> );
 		fireEvent.pointerOver( getByTestId( 'column-1' ), { pointerType: 'mouse' } );
 
