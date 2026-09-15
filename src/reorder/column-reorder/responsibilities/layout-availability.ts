@@ -36,6 +36,7 @@ const createObservedBoundaryRanges = (
 
 	/* 各論理境界の整合性を全セルにわたって評価できるよう、同じ境界の観測位置を一つの集合へ集約する。 */
 	for ( const observation of observations ) {
+		/* 論理境界として安全に解釈できない観測値が一つでもあれば、配置判定全体を成立させない。 */
 		if ( ! Number.isInteger( observation.index ) || ! Number.isFinite( observation.offset ) ) {
 			return null;
 		}
@@ -106,6 +107,7 @@ export const evaluateColumnDndLayoutAvailability = (
 export const resolveColumnDndLayoutAvailability = (
 	table: HTMLTableElement | null
 ): ColumnDndLayoutAvailability => {
+	/* 現在表示の対象Tableを解決できない場合は、安全性を保証できないため利用不可とする。 */
 	if ( table === null ) {
 		return 'unavailable';
 	}
