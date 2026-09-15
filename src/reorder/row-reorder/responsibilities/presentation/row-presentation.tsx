@@ -5,11 +5,8 @@
  * 表示に必要なDnD Engineの物理情報をそれぞれの境界から利用し、表示Lifecycleと表示状態を自身で所有する。
  */
 
-import { RowDropAnimation } from './drop-animation';
-import { RowInsertionGap } from './insertion-gap';
 import { RowInsertionLine } from './insertion-line';
 import { RowMovingDisplay } from './moving-row';
-import { RowDisplacement } from './row-displacement';
 import {
 	RowStartRejectionNotice,
 	type RowStartRejectionNoticeHandle,
@@ -28,10 +25,7 @@ export const RowPresentation = ( props: {
 	startRejectionNoticeRef: Ref< RowStartRejectionNoticeHandle >;
 } ) => (
 	<>
-		<RowDisplacement />
-		<RowInsertionGap />
 		<RowMovingDisplay />
-		<RowDropAnimation />
 		<RowInsertionLine />
 		<RowStartRejectionNotice ref={ props.startRejectionNoticeRef } />
 		<RowTerminationNotice />
