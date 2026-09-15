@@ -15,7 +15,7 @@ RFはDnDの補助機能ではなく、対応Tableの行または列をフォー�
 - Reorder Modeは`edit | row | column`の排他状態を維持し、RFを新しい方向として所有しない。
 - RF開始時は同一TableのRow / Column Reorder Modeを終了し、RF終了時に以前のDnDモードを自動復元しない。
 - RF open中は同一TableのRow / Column DnDを同時に活動させない。
-- RF SessionはPresentation instanceの寿命ではなく、対象Tableと利用者操作Lifecycleに結び付く。同じ対象Tableの表示境界が再生成されても、それだけではRF Sessionを終了しない。
+- RF SessionはPresentation instanceの寿命ではなく、対象Tableと利用者操作Lifecycleに結び付く。同じ対象Tableの表示境界が再生成されても、それだけではRF Sessionを終了しない。一方、対象TableがEditorの操作対象から外れたopen Sessionは終了する。
 - RF Interactionは対象Table、選択方向、利用者入力、現在評価、および未提示のApply結果を所有する。Table構造、方向固有制約、更新対象セル数、WordPress表示状態は所有しない。
 - RF open中に対象Tableが変化した場合、保持中の入力を現在Tableへ再評価する。過去のTable snapshotを成立保証として扱わない。
 - RF Input Interpretationは入力成立性のみを扱い、Table構造制約、no-op、確定更新を所有しない。
@@ -54,7 +54,7 @@ RF Interactionは対象Tableと利用者入力を所有し、入力時および�
 
 解決済み候補は入力時点の候補にすぎない。RF Apply CoordinationはApply要求時に方向固有Table Integrationへ再照合と更新対象セル数取得を要求し、Reorder Apply Policyで反映経路を選択する。Table Integrationは確定更新直前にも現在Tableを最終確認する。
 
-通常反映では一回の確定更新後、RF Apply Coordinationが表示復帰待ちを所有し、WordPress Reorder Apply Integrationが更新後のediting surfaceを再成立させる。表示復帰完了後にだけApply成功を確定し、RF Interactionへ返す。
+通常反映では一回の確定更新後、RF Apply Coordinationが表示復帰待ちを所有し、WordPress Reorder Apply Integrationが更新後のediting surfaceを再成立させる。表示復帰完了後にだけApply成功を確定し、RF Interactionへ返す。Apply評価または確定更新が成立しない場合は表示復帰Lifecycleへ入らず、Tableを不完全に変更せずfailureを返す。
 
 確認付き大規模反映では、RF Apply Coordinationが確認待ち、反映準備、表示復帰までを所有する。確認中はTableを変更しない。Continue後は反映中表示を成立させてから現在Tableを再照合し、成立する場合だけ確定更新する。成功・失敗とも表示復帰完了後に結果を確定する。CancelはTableを変更せず入力画面へ戻る。
 
@@ -279,17 +279,18 @@ WordPress接続に必要な一時参照だけを扱い、Reorder Mode状態、RF
 
 ##### Contract
 
-RF入口選択時は同一TableのReorder Modeを終了してRF Interactionを開始する。RF Interactionの現在状態を入力画面へ反映し、利用者入力をRF Interactionへ接続する。Row / Column入口へ切り替える場合はRFを終了してから方向固有モードへ進む。
+RF入口選択時は同一TableのReorder Modeを終了してRF Interactionを開始する。RF Interactionの現在状態を入力画面へ反映し、利用者入力をRF Interactionへ接続する。Row / Column入口へ切り替える場合はRFを終了してから方向固有モードへ進む。対象TableがEditorの操作対象から外れた場合は、そのTableに結び付いたopen RF Sessionを終了する。
 
 ##### Lifecycle
 
-対象TableのEditor接続が存在する間、現在のReorder ModeとRF Interactionを表示へ接続する。同じ対象Tableの表示境界の再生成だけではRF Sessionを終了しない。
+対象TableのEditor接続が存在する間、現在のReorder ModeとRF Interactionを表示へ接続する。同じ対象Tableの表示境界の再生成だけではRF Sessionを終了しない。対象Tableから操作対象が外れた場合はopen RF Sessionを終了する。
 
 ##### Invariants
 
 - 排他状態をWordPress UIだけの別正本として所有しない。
 - RF入力や方向固有Move意味を別正本として所有しない。
 - RF終了時に過去のDnDモードを自動復元しない。
+- 同一TableのPresentation境界の再生成と、対象Tableから操作対象が外れることを同じSession終了条件として扱わない。
 
 #### WordPress Reorder Apply Integration {#RESP_WORDPRESS_REORDER_APPLY_INTEGRATION}
 
@@ -549,62 +550,89 @@ RF入口から同一TableのDnDモードを終了し、RF Sessionを開始して
 | 6 | RESP_WORDPRESS_REORDER_INTEGRATION | RESP_RF_INTERACTION | 現在方向を切り替える。 |
 | 7 | RESP_WORDPRESS_REORDER_INTEGRATION | EXT_WORDPRESS_EDITOR | 新しい方向の現在状態を表示する。 |
 
-### RF current-table reevaluation {#RV_RF_CURRENT_TABLE_REEVALUATION}
+### RF Row current-table reevaluation {#RV_RF_ROW_CURRENT_TABLE_REEVALUATION}
 
-RF open中に対象Tableが変化した場合、保持中の入力を現在Table基準で再評価する。
+Row RF open中に対象Tableが変化した場合、保持中のRow入力を現在Table基準で再評価する。
 
 | Step | Source | Target | Interaction |
 | ---: | --- | --- | --- |
 | 1 | EXT_SUPPORTED_TABLE_BLOCK | RESP_WORDPRESS_REORDER_INTEGRATION | 対象Tableの現在内容または構造が変化する。 |
 | 2 | RESP_WORDPRESS_REORDER_INTEGRATION | RESP_RF_INTERACTION | 現在Tableを基準とするRF評価更新を要求する。 |
-| 3 | RESP_RF_INTERACTION | RESP_ROW_TABLE_INTEGRATION | Row選択時は現在行範囲を再取得する。 |
-| 4 | RESP_RF_INTERACTION | RESP_COLUMN_TABLE_INTEGRATION | Column選択時は現在列記述を再取得する。 |
-| 5 | RESP_RF_INTERACTION | RESP_RF_INPUT_INTERPRETATION | 保持中の入力を現在範囲 / 選択肢へ再解釈する。 |
-| 6 | RESP_RF_INTERACTION | RESP_RF_ROW_RESOLUTION | Rowのready指定を現在Tableへ再解決する。 |
-| 7 | RESP_RF_INTERACTION | RESP_RF_COLUMN_RESOLUTION | Columnのready指定を現在Tableへ再解決する。 |
-| 8 | RESP_WORDPRESS_REORDER_INTEGRATION | EXT_WORDPRESS_EDITOR | 再評価後の実行可否と理由を表示する。 |
+| 3 | RESP_RF_INTERACTION | RESP_ROW_TABLE_INTEGRATION | 現在行範囲を再取得する。 |
+| 4 | RESP_RF_INTERACTION | RESP_RF_INPUT_INTERPRETATION | 保持中のRow入力を現在行範囲へ再解釈する。 |
+| 5 | RESP_RF_INTERACTION | RESP_RF_ROW_RESOLUTION | ready指定を現在Tableへ再解決する。 |
+| 6 | RESP_WORDPRESS_REORDER_INTEGRATION | EXT_WORDPRESS_EDITOR | 再評価後の実行可否と理由を表示する。 |
 
-### RF resolution {#RV_RF_RESOLUTION}
+### RF Column current-table reevaluation {#RV_RF_COLUMN_CURRENT_TABLE_REEVALUATION}
 
-成立した入力を要求時点の現在Tableへ照合し、Applyへ進めるかを解決する。
+Column RF open中に対象Tableが変化した場合、保持中のColumn入力を現在Table基準で再評価する。
 
 | Step | Source | Target | Interaction |
 | ---: | --- | --- | --- |
-| 1 | EXT_WORDPRESS_EDITOR | RESP_WORDPRESS_REORDER_INTEGRATION | 利用者がRF入力を変更する。 |
+| 1 | EXT_SUPPORTED_TABLE_BLOCK | RESP_WORDPRESS_REORDER_INTEGRATION | 対象Tableの現在内容または構造が変化する。 |
+| 2 | RESP_WORDPRESS_REORDER_INTEGRATION | RESP_RF_INTERACTION | 現在Tableを基準とするRF評価更新を要求する。 |
+| 3 | RESP_RF_INTERACTION | RESP_COLUMN_TABLE_INTEGRATION | 現在列記述を再取得する。 |
+| 4 | RESP_RF_INTERACTION | RESP_RF_INPUT_INTERPRETATION | 保持中のColumn入力を現在列選択肢へ再解釈する。 |
+| 5 | RESP_RF_INTERACTION | RESP_RF_COLUMN_RESOLUTION | ready指定を現在Tableへ再解決する。 |
+| 6 | RESP_WORDPRESS_REORDER_INTEGRATION | EXT_WORDPRESS_EDITOR | 再評価後の実行可否と理由を表示する。 |
+
+### RF Row resolution {#RV_RF_ROW_RESOLUTION}
+
+成立したRow入力を要求時点の現在Tableへ照合し、Applyへ進めるかを解決する。
+
+| Step | Source | Target | Interaction |
+| ---: | --- | --- | --- |
+| 1 | EXT_WORDPRESS_EDITOR | RESP_WORDPRESS_REORDER_INTEGRATION | 利用者がRow入力を変更する。 |
 | 2 | RESP_WORDPRESS_REORDER_INTEGRATION | RESP_RF_INTERACTION | 現在入力をRF Sessionへ渡す。 |
-| 3 | RESP_RF_INTERACTION | RESP_RF_INPUT_INTERPRETATION | 現在入力を内部指定へ解釈する。 |
-| 4 | RESP_RF_INTERACTION | RESP_RF_ROW_RESOLUTION | Rowのready指定を現在Tableへ解決する。 |
+| 3 | RESP_RF_INTERACTION | RESP_RF_INPUT_INTERPRETATION | 現在Row入力を内部指定へ解釈する。 |
+| 4 | RESP_RF_INTERACTION | RESP_RF_ROW_RESOLUTION | ready指定を現在Tableへ解決する。 |
 | 5 | RESP_RF_ROW_RESOLUTION | RESP_ROW_TABLE_INTEGRATION | 現在Row構造と診断を要求する。 |
-| 6 | RESP_RF_INTERACTION | RESP_RF_COLUMN_RESOLUTION | Columnのready指定を現在Tableへ解決する。 |
-| 7 | RESP_RF_COLUMN_RESOLUTION | RESP_COLUMN_TABLE_INTEGRATION | 現在Column構造と診断を要求する。 |
-| 8 | RESP_RF_ROW_RESOLUTION | RESP_RF_INTERACTION | Rowの成立候補、no-op、構造拒否、利用不能を返す。 |
-| 9 | RESP_RF_COLUMN_RESOLUTION | RESP_RF_INTERACTION | Columnの成立候補、no-op、構造拒否、利用不能を返す。 |
-| 10 | RESP_WORDPRESS_REORDER_INTEGRATION | EXT_WORDPRESS_EDITOR | 現在評価に応じて実行可否と理由を表示する。 |
+| 6 | RESP_RF_ROW_RESOLUTION | RESP_RF_INTERACTION | 成立候補、no-op、構造拒否、利用不能を返す。 |
+| 7 | RESP_WORDPRESS_REORDER_INTEGRATION | EXT_WORDPRESS_EDITOR | 現在評価に応じて実行可否と理由を表示する。 |
 
-### RF normal apply {#RV_RF_NORMAL_APPLY}
+### RF Column resolution {#RV_RF_COLUMN_RESOLUTION}
 
-通常反映を一回の確定更新として実行し、成功時は表示復帰完了後に結果を確定する。
+成立したColumn入力を要求時点の現在Tableへ照合し、Applyへ進めるかを解決する。
+
+| Step | Source | Target | Interaction |
+| ---: | --- | --- | --- |
+| 1 | EXT_WORDPRESS_EDITOR | RESP_WORDPRESS_REORDER_INTEGRATION | 利用者がColumn入力を変更する。 |
+| 2 | RESP_WORDPRESS_REORDER_INTEGRATION | RESP_RF_INTERACTION | 現在入力をRF Sessionへ渡す。 |
+| 3 | RESP_RF_INTERACTION | RESP_RF_INPUT_INTERPRETATION | 現在Column入力を内部指定へ解釈する。 |
+| 4 | RESP_RF_INTERACTION | RESP_RF_COLUMN_RESOLUTION | ready指定を現在Tableへ解決する。 |
+| 5 | RESP_RF_COLUMN_RESOLUTION | RESP_COLUMN_TABLE_INTEGRATION | 現在Column構造と診断を要求する。 |
+| 6 | RESP_RF_COLUMN_RESOLUTION | RESP_RF_INTERACTION | 成立候補、no-op、構造拒否、利用不能を返す。 |
+| 7 | RESP_WORDPRESS_REORDER_INTEGRATION | EXT_WORDPRESS_EDITOR | 現在評価に応じて実行可否と理由を表示する。 |
+
+### RF normal apply success {#RV_RF_NORMAL_APPLY}
+
+通常反映の確定更新が成功した場合、共通の表示復帰を経てからsuccessを確定する。方向固有のApply評価と確定更新は、選択中のRowまたはColumn Table Integrationだけが担当する。
 
 | Step | Source | Target | Interaction |
 | ---: | --- | --- | --- |
 | 1 | EXT_WORDPRESS_EDITOR | RESP_WORDPRESS_REORDER_INTEGRATION | 利用者が成立候補の並び替えを要求する。 |
 | 2 | RESP_WORDPRESS_REORDER_INTEGRATION | RESP_RF_INTERACTION | Apply要求をRF Sessionへ渡す。 |
 | 3 | RESP_RF_INTERACTION | RESP_RF_APPLY_COORDINATION | 現在の成立候補を渡す。 |
-| 4 | RESP_RF_APPLY_COORDINATION | RESP_ROW_TABLE_INTEGRATION | Rowの場合は現在TableでApply評価を要求する。 |
-| 5 | RESP_RF_APPLY_COORDINATION | RESP_COLUMN_TABLE_INTEGRATION | Columnの場合は現在TableでApply評価を要求する。 |
-| 6 | RESP_RF_APPLY_COORDINATION | RESP_REORDER_APPLY_POLICY | 更新対象セル数から反映経路を要求する。 |
-| 7 | RESP_REORDER_APPLY_POLICY | RESP_RF_APPLY_COORDINATION | 通常反映を返す。 |
-| 8 | RESP_RF_APPLY_COORDINATION | RESP_ROW_TABLE_INTEGRATION | Rowの場合は現在Tableを最終確認して一回の確定更新を要求する。 |
-| 9 | RESP_RF_APPLY_COORDINATION | RESP_COLUMN_TABLE_INTEGRATION | Columnの場合は現在Tableを最終確認して一回の確定更新を要求する。 |
-| 10 | RESP_RF_APPLY_COORDINATION | RESP_WORDPRESS_REORDER_APPLY_INTEGRATION | 更新成功時に表示復帰を要求し、最終位置を公開する。 |
-| 11 | RESP_WORDPRESS_REORDER_APPLY_INTEGRATION | EXT_WORDPRESS_EDITOR | 更新後の対象Table editing surfaceを再成立させる。 |
-| 12 | RESP_WORDPRESS_REORDER_APPLY_INTEGRATION | RESP_RF_APPLY_COORDINATION | 表示復帰完了を返す。 |
-| 13 | RESP_RF_APPLY_COORDINATION | RESP_RF_INTERACTION | successを返す。更新不成立時はTableを不完全に変更せずfailureを返す。 |
-| 14 | RESP_WORDPRESS_REORDER_INTEGRATION | EXT_WORDPRESS_EDITOR | successではRFを終了して一度だけ通知し、failureでは入力を保持したRFと一度だけの失敗通知を表示する。 |
+| 4 | RESP_RF_APPLY_COORDINATION | RESP_REORDER_APPLY_POLICY | 現在Tableで成立する候補の更新対象セル数から反映経路を要求する。 |
+| 5 | RESP_REORDER_APPLY_POLICY | RESP_RF_APPLY_COORDINATION | 通常反映を返す。 |
+| 6 | RESP_RF_APPLY_COORDINATION | RESP_WORDPRESS_REORDER_APPLY_INTEGRATION | 方向固有Table Integrationによる確定更新成功後、表示復帰を要求して最終位置を公開する。 |
+| 7 | RESP_WORDPRESS_REORDER_APPLY_INTEGRATION | EXT_WORDPRESS_EDITOR | 更新後の対象Table editing surfaceを再成立させる。 |
+| 8 | RESP_WORDPRESS_REORDER_APPLY_INTEGRATION | RESP_RF_APPLY_COORDINATION | 表示復帰完了を返す。 |
+| 9 | RESP_RF_APPLY_COORDINATION | RESP_RF_INTERACTION | successを返す。 |
+| 10 | RESP_WORDPRESS_REORDER_INTEGRATION | EXT_WORDPRESS_EDITOR | RFを終了し、successを一度だけ通知する。 |
+
+### RF normal apply failure {#RV_RF_NORMAL_APPLY_FAILURE}
+
+通常反映でApply評価または確定更新が成立しない場合、表示復帰Lifecycleへ入らず、Tableを不完全に変更しないfailureとしてRF入力状態へ戻る。
+
+| Step | Source | Target | Interaction |
+| ---: | --- | --- | --- |
+| 1 | RESP_RF_APPLY_COORDINATION | RESP_RF_INTERACTION | 方向固有Table IntegrationでApply評価または確定更新が成立しなかったfailureを返す。 |
+| 2 | RESP_WORDPRESS_REORDER_INTEGRATION | EXT_WORDPRESS_EDITOR | 入力を保持したRFへ戻り、failureを一度だけ通知する。 |
 
 ### RF large apply continue {#RV_RF_LARGE_APPLY_CONTINUE}
 
-確認付き大規模反映でContinueされた候補を、反映表示成立後に現在Tableへ再照合し、表示復帰完了後に結果を確定する。
+確認付き大規模反映でContinueされた候補を、反映表示成立後に選択中の方向固有Table Integrationで現在Tableへ再照合して確定し、表示復帰完了後に結果を確定する。
 
 | Step | Source | Target | Interaction |
 | ---: | --- | --- | --- |
@@ -616,13 +644,11 @@ RF open中に対象Tableが変化した場合、保持中の入力を現在Table
 | 6 | RESP_RF_APPLY_COORDINATION | RESP_WORDPRESS_REORDER_APPLY_INTEGRATION | 反映準備状態を公開する。 |
 | 7 | RESP_WORDPRESS_REORDER_APPLY_INTEGRATION | EXT_WORDPRESS_EDITOR | 対象Tableの競合編集を抑止し、反映中表示を成立させる。 |
 | 8 | RESP_WORDPRESS_REORDER_APPLY_INTEGRATION | RESP_RF_APPLY_COORDINATION | 反映準備完了を返す。 |
-| 9 | RESP_RF_APPLY_COORDINATION | RESP_ROW_TABLE_INTEGRATION | Rowの場合は現在Tableを再評価し、成立時だけ一回の確定更新を要求する。 |
-| 10 | RESP_RF_APPLY_COORDINATION | RESP_COLUMN_TABLE_INTEGRATION | Columnの場合は現在Tableを再評価し、成立時だけ一回の確定更新を要求する。 |
-| 11 | RESP_RF_APPLY_COORDINATION | RESP_WORDPRESS_REORDER_APPLY_INTEGRATION | success / failureにかかわらず表示復帰を要求する。 |
-| 12 | RESP_WORDPRESS_REORDER_APPLY_INTEGRATION | EXT_WORDPRESS_EDITOR | 更新後または未変更のediting surfaceを再成立させる。 |
-| 13 | RESP_WORDPRESS_REORDER_APPLY_INTEGRATION | RESP_RF_APPLY_COORDINATION | 表示復帰完了を返す。 |
-| 14 | RESP_RF_APPLY_COORDINATION | RESP_RF_INTERACTION | successまたはfailureを返す。 |
-| 15 | RESP_WORDPRESS_REORDER_INTEGRATION | EXT_WORDPRESS_EDITOR | successではRFを終了し、failureでは入力を保持したRFを表示する。 |
+| 9 | RESP_RF_APPLY_COORDINATION | RESP_WORDPRESS_REORDER_APPLY_INTEGRATION | 方向固有Table Integrationによる現在Table再評価と確定更新後、success / failureにかかわらず表示復帰を要求する。 |
+| 10 | RESP_WORDPRESS_REORDER_APPLY_INTEGRATION | EXT_WORDPRESS_EDITOR | 更新後または未変更のediting surfaceを再成立させる。 |
+| 11 | RESP_WORDPRESS_REORDER_APPLY_INTEGRATION | RESP_RF_APPLY_COORDINATION | 表示復帰完了を返す。 |
+| 12 | RESP_RF_APPLY_COORDINATION | RESP_RF_INTERACTION | successまたはfailureを返す。 |
+| 13 | RESP_WORDPRESS_REORDER_INTEGRATION | EXT_WORDPRESS_EDITOR | successではRFを終了し、failureでは入力を保持したRFを表示する。 |
 
 ### RF large apply cancel {#RV_RF_LARGE_APPLY_CANCEL}
 
@@ -663,7 +689,7 @@ Row / Column位置はcurrent logical positionとして扱う。入力後にTable
 
 Resolution結果はApply時の確定権威ではない。RF Apply CoordinationはApply要求時にTable Integrationへ現在候補の再評価を要求し、Table Integrationは確定更新直前にも現在Tableを最終確認する。
 
-通常反映と確認付き大規模反映は、成功時に共通の表示復帰契約へ合流する。Table更新成功だけではRF Apply successを確定せず、必要な表示復帰完了後に結果を確定する。
+通常反映と確認付き大規模反映は、成功時に共通の表示復帰契約へ合流する。Table更新成功だけではRF Apply successを確定せず、必要な表示復帰完了後に結果を確定する。通常反映で確定更新前に失敗した場合は表示復帰を必要としない。
 
 ### Reorder Apply Exclusivity
 
@@ -724,7 +750,7 @@ Apply結果の正本をPresentation instanceへ置かない。success / failure�
 - **Correctness**: Resolution結果だけで更新せず、Table IntegrationがApply時の現在Tableへ再照合して成立する移動だけを確定する。
 - **Data integrity**: not-ready、no-op、構造拒否、利用不能、Cancel、再照合不成立、更新不能では不完全なTable変更を残さない。
 - **Consistency**: Row / Column DnDとRFは方向固有Table Integrationの同じ構造ルールと更新意味を利用する。
-- **Lifecycle correctness**: 通常 / 大規模のどちらも必要な表示復帰完了後にsuccessを確定する。
+- **Lifecycle correctness**: 通常 / 大規模のどちらも必要な表示復帰完了後にsuccessを確定する。通常反映の確定更新前failureは表示復帰を開始しない。
 - **Notification consistency**: success / failureを一回だけ通知し、Cancelをfailure通知として扱わない。
 - **Maintainability**: RF UI接続、Interaction、入力解釈、方向固有Resolution、Table Integration、Apply Coordinationを分離し、現在のsource tree形状へArchitectureを固定しない。
 - **Editor continuity**: 対象Tableの競合編集を防ぎつつ、対象Table以外の操作を不必要に妨げない。
@@ -740,7 +766,7 @@ Apply結果の正本をPresentation instanceへ置かない。success / failure�
 | Term | Meaning |
 | --- | --- |
 | RF | Reorder Form。DnDを必要とせず、行または列と移動先を指定して並び替える独立した操作手段。 |
-| RF Session | 一つの対象Tableに対してRFがopenしている間の入力Lifecycle。Presentation instanceの寿命とは独立する。 |
+| RF Session | 一つの対象Tableに対してRFがopenしている間の入力Lifecycle。Presentation instanceの寿命とは独立し、対象TableがEditorの操作対象から外れた場合は終了する。 |
 | Reorder Mode | 通常編集、Row DnD、Column DnDの排他状態。RF状態は含まない。 |
 | Current logical position | 要求時点の現在Table上の0-based論理位置。永続Row / Column Identityではない。 |
 | Move candidate | 方向固有Resolutionで要求時点の現在Tableに成立すると解決された候補。Apply時はTable Integrationが現在Tableへ再照合する。 |
