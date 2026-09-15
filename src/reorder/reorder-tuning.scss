@@ -15,6 +15,18 @@ $reorder-displacement-easing: ease;
 // Row / ColumnのDnD中に移動元を表示する不透明度。
 $reorder-moving-source-opacity: 0.35;
 
+// Rowの移動表示をDnD開始時に軽く強調するアニメーション時間。
+$row-moving-display-enter-duration: 120ms;
+
+// Rowの移動表示をDnD開始時に軽く強調するアニメーションのeasing。
+$row-moving-display-enter-easing: ease-out;
+
+// Rowの挿入位置変更を短く強調するアニメーション時間。
+$row-insertion-line-emphasis-duration: 140ms;
+
+// Rowの挿入位置変更を短く強調するアニメーションのeasing。
+$row-insertion-line-emphasis-easing: ease-out;
+
 // Reorder Completion Notice
 
 // 並び替え完了通知が右側から表示されるアニメーション時間。
