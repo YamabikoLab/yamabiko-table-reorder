@@ -129,13 +129,15 @@ Plan作成時点でArchitecture変更を必要とする事項は確認されて�
   - RF Interactionから、現在方向、方向固有入力descriptor、現在評価、実行可否をWordPress接続が一貫して参照できるよう既存React境界を整理する。
   - blocked / no-op等の現在評価について、同一RF Session内で「新しく成立した意味」だけを一回性通知候補として公開できるようにする。
   - 通常反映 / 確認付き大規模反映の両方で、RF Apply Coordinationが確定した移動前位置と確定後位置を持つMove summaryをsuccess結果としてLifecycle完了時に引き渡せるContractへ拡張する。
-  - 確定Move summaryを含むsuccess / failureの未提示Apply結果を、RF InteractionからPresentationとAnnouncementへ二重消費なしで安全にfan-outできる公開方法を整理する。
+  - successは確定Move summaryを含む一回性の未提示Apply結果として保持し、RF InteractionからPresentationとAnnouncementへ二重消費なしで安全にfan-outできる公開方法を整理する。
+  - failureも一回性の未提示Apply結果として同じfan-out境界から公開するが、確定Move summaryは要求しない。
   - focus用の確定済み`destinationIndex`、確認表示用summary、success結果用の確定Move summaryをそれぞれの用途で利用し、Announcement側でcandidate、入力値、cleanup済みLifecycleから位置を再計算しない。
   - Row / Column Table Integrationの既存確定後位置・診断ContractをAccessibility用に再計算しない。
 - Validation:
   - Jestで入力問題の対象、現在評価、一回性通知適格性、Apply結果の一回性、確定済み最終位置の保持を検証する。
   - Jestで通常反映と確認付き大規模反映の両経路について、Apply Lifecycle cleanup後にRF Interactionへ引き渡される一回性success結果が移動前位置と確定後位置のMove summaryを含むことを検証する。
-  - PresentationとAnnouncementの双方が同じ確定済みsuccess意味を利用でき、どちらかの消費によって他方が欠落しないことを検証する。
+  - failureが一回性結果として保持・公開される一方、確定Move summaryを要求しないことを検証する。
+  - PresentationとAnnouncementの双方が同じ確定済みsuccess / failure意味を利用でき、どちらかの消費によって他方が欠落しないことを検証する。
   - Row / Column差を値として扱い、Accessibility専用の方向別状態modelが増えていないことを確認する。
 
 ### Phase 2: Keyboard path and Accessibility Presentation
@@ -213,12 +215,12 @@ Plan作成時点でArchitecture変更を必要とする事項は確認されて�
   - RF Interactionが新しく成立したと判定したblocked / no-op意味だけを通知入力として渡す。
   - success / failureはPhase 1で成立させた未提示Apply結果を利用し、Apply結果をAnnouncement側で再判定しない。
   - success文言の移動前位置 / 移動後位置は、RF Apply CoordinationがLifecycle完了時に引き渡した確定Move summaryだけを利用し、candidate、入力値、確認summary、隣接位置から再計算・推測しない。
-  - failureはTable未変更であることを既存結果意味から通知し、入力修正位置をAnnouncement側で決定しない。
+  - failureはTable未変更であることを既存結果意味から通知し、確定Move summaryを要求せず、入力修正位置をAnnouncement側で決定しない。
   - 視覚的な`ReorderCompletionNotice`と意味情報を必要に応じて共有しても、Announcementの一回性をNoticeのmount / unmountへ結び付けない。
   - Presentation再生成、Wide / Narrow切替、同じ評価の再計算で同一結果を再通知しない。
   - 通知を聞かせるためのfocus移動を追加しない。
 - Validation:
-  - Jestでblocked / no-opの意味変化、一回性、同一状態再描画、確定Move summaryを含むsuccess / failureの一回消費を検証する。
+  - Jestでblocked / no-opの意味変化、一回性、同一状態再描画、確定Move summaryを含むsuccessの一回消費、およびsummaryを要求しないfailureの一回消費を検証する。
   - React / browser testでAnnouncement surface再生成が新しい通知を発行しないことを確認する。
   - Playwrightでfocusを維持したまま結果通知を観測できることを確認する。
 
@@ -271,7 +273,7 @@ Phase 2〜6では各Phaseの責務に対応するfocused testを同時に追加�
 
 - Accessibility Presentationで利用するWordPress Componentは、Basic Designの操作意味を標準Keyboard / semantic Contractで満たせる既存primitiveを優先する。独自Widgetが必要になる場合は実装判断だけで導入せず、Architectureへの影響を先に確認する。
 - Focus targetはDOM selectorやnodeではなくsemantic targetとして責務間を渡す。具体的なDOM解決方法はWordPress接続内の実装詳細とする。
-- success結果の具体的な型構成はPlanで固定しない。`RfApplyResult`自体を構造化するか同等の結果Contractを追加するかにかかわらず、通常反映 / 確認付き大規模反映の両方で確定Move summaryをLifecycle cleanup前に結果へ移し、RF Interactionの一回性結果として利用できることを必須とする。
+- success結果の具体的な型構成はPlanで固定しない。`RfApplyResult`自体を構造化するか同等の結果Contractを追加するかにかかわらず、通常反映 / 確認付き大規模反映の両方で確定Move summaryをLifecycle cleanup前に結果へ移し、RF Interactionの一回性結果として利用できることを必須とする。failureは一回性結果として扱うが、確定Move summaryを要求しない。
 - Announcementの具体的delivery primitiveは、WordPress / browserで一回性とfocus独立性を満たせるものを選ぶ。通知意味・発行条件はdelivery primitiveへ移さない。
 
 ### Validate during implementation
@@ -318,6 +320,7 @@ Plan自体はdocumentation-only変更のため、アプリケーションbuild�
 - Table表示再生成中にfocusが意図せず`body`へ落ちたままにならず、stale intentが利用者の新しいfocusを奪わない。
 - successは確定済み最終位置へのfocus適用、明示されたfallback、対象Table消失、または利用者の別位置への移動でintentがsettleした後だけ確定する。
 - 通常反映 / 確認付き大規模反映の両方で、success結果が移動前位置と確定後位置を持つ確定Move summaryを含み、Lifecycle cleanup後もRF Interactionの一回性結果として利用できる。
+- failureはTable未変更を表す一回性結果として利用でき、確定Move summaryを要求しない。
 - blocked / no-op / success / failureをfocus移動なしで一度だけ通知できる。
 - success focusとsuccess announcementが確定済み最終位置 / 確定Move summaryだけを利用し、移動先入力、candidate、確認summary、隣接位置から結果を推測・再計算しない。
 - 視覚Noticeの再mountやWide / Narrow切替だけで同じ結果を再通知しない。
@@ -329,7 +332,7 @@ Plan自体はdocumentation-only変更のため、アプリケーションbuild�
 ## Notes
 
 - 実装の中心は既存RF / Applyへの接続であり、Accessibilityという名前の大きなsubsystemを新設しない。
-- Phase 1で確定Move summaryの引き渡しを成立させ、Phase 6がcleanup済みApply Lifecycleや入力値へ逆依存しないようにする。
+- Phase 1でsuccess用の確定Move summaryの引き渡しを成立させ、Phase 6がcleanup済みApply Lifecycleや入力値へ逆依存しないようにする。failureには確定Move summaryを要求しない。
 - Phase 5はsuccess確定順序に影響するため、Announcementより先に完成させる。ここが本Planの主要な依存関係である。
 - 既存の`ReorderCompletionNotice`は視覚通知として維持できるが、支援技術向けAnnouncementのlifecycleを同Componentのmount状態へ従属させない。
 - Accessibility v1 Phase 1はWordPress.org登録前baselineであり、後続の包括的Accessibility改善とはIssue境界を分ける。
