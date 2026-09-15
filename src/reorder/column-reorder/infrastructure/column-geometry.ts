@@ -82,6 +82,7 @@ const recordBoundary = (
  * 現在のTableに描画されたセルから、観測可能な論理列境界を論理進行方向上の位置として計測する。
  *
  * 横結合セルの内部境界はDOMから実測できないため推測しない。別の行で同じ論理境界を観測できる場合だけ境界として返す。
+ * 描画boxを持たないセルは論理列位置や縦結合の解釈には含めるが、現在の物理配置を表さないため境界観測には含めない。
  * LTRでは左端、RTLでは右端を論理開始位置0として正規化し、論理列番号が増える方向とoffsetが増える方向を一致させる。
  * これにより不等幅列や結合セルを含むTableでも、実際の描画位置にない境界を人工的に生成しない。
  *
@@ -108,23 +109,27 @@ export const measureTableColumnBoundaryObservations = (
 
 		let nextColumnIndex = 0;
 
-		/* 現在行の各セルを論理列へ対応付け、DOMから直接観測できる左右境界を他セルの観測値も含めて記録する。 */
+		/* 現在行の各セルを論理列へ対応付け、描画boxを持つセルから直接観測できる左右境界だけを記録する。 */
 		Array.from( row.cells ).forEach( ( cell ) => {
 			const columnStart = resolveNextAvailableColumnIndex( remainingRowSpans, nextColumnIndex );
 			const columnSpan = Math.max( cell.colSpan, 1 );
 			const columnEnd = columnStart + columnSpan;
 			const rectangle = cell.getBoundingClientRect();
-			let columnStartOffset = rectangle.left - tableRectangle.left;
-			let columnEndOffset = rectangle.right - tableRectangle.left;
+			const hasRenderedBox = rectangle.width > 0 || rectangle.height > 0;
 
-			/* RTLでは右端を論理開始位置とし、論理列番号と境界offsetが同じ向きに増えるよう物理位置を正規化する。 */
-			if ( inlineDirection === 'rtl' ) {
-				columnStartOffset = tableRectangle.right - rectangle.right;
-				columnEndOffset = tableRectangle.right - rectangle.left;
+			if ( hasRenderedBox ) {
+				let columnStartOffset = rectangle.left - tableRectangle.left;
+				let columnEndOffset = rectangle.right - tableRectangle.left;
+
+				/* RTLでは右端を論理開始位置とし、論理列番号と境界offsetが同じ向きに増えるよう物理位置を正規化する。 */
+				if ( inlineDirection === 'rtl' ) {
+					columnStartOffset = tableRectangle.right - rectangle.right;
+					columnEndOffset = tableRectangle.right - rectangle.left;
+				}
+
+				recordBoundary( observations, columnStart, columnStartOffset );
+				recordBoundary( observations, columnEnd, columnEndOffset );
 			}
-
-			recordBoundary( observations, columnStart, columnStartOffset );
-			recordBoundary( observations, columnEnd, columnEndOffset );
 
 			const rowSpan = Math.max( cell.rowSpan, 1 );
 
