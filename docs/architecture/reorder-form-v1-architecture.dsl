@@ -719,12 +719,12 @@ workspace "YTR Reorder v1 Architecture" {
 				"runtime.RV_RF_COLUMN_LARGE_APPLY_CONTINUE.step.5" "確認付き大規模反映経路を選択する。"
 			}
 		}
-		RT_051 = RESP_RF_APPLY_COORDINATION -> RESP_WORDPRESS_REORDER_APPLY_INTEGRATION "確認状態と確定済みMove summaryを公開する。" {
+		RT_051 = RESP_RF_APPLY_COORDINATION -> RESP_WORDPRESS_REORDER_APPLY_INTEGRATION "確認状態と確認用Move summaryを公開する。" {
 			tags "Runtime Interaction,Runtime_RV_RF_ROW_LARGE_APPLY_CONTINUE,Runtime_RV_RF_COLUMN_LARGE_APPLY_CONTINUE,Runtime_RV_RF_CONFIRMATION_CANCEL"
 			properties {
-				"runtime.RV_RF_ROW_LARGE_APPLY_CONTINUE.step.6" "確認状態と確定済みMove summaryを公開する。"
-				"runtime.RV_RF_COLUMN_LARGE_APPLY_CONTINUE.step.6" "確認状態と確定済みMove summaryを公開する。"
-				"runtime.RV_RF_CONFIRMATION_CANCEL.step.1" "確認状態と確定済みMove summaryを公開する。"
+				"runtime.RV_RF_ROW_LARGE_APPLY_CONTINUE.step.6" "確認状態と確認用Move summaryを公開する。"
+				"runtime.RV_RF_COLUMN_LARGE_APPLY_CONTINUE.step.6" "確認状態と確認用Move summaryを公開する。"
+				"runtime.RV_RF_CONFIRMATION_CANCEL.step.1" "確認状態と確認用Move summaryを公開する。"
 			}
 		}
 		RT_052 = RESP_WORDPRESS_REORDER_APPLY_INTEGRATION -> RESP_ACCESSIBILITY_PRESENTATION "確認内容と選択肢のaccessible Presentationを要求する。" {
