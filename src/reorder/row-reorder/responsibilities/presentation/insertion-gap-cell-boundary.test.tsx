@@ -58,7 +58,9 @@ describe( 'Row insertion gap cell boundaries', () => {
 		document.body.replaceChildren();
 		resolveEditorDomContextMock.mockReturnValue( {
 			document,
-			window: { innerWidth: 500, innerHeight: 600 } as Window,
+			window: { innerWidth: 500, innerHeight: 600 } as unknown as NonNullable<
+				Document[ 'defaultView' ]
+			>,
 		} );
 	} );
 

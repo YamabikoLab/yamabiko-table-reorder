@@ -6,7 +6,7 @@
  */
 export type EditorDomContext = {
 	document: Document;
-	window: Window;
+	window: NonNullable< Document[ 'defaultView' ] >;
 };
 
 /**

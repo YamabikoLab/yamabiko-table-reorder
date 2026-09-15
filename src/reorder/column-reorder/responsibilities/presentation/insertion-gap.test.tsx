@@ -159,7 +159,7 @@ describe( 'Column insertion gap', () => {
 				innerHeight: 600,
 				requestAnimationFrame: requestAnimationFrameMock,
 				cancelAnimationFrame: cancelAnimationFrameMock,
-			} as unknown as Window,
+			} as unknown as NonNullable< Document[ 'defaultView' ] >,
 		} );
 	} );
 

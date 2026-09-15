@@ -167,7 +167,7 @@ describe( 'Column insertion gap cell boundaries', () => {
 					return 1;
 				},
 				cancelAnimationFrame: jest.fn(),
-			} as unknown as Window,
+			} as unknown as NonNullable< Document[ 'defaultView' ] >,
 		} );
 	} );
 
