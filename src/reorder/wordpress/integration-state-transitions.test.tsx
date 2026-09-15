@@ -81,6 +81,10 @@ jest.mock( '@wordpress/components', () => {
 	};
 } );
 
+jest.mock( '@/reorder/wordpress/column-dnd-layout-availability-state', () => ( {
+	useColumnDndLayoutAvailabilitySnapshot: () => 'available',
+} ) );
+
 jest.mock( '@/reorder/row-reorder/integration/dnd', () => ( {
 	RowDnd: ( {
 		children,
