@@ -27,10 +27,10 @@ test.beforeEach( async ( { admin, page } ) => {
  * - Core Tableの各セルが縦積みで表示されている。
  *
  * 操作:
- * - Row Reorder Modeを有効にし、先頭行を末尾へドラッグ＆ドロップする。
+ * - Row Reorder Modeを有効にし、先頭行を2行目の後ろへドラッグ＆ドロップする。
  *
  * 期待結果:
- * - 行内のセルを一つの行として維持したまま、先頭行が末尾へ移動する。
+ * - 行内のセルを一つの行として維持したまま、先頭行が2行目の後ろへ移動する。
  */
 test( 'when a Table is stacked, should keep row drag available and move the logical row together', async ( {
 	page,
@@ -39,12 +39,14 @@ test( 'when a Table is stacked, should keep row drag available and move the logi
 	const { rows, table } = await insertTable( page, editor );
 	await applyStackedTableLayout( table );
 
+	const destination = await pointIn( rows.nth( 1 ), 0.75 );
+
 	await page.getByRole( 'button', { name: ROW_BUTTON } ).click();
 	await startMouseDrag( page, rows.first().locator( 'td' ).first() );
-	await moveMouse( page, await pointIn( rows.last().locator( 'td' ).last(), 0.8 ) );
+	await moveMouse( page, destination );
 	await page.mouse.up();
 
-	await expect.poll( () => rowOrder( rows ) ).toEqual( [ 'Row 2', 'Row 3', 'Row 4', 'Row 1' ] );
+	await expect.poll( () => rowOrder( rows ) ).toEqual( [ 'Row 2', 'Row 1', 'Row 3', 'Row 4' ] );
 } );
 
 /**

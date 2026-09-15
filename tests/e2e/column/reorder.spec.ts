@@ -44,6 +44,13 @@ test( 'when the selected Table becomes stacked, should leave column mode and rej
 	const { canvas, table, rows } = await insertTable( page, editor );
 	const before = await tableData( editor );
 	const columnEntry = page.getByRole( 'button', { name: COLUMN_BUTTON } );
+	const rowEntry = page.getByRole( 'button', {
+		name: /^(Reorder rows|行を並び替え|行を並べ替え)$/,
+	} );
+	const formEntry = page.getByRole( 'button', {
+		name: /^(Reorder with form|フォームで並び替え)$/,
+	} );
+
 	await expect( columnEntry ).not.toHaveAttribute( 'aria-disabled', 'true' );
 	await columnEntry.click();
 	await expect( columnEntry ).toHaveAttribute( 'aria-pressed', 'true' );
@@ -52,23 +59,28 @@ test( 'when the selected Table becomes stacked, should leave column mode and rej
 
 	await expect( columnEntry ).toHaveAttribute( 'aria-disabled', 'true' );
 	await expect( columnEntry ).toHaveAttribute( 'aria-pressed', 'false' );
-	await columnEntry.hover();
+
+	/*
+	 * Column入口から一度ポインターを外してから戻し、
+	 * 利用不可状態でのhover開始を実際のマウス移動として発生させる。
+	 */
+	await moveMouse( page, await pointIn( rowEntry ) );
+	await moveMouse( page, await pointIn( columnEntry ) );
+
 	await expect( page.getByRole( 'tooltip' ) ).toHaveText( COLUMN_LAYOUT_UNAVAILABLE );
+
 	await columnEntry.focus();
 	await expect( page.getByRole( 'tooltip' ) ).toHaveText( COLUMN_LAYOUT_UNAVAILABLE );
-	await expect(
-		page.getByRole( 'button', { name: /^(Reorder rows|行を並び替え|行を並べ替え)$/ } )
-	).toBeEnabled();
-	await expect(
-		page.getByRole( 'button', { name: /^(Reorder with form|フォームで並び替え)$/ } )
-	).toBeEnabled();
 
-	await columnEntry.click();
+	await expect( rowEntry ).toBeEnabled();
+	await expect( formEntry ).toBeEnabled();
+
 	await startMouseDrag( page, rows.first().locator( 'td' ).first() );
 	await expect( canvas.locator( '.yamabiko-table-reorder-moving-column' ) ).toBeHidden();
 	await expect( canvas.locator( '.yamabiko-table-reorder-column-insertion-line' ) ).toBeHidden();
+
 	await page.mouse.up();
-	expect( await tableData( editor ) ).toEqual( before );
+	await expect.poll( () => tableData( editor ) ).toEqual( before );
 } );
 
 /**
