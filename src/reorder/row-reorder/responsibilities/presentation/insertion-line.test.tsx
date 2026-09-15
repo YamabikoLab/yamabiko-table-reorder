@@ -2,7 +2,7 @@
  * Row Reorderの挿入位置表示が、DnD Interactionの有効な移動先境界を対象Tableの論理境界へ正しく表現することを確認する。
  *
  * 移動先解決そのものは重複して検証せず、null時の非表示、先頭・行間・末尾境界への対応、editor表示領域への制限、
- * 現在の縦移動方向に応じた挿入空間端への表示、スクロール時の再計測、およびDnD終了時の表示解除を検証する。
+ * スクロール時の再計測、およびDnD終了時の表示解除を検証する。
  */
 
 import { act, render } from '@testing-library/react';
@@ -14,7 +14,7 @@ import { RowInsertionLine } from './insertion-line';
 let mockDestinationBoundaryIndex: number | null = null;
 let mockDragDropMonitor: {
 	onDragStart?: ( event: any ) => void;
-	onDragMove?: ( event: any ) => void;
+	onDragMove?: () => void;
 	onDragEnd?: () => void;
 } = {};
 
@@ -74,14 +74,14 @@ const createSourceTable = () => {
 	const bodyRectangleMock = jest
 		.spyOn( tbody, 'getBoundingClientRect' )
 		.mockReturnValue( rectangle( { top: 80, bottom: 170, height: 90 } ) );
-	const firstRectangleMock = jest
+	jest
 		.spyOn( first, 'getBoundingClientRect' )
 		.mockReturnValue( rectangle( { top: 80, bottom: 120, height: 40 } ) );
 	jest
 		.spyOn( second, 'getBoundingClientRect' )
 		.mockReturnValue( rectangle( { top: 120, bottom: 170, height: 50 } ) );
 
-	return { first, second, bodyRectangleMock, firstRectangleMock };
+	return { first, bodyRectangleMock };
 };
 
 /**
@@ -93,21 +93,6 @@ const startPhysicalDrag = ( row: HTMLTableRowElement ) => {
 	act( () => {
 		mockDragDropMonitor.onDragStart?.( {
 			operation: { source: { element: row } },
-		} );
-	} );
-};
-
-/**
- * DnD Engineから1回の縦移動が通知された状態を作る。
- *
- * @param currentY 今回移動する直前のオーバーレイY座標。
- * @param nextY    今回移動しようとしているオーバーレイY座標。
- */
-const movePhysicalDrag = ( currentY: number, nextY: number ) => {
-	act( () => {
-		mockDragDropMonitor.onDragMove?.( {
-			to: { y: nextY },
-			operation: { position: { current: { y: currentY } } },
 		} );
 	} );
 };
@@ -227,104 +212,6 @@ describe( 'Row insertion line', () => {
 
 	/**
 	 * 概要:
-	 * - 上方向移動で周囲行が押し下げられても、挿入線を挿入空間の上端へ維持することを確認する。
-	 *
-	 * 事前条件:
-	 * - 2行目を移動対象としてDnDを開始している。
-	 * - 移動先は先頭境界であり、押しのけ表示によって先頭行の物理位置だけが下へ移動している。
-	 *
-	 * 操作:
-	 * - 上方向の物理移動を通知する。
-	 *
-	 * 期待結果:
-	 * - 挿入線は押し下げられた行へ追従せず、挿入空間の上端へ表示される。
-	 */
-	it( 'when rows are displaced during an upward move, should keep the line at the insertion gap top', () => {
-		const { second, firstRectangleMock } = createSourceTable();
-		const { rerender } = render( <RowInsertionLine /> );
-		startPhysicalDrag( second );
-		mockDestinationBoundaryIndex = 0;
-		rerender( <RowInsertionLine /> );
-
-		firstRectangleMock.mockReturnValue( rectangle( { top: 170, bottom: 210, height: 40 } ) );
-		movePhysicalDrag( 140, 130 );
-
-		expect(
-			( document.querySelector( '.yamabiko-table-reorder-insertion-line' ) as HTMLElement ).style
-				.top
-		).toBe( '80px' );
-	} );
-
-	/**
-	 * 概要:
-	 * - 移動先境界を変えず下方向から上方向へ反転したとき、挿入線だけが現在方向へ即座に追従することを確認する。
-	 *
-	 * 事前条件:
-	 * - 1行目を移動対象として境界2に挿入空間が表示されている。
-	 * - オーバーレイは下方向へ移動している。
-	 *
-	 * 操作:
-	 * - 移動先境界を変えず、次の移動通知で上方向へ反転する。
-	 *
-	 * 期待結果:
-	 * - 下方向では挿入空間の下端、反転した同じ通知後は上端へ挿入線が切り替わる。
-	 */
-	it( 'when movement reverses from downward to upward without changing the destination boundary, should switch the line to the gap top immediately', () => {
-		const { first } = createSourceTable();
-		const { rerender } = render( <RowInsertionLine /> );
-		startPhysicalDrag( first );
-		mockDestinationBoundaryIndex = 2;
-		rerender( <RowInsertionLine /> );
-
-		movePhysicalDrag( 120, 130 );
-		expect(
-			( document.querySelector( '.yamabiko-table-reorder-insertion-line' ) as HTMLElement ).style
-				.top
-		).toBe( '170px' );
-
-		movePhysicalDrag( 130, 120 );
-		expect(
-			( document.querySelector( '.yamabiko-table-reorder-insertion-line' ) as HTMLElement ).style
-				.top
-		).toBe( '130px' );
-	} );
-
-	/**
-	 * 概要:
-	 * - 移動先境界を変えず上方向から下方向へ反転したとき、挿入線だけが現在方向へ即座に追従することを確認する。
-	 *
-	 * 事前条件:
-	 * - 2行目を移動対象として境界0に挿入空間が表示されている。
-	 * - オーバーレイは上方向へ移動している。
-	 *
-	 * 操作:
-	 * - 移動先境界を変えず、次の移動通知で下方向へ反転する。
-	 *
-	 * 期待結果:
-	 * - 上方向では挿入空間の上端、反転した同じ通知後は下端へ挿入線が切り替わる。
-	 */
-	it( 'when movement reverses from upward to downward without changing the destination boundary, should switch the line to the gap bottom immediately', () => {
-		const { second } = createSourceTable();
-		const { rerender } = render( <RowInsertionLine /> );
-		startPhysicalDrag( second );
-		mockDestinationBoundaryIndex = 0;
-		rerender( <RowInsertionLine /> );
-
-		movePhysicalDrag( 130, 120 );
-		expect(
-			( document.querySelector( '.yamabiko-table-reorder-insertion-line' ) as HTMLElement ).style
-				.top
-		).toBe( '80px' );
-
-		movePhysicalDrag( 120, 130 );
-		expect(
-			( document.querySelector( '.yamabiko-table-reorder-insertion-line' ) as HTMLElement ).style
-				.top
-		).toBe( '130px' );
-	} );
-
-	/**
-	 * 概要:
 	 * - 移動先境界が変わらなくても、Table全体の物理移動に伴って論理境界の表示位置を再計測することを確認する。
 	 *
 	 * 事前条件:
@@ -332,7 +219,7 @@ describe( 'Row insertion line', () => {
 	 * - editor内のスクロール等により、tbody全体の表示位置が変化している。
 	 *
 	 * 操作:
-	 * - DnD Engineから縦位置が変わらない物理移動を通知する。
+	 * - DnD Engineから物理移動を通知する。
 	 *
 	 * 期待結果:
 	 * - 移動先境界を変更せず、挿入線がtbody全体の現在位置へ追従する。
@@ -349,7 +236,9 @@ describe( 'Row insertion line', () => {
 		).toBe( '80px' );
 
 		bodyRectangleMock.mockReturnValue( rectangle( { top: 60, bottom: 150, height: 90 } ) );
-		movePhysicalDrag( 100, 100 );
+		act( () => {
+			mockDragDropMonitor.onDragMove?.();
+		} );
 
 		expect(
 			( document.querySelector( '.yamabiko-table-reorder-insertion-line' ) as HTMLElement ).style
