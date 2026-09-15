@@ -16,9 +16,9 @@ RFはDnDの補助機能ではなく、対応Tableの行または列をフォー�
 - RF開始時は同一TableのRow / Column Reorder Modeを終了し、RF終了時に以前のDnDモードを自動復元しない。
 - RF open中は同一TableのRow / Column DnDを同時に活動させない。
 - RF SessionはPresentation instanceの寿命ではなく、対象Tableと利用者操作Lifecycleに結び付く。同じ対象Tableの表示境界が再生成されても、それだけではRF Sessionを終了しない。一方、対象TableがEditorの操作対象から外れたopen Sessionは終了する。
-- RF Interactionは対象Table、選択方向、利用者入力、現在評価、および未提示のApply結果を所有する。Table構造、方向固有制約、更新対象セル数、WordPress表示状態は所有しない。
+- RF Interactionは対象Table、選択方向、利用者入力、現在評価、現在評価で新しく成立した意味、および未提示のApply結果を所有する。Table構造、方向固有制約、更新対象セル数、WordPress表示状態は所有しない。
 - RF open中に対象Tableが変化した場合、保持中の入力を現在Tableへ再評価する。過去のTable snapshotを成立保証として扱わない。
-- RF Input Interpretationは入力成立性のみを扱い、Table構造制約、no-op、確定更新を所有しない。
+- RF Input Interpretationは入力成立性のみを扱い、初期の未入力と修正が必要な入力を区別して、問題の対象と現在有効な入力条件を返す。Table構造制約、no-op、確定更新を所有しない。
 - Row / Column RF Resolutionは要求時点の現在Tableへ指定を照合し、成立候補、no-op、構造拒否、利用不能を区別する。候補はApply時点の成立保証ではない。
 - RFで扱う行・列位置は要求時点のcurrent logical positionであり、永続Row / Column Identityではない。
 - Table IntegrationはCore TableとFlexible Table Blockの保存表現差を吸収し、方向固有の構造解釈、診断、Apply再照合、および確定更新の最終権威を持つ。
@@ -30,7 +30,7 @@ RFはDnDの補助機能ではなく、対応Tableの行または列をフォー�
 - Cancel、not-ready、no-op、構造拒否、利用不能、Apply再照合不成立、更新不能ではTableデータを変更しない。
 - 成立した一回のRF並び替えは一回のWordPress更新および一回のUndo単位とする。
 - Apply成功後はRFを終了する。Apply失敗では入力を保持したRFへ戻る。確認CancelはApply failureとは区別する。
-- success / failureはPresentationへ一度だけ引き渡せるまでRF Interactionが保持する。Presentation instanceを結果の正本にしない。
+- success / failureはPresentationへ一度だけ引き渡せるまでRF Interactionが保持する。no-op、構造拒否、利用不能等の現在評価は、同じRF Sessionで意味が新しく成立した場合だけ通知対象として公開する。Presentation instanceを結果または通知適格性の正本にしない。
 - 対象Table以外のブロック操作をRFの確認または反映Lifecycleによって不必要に妨げない。
 
 ## 3. Context and Scope
@@ -50,7 +50,7 @@ RFはWordPress Editorから開始されるが、入力意味、方向固有Resol
 
 RFは、共通Reorder状態、WordPress接続、RF Interaction、入力解釈、方向固有Resolution、方向固有Table Integration、共通Apply Policy、RF Apply Coordinationを分離する。
 
-RF Interactionは対象Tableと利用者入力を所有し、入力時および対象Table変更時に現在Tableを基準として入力成立性とResolution結果を再評価する。Row / Column RF Resolutionは、解釈済み指定を要求時点のcurrent logical positionとして扱い、現在Tableへ安全に照合できない場合は候補を推測せず利用不能として返す。
+RF Interactionは対象Tableと利用者入力を所有し、入力時および対象Table変更時に現在Tableを基準として入力成立性とResolution結果を再評価する。Input Interpretationは初期の未入力と修正が必要な入力を区別し、修正が必要な場合は問題の対象と現在有効な入力条件を返す。Row / Column RF Resolutionは、解釈済み指定を要求時点のcurrent logical positionとして扱い、現在Tableへ安全に照合できない場合は候補を推測せず利用不能として返す。
 
 解決済み候補は入力時点の候補にすぎない。RF Apply CoordinationはApply要求時に方向固有Table Integrationへ再照合と更新対象セル数取得を要求し、Reorder Apply Policyで反映経路を選択する。Table Integrationは確定更新直前にも現在Tableを最終確認する。
 
@@ -108,11 +108,11 @@ RF開始から現在Table上の指定解決、Apply経路選択、確定更新�
 | RESP_REORDER_GUIDANCE | Reorder Guidance | 現在どのTableへどの操作環境の共通入口案内を表示しているかという一時状態を所有する。 |
 | RESP_REORDER_APPLY_POLICY | Reorder Apply Policy | 更新対象セル数から通常反映か確認付き大規模反映かを選択する共通方針責務。 |
 | RESP_EDITOR_DOM_CONTEXT | Editor DOM Context | 現在のEditor DOM基準から同じ表示環境のDOM / Web API contextを要求時点で解決する。 |
-| RESP_WORDPRESS_REORDER_INTEGRATION | WordPress Reorder Integration | Row / Column / RF入口、RF入力画面、現在Table、および相互排他をWordPress Editorへ接続する。 |
+| RESP_WORDPRESS_REORDER_INTEGRATION | WordPress Reorder Integration | Row / Column / RF入口、RF入力画面、現在Table、相互排他、および現在RF Sessionの表示専用状態をWordPress Editorへ接続する。 |
 | RESP_WORDPRESS_REORDER_APPLY_INTEGRATION | WordPress Reorder Apply Integration | Reorder Apply状態を確認、反映中表示、表示復帰へ接続する。 |
 | RESP_REORDER_GUIDANCE_INTEGRATION | Reorder Guidance Integration | 共通初回案内をEditor環境、Preferences、および各Reorder入口へ接続する。 |
-| RESP_RF_INTERACTION | RF Interaction | RF Session、対象Table、方向、利用者入力、現在評価、Apply要求、および未提示のApply結果を所有する。 |
-| RESP_RF_INPUT_INTERPRETATION | RF Input Interpretation | 利用者入力と現在入力範囲 / 選択肢を解釈し、方向固有Resolution向け内部指定を生成する。 |
+| RESP_RF_INTERACTION | RF Interaction | RF Session、対象Table、方向、利用者入力、現在評価、現在評価で新しく成立した意味、Apply要求、および未提示のApply結果を所有する。 |
+| RESP_RF_INPUT_INTERPRETATION | RF Input Interpretation | 利用者入力と現在入力範囲 / 選択肢を解釈し、未入力、修正が必要な入力、または方向固有Resolution向け内部指定を返す。 |
 | RESP_RF_ROW_RESOLUTION | Row RF Resolution | Row指定を現在Tableへ照合し、成立候補、no-op、構造拒否、利用不能を解決する。 |
 | RESP_RF_COLUMN_RESOLUTION | Column RF Resolution | Column指定を現在Tableへ照合し、成立候補、no-op、構造拒否、利用不能を解決する。 |
 | RESP_RF_APPLY_COORDINATION | RF Apply Coordination | RF候補の再照合、反映経路選択、確認、確定更新、表示復帰、結果確定までのLifecycleを所有する。 |
@@ -275,20 +275,23 @@ Row / Column / RFの入口、RF入力画面、現在Table、および相互排�
 
 ##### State ownership
 
-WordPress接続に必要な一時参照だけを扱い、Reorder Mode状態、RF Interaction状態、方向固有Table制約を重複所有しない。
+WordPress接続に必要な一時参照と、現在RF Sessionの折りたたみ / 展開等の表示専用状態だけを扱う。表示形式は現在環境から導出し、Reorder Mode状態、RF Interaction状態、方向固有Table制約、通知適格性を重複所有しない。
 
 ##### Contract
 
-RF入口選択時は同一TableのReorder Modeを終了してRF Interactionを開始する。RF Interactionの現在状態を入力画面へ反映し、利用者入力をRF Interactionへ接続する。Row / Column入口へ切り替える場合はRFを終了してから方向固有モードへ進む。対象TableがEditorの操作対象から外れた場合は、そのTableに結び付いたopen RF Sessionを終了する。
+RF入口選択時は同一TableのReorder Modeを終了してRF Interactionを開始する。RF Interactionの現在状態と現在Sessionの表示専用状態を入力画面へ反映し、利用者入力をRF Interactionへ接続する。Row / Column入口へ切り替える場合はRFを終了してから方向固有モードへ進む。対象TableがEditorの操作対象から外れた場合は、そのTableに結び付いたopen RF Sessionを終了する。
+
+同じRF Sessionの表示境界が再生成された場合も、現在のRF状態と表示専用状態からPresentationを再構成する。RF Interactionが現在評価で新しく成立した意味または未提示Apply結果を提供した場合だけ、利用可能なPresentationへ一回性の通知入力として引き渡す。
 
 ##### Lifecycle
 
-対象TableのEditor接続が存在する間、現在のReorder ModeとRF Interactionを表示へ接続する。同じ対象Tableの表示境界の再生成だけではRF Sessionを終了しない。対象Tableから操作対象が外れた場合はopen RF Sessionを終了する。
+対象TableのEditor接続が存在する間、現在のReorder ModeとRF Interactionを表示へ接続する。同じ対象Tableの表示境界の再生成だけではRF Sessionを終了せず、Sessionに結び付いた表示専用状態も維持する。対象Tableから操作対象が外れた場合はopen RF Sessionとその表示専用状態を終了する。
 
 ##### Invariants
 
 - 排他状態をWordPress UIだけの別正本として所有しない。
 - RF入力や方向固有Move意味を別正本として所有しない。
+- 表示専用状態をRF入力、方向、現在評価、通知適格性の正本にしない。
 - RF終了時に過去のDnDモードを自動復元しない。
 - 同一TableのPresentation境界の再生成と、対象Tableから操作対象が外れることを同じSession終了条件として扱わない。
 
@@ -304,11 +307,11 @@ RFを含むReorder Apply状態をWordPress Editorの確認、反映中表示、�
 
 ##### Contract
 
-確認待ちではRF Apply Coordinationが公開する最小summaryを利用して確認UIを提示する。反映準備では重いTable更新より先に対象Tableの競合編集を抑止し、必要な反映中表示を成立させる。通常反映または大規模反映の確定更新後は、RF Apply Coordinationが公開する最終位置を利用してediting surfaceを再成立させ、表示復帰完了を返す。
+確認待ちではRF Apply Coordinationが公開する最小summaryを利用して確認UIを提示する。反映準備では重いTable更新より先に対象Tableの競合編集を抑止し、必要な反映中表示を成立させる。通常反映または大規模反映の確定更新後は、RF Apply Coordinationが公開する最終位置を利用してediting surfaceを再成立させる。成功後のfocus復帰等、受け入れ済みの後続復帰契約がある場合は、その契約が最終位置への適用または明示されたfallbackまで完了したことを確認してから表示復帰完了を返す。
 
 ##### Lifecycle
 
-確認付き大規模反映では確認から反映準備、表示復帰までを接続する。通常反映では確定更新後の表示復帰を接続する。表示復帰完了後にだけRF Apply Coordinationが結果を確定できる。
+確認付き大規模反映では確認から反映準備、表示復帰までを接続する。通常反映では確定更新後の表示復帰を接続する。成功側の表示復帰は、editing surfaceと受け入れ済みの後続復帰契約が完了するまで継続し、その完了後にだけRF Apply Coordinationがsuccessを確定できる。
 
 ##### Invariants
 
@@ -318,6 +321,7 @@ RFを含むReorder Apply状態をWordPress Editorの確認、反映中表示、�
 - 確認や表示復帰だけでTable更新またはUndo履歴を追加しない。
 - 対象Table以外の操作を不必要に妨げない。
 - 具体的なPresentation実装方式をArchitecture契約にしない。
+- 成功後の復帰契約が未完了のまま表示復帰完了を返さない。
 
 #### Reorder Guidance Integration {#RESP_REORDER_GUIDANCE_INTEGRATION}
 
@@ -346,17 +350,19 @@ RFを含むReorder Apply状態をWordPress Editorの確認、反映中表示、�
 
 ##### Responsibility
 
-一つの対象Tableに対するRF Sessionを所有し、open / close、方向選択、利用者入力、現在評価、Apply要求、Apply結果の一度だけの引き渡しを管理する。
+一つの対象Tableに対するRF Sessionを所有し、open / close、方向選択、利用者入力、現在評価、現在評価で新しく成立した意味、Apply要求、およびApply結果の一度だけの引き渡しを管理する。
 
 ##### State ownership
 
-closedまたは一つのopen RF Sessionを所有する。open Sessionは対象Table Identity、現在方向、方向ごとの入力、現在評価を保持する。success / failureはPresentationへ一度だけ引き渡されるまで未提示結果として保持できる。Table構造、更新対象セル数、WordPress表示状態は所有しない。
+closedまたは一つのopen RF Sessionを所有する。open Sessionは対象Table Identity、現在方向、方向ごとの入力、現在評価を保持する。no-op、構造拒否、利用不能等の現在評価について、意味が新しく成立したかを同じSession内で判定する。success / failureはPresentationへ一度だけ引き渡されるまで未提示結果として保持できる。Table構造、更新対象セル数、WordPress表示状態、通知surfaceは所有しない。
 
 ##### Contract
 
 WordPress Reorder Integrationから対象Table Identityを受けてRFを開始する。Rowでは現在行数、Columnでは現在列記述を方向固有Table Integrationから取得してInput Interpretationへ渡す。入力が成立した場合だけ現在方向のResolutionを要求する。
 
 RF open中に対象Tableが変化した場合、現在の入力範囲 / 選択肢を再取得し、保持中の入力を現在Tableへ再評価する。過去のResolution結果を現在Tableの成立保証として利用しない。
+
+Input Interpretationと方向固有Resolutionから構造化された現在評価を受け、Presentationが入力問題の対象、現在有効な入力条件、および指定全体の結果を利用できる形で公開する。同じ評価の再計算またはPresentation再生成を新しい意味変化として公開しない。
 
 Resolutionが成立候補を返した場合だけApply要求を受理する。Apply中は同じSessionの入力変更や別Apply要求を受理しない。Apply成功ではRF Sessionを終了し、failureでは入力を保持したopen状態へ戻る。確認Cancelはfailure結果として通知せず、入力を保持したopen状態へ戻る。
 
@@ -373,21 +379,22 @@ Resolutionが成立候補を返した場合だけApply要求を受理する。Ap
 - Table構造を永続snapshotとして保持しない。
 - Table更新を直接行わない。
 - success / failureを同じApplyについて複数回Presentationへ引き渡さない。
+- 同じ現在評価をPresentation再生成によって複数回通知対象として公開しない。
 - Cancelをfailure通知として扱わない。
 
 #### RF Input Interpretation {#RESP_RF_INPUT_INTERPRETATION}
 
 ##### Responsibility
 
-利用者入力と現在入力範囲 / 選択肢を方向固有Resolutionが扱える内部指定へ変換する。
+利用者入力と現在入力範囲 / 選択肢を、未入力、修正が必要な入力、または方向固有Resolutionが扱える内部指定へ解釈する。
 
 ##### State ownership
 
-状態を所有しない。利用者入力、Table構造、方向固有制約を保持しない。
+状態を所有しない。利用者入力、Table構造、方向固有制約、入力問題を保持しない。
 
 ##### Contract
 
-Rowでは利用者向け行番号と配置位置を受け、現在行範囲へ安全に変換できる場合だけ内部位置を返す。Columnでは選択されたcurrent logical positionが現在列選択肢に存在する場合だけ内部指定を返す。未入力、不正値、現在選択肢に存在しない指定はResolutionへ進めない状態へ集約する。
+Rowでは利用者向け行番号と配置位置を受け、現在行範囲へ安全に変換できる場合だけ内部位置を返す。Columnでは選択されたcurrent logical positionが現在列選択肢に存在する場合だけ内部指定を返す。初期の未入力は修正問題と区別する。不正値または現在選択肢に存在しない指定は、Resolutionへ進めず、修正が必要な対象入力と現在有効な入力条件を構造化して返す。
 
 ##### Lifecycle
 
@@ -398,6 +405,7 @@ Rowでは利用者向け行番号と配置位置を受け、現在行範囲へ�
 - Table Integrationを直接参照しない。
 - Table構造上の移動可否やno-opを判定しない。
 - 解釈不能入力からMove candidateを推測しない。
+- 初期の未入力を修正が必要な入力として公開しない。
 
 #### Row RF Resolution {#RESP_RF_ROW_RESOLUTION}
 
@@ -465,7 +473,7 @@ RFで解決済みの候補について、現在Table再照合、更新対象セ�
 
 RF Interactionから成立候補を受け、方向固有Table Integrationへ現在Table上のApply評価を要求する。成立する場合だけReorder Apply Policyで反映経路を選択する。
 
-通常反映では方向固有Table Integrationへ一回の確定更新を要求する。更新成功時は表示復帰状態へ進み、WordPress Reorder Apply Integrationから表示復帰完了を受けた後にsuccessを確定する。更新不成立ではTableを不完全に変更せずfailureを返す。
+通常反映では方向固有Table Integrationへ一回の確定更新を要求する。更新成功時は表示復帰状態へ進み、WordPress Reorder Apply Integrationから、editing surfaceと受け入れ済みの成功後復帰契約が完了した表示復帰完了を受けた後にsuccessを確定する。更新不成立ではTableを不完全に変更せずfailureを返す。
 
 確認付き大規模反映ではTableを変更せず確認待ちへ進み、確認UIへ必要な最小の利用者向けMove summaryを提供する。Continue後はWordPress側の反映準備完了後に現在Tableを再評価し、成立する場合だけ一回の確定更新を要求する。成功・失敗とも表示復帰完了後に結果を確定する。CancelではTableを変更せずCancel結果を返す。
 
@@ -479,6 +487,7 @@ RF Interactionから成立候補を受け、方向固有Table Integrationへ現�
 - 確認中はTableを変更しない。
 - 通常 / 大規模のどちらもTable Integrationによる現在Table再照合なしに確定しない。
 - successは確定更新成功だけでは確定せず、必要な表示復帰完了後に確定する。
+- 成功後の復帰契約に一時的な待機があっても、その完了前にApply Lifecycleを終了しない。
 - 確認用summaryは確定済みMove意味から生成し、WordPress Presentationへ候補再解釈を要求しない。
 - DnD SessionまたはDnD InteractionをRF Apply Lifecycleへ持ち込まない。
 - WordPress Presentationの具体的実装方式を所有しない。
@@ -621,7 +630,7 @@ Row通常反映のApply評価と確定更新をRow Table Integrationへ委ね、
 | 9 | RESP_ROW_TABLE_INTEGRATION | RESP_RF_APPLY_COORDINATION | 確定更新成功と表示復帰に用いる最終位置を返す。 |
 | 10 | RESP_RF_APPLY_COORDINATION | RESP_WORDPRESS_REORDER_APPLY_INTEGRATION | 更新成功後の表示復帰を要求し、最終位置を公開する。 |
 | 11 | RESP_WORDPRESS_REORDER_APPLY_INTEGRATION | EXT_WORDPRESS_EDITOR | 更新後の対象Table editing surfaceを再成立させる。 |
-| 12 | RESP_WORDPRESS_REORDER_APPLY_INTEGRATION | RESP_RF_APPLY_COORDINATION | 表示復帰完了を返す。 |
+| 12 | RESP_WORDPRESS_REORDER_APPLY_INTEGRATION | RESP_RF_APPLY_COORDINATION | editing surfaceと受け入れ済みの成功後復帰契約が完了した表示復帰完了を返す。 |
 | 13 | RESP_RF_APPLY_COORDINATION | RESP_RF_INTERACTION | successを返す。 |
 | 14 | RESP_WORDPRESS_REORDER_INTEGRATION | EXT_WORDPRESS_EDITOR | RFを終了し、successを一度だけ通知する。 |
 
@@ -642,7 +651,7 @@ Column通常反映のApply評価と確定更新をColumn Table Integrationへ委
 | 9 | RESP_COLUMN_TABLE_INTEGRATION | RESP_RF_APPLY_COORDINATION | 確定更新成功と表示復帰に用いる最終位置を返す。 |
 | 10 | RESP_RF_APPLY_COORDINATION | RESP_WORDPRESS_REORDER_APPLY_INTEGRATION | 更新成功後の表示復帰を要求し、最終位置を公開する。 |
 | 11 | RESP_WORDPRESS_REORDER_APPLY_INTEGRATION | EXT_WORDPRESS_EDITOR | 更新後の対象Table editing surfaceを再成立させる。 |
-| 12 | RESP_WORDPRESS_REORDER_APPLY_INTEGRATION | RESP_RF_APPLY_COORDINATION | 表示復帰完了を返す。 |
+| 12 | RESP_WORDPRESS_REORDER_APPLY_INTEGRATION | RESP_RF_APPLY_COORDINATION | editing surfaceと受け入れ済みの成功後復帰契約が完了した表示復帰完了を返す。 |
 | 13 | RESP_RF_APPLY_COORDINATION | RESP_RF_INTERACTION | successを返す。 |
 | 14 | RESP_WORDPRESS_REORDER_INTEGRATION | EXT_WORDPRESS_EDITOR | RFを終了し、successを一度だけ通知する。 |
 
@@ -751,7 +760,7 @@ Row / Column位置はcurrent logical positionとして扱う。入力後にTable
 
 Resolution結果はApply時の確定権威ではない。RF Apply CoordinationはApply要求時にTable Integrationへ現在候補の再評価を要求し、Table Integrationは確定更新直前にも現在Tableを最終確認する。
 
-通常反映と確認付き大規模反映は、成功時に共通の表示復帰契約へ合流する。Table更新成功だけではRF Apply successを確定せず、必要な表示復帰完了後に結果を確定する。通常反映で確定更新前に失敗した場合は表示復帰を必要としない。
+通常反映と確認付き大規模反映は、成功時に共通の表示復帰契約へ合流する。Table更新成功だけではRF Apply successを確定しない。成功後のfocus復帰等、受け入れ済みの後続復帰契約がある場合は、editing surface再成立に加えて最終targetへの適用または明示されたfallbackまでを表示復帰完了のbarrierに含め、その後に結果を確定する。通常反映で確定更新前に失敗した場合は表示復帰を必要としない。
 
 ### Reorder Apply Exclusivity
 
@@ -759,7 +768,7 @@ Row / Column / RFのactive Apply Lifecycleは同時に高々一つとする。�
 
 ### Completion Outcome
 
-RF Interactionはsuccess / failureをPresentationへ一度だけ引き渡せるまで保持する。Presentation instanceの再生成によって結果を失ったり重複通知したりしない。確認Cancelはfailure通知と同一視しない。
+RF Interactionはsuccess / failureをPresentationへ一度だけ引き渡せるまで保持する。no-op、構造拒否、利用不能等は、同じRF Sessionで現在評価の意味が新しく成立した場合だけ通知対象として公開する。Presentation instanceの再生成によって結果を失ったり同じ意味を重複通知したりしない。確認Cancelはfailure通知と同一視しない。
 
 ### Structural Rejection Diagnostics
 

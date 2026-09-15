@@ -52,7 +52,7 @@ workspace "YTR Reorder v1 Architecture" {
 				element.setGroup("Editor Integration")
 			}
 		}
-		RESP_WORDPRESS_REORDER_INTEGRATION = element "WordPress Reorder Integration" "Responsibility" "Row / Column / RF入口、RF入力画面、現在Table、および相互排他をWordPress Editorへ接続する。" {
+		RESP_WORDPRESS_REORDER_INTEGRATION = element "WordPress Reorder Integration" "Responsibility" "Row / Column / RF入口、RF入力画面、現在Table、相互排他、および現在RF Sessionの表示専用状態をWordPress Editorへ接続する。" {
 			tags "Responsibility"
 			!script groovy {
 				element.setGroup("WordPress Reorder Integration")
@@ -70,13 +70,13 @@ workspace "YTR Reorder v1 Architecture" {
 				element.setGroup("WordPress Reorder Integration")
 			}
 		}
-		RESP_RF_INTERACTION = element "RF Interaction" "Responsibility" "RF Session、対象Table、方向、利用者入力、現在評価、Apply要求、および未提示のApply結果を所有する。" {
+		RESP_RF_INTERACTION = element "RF Interaction" "Responsibility" "RF Session、対象Table、方向、利用者入力、現在評価、現在評価で新しく成立した意味、Apply要求、および未提示のApply結果を所有する。" {
 			tags "Responsibility"
 			!script groovy {
 				element.setGroup("Reorder Form")
 			}
 		}
-		RESP_RF_INPUT_INTERPRETATION = element "RF Input Interpretation" "Responsibility" "利用者入力と現在入力範囲 / 選択肢を解釈し、方向固有Resolution向け内部指定を生成する。" {
+		RESP_RF_INPUT_INTERPRETATION = element "RF Input Interpretation" "Responsibility" "利用者入力と現在入力範囲 / 選択肢を解釈し、未入力、修正が必要な入力、または方向固有Resolution向け内部指定を返す。" {
 			tags "Responsibility"
 			!script groovy {
 				element.setGroup("Reorder Form")
@@ -506,13 +506,11 @@ workspace "YTR Reorder v1 Architecture" {
 				"runtime.RV_RF_COLUMN_NORMAL_APPLY.step.11" "更新後の対象Table editing surfaceを再成立させる。"
 			}
 		}
-		RT_040 = RESP_WORDPRESS_REORDER_APPLY_INTEGRATION -> RESP_RF_APPLY_COORDINATION "表示復帰完了を返す。" {
-			tags "Runtime Interaction,Runtime_RV_RF_ROW_NORMAL_APPLY,Runtime_RV_RF_COLUMN_NORMAL_APPLY,Runtime_RV_RF_ROW_LARGE_APPLY_CONTINUE,Runtime_RV_RF_COLUMN_LARGE_APPLY_CONTINUE"
+		RT_040 = RESP_WORDPRESS_REORDER_APPLY_INTEGRATION -> RESP_RF_APPLY_COORDINATION "editing surfaceと受け入れ済みの成功後復帰契約が完了した表示復帰完了を返す。" {
+			tags "Runtime Interaction,Runtime_RV_RF_ROW_NORMAL_APPLY,Runtime_RV_RF_COLUMN_NORMAL_APPLY"
 			properties {
-				"runtime.RV_RF_ROW_NORMAL_APPLY.step.12" "表示復帰完了を返す。"
-				"runtime.RV_RF_COLUMN_NORMAL_APPLY.step.12" "表示復帰完了を返す。"
-				"runtime.RV_RF_ROW_LARGE_APPLY_CONTINUE.step.13" "表示復帰完了を返す。"
-				"runtime.RV_RF_COLUMN_LARGE_APPLY_CONTINUE.step.13" "表示復帰完了を返す。"
+				"runtime.RV_RF_ROW_NORMAL_APPLY.step.12" "editing surfaceと受け入れ済みの成功後復帰契約が完了した表示復帰完了を返す。"
+				"runtime.RV_RF_COLUMN_NORMAL_APPLY.step.12" "editing surfaceと受け入れ済みの成功後復帰契約が完了した表示復帰完了を返す。"
 			}
 		}
 		RT_041 = RESP_RF_APPLY_COORDINATION -> RESP_RF_INTERACTION "successを返す。" {
@@ -686,57 +684,64 @@ workspace "YTR Reorder v1 Architecture" {
 				"runtime.RV_RF_COLUMN_LARGE_APPLY_CONTINUE.step.12" "更新後または未変更のediting surfaceを再成立させる。"
 			}
 		}
-		RT_067 = RESP_RF_APPLY_COORDINATION -> RESP_RF_INTERACTION "successまたはfailureを返す。" {
+		RT_067 = RESP_WORDPRESS_REORDER_APPLY_INTEGRATION -> RESP_RF_APPLY_COORDINATION "表示復帰完了を返す。" {
+			tags "Runtime Interaction,Runtime_RV_RF_ROW_LARGE_APPLY_CONTINUE,Runtime_RV_RF_COLUMN_LARGE_APPLY_CONTINUE"
+			properties {
+				"runtime.RV_RF_ROW_LARGE_APPLY_CONTINUE.step.13" "表示復帰完了を返す。"
+				"runtime.RV_RF_COLUMN_LARGE_APPLY_CONTINUE.step.13" "表示復帰完了を返す。"
+			}
+		}
+		RT_068 = RESP_RF_APPLY_COORDINATION -> RESP_RF_INTERACTION "successまたはfailureを返す。" {
 			tags "Runtime Interaction,Runtime_RV_RF_ROW_LARGE_APPLY_CONTINUE,Runtime_RV_RF_COLUMN_LARGE_APPLY_CONTINUE"
 			properties {
 				"runtime.RV_RF_ROW_LARGE_APPLY_CONTINUE.step.14" "successまたはfailureを返す。"
 				"runtime.RV_RF_COLUMN_LARGE_APPLY_CONTINUE.step.14" "successまたはfailureを返す。"
 			}
 		}
-		RT_068 = RESP_WORDPRESS_REORDER_INTEGRATION -> EXT_WORDPRESS_EDITOR "successではRFを終了し、failureでは入力を保持したRFを表示する。" {
+		RT_069 = RESP_WORDPRESS_REORDER_INTEGRATION -> EXT_WORDPRESS_EDITOR "successではRFを終了し、failureでは入力を保持したRFを表示する。" {
 			tags "Runtime Interaction,Runtime_RV_RF_ROW_LARGE_APPLY_CONTINUE,Runtime_RV_RF_COLUMN_LARGE_APPLY_CONTINUE"
 			properties {
 				"runtime.RV_RF_ROW_LARGE_APPLY_CONTINUE.step.15" "successではRFを終了し、failureでは入力を保持したRFを表示する。"
 				"runtime.RV_RF_COLUMN_LARGE_APPLY_CONTINUE.step.15" "successではRFを終了し、failureでは入力を保持したRFを表示する。"
 			}
 		}
-		RT_069 = RESP_RF_APPLY_COORDINATION -> RESP_COLUMN_TABLE_INTEGRATION "現在TableでColumn候補を再照合し、成立する場合だけ一回の確定列移動を要求する。" {
+		RT_070 = RESP_RF_APPLY_COORDINATION -> RESP_COLUMN_TABLE_INTEGRATION "現在TableでColumn候補を再照合し、成立する場合だけ一回の確定列移動を要求する。" {
 			tags "Runtime Interaction,Runtime_RV_RF_COLUMN_LARGE_APPLY_CONTINUE"
 			properties {
 				"runtime.RV_RF_COLUMN_LARGE_APPLY_CONTINUE.step.9" "現在TableでColumn候補を再照合し、成立する場合だけ一回の確定列移動を要求する。"
 			}
 		}
-		RT_070 = RESP_COLUMN_TABLE_INTEGRATION -> RESP_RF_APPLY_COORDINATION "確定更新のsuccess / failureと、success時の最終位置を返す。" {
+		RT_071 = RESP_COLUMN_TABLE_INTEGRATION -> RESP_RF_APPLY_COORDINATION "確定更新のsuccess / failureと、success時の最終位置を返す。" {
 			tags "Runtime Interaction,Runtime_RV_RF_COLUMN_LARGE_APPLY_CONTINUE"
 			properties {
 				"runtime.RV_RF_COLUMN_LARGE_APPLY_CONTINUE.step.10" "確定更新のsuccess / failureと、success時の最終位置を返す。"
 			}
 		}
-		RT_071 = RESP_WORDPRESS_REORDER_APPLY_INTEGRATION -> EXT_WORDPRESS_EDITOR "確認UIを表示する。" {
+		RT_072 = RESP_WORDPRESS_REORDER_APPLY_INTEGRATION -> EXT_WORDPRESS_EDITOR "確認UIを表示する。" {
 			tags "Runtime Interaction,Runtime_RV_RF_LARGE_APPLY_CANCEL"
 			properties {
 				"runtime.RV_RF_LARGE_APPLY_CANCEL.step.2" "確認UIを表示する。"
 			}
 		}
-		RT_072 = EXT_WORDPRESS_EDITOR -> RESP_WORDPRESS_REORDER_APPLY_INTEGRATION "利用者がCancelを選択する。" {
+		RT_073 = EXT_WORDPRESS_EDITOR -> RESP_WORDPRESS_REORDER_APPLY_INTEGRATION "利用者がCancelを選択する。" {
 			tags "Runtime Interaction,Runtime_RV_RF_LARGE_APPLY_CANCEL"
 			properties {
 				"runtime.RV_RF_LARGE_APPLY_CANCEL.step.3" "利用者がCancelを選択する。"
 			}
 		}
-		RT_073 = RESP_WORDPRESS_REORDER_APPLY_INTEGRATION -> RESP_RF_APPLY_COORDINATION "Cancelを返す。" {
+		RT_074 = RESP_WORDPRESS_REORDER_APPLY_INTEGRATION -> RESP_RF_APPLY_COORDINATION "Cancelを返す。" {
 			tags "Runtime Interaction,Runtime_RV_RF_LARGE_APPLY_CANCEL"
 			properties {
 				"runtime.RV_RF_LARGE_APPLY_CANCEL.step.4" "Cancelを返す。"
 			}
 		}
-		RT_074 = RESP_RF_APPLY_COORDINATION -> RESP_RF_INTERACTION "Table未変更のCancelを返す。" {
+		RT_075 = RESP_RF_APPLY_COORDINATION -> RESP_RF_INTERACTION "Table未変更のCancelを返す。" {
 			tags "Runtime Interaction,Runtime_RV_RF_LARGE_APPLY_CANCEL"
 			properties {
 				"runtime.RV_RF_LARGE_APPLY_CANCEL.step.5" "Table未変更のCancelを返す。"
 			}
 		}
-		RT_075 = RESP_WORDPRESS_REORDER_INTEGRATION -> EXT_WORDPRESS_EDITOR "入力を保持したRFへ戻る。failure通知は表示しない。" {
+		RT_076 = RESP_WORDPRESS_REORDER_INTEGRATION -> EXT_WORDPRESS_EDITOR "入力を保持したRFへ戻る。failure通知は表示しない。" {
 			tags "Runtime Interaction,Runtime_RV_RF_LARGE_APPLY_CANCEL"
 			properties {
 				"runtime.RV_RF_LARGE_APPLY_CANCEL.step.6" "入力を保持したRFへ戻る。failure通知は表示しない。"
@@ -882,7 +887,7 @@ workspace "YTR Reorder v1 Architecture" {
 			include RESP_REORDER_APPLY_POLICY RESP_RF_APPLY_COORDINATION RESP_WORDPRESS_REORDER_APPLY_INTEGRATION EXT_WORDPRESS_EDITOR RESP_ROW_TABLE_INTEGRATION RESP_RF_INTERACTION RESP_WORDPRESS_REORDER_INTEGRATION
 			exclude "relationship.tag!=Runtime_RV_RF_ROW_LARGE_APPLY_CONTINUE"
 			properties {
-				"runtime.steps" "1=RT_055;2=RT_056;3=RT_057;4=RT_058;5=RT_059;6=RT_060;7=RT_061;8=RT_062;9=RT_063;10=RT_064;11=RT_065;12=RT_066;13=RT_040;14=RT_067;15=RT_068"
+				"runtime.steps" "1=RT_055;2=RT_056;3=RT_057;4=RT_058;5=RT_059;6=RT_060;7=RT_061;8=RT_062;9=RT_063;10=RT_064;11=RT_065;12=RT_066;13=RT_067;14=RT_068;15=RT_069"
 			}
 			autoLayout lr
 		}
@@ -892,7 +897,7 @@ workspace "YTR Reorder v1 Architecture" {
 			include RESP_REORDER_APPLY_POLICY RESP_RF_APPLY_COORDINATION RESP_WORDPRESS_REORDER_APPLY_INTEGRATION EXT_WORDPRESS_EDITOR RESP_COLUMN_TABLE_INTEGRATION RESP_RF_INTERACTION RESP_WORDPRESS_REORDER_INTEGRATION
 			exclude "relationship.tag!=Runtime_RV_RF_COLUMN_LARGE_APPLY_CONTINUE"
 			properties {
-				"runtime.steps" "1=RT_055;2=RT_056;3=RT_057;4=RT_058;5=RT_059;6=RT_060;7=RT_061;8=RT_062;9=RT_069;10=RT_070;11=RT_065;12=RT_066;13=RT_040;14=RT_067;15=RT_068"
+				"runtime.steps" "1=RT_055;2=RT_056;3=RT_057;4=RT_058;5=RT_059;6=RT_060;7=RT_061;8=RT_062;9=RT_070;10=RT_071;11=RT_065;12=RT_066;13=RT_067;14=RT_068;15=RT_069"
 			}
 			autoLayout lr
 		}
@@ -902,7 +907,7 @@ workspace "YTR Reorder v1 Architecture" {
 			include RESP_RF_APPLY_COORDINATION RESP_WORDPRESS_REORDER_APPLY_INTEGRATION EXT_WORDPRESS_EDITOR RESP_RF_INTERACTION RESP_WORDPRESS_REORDER_INTEGRATION
 			exclude "relationship.tag!=Runtime_RV_RF_LARGE_APPLY_CANCEL"
 			properties {
-				"runtime.steps" "1=RT_056;2=RT_071;3=RT_072;4=RT_073;5=RT_074;6=RT_075"
+				"runtime.steps" "1=RT_056;2=RT_072;3=RT_073;4=RT_074;5=RT_075;6=RT_076"
 			}
 			autoLayout lr
 		}
