@@ -27,22 +27,31 @@ jest.mock( '@wordpress/preferences', () => ( {
 	store: 'preferences-store',
 } ) );
 
-jest.mock( '@wordpress/data', () => ( {
-	select: ( store: unknown ) => {
-		if ( store === 'preferences-store' ) {
-			return {
-				get: () => true,
-			};
-		}
-		return {
-			getBlock: ( clientId: string ) => mockBlocks.get( clientId ) ?? null,
-			getSelectedBlockClientId: () => mockSelectedBlockClientId,
-		};
-	},
-	dispatch: () => ( {
-		set: jest.fn(),
-	} ),
-} ) );
+jest.mock( '@wordpress/data', () => {
+	const actualData = jest.requireActual( '@wordpress/data' );
+	return Object.defineProperties( Object.create( actualData ), {
+		select: {
+			enumerable: true,
+			value: ( store: unknown ) => {
+				if ( store === 'preferences-store' ) {
+					return {
+						get: () => true,
+					};
+				}
+				return {
+					getBlock: ( clientId: string ) => mockBlocks.get( clientId ) ?? null,
+					getSelectedBlockClientId: () => mockSelectedBlockClientId,
+				};
+			},
+		},
+		dispatch: {
+			enumerable: true,
+			value: () => ( {
+				set: jest.fn(),
+			} ),
+		},
+	} );
+} );
 
 jest.mock( '@wordpress/components', () => {
 	const react = jest.requireActual( 'react' ) as typeof import('react');

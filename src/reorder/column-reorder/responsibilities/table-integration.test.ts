@@ -8,10 +8,13 @@ jest.mock( '@wordpress/block-editor', () => ( {
 	store: Symbol( 'block-editor-store' ),
 } ) );
 
-jest.mock( '@wordpress/data', () => ( {
-	dispatch: jest.fn(),
-	select: jest.fn(),
-} ) );
+jest.mock( '@wordpress/data', () => {
+	const actualData = jest.requireActual( '@wordpress/data' );
+	return Object.defineProperties( Object.create( actualData ), {
+		dispatch: { enumerable: true, value: jest.fn() },
+		select: { enumerable: true, value: jest.fn() },
+	} );
+} );
 
 const { dispatch: dispatchMock, select: selectMock } = jest.requireMock( '@wordpress/data' ) as {
 	dispatch: jest.Mock;
