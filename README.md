@@ -24,7 +24,7 @@ The Playground demo uses the latest stable release and includes WordPress Core T
 ## Key Features
 
 - **Row Reorder** — Move `tbody` rows with Mouse or Touch drag-and-drop.
-- **Column Reorder** — Move Table columns with Mouse or Touch drag-and-drop.
+- **Column Reorder** — Move Table columns with Mouse or Touch drag-and-drop when the current editor view provides a reliable horizontal column layout.
 - **Reorder Form** — Move a row or column without drag-and-drop by choosing the source, destination, and destination side.
 - **Merged-cell aware** — Prevents moves that would break the supported Table structure and identifies blocked rows or columns in advance.
 - **Large-table handling** — Keeps drag interactions lightweight and confirms reorders that may take noticeable time to apply.
@@ -49,6 +49,8 @@ Choose **Reorder rows** from the Table toolbar, then drag a `tbody` row with Mou
 ### Column Reorder
 
 Choose **Reorder columns** from the Table toolbar, then drag a Table column with Mouse or Touch. The moving column and insertion line show the source and destination.
+
+Column drag-and-drop is available only when the current editor view exposes the Table as a reliable horizontal column layout. If the current view stacks or reflows cells so that Column Reorder cannot resolve horizontal column positions safely, the toolbar explains the limitation and you can still reorder columns with **Reorder with form**.
 
 In iframe editors, surrounding columns are also displaced to preview the result. In non-iframe editors, surrounding-column displacement is intentionally omitted to preserve responsiveness.
 
@@ -93,7 +95,7 @@ Yes, when the requested move preserves the supported Table structure. Destinatio
 
 ### Does it work on touch devices?
 
-Yes. Row Reorder and Column Reorder support Touch drag-and-drop as well as Mouse input.
+Yes. Row Reorder and Column Reorder support Touch drag-and-drop as well as Mouse input when the current layout supports the corresponding drag operation.
 
 ### Can I reorder without drag-and-drop?
 

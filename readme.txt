@@ -3,7 +3,7 @@ Tags: block editor, gutenberg, table
 Requires at least: 6.8
 Tested up to: 7.1
 Requires PHP: 8.1
-Stable tag: 0.9.2
+Stable tag: 0.9.3
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -11,9 +11,11 @@ Reorder table rows and columns in supported blocks in the WordPress block editor
 
 == Description ==
 
-Yamabiko Table Reorder 0.9.2 provides Row Reorder, Column Reorder, and Reorder Form for WordPress Core Table and Flexible Table Block.
+Yamabiko Table Reorder 0.9.3 provides Row Reorder, Column Reorder, and Reorder Form for WordPress Core Table and Flexible Table Block.
 
 Use Row Reorder or Column Reorder mode from the Table toolbar, then drag body rows or Table columns with Mouse or Touch. During DnD, the plugin shows the moving row or column and the current destination. During Row Reorder, surrounding rows are displaced to preview the result before it is committed. During Column Reorder, surrounding columns are displaced in iframe editors. In non-iframe editors, surrounding column displacement is intentionally omitted to preserve responsiveness, while the moving column and insertion line continue to show the source and destination.
+
+Column drag-and-drop is available only when the current editor view provides a reliable horizontal column layout. If the current view stacks or reflows cells so that horizontal column positions cannot be resolved safely, Column Reorder drag-and-drop does not start. The toolbar explains the limitation, and columns can still be reordered with Reorder Form. Row Reorder remains independent from this Column DnD availability check.
 
 Use Reorder with form from the same Table toolbar to move a row or column without drag-and-drop. Choose the source and destination, select the destination side, and apply the move when it is valid and changes the order. RF shows current row limits and available logical columns, including column headings when available.
 
@@ -43,6 +45,11 @@ The generated archive is `yamabiko-table-reorder.zip`.
 4. Activate Yamabiko Table Reorder.
 
 == Changelog ==
+
+= 0.9.3 =
+
+* Fixed: Prevented Column Reorder drag-and-drop from starting when the current table layout does not provide reliable horizontal column geometry, including stacked or reflow-style layouts.
+* Changed: When Column Reorder drag-and-drop is unavailable for the current layout, the toolbar now explains the limitation and points to Reorder Form as the alternative while Row Reorder remains unaffected.
 
 = 0.9.2 =
 
