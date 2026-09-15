@@ -81,7 +81,7 @@ const preservePointerDownHandler = (
  * @param existingHandler        Gutenberg本体または他のfilterが設定した既存handler。
  * @param rowHighlightHandler    行ホバー表示が提供する判定handler。
  * @param columnHighlightHandler 列の開始前予告表示が提供する判定handler。
- * @return 既存処理の後に方向固有DnDへ開始入力を通知するhandler。
+ * @return 既存処理の後に方向固有の操作可否表示へ入力を通知するhandler。
  */
 const preservePointerOverHandler = (
 	existingHandler: unknown,
