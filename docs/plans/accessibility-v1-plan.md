@@ -6,11 +6,10 @@
 - Parent accessibility initiative: #1046
 - Requirements: `docs/requirements/accessibility-v1-requirements.md`
 - Design: `docs/design/accessibility-v1-design.md`
-- Architecture: `docs/architecture/accessibility-v1-architecture.md`
+- Architecture: `docs/architecture/reorder-form-v1-architecture.md`
 - Related Reorder Form documents:
   - `docs/requirements/reorder-form-v1-requirements.md`
   - `docs/design/reorder-form-v1-design.md`
-  - `docs/architecture/reorder-form-v1-architecture.md`
   - `docs/plans/reorder-form-v1-plan.md`
 - Related Reorder documents:
   - `docs/requirements/reorder-v1-requirements.md`
@@ -66,7 +65,7 @@ Phase 1ではRFをKeyboardと支援技術から利用できる正式な並び替
 
 現在の`main`にはRFの入力解釈、Row / Column Resolution、RF Interaction、RF Apply Coordination、Row / Column Table Integration、Reorder Apply Policy、Editor DOM Context、およびWordPress側のRF / Apply Presentationが実装済みである。RF Apply Coordinationは通常反映と確認付き大規模反映を扱い、表示復帰用の確定済み`destinationIndex`も保持している。
 
-また、WordPress側にはRF toolbar入口、Wide / Narrow Presentation、確認表示、反映中表示、表示復帰、視覚的な完了通知、Playwrightの`form` projectが存在する。このためPhase 1は新しい並び替えCoreを作る作業ではなく、既存状態とLifecycleへAccessibility Architectureで定義した三つの狭い責務を接続する作業となる。
+また、WordPress側にはRF toolbar入口、Wide / Narrow Presentation、確認表示、反映中表示、表示復帰、視覚的な完了通知、Playwrightの`form` projectが存在する。このためPhase 1は新しい並び替えCoreを作る作業ではなく、既存状態とLifecycleへ統合済みReorder Form Architectureで定義した三つの狭いAccessibility責務を接続する作業となる。
 
 現在のRF Apply結果はsuccess / failure / cancelledの状態を中心に公開しており、通常反映では確認用summaryを保持しない。そのため、success announcementが必要とする移動前位置と確定後位置をLifecycle完了後に利用するには、確定済みMove summaryを結果Contractとして明示的に引き渡せるようにする必要がある。Announcement側でcandidate、入力値、cleanup済みApply Lifecycleから位置を再計算・推測しないことをPhase 1で成立させる。
 
@@ -100,11 +99,11 @@ focus lifecycleが確定してからAnnouncement Deliveryを接続する。通�
 
 各PhaseではJestで純粋な意味変換、状態遷移、一回性、stale防止等を検証し、WordPress / browser固有のKeyboard、focus、iframe、再mount、accessibility treeへの公開はPlaywright E2Eで検証する。最終PhaseではCore Table / Flexible Table Blockとiframe / non-iframeの代表環境を横断する。
 
-実装中に新しい状態所有、責務境界、Lifecycle、Invariantが必要になった場合はPlan内でArchitectureを変更せず、`docs/architecture/accessibility-v1-architecture.md`を先に更新してから本Planを追従させる。
+実装中に新しい状態所有、責務境界、Lifecycle、Invariantが必要になった場合はPlan内でArchitectureを変更せず、`docs/architecture/reorder-form-v1-architecture.md`を先に更新してから本Planを追従させる。
 
 ## Architecture impact
 
-本Planは`docs/architecture/accessibility-v1-architecture.md`を現在実装へ写像するものであり、新しいArchitecture責務を追加しない。
+本Planは`docs/architecture/reorder-form-v1-architecture.md`のAccessibility責務を現在実装へ写像するものであり、新しいArchitecture責務を追加しない。
 
 実装時に影響する既存責務は次のとおりとする。
 
