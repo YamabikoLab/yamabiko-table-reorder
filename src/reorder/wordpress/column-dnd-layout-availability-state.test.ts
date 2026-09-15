@@ -68,4 +68,30 @@ describe( 'Column DnD layout availability toolbar snapshot', () => {
 
 		expect( getColumnDndLayoutAvailabilitySnapshot( 'table-a' ) ).toBe( 'unavailable' );
 	} );
+
+	/**
+	 * Toolbar購読者へ意味のある表示可否変更だけを通知することを確認する。
+	 *
+	 * 事前条件:
+	 * - 対象Tableのsnapshot変更をToolbarが購読している。
+	 *
+	 * 操作:
+	 * - availableへ更新し、同じavailableを再度反映した後、接続終了としてsnapshotを破棄する。
+	 *
+	 * 期待結果:
+	 * - availableへの変更とunavailableへの破棄でそれぞれ1回通知される。
+	 * - 同じavailableの再反映では追加通知されない。
+	 */
+	it( 'when the same snapshot is repeated and then cleared, should notify only observable availability changes', () => {
+		const listener = jest.fn();
+		const unsubscribe = subscribeColumnDndLayoutAvailabilitySnapshot( 'table-a', listener );
+
+		updateColumnDndLayoutAvailabilitySnapshot( 'table-a', 'available' );
+		updateColumnDndLayoutAvailabilitySnapshot( 'table-a', 'available' );
+		clearColumnDndLayoutAvailabilitySnapshot( 'table-a' );
+
+		expect( listener ).toHaveBeenCalledTimes( 2 );
+		expect( getColumnDndLayoutAvailabilitySnapshot( 'table-a' ) ).toBe( 'unavailable' );
+		unsubscribe();
+	} );
 } );
