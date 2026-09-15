@@ -128,6 +128,28 @@ describe( 'Column DnD Layout Availability', () => {
 	} );
 
 	/**
+	 * 計測誤差の許容範囲内しか離れていない論理境界を、利用可能な移動先として扱わないことを確認する。
+	 *
+	 * 事前条件:
+	 * - 隣接する論理境界の物理位置差が許容値以内である。
+	 *
+	 * 操作:
+	 * - 観測済み列境界の利用可否を評価する。
+	 *
+	 * 期待結果:
+	 * - 物理的に区別可能な移動先を保証できないためColumn DnDはunavailableになる。
+	 */
+	it( 'when adjacent boundaries differ only within the measurement tolerance, should be unavailable', () => {
+		expect(
+			evaluateColumnDndLayoutAvailability( [
+				{ index: 0, offset: 0 },
+				{ index: 1, offset: 1 },
+				{ index: 2, offset: 120 },
+			] )
+		).toBe( 'unavailable' );
+	} );
+
+	/**
 	 * RTL Tableの物理位置が論理進行方向へ正規化されることを確認する。
 	 *
 	 * 事前条件:
