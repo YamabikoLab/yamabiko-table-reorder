@@ -8,18 +8,16 @@
 @use '@/reorder/reorder-tuning' as tuning;
 
 @keyframes yamabiko-table-reorder-row-moving-display-enter {
-
 	from {
-		
-		opacity: 0.92;
-		transform: scale(0.995);
-		box-shadow: 0 2px 8px rgb(0 0 0 / 14%);
+		opacity: tuning.$row-moving-display-enter-opacity;
+		transform: scale(tuning.$row-moving-display-enter-scale);
+		box-shadow: tuning.$row-moving-display-enter-shadow;
 	}
 
 	to {
 		opacity: 1;
 		transform: scale(1);
-		box-shadow: 0 4px 12px rgb(0 0 0 / 20%);
+		box-shadow: tuning.$row-moving-display-active-shadow;
 	}
 }
 
@@ -37,7 +35,7 @@
 	box-sizing: border-box;
 	background: #fff;
 	outline: 2px solid #3858e9;
-	box-shadow: 0 4px 12px rgb(0 0 0 / 20%);
+	box-shadow: tuning.$row-moving-display-active-shadow;
 	animation: yamabiko-table-reorder-row-moving-display-enter
 		tuning.$row-moving-display-enter-duration tuning.$row-moving-display-enter-easing;
 }
@@ -70,7 +68,6 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-
 	.yamabiko-table-reorder-moving-row {
 		animation: none;
 	}
