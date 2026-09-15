@@ -57,6 +57,10 @@ jest.mock( '@/reorder/column-reorder/responsibilities/input', () => ( {
 		props.children( () => undefined ),
 } ) );
 
+jest.mock( '@/reorder/column-reorder/responsibilities/layout-availability', () => ( {
+	resolveColumnDndLayoutAvailability: () => 'available',
+} ) );
+
 jest.mock( '@/reorder/column-reorder/responsibilities/presentation/column-presentation', () => ( {
 	ColumnPresentation: () => null,
 } ) );

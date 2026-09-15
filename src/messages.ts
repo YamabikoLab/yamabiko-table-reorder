@@ -23,6 +23,13 @@ export const getRowReorderName = () => __( 'Reorder rows', 'yamabiko-table-reord
  */
 export const getColumnReorderName = () => __( 'Reorder columns', 'yamabiko-table-reorder' );
 
+/** 現在表示で列DnDを利用できず、RFを代替手段として利用できることを知らせる文言を取得する。 */
+export const getColumnDndLayoutUnavailableMessage = () =>
+	__(
+		'Column drag reordering is unavailable in the current view. You can reorder columns using the form.',
+		'yamabiko-table-reorder'
+	);
+
 /** RF入口と入力画面の表示名を取得する。 */
 export const getRfReorderName = () => __( 'Reorder with form', 'yamabiko-table-reorder' );
 

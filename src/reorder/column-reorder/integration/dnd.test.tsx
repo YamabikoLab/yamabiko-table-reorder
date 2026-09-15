@@ -21,6 +21,7 @@ import { act, render } from '@testing-library/react';
 import type { ReactNode } from 'react';
 
 import { columnDndInteraction } from '@/reorder/column-reorder/responsibilities/dnd-interaction';
+import { resolveColumnDndLayoutAvailability } from '@/reorder/column-reorder/responsibilities/layout-availability';
 import { resolveColumnReorderTarget } from '@/reorder/column-reorder/responsibilities/target-resolution';
 import { reorderMode } from '@/reorder/reorder-mode';
 import { createColumnDestinationResolver } from './destination-resolution';
@@ -51,9 +52,11 @@ jest.mock( './destination-resolution', () => ( {
 	createColumnDestinationResolver: jest.fn(),
 } ) );
 
+const mockHorizontalAutoScrollStart = jest.fn();
+
 jest.mock( '@/reorder/column-reorder/integration/horizontal-auto-scroll', () => ( {
 	createColumnHorizontalAutoScroll: jest.fn( () => ( {
-		start: jest.fn(),
+		start: mockHorizontalAutoScrollStart,
 		updatePointer: jest.fn(),
 		stop: jest.fn(),
 	} ) ),
@@ -80,6 +83,10 @@ jest.mock( '@/reorder/column-reorder/responsibilities/target-resolution', () => 
 	resolveColumnReorderTarget: jest.fn(),
 } ) );
 
+jest.mock( '@/reorder/column-reorder/responsibilities/layout-availability', () => ( {
+	resolveColumnDndLayoutAvailability: jest.fn(),
+} ) );
+
 const dragDropProviderMock = DragDropProvider as unknown as jest.Mock;
 const destinationResolverFactoryMock = createColumnDestinationResolver as jest.MockedFunction<
 	typeof createColumnDestinationResolver
@@ -87,6 +94,10 @@ const destinationResolverFactoryMock = createColumnDestinationResolver as jest.M
 const resolveColumnReorderTargetMock = resolveColumnReorderTarget as jest.MockedFunction<
 	typeof resolveColumnReorderTarget
 >;
+const resolveColumnDndLayoutAvailabilityMock =
+	resolveColumnDndLayoutAvailability as jest.MockedFunction<
+		typeof resolveColumnDndLayoutAvailability
+	>;
 const dndInteractionMock = columnDndInteraction as jest.Mocked< typeof columnDndInteraction >;
 
 /** 現在のDragDropProviderへ渡された物理DnD Lifecycle処理とplugin構成処理を取得する。 */
@@ -125,6 +136,7 @@ describe( 'Column DnD Engine Integration', () => {
 		mockActiveDraggableRef = null;
 		resetReorderMode();
 		resolveColumnReorderTargetMock.mockReturnValue( resolvedTarget );
+		resolveColumnDndLayoutAvailabilityMock.mockReturnValue( 'available' );
 		destinationResolverFactoryMock.mockReturnValue( {
 			resolve: jest.fn().mockReturnValue( 3 ),
 		} );
@@ -307,6 +319,47 @@ describe( 'Column DnD Engine Integration', () => {
 		expect( resolveColumnReorderTargetMock ).toHaveBeenCalledWith( target );
 		expect( preventDefault ).toHaveBeenCalledTimes( 1 );
 		expect( dndInteractionMock.start ).not.toHaveBeenCalled();
+	} );
+
+	/**
+	 * 概要:
+	 * - Toolbar表示後に物理列配置が失われても、active DnD成立直前の現在DOMでSession開始を拒否することを確認する。
+	 *
+	 * 事前条件:
+	 * - Reorder Target Resolutionは論理列の開始を許可する。
+	 * - 開始元セルを含む現在TableのColumn DnD Layout Availabilityはunavailableである。
+	 *
+	 * 操作:
+	 * - 物理DnDのbefore start通知を行った後にstart通知を行う。
+	 *
+	 * 期待結果:
+	 * - 現在の開始元TableがfreshなLayout Availability評価へ渡される。
+	 * - 物理DnD開始が抑止され、Session、水平Auto Scroll、移動先解決は開始されない。
+	 */
+	it( 'when the current column layout is unavailable before active drag, should reject every column DnD side effect', () => {
+		resolveColumnDndLayoutAvailabilityMock.mockReturnValue( 'unavailable' );
+		render( <ColumnDnd tableIdentity="table-1">{ () => <div /> }</ColumnDnd> );
+		const provider = getProviderProps();
+		const table = document.createElement( 'table' );
+		const row = document.createElement( 'tr' );
+		const sourceElement = document.createElement( 'td' );
+		const preventDefault = jest.fn();
+		row.appendChild( sourceElement );
+		table.appendChild( row );
+
+		provider.onBeforeDragStart( {
+			operation: { source: { data: target, element: sourceElement } },
+			preventDefault,
+		} as unknown as BeforeDragStartEvent );
+		provider.onDragStart( {
+			operation: { source: { element: sourceElement } },
+		} as unknown as DragStartEvent );
+
+		expect( resolveColumnDndLayoutAvailabilityMock ).toHaveBeenCalledWith( table );
+		expect( preventDefault ).toHaveBeenCalledTimes( 1 );
+		expect( dndInteractionMock.start ).not.toHaveBeenCalled();
+		expect( mockHorizontalAutoScrollStart ).not.toHaveBeenCalled();
+		expect( destinationResolverFactoryMock ).not.toHaveBeenCalled();
 	} );
 
 	/**

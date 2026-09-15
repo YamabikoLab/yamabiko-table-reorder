@@ -1,5 +1,7 @@
 import { expect, test } from '@wordpress/e2e-test-utils-playwright';
 
+import { applyStackedTableLayout } from '../stacked-table';
+
 import {
 	insertTable,
 	moveMouse,
@@ -16,6 +18,35 @@ import {
 test.beforeEach( async ( { admin, page } ) => {
 	await admin.createNewPost();
 	await setPreferences( page );
+} );
+
+/**
+ * Stacked / Reflow表示でも論理行単位のRow DnDを利用できることを確認する。
+ *
+ * 事前条件:
+ * - Core Tableの各セルが縦積みで表示されている。
+ *
+ * 操作:
+ * - Row Reorder Modeを有効にし、先頭行を2行目の後ろへドラッグ＆ドロップする。
+ *
+ * 期待結果:
+ * - 行内のセルを一つの行として維持したまま、先頭行が2行目の後ろへ移動する。
+ */
+test( 'when a Table is stacked, should keep row drag available and move the logical row together', async ( {
+	page,
+	editor,
+} ) => {
+	const { rows, table } = await insertTable( page, editor );
+	await applyStackedTableLayout( table );
+
+	const destination = await pointIn( rows.nth( 1 ), 0.75 );
+
+	await page.getByRole( 'button', { name: ROW_BUTTON } ).click();
+	await startMouseDrag( page, rows.first().locator( 'td' ).first() );
+	await moveMouse( page, destination );
+	await page.mouse.up();
+
+	await expect.poll( () => rowOrder( rows ) ).toEqual( [ 'Row 2', 'Row 1', 'Row 3', 'Row 4' ] );
 } );
 
 /**

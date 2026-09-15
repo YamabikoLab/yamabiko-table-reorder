@@ -19,11 +19,13 @@ import {
 	ColumnDnd,
 	type ColumnDndPointerDownHandler,
 } from '@/reorder/column-reorder/integration/dnd';
+import { resolveColumnDndLayoutAvailability } from '@/reorder/column-reorder/responsibilities/layout-availability';
 import {
 	ColumnHighlight,
 	type ColumnHighlightPointerOutHandler,
 	type ColumnHighlightPointerOverHandler,
 } from '@/reorder/column-reorder/responsibilities/presentation/column-highlight';
+import { resolveEditorDomContext } from '@/reorder/editor-dom-context';
 import { reorderMode } from '@/reorder/reorder-mode';
 import { subscribeReorderMode, type TableReorderMode } from '@/reorder/reorder-mode-subscription';
 import { RowDnd, type RowDndPointerDownHandler } from '@/reorder/row-reorder/integration/dnd';
@@ -35,6 +37,10 @@ import {
 	preserveEditingStartHandler,
 	type EditingStartWrapperProps,
 } from '@/reorder/wordpress/editing-start';
+import {
+	clearColumnDndLayoutAvailabilitySnapshot,
+	updateColumnDndLayoutAvailabilitySnapshot,
+} from '@/reorder/wordpress/column-dnd-layout-availability-state';
 
 import './editing-guard.scss';
 
@@ -163,7 +169,7 @@ const synchronizeWrapperMode = ( element: HTMLElement | null, mode: TableReorder
  * 対応Tableの既存Block wrapperへ安定した入力境界とReorder Mode固有DOM同期を接続する。
  *
  * Reorder Mode変更は非React購読でYTR専用data属性と方向固有Lifecycleへ通知し、Gutenberg本来のBlockListBlock propsを変更しない。
- * mode同期用anchorはBlockListBlockと同じReact描画先へ置くため、iframe / non-iframeを推測せずownerDocumentから現在wrapperを解決する。
+ * mode同期用anchorはBlockListBlockと同じReact描画先へ置き、Editor DOM Contextから現在wrapperを解決する。
  * Gutenberg側の通常rerender時にも現在wrapperを再解決して現在modeを同期する。
  *
  * @param props                Gutenbergから渡されるBlockListBlock propsと元のcomponent。
@@ -181,8 +187,9 @@ export const ReorderModeBlockListBlock = ( props: {
 	const synchronizedWrapper = useRef< HTMLElement | null >( null );
 
 	const resolveCurrentWrapper = useCallback( (): HTMLElement | null => {
-		const editorDocument = modeDomAnchor.current?.ownerDocument;
-		const wrapper = editorDocument?.getElementById( `block-${ clientId }` ) ?? null;
+		const anchor = modeDomAnchor.current;
+		const editorDomContext = anchor === null ? null : resolveEditorDomContext( anchor );
+		const wrapper = editorDomContext?.document.getElementById( `block-${ clientId }` ) ?? null;
 		return wrapper;
 	}, [ clientId ] );
 
@@ -201,6 +208,12 @@ export const ReorderModeBlockListBlock = ( props: {
 		[ resolveCurrentWrapper ]
 	);
 
+	/** 現在wrapperに描画された対象Tableを、anchorと同じEditor DOM Contextから解決する。 */
+	const resolveCurrentTable = useCallback( (): HTMLTableElement | null => {
+		const currentWrapper = resolveCurrentWrapper();
+		return currentWrapper?.querySelector< HTMLTableElement >( 'table' ) ?? null;
+	}, [ resolveCurrentWrapper ] );
+
 	/* Gutenberg側の通常renderでwrapperが再接続された場合も、現在modeを新しいDOMへ同期する。 */
 	useLayoutEffect( () => {
 		synchronizeCurrentWrapper( reorderMode.getMode( clientId ) );
@@ -216,17 +229,118 @@ export const ReorderModeBlockListBlock = ( props: {
 		};
 	}, [ clientId, synchronizeCurrentWrapper ] );
 
+	/* 選択中Tableの現在物理配置をToolbar用snapshotへ接続し、表示変化後も利用不能なColumn Reorder Modeを維持しない。 */
+	useEffect( () => {
+		if ( ! isSelected ) {
+			clearColumnDndLayoutAvailabilitySnapshot( clientId );
+			return;
+		}
+
+		const anchor = modeDomAnchor.current;
+		const wrapperParent = anchor?.parentNode ?? null;
+		const editorDomContext = anchor === null ? null : resolveEditorDomContext( anchor );
+
+		if ( wrapperParent === null || editorDomContext === null ) {
+			clearColumnDndLayoutAvailabilitySnapshot( clientId );
+			return;
+		}
+
+		const editorWindow = editorDomContext.window;
+		let active = true;
+		let evaluationScheduled = false;
+
+		const evaluateAvailability = (): HTMLTableElement | null => {
+			const table = resolveCurrentTable();
+			const availability = resolveColumnDndLayoutAvailability( table );
+			updateColumnDndLayoutAvailabilitySnapshot( clientId, availability );
+
+			/* Column DnDの物理配置が失われた時点で、他の並び替え手段へ影響させず通常編集モードへ戻す。 */
+			if ( availability === 'unavailable' && reorderMode.getMode( clientId ) === 'column' ) {
+				reorderMode.select( 'column', clientId );
+			}
+
+			return table;
+		};
+
+		/** 同じ描画更新から届く複数の変化通知を1回のToolbar用再評価へまとめる。 */
+		const scheduleAvailabilityEvaluation = (): void => {
+			if ( evaluationScheduled ) {
+				return;
+			}
+
+			evaluationScheduled = true;
+			Promise.resolve().then( () => {
+				evaluationScheduled = false;
+				if ( active ) {
+					evaluateAvailability();
+				}
+			} );
+		};
+
+		const ResizeObserverConstructor = editorWindow.ResizeObserver;
+		const resizeObserver = ResizeObserverConstructor
+			? new ResizeObserverConstructor( scheduleAvailabilityEvaluation )
+			: null;
+		let mutationObserver: MutationObserver | null = null;
+
+		/**
+		 * Toolbar表示用snapshotはTable全体の変化だけを粗い再評価契機として監視する。
+		 * セル単位の常駐監視は行わず、DnD開始可否の保証は開始直前のfresh判定へ委ねる。
+		 */
+		const observeCurrentGeometry = (): void => {
+			resizeObserver?.disconnect();
+			mutationObserver?.disconnect();
+			mutationObserver?.observe( wrapperParent, { childList: true } );
+
+			const wrapper = resolveCurrentWrapper();
+			const table = evaluateAvailability();
+			if ( wrapper !== null ) {
+				mutationObserver?.observe( wrapper, { attributes: true } );
+			}
+
+			if ( table === null ) {
+				return;
+			}
+
+			mutationObserver?.observe( table, { attributes: true } );
+			resizeObserver?.observe( table );
+		};
+
+		mutationObserver = new editorWindow.MutationObserver( ( records ) => {
+			const wrapperReconnected = records.some(
+				( record ) => record.target === wrapperParent && record.type === 'childList'
+			);
+
+			if ( wrapperReconnected ) {
+				observeCurrentGeometry();
+				return;
+			}
+
+			scheduleAvailabilityEvaluation();
+		} );
+		editorWindow.addEventListener( 'resize', scheduleAvailabilityEvaluation );
+		observeCurrentGeometry();
+
+		return () => {
+			active = false;
+			mutationObserver?.disconnect();
+			resizeObserver?.disconnect();
+			editorWindow.removeEventListener( 'resize', scheduleAvailabilityEvaluation );
+			clearColumnDndLayoutAvailabilitySnapshot( clientId );
+		};
+	}, [ clientId, isSelected, resolveCurrentTable, resolveCurrentWrapper ] );
+
 	/* Gutenberg自身の更新だけでBlock wrapper DOMが再接続される場合に備え、Table内部ではなく同じ描画先の直下変更だけから現在modeを再同期する。 */
 	useEffect( () => {
 		const anchor = modeDomAnchor.current;
 		const wrapperParent = anchor?.parentNode ?? null;
-		const editorWindow = anchor?.ownerDocument.defaultView ?? null;
+		const editorDomContext = anchor === null ? null : resolveEditorDomContext( anchor );
 
-		if ( wrapperParent === null || editorWindow === null ) {
+		if ( wrapperParent === null || editorDomContext === null ) {
 			return;
 		}
 
-		const observer = new editorWindow.MutationObserver( () => {
+		const observer = new editorDomContext.window.MutationObserver( () => {
 			synchronizeCurrentWrapper( reorderMode.getMode( clientId ) );
 		} );
 

@@ -1,8 +1,11 @@
 import type { Locator } from '@playwright/test';
 import { expect, test } from '@wordpress/e2e-test-utils-playwright';
 
+import { applyStackedTableLayout } from '../stacked-table';
+
 import {
 	COLUMN_BUTTON,
+	COLUMN_LAYOUT_UNAVAILABLE,
 	columnOrder,
 	insertTable,
 	pointIn,
@@ -51,6 +54,39 @@ async function observeEditableFocusHistory( block: Locator ) {
 		} );
 	}, EDITABLE_FOCUS_HISTORY_ATTRIBUTE );
 }
+
+/**
+ * Stacked / Reflow表示で利用不可のColumn DnD入口をtouchして理由を確認できることを確認する。
+ *
+ * 事前条件:
+ * - タッチ入力を利用でき、Core Tableの各セルが縦積みで表示されている。
+ *
+ * 操作:
+ * - 利用不可のColumn DnD入口をtouchする。
+ *
+ * 期待結果:
+ * - Column Reorder Modeは開始されない。
+ * - 現在表示で利用できないことと列RFを代替利用できることが表示される。
+ */
+test( 'when the unavailable column entry is touched for a stacked Table, should show the form alternative without starting column mode', async ( {
+	page,
+	editor,
+} ) => {
+	const { table } = await insertTable( page, editor );
+	await applyStackedTableLayout( table );
+	const columnEntry = page.getByRole( 'button', { name: COLUMN_BUTTON } );
+	await expect( columnEntry ).toHaveAttribute( 'aria-disabled', 'true' );
+	const touch = await touchInput( page );
+	try {
+		await touch.start( await pointIn( columnEntry ) );
+		await touch.end();
+
+		await expect( columnEntry ).toHaveAttribute( 'aria-pressed', 'false' );
+		await expect( page.getByRole( 'tooltip' ) ).toHaveText( COLUMN_LAYOUT_UNAVAILABLE );
+	} finally {
+		await touch.dispose();
+	}
+} );
 
 /**
  * セル内容の長押しで列のDnDを開始し、表示された移動先へ確定できることを確認する。
