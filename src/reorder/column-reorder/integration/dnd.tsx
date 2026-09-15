@@ -2,7 +2,7 @@
  * 列並び替えにおけるdnd-kitとの物理DnD接続を所有する。
  *
  * Column Input Interactionを配下へ接続し、active DnD成立直前の第二段階Target Resolution、
- * DnD開始、移動先解決、complete / cancel変換をColumn DnD Interactionへ接続する。
+ * Column DnD Layout Availability、DnD開始、移動先解決、complete / cancel変換をColumn DnD Interactionへ接続する。
  * Reorder Mode離脱は非React購読で受け取り、React renderを要求せず一時DnD状態を破棄する。
  */
 
@@ -30,6 +30,7 @@ import {
 	type ColumnPointerPosition,
 } from '@/reorder/column-reorder/integration/horizontal-auto-scroll';
 import { columnDndInteraction } from '@/reorder/column-reorder/responsibilities/dnd-interaction';
+import { resolveColumnDndLayoutAvailability } from '@/reorder/column-reorder/responsibilities/layout-availability';
 import {
 	ColumnInput,
 	type ColumnDndPointerDownHandler,
@@ -153,6 +154,19 @@ export const ColumnDnd = ( props: {
 		const resolution = resolveColumnReorderTarget( target );
 
 		if ( resolution.status !== 'resolved' ) {
+			event.preventDefault();
+			physicalDragAttempt.current = null;
+			clearTransientDndState();
+			return;
+		}
+
+		const sourceElement = event?.operation?.source?.element;
+		const sourceTable =
+			( sourceElement?.closest( 'table' ) as HTMLTableElement | null | undefined ) ?? null;
+		const layoutAvailability = resolveColumnDndLayoutAvailability( sourceTable );
+
+		/* Toolbar用snapshotには依存せず、active DnD成立直前の現在DOMで物理列配置が成立しない試行を拒否する。 */
+		if ( layoutAvailability === 'unavailable' ) {
 			event.preventDefault();
 			physicalDragAttempt.current = null;
 			clearTransientDndState();

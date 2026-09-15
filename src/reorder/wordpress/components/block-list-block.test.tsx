@@ -12,7 +12,17 @@ import {
 	ReorderModeBlockListBlock,
 	type ReorderModeBlockListBlockProps,
 } from '@/reorder/wordpress/components/block-list-block';
+import {
+	clearColumnDndLayoutAvailabilitySnapshot,
+	getColumnDndLayoutAvailabilitySnapshot,
+} from '@/reorder/wordpress/column-dnd-layout-availability-state';
 import { useState } from '@wordpress/element';
+
+let mockColumnDndLayoutAvailability: 'available' | 'unavailable' = 'available';
+
+jest.mock( '@/reorder/column-reorder/responsibilities/layout-availability', () => ( {
+	resolveColumnDndLayoutAvailability: () => mockColumnDndLayoutAvailability,
+} ) );
 
 jest.mock( '@/reorder/row-reorder/responsibilities/presentation/row-highlight', () => ( {
 	RowHighlight: ( {
@@ -67,7 +77,13 @@ const BlockListBlock = ( props: ReorderModeBlockListBlockProps ) => {
 			onMouseDownCapture={ wrapperProps.onMouseDownCapture as MouseEventHandler< HTMLDivElement > }
 			onDragStartCapture={ wrapperProps.onDragStartCapture as DragEventHandler< HTMLDivElement > }
 		>
-			Table
+			<table>
+				<tbody>
+					<tr>
+						<td>Table</td>
+					</tr>
+				</tbody>
+			</table>
 		</div>
 	);
 };
@@ -81,7 +97,13 @@ const ReplacementBlockListBlock = ( props: ReorderModeBlockListBlockProps ) => {
 			data-testid="block-wrapper"
 			draggable={ wrapperProps.draggable as boolean | undefined }
 		>
-			Table replacement
+			<table>
+				<tbody>
+					<tr>
+						<td>Table replacement</td>
+					</tr>
+				</tbody>
+			</table>
 		</section>
 	);
 };
@@ -92,7 +114,13 @@ const StatefulBlockListBlock = ( props: ReorderModeBlockListBlockProps ) => {
 	if ( replaced ) {
 		return (
 			<section id={ `block-${ props.clientId }` } data-testid="block-wrapper">
-				Table replacement
+				<table>
+					<tbody>
+						<tr>
+							<td>Table replacement</td>
+						</tr>
+					</tbody>
+				</table>
 			</section>
 		);
 	}
@@ -102,7 +130,13 @@ const StatefulBlockListBlock = ( props: ReorderModeBlockListBlockProps ) => {
 			<button type="button" onClick={ () => setReplaced( true ) }>
 				Replace wrapper
 			</button>
-			Table
+			<table>
+				<tbody>
+					<tr>
+						<td>Table</td>
+					</tr>
+				</tbody>
+			</table>
 		</div>
 	);
 };
@@ -124,6 +158,8 @@ const renderBlockListBlock = (
 describe( 'Reorder Mode Block wrapper integration', () => {
 	beforeEach( () => {
 		reorderMode.notifyTableInactive( 'table-a' );
+		clearColumnDndLayoutAvailabilitySnapshot( 'table-a' );
+		mockColumnDndLayoutAvailability = 'available';
 		blockListBlockRenderCount = 0;
 	} );
 
@@ -274,5 +310,56 @@ describe( 'Reorder Mode Block wrapper integration', () => {
 		await waitFor( () => {
 			expect( replacedWrapper.getAttribute( 'data-yamabiko-table-reorder-mode' ) ).toBe( 'row' );
 		} );
+	} );
+
+	/**
+	 * 選択中Tableの物理配置変化をToolbar表示用snapshotへ反映し、利用不能なColumn Reorder Modeを終了することを確認する。
+	 *
+	 * 事前条件:
+	 * - 選択時のTableはColumn DnDを利用可能で、Column Reorder Modeが有効である。
+	 *
+	 * 操作:
+	 * - 同じEditor DOM内でTableの表示属性を変更し、現在物理配置の評価をunavailableへ変える。
+	 *
+	 * 期待結果:
+	 * - Table IdentityごとのToolbar表示用snapshotがunavailableへ更新される。
+	 * - 利用不能なColumn Reorder Modeを維持せず通常編集モードへ戻る。
+	 */
+	it( 'when the selected table layout becomes unavailable, should update its snapshot and leave column mode', async () => {
+		const { getByTestId } = render( renderBlockListBlock() );
+		const blockWrapper = getByTestId( 'block-wrapper' );
+
+		expect( getColumnDndLayoutAvailabilitySnapshot( 'table-a' ) ).toBe( 'available' );
+		act( () => reorderMode.select( 'column', 'table-a' ) );
+		expect( reorderMode.getMode( 'table-a' ) ).toBe( 'column' );
+
+		mockColumnDndLayoutAvailability = 'unavailable';
+		blockWrapper.classList.add( 'stacked-layout' );
+
+		await waitFor( () => {
+			expect( getColumnDndLayoutAvailabilitySnapshot( 'table-a' ) ).toBe( 'unavailable' );
+			expect( reorderMode.getMode( 'table-a' ) ).toBe( 'edit' );
+		} );
+	} );
+
+	/**
+	 * BlockListBlock接続終了後にToolbar表示用snapshotを残さないことを確認する。
+	 *
+	 * 事前条件:
+	 * - 選択中Tableのavailable snapshotが共有されている。
+	 *
+	 * 操作:
+	 * - 対象BlockListBlockをunmountする。
+	 *
+	 * 期待結果:
+	 * - 対象Tableのsnapshotは安全側のunavailableへ戻る。
+	 */
+	it( 'when the selected BlockListBlock unmounts, should discard its toolbar snapshot', () => {
+		const { unmount } = render( renderBlockListBlock() );
+		expect( getColumnDndLayoutAvailabilitySnapshot( 'table-a' ) ).toBe( 'available' );
+
+		unmount();
+
+		expect( getColumnDndLayoutAvailabilitySnapshot( 'table-a' ) ).toBe( 'unavailable' );
 	} );
 } );

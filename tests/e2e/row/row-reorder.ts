@@ -63,7 +63,12 @@ export async function insertTable(
 		.getAttribute( 'data-block' );
 	const block = canvas.locator( `[data-block="${ identity }"]` );
 	await editor.selectBlocks( block );
-	return { canvas, block, rows: block.locator( 'tbody > tr' ) };
+	return {
+		canvas,
+		block,
+		table: block.locator( 'table' ).first(),
+		rows: block.locator( 'tbody > tr' ),
+	};
 }
 
 /**

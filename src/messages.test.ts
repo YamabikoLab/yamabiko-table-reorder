@@ -3,6 +3,7 @@
  */
 
 import {
+	getColumnDndLayoutUnavailableMessage,
 	getLargeColumnReorderMoveSummary,
 	getLargeRowReorderMoveSummary,
 	getColumnMergedRangeMessage,
@@ -19,6 +20,18 @@ describe( 'User-facing messages', () => {
 	 */
 	it( 'when the plugin name is loaded, should keep it available to the i18n pipeline', () => {
 		expect( PLUGIN_NAME ).toBe( 'Yamabiko Table Reorder' );
+	} );
+
+	/**
+	 * 現在表示でColumn DnDを利用できない場合の代替操作案内を確認する。
+	 *
+	 * 期待結果:
+	 * - 現在表示で利用できないことと、RFで列を並び替えられることが一つの文言で取得できる。
+	 */
+	it( 'when column drag layout is unavailable, should provide the form alternative message', () => {
+		expect( getColumnDndLayoutUnavailableMessage() ).toBe(
+			'Column drag reordering is unavailable in the current view. You can reorder columns using the form.'
+		);
 	} );
 
 	/**

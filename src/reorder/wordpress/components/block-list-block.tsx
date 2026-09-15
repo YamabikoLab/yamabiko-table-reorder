@@ -19,6 +19,7 @@ import {
 	ColumnDnd,
 	type ColumnDndPointerDownHandler,
 } from '@/reorder/column-reorder/integration/dnd';
+import { resolveColumnDndLayoutAvailability } from '@/reorder/column-reorder/responsibilities/layout-availability';
 import {
 	ColumnHighlight,
 	type ColumnHighlightPointerOutHandler,
@@ -35,6 +36,10 @@ import {
 	preserveEditingStartHandler,
 	type EditingStartWrapperProps,
 } from '@/reorder/wordpress/editing-start';
+import {
+	clearColumnDndLayoutAvailabilitySnapshot,
+	updateColumnDndLayoutAvailabilitySnapshot,
+} from '@/reorder/wordpress/column-dnd-layout-availability-state';
 
 import './editing-guard.scss';
 
@@ -201,6 +206,12 @@ export const ReorderModeBlockListBlock = ( props: {
 		[ resolveCurrentWrapper ]
 	);
 
+	/** 現在wrapperに描画された対象Tableを、anchorと同じEditor DOM Contextから解決する。 */
+	const resolveCurrentTable = useCallback( (): HTMLTableElement | null => {
+		const currentWrapper = resolveCurrentWrapper();
+		return currentWrapper?.querySelector< HTMLTableElement >( 'table' ) ?? null;
+	}, [ resolveCurrentWrapper ] );
+
 	/* Gutenberg側の通常renderでwrapperが再接続された場合も、現在modeを新しいDOMへ同期する。 */
 	useLayoutEffect( () => {
 		synchronizeCurrentWrapper( reorderMode.getMode( clientId ) );
@@ -215,6 +226,82 @@ export const ReorderModeBlockListBlock = ( props: {
 			synchronizedWrapper.current = null;
 		};
 	}, [ clientId, synchronizeCurrentWrapper ] );
+
+	/* 選択中Tableの現在物理配置をToolbar用snapshotへ接続し、表示変化後も利用不能なColumn Reorder Modeを維持しない。 */
+	useEffect( () => {
+		if ( ! isSelected ) {
+			clearColumnDndLayoutAvailabilitySnapshot( clientId );
+			return;
+		}
+
+		const anchor = modeDomAnchor.current;
+		const wrapperParent = anchor?.parentNode ?? null;
+		const editorWindow = anchor?.ownerDocument.defaultView ?? null;
+
+		if ( wrapperParent === null || editorWindow === null ) {
+			clearColumnDndLayoutAvailabilitySnapshot( clientId );
+			return;
+		}
+
+		const evaluateAvailability = (): HTMLTableElement | null => {
+			const table = resolveCurrentTable();
+			const availability = resolveColumnDndLayoutAvailability( table );
+			updateColumnDndLayoutAvailabilitySnapshot( clientId, availability );
+
+			/* Column DnDの物理配置が失われた時点で、他の並び替え手段へ影響させず通常編集モードへ戻す。 */
+			if ( availability === 'unavailable' && reorderMode.getMode( clientId ) === 'column' ) {
+				reorderMode.select( 'column', clientId );
+			}
+
+			return table;
+		};
+
+		const ResizeObserverConstructor = editorWindow.ResizeObserver;
+		const resizeObserver = ResizeObserverConstructor
+			? new ResizeObserverConstructor( () => evaluateAvailability() )
+			: null;
+		let mutationObserver: MutationObserver | null = null;
+
+		/**
+		 * Table構造、wrapper / Tableの表示属性、Tableとセルの寸法変化を次の評価契機へ接続する。
+		 * DnD中のセル個別Presentation属性は監視対象にせず、物理操作表示をToolbar用の元配置評価へ混入させない。
+		 */
+		const observeCurrentGeometry = (): void => {
+			resizeObserver?.disconnect();
+			mutationObserver?.disconnect();
+			mutationObserver?.observe( wrapperParent, {
+				childList: true,
+				subtree: true,
+			} );
+
+			const wrapper = resolveCurrentWrapper();
+			const table = evaluateAvailability();
+			if ( wrapper !== null ) {
+				mutationObserver?.observe( wrapper, { attributes: true } );
+			}
+
+			if ( table === null ) {
+				return;
+			}
+
+			mutationObserver?.observe( table, { attributes: true } );
+			resizeObserver?.observe( table );
+			Array.from( table.rows ).forEach( ( row ) => {
+				Array.from( row.cells ).forEach( ( cell ) => resizeObserver?.observe( cell ) );
+			} );
+		};
+
+		mutationObserver = new editorWindow.MutationObserver( observeCurrentGeometry );
+		editorWindow.addEventListener( 'resize', evaluateAvailability );
+		observeCurrentGeometry();
+
+		return () => {
+			mutationObserver?.disconnect();
+			resizeObserver?.disconnect();
+			editorWindow.removeEventListener( 'resize', evaluateAvailability );
+			clearColumnDndLayoutAvailabilitySnapshot( clientId );
+		};
+	}, [ clientId, isSelected, resolveCurrentTable, resolveCurrentWrapper ] );
 
 	/* Gutenberg自身の更新だけでBlock wrapper DOMが再接続される場合に備え、Table内部ではなく同じ描画先の直下変更だけから現在modeを再同期する。 */
 	useEffect( () => {

@@ -9,6 +9,7 @@ import { ReorderModeToolbar } from './toolbar';
 
 let mockSelectedKind: 'row' | 'column' | null = null;
 let mockRfState: any = { status: 'closed' };
+let mockColumnDndLayoutAvailability: 'available' | 'unavailable' = 'available';
 const mockSelectMode = jest.fn();
 const mockOpenRf = jest.fn();
 const mockCloseRf = jest.fn();
@@ -26,30 +27,69 @@ jest.mock( '@wordpress/components', () => {
 		ToolbarButton: react.forwardRef<
 			HTMLButtonElement,
 			{
+				'aria-disabled'?: boolean;
+				'aria-describedby'?: string;
 				className?: string;
 				disabled?: boolean;
 				isPressed: boolean;
 				label: string;
+				onBlur?: () => void;
 				onClick: () => void;
+				onFocus?: () => void;
+				onMouseEnter?: () => void;
+				onMouseLeave?: () => void;
+				onTouchStart?: () => void;
 			}
-		>( ( { className, disabled, isPressed, label, onClick }, ref ) => (
-			<button
-				ref={ ref }
-				aria-label={ label }
-				aria-pressed={ isPressed }
-				className={ className }
-				disabled={ disabled }
-				onClick={ onClick }
-				type="button"
-			/>
-		) ),
+		>(
+			(
+				{
+					'aria-disabled': ariaDisabled,
+					'aria-describedby': ariaDescribedBy,
+					className,
+					disabled,
+					isPressed,
+					label,
+					onBlur,
+					onClick,
+					onFocus,
+					onMouseEnter,
+					onMouseLeave,
+					onTouchStart,
+				},
+				ref
+			) => (
+				<button
+					ref={ ref }
+					aria-describedby={ ariaDescribedBy }
+					aria-disabled={ ariaDisabled }
+					aria-label={ label }
+					aria-pressed={ isPressed }
+					className={ className }
+					disabled={ disabled }
+					onBlur={ onBlur }
+					onClick={ onClick }
+					onFocus={ onFocus }
+					onMouseEnter={ onMouseEnter }
+					onMouseLeave={ onMouseLeave }
+					onTouchStart={ onTouchStart }
+					type="button"
+				/>
+			)
+		),
+		Popover: ( props: { children: ReactNode } ) => <div>{ props.children }</div>,
 	};
 } );
 
 jest.mock( '@/messages', () => ( {
+	getColumnDndLayoutUnavailableMessage: () =>
+		'Column drag reordering is unavailable in the current view. You can reorder columns using the form.',
 	getColumnReorderName: () => 'Reorder columns',
 	getRfReorderName: () => 'Reorder with form',
 	getRowReorderName: () => 'Reorder rows',
+} ) );
+
+jest.mock( '@/reorder/wordpress/column-dnd-layout-availability-state', () => ( {
+	useColumnDndLayoutAvailabilitySnapshot: () => mockColumnDndLayoutAvailability,
 } ) );
 
 jest.mock( '@/reorder/reorder-mode-react', () => ( {
@@ -102,6 +142,7 @@ describe( 'Reorder toolbar RF exclusivity', () => {
 	beforeEach( () => {
 		mockSelectedKind = null;
 		mockRfState = { status: 'closed' };
+		mockColumnDndLayoutAvailability = 'available';
 		jest.clearAllMocks();
 	} );
 
@@ -225,5 +266,40 @@ describe( 'Reorder toolbar RF exclusivity', () => {
 		expect( rowButton.disabled ).toBe( true );
 		expect( columnButton.disabled ).toBe( true );
 		expect( rfButton.disabled ).toBe( true );
+	} );
+
+	/**
+	 * 概要:
+	 * - 現在表示で物理列配置が成立しない場合に、Column DnD入口を選択不可にしながら理由を取得できることを確認する。
+	 *
+	 * 事前条件:
+	 * - 対象TableのToolbar表示用availability snapshotはunavailableである。
+	 *
+	 * 操作:
+	 * - Column DnD入口を表示して選択する。
+	 *
+	 * 期待結果:
+	 * - 入口はfocus可能なままaria-disabledとして表現される。
+	 * - 現在表示で利用できないこととRFによる代替操作を示すPopoverが接続される。
+	 * - Column Reorder Modeは開始されない。
+	 */
+	it( 'when column DnD layout is unavailable, should expose the reason without selecting column mode', () => {
+		mockColumnDndLayoutAvailability = 'unavailable';
+		render( <ReorderModeToolbar tableIdentity="table-a" /> );
+
+		const columnButton = screen.getByRole( 'button', {
+			name: 'Reorder columns',
+		} ) as HTMLButtonElement;
+
+		expect( columnButton.disabled ).toBe( false );
+		expect( columnButton.getAttribute( 'aria-disabled' ) ).toBe( 'true' );
+		fireEvent.focus( columnButton );
+		expect( screen.getByRole( 'tooltip' ).textContent ).toBe(
+			'Column drag reordering is unavailable in the current view. You can reorder columns using the form.'
+		);
+
+		fireEvent.click( columnButton );
+
+		expect( mockSelectMode ).not.toHaveBeenCalled();
 	} );
 } );

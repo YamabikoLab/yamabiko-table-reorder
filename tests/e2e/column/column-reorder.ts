@@ -4,6 +4,8 @@ import type { Editor } from '@wordpress/e2e-test-utils-playwright';
 import { getEditorContext } from '../editor-context';
 
 export const COLUMN_BUTTON = /^(Reorder columns|列を並び替え|列を並べ替え)$/;
+export const COLUMN_LAYOUT_UNAVAILABLE =
+	/^(Column drag reordering is unavailable in the current view\. You can reorder columns using the form\.|現在の表示では列のドラッグ並び替えを使用できません。列の並び替えはフォームから行えます。)$/;
 export const MERGED_RANGE_REJECTION =
 	/^(A merged cell in row 1 spanning columns 1–2 prevents this move\.|1行目の1〜2列目に結合セルがあるため、この指定では移動できません。)$/;
 
