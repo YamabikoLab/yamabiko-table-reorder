@@ -28,6 +28,7 @@ import {
 import { resolveEditorDomContext } from '@/reorder/editor-dom-context';
 import { reorderMode } from '@/reorder/reorder-mode';
 import { subscribeReorderMode, type TableReorderMode } from '@/reorder/reorder-mode-subscription';
+import { COLUMN_DND_LAYOUT_AVAILABILITY_DEBOUNCE_MS } from '@/reorder/reorder-tuning';
 import { RowDnd, type RowDndPointerDownHandler } from '@/reorder/row-reorder/integration/dnd';
 import {
 	RowHighlight,
@@ -246,8 +247,7 @@ export const ReorderModeBlockListBlock = ( props: {
 		}
 
 		const editorWindow = editorDomContext.window;
-		let active = true;
-		let evaluationScheduled = false;
+		let evaluationTimer: number | null = null;
 
 		const evaluateAvailability = (): HTMLTableElement | null => {
 			const table = resolveCurrentTable();
@@ -262,19 +262,19 @@ export const ReorderModeBlockListBlock = ( props: {
 			return table;
 		};
 
-		/** 同じ描画更新から届く複数の変化通知を1回のToolbar用再評価へまとめる。 */
+		/**
+		 * Toolbar表示用の再評価をまとめ、表示変化が落ち着いた後に1回だけ現在物理配置を評価する。
+		 * DnD開始可否は開始直前のfresh判定で保証するため、連続通知ごとの即時評価は行わない。
+		 */
 		const scheduleAvailabilityEvaluation = (): void => {
-			if ( evaluationScheduled ) {
-				return;
+			if ( evaluationTimer !== null ) {
+				editorWindow.clearTimeout( evaluationTimer );
 			}
 
-			evaluationScheduled = true;
-			Promise.resolve().then( () => {
-				evaluationScheduled = false;
-				if ( active ) {
-					evaluateAvailability();
-				}
-			} );
+			evaluationTimer = editorWindow.setTimeout( () => {
+				evaluationTimer = null;
+				evaluateAvailability();
+			}, COLUMN_DND_LAYOUT_AVAILABILITY_DEBOUNCE_MS );
 		};
 
 		const ResizeObserverConstructor = editorWindow.ResizeObserver;
@@ -293,7 +293,7 @@ export const ReorderModeBlockListBlock = ( props: {
 			mutationObserver?.observe( wrapperParent, { childList: true } );
 
 			const wrapper = resolveCurrentWrapper();
-			const table = evaluateAvailability();
+			const table = resolveCurrentTable();
 			if ( wrapper !== null ) {
 				mutationObserver?.observe( wrapper, { attributes: true } );
 			}
@@ -313,6 +313,7 @@ export const ReorderModeBlockListBlock = ( props: {
 
 			if ( wrapperReconnected ) {
 				observeCurrentGeometry();
+				scheduleAvailabilityEvaluation();
 				return;
 			}
 
@@ -320,9 +321,12 @@ export const ReorderModeBlockListBlock = ( props: {
 		} );
 		editorWindow.addEventListener( 'resize', scheduleAvailabilityEvaluation );
 		observeCurrentGeometry();
+		evaluateAvailability();
 
 		return () => {
-			active = false;
+			if ( evaluationTimer !== null ) {
+				editorWindow.clearTimeout( evaluationTimer );
+			}
 			mutationObserver?.disconnect();
 			resizeObserver?.disconnect();
 			editorWindow.removeEventListener( 'resize', scheduleAvailabilityEvaluation );
