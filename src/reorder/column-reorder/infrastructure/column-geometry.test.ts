@@ -187,4 +187,52 @@ describe( 'Column geometry measurement', () => {
 			{ index: 2, offset: 200 },
 		] );
 	} );
+
+	/**
+	 * 概要:
+	 * - 描画されていない行が、表示中の行から得た物理列境界を壊さないことを確認する。
+	 * 事前条件:
+	 * - 1行目は通常の横方向配置で、2行目のセルは描画boxを持たない。
+	 * 操作:
+	 * - Table全体の論理列境界観測を取得する。
+	 * 期待結果:
+	 * - 表示中の行から得た境界だけが返され、非表示行の0位置は観測値へ混入しない。
+	 */
+	it( 'when a later row has no rendered cell boxes, should ignore that row in physical boundary observations', () => {
+		const table = document.createElement( 'table' );
+		const tbody = document.createElement( 'tbody' );
+		const visibleRow = document.createElement( 'tr' );
+		const hiddenRow = document.createElement( 'tr' );
+		const visibleFirstCell = document.createElement( 'td' );
+		const visibleSecondCell = document.createElement( 'td' );
+		const hiddenFirstCell = document.createElement( 'td' );
+		const hiddenSecondCell = document.createElement( 'td' );
+		visibleRow.append( visibleFirstCell, visibleSecondCell );
+		hiddenRow.append( hiddenFirstCell, hiddenSecondCell );
+		tbody.append( visibleRow, hiddenRow );
+		table.appendChild( tbody );
+		setTableRectangle( table, 200 );
+		setCellRectangle( visibleFirstCell, 0, 80 );
+		setCellRectangle( visibleSecondCell, 80, 200 );
+		[ hiddenFirstCell, hiddenSecondCell ].forEach( ( cell ) => {
+			jest.spyOn( cell, 'getBoundingClientRect' ).mockReturnValue( {
+				left: 0,
+				right: 0,
+				top: 0,
+				bottom: 0,
+				width: 0,
+				height: 0,
+				x: 0,
+				y: 0,
+				toJSON: () => ( {} ),
+			} );
+		} );
+
+		expect( measureTableColumnBoundaryObservations( table ) ).toEqual( [
+			{ index: 0, offset: 0 },
+			{ index: 1, offset: 80 },
+			{ index: 1, offset: 80 },
+			{ index: 2, offset: 200 },
+		] );
+	} );
 } );
