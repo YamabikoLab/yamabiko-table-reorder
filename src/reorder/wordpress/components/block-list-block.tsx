@@ -81,7 +81,7 @@ const preservePointerDownHandler = (
  * @param existingHandler        Gutenberg本体または他のfilterが設定した既存handler。
  * @param rowHighlightHandler    行ホバー表示が提供する判定handler。
  * @param columnHighlightHandler 列の開始前予告表示が提供する判定handler。
- * @return 既存処理の後に方向固有の操作可否表示へ入力を通知するhandler。
+ * @return 既存処理の後に方向固有DnDへ開始入力を通知するhandler。
  */
 const preservePointerOverHandler = (
 	existingHandler: unknown,
@@ -243,6 +243,9 @@ export const ReorderModeBlockListBlock = ( props: {
 			return;
 		}
 
+		let active = true;
+		let evaluationScheduled = false;
+
 		const evaluateAvailability = (): HTMLTableElement | null => {
 			const table = resolveCurrentTable();
 			const availability = resolveColumnDndLayoutAvailability( table );
@@ -256,23 +259,35 @@ export const ReorderModeBlockListBlock = ( props: {
 			return table;
 		};
 
+		/** 同じ描画更新から届く複数の変化通知を1回のToolbar用再評価へまとめる。 */
+		const scheduleAvailabilityEvaluation = (): void => {
+			if ( evaluationScheduled ) {
+				return;
+			}
+
+			evaluationScheduled = true;
+			Promise.resolve().then( () => {
+				evaluationScheduled = false;
+				if ( active ) {
+					evaluateAvailability();
+				}
+			} );
+		};
+
 		const ResizeObserverConstructor = editorWindow.ResizeObserver;
 		const resizeObserver = ResizeObserverConstructor
-			? new ResizeObserverConstructor( () => evaluateAvailability() )
+			? new ResizeObserverConstructor( scheduleAvailabilityEvaluation )
 			: null;
 		let mutationObserver: MutationObserver | null = null;
 
 		/**
-		 * Table構造、wrapper / Tableの表示属性、Tableとセルの寸法変化を次の評価契機へ接続する。
-		 * DnD中のセル個別Presentation属性は監視対象にせず、物理操作表示をToolbar用の元配置評価へ混入させない。
+		 * Toolbar表示用snapshotはTable全体の変化だけを粗い再評価契機として監視する。
+		 * セル単位の常駐監視は行わず、DnD開始可否の保証は開始直前のfresh判定へ委ねる。
 		 */
 		const observeCurrentGeometry = (): void => {
 			resizeObserver?.disconnect();
 			mutationObserver?.disconnect();
-			mutationObserver?.observe( wrapperParent, {
-				childList: true,
-				subtree: true,
-			} );
+			mutationObserver?.observe( wrapperParent, { childList: true } );
 
 			const wrapper = resolveCurrentWrapper();
 			const table = evaluateAvailability();
@@ -286,19 +301,28 @@ export const ReorderModeBlockListBlock = ( props: {
 
 			mutationObserver?.observe( table, { attributes: true } );
 			resizeObserver?.observe( table );
-			Array.from( table.rows ).forEach( ( row ) => {
-				Array.from( row.cells ).forEach( ( cell ) => resizeObserver?.observe( cell ) );
-			} );
 		};
 
-		mutationObserver = new editorWindow.MutationObserver( observeCurrentGeometry );
-		editorWindow.addEventListener( 'resize', evaluateAvailability );
+		mutationObserver = new editorWindow.MutationObserver( ( records ) => {
+			const wrapperReconnected = records.some(
+				( record ) => record.target === wrapperParent && record.type === 'childList'
+			);
+
+			if ( wrapperReconnected ) {
+				observeCurrentGeometry();
+				return;
+			}
+
+			scheduleAvailabilityEvaluation();
+		} );
+		editorWindow.addEventListener( 'resize', scheduleAvailabilityEvaluation );
 		observeCurrentGeometry();
 
 		return () => {
+			active = false;
 			mutationObserver?.disconnect();
 			resizeObserver?.disconnect();
-			editorWindow.removeEventListener( 'resize', evaluateAvailability );
+			editorWindow.removeEventListener( 'resize', scheduleAvailabilityEvaluation );
 			clearColumnDndLayoutAvailabilitySnapshot( clientId );
 		};
 	}, [ clientId, isSelected, resolveCurrentTable, resolveCurrentWrapper ] );
