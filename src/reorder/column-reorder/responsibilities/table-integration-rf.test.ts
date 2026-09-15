@@ -3,19 +3,29 @@
  */
 
 import { columnTableIntegration } from './table-integration';
+import { RichTextData } from '@wordpress/rich-text';
 
 jest.mock( '@wordpress/block-editor', () => ( {
 	store: Symbol( 'block-editor-store' ),
 } ) );
 
-jest.mock( '@wordpress/data', () => ( {
-	dispatch: jest.fn(),
-	select: jest.fn(),
-} ) );
+jest.mock( '@wordpress/data', () => {
+	const actualData = jest.requireActual( '@wordpress/data' );
+	return Object.defineProperties( Object.create( actualData ), {
+		dispatch: { enumerable: true, value: jest.fn() },
+		select: { enumerable: true, value: jest.fn() },
+	} );
+} );
 
 const { dispatch: dispatchMock, select: selectMock } = jest.requireMock( '@wordpress/data' ) as {
 	dispatch: jest.Mock;
 	select: jest.Mock;
+};
+const { select: actualSelect } = jest.requireActual( '@wordpress/data' ) as {
+	select: ( store: unknown ) => unknown;
+};
+const { store: blockEditorStore } = jest.requireMock( '@wordpress/block-editor' ) as {
+	store: symbol;
 };
 
 describe( 'Column Table Integration RF contract', () => {
@@ -75,25 +85,28 @@ describe( 'Column Table Integration RF contract', () => {
 	 * - HTML entityは表示文字へ復元される。
 	 */
 	it( 'when head content uses RichText or HTML representations, should expose normalized plain-text headings', () => {
-		const richTextHeading = {
-			toPlainText: jest.fn().mockReturnValue( '商品名' ),
-		};
-		selectMock.mockReturnValue( {
-			getBlock: jest.fn().mockReturnValue( {
-				name: 'core/table',
-				attributes: {
-					head: [
-						{
-							cells: [
-								{ content: richTextHeading },
-								{ content: '<strong>価格</strong>' },
-								{ content: 'A &amp; B' },
-							],
-						},
-					],
-					body: [ { cells: [ {}, {}, {} ] } ],
-				},
-			} ),
+		const richTextHeading = RichTextData.fromPlainText( '商品名' );
+		const getBlock = jest.fn().mockReturnValue( {
+			name: 'core/table',
+			attributes: {
+				head: [
+					{
+						cells: [
+							{ content: richTextHeading },
+							{ content: '<strong>価格</strong>' },
+							{ content: 'A &amp; B' },
+						],
+					},
+				],
+				body: [ { cells: [ {}, {}, {} ] } ],
+			},
+		} );
+		selectMock.mockImplementation( ( store ) => {
+			/* Table参照だけを差し替え、RichText StoreはWordPressの実際の選択処理へ委ねる。 */
+			if ( store === blockEditorStore ) {
+				return { getBlock };
+			}
+			return actualSelect( store );
 		} );
 
 		expect( columnTableIntegration.getColumnInputDescriptors( 'table-a' ) ).toEqual( [
@@ -101,7 +114,6 @@ describe( 'Column Table Integration RF contract', () => {
 			{ columnIndex: 1, columnNumber: 2, heading: '価格' },
 			{ columnIndex: 2, columnNumber: 3, heading: 'A & B' },
 		] );
-		expect( richTextHeading.toPlainText ).toHaveBeenCalledTimes( 1 );
 	} );
 
 	/**
