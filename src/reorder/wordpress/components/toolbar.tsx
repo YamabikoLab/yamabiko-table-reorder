@@ -5,10 +5,15 @@
  */
 
 import { BlockControls } from '@wordpress/block-editor';
-import { ToolbarButton, ToolbarGroup } from '@wordpress/components';
+import { Popover, ToolbarButton, ToolbarGroup } from '@wordpress/components';
 import { useState } from '@wordpress/element';
 
-import { getColumnReorderName, getRfReorderName, getRowReorderName } from '@/messages';
+import {
+	getColumnDndLayoutUnavailableMessage,
+	getColumnReorderName,
+	getRfReorderName,
+	getRowReorderName,
+} from '@/messages';
 import { rfInteraction } from '@/reorder/reorder-form/responsibilities/interaction';
 import { useRfInteraction } from '@/reorder/reorder-form/responsibilities/interaction-react';
 import type { ReorderKind } from '@/reorder/reorder-mode';
@@ -21,6 +26,7 @@ import {
 } from '@/reorder/wordpress/components/reorder-form-height';
 import { reorderFormPosition } from '@/reorder/wordpress/components/reorder-form-position';
 import { ReorderGuidance } from '@/reorder/wordpress/components/guidance';
+import { useColumnDndLayoutAvailabilitySnapshot } from '@/reorder/wordpress/column-dnd-layout-availability-state';
 import { useReorderGuidance } from '@/reorder/wordpress/hooks/use-reorder-guidance';
 
 /** Reorder入口のツールバーへ接続する対象Tableを表す。 */
@@ -119,11 +125,16 @@ const formReorderIcon = (
 export const ReorderModeToolbar = ( props: ReorderModeToolbarProps ) => {
 	const { tableIdentity } = props;
 	const { selectedKind, select: selectMode } = useReorderMode( tableIdentity );
+	const columnDndLayoutAvailability = useColumnDndLayoutAvailabilitySnapshot( tableIdentity );
 	const rfState = useRfInteraction( tableIdentity );
 	const [ guidanceAnchor, setGuidanceAnchor ] = useState< HTMLElement | null >( null );
+	const [ columnDndAnchor, setColumnDndAnchor ] = useState< HTMLElement | null >( null );
+	const [ columnDndReasonVisible, setColumnDndReasonVisible ] = useState( false );
 	const [ rfAnchor, setRfAnchor ] = useState< HTMLElement | null >( null );
 	const rfActive = rfState.status !== 'closed';
 	const rfApplying = rfState.status === 'applying';
+	const columnDndUnavailable = columnDndLayoutAvailability === 'unavailable';
+	const columnDndUnavailableReasonId = `yamabiko-table-reorder-column-dnd-unavailable-${ tableIdentity }`;
 	const { dismiss, guidance } = useReorderGuidance( tableIdentity, guidanceAnchor, rfActive );
 	useReorderFormNarrowHeight( tableIdentity, rfAnchor, rfState.status === 'open' );
 
@@ -141,12 +152,59 @@ export const ReorderModeToolbar = ( props: ReorderModeToolbarProps ) => {
 			return;
 		}
 
+		/* 物理列配置が成立しない場合は、理由を確認できる入口を維持したままColumn Reorder Modeへ進ませない。 */
+		if ( kind === 'column' && columnDndUnavailable ) {
+			return;
+		}
+
 		if ( rfState.status === 'open' ) {
 			rfInteraction.close( tableIdentity );
 		}
 
 		selectMode( kind );
 	};
+
+	const columnDndEntry = (
+		<ToolbarButton
+			aria-disabled={ columnDndUnavailable || undefined }
+			aria-describedby={
+				columnDndUnavailable && columnDndReasonVisible ? columnDndUnavailableReasonId : undefined
+			}
+			ref={ setColumnDndAnchor }
+			className={ guidanceTargetClassName }
+			disabled={ rfApplying }
+			icon={ columnReorderIcon }
+			isPressed={ selectedKind === 'column' }
+			label={ getColumnReorderName() }
+			onBlur={ () => setColumnDndReasonVisible( false ) }
+			onClick={ () => {
+				if ( columnDndUnavailable ) {
+					setColumnDndReasonVisible( true );
+				}
+				selectDndMode( 'column' );
+			} }
+			onFocus={ () => {
+				if ( columnDndUnavailable ) {
+					setColumnDndReasonVisible( true );
+				}
+			} }
+			onMouseEnter={ () => {
+				if ( columnDndUnavailable ) {
+					setColumnDndReasonVisible( true );
+				}
+			} }
+			onMouseLeave={ () => {
+				if ( columnDndAnchor?.ownerDocument.activeElement !== columnDndAnchor ) {
+					setColumnDndReasonVisible( false );
+				}
+			} }
+			onTouchStart={ () => {
+				if ( columnDndUnavailable ) {
+					setColumnDndReasonVisible( true );
+				}
+			} }
+		/>
+	);
 
 	/** RF入口の再選択では終了し、開始時はDnDモードを通常編集へ戻してからSessionを開く。 */
 	const selectRf = (): void => {
@@ -184,14 +242,7 @@ export const ReorderModeToolbar = ( props: ReorderModeToolbarProps ) => {
 					label={ getRowReorderName() }
 					onClick={ () => selectDndMode( 'row' ) }
 				/>
-				<ToolbarButton
-					className={ guidanceTargetClassName }
-					disabled={ rfApplying }
-					icon={ columnReorderIcon }
-					isPressed={ selectedKind === 'column' }
-					label={ getColumnReorderName() }
-					onClick={ () => selectDndMode( 'column' ) }
-				/>
+				{ columnDndEntry }
 				<ToolbarButton
 					ref={ setRfAnchor }
 					className={ guidanceTargetClassName }
@@ -202,6 +253,18 @@ export const ReorderModeToolbar = ( props: ReorderModeToolbarProps ) => {
 					onClick={ selectRf }
 				/>
 			</ToolbarGroup>
+			{ columnDndUnavailable && columnDndReasonVisible && columnDndAnchor !== null && (
+				<Popover
+					anchor={ columnDndAnchor }
+					focusOnMount={ false }
+					onClose={ () => setColumnDndReasonVisible( false ) }
+					placement="bottom"
+				>
+					<p id={ columnDndUnavailableReasonId } role="tooltip">
+						{ getColumnDndLayoutUnavailableMessage() }
+					</p>
+				</Popover>
+			) }
 			{ /* RFの入力状態はPopoverのmountではなくRF Interactionが所有する。 */ }
 			<ReorderFormPopover anchor={ rfAnchor } state={ rfState } tableIdentity={ tableIdentity } />
 			{ /* 有効な案内対象がある場合だけ、確定済みの操作環境で初回案内を描画する。 */ }

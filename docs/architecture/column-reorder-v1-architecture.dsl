@@ -91,6 +91,12 @@ workspace "YTR Reorder v1 Architecture" {
 				element.setGroup("Column Reorder")
 			}
 		}
+		RESP_COLUMN_DND_LAYOUT_AVAILABILITY = element "Column DnD Layout Availability" "Responsibility" "要求時点のEditor DOMから観測した論理列境界が、Column DnDに利用できる横方向の1次元配置を形成するかを判定する。" {
+			tags "Responsibility"
+			!script groovy {
+				element.setGroup("Column Reorder")
+			}
+		}
 		RESP_COLUMN_DESTINATION_RESOLUTION = element "Destination Resolution" "Responsibility" "DnD Engineの物理入力位置をDnD開始時のTable配置に対する論理列間境界へ変換する。" {
 			tags "Responsibility"
 			!script groovy {
@@ -140,361 +146,415 @@ workspace "YTR Reorder v1 Architecture" {
 		DEP_004 = RESP_WORDPRESS_REORDER_INTEGRATION -> RESP_COLUMN_DND_ENGINE_INTEGRATION "対象Tableの列並び替え有効状態を方向固有DnD境界へ接続するために必要とする。" {
 			tags "Structural Dependency"
 		}
-		DEP_005 = RESP_WORDPRESS_REORDER_APPLY_INTEGRATION -> EXT_WORDPRESS_EDITOR "確認UI、反映中表示、更新後の編集表示をWordPress Editorへ接続するために必要とする。" {
+		DEP_005 = RESP_WORDPRESS_REORDER_INTEGRATION -> RESP_COLUMN_DND_LAYOUT_AVAILABILITY "現在のEditor DOMを基準にToolbar表示用availability snapshotを更新するために必要とする。" {
 			tags "Structural Dependency"
 		}
-		DEP_006 = RESP_WORDPRESS_REORDER_APPLY_INTEGRATION -> RESP_COLUMN_REORDER_APPLY "方向固有の確認付き大規模反映状態をEditor表示へ接続し、Continue / Cancel / 表示復帰完了をLifecycleへ返すために必要とする。" {
+		DEP_006 = RESP_WORDPRESS_REORDER_APPLY_INTEGRATION -> EXT_WORDPRESS_EDITOR "確認UI、反映中表示、更新後の編集表示をWordPress Editorへ接続するために必要とする。" {
 			tags "Structural Dependency"
 		}
-		DEP_007 = RESP_REORDER_GUIDANCE_INTEGRATION -> EXT_WORDPRESS_EDITOR "初回案内の表示契機とWordPress Editor上の表示位置を接続するために必要とする。" {
+		DEP_007 = RESP_WORDPRESS_REORDER_APPLY_INTEGRATION -> RESP_COLUMN_REORDER_APPLY "方向固有の確認付き大規模反映状態をEditor表示へ接続し、Continue / Cancel / 表示復帰完了をLifecycleへ返すために必要とする。" {
 			tags "Structural Dependency"
 		}
-		DEP_008 = RESP_REORDER_GUIDANCE_INTEGRATION -> EXT_WORDPRESS_PREFERENCES "PC / タッチごとの初回案内表示済み状態を永続化するために必要とする。" {
+		DEP_008 = RESP_REORDER_GUIDANCE_INTEGRATION -> EXT_WORDPRESS_EDITOR "初回案内の表示契機とWordPress Editor上の表示位置を接続するために必要とする。" {
 			tags "Structural Dependency"
 		}
-		DEP_009 = RESP_REORDER_GUIDANCE_INTEGRATION -> RESP_EDITOR_DOM_CONTEXT "現在のEditor DOMに対する操作環境を解決するために必要とする。" {
+		DEP_009 = RESP_REORDER_GUIDANCE_INTEGRATION -> EXT_WORDPRESS_PREFERENCES "PC / タッチごとの初回案内表示済み状態を永続化するために必要とする。" {
 			tags "Structural Dependency"
 		}
-		DEP_010 = RESP_REORDER_GUIDANCE_INTEGRATION -> RESP_REORDER_GUIDANCE "現在の共通入口案内状態を開始・終了するために必要とする。" {
+		DEP_010 = RESP_REORDER_GUIDANCE_INTEGRATION -> RESP_EDITOR_DOM_CONTEXT "現在のEditor DOMに対する操作環境を解決するために必要とする。" {
 			tags "Structural Dependency"
 		}
-		DEP_011 = RESP_REORDER_GUIDANCE_INTEGRATION -> RESP_REORDER_MODE "いずれかの並び替え入口選択を案内終了条件として扱うために必要とする。" {
+		DEP_011 = RESP_REORDER_GUIDANCE_INTEGRATION -> RESP_REORDER_GUIDANCE "現在の共通入口案内状態を開始・終了するために必要とする。" {
 			tags "Structural Dependency"
 		}
-		DEP_012 = RESP_COLUMN_INPUT_INTERACTION -> RESP_COLUMN_TARGET_RESOLUTION "入力開始候補を第一段階の現在制約で解決するために必要とする。" {
+		DEP_012 = RESP_REORDER_GUIDANCE_INTEGRATION -> RESP_REORDER_MODE "いずれかの並び替え入口選択を案内終了条件として扱うために必要とする。" {
 			tags "Structural Dependency"
 		}
-		DEP_013 = RESP_COLUMN_INPUT_INTERACTION -> EXT_DND_ENGINE "開始可能な候補だけを物理DnD開始候補として一時登録するために必要とする。" {
+		DEP_013 = RESP_COLUMN_INPUT_INTERACTION -> RESP_COLUMN_TARGET_RESOLUTION "入力開始候補を第一段階の現在制約で解決するために必要とする。" {
 			tags "Structural Dependency"
 		}
-		DEP_014 = RESP_COLUMN_INPUT_INTERACTION -> RESP_COLUMN_PRESENTATION "第一段階でDesign上の開始拒否理由が返った場合に一回性の利用者向け通知へ接続するために必要とする。" {
+		DEP_014 = RESP_COLUMN_INPUT_INTERACTION -> EXT_DND_ENGINE "開始可能な候補だけを物理DnD開始候補として一時登録するために必要とする。" {
 			tags "Structural Dependency"
 		}
-		DEP_015 = RESP_COLUMN_DND_ENGINE_INTEGRATION -> RESP_COLUMN_INPUT_INTERACTION "DnD Engine境界の配下で列開始入力を有効化し、開始候補登録を接続するために必要とする。" {
+		DEP_015 = RESP_COLUMN_INPUT_INTERACTION -> RESP_COLUMN_PRESENTATION "第一段階でDesign上の開始拒否理由が返った場合に一回性の利用者向け通知へ接続するために必要とする。" {
 			tags "Structural Dependency"
 		}
-		DEP_016 = RESP_COLUMN_DND_ENGINE_INTEGRATION -> EXT_DND_ENGINE "物理DnDの開始前、開始、移動、終了Lifecycleを受け取るために必要とする。" {
+		DEP_016 = RESP_COLUMN_DND_ENGINE_INTEGRATION -> RESP_COLUMN_INPUT_INTERACTION "DnD Engine境界の配下で列開始入力を有効化し、開始候補登録を接続するために必要とする。" {
 			tags "Structural Dependency"
 		}
-		DEP_017 = RESP_COLUMN_DND_ENGINE_INTEGRATION -> EXT_SCROLL_AREA "active Column DnD中に対象Tableを横方向だけ自動スクロールするために必要とする。" {
+		DEP_017 = RESP_COLUMN_DND_ENGINE_INTEGRATION -> EXT_DND_ENGINE "物理DnDの開始前、開始、移動、終了Lifecycleを受け取るために必要とする。" {
 			tags "Structural Dependency"
 		}
-		DEP_018 = RESP_COLUMN_DND_ENGINE_INTEGRATION -> RESP_COLUMN_TARGET_RESOLUTION "active DnD成立直前の第二段階開始可否を解決するために必要とする。" {
+		DEP_018 = RESP_COLUMN_DND_ENGINE_INTEGRATION -> EXT_SCROLL_AREA "active Column DnD中に対象Tableを横方向だけ自動スクロールするために必要とする。" {
 			tags "Structural Dependency"
 		}
-		DEP_019 = RESP_COLUMN_DND_ENGINE_INTEGRATION -> RESP_COLUMN_DESTINATION_RESOLUTION "物理DnD移動と水平自動スクロール後の現在位置を論理列間境界へ変換するために必要とする。" {
+		DEP_019 = RESP_COLUMN_DND_ENGINE_INTEGRATION -> RESP_COLUMN_TARGET_RESOLUTION "active DnD成立直前の第二段階開始可否を解決するために必要とする。" {
 			tags "Structural Dependency"
 		}
-		DEP_020 = RESP_COLUMN_DND_ENGINE_INTEGRATION -> RESP_COLUMN_DND_INTERACTION "解決済み開始情報、論理移動先、終了種別を列DnD Sessionへ接続するために必要とする。" {
+		DEP_020 = RESP_COLUMN_DND_ENGINE_INTEGRATION -> RESP_COLUMN_DND_LAYOUT_AVAILABILITY "active DnD成立直前に現在の物理列配置が操作モデルを成立させられるか保証するために必要とする。" {
 			tags "Structural Dependency"
 		}
-		DEP_021 = RESP_COLUMN_DND_ENGINE_INTEGRATION -> RESP_COLUMN_PRESENTATION "同じDnD Engine境界で独立したColumn Reorder表示を活動させるために必要とする。" {
+		DEP_021 = RESP_COLUMN_DND_ENGINE_INTEGRATION -> RESP_COLUMN_DESTINATION_RESOLUTION "物理DnD移動と水平自動スクロール後の現在位置を論理列間境界へ変換するために必要とする。" {
 			tags "Structural Dependency"
 		}
-		DEP_022 = RESP_COLUMN_DESTINATION_RESOLUTION -> EXT_DND_ENGINE "現在の物理入力位置を論理列間境界へ変換するためにDnD Engineの移動情報を必要とする。" {
+		DEP_022 = RESP_COLUMN_DND_ENGINE_INTEGRATION -> RESP_COLUMN_DND_INTERACTION "解決済み開始情報、論理移動先、終了種別を列DnD Sessionへ接続するために必要とする。" {
 			tags "Structural Dependency"
 		}
-		DEP_023 = RESP_COLUMN_TABLE_INTEGRATION -> EXT_SUPPORTED_TABLE_BLOCK "対応Table Block固有の列構造取得と列順更新を行うために必要とする。" {
+		DEP_023 = RESP_COLUMN_DND_ENGINE_INTEGRATION -> RESP_COLUMN_PRESENTATION "同じDnD Engine境界で独立したColumn Reorder表示を活動させるために必要とする。" {
 			tags "Structural Dependency"
 		}
-		DEP_024 = RESP_COLUMN_TABLE_INTEGRATION -> EXT_WORDPRESS_UNDO "成立した1回の列移動を1回のUndo単位として維持するために必要とする。" {
+		DEP_024 = RESP_COLUMN_DESTINATION_RESOLUTION -> EXT_DND_ENGINE "現在の物理入力位置を論理列間境界へ変換するためにDnD Engineの移動情報を必要とする。" {
 			tags "Structural Dependency"
 		}
-		DEP_025 = RESP_COLUMN_TARGET_RESOLUTION -> RESP_COLUMN_TABLE_INTEGRATION "要求時点の現在列制約から論理列の開始可否と開始時制約を解決するために必要とする。" {
+		DEP_025 = RESP_COLUMN_TABLE_INTEGRATION -> EXT_SUPPORTED_TABLE_BLOCK "対応Table Block固有の列構造取得と列順更新を行うために必要とする。" {
 			tags "Structural Dependency"
 		}
-		DEP_026 = RESP_COLUMN_DND_INTERACTION -> RESP_COLUMN_TABLE_INTEGRATION "complete時の現在構造再照合、確定済み列移動、終了後の対象Table継続可否確認に必要とする。" {
+		DEP_026 = RESP_COLUMN_TABLE_INTEGRATION -> EXT_WORDPRESS_UNDO "成立した1回の列移動を1回のUndo単位として維持するために必要とする。" {
 			tags "Structural Dependency"
 		}
-		DEP_027 = RESP_COLUMN_DND_INTERACTION -> RESP_REORDER_APPLY_POLICY "更新対象セル数から通常反映か確認付き大規模反映かを選択するために必要とする。" {
+		DEP_027 = RESP_COLUMN_TARGET_RESOLUTION -> RESP_COLUMN_TABLE_INTEGRATION "要求時点の現在列制約から論理列の開始可否と開始時制約を解決するために必要とする。" {
 			tags "Structural Dependency"
 		}
-		DEP_028 = RESP_COLUMN_DND_INTERACTION -> RESP_COLUMN_REORDER_APPLY "確認付き大規模反映ではDnD Session終了後に確定済み移動意図を方向固有Apply Lifecycleへ引き渡すために必要とする。" {
+		DEP_028 = RESP_COLUMN_DND_INTERACTION -> RESP_COLUMN_TABLE_INTEGRATION "complete時の現在構造再照合、確定済み列移動、終了後の対象Table継続可否確認に必要とする。" {
 			tags "Structural Dependency"
 		}
-		DEP_029 = RESP_COLUMN_REORDER_APPLY -> RESP_COLUMN_TABLE_INTEGRATION "Continue後の現在構造再照合、更新対象の成立確認、確定済み列移動の反映に必要とする。" {
+		DEP_029 = RESP_COLUMN_DND_INTERACTION -> RESP_REORDER_APPLY_POLICY "更新対象セル数から通常反映か確認付き大規模反映かを選択するために必要とする。" {
 			tags "Structural Dependency"
 		}
-		DEP_030 = RESP_COLUMN_DND_INTERACTION -> RESP_REORDER_MODE "Session終了後に対象Tableで列並び替えを安全に継続できるかだけを現在モードへ反映するために必要とする。" {
+		DEP_030 = RESP_COLUMN_DND_INTERACTION -> RESP_COLUMN_REORDER_APPLY "確認付き大規模反映ではDnD Session終了後に確定済み移動意図を方向固有Apply Lifecycleへ引き渡すために必要とする。" {
 			tags "Structural Dependency"
 		}
-		DEP_031 = RESP_COLUMN_PRESENTATION -> RESP_EDITOR_DOM_CONTEXT "現在のEditor DOM contextで一時表示を配置し、Editor表示方式に応じた周囲列移動方針を選択するために必要とする。" {
+		DEP_031 = RESP_COLUMN_REORDER_APPLY -> RESP_COLUMN_TABLE_INTEGRATION "Continue後の現在構造再照合、更新対象の成立確認、確定済み列移動の反映に必要とする。" {
 			tags "Structural Dependency"
 		}
-		DEP_032 = RESP_COLUMN_PRESENTATION -> EXT_DND_ENGINE "移動対象表示等に必要な物理DnD情報をSessionへ複製せず利用するために必要とする。" {
+		DEP_032 = RESP_COLUMN_DND_INTERACTION -> RESP_REORDER_MODE "Session終了後に対象Tableで列並び替えを安全に継続できるかだけを現在モードへ反映するために必要とする。" {
 			tags "Structural Dependency"
 		}
-		DEP_033 = RESP_COLUMN_PRESENTATION -> RESP_COLUMN_TARGET_RESOLUTION "操作可能列の事前表示等で開始可否の意味を重複判定せず利用するために必要とする。" {
+		DEP_033 = RESP_COLUMN_PRESENTATION -> RESP_EDITOR_DOM_CONTEXT "現在のEditor DOM contextで一時表示を配置し、Editor表示方式に応じた周囲列移動方針を選択するために必要とする。" {
 			tags "Structural Dependency"
 		}
-		DEP_034 = RESP_COLUMN_PRESENTATION -> RESP_COLUMN_DND_INTERACTION "active状態と現在の有効移動先を購読し、終了通知を受け取るために必要とする。" {
+		DEP_034 = RESP_COLUMN_PRESENTATION -> EXT_DND_ENGINE "移動対象表示等に必要な物理DnD情報をSessionへ複製せず利用するために必要とする。" {
+			tags "Structural Dependency"
+		}
+		DEP_035 = RESP_COLUMN_PRESENTATION -> RESP_COLUMN_TARGET_RESOLUTION "操作可能列の事前表示等で開始可否の意味を重複判定せず利用するために必要とする。" {
+			tags "Structural Dependency"
+		}
+		DEP_036 = RESP_COLUMN_PRESENTATION -> RESP_COLUMN_DND_INTERACTION "active状態と現在の有効移動先を購読し、終了通知を受け取るために必要とする。" {
 			tags "Structural Dependency"
 		}
 
 		PF_001 = EXT_WORDPRESS_EDITOR -> RESP_WORDPRESS_REORDER_INTEGRATION "対応Tableの選択、ツールバー操作、既存Block wrapper上の入力がWordPress接続境界へ入る。" {
 			tags "Process Flow,ProcessFlow_PV_COLUMN_REORDER_END_TO_END,normal"
 		}
-		PF_002 = RESP_WORDPRESS_REORDER_INTEGRATION -> RESP_COLUMN_DND_ENGINE_INTEGRATION "対象TableのColumn Reorder有効状態をDnD Engine接続境界へ反映する。" {
+		PF_002 = RESP_WORDPRESS_REORDER_INTEGRATION -> RESP_COLUMN_DND_LAYOUT_AVAILABILITY "選択中Tableの現在物理配置をToolbar表示用availabilityの評価へ進める。" {
 			tags "Process Flow,ProcessFlow_PV_COLUMN_REORDER_END_TO_END,normal"
 		}
-		PF_003 = RESP_COLUMN_DND_ENGINE_INTEGRATION -> RESP_COLUMN_INPUT_INTERACTION "有効なColumn DnD境界から開始入力処理へ進む。" {
+		PF_003 = RESP_WORDPRESS_REORDER_INTEGRATION -> RESP_COLUMN_DND_ENGINE_INTEGRATION "対象TableのColumn Reorder有効状態をDnD Engine接続境界へ反映する。" {
 			tags "Process Flow,ProcessFlow_PV_COLUMN_REORDER_END_TO_END,normal"
 		}
-		PF_004 = RESP_COLUMN_INPUT_INTERACTION -> RESP_COLUMN_TARGET_RESOLUTION "開始候補を第一段階の現在制約で事前解決する。" {
+		PF_004 = RESP_COLUMN_DND_ENGINE_INTEGRATION -> RESP_COLUMN_INPUT_INTERACTION "有効なColumn DnD境界から開始入力処理へ進む。" {
 			tags "Process Flow,ProcessFlow_PV_COLUMN_REORDER_END_TO_END,normal"
 		}
-		PF_005 = RESP_COLUMN_INPUT_INTERACTION -> EXT_DND_ENGINE "第一段階で開始可能な候補だけを物理DnD開始候補として一時登録する。" {
+		PF_005 = RESP_COLUMN_INPUT_INTERACTION -> RESP_COLUMN_TARGET_RESOLUTION "開始候補を第一段階の現在制約で事前解決する。" {
 			tags "Process Flow,ProcessFlow_PV_COLUMN_REORDER_END_TO_END,normal"
 		}
-		PF_006 = EXT_DND_ENGINE -> RESP_COLUMN_DND_ENGINE_INTEGRATION "active DnD成立前後の物理LifecycleをColumn Reorder接続境界へ通知する。" {
+		PF_006 = RESP_COLUMN_INPUT_INTERACTION -> EXT_DND_ENGINE "第一段階で開始可能な候補だけを物理DnD開始候補として一時登録する。" {
 			tags "Process Flow,ProcessFlow_PV_COLUMN_REORDER_END_TO_END,normal"
 		}
-		PF_007 = RESP_COLUMN_DND_ENGINE_INTEGRATION -> RESP_COLUMN_TARGET_RESOLUTION "active DnD成立直前に同じReorder Targetを第二段階の現在制約で再解決する。" {
+		PF_007 = EXT_DND_ENGINE -> RESP_COLUMN_DND_ENGINE_INTEGRATION "active DnD成立前後の物理LifecycleをColumn Reorder接続境界へ通知する。" {
 			tags "Process Flow,ProcessFlow_PV_COLUMN_REORDER_END_TO_END,normal"
 		}
-		PF_008 = RESP_COLUMN_DND_ENGINE_INTEGRATION -> RESP_COLUMN_DESTINATION_RESOLUTION "active DnDの物理移動を論理列間境界の解決へ進める。" {
+		PF_008 = RESP_COLUMN_DND_ENGINE_INTEGRATION -> RESP_COLUMN_TARGET_RESOLUTION "active DnD成立直前に同じReorder Targetを第二段階の現在制約で再解決する。" {
 			tags "Process Flow,ProcessFlow_PV_COLUMN_REORDER_END_TO_END,normal"
 		}
-		PF_009 = RESP_COLUMN_DND_ENGINE_INTEGRATION -> RESP_COLUMN_DND_INTERACTION "解決済み開始情報、論理列間境界、終了種別を列DnD Sessionへ渡す。" {
+		PF_009 = RESP_COLUMN_DND_ENGINE_INTEGRATION -> RESP_COLUMN_DND_LAYOUT_AVAILABILITY "active DnD成立直前の現在物理配置をfreshな開始条件の評価へ進める。" {
 			tags "Process Flow,ProcessFlow_PV_COLUMN_REORDER_END_TO_END,normal"
 		}
-		PF_010 = RESP_COLUMN_DND_INTERACTION -> RESP_COLUMN_TABLE_INTEGRATION "complete時に現在構造の再照合と確定済み列移動の反映へ進む。" {
+		PF_010 = RESP_COLUMN_DND_ENGINE_INTEGRATION -> RESP_COLUMN_DESTINATION_RESOLUTION "active DnDの物理移動を論理列間境界の解決へ進める。" {
 			tags "Process Flow,ProcessFlow_PV_COLUMN_REORDER_END_TO_END,normal"
 		}
-		PF_011 = RESP_COLUMN_TABLE_INTEGRATION -> EXT_SUPPORTED_TABLE_BLOCK "現在列制約を取得し、確定時はTable全体の列順を反映する。" {
+		PF_011 = RESP_COLUMN_DND_ENGINE_INTEGRATION -> RESP_COLUMN_DND_INTERACTION "解決済み開始情報、論理列間境界、終了種別を列DnD Sessionへ渡す。" {
 			tags "Process Flow,ProcessFlow_PV_COLUMN_REORDER_END_TO_END,normal"
 		}
-		PF_012 = RESP_COLUMN_DND_INTERACTION -> RESP_REORDER_APPLY_POLICY "Table Integrationが算出した更新対象セル数から反映経路の選択へ進む。" {
+		PF_012 = RESP_COLUMN_DND_INTERACTION -> RESP_COLUMN_TABLE_INTEGRATION "complete時に現在構造の再照合と確定済み列移動の反映へ進む。" {
+			tags "Process Flow,ProcessFlow_PV_COLUMN_REORDER_END_TO_END,normal"
+		}
+		PF_013 = RESP_COLUMN_TABLE_INTEGRATION -> EXT_SUPPORTED_TABLE_BLOCK "現在列制約を取得し、確定時はTable全体の列順を反映する。" {
+			tags "Process Flow,ProcessFlow_PV_COLUMN_REORDER_END_TO_END,normal"
+		}
+		PF_014 = RESP_COLUMN_DND_INTERACTION -> RESP_REORDER_APPLY_POLICY "Table Integrationが算出した更新対象セル数から反映経路の選択へ進む。" {
 			tags "Process Flow,ProcessFlow_PV_COLUMN_LARGE_REORDER_APPLY,normal"
 		}
-		PF_013 = RESP_COLUMN_DND_INTERACTION -> RESP_COLUMN_REORDER_APPLY "確認付き大規模反映ではDnD Session終了後に確定済み移動意図を方向固有Apply Lifecycleへ引き渡す。" {
+		PF_015 = RESP_COLUMN_DND_INTERACTION -> RESP_COLUMN_REORDER_APPLY "確認付き大規模反映ではDnD Session終了後に確定済み移動意図を方向固有Apply Lifecycleへ引き渡す。" {
 			tags "Process Flow,ProcessFlow_PV_COLUMN_LARGE_REORDER_APPLY,normal"
 		}
-		PF_014 = RESP_COLUMN_REORDER_APPLY -> RESP_WORDPRESS_REORDER_APPLY_INTEGRATION "方向固有Apply状態をWordPress Editorの確認・反映中・表示復帰へ接続する。" {
+		PF_016 = RESP_COLUMN_REORDER_APPLY -> RESP_WORDPRESS_REORDER_APPLY_INTEGRATION "方向固有Apply状態をWordPress Editorの確認・反映中・表示復帰へ接続する。" {
 			tags "Process Flow,ProcessFlow_PV_COLUMN_LARGE_REORDER_APPLY,normal"
 		}
-		PF_015 = RESP_WORDPRESS_REORDER_APPLY_INTEGRATION -> EXT_WORDPRESS_EDITOR "確認UI、反映中表示、更新後の編集表示をWordPress Editor上に成立させる。" {
+		PF_017 = RESP_WORDPRESS_REORDER_APPLY_INTEGRATION -> EXT_WORDPRESS_EDITOR "確認UI、反映中表示、更新後の編集表示をWordPress Editor上に成立させる。" {
 			tags "Process Flow,ProcessFlow_PV_COLUMN_LARGE_REORDER_APPLY,normal"
 		}
-		PF_016 = RESP_COLUMN_REORDER_APPLY -> RESP_COLUMN_TABLE_INTEGRATION "Continue後に現在構造を再照合し、成立する場合だけ確定済み列移動を要求する。" {
+		PF_018 = RESP_COLUMN_REORDER_APPLY -> RESP_COLUMN_TABLE_INTEGRATION "Continue後に現在構造を再照合し、成立する場合だけ確定済み列移動を要求する。" {
 			tags "Process Flow,ProcessFlow_PV_COLUMN_LARGE_REORDER_APPLY,normal"
 		}
-		PF_017 = RESP_COLUMN_TABLE_INTEGRATION -> EXT_SUPPORTED_TABLE_BLOCK "現在構造を取得し、成立した確定移動だけを対応Tableへ反映する。" {
+		PF_019 = RESP_COLUMN_TABLE_INTEGRATION -> EXT_SUPPORTED_TABLE_BLOCK "現在構造を取得し、成立した確定移動だけを対応Tableへ反映する。" {
 			tags "Process Flow,ProcessFlow_PV_COLUMN_LARGE_REORDER_APPLY,normal"
 		}
-		PF_018 = RESP_COLUMN_TABLE_INTEGRATION -> EXT_WORDPRESS_UNDO "成立した1回の列移動を1回のUndo単位として成立させる。" {
+		PF_020 = RESP_COLUMN_TABLE_INTEGRATION -> EXT_WORDPRESS_UNDO "成立した1回の列移動を1回のUndo単位として成立させる。" {
 			tags "Process Flow,ProcessFlow_PV_COLUMN_LARGE_REORDER_APPLY,normal"
 		}
-		PF_019 = EXT_DND_ENGINE -> RESP_COLUMN_DND_ENGINE_INTEGRATION "[failure] 物理DnDがcancelまたは継続不能として終了する。" {
+		PF_021 = EXT_DND_ENGINE -> RESP_COLUMN_DND_ENGINE_INTEGRATION "[failure] 物理DnDがcancelまたは継続不能として終了する。" {
 			tags "Process Flow,ProcessFlow_PV_COLUMN_EXTERNAL_CHANGE_RECOVERY,failure"
 		}
-		PF_020 = RESP_COLUMN_DND_ENGINE_INTEGRATION -> RESP_COLUMN_DND_INTERACTION "[recovery] 物理DnDの終了種別を列DnD Sessionのcancelへ接続する。" {
+		PF_022 = RESP_COLUMN_DND_ENGINE_INTEGRATION -> RESP_COLUMN_DND_INTERACTION "[recovery] 物理DnDの終了種別を列DnD Sessionのcancelへ接続する。" {
 			tags "Process Flow,ProcessFlow_PV_COLUMN_EXTERNAL_CHANGE_RECOVERY,recovery"
 		}
-		PF_021 = RESP_COLUMN_TABLE_INTEGRATION -> RESP_COLUMN_DND_INTERACTION "[failure] complete時の現在Table利用不能または更新不能を安全な確定不能結果として返す。" {
+		PF_023 = RESP_COLUMN_TABLE_INTEGRATION -> RESP_COLUMN_DND_INTERACTION "[failure] complete時の現在Table利用不能または更新不能を安全な確定不能結果として返す。" {
 			tags "Process Flow,ProcessFlow_PV_COLUMN_EXTERNAL_CHANGE_RECOVERY,failure"
 		}
-		PF_022 = RESP_COLUMN_DND_INTERACTION -> RESP_COLUMN_PRESENTATION "[recovery] DnD中表示を終了し、Designで通知対象となる確定不能だけを一回性通知へ反映する。" {
+		PF_024 = RESP_COLUMN_DND_INTERACTION -> RESP_COLUMN_PRESENTATION "[recovery] DnD中表示を終了し、Designで通知対象となる確定不能だけを一回性通知へ反映する。" {
 			tags "Process Flow,ProcessFlow_PV_COLUMN_EXTERNAL_CHANGE_RECOVERY,recovery"
 		}
-		PF_023 = RESP_COLUMN_DND_INTERACTION -> RESP_REORDER_MODE "[recovery] Session終了後に対象Tableで列並び替えを継続できるかだけを共通モード状態へ反映する。" {
+		PF_025 = RESP_COLUMN_DND_INTERACTION -> RESP_REORDER_MODE "[recovery] Session終了後に対象Tableで列並び替えを継続できるかだけを共通モード状態へ反映する。" {
 			tags "Process Flow,ProcessFlow_PV_COLUMN_EXTERNAL_CHANGE_RECOVERY,recovery"
 		}
 
-		RT_001 = EXT_WORDPRESS_EDITOR -> RESP_WORDPRESS_REORDER_INTEGRATION "対象Tableの既存Block wrapper上で開始入力が発生する。" {
+		RT_001 = EXT_WORDPRESS_EDITOR -> RESP_WORDPRESS_REORDER_INTEGRATION "対応Tableの選択または選択中の物理配置変化を通知する。" {
+			tags "Runtime Interaction,Runtime_RV_COLUMN_DND_TOOLBAR_LAYOUT_AVAILABILITY"
+			properties {
+				"runtime.RV_COLUMN_DND_TOOLBAR_LAYOUT_AVAILABILITY.step.1" "対応Tableの選択または選択中の物理配置変化を通知する。"
+			}
+		}
+		RT_002 = RESP_WORDPRESS_REORDER_INTEGRATION -> RESP_COLUMN_DND_LAYOUT_AVAILABILITY "現在Editor DOMから観測した論理列境界の物理成立性を要求する。" {
+			tags "Runtime Interaction,Runtime_RV_COLUMN_DND_TOOLBAR_LAYOUT_AVAILABILITY"
+			properties {
+				"runtime.RV_COLUMN_DND_TOOLBAR_LAYOUT_AVAILABILITY.step.2" "現在Editor DOMから観測した論理列境界の物理成立性を要求する。"
+			}
+		}
+		RT_003 = RESP_COLUMN_DND_LAYOUT_AVAILABILITY -> RESP_WORDPRESS_REORDER_INTEGRATION "要求時点のavailableまたはunavailableを返す。" {
+			tags "Runtime Interaction,Runtime_RV_COLUMN_DND_TOOLBAR_LAYOUT_AVAILABILITY"
+			properties {
+				"runtime.RV_COLUMN_DND_TOOLBAR_LAYOUT_AVAILABILITY.step.3" "要求時点のavailableまたはunavailableを返す。"
+			}
+		}
+		RT_004 = RESP_WORDPRESS_REORDER_INTEGRATION -> EXT_WORDPRESS_EDITOR "Table Identityごとのsnapshotを列DnD入口の利用可否と理由表示へ反映する。" {
+			tags "Runtime Interaction,Runtime_RV_COLUMN_DND_TOOLBAR_LAYOUT_AVAILABILITY"
+			properties {
+				"runtime.RV_COLUMN_DND_TOOLBAR_LAYOUT_AVAILABILITY.step.4" "Table Identityごとのsnapshotを列DnD入口の利用可否と理由表示へ反映する。"
+			}
+		}
+		RT_005 = RESP_WORDPRESS_REORDER_INTEGRATION -> RESP_REORDER_MODE "Column Reorder Mode中にunavailableへ変化した場合だけ通常編集への復帰を要求する。" {
+			tags "Runtime Interaction,Runtime_RV_COLUMN_DND_TOOLBAR_LAYOUT_AVAILABILITY"
+			properties {
+				"runtime.RV_COLUMN_DND_TOOLBAR_LAYOUT_AVAILABILITY.step.5" "Column Reorder Mode中にunavailableへ変化した場合だけ通常編集への復帰を要求する。"
+			}
+		}
+		RT_006 = EXT_WORDPRESS_EDITOR -> RESP_WORDPRESS_REORDER_INTEGRATION "対象Tableの既存Block wrapper上で開始入力が発生する。" {
 			tags "Runtime Interaction,Runtime_RV_COLUMN_DND_START"
 			properties {
 				"runtime.RV_COLUMN_DND_START.step.1" "対象Tableの既存Block wrapper上で開始入力が発生する。"
 			}
 		}
-		RT_002 = RESP_WORDPRESS_REORDER_INTEGRATION -> RESP_COLUMN_DND_ENGINE_INTEGRATION "対象Tableの列並び替え有効状態と開始入力接続を方向固有DnD境界へ反映する。" {
+		RT_007 = RESP_WORDPRESS_REORDER_INTEGRATION -> RESP_COLUMN_DND_ENGINE_INTEGRATION "対象Tableの列並び替え有効状態と開始入力接続を方向固有DnD境界へ反映する。" {
 			tags "Runtime Interaction,Runtime_RV_COLUMN_DND_START"
 			properties {
 				"runtime.RV_COLUMN_DND_START.step.2" "対象Tableの列並び替え有効状態と開始入力接続を方向固有DnD境界へ反映する。"
 			}
 		}
-		RT_003 = RESP_COLUMN_DND_ENGINE_INTEGRATION -> RESP_COLUMN_INPUT_INTERACTION "列開始入力を入力境界へ渡す。" {
+		RT_008 = RESP_COLUMN_DND_ENGINE_INTEGRATION -> RESP_COLUMN_INPUT_INTERACTION "列開始入力を入力境界へ渡す。" {
 			tags "Runtime Interaction,Runtime_RV_COLUMN_DND_START"
 			properties {
 				"runtime.RV_COLUMN_DND_START.step.3" "列開始入力を入力境界へ渡す。"
 			}
 		}
-		RT_004 = RESP_COLUMN_INPUT_INTERACTION -> RESP_COLUMN_TARGET_RESOLUTION "開始候補を第一段階の現在制約で解決する。" {
+		RT_009 = RESP_COLUMN_INPUT_INTERACTION -> RESP_COLUMN_TARGET_RESOLUTION "開始候補を第一段階の現在制約で解決する。" {
 			tags "Runtime Interaction,Runtime_RV_COLUMN_DND_START"
 			properties {
 				"runtime.RV_COLUMN_DND_START.step.4" "開始候補を第一段階の現在制約で解決する。"
 			}
 		}
-		RT_005 = RESP_COLUMN_TARGET_RESOLUTION -> RESP_COLUMN_TABLE_INTEGRATION "指定Tableの現在列制約を要求する。" {
+		RT_010 = RESP_COLUMN_TARGET_RESOLUTION -> RESP_COLUMN_TABLE_INTEGRATION "指定Tableの現在列制約を要求する。" {
 			tags "Runtime Interaction,Runtime_RV_COLUMN_DND_START"
 			properties {
 				"runtime.RV_COLUMN_DND_START.step.5" "指定Tableの現在列制約を要求する。"
 			}
 		}
-		RT_006 = RESP_COLUMN_TABLE_INTEGRATION -> EXT_SUPPORTED_TABLE_BLOCK "要求時点の対応Tableから列制約を取得する。" {
+		RT_011 = RESP_COLUMN_TABLE_INTEGRATION -> EXT_SUPPORTED_TABLE_BLOCK "要求時点の対応Tableから列制約を取得する。" {
 			tags "Runtime Interaction,Runtime_RV_COLUMN_DND_START"
 			properties {
 				"runtime.RV_COLUMN_DND_START.step.6" "要求時点の対応Tableから列制約を取得する。"
 				"runtime.RV_COLUMN_DND_START.step.13" "要求時点の対応Tableから列制約を取得する。"
 			}
 		}
-		RT_007 = RESP_COLUMN_TARGET_RESOLUTION -> RESP_COLUMN_INPUT_INTERACTION "resolved、Design上のrejected、またはunavailableを返す。" {
+		RT_012 = RESP_COLUMN_TARGET_RESOLUTION -> RESP_COLUMN_INPUT_INTERACTION "resolved、Design上のrejected、またはunavailableを返す。" {
 			tags "Runtime Interaction,Runtime_RV_COLUMN_DND_START"
 			properties {
 				"runtime.RV_COLUMN_DND_START.step.7" "resolved、Design上のrejected、またはunavailableを返す。"
 			}
 		}
-		RT_008 = RESP_COLUMN_INPUT_INTERACTION -> RESP_COLUMN_PRESENTATION "第一段階がDesign上のrejectedの場合だけ理由と操作位置を通知する。" {
+		RT_013 = RESP_COLUMN_INPUT_INTERACTION -> RESP_COLUMN_PRESENTATION "第一段階がDesign上のrejectedの場合だけ理由と操作位置を通知する。" {
 			tags "Runtime Interaction,Runtime_RV_COLUMN_DND_START"
 			properties {
 				"runtime.RV_COLUMN_DND_START.step.8" "第一段階がDesign上のrejectedの場合だけ理由と操作位置を通知する。"
 			}
 		}
-		RT_009 = RESP_COLUMN_INPUT_INTERACTION -> EXT_DND_ENGINE "第一段階がresolvedの場合だけ開始候補を一時登録する。" {
+		RT_014 = RESP_COLUMN_INPUT_INTERACTION -> EXT_DND_ENGINE "第一段階がresolvedの場合だけ開始候補を一時登録する。" {
 			tags "Runtime Interaction,Runtime_RV_COLUMN_DND_START"
 			properties {
 				"runtime.RV_COLUMN_DND_START.step.9" "第一段階がresolvedの場合だけ開始候補を一時登録する。"
 			}
 		}
-		RT_010 = EXT_DND_ENGINE -> RESP_COLUMN_DND_ENGINE_INTEGRATION "active DnD成立直前の開始通知を渡す。" {
+		RT_015 = EXT_DND_ENGINE -> RESP_COLUMN_DND_ENGINE_INTEGRATION "active DnD成立直前の開始通知を渡す。" {
 			tags "Runtime Interaction,Runtime_RV_COLUMN_DND_START"
 			properties {
 				"runtime.RV_COLUMN_DND_START.step.10" "active DnD成立直前の開始通知を渡す。"
 			}
 		}
-		RT_011 = RESP_COLUMN_DND_ENGINE_INTEGRATION -> RESP_COLUMN_TARGET_RESOLUTION "同じReorder Targetを第二段階の現在制約で再解決する。" {
+		RT_016 = RESP_COLUMN_DND_ENGINE_INTEGRATION -> RESP_COLUMN_TARGET_RESOLUTION "同じReorder Targetを第二段階の現在制約で再解決する。" {
 			tags "Runtime Interaction,Runtime_RV_COLUMN_DND_START"
 			properties {
 				"runtime.RV_COLUMN_DND_START.step.11" "同じReorder Targetを第二段階の現在制約で再解決する。"
 			}
 		}
-		RT_012 = RESP_COLUMN_TARGET_RESOLUTION -> RESP_COLUMN_TABLE_INTEGRATION "第二段階の現在列制約を要求する。" {
+		RT_017 = RESP_COLUMN_TARGET_RESOLUTION -> RESP_COLUMN_TABLE_INTEGRATION "第二段階の現在列制約を要求する。" {
 			tags "Runtime Interaction,Runtime_RV_COLUMN_DND_START"
 			properties {
 				"runtime.RV_COLUMN_DND_START.step.12" "第二段階の現在列制約を要求する。"
 			}
 		}
-		RT_013 = RESP_COLUMN_TARGET_RESOLUTION -> RESP_COLUMN_DND_ENGINE_INTEGRATION "第二段階の解決結果を返す。" {
+		RT_018 = RESP_COLUMN_TARGET_RESOLUTION -> RESP_COLUMN_DND_ENGINE_INTEGRATION "第二段階の解決結果を返す。" {
 			tags "Runtime Interaction,Runtime_RV_COLUMN_DND_START"
 			properties {
 				"runtime.RV_COLUMN_DND_START.step.14" "第二段階の解決結果を返す。"
 			}
 		}
-		RT_014 = RESP_COLUMN_DND_ENGINE_INTEGRATION -> EXT_DND_ENGINE "第二段階がresolvedでなければ物理DnD開始を成立させない。" {
+		RT_019 = RESP_COLUMN_DND_ENGINE_INTEGRATION -> RESP_COLUMN_DND_LAYOUT_AVAILABILITY "同じ開始対象の現在Editor DOMから物理列配置の成立性を要求する。" {
 			tags "Runtime Interaction,Runtime_RV_COLUMN_DND_START"
 			properties {
-				"runtime.RV_COLUMN_DND_START.step.15" "第二段階がresolvedでなければ物理DnD開始を成立させない。"
+				"runtime.RV_COLUMN_DND_START.step.15" "同じ開始対象の現在Editor DOMから物理列配置の成立性を要求する。"
 			}
 		}
-		RT_015 = EXT_DND_ENGINE -> RESP_COLUMN_DND_ENGINE_INTEGRATION "第二段階成立後の物理DnD startを通知する。" {
+		RT_020 = RESP_COLUMN_DND_LAYOUT_AVAILABILITY -> RESP_COLUMN_DND_ENGINE_INTEGRATION "要求時点のavailableまたはunavailableを返す。" {
 			tags "Runtime Interaction,Runtime_RV_COLUMN_DND_START"
 			properties {
-				"runtime.RV_COLUMN_DND_START.step.16" "第二段階成立後の物理DnD startを通知する。"
+				"runtime.RV_COLUMN_DND_START.step.16" "要求時点のavailableまたはunavailableを返す。"
 			}
 		}
-		RT_016 = RESP_COLUMN_DND_ENGINE_INTEGRATION -> RESP_COLUMN_DESTINATION_RESOLUTION "当該DnDの開始時Table配置から移動先解決境界を生成する。" {
+		RT_021 = RESP_COLUMN_DND_ENGINE_INTEGRATION -> EXT_DND_ENGINE "第二段階がresolvedでない場合、または物理配置がunavailableの場合は物理DnD開始を成立させない。" {
 			tags "Runtime Interaction,Runtime_RV_COLUMN_DND_START"
 			properties {
-				"runtime.RV_COLUMN_DND_START.step.17" "当該DnDの開始時Table配置から移動先解決境界を生成する。"
+				"runtime.RV_COLUMN_DND_START.step.17" "第二段階がresolvedでない場合、または物理配置がunavailableの場合は物理DnD開始を成立させない。"
 			}
 		}
-		RT_017 = RESP_COLUMN_DND_ENGINE_INTEGRATION -> EXT_SCROLL_AREA "当該DnDの対象Tableに対する横スクロール領域を一つ確定する。" {
+		RT_022 = EXT_DND_ENGINE -> RESP_COLUMN_DND_ENGINE_INTEGRATION "論理条件と物理条件成立後の物理DnD startを通知する。" {
 			tags "Runtime Interaction,Runtime_RV_COLUMN_DND_START"
 			properties {
-				"runtime.RV_COLUMN_DND_START.step.18" "当該DnDの対象Tableに対する横スクロール領域を一つ確定する。"
+				"runtime.RV_COLUMN_DND_START.step.18" "論理条件と物理条件成立後の物理DnD startを通知する。"
 			}
 		}
-		RT_018 = RESP_COLUMN_DND_ENGINE_INTEGRATION -> RESP_COLUMN_DND_INTERACTION "解決済みReorder Targetと開始時制約でColumn DnD Sessionを開始する。" {
+		RT_023 = RESP_COLUMN_DND_ENGINE_INTEGRATION -> RESP_COLUMN_DESTINATION_RESOLUTION "当該DnDの開始時Table配置から移動先解決境界を生成する。" {
 			tags "Runtime Interaction,Runtime_RV_COLUMN_DND_START"
 			properties {
-				"runtime.RV_COLUMN_DND_START.step.19" "解決済みReorder Targetと開始時制約でColumn DnD Sessionを開始する。"
+				"runtime.RV_COLUMN_DND_START.step.19" "当該DnDの開始時Table配置から移動先解決境界を生成する。"
 			}
 		}
-		RT_019 = RESP_COLUMN_DND_INTERACTION -> RESP_COLUMN_PRESENTATION "active状態への遷移を表示購読へ反映する。" {
+		RT_024 = RESP_COLUMN_DND_ENGINE_INTEGRATION -> EXT_SCROLL_AREA "当該DnDの対象Tableに対する横スクロール領域を一つ確定する。" {
 			tags "Runtime Interaction,Runtime_RV_COLUMN_DND_START"
 			properties {
-				"runtime.RV_COLUMN_DND_START.step.20" "active状態への遷移を表示購読へ反映する。"
+				"runtime.RV_COLUMN_DND_START.step.20" "当該DnDの対象Tableに対する横スクロール領域を一つ確定する。"
 			}
 		}
-		RT_020 = EXT_DND_ENGINE -> RESP_COLUMN_DND_ENGINE_INTEGRATION "現在の物理DnD移動と物理入力位置を通知する。" {
+		RT_025 = RESP_COLUMN_DND_ENGINE_INTEGRATION -> RESP_COLUMN_DND_INTERACTION "解決済みReorder Targetと開始時制約でColumn DnD Sessionを開始する。" {
+			tags "Runtime Interaction,Runtime_RV_COLUMN_DND_START"
+			properties {
+				"runtime.RV_COLUMN_DND_START.step.21" "解決済みReorder Targetと開始時制約でColumn DnD Sessionを開始する。"
+			}
+		}
+		RT_026 = RESP_COLUMN_DND_INTERACTION -> RESP_COLUMN_PRESENTATION "active状態への遷移を表示購読へ反映する。" {
+			tags "Runtime Interaction,Runtime_RV_COLUMN_DND_START"
+			properties {
+				"runtime.RV_COLUMN_DND_START.step.22" "active状態への遷移を表示購読へ反映する。"
+			}
+		}
+		RT_027 = EXT_DND_ENGINE -> RESP_COLUMN_DND_ENGINE_INTEGRATION "現在の物理DnD移動と物理入力位置を通知する。" {
 			tags "Runtime Interaction,Runtime_RV_COLUMN_DND_PROGRESS"
 			properties {
 				"runtime.RV_COLUMN_DND_PROGRESS.step.1" "現在の物理DnD移動と物理入力位置を通知する。"
 			}
 		}
-		RT_021 = RESP_COLUMN_DND_ENGINE_INTEGRATION -> RESP_COLUMN_DESTINATION_RESOLUTION "現在の物理入力位置から論理列間境界を要求する。" {
+		RT_028 = RESP_COLUMN_DND_ENGINE_INTEGRATION -> RESP_COLUMN_DESTINATION_RESOLUTION "現在の物理入力位置から論理列間境界を要求する。" {
 			tags "Runtime Interaction,Runtime_RV_COLUMN_DND_PROGRESS"
 			properties {
 				"runtime.RV_COLUMN_DND_PROGRESS.step.2" "現在の物理入力位置から論理列間境界を要求する。"
 			}
 		}
-		RT_022 = RESP_COLUMN_DESTINATION_RESOLUTION -> RESP_COLUMN_DND_ENGINE_INTEGRATION "0-based論理列間境界またはnullを返す。" {
+		RT_029 = RESP_COLUMN_DESTINATION_RESOLUTION -> RESP_COLUMN_DND_ENGINE_INTEGRATION "0-based論理列間境界またはnullを返す。" {
 			tags "Runtime Interaction,Runtime_RV_COLUMN_DND_PROGRESS"
 			properties {
 				"runtime.RV_COLUMN_DND_PROGRESS.step.3" "0-based論理列間境界またはnullを返す。"
 			}
 		}
-		RT_023 = RESP_COLUMN_DND_ENGINE_INTEGRATION -> RESP_COLUMN_DND_INTERACTION "解決済み論理列間境界を現在Sessionへ渡す。" {
+		RT_030 = RESP_COLUMN_DND_ENGINE_INTEGRATION -> RESP_COLUMN_DND_INTERACTION "解決済み論理列間境界を現在Sessionへ渡す。" {
 			tags "Runtime Interaction,Runtime_RV_COLUMN_DND_PROGRESS"
 			properties {
 				"runtime.RV_COLUMN_DND_PROGRESS.step.4" "解決済み論理列間境界を現在Sessionへ渡す。"
 			}
 		}
-		RT_024 = RESP_COLUMN_DND_INTERACTION -> RESP_COLUMN_PRESENTATION "開始時制約に対して成立した現在の有効移動先を表示購読へ反映する。" {
+		RT_031 = RESP_COLUMN_DND_INTERACTION -> RESP_COLUMN_PRESENTATION "開始時制約に対して成立した現在の有効移動先を表示購読へ反映する。" {
 			tags "Runtime Interaction,Runtime_RV_COLUMN_DND_PROGRESS"
 			properties {
 				"runtime.RV_COLUMN_DND_PROGRESS.step.5" "開始時制約に対して成立した現在の有効移動先を表示購読へ反映する。"
 			}
 		}
-		RT_025 = RESP_COLUMN_PRESENTATION -> EXT_DND_ENGINE "移動対象表示に必要な物理DnD情報を必要な時点だけ利用する。" {
+		RT_032 = RESP_COLUMN_PRESENTATION -> EXT_DND_ENGINE "移動対象表示に必要な物理DnD情報を必要な時点だけ利用する。" {
 			tags "Runtime Interaction,Runtime_RV_COLUMN_DND_PROGRESS"
 			properties {
 				"runtime.RV_COLUMN_DND_PROGRESS.step.6" "移動対象表示に必要な物理DnD情報を必要な時点だけ利用する。"
 			}
 		}
-		RT_026 = RESP_COLUMN_DND_ENGINE_INTEGRATION -> EXT_SCROLL_AREA "現在の物理入力位置が対象領域の左右端にある場合だけ横方向へ自動スクロールする。" {
+		RT_033 = RESP_COLUMN_DND_ENGINE_INTEGRATION -> EXT_SCROLL_AREA "現在の物理入力位置が対象領域の左右端にある場合だけ横方向へ自動スクロールする。" {
 			tags "Runtime Interaction,Runtime_RV_COLUMN_DND_PROGRESS"
 			properties {
 				"runtime.RV_COLUMN_DND_PROGRESS.step.7" "現在の物理入力位置が対象領域の左右端にある場合だけ横方向へ自動スクロールする。"
 			}
 		}
-		RT_027 = RESP_COLUMN_DND_ENGINE_INTEGRATION -> RESP_COLUMN_DESTINATION_RESOLUTION "実際に横スクロールした場合、最新の物理入力位置から現在Table位置に対する論理列間境界を再要求する。" {
+		RT_034 = RESP_COLUMN_DND_ENGINE_INTEGRATION -> RESP_COLUMN_DESTINATION_RESOLUTION "実際に横スクロールした場合、最新の物理入力位置から現在Table位置に対する論理列間境界を再要求する。" {
 			tags "Runtime Interaction,Runtime_RV_COLUMN_DND_PROGRESS"
 			properties {
 				"runtime.RV_COLUMN_DND_PROGRESS.step.8" "実際に横スクロールした場合、最新の物理入力位置から現在Table位置に対する論理列間境界を再要求する。"
 			}
 		}
-		RT_028 = RESP_COLUMN_DESTINATION_RESOLUTION -> RESP_COLUMN_DND_ENGINE_INTEGRATION "スクロール後のTable位置に追従した0-based論理列間境界またはnullを返す。" {
+		RT_035 = RESP_COLUMN_DESTINATION_RESOLUTION -> RESP_COLUMN_DND_ENGINE_INTEGRATION "スクロール後のTable位置に追従した0-based論理列間境界またはnullを返す。" {
 			tags "Runtime Interaction,Runtime_RV_COLUMN_DND_PROGRESS"
 			properties {
 				"runtime.RV_COLUMN_DND_PROGRESS.step.9" "スクロール後のTable位置に追従した0-based論理列間境界またはnullを返す。"
 			}
 		}
-		RT_029 = RESP_COLUMN_DND_ENGINE_INTEGRATION -> RESP_COLUMN_DND_INTERACTION "再解決された論理列間境界を現在Sessionへ渡す。" {
+		RT_036 = RESP_COLUMN_DND_ENGINE_INTEGRATION -> RESP_COLUMN_DND_INTERACTION "再解決された論理列間境界を現在Sessionへ渡す。" {
 			tags "Runtime Interaction,Runtime_RV_COLUMN_DND_PROGRESS"
 			properties {
 				"runtime.RV_COLUMN_DND_PROGRESS.step.10" "再解決された論理列間境界を現在Sessionへ渡す。"
 			}
 		}
-		RT_030 = EXT_DND_ENGINE -> RESP_COLUMN_DND_ENGINE_INTEGRATION "cancelされていない物理DnD endを通知する。" {
+		RT_037 = EXT_DND_ENGINE -> RESP_COLUMN_DND_ENGINE_INTEGRATION "cancelされていない物理DnD endを通知する。" {
 			tags "Runtime Interaction,Runtime_RV_COLUMN_DND_COMPLETE"
 			properties {
 				"runtime.RV_COLUMN_DND_COMPLETE.step.1" "cancelされていない物理DnD endを通知する。"
 			}
 		}
-		RT_031 = RESP_COLUMN_DND_ENGINE_INTEGRATION -> RESP_COLUMN_DND_INTERACTION "active Sessionのcompleteを要求する。" {
+		RT_038 = RESP_COLUMN_DND_ENGINE_INTEGRATION -> RESP_COLUMN_DND_INTERACTION "active Sessionのcompleteを要求する。" {
 			tags "Runtime Interaction,Runtime_RV_COLUMN_DND_COMPLETE"
 			properties {
 				"runtime.RV_COLUMN_DND_COMPLETE.step.2" "active Sessionのcompleteを要求する。"
 			}
 		}
-		RT_032 = RESP_COLUMN_DND_INTERACTION -> RESP_COLUMN_TABLE_INTEGRATION "現在の列制約を要求する。" {
+		RT_039 = RESP_COLUMN_DND_INTERACTION -> RESP_COLUMN_TABLE_INTEGRATION "現在の列制約を要求する。" {
 			tags "Runtime Interaction,Runtime_RV_COLUMN_DND_COMPLETE"
 			properties {
 				"runtime.RV_COLUMN_DND_COMPLETE.step.3" "現在の列制約を要求する。"
 			}
 		}
-		RT_033 = RESP_COLUMN_TABLE_INTEGRATION -> EXT_SUPPORTED_TABLE_BLOCK "要求時点の対応Tableから現在列制約を取得する。" {
+		RT_040 = RESP_COLUMN_TABLE_INTEGRATION -> EXT_SUPPORTED_TABLE_BLOCK "要求時点の対応Tableから現在列制約を取得する。" {
 			tags "Runtime Interaction,Runtime_RV_COLUMN_DND_COMPLETE,Runtime_RV_COLUMN_LARGE_REORDER_CONTINUE,Runtime_RV_COLUMN_LARGE_REORDER_REVALIDATION_FAILURE"
 			properties {
 				"runtime.RV_COLUMN_DND_COMPLETE.step.4" "要求時点の対応Tableから現在列制約を取得する。"
@@ -502,69 +562,69 @@ workspace "YTR Reorder v1 Architecture" {
 				"runtime.RV_COLUMN_LARGE_REORDER_REVALIDATION_FAILURE.step.2" "要求時点の対応Tableから現在列制約を取得する。"
 			}
 		}
-		RT_034 = RESP_COLUMN_TABLE_INTEGRATION -> RESP_COLUMN_DND_INTERACTION "現在列制約または利用不能結果を返す。" {
+		RT_041 = RESP_COLUMN_TABLE_INTEGRATION -> RESP_COLUMN_DND_INTERACTION "現在列制約または利用不能結果を返す。" {
 			tags "Runtime Interaction,Runtime_RV_COLUMN_DND_COMPLETE"
 			properties {
 				"runtime.RV_COLUMN_DND_COMPLETE.step.5" "現在列制約または利用不能結果を返す。"
 			}
 		}
-		RT_035 = RESP_COLUMN_DND_INTERACTION -> RESP_COLUMN_TABLE_INTEGRATION "現在も移動元と移動先が成立する確定候補について更新対象セル数を要求する。" {
+		RT_042 = RESP_COLUMN_DND_INTERACTION -> RESP_COLUMN_TABLE_INTEGRATION "現在も移動元と移動先が成立する確定候補について更新対象セル数を要求する。" {
 			tags "Runtime Interaction,Runtime_RV_COLUMN_DND_COMPLETE"
 			properties {
 				"runtime.RV_COLUMN_DND_COMPLETE.step.6" "現在も移動元と移動先が成立する確定候補について更新対象セル数を要求する。"
 			}
 		}
-		RT_036 = RESP_COLUMN_TABLE_INTEGRATION -> RESP_COLUMN_DND_INTERACTION "更新対象セル数または利用不能結果を返す。" {
+		RT_043 = RESP_COLUMN_TABLE_INTEGRATION -> RESP_COLUMN_DND_INTERACTION "更新対象セル数または利用不能結果を返す。" {
 			tags "Runtime Interaction,Runtime_RV_COLUMN_DND_COMPLETE"
 			properties {
 				"runtime.RV_COLUMN_DND_COMPLETE.step.7" "更新対象セル数または利用不能結果を返す。"
 			}
 		}
-		RT_037 = RESP_COLUMN_DND_INTERACTION -> RESP_REORDER_APPLY_POLICY "更新対象セル数から反映経路の選択を要求する。" {
+		RT_044 = RESP_COLUMN_DND_INTERACTION -> RESP_REORDER_APPLY_POLICY "更新対象セル数から反映経路の選択を要求する。" {
 			tags "Runtime Interaction,Runtime_RV_COLUMN_DND_COMPLETE"
 			properties {
 				"runtime.RV_COLUMN_DND_COMPLETE.step.8" "更新対象セル数から反映経路の選択を要求する。"
 			}
 		}
-		RT_038 = RESP_REORDER_APPLY_POLICY -> RESP_COLUMN_DND_INTERACTION "通常反映または確認付き大規模反映を返す。" {
+		RT_045 = RESP_REORDER_APPLY_POLICY -> RESP_COLUMN_DND_INTERACTION "通常反映または確認付き大規模反映を返す。" {
 			tags "Runtime Interaction,Runtime_RV_COLUMN_DND_COMPLETE"
 			properties {
 				"runtime.RV_COLUMN_DND_COMPLETE.step.9" "通常反映または確認付き大規模反映を返す。"
 			}
 		}
-		RT_039 = RESP_COLUMN_DND_INTERACTION -> RESP_COLUMN_TABLE_INTEGRATION "通常反映の場合だけ確定済み列移動を要求する。" {
+		RT_046 = RESP_COLUMN_DND_INTERACTION -> RESP_COLUMN_TABLE_INTEGRATION "通常反映の場合だけ確定済み列移動を要求する。" {
 			tags "Runtime Interaction,Runtime_RV_COLUMN_DND_COMPLETE"
 			properties {
 				"runtime.RV_COLUMN_DND_COMPLETE.step.10" "通常反映の場合だけ確定済み列移動を要求する。"
 			}
 		}
-		RT_040 = RESP_COLUMN_TABLE_INTEGRATION -> EXT_SUPPORTED_TABLE_BLOCK "列順を一回の更新として反映する。" {
+		RT_047 = RESP_COLUMN_TABLE_INTEGRATION -> EXT_SUPPORTED_TABLE_BLOCK "列順を一回の更新として反映する。" {
 			tags "Runtime Interaction,Runtime_RV_COLUMN_DND_COMPLETE,Runtime_RV_COLUMN_LARGE_REORDER_CONTINUE"
 			properties {
 				"runtime.RV_COLUMN_DND_COMPLETE.step.11" "列順を一回の更新として反映する。"
 				"runtime.RV_COLUMN_LARGE_REORDER_CONTINUE.step.10" "列順を一回の更新として反映する。"
 			}
 		}
-		RT_041 = RESP_COLUMN_TABLE_INTEGRATION -> EXT_WORDPRESS_UNDO "成立した列移動を一回のUndo単位として成立させる。" {
+		RT_048 = RESP_COLUMN_TABLE_INTEGRATION -> EXT_WORDPRESS_UNDO "成立した列移動を一回のUndo単位として成立させる。" {
 			tags "Runtime Interaction,Runtime_RV_COLUMN_DND_COMPLETE,Runtime_RV_COLUMN_LARGE_REORDER_CONTINUE"
 			properties {
 				"runtime.RV_COLUMN_DND_COMPLETE.step.12" "成立した列移動を一回のUndo単位として成立させる。"
 				"runtime.RV_COLUMN_LARGE_REORDER_CONTINUE.step.11" "成立した列移動を一回のUndo単位として成立させる。"
 			}
 		}
-		RT_042 = RESP_COLUMN_DND_INTERACTION -> RESP_COLUMN_PRESENTATION "DnD Session終了を表示購読へ反映する。" {
+		RT_049 = RESP_COLUMN_DND_INTERACTION -> RESP_COLUMN_PRESENTATION "DnD Session終了を表示購読へ反映する。" {
 			tags "Runtime Interaction,Runtime_RV_COLUMN_DND_COMPLETE"
 			properties {
 				"runtime.RV_COLUMN_DND_COMPLETE.step.13" "DnD Session終了を表示購読へ反映する。"
 			}
 		}
-		RT_043 = RESP_COLUMN_DND_INTERACTION -> RESP_COLUMN_TABLE_INTEGRATION "Session破棄後、対象Tableが次のcolumn並び替えを安全に受けられるか現在状態を取得し直す。" {
+		RT_050 = RESP_COLUMN_DND_INTERACTION -> RESP_COLUMN_TABLE_INTEGRATION "Session破棄後、対象Tableが次のcolumn並び替えを安全に受けられるか現在状態を取得し直す。" {
 			tags "Runtime Interaction,Runtime_RV_COLUMN_DND_COMPLETE"
 			properties {
 				"runtime.RV_COLUMN_DND_COMPLETE.step.14" "Session破棄後、対象Tableが次のcolumn並び替えを安全に受けられるか現在状態を取得し直す。"
 			}
 		}
-		RT_044 = RESP_COLUMN_DND_INTERACTION -> RESP_REORDER_MODE "対象Tableの継続可否だけを現在モードへ反映する。" {
+		RT_051 = RESP_COLUMN_DND_INTERACTION -> RESP_REORDER_MODE "対象Tableの継続可否だけを現在モードへ反映する。" {
 			tags "Runtime Interaction,Runtime_RV_COLUMN_DND_COMPLETE,Runtime_RV_COLUMN_LARGE_REORDER_CONFIRM,Runtime_RV_COLUMN_DND_CANCEL"
 			properties {
 				"runtime.RV_COLUMN_DND_COMPLETE.step.15" "対象Tableの継続可否だけを現在モードへ反映する。"
@@ -572,195 +632,195 @@ workspace "YTR Reorder v1 Architecture" {
 				"runtime.RV_COLUMN_DND_CANCEL.step.5" "対象Tableの継続可否だけを現在モードへ反映する。"
 			}
 		}
-		RT_045 = RESP_COLUMN_DND_INTERACTION -> RESP_COLUMN_PRESENTATION "DnD Session終了を表示購読へ反映し、物理DnD表示を終了する。" {
+		RT_052 = RESP_COLUMN_DND_INTERACTION -> RESP_COLUMN_PRESENTATION "DnD Session終了を表示購読へ反映し、物理DnD表示を終了する。" {
 			tags "Runtime Interaction,Runtime_RV_COLUMN_LARGE_REORDER_CONFIRM"
 			properties {
 				"runtime.RV_COLUMN_LARGE_REORDER_CONFIRM.step.1" "DnD Session終了を表示購読へ反映し、物理DnD表示を終了する。"
 			}
 		}
-		RT_046 = RESP_COLUMN_DND_INTERACTION -> RESP_COLUMN_TABLE_INTEGRATION "Session破棄後の対象Table利用可否を取得し直す。" {
+		RT_053 = RESP_COLUMN_DND_INTERACTION -> RESP_COLUMN_TABLE_INTEGRATION "Session破棄後の対象Table利用可否を取得し直す。" {
 			tags "Runtime Interaction,Runtime_RV_COLUMN_LARGE_REORDER_CONFIRM,Runtime_RV_COLUMN_CURRENT_STATE_RECOVERY"
 			properties {
 				"runtime.RV_COLUMN_LARGE_REORDER_CONFIRM.step.2" "Session破棄後の対象Table利用可否を取得し直す。"
 				"runtime.RV_COLUMN_CURRENT_STATE_RECOVERY.step.4" "Session破棄後の対象Table利用可否を取得し直す。"
 			}
 		}
-		RT_047 = RESP_COLUMN_DND_INTERACTION -> RESP_COLUMN_REORDER_APPLY "DnD Session終了後に確定済み列移動意図を確認付き大規模反映として引き渡す。" {
+		RT_054 = RESP_COLUMN_DND_INTERACTION -> RESP_COLUMN_REORDER_APPLY "DnD Session終了後に確定済み列移動意図を確認付き大規模反映として引き渡す。" {
 			tags "Runtime Interaction,Runtime_RV_COLUMN_LARGE_REORDER_CONFIRM"
 			properties {
 				"runtime.RV_COLUMN_LARGE_REORDER_CONFIRM.step.4" "DnD Session終了後に確定済み列移動意図を確認付き大規模反映として引き渡す。"
 			}
 		}
-		RT_048 = RESP_COLUMN_REORDER_APPLY -> RESP_WORDPRESS_REORDER_APPLY_INTEGRATION "confirming状態をWordPress表示接続へ公開する。" {
+		RT_055 = RESP_COLUMN_REORDER_APPLY -> RESP_WORDPRESS_REORDER_APPLY_INTEGRATION "confirming状態をWordPress表示接続へ公開する。" {
 			tags "Runtime Interaction,Runtime_RV_COLUMN_LARGE_REORDER_CONFIRM"
 			properties {
 				"runtime.RV_COLUMN_LARGE_REORDER_CONFIRM.step.5" "confirming状態をWordPress表示接続へ公開する。"
 			}
 		}
-		RT_049 = RESP_WORDPRESS_REORDER_APPLY_INTEGRATION -> EXT_WORDPRESS_EDITOR "対象Tableの通常編集表示を維持したまま確認UIを表示する。" {
+		RT_056 = RESP_WORDPRESS_REORDER_APPLY_INTEGRATION -> EXT_WORDPRESS_EDITOR "対象Tableの通常編集表示を維持したまま確認UIを表示する。" {
 			tags "Runtime Interaction,Runtime_RV_COLUMN_LARGE_REORDER_CONFIRM"
 			properties {
 				"runtime.RV_COLUMN_LARGE_REORDER_CONFIRM.step.6" "対象Tableの通常編集表示を維持したまま確認UIを表示する。"
 			}
 		}
-		RT_050 = EXT_WORDPRESS_EDITOR -> RESP_WORDPRESS_REORDER_APPLY_INTEGRATION "利用者が確認UIでContinueを選択する。" {
+		RT_057 = EXT_WORDPRESS_EDITOR -> RESP_WORDPRESS_REORDER_APPLY_INTEGRATION "利用者が確認UIでContinueを選択する。" {
 			tags "Runtime Interaction,Runtime_RV_COLUMN_LARGE_REORDER_CONTINUE"
 			properties {
 				"runtime.RV_COLUMN_LARGE_REORDER_CONTINUE.step.1" "利用者が確認UIでContinueを選択する。"
 			}
 		}
-		RT_051 = RESP_WORDPRESS_REORDER_APPLY_INTEGRATION -> RESP_COLUMN_REORDER_APPLY "確認待ちの移動意図を反映開始へ進める。" {
+		RT_058 = RESP_WORDPRESS_REORDER_APPLY_INTEGRATION -> RESP_COLUMN_REORDER_APPLY "確認待ちの移動意図を反映開始へ進める。" {
 			tags "Runtime Interaction,Runtime_RV_COLUMN_LARGE_REORDER_CONTINUE"
 			properties {
 				"runtime.RV_COLUMN_LARGE_REORDER_CONTINUE.step.2" "確認待ちの移動意図を反映開始へ進める。"
 			}
 		}
-		RT_052 = RESP_COLUMN_REORDER_APPLY -> RESP_WORDPRESS_REORDER_APPLY_INTEGRATION "applying状態をWordPress表示接続へ公開する。" {
+		RT_059 = RESP_COLUMN_REORDER_APPLY -> RESP_WORDPRESS_REORDER_APPLY_INTEGRATION "applying状態をWordPress表示接続へ公開する。" {
 			tags "Runtime Interaction,Runtime_RV_COLUMN_LARGE_REORDER_CONTINUE"
 			properties {
 				"runtime.RV_COLUMN_LARGE_REORDER_CONTINUE.step.3" "applying状態をWordPress表示接続へ公開する。"
 			}
 		}
-		RT_053 = RESP_WORDPRESS_REORDER_APPLY_INTEGRATION -> EXT_WORDPRESS_EDITOR "対象Tableの通常編集表示を一時的に退避し、反映中表示を先に成立させる。" {
+		RT_060 = RESP_WORDPRESS_REORDER_APPLY_INTEGRATION -> EXT_WORDPRESS_EDITOR "対象Tableの通常編集表示を一時的に退避し、反映中表示を先に成立させる。" {
 			tags "Runtime Interaction,Runtime_RV_COLUMN_LARGE_REORDER_CONTINUE"
 			properties {
 				"runtime.RV_COLUMN_LARGE_REORDER_CONTINUE.step.4" "対象Tableの通常編集表示を一時的に退避し、反映中表示を先に成立させる。"
 			}
 		}
-		RT_054 = RESP_WORDPRESS_REORDER_APPLY_INTEGRATION -> RESP_COLUMN_REORDER_APPLY "反映中表示成立後に確定処理を進める。" {
+		RT_061 = RESP_WORDPRESS_REORDER_APPLY_INTEGRATION -> RESP_COLUMN_REORDER_APPLY "反映中表示成立後に確定処理を進める。" {
 			tags "Runtime Interaction,Runtime_RV_COLUMN_LARGE_REORDER_CONTINUE"
 			properties {
 				"runtime.RV_COLUMN_LARGE_REORDER_CONTINUE.step.5" "反映中表示成立後に確定処理を進める。"
 			}
 		}
-		RT_055 = RESP_COLUMN_REORDER_APPLY -> RESP_COLUMN_TABLE_INTEGRATION "現在の列制約を取得し、保持中の移動元・移動先を再照合する。" {
+		RT_062 = RESP_COLUMN_REORDER_APPLY -> RESP_COLUMN_TABLE_INTEGRATION "現在の列制約を取得し、保持中の移動元・移動先を再照合する。" {
 			tags "Runtime Interaction,Runtime_RV_COLUMN_LARGE_REORDER_CONTINUE"
 			properties {
 				"runtime.RV_COLUMN_LARGE_REORDER_CONTINUE.step.6" "現在の列制約を取得し、保持中の移動元・移動先を再照合する。"
 			}
 		}
-		RT_056 = RESP_COLUMN_TABLE_INTEGRATION -> RESP_COLUMN_REORDER_APPLY "現在列制約または利用不能結果を返す。" {
+		RT_063 = RESP_COLUMN_TABLE_INTEGRATION -> RESP_COLUMN_REORDER_APPLY "現在列制約または利用不能結果を返す。" {
 			tags "Runtime Interaction,Runtime_RV_COLUMN_LARGE_REORDER_CONTINUE"
 			properties {
 				"runtime.RV_COLUMN_LARGE_REORDER_CONTINUE.step.8" "現在列制約または利用不能結果を返す。"
 			}
 		}
-		RT_057 = RESP_COLUMN_REORDER_APPLY -> RESP_COLUMN_TABLE_INTEGRATION "現在も成立する場合だけ確定済み列移動を要求する。" {
+		RT_064 = RESP_COLUMN_REORDER_APPLY -> RESP_COLUMN_TABLE_INTEGRATION "現在も成立する場合だけ確定済み列移動を要求する。" {
 			tags "Runtime Interaction,Runtime_RV_COLUMN_LARGE_REORDER_CONTINUE"
 			properties {
 				"runtime.RV_COLUMN_LARGE_REORDER_CONTINUE.step.9" "現在も成立する場合だけ確定済み列移動を要求する。"
 			}
 		}
-		RT_058 = RESP_COLUMN_REORDER_APPLY -> RESP_WORDPRESS_REORDER_APPLY_INTEGRATION "Table更新後にediting surface restorationへ進んだことを公開する。" {
+		RT_065 = RESP_COLUMN_REORDER_APPLY -> RESP_WORDPRESS_REORDER_APPLY_INTEGRATION "Table更新後にediting surface restorationへ進んだことを公開する。" {
 			tags "Runtime Interaction,Runtime_RV_COLUMN_LARGE_REORDER_CONTINUE"
 			properties {
 				"runtime.RV_COLUMN_LARGE_REORDER_CONTINUE.step.12" "Table更新後にediting surface restorationへ進んだことを公開する。"
 			}
 		}
-		RT_059 = RESP_WORDPRESS_REORDER_APPLY_INTEGRATION -> EXT_WORDPRESS_EDITOR "更新後のTable編集表示を再成立させる。" {
+		RT_066 = RESP_WORDPRESS_REORDER_APPLY_INTEGRATION -> EXT_WORDPRESS_EDITOR "更新後のTable編集表示を再成立させる。" {
 			tags "Runtime Interaction,Runtime_RV_COLUMN_LARGE_REORDER_CONTINUE"
 			properties {
 				"runtime.RV_COLUMN_LARGE_REORDER_CONTINUE.step.13" "更新後のTable編集表示を再成立させる。"
 			}
 		}
-		RT_060 = RESP_WORDPRESS_REORDER_APPLY_INTEGRATION -> RESP_COLUMN_REORDER_APPLY "表示復帰完了を通知して方向固有Apply Lifecycleをidleへ完了させる。" {
+		RT_067 = RESP_WORDPRESS_REORDER_APPLY_INTEGRATION -> RESP_COLUMN_REORDER_APPLY "表示復帰完了を通知して方向固有Apply Lifecycleをidleへ完了させる。" {
 			tags "Runtime Interaction,Runtime_RV_COLUMN_LARGE_REORDER_CONTINUE,Runtime_RV_COLUMN_LARGE_REORDER_REVALIDATION_FAILURE"
 			properties {
 				"runtime.RV_COLUMN_LARGE_REORDER_CONTINUE.step.14" "表示復帰完了を通知して方向固有Apply Lifecycleをidleへ完了させる。"
 				"runtime.RV_COLUMN_LARGE_REORDER_REVALIDATION_FAILURE.step.6" "表示復帰完了を通知して方向固有Apply Lifecycleをidleへ完了させる。"
 			}
 		}
-		RT_061 = EXT_WORDPRESS_EDITOR -> RESP_WORDPRESS_REORDER_APPLY_INTEGRATION "利用者が確認UIでCancelを選択する。" {
+		RT_068 = EXT_WORDPRESS_EDITOR -> RESP_WORDPRESS_REORDER_APPLY_INTEGRATION "利用者が確認UIでCancelを選択する。" {
 			tags "Runtime Interaction,Runtime_RV_COLUMN_LARGE_REORDER_CANCEL"
 			properties {
 				"runtime.RV_COLUMN_LARGE_REORDER_CANCEL.step.1" "利用者が確認UIでCancelを選択する。"
 			}
 		}
-		RT_062 = RESP_WORDPRESS_REORDER_APPLY_INTEGRATION -> RESP_COLUMN_REORDER_APPLY "確認待ちの移動意図を破棄する。" {
+		RT_069 = RESP_WORDPRESS_REORDER_APPLY_INTEGRATION -> RESP_COLUMN_REORDER_APPLY "確認待ちの移動意図を破棄する。" {
 			tags "Runtime Interaction,Runtime_RV_COLUMN_LARGE_REORDER_CANCEL"
 			properties {
 				"runtime.RV_COLUMN_LARGE_REORDER_CANCEL.step.2" "確認待ちの移動意図を破棄する。"
 			}
 		}
-		RT_063 = RESP_COLUMN_REORDER_APPLY -> RESP_WORDPRESS_REORDER_APPLY_INTEGRATION "Tableを変更せずidleへ戻った状態を公開する。" {
+		RT_070 = RESP_COLUMN_REORDER_APPLY -> RESP_WORDPRESS_REORDER_APPLY_INTEGRATION "Tableを変更せずidleへ戻った状態を公開する。" {
 			tags "Runtime Interaction,Runtime_RV_COLUMN_LARGE_REORDER_CANCEL"
 			properties {
 				"runtime.RV_COLUMN_LARGE_REORDER_CANCEL.step.3" "Tableを変更せずidleへ戻った状態を公開する。"
 			}
 		}
-		RT_064 = RESP_WORDPRESS_REORDER_APPLY_INTEGRATION -> EXT_WORDPRESS_EDITOR "確認UIを終了し、対象Tableの通常編集表示を維持する。" {
+		RT_071 = RESP_WORDPRESS_REORDER_APPLY_INTEGRATION -> EXT_WORDPRESS_EDITOR "確認UIを終了し、対象Tableの通常編集表示を維持する。" {
 			tags "Runtime Interaction,Runtime_RV_COLUMN_LARGE_REORDER_CANCEL"
 			properties {
 				"runtime.RV_COLUMN_LARGE_REORDER_CANCEL.step.4" "確認UIを終了し、対象Tableの通常編集表示を維持する。"
 			}
 		}
-		RT_065 = RESP_COLUMN_REORDER_APPLY -> RESP_COLUMN_TABLE_INTEGRATION "反映直前の現在列制約を要求する。" {
+		RT_072 = RESP_COLUMN_REORDER_APPLY -> RESP_COLUMN_TABLE_INTEGRATION "反映直前の現在列制約を要求する。" {
 			tags "Runtime Interaction,Runtime_RV_COLUMN_LARGE_REORDER_REVALIDATION_FAILURE"
 			properties {
 				"runtime.RV_COLUMN_LARGE_REORDER_REVALIDATION_FAILURE.step.1" "反映直前の現在列制約を要求する。"
 			}
 		}
-		RT_066 = RESP_COLUMN_TABLE_INTEGRATION -> RESP_COLUMN_REORDER_APPLY "移動元または移動先が成立しない現在状態を返す。" {
+		RT_073 = RESP_COLUMN_TABLE_INTEGRATION -> RESP_COLUMN_REORDER_APPLY "移動元または移動先が成立しない現在状態を返す。" {
 			tags "Runtime Interaction,Runtime_RV_COLUMN_LARGE_REORDER_REVALIDATION_FAILURE"
 			properties {
 				"runtime.RV_COLUMN_LARGE_REORDER_REVALIDATION_FAILURE.step.3" "移動元または移動先が成立しない現在状態を返す。"
 			}
 		}
-		RT_067 = RESP_COLUMN_REORDER_APPLY -> RESP_WORDPRESS_REORDER_APPLY_INTEGRATION "Tableを更新せずediting surface restorationへ進んだことを公開する。" {
+		RT_074 = RESP_COLUMN_REORDER_APPLY -> RESP_WORDPRESS_REORDER_APPLY_INTEGRATION "Tableを更新せずediting surface restorationへ進んだことを公開する。" {
 			tags "Runtime Interaction,Runtime_RV_COLUMN_LARGE_REORDER_REVALIDATION_FAILURE"
 			properties {
 				"runtime.RV_COLUMN_LARGE_REORDER_REVALIDATION_FAILURE.step.4" "Tableを更新せずediting surface restorationへ進んだことを公開する。"
 			}
 		}
-		RT_068 = RESP_WORDPRESS_REORDER_APPLY_INTEGRATION -> EXT_WORDPRESS_EDITOR "対象Tableの編集表示を再成立させる。" {
+		RT_075 = RESP_WORDPRESS_REORDER_APPLY_INTEGRATION -> EXT_WORDPRESS_EDITOR "対象Tableの編集表示を再成立させる。" {
 			tags "Runtime Interaction,Runtime_RV_COLUMN_LARGE_REORDER_REVALIDATION_FAILURE"
 			properties {
 				"runtime.RV_COLUMN_LARGE_REORDER_REVALIDATION_FAILURE.step.5" "対象Tableの編集表示を再成立させる。"
 			}
 		}
-		RT_069 = EXT_DND_ENGINE -> RESP_COLUMN_DND_ENGINE_INTEGRATION "cancelまたは物理DnD endを通知する。" {
+		RT_076 = EXT_DND_ENGINE -> RESP_COLUMN_DND_ENGINE_INTEGRATION "cancelまたは物理DnD endを通知する。" {
 			tags "Runtime Interaction,Runtime_RV_COLUMN_DND_CANCEL"
 			properties {
 				"runtime.RV_COLUMN_DND_CANCEL.step.1" "cancelまたは物理DnD endを通知する。"
 			}
 		}
-		RT_070 = RESP_COLUMN_DND_ENGINE_INTEGRATION -> RESP_COLUMN_DND_INTERACTION "cancel、またはcomplete時の有効移動先なしとしてSession終了へ接続する。" {
+		RT_077 = RESP_COLUMN_DND_ENGINE_INTEGRATION -> RESP_COLUMN_DND_INTERACTION "cancel、またはcomplete時の有効移動先なしとしてSession終了へ接続する。" {
 			tags "Runtime Interaction,Runtime_RV_COLUMN_DND_CANCEL"
 			properties {
 				"runtime.RV_COLUMN_DND_CANCEL.step.2" "cancel、またはcomplete時の有効移動先なしとしてSession終了へ接続する。"
 			}
 		}
-		RT_071 = RESP_COLUMN_DND_INTERACTION -> RESP_COLUMN_PRESENTATION "DnD中表示を終了し、異常終了通知を要求しない。" {
+		RT_078 = RESP_COLUMN_DND_INTERACTION -> RESP_COLUMN_PRESENTATION "DnD中表示を終了し、異常終了通知を要求しない。" {
 			tags "Runtime Interaction,Runtime_RV_COLUMN_DND_CANCEL"
 			properties {
 				"runtime.RV_COLUMN_DND_CANCEL.step.3" "DnD中表示を終了し、異常終了通知を要求しない。"
 			}
 		}
-		RT_072 = RESP_COLUMN_DND_INTERACTION -> RESP_COLUMN_TABLE_INTEGRATION "Session破棄後、対象Tableが次の列並び替えを安全に受けられるか現在状態を取得し直す。" {
+		RT_079 = RESP_COLUMN_DND_INTERACTION -> RESP_COLUMN_TABLE_INTEGRATION "Session破棄後、対象Tableが次の列並び替えを安全に受けられるか現在状態を取得し直す。" {
 			tags "Runtime Interaction,Runtime_RV_COLUMN_DND_CANCEL"
 			properties {
 				"runtime.RV_COLUMN_DND_CANCEL.step.4" "Session破棄後、対象Tableが次の列並び替えを安全に受けられるか現在状態を取得し直す。"
 			}
 		}
-		RT_073 = RESP_COLUMN_DND_INTERACTION -> RESP_COLUMN_TABLE_INTEGRATION "complete時の現在列制約または確定済み列移動の反映を要求する。" {
+		RT_080 = RESP_COLUMN_DND_INTERACTION -> RESP_COLUMN_TABLE_INTEGRATION "complete時の現在列制約または確定済み列移動の反映を要求する。" {
 			tags "Runtime Interaction,Runtime_RV_COLUMN_CURRENT_STATE_RECOVERY"
 			properties {
 				"runtime.RV_COLUMN_CURRENT_STATE_RECOVERY.step.1" "complete時の現在列制約または確定済み列移動の反映を要求する。"
 			}
 		}
-		RT_074 = RESP_COLUMN_TABLE_INTEGRATION -> RESP_COLUMN_DND_INTERACTION "現在Table利用不能または更新不能を安全な確定不能結果として返す。" {
+		RT_081 = RESP_COLUMN_TABLE_INTEGRATION -> RESP_COLUMN_DND_INTERACTION "現在Table利用不能または更新不能を安全な確定不能結果として返す。" {
 			tags "Runtime Interaction,Runtime_RV_COLUMN_CURRENT_STATE_RECOVERY"
 			properties {
 				"runtime.RV_COLUMN_CURRENT_STATE_RECOVERY.step.2" "現在Table利用不能または更新不能を安全な確定不能結果として返す。"
 			}
 		}
-		RT_075 = RESP_COLUMN_DND_INTERACTION -> RESP_COLUMN_PRESENTATION "Sessionを終了し、Designで通知対象となる場合だけ一回性終了通知を発行する。" {
+		RT_082 = RESP_COLUMN_DND_INTERACTION -> RESP_COLUMN_PRESENTATION "Sessionを終了し、Designで通知対象となる場合だけ一回性終了通知を発行する。" {
 			tags "Runtime Interaction,Runtime_RV_COLUMN_CURRENT_STATE_RECOVERY"
 			properties {
 				"runtime.RV_COLUMN_CURRENT_STATE_RECOVERY.step.3" "Sessionを終了し、Designで通知対象となる場合だけ一回性終了通知を発行する。"
 			}
 		}
-		RT_076 = RESP_COLUMN_DND_INTERACTION -> RESP_REORDER_MODE "対象Tableで次の列並び替えを安全に受けられるかだけを現在モードへ反映する。" {
+		RT_083 = RESP_COLUMN_DND_INTERACTION -> RESP_REORDER_MODE "対象Tableで次の列並び替えを安全に受けられるかだけを現在モードへ反映する。" {
 			tags "Runtime Interaction,Runtime_RV_COLUMN_CURRENT_STATE_RECOVERY"
 			properties {
 				"runtime.RV_COLUMN_CURRENT_STATE_RECOVERY.step.5" "対象Tableで次の列並び替えを安全に受けられるかだけを現在モードへ反映する。"
@@ -771,21 +831,21 @@ workspace "YTR Reorder v1 Architecture" {
 	views {
 		systemLandscape "DV_COLUMN_RESPONSIBILITY" {
 			title "Structural Dependencies - Responsibility View"
-			include EXT_WORDPRESS_EDITOR EXT_SUPPORTED_TABLE_BLOCK EXT_WORDPRESS_UNDO EXT_WORDPRESS_PREFERENCES EXT_SCROLL_AREA EXT_DND_ENGINE RESP_REORDER_MODE RESP_REORDER_GUIDANCE RESP_EDITOR_DOM_CONTEXT RESP_WORDPRESS_REORDER_INTEGRATION RESP_REORDER_GUIDANCE_INTEGRATION RESP_COLUMN_INPUT_INTERACTION RESP_COLUMN_DND_ENGINE_INTEGRATION RESP_COLUMN_DESTINATION_RESOLUTION RESP_COLUMN_TABLE_INTEGRATION RESP_COLUMN_TARGET_RESOLUTION RESP_COLUMN_DND_INTERACTION RESP_COLUMN_PRESENTATION RESP_REORDER_APPLY_POLICY RESP_WORDPRESS_REORDER_APPLY_INTEGRATION RESP_COLUMN_REORDER_APPLY
+			include EXT_WORDPRESS_EDITOR EXT_SUPPORTED_TABLE_BLOCK EXT_WORDPRESS_UNDO EXT_WORDPRESS_PREFERENCES EXT_SCROLL_AREA EXT_DND_ENGINE RESP_REORDER_MODE RESP_REORDER_GUIDANCE RESP_EDITOR_DOM_CONTEXT RESP_WORDPRESS_REORDER_INTEGRATION RESP_REORDER_GUIDANCE_INTEGRATION RESP_COLUMN_INPUT_INTERACTION RESP_COLUMN_DND_ENGINE_INTEGRATION RESP_COLUMN_DND_LAYOUT_AVAILABILITY RESP_COLUMN_DESTINATION_RESOLUTION RESP_COLUMN_TABLE_INTEGRATION RESP_COLUMN_TARGET_RESOLUTION RESP_COLUMN_DND_INTERACTION RESP_COLUMN_PRESENTATION RESP_REORDER_APPLY_POLICY RESP_WORDPRESS_REORDER_APPLY_INTEGRATION RESP_COLUMN_REORDER_APPLY
 			exclude "relationship.tag!=Structural Dependency"
 			autoLayout lr
 		}
 
 		systemLandscape "DV_COLUMN_EDITOR_INTEGRATION" {
 			title "Structural Dependencies - Editor Integration"
-			include EXT_WORDPRESS_EDITOR EXT_WORDPRESS_PREFERENCES RESP_REORDER_MODE RESP_REORDER_GUIDANCE RESP_EDITOR_DOM_CONTEXT RESP_WORDPRESS_REORDER_INTEGRATION RESP_REORDER_GUIDANCE_INTEGRATION RESP_COLUMN_DND_ENGINE_INTEGRATION RESP_WORDPRESS_REORDER_APPLY_INTEGRATION RESP_COLUMN_REORDER_APPLY
+			include EXT_WORDPRESS_EDITOR EXT_WORDPRESS_PREFERENCES RESP_REORDER_MODE RESP_REORDER_GUIDANCE RESP_EDITOR_DOM_CONTEXT RESP_WORDPRESS_REORDER_INTEGRATION RESP_REORDER_GUIDANCE_INTEGRATION RESP_COLUMN_DND_ENGINE_INTEGRATION RESP_COLUMN_DND_LAYOUT_AVAILABILITY RESP_WORDPRESS_REORDER_APPLY_INTEGRATION RESP_COLUMN_REORDER_APPLY
 			exclude "relationship.tag!=Structural Dependency"
 			autoLayout lr
 		}
 
 		systemLandscape "DV_COLUMN_DND_CORE" {
 			title "Structural Dependencies - DnD Core"
-			include EXT_DND_ENGINE EXT_SCROLL_AREA RESP_COLUMN_INPUT_INTERACTION RESP_COLUMN_DND_ENGINE_INTEGRATION RESP_COLUMN_DESTINATION_RESOLUTION RESP_COLUMN_TABLE_INTEGRATION RESP_COLUMN_TARGET_RESOLUTION RESP_COLUMN_DND_INTERACTION RESP_REORDER_APPLY_POLICY RESP_COLUMN_REORDER_APPLY
+			include EXT_DND_ENGINE EXT_SCROLL_AREA RESP_COLUMN_INPUT_INTERACTION RESP_COLUMN_DND_ENGINE_INTEGRATION RESP_COLUMN_DND_LAYOUT_AVAILABILITY RESP_COLUMN_DESTINATION_RESOLUTION RESP_COLUMN_TABLE_INTEGRATION RESP_COLUMN_TARGET_RESOLUTION RESP_COLUMN_DND_INTERACTION RESP_REORDER_APPLY_POLICY RESP_COLUMN_REORDER_APPLY
 			exclude "relationship.tag!=Structural Dependency"
 			autoLayout lr
 		}
@@ -806,7 +866,7 @@ workspace "YTR Reorder v1 Architecture" {
 
 		custom "PV_COLUMN_REORDER_END_TO_END" {
 			title "Process Flow - Column Reorder End-to-End"
-			include EXT_WORDPRESS_EDITOR RESP_WORDPRESS_REORDER_INTEGRATION RESP_COLUMN_DND_ENGINE_INTEGRATION RESP_COLUMN_INPUT_INTERACTION RESP_COLUMN_TARGET_RESOLUTION EXT_DND_ENGINE RESP_COLUMN_DESTINATION_RESOLUTION RESP_COLUMN_DND_INTERACTION RESP_COLUMN_TABLE_INTEGRATION EXT_SUPPORTED_TABLE_BLOCK
+			include EXT_WORDPRESS_EDITOR RESP_WORDPRESS_REORDER_INTEGRATION RESP_COLUMN_DND_LAYOUT_AVAILABILITY RESP_COLUMN_DND_ENGINE_INTEGRATION RESP_COLUMN_INPUT_INTERACTION RESP_COLUMN_TARGET_RESOLUTION EXT_DND_ENGINE RESP_COLUMN_DESTINATION_RESOLUTION RESP_COLUMN_DND_INTERACTION RESP_COLUMN_TABLE_INTEGRATION EXT_SUPPORTED_TABLE_BLOCK
 			exclude "relationship.tag!=ProcessFlow_PV_COLUMN_REORDER_END_TO_END"
 			autoLayout lr
 		}
@@ -825,12 +885,22 @@ workspace "YTR Reorder v1 Architecture" {
 			autoLayout lr
 		}
 
+		custom "RV_COLUMN_DND_TOOLBAR_LAYOUT_AVAILABILITY" {
+			title "Runtime - Column DnD toolbar layout availability"
+			include EXT_WORDPRESS_EDITOR RESP_WORDPRESS_REORDER_INTEGRATION RESP_COLUMN_DND_LAYOUT_AVAILABILITY RESP_REORDER_MODE
+			exclude "relationship.tag!=Runtime_RV_COLUMN_DND_TOOLBAR_LAYOUT_AVAILABILITY"
+			properties {
+				"runtime.steps" "1=RT_001;2=RT_002;3=RT_003;4=RT_004;5=RT_005"
+			}
+			autoLayout lr
+		}
+
 		custom "RV_COLUMN_DND_START" {
 			title "Runtime - Column DnD start attempt"
-			include EXT_WORDPRESS_EDITOR RESP_WORDPRESS_REORDER_INTEGRATION RESP_COLUMN_DND_ENGINE_INTEGRATION RESP_COLUMN_INPUT_INTERACTION RESP_COLUMN_TARGET_RESOLUTION RESP_COLUMN_TABLE_INTEGRATION EXT_SUPPORTED_TABLE_BLOCK RESP_COLUMN_PRESENTATION EXT_DND_ENGINE RESP_COLUMN_DESTINATION_RESOLUTION EXT_SCROLL_AREA RESP_COLUMN_DND_INTERACTION
+			include EXT_WORDPRESS_EDITOR RESP_WORDPRESS_REORDER_INTEGRATION RESP_COLUMN_DND_ENGINE_INTEGRATION RESP_COLUMN_INPUT_INTERACTION RESP_COLUMN_TARGET_RESOLUTION RESP_COLUMN_TABLE_INTEGRATION EXT_SUPPORTED_TABLE_BLOCK RESP_COLUMN_PRESENTATION EXT_DND_ENGINE RESP_COLUMN_DND_LAYOUT_AVAILABILITY RESP_COLUMN_DESTINATION_RESOLUTION EXT_SCROLL_AREA RESP_COLUMN_DND_INTERACTION
 			exclude "relationship.tag!=Runtime_RV_COLUMN_DND_START"
 			properties {
-				"runtime.steps" "1=RT_001;2=RT_002;3=RT_003;4=RT_004;5=RT_005;6=RT_006;7=RT_007;8=RT_008;9=RT_009;10=RT_010;11=RT_011;12=RT_012;13=RT_006;14=RT_013;15=RT_014;16=RT_015;17=RT_016;18=RT_017;19=RT_018;20=RT_019"
+				"runtime.steps" "1=RT_006;2=RT_007;3=RT_008;4=RT_009;5=RT_010;6=RT_011;7=RT_012;8=RT_013;9=RT_014;10=RT_015;11=RT_016;12=RT_017;13=RT_011;14=RT_018;15=RT_019;16=RT_020;17=RT_021;18=RT_022;19=RT_023;20=RT_024;21=RT_025;22=RT_026"
 			}
 			autoLayout lr
 		}
@@ -840,7 +910,7 @@ workspace "YTR Reorder v1 Architecture" {
 			include EXT_DND_ENGINE RESP_COLUMN_DND_ENGINE_INTEGRATION RESP_COLUMN_DESTINATION_RESOLUTION RESP_COLUMN_DND_INTERACTION RESP_COLUMN_PRESENTATION EXT_SCROLL_AREA
 			exclude "relationship.tag!=Runtime_RV_COLUMN_DND_PROGRESS"
 			properties {
-				"runtime.steps" "1=RT_020;2=RT_021;3=RT_022;4=RT_023;5=RT_024;6=RT_025;7=RT_026;8=RT_027;9=RT_028;10=RT_029"
+				"runtime.steps" "1=RT_027;2=RT_028;3=RT_029;4=RT_030;5=RT_031;6=RT_032;7=RT_033;8=RT_034;9=RT_035;10=RT_036"
 			}
 			autoLayout lr
 		}
@@ -850,7 +920,7 @@ workspace "YTR Reorder v1 Architecture" {
 			include EXT_DND_ENGINE RESP_COLUMN_DND_ENGINE_INTEGRATION RESP_COLUMN_DND_INTERACTION RESP_COLUMN_TABLE_INTEGRATION EXT_SUPPORTED_TABLE_BLOCK RESP_REORDER_APPLY_POLICY EXT_WORDPRESS_UNDO RESP_COLUMN_PRESENTATION RESP_REORDER_MODE
 			exclude "relationship.tag!=Runtime_RV_COLUMN_DND_COMPLETE"
 			properties {
-				"runtime.steps" "1=RT_030;2=RT_031;3=RT_032;4=RT_033;5=RT_034;6=RT_035;7=RT_036;8=RT_037;9=RT_038;10=RT_039;11=RT_040;12=RT_041;13=RT_042;14=RT_043;15=RT_044"
+				"runtime.steps" "1=RT_037;2=RT_038;3=RT_039;4=RT_040;5=RT_041;6=RT_042;7=RT_043;8=RT_044;9=RT_045;10=RT_046;11=RT_047;12=RT_048;13=RT_049;14=RT_050;15=RT_051"
 			}
 			autoLayout lr
 		}
@@ -860,7 +930,7 @@ workspace "YTR Reorder v1 Architecture" {
 			include RESP_COLUMN_DND_INTERACTION RESP_COLUMN_PRESENTATION RESP_COLUMN_TABLE_INTEGRATION RESP_REORDER_MODE RESP_COLUMN_REORDER_APPLY RESP_WORDPRESS_REORDER_APPLY_INTEGRATION EXT_WORDPRESS_EDITOR
 			exclude "relationship.tag!=Runtime_RV_COLUMN_LARGE_REORDER_CONFIRM"
 			properties {
-				"runtime.steps" "1=RT_045;2=RT_046;3=RT_044;4=RT_047;5=RT_048;6=RT_049"
+				"runtime.steps" "1=RT_052;2=RT_053;3=RT_051;4=RT_054;5=RT_055;6=RT_056"
 			}
 			autoLayout lr
 		}
@@ -870,7 +940,7 @@ workspace "YTR Reorder v1 Architecture" {
 			include EXT_WORDPRESS_EDITOR RESP_WORDPRESS_REORDER_APPLY_INTEGRATION RESP_COLUMN_REORDER_APPLY RESP_COLUMN_TABLE_INTEGRATION EXT_SUPPORTED_TABLE_BLOCK EXT_WORDPRESS_UNDO
 			exclude "relationship.tag!=Runtime_RV_COLUMN_LARGE_REORDER_CONTINUE"
 			properties {
-				"runtime.steps" "1=RT_050;2=RT_051;3=RT_052;4=RT_053;5=RT_054;6=RT_055;7=RT_033;8=RT_056;9=RT_057;10=RT_040;11=RT_041;12=RT_058;13=RT_059;14=RT_060"
+				"runtime.steps" "1=RT_057;2=RT_058;3=RT_059;4=RT_060;5=RT_061;6=RT_062;7=RT_040;8=RT_063;9=RT_064;10=RT_047;11=RT_048;12=RT_065;13=RT_066;14=RT_067"
 			}
 			autoLayout lr
 		}
@@ -880,7 +950,7 @@ workspace "YTR Reorder v1 Architecture" {
 			include EXT_WORDPRESS_EDITOR RESP_WORDPRESS_REORDER_APPLY_INTEGRATION RESP_COLUMN_REORDER_APPLY
 			exclude "relationship.tag!=Runtime_RV_COLUMN_LARGE_REORDER_CANCEL"
 			properties {
-				"runtime.steps" "1=RT_061;2=RT_062;3=RT_063;4=RT_064"
+				"runtime.steps" "1=RT_068;2=RT_069;3=RT_070;4=RT_071"
 			}
 			autoLayout lr
 		}
@@ -890,7 +960,7 @@ workspace "YTR Reorder v1 Architecture" {
 			include RESP_COLUMN_REORDER_APPLY RESP_COLUMN_TABLE_INTEGRATION EXT_SUPPORTED_TABLE_BLOCK RESP_WORDPRESS_REORDER_APPLY_INTEGRATION EXT_WORDPRESS_EDITOR
 			exclude "relationship.tag!=Runtime_RV_COLUMN_LARGE_REORDER_REVALIDATION_FAILURE"
 			properties {
-				"runtime.steps" "1=RT_065;2=RT_033;3=RT_066;4=RT_067;5=RT_068;6=RT_060"
+				"runtime.steps" "1=RT_072;2=RT_040;3=RT_073;4=RT_074;5=RT_075;6=RT_067"
 			}
 			autoLayout lr
 		}
@@ -900,7 +970,7 @@ workspace "YTR Reorder v1 Architecture" {
 			include EXT_DND_ENGINE RESP_COLUMN_DND_ENGINE_INTEGRATION RESP_COLUMN_DND_INTERACTION RESP_COLUMN_PRESENTATION RESP_COLUMN_TABLE_INTEGRATION RESP_REORDER_MODE
 			exclude "relationship.tag!=Runtime_RV_COLUMN_DND_CANCEL"
 			properties {
-				"runtime.steps" "1=RT_069;2=RT_070;3=RT_071;4=RT_072;5=RT_044"
+				"runtime.steps" "1=RT_076;2=RT_077;3=RT_078;4=RT_079;5=RT_051"
 			}
 			autoLayout lr
 		}
@@ -910,7 +980,7 @@ workspace "YTR Reorder v1 Architecture" {
 			include RESP_COLUMN_DND_INTERACTION RESP_COLUMN_TABLE_INTEGRATION RESP_COLUMN_PRESENTATION RESP_REORDER_MODE
 			exclude "relationship.tag!=Runtime_RV_COLUMN_CURRENT_STATE_RECOVERY"
 			properties {
-				"runtime.steps" "1=RT_073;2=RT_074;3=RT_075;4=RT_046;5=RT_076"
+				"runtime.steps" "1=RT_080;2=RT_081;3=RT_082;4=RT_053;5=RT_083"
 			}
 			autoLayout lr
 		}

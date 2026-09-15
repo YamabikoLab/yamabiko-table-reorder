@@ -1,7 +1,10 @@
 import { expect, test } from '@wordpress/e2e-test-utils-playwright';
 
+import { applyStackedTableLayout } from '../stacked-table';
+
 import {
 	COLUMN_BUTTON,
+	COLUMN_LAYOUT_UNAVAILABLE,
 	columnOrder,
 	insertTable,
 	moveMouse,
@@ -16,6 +19,68 @@ import {
 test.beforeEach( async ( { admin, page } ) => {
 	await admin.createNewPost();
 	await setPreferences( page );
+} );
+
+/**
+ * Stacked / Reflow表示ではColumn DnD入口とSessionを安全に開始せず、理由と代替操作を確認できることを確認する。
+ *
+ * 事前条件:
+ * - 通常の横方向配置ではColumn Reorder Modeを利用できるCore Tableが選択されている。
+ *
+ * 操作:
+ * - Column Reorder Modeを有効にした後、セルが縦積みになる表示へ変更する。
+ * - Column DnD入口をhoverおよびfocusする。
+ * - TableセルからColumn DnD開始を試みる。
+ *
+ * 期待結果:
+ * - Column Reorder Modeは通常編集へ戻り、入口は利用不可になる。
+ * - 現在表示で利用できないことと列RFを代替利用できることが表示される。
+ * - Column DnD中の表示とTable更新は開始されず、Row DnDとRF入口は利用可能なまま維持される。
+ */
+test( 'when the selected Table becomes stacked, should leave column mode and reject drag while explaining the form alternative', async ( {
+	page,
+	editor,
+} ) => {
+	const { canvas, table, rows } = await insertTable( page, editor );
+	const before = await tableData( editor );
+	const columnEntry = page.getByRole( 'button', { name: COLUMN_BUTTON } );
+	const rowEntry = page.getByRole( 'button', {
+		name: /^(Reorder rows|行を並び替え|行を並べ替え)$/,
+	} );
+	const formEntry = page.getByRole( 'button', {
+		name: /^(Reorder with form|フォームで並び替え)$/,
+	} );
+
+	await expect( columnEntry ).not.toHaveAttribute( 'aria-disabled', 'true' );
+	await columnEntry.click();
+	await expect( columnEntry ).toHaveAttribute( 'aria-pressed', 'true' );
+
+	await applyStackedTableLayout( table );
+
+	await expect( columnEntry ).toHaveAttribute( 'aria-disabled', 'true' );
+	await expect( columnEntry ).toHaveAttribute( 'aria-pressed', 'false' );
+
+	/*
+	 * Column入口から一度ポインターを外してから戻し、
+	 * 利用不可状態でのhover開始を実際のマウス移動として発生させる。
+	 */
+	await moveMouse( page, await pointIn( rowEntry ) );
+	await moveMouse( page, await pointIn( columnEntry ) );
+
+	await expect( page.getByRole( 'tooltip' ) ).toHaveText( COLUMN_LAYOUT_UNAVAILABLE );
+
+	await columnEntry.focus();
+	await expect( page.getByRole( 'tooltip' ) ).toHaveText( COLUMN_LAYOUT_UNAVAILABLE );
+
+	await expect( rowEntry ).toBeEnabled();
+	await expect( formEntry ).toBeEnabled();
+
+	await startMouseDrag( page, rows.first().locator( 'td' ).first() );
+	await expect( canvas.locator( '.yamabiko-table-reorder-moving-column' ) ).toBeHidden();
+	await expect( canvas.locator( '.yamabiko-table-reorder-column-insertion-line' ) ).toBeHidden();
+
+	await page.mouse.up();
+	await expect.poll( () => tableData( editor ) ).toEqual( before );
 } );
 
 /**

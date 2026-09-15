@@ -1,5 +1,7 @@
 import { expect, test } from '@wordpress/e2e-test-utils-playwright';
 
+import { applyStackedTableLayout } from '../stacked-table';
+
 import {
 	ABOVE,
 	APPLY,
@@ -26,6 +28,34 @@ import {
 test.beforeEach( async ( { admin, page } ) => {
 	await admin.createNewPost();
 	await setPreferences( page );
+} );
+
+/**
+ * Stacked / Reflow表示でもColumn RFを代替操作として利用できることを確認する。
+ *
+ * 事前条件:
+ * - Core Tableの各セルが縦積みで表示され、Column DnDは利用できない。
+ *
+ * 操作:
+ * - RFを列へ切り替え、先頭列を末尾へ並び替える。
+ *
+ * 期待結果:
+ * - Column RFは利用可能で、Table全体の論理列順が指定どおり変更される。
+ */
+test( 'when a Table is stacked, should keep column form reorder available as an alternative', async ( {
+	page,
+	editor,
+} ) => {
+	const { table, rows } = await insertTable( page, editor );
+	await applyStackedTableLayout( table );
+	const form = await openReorderForm( page );
+	await form.getByRole( 'radio', { name: COLUMNS } ).click();
+	await fillColumnReorder( form, 1, 4, 'right' );
+	await form.getByRole( 'button', { name: APPLY } ).click();
+
+	await expect
+		.poll( () => columnOrder( rows.first() ) )
+		.toEqual( [ 'R1C2', 'R1C3', 'R1C4', 'R1C1' ] );
 } );
 
 /**

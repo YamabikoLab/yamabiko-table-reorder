@@ -4,7 +4,10 @@
  * Destination ResolutionやPresentationの意味判断は扱わず、現在のDOMから観測可能な列境界を取得する技術境界だけを検証する。
  */
 
-import { measureTableColumnBoundaryGeometry } from '@/reorder/column-reorder/infrastructure/column-geometry';
+import {
+	measureTableColumnBoundaryGeometry,
+	measureTableColumnBoundaryObservations,
+} from '@/reorder/column-reorder/infrastructure/column-geometry';
 
 /**
  * セルへ指定した横位置を設定する。
@@ -48,6 +51,35 @@ const setTableRectangle = ( table: HTMLTableElement, width: number ): void => {
 };
 
 describe( 'Column geometry measurement', () => {
+	/**
+	 * 概要:
+	 * - 同一論理境界を複数セルから観測した場合に、すべての物理位置を失わず提供することを確認する。
+	 * 事前条件:
+	 * - 各セルが縦積みされ、隣接セルの終了端と開始端が異なる物理位置にある。
+	 * 操作:
+	 * - Table全体の論理列境界観測を取得する。
+	 * 期待結果:
+	 * - 同じ論理境界に対応する各セルの終了端と開始端が両方返される。
+	 */
+	it( 'when cells observe the same logical boundary at different positions, should preserve every observation', () => {
+		const table = document.createElement( 'table' );
+		const row = document.createElement( 'tr' );
+		const firstCell = document.createElement( 'td' );
+		const secondCell = document.createElement( 'td' );
+		row.append( firstCell, secondCell );
+		table.appendChild( row );
+		setTableRectangle( table, 200 );
+		setCellRectangle( firstCell, 0, 200 );
+		setCellRectangle( secondCell, 0, 200 );
+
+		expect( measureTableColumnBoundaryObservations( table ) ).toEqual( [
+			{ index: 0, offset: 0 },
+			{ index: 1, offset: 200 },
+			{ index: 1, offset: 0 },
+			{ index: 2, offset: 200 },
+		] );
+	} );
+
 	/**
 	 * 概要:
 	 * - 縦結合が次行の論理列位置を占有しても、残りのセルを正しい列位置として解釈できることを確認する。
@@ -151,6 +183,54 @@ describe( 'Column geometry measurement', () => {
 
 		expect( measureTableColumnBoundaryGeometry( table ) ).toEqual( [
 			{ index: 0, offset: 0 },
+			{ index: 1, offset: 80 },
+			{ index: 2, offset: 200 },
+		] );
+	} );
+
+	/**
+	 * 概要:
+	 * - 描画されていない行が、表示中の行から得た物理列境界を壊さないことを確認する。
+	 * 事前条件:
+	 * - 1行目は通常の横方向配置で、2行目のセルは描画boxを持たない。
+	 * 操作:
+	 * - Table全体の論理列境界観測を取得する。
+	 * 期待結果:
+	 * - 表示中の行から得た境界だけが返され、非表示行の0位置は観測値へ混入しない。
+	 */
+	it( 'when a later row has no rendered cell boxes, should ignore that row in physical boundary observations', () => {
+		const table = document.createElement( 'table' );
+		const tbody = document.createElement( 'tbody' );
+		const visibleRow = document.createElement( 'tr' );
+		const hiddenRow = document.createElement( 'tr' );
+		const visibleFirstCell = document.createElement( 'td' );
+		const visibleSecondCell = document.createElement( 'td' );
+		const hiddenFirstCell = document.createElement( 'td' );
+		const hiddenSecondCell = document.createElement( 'td' );
+		visibleRow.append( visibleFirstCell, visibleSecondCell );
+		hiddenRow.append( hiddenFirstCell, hiddenSecondCell );
+		tbody.append( visibleRow, hiddenRow );
+		table.appendChild( tbody );
+		setTableRectangle( table, 200 );
+		setCellRectangle( visibleFirstCell, 0, 80 );
+		setCellRectangle( visibleSecondCell, 80, 200 );
+		[ hiddenFirstCell, hiddenSecondCell ].forEach( ( cell ) => {
+			jest.spyOn( cell, 'getBoundingClientRect' ).mockReturnValue( {
+				left: 0,
+				right: 0,
+				top: 0,
+				bottom: 0,
+				width: 0,
+				height: 0,
+				x: 0,
+				y: 0,
+				toJSON: () => ( {} ),
+			} );
+		} );
+
+		expect( measureTableColumnBoundaryObservations( table ) ).toEqual( [
+			{ index: 0, offset: 0 },
+			{ index: 1, offset: 80 },
 			{ index: 1, offset: 80 },
 			{ index: 2, offset: 200 },
 		] );

@@ -39,179 +39,183 @@ msgid "Reorder columns"
 msgstr "列を並び替え"
 
 #. 1: 1-based row number, 2: first 1-based column number, 3: last 1-based column number
-#: src/messages.ts:141
+#: src/messages.ts:148
 msgid "A merged cell in row %1$d spanning columns %2$d–%3$d prevents this move."
 msgstr "%1$d行目の%2$d〜%3$d列目に結合セルがあるため、この指定では移動できません。"
 
 #. 1: first 1-based row number, 2: last 1-based row number, 3: 1-based column number
-#: src/messages.ts:151
+#: src/messages.ts:158
 msgid "A merged cell spanning rows %1$d–%2$d in column %3$d prevents this move."
 msgstr "%1$d〜%2$d行目の%3$d列目に結合セルがあるため、この指定では移動できません。"
 
 #. 1: first 1-based row number, 2: last 1-based row number, 3: first 1-based column number, 4: last 1-based column number
-#: src/messages.ts:159
+#: src/messages.ts:166
 msgid "A merged cell spanning rows %1$d–%2$d and columns %3$d–%4$d prevents this move."
 msgstr "%1$d〜%2$d行目の%3$d〜%4$d列目に結合セルがあるため、この指定では移動できません。"
 
-#: src/messages.ts:193
+#: src/messages.ts:200
 msgid "header"
 msgstr "ヘッダー"
 
-#: src/messages.ts:194
+#: src/messages.ts:201
 msgid "footer"
 msgstr "フッター"
 
 #. 1: table section name, 2: 1-based row number, 3: first 1-based column number, 4: last 1-based column number
-#: src/messages.ts:199
+#: src/messages.ts:206
 msgid "A merged cell in %1$s row %2$d spanning columns %3$d–%4$d prevents this move."
 msgstr "%1$sの%2$d行目の%3$d〜%4$d列目に結合セルがあるため、この指定では移動できません。"
 
 #. 1: table section name, 2: first 1-based row number, 3: last 1-based row number, 4: first 1-based column number, 5: last 1-based column number
-#: src/messages.ts:207
+#: src/messages.ts:214
 msgid "A merged cell spanning %1$s rows %2$d–%3$d and columns %4$d–%5$d prevents this move."
 msgstr "%1$sの%2$d〜%3$d行目の%4$d〜%5$d列目に結合セルがあるため、この指定では移動できません。"
 
-#: src/messages.ts:234
+#: src/messages.ts:241
 msgid "Reordering could not continue, so the operation was ended."
 msgstr "並び替えを続けられないため、操作を終了しました。"
 
-#: src/messages.ts:242
+#: src/messages.ts:249
 msgid "Reorder rows and columns."
 msgstr "行・列を並び替えられます。"
 
-#: src/messages.ts:250
+#: src/messages.ts:257
 msgid "Long press a cell, then drag to reorder rows and columns."
 msgstr "セルを長押ししてからドラッグすると、行・列を並び替えられます。"
 
-#: src/messages.ts:258
+#: src/messages.ts:265
 msgid "Close reorder guidance"
 msgstr "並び替えの案内を閉じる"
 
-#: src/messages.ts:262
+#: src/messages.ts:269
 msgid "Apply the new order?"
 msgstr "並び替えを反映しますか？"
 
 #. 1: 移動元の行番号, 2: 移動先の行番号
-#: src/messages.ts:276
+#: src/messages.ts:283
 msgid "Row %1$d → %2$d"
 msgstr "%1$d行目 → %2$d行目"
 
 #. 1: 移動元の列番号, 2: 移動先の列番号
-#: src/messages.ts:292
+#: src/messages.ts:299
 msgid "Column %1$d → %2$d"
 msgstr "%1$d列目 → %2$d列目"
 
-#: src/messages.ts:298
+#: src/messages.ts:305
 msgid "Applying this reorder may take some time."
 msgstr "この並び替えの反映には時間がかかる場合があります。"
 
-#: src/messages.ts:301
+#: src/messages.ts:308
 msgid "Continue"
 msgstr "続行"
 
-#: src/messages.ts:304
+#: src/messages.ts:311
 msgid "Cancel"
 msgstr "キャンセル"
 
-#: src/messages.ts:308
+#: src/messages.ts:315
 msgid "Applying the new order…"
 msgstr "並び替えを反映しています…"
 
-#: src/messages.ts:312
+#: src/messages.ts:319
 msgid "Please wait until the update is complete."
 msgstr "完了するまでしばらくお待ちください。"
 
-#: src/messages.ts:316
+#: src/messages.ts:323
 msgid "Reordering complete."
 msgstr "並び替えが完了しました。"
 
 #. %d: 1-based column number
-#: src/messages.ts:103
+#: src/messages.ts:110
 msgid "Column %d"
 msgstr "%d列目"
 
-#: src/messages.ts:109
+#: src/messages.ts:116
 msgid "This selection won't change the order."
 msgstr "この指定では並び順は変わりません。"
 
-#: src/messages.ts:113
+#: src/messages.ts:120
 msgid "This reorder can't continue with the current table. Check the table and try again."
 msgstr "現在のテーブルでは、この並び替えを続行できません。テーブルの状態を確認して、もう一度お試しください。"
 
-#: src/messages.ts:218
+#: src/messages.ts:225
 msgid "Reorder"
 msgstr "並び替え"
 
-#: src/messages.ts:27
+#: src/messages.ts:34
 msgid "Reorder with form"
 msgstr "フォームで並び替え"
 
-#: src/messages.ts:33
+#: src/messages.ts:40
 msgid "Rows"
 msgstr "行"
 
-#: src/messages.ts:36
+#: src/messages.ts:43
 msgid "Columns"
 msgstr "列"
 
-#: src/messages.ts:39
+#: src/messages.ts:46
 msgid "Row to move"
 msgstr "移動する行"
 
-#: src/messages.ts:42
+#: src/messages.ts:49
 msgid "Target row"
 msgstr "移動先の行"
 
-#: src/messages.ts:45
+#: src/messages.ts:52
 msgid "Position"
 msgstr "位置"
 
-#: src/messages.ts:48
+#: src/messages.ts:55
 msgid "Above"
 msgstr "上"
 
-#: src/messages.ts:51
+#: src/messages.ts:58
 msgid "Below"
 msgstr "下"
 
 #. %d: current tbody row count
-#: src/messages.ts:61
+#: src/messages.ts:68
 msgid "Enter an integer from 1 to %d."
 msgstr "1〜%dの整数を入力してください。"
 
-#: src/messages.ts:67
+#: src/messages.ts:74
 msgid "Move the row above or below the target row."
 msgstr "移動先の行の上または下へ移動します。"
 
-#: src/messages.ts:70
+#: src/messages.ts:77
 msgid "Column to move"
 msgstr "移動する列"
 
-#: src/messages.ts:73
+#: src/messages.ts:80
 msgid "Target column"
 msgstr "移動先の列"
 
-#: src/messages.ts:76
+#: src/messages.ts:83
 msgid "Select a column"
 msgstr "列を選択"
 
-#: src/messages.ts:79
+#: src/messages.ts:86
 msgid "Left"
 msgstr "左"
 
-#: src/messages.ts:82
+#: src/messages.ts:89
 msgid "Right"
 msgstr "右"
 
-#: src/messages.ts:86
+#: src/messages.ts:93
 msgid "Move the column to the left or right of the target column."
 msgstr "移動先の列の左または右へ移動します。"
 
 #. 1: column heading, 2: 1-based column number
-#: src/messages.ts:98
+#: src/messages.ts:105
 msgid "%1$s (Column %2$d)"
 msgstr "%1$s（%2$d列目）"
 
-#: src/messages.ts:226
+#: src/messages.ts:233
 msgid "Reordering failed. The table has not been changed."
 msgstr "並び替えが失敗しました。テーブルは変更されていません。"
+
+#: src/messages.ts:28
+msgid "Column drag reordering is unavailable in the current view. You can reorder columns using the form."
+msgstr "現在の表示では列のドラッグ並び替えを使用できません。列の並び替えはフォームから行えます。"
