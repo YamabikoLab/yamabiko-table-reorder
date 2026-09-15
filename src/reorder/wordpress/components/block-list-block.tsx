@@ -25,6 +25,7 @@ import {
 	type ColumnHighlightPointerOutHandler,
 	type ColumnHighlightPointerOverHandler,
 } from '@/reorder/column-reorder/responsibilities/presentation/column-highlight';
+import { resolveEditorDomContext } from '@/reorder/editor-dom-context';
 import { reorderMode } from '@/reorder/reorder-mode';
 import { subscribeReorderMode, type TableReorderMode } from '@/reorder/reorder-mode-subscription';
 import { RowDnd, type RowDndPointerDownHandler } from '@/reorder/row-reorder/integration/dnd';
@@ -168,7 +169,7 @@ const synchronizeWrapperMode = ( element: HTMLElement | null, mode: TableReorder
  * 対応Tableの既存Block wrapperへ安定した入力境界とReorder Mode固有DOM同期を接続する。
  *
  * Reorder Mode変更は非React購読でYTR専用data属性と方向固有Lifecycleへ通知し、Gutenberg本来のBlockListBlock propsを変更しない。
- * mode同期用anchorはBlockListBlockと同じReact描画先へ置くため、iframe / non-iframeを推測せずownerDocumentから現在wrapperを解決する。
+ * mode同期用anchorはBlockListBlockと同じReact描画先へ置き、Editor DOM Contextから現在wrapperを解決する。
  * Gutenberg側の通常rerender時にも現在wrapperを再解決して現在modeを同期する。
  *
  * @param props                Gutenbergから渡されるBlockListBlock propsと元のcomponent。
@@ -186,8 +187,9 @@ export const ReorderModeBlockListBlock = ( props: {
 	const synchronizedWrapper = useRef< HTMLElement | null >( null );
 
 	const resolveCurrentWrapper = useCallback( (): HTMLElement | null => {
-		const editorDocument = modeDomAnchor.current?.ownerDocument;
-		const wrapper = editorDocument?.getElementById( `block-${ clientId }` ) ?? null;
+		const anchor = modeDomAnchor.current;
+		const editorDomContext = anchor === null ? null : resolveEditorDomContext( anchor );
+		const wrapper = editorDomContext?.document.getElementById( `block-${ clientId }` ) ?? null;
 		return wrapper;
 	}, [ clientId ] );
 
@@ -236,13 +238,14 @@ export const ReorderModeBlockListBlock = ( props: {
 
 		const anchor = modeDomAnchor.current;
 		const wrapperParent = anchor?.parentNode ?? null;
-		const editorWindow = anchor?.ownerDocument.defaultView ?? null;
+		const editorDomContext = anchor === null ? null : resolveEditorDomContext( anchor );
 
-		if ( wrapperParent === null || editorWindow === null ) {
+		if ( wrapperParent === null || editorDomContext === null ) {
 			clearColumnDndLayoutAvailabilitySnapshot( clientId );
 			return;
 		}
 
+		const editorWindow = editorDomContext.window;
 		let active = true;
 		let evaluationScheduled = false;
 
@@ -331,13 +334,13 @@ export const ReorderModeBlockListBlock = ( props: {
 	useEffect( () => {
 		const anchor = modeDomAnchor.current;
 		const wrapperParent = anchor?.parentNode ?? null;
-		const editorWindow = anchor?.ownerDocument.defaultView ?? null;
+		const editorDomContext = anchor === null ? null : resolveEditorDomContext( anchor );
 
-		if ( wrapperParent === null || editorWindow === null ) {
+		if ( wrapperParent === null || editorDomContext === null ) {
 			return;
 		}
 
-		const observer = new editorWindow.MutationObserver( () => {
+		const observer = new editorDomContext.window.MutationObserver( () => {
 			synchronizeCurrentWrapper( reorderMode.getMode( clientId ) );
 		} );
 
