@@ -2,7 +2,22 @@
  * Row Reorderの現在の有効な挿入位置を示す水平線の視覚表現を所有する。
  *
  * 挿入線は対象Tableと現在のeditor表示領域が重なる横幅だけを青色で描画し、DnD入力を遮らない。
+ * 移動先境界が変わった瞬間だけ短く強調し、継続的な動きは行わない。
  */
+
+@use '@/reorder/reorder-tuning' as tuning;
+
+@keyframes yamabiko-table-reorder-row-insertion-line-emphasis {
+	from {
+		opacity: 0.65;
+		box-shadow: 0 0 0 2px rgb(56 88 233 / 18%);
+	}
+
+	to {
+		opacity: 1;
+		box-shadow: 0 0 0 0 rgb(56 88 233 / 0%);
+	}
+}
 
 .yamabiko-table-reorder-insertion-line {
 	position: fixed;
@@ -11,4 +26,12 @@
 	pointer-events: none;
 	background: #3858e9;
 	transform: translateY(-50%);
+	animation: yamabiko-table-reorder-row-insertion-line-emphasis
+		tuning.$row-insertion-line-emphasis-duration tuning.$row-insertion-line-emphasis-easing;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.yamabiko-table-reorder-insertion-line {
+		animation: none;
+	}
 }
