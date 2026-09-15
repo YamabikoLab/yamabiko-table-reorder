@@ -87,10 +87,14 @@ describe( 'Column DnD layout availability toolbar snapshot', () => {
 		const unsubscribe = subscribeColumnDndLayoutAvailabilitySnapshot( 'table-a', listener );
 
 		updateColumnDndLayoutAvailabilitySnapshot( 'table-a', 'available' );
-		updateColumnDndLayoutAvailabilitySnapshot( 'table-a', 'available' );
-		clearColumnDndLayoutAvailabilitySnapshot( 'table-a' );
+		expect( listener ).toHaveBeenCalledTimes( 1 );
 
+		updateColumnDndLayoutAvailabilitySnapshot( 'table-a', 'available' );
+		expect( listener ).toHaveBeenCalledTimes( 1 );
+
+		clearColumnDndLayoutAvailabilitySnapshot( 'table-a' );
 		expect( listener ).toHaveBeenCalledTimes( 2 );
+
 		expect( getColumnDndLayoutAvailabilitySnapshot( 'table-a' ) ).toBe( 'unavailable' );
 		unsubscribe();
 	} );
