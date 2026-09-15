@@ -6,6 +6,8 @@
 
 入力は`docs/requirements/accessibility-v1-requirements.md`、`docs/design/accessibility-v1-design.md`、および既存のReorder Form / Row Reorder / Column Reorder Architectureとする。利用者向けのKeyboard操作、focus遷移、メッセージ、通知条件はBasic Designを正本とし、本書ではそれらを実現する責務配置だけを扱う。
 
+既存Architectureと同じstable IDを持つ責務は、既存文書の責務定義を置き換えない。本書の記述はAccessibilityによって追加される接続とContractを累積的に示し、既存のState ownership、Contract、Lifecycle、Invariant、およびStructural Dependencyを引き続き成立させる。
+
 Accessibility v1は、Reorder Form（RF）をKeyboardと支援技術から利用できる正式な並び替え経路として成立させる。新しい並び替えCoreや大きなAccessibility subsystemは設けず、既存RF / Reorder責務が所有する入力意味、構造診断、Apply結果、最終位置を利用して、WordPress接続境界に必要なSemantics、Focus Coordination、Announcement Deliveryを加える。
 
 本書の対象はIssue #1047のPhase 1-3 Keyboard / Semantics、Phase 1-4 Focus Management、Phase 1-5 Announcementである。Row / Column DnDのKeyboard操作、WCAG全面対応、WordPress Component自体の改善等、同Issueで対象外とされた内容へ責務を広げない。
@@ -19,9 +21,10 @@ Accessibility v1は、Reorder Form（RF）をKeyboardと支援技術から利用
 - RF Input Interpretationを入力成立性の判定責務とし、Accessibility Presentationは入力値を再検証しない。
 - Row / Column RF Resolutionと各Table Integrationをno-op、構造拒否、利用不能、および方向固有診断の正本とし、Accessibility責務はTable構造を再解析しない。
 - RF Apply CoordinationをApply Lifecycle、確定済みMove summary、および成功時の最終位置の正本とし、Focus CoordinationとAnnouncement Deliveryは並び替え結果を推測しない。
+- RF Apply Coordinationは既存のReorder Apply Policyに依存し、通常反映または確認付き大規模反映を選択する。Accessibilityは反映経路を置き換えない。
 - Keyboard / SemanticsはRFおよびApplyのWordPress接続責務が標準UI primitiveとAccessibility Presentationを組み合わせて成立させる。入力意味やApply意味をWordPress UI内の別状態として持たない。
 - Focus CoordinationはDesignで定義された遷移を意味上のfocus intentとして調停する。RF / Apply Lifecycle、validation結果、Table構造、DOM nodeを別正本として保持しない。
-- focus targetが表示再生成中に一時的に存在しない場合だけ、Focus CoordinationはLifecycleに結び付いたpending intentを保持できる。古いTableまたは終了済みLifecycleのintentは適用しない。
+- focus targetが表示再生成中に一時的に存在しない場合だけ、Focus CoordinationはLifecycleに結び付いたpending intentを保持できる。成功側のApply Lifecycleはfocus適用、明示されたfallback、対象Table消失、または利用者による別位置への移動としてintentがsettleするまで終了しない。古いTableまたは終了済みLifecycleのintentは適用しない。
 - 入力問題、no-op、構造拒否、結果通知を知らせることだけを理由にfocusを移動しない。
 - Announcement Deliveryは通知手段を所有し、通知する意味と一回性は結果を所有する既存責務から受け取る。表示再生成を新しい結果として扱わない。
 - 視覚Presentationと支援技術向けAnnouncementは同じ意味の正本を共有するが、同じ表示方式または同じ情報量であることを要求しない。
@@ -42,6 +45,7 @@ Accessibility v1は、Reorder Form（RF）をKeyboardと支援技術から利用
 | EXT_BROWSER_ACCESSIBILITY | Browser Accessibility Platform | External Platform | native controlのKeyboard動作、focus、accessibility tree、および支援技術への状態変化伝達を提供する。 |
 | EXT_ASSISTIVE_TECHNOLOGY | Assistive Technology | External Consumer | Browserが公開する操作部品、状態、入力問題、およびannouncementを利用者へ伝える。 |
 | EXT_SUPPORTED_TABLE_BLOCK | Supported Table Block | External Block | Core TableまたはFlexible Table Blockとして、方向固有Table Integrationが構造解釈と確定更新を行う対象を提供する。 |
+| EXT_WORDPRESS_UNDO | WordPress Undo | External Capability | 成立した一回のRF並び替えを一回のUndoで戻せる更新単位を提供する。 |
 
 WordPress EditorとWordPress Componentsは、標準的なEditor操作とUI primitiveのContractを提供する。Browser Accessibility Platformはnative semantics、focus、および支援技術への伝達を担う。YTRはこれらの外部能力を置き換えず、RF / Reorderの現在状態を適切な操作意味へ接続し、YTR Lifecycleに固有なfocus復元と結果通知を補う。
 
@@ -61,7 +65,7 @@ Keyboard inputはWordPress Reorder IntegrationまたはWordPress Reorder Apply I
 
 Semanticsは、既存のdomain stateとWordPress接続が所有する表示専用状態から要求時点で導出する。方向、選択状態、入力範囲、実行可否、展開状態、確認状態、反映中状態等をAccessibility専用Storeへ複製しない。表示形式が再生成されても、同じRF Session、表示Lifecycle、Apply Lifecycleから同じ操作意味を再構成する。
 
-Focus Coordinationは、platform標準のfocus移動で足りる間は介入しない。Designが明示するLifecycle境界でだけfocus intentを受け、対象が一時的に存在しない場合はpending intentとして表示復帰を待つ。移動後セルはTable Integrationが確定した最終位置を使用し、見つからない場合に隣接位置から推測しない。
+Focus Coordinationは、platform標準のfocus移動で足りる間は介入しない。Designが明示するLifecycle境界でだけfocus intentを受け、対象が一時的に存在しない場合はpending intentとして表示復帰を待つ。移動後セルはTable Integrationが確定した最終位置を使用し、見つからない場合に隣接位置から推測しない。成功側の表示復帰は、Focus Coordinationが最終targetへの適用またはDesignで明示されたfallbackをsettleした後にだけ完了する。
 
 Announcementはfocusから独立させる。RF Interactionが所有する現在評価の意味変化または未提示Apply結果を一回性の通知入力とし、Announcement Deliveryはその意味を支援技術へ伝える。Presentation再生成や同一状態の再評価だけでは新しい通知を発行しない。
 
@@ -74,6 +78,7 @@ KeyboardによるRF開始から既存Resolution / Apply、accessible Presentatio
 | From | To | Kind | Meaning |
 | --- | --- | --- | --- |
 | EXT_WORDPRESS_EDITOR | RESP_WORDPRESS_REORDER_INTEGRATION | normal | 対応TableのRF操作がWordPress接続境界へ入る。 |
+| RESP_WORDPRESS_REORDER_INTEGRATION | RESP_REORDER_MODE | normal | RF開始前に同一Tableの方向固有Reorder Modeを終了する。 |
 | RESP_WORDPRESS_REORDER_INTEGRATION | RESP_RF_INTERACTION | normal | Keyboardまたは他の標準入力を同じRF Sessionへ接続する。 |
 | RESP_RF_INTERACTION | RESP_RF_INPUT_INTERPRETATION | normal | 現在入力を方向固有Resolution向けの内部指定へ解釈する。 |
 | RESP_RF_INTERACTION | RESP_RF_ROW_RESOLUTION | normal | 成立したRow指定を現在Tableへ解決する。 |
@@ -118,14 +123,16 @@ KeyboardによるRF開始から既存Resolution / Apply、accessible Presentatio
 
 | ID | Responsibility | Summary |
 | --- | --- | --- |
+| RESP_REORDER_MODE | Reorder Mode | edit / row / columnの排他状態と対象Tableを所有する共通状態責務。 |
+| RESP_REORDER_APPLY_POLICY | Reorder Apply Policy | 更新対象セル数から通常反映か確認付き大規模反映かを選択する共通方針責務。 |
 | RESP_EDITOR_DOM_CONTEXT | Editor DOM Context | 現在のEditor基準から同じ表示環境のfocusおよびAccessibility platform contextを要求時点で解決する。 |
-| RESP_WORDPRESS_REORDER_INTEGRATION | WordPress Reorder Integration | RF入口、入力画面、Keyboard入力、現在RF状態、終了、および通常時のAccessibility責務をWordPress Editorへ接続する。 |
+| RESP_WORDPRESS_REORDER_INTEGRATION | WordPress Reorder Integration | Row / Column / RF入口、RF入力画面、現在Table、相互排他、および現在RF Sessionの表示専用状態をWordPress Editorへ接続する。 |
 | RESP_WORDPRESS_REORDER_APPLY_INTEGRATION | WordPress Reorder Apply Integration | RF Apply状態を確認、反映中表示、表示復帰、およびApply中のAccessibility責務へ接続する。 |
 | RESP_ACCESSIBILITY_PRESENTATION | Accessibility Presentation | 既存RF / Apply状態を標準操作部品の意味、状態、案内、および入力問題との関係として表現する。 |
 | RESP_FOCUS_COORDINATION | Focus Coordination | Designで定義されたRF / Apply Lifecycleのfocus維持・移動・復帰intentを現在のEditor contextへ適用する。 |
 | RESP_ANNOUNCEMENT_DELIVERY | Announcement Delivery | 既存責務が確定した一回性の結果意味をfocusから独立してBrowser Accessibility Platformへ伝える。 |
-| RESP_RF_INTERACTION | RF Interaction | RF Session、対象Table、方向、入力、現在評価、Apply要求、および未提示のApply結果を所有する。 |
-| RESP_RF_INPUT_INTERPRETATION | RF Input Interpretation | 利用者入力と現在入力範囲 / 選択肢を解釈し、入力問題または方向固有Resolution向け内部指定を返す。 |
+| RESP_RF_INTERACTION | RF Interaction | RF Session、対象Table、方向、利用者入力、現在評価、現在評価で新しく成立した意味、Apply要求、および未提示のApply結果を所有する。 |
+| RESP_RF_INPUT_INTERPRETATION | RF Input Interpretation | 利用者入力と現在入力範囲 / 選択肢を解釈し、未入力、修正が必要な入力、または方向固有Resolution向け内部指定を返す。 |
 | RESP_RF_ROW_RESOLUTION | Row RF Resolution | Row指定を現在Tableへ照合し、成立候補、no-op、構造拒否、利用不能を解決する。 |
 | RESP_RF_COLUMN_RESOLUTION | Column RF Resolution | Column指定を現在Tableへ照合し、成立候補、no-op、構造拒否、利用不能を解決する。 |
 | RESP_RF_APPLY_COORDINATION | RF Apply Coordination | 候補再照合、反映経路、確認、確定更新、表示復帰、結果、および成功時の最終位置を所有する。 |
@@ -136,12 +143,13 @@ KeyboardによるRF開始から既存Resolution / Apply、accessible Presentatio
 
 | ID | Name | Includes |
 | --- | --- | --- |
+| BOUNDARY_REORDER_COMMON | Reorder Common | RESP_REORDER_MODE RESP_REORDER_APPLY_POLICY |
 | BOUNDARY_EDITOR_INTEGRATION | Editor Integration | RESP_EDITOR_DOM_CONTEXT |
 | BOUNDARY_WORDPRESS_REORDER | WordPress Reorder Integration | RESP_WORDPRESS_REORDER_INTEGRATION RESP_WORDPRESS_REORDER_APPLY_INTEGRATION RESP_ACCESSIBILITY_PRESENTATION RESP_FOCUS_COORDINATION RESP_ANNOUNCEMENT_DELIVERY |
 | BOUNDARY_REORDER_FORM | Reorder Form | RESP_RF_INTERACTION RESP_RF_INPUT_INTERPRETATION RESP_RF_ROW_RESOLUTION RESP_RF_COLUMN_RESOLUTION RESP_RF_APPLY_COORDINATION |
 | BOUNDARY_ROW_REORDER | Row Reorder | RESP_ROW_TABLE_INTEGRATION |
 | BOUNDARY_COLUMN_REORDER | Column Reorder | RESP_COLUMN_TABLE_INTEGRATION |
-| BOUNDARY_WORDPRESS_EXTERNAL | WordPress External | EXT_WORDPRESS_EDITOR EXT_WORDPRESS_COMPONENTS EXT_SUPPORTED_TABLE_BLOCK |
+| BOUNDARY_WORDPRESS_EXTERNAL | WordPress External | EXT_WORDPRESS_EDITOR EXT_WORDPRESS_COMPONENTS EXT_SUPPORTED_TABLE_BLOCK EXT_WORDPRESS_UNDO |
 | BOUNDARY_ACCESSIBILITY_PLATFORM | Accessibility Platform | EXT_BROWSER_ACCESSIBILITY EXT_ASSISTIVE_TECHNOLOGY |
 
 Accessibility Presentation、Focus Coordination、Announcement Deliveryは`BOUNDARY_WORDPRESS_REORDER`の内部に置く。三責務を分離するのは状態所有とLifecycleを明確にするためであり、Accessibilityを既存RF / Reorderから独立したSubsystemとして扱うためではない。
@@ -153,6 +161,7 @@ Accessibility Presentation、Focus Coordination、Announcement Deliveryは`BOUND
 | RESP_EDITOR_DOM_CONTEXT | EXT_WORDPRESS_EDITOR | 現在のEditor基準と同じ表示環境のcontextを解決するために必要とする。 |
 | RESP_WORDPRESS_REORDER_INTEGRATION | EXT_WORDPRESS_EDITOR | RF入口、入力画面、終了、および現在TableのEditor接続に必要とする。 |
 | RESP_WORDPRESS_REORDER_INTEGRATION | EXT_WORDPRESS_COMPONENTS | RFの標準操作とKeyboard Contractを利用するために必要とする。 |
+| RESP_WORDPRESS_REORDER_INTEGRATION | RESP_REORDER_MODE | RF開始時のDnDモード終了と入口排他に必要とする。 |
 | RESP_WORDPRESS_REORDER_INTEGRATION | RESP_RF_INTERACTION | RF Session、現在入力、評価、Apply結果をEditorへ接続するために必要とする。 |
 | RESP_WORDPRESS_REORDER_INTEGRATION | RESP_ACCESSIBILITY_PRESENTATION | RF状態を操作意味、状態、案内、入力問題との関係へ表現するために必要とする。 |
 | RESP_WORDPRESS_REORDER_INTEGRATION | RESP_FOCUS_COORDINATION | RF open / close、failure、および表示変更時のfocus Contractに必要とする。 |
@@ -176,22 +185,72 @@ Accessibility Presentation、Focus Coordination、Announcement Deliveryは`BOUND
 | RESP_RF_INTERACTION | RESP_COLUMN_TABLE_INTEGRATION | Column入力選択肢と列記述を現在Tableから取得するために必要とする。 |
 | RESP_RF_ROW_RESOLUTION | RESP_ROW_TABLE_INTEGRATION | 現在のRow構造と診断を利用するために必要とする。 |
 | RESP_RF_COLUMN_RESOLUTION | RESP_COLUMN_TABLE_INTEGRATION | 現在のColumn構造と診断を利用するために必要とする。 |
+| RESP_RF_APPLY_COORDINATION | RESP_REORDER_APPLY_POLICY | 更新対象セル数から通常反映または確認付き大規模反映を選択するために必要とする。 |
 | RESP_RF_APPLY_COORDINATION | RESP_ROW_TABLE_INTEGRATION | Row候補の再照合、確定更新、および確定後位置に必要とする。 |
 | RESP_RF_APPLY_COORDINATION | RESP_COLUMN_TABLE_INTEGRATION | Column候補の再照合、確定更新、および確定後位置に必要とする。 |
 | RESP_ROW_TABLE_INTEGRATION | EXT_SUPPORTED_TABLE_BLOCK | 現在のRow構造取得と確定行移動に必要とする。 |
+| RESP_ROW_TABLE_INTEGRATION | EXT_WORDPRESS_UNDO | 一回の成立した行移動を一回のUndo単位として維持するために必要とする。 |
 | RESP_COLUMN_TABLE_INTEGRATION | EXT_SUPPORTED_TABLE_BLOCK | 現在のColumn構造取得と確定列移動に必要とする。 |
+| RESP_COLUMN_TABLE_INTEGRATION | EXT_WORDPRESS_UNDO | 一回の成立した列移動を一回のUndo単位として維持するために必要とする。 |
 
 ### Dependency Views
 
 | ID | Name | Includes |
 | --- | --- | --- |
-| DV_ACCESSIBILITY_RESPONSIBILITY | Responsibility View | EXT_WORDPRESS_EDITOR EXT_WORDPRESS_COMPONENTS EXT_BROWSER_ACCESSIBILITY EXT_ASSISTIVE_TECHNOLOGY EXT_SUPPORTED_TABLE_BLOCK RESP_EDITOR_DOM_CONTEXT RESP_WORDPRESS_REORDER_INTEGRATION RESP_WORDPRESS_REORDER_APPLY_INTEGRATION RESP_ACCESSIBILITY_PRESENTATION RESP_FOCUS_COORDINATION RESP_ANNOUNCEMENT_DELIVERY RESP_RF_INTERACTION RESP_RF_INPUT_INTERPRETATION RESP_RF_ROW_RESOLUTION RESP_RF_COLUMN_RESOLUTION RESP_RF_APPLY_COORDINATION RESP_ROW_TABLE_INTEGRATION RESP_COLUMN_TABLE_INTEGRATION |
+| DV_ACCESSIBILITY_RESPONSIBILITY | Responsibility View | EXT_WORDPRESS_EDITOR EXT_WORDPRESS_COMPONENTS EXT_BROWSER_ACCESSIBILITY EXT_ASSISTIVE_TECHNOLOGY EXT_SUPPORTED_TABLE_BLOCK EXT_WORDPRESS_UNDO RESP_REORDER_MODE RESP_REORDER_APPLY_POLICY RESP_EDITOR_DOM_CONTEXT RESP_WORDPRESS_REORDER_INTEGRATION RESP_WORDPRESS_REORDER_APPLY_INTEGRATION RESP_ACCESSIBILITY_PRESENTATION RESP_FOCUS_COORDINATION RESP_ANNOUNCEMENT_DELIVERY RESP_RF_INTERACTION RESP_RF_INPUT_INTERPRETATION RESP_RF_ROW_RESOLUTION RESP_RF_COLUMN_RESOLUTION RESP_RF_APPLY_COORDINATION RESP_ROW_TABLE_INTEGRATION RESP_COLUMN_TABLE_INTEGRATION |
 | DV_ACCESSIBILITY_PRESENTATION | Keyboard and Semantics | EXT_WORDPRESS_EDITOR EXT_WORDPRESS_COMPONENTS EXT_BROWSER_ACCESSIBILITY RESP_WORDPRESS_REORDER_INTEGRATION RESP_WORDPRESS_REORDER_APPLY_INTEGRATION RESP_ACCESSIBILITY_PRESENTATION RESP_RF_INTERACTION |
 | DV_ACCESSIBILITY_FOCUS | Focus Management | EXT_WORDPRESS_EDITOR EXT_BROWSER_ACCESSIBILITY RESP_EDITOR_DOM_CONTEXT RESP_WORDPRESS_REORDER_INTEGRATION RESP_WORDPRESS_REORDER_APPLY_INTEGRATION RESP_FOCUS_COORDINATION RESP_RF_INTERACTION RESP_RF_APPLY_COORDINATION |
 | DV_ACCESSIBILITY_ANNOUNCEMENT | Announcement | EXT_BROWSER_ACCESSIBILITY EXT_ASSISTIVE_TECHNOLOGY RESP_WORDPRESS_REORDER_INTEGRATION RESP_ANNOUNCEMENT_DELIVERY RESP_RF_INTERACTION RESP_RF_APPLY_COORDINATION |
-| DV_ACCESSIBILITY_MEANING | Validation and Reorder Meaning | EXT_SUPPORTED_TABLE_BLOCK RESP_RF_INTERACTION RESP_RF_INPUT_INTERPRETATION RESP_RF_ROW_RESOLUTION RESP_RF_COLUMN_RESOLUTION RESP_RF_APPLY_COORDINATION RESP_ROW_TABLE_INTEGRATION RESP_COLUMN_TABLE_INTEGRATION RESP_ACCESSIBILITY_PRESENTATION |
+| DV_ACCESSIBILITY_MEANING | Validation and Reorder Meaning | EXT_SUPPORTED_TABLE_BLOCK RESP_REORDER_APPLY_POLICY RESP_RF_INTERACTION RESP_RF_INPUT_INTERPRETATION RESP_RF_ROW_RESOLUTION RESP_RF_COLUMN_RESOLUTION RESP_RF_APPLY_COORDINATION RESP_ROW_TABLE_INTEGRATION RESP_COLUMN_TABLE_INTEGRATION RESP_ACCESSIBILITY_PRESENTATION |
 
 ### Responsibility Details
+
+#### Reorder Mode {#RESP_REORDER_MODE}
+
+##### Responsibility
+
+通常編集、Row DnD、Column DnDの排他状態と対象Tableを所有する。RF状態は所有しない。
+
+##### State ownership
+
+`edit | row | column`と方向固有モードが関連付くTable Identityを所有する。RF Session、RF入力、Apply Lifecycleを所有しない。
+
+##### Contract
+
+WordPress Reorder Integrationから入口選択とRF開始前のモード終了を受ける。RF開始時は同一Tableの方向固有モードを`edit`へ戻す。
+
+##### Lifecycle
+
+既存の`edit ↔ row | column`Lifecycleを維持する。RF終了時に過去モードを復元しない。
+
+##### Invariants
+
+- 同時に有効な方向固有モードは一つだけとする。
+- RFを新しいReorder Mode方向として保持しない。
+
+#### Reorder Apply Policy {#RESP_REORDER_APPLY_POLICY}
+
+##### Responsibility
+
+更新対象セル数から通常反映または確認付き大規模反映を選択する。
+
+##### State ownership
+
+状態を所有しない。Table構造、方向固有Move、Apply Lifecycleを保持しない。
+
+##### Contract
+
+RF Apply Coordinationから更新対象セル数を受け、共通性能Policyに従って反映経路を返す。
+
+##### Lifecycle
+
+一回のApply評価ごとに同期的に経路を選択する。
+
+##### Invariants
+
+- RF固有または方向固有のMove意味を解釈しない。
+- Apply状態を所有しない。
+- 閾値を利用者向け固定要件として扱わない。
 
 #### Editor DOM Context {#RESP_EDITOR_DOM_CONTEXT}
 
@@ -259,11 +318,11 @@ RF Apply状態をWordPress Editorの確認、反映中表示、editing surface r
 
 RF Apply Coordinationが公開する確認summary、Apply状態、確定結果、最終位置を利用する。確認と反映中状態をAccessibility Presentationへ渡し、確認開始、Cancel、反映準備、editing surface restorationの各Design境界でFocus Coordinationへ意味上のtargetを渡す。
 
-成功後はRF Apply Coordinationが確定した最終位置をそのままFocus Coordinationへ渡す。最終位置を現在Tableへ安全に適用できない場合は、対象Tableの安定した操作位置へ限定してfallbackし、隣接行または列を移動結果として推測しない。
+成功後はRF Apply Coordinationが確定した最終位置をそのままFocus Coordinationへ渡す。最終位置を現在Tableへ安全に適用できない場合は、対象Tableの安定した操作位置へ限定してfallbackし、隣接行または列を移動結果として推測しない。Focus Coordinationから、最終targetへの適用、明示したfallbackへの適用、対象Table消失、または利用者による別位置への移動のいずれかでfocus intentがsettleした結果を受けた後にだけ、RF Apply Coordinationへ表示復帰完了を返す。
 
 ##### Lifecycle
 
-通常反映では確定更新後の表示復帰、確認付き反映では確認から反映中、表示復帰までを接続する。表示復帰中にfocus targetが一時的に存在しない場合はFocus Coordinationのpending intentを利用し、復帰完了後に解決する。
+通常反映では確定更新後の表示復帰、確認付き反映では確認から反映中、表示復帰までを接続する。editing surface再成立後もfocus targetが一時的に存在しない場合はFocus Coordinationのpending intentを利用する。成功側の表示復帰はpending intentのsettleまで継続し、その後に完了する。
 
 ##### Invariants
 
@@ -271,6 +330,7 @@ RF Apply Coordinationが公開する確認summary、Apply状態、確定結果�
 - 確認または反映中PresentationをAccessibility専用Apply状態の正本にしない。
 - Table更新またはUndo履歴を追加しない。
 - 対象Table以外のEditor操作を不必要に抑止しない。
+- success後のfocus intentが未解決のまま表示復帰完了を通知しない。
 
 #### Accessibility Presentation {#RESP_ACCESSIBILITY_PRESENTATION}
 
@@ -314,11 +374,11 @@ targetが一時的に存在しない表示復帰期間だけ、Lifecycleに結�
 
 WordPress Reorder IntegrationまたはWordPress Reorder Apply Integrationから、遷移理由、現在Lifecycle、対象Table、および意味上のfocus targetを受ける。Editor DOM Contextから現在contextを解決し、targetが現在存在しDesign上適用可能な場合だけfocusを移す。
 
-現在操作へfocusを残すDesign場面では何も移動しない。別の操作対象へ利用者が移動した終了では復帰intentを受理しない。表示復帰中のpending intentは同じLifecycleと対象Tableにだけ適用し、対象消失またはLifecycle終了時に破棄する。
+現在操作へfocusを残すDesign場面では何も移動しない。別の操作対象へ利用者が移動した終了では復帰intentを受理しない。表示復帰中のpending intentは同じLifecycleと対象Tableにだけ適用する。最終targetへの適用、明示されたfallbackへの適用、対象Table消失、または利用者による別位置への移動によってintentがsettleしたことを呼び出し元へ返す。
 
 ##### Lifecycle
 
-通常はidleである。明示されたfocus遷移を即時適用できれば状態を保持しない。表示再生成によってtargetが一時的に存在しない場合だけpendingとなり、現在targetの成立、対象消失、Lifecycle終了、または利用者による別位置への移動で完了・破棄する。
+通常はidleである。明示されたfocus遷移を即時適用できれば状態を保持しない。表示再生成によってtargetが一時的に存在しない場合だけpendingとなり、現在targetの成立、明示されたfallbackの成立、対象消失、または利用者による別位置への移動で完了・破棄する。成功側のApply Lifecycle終了はpending intentの破棄条件ではなく、intentのsettle後にだけ成立する。
 
 ##### Invariants
 
@@ -327,6 +387,7 @@ WordPress Reorder IntegrationまたはWordPress Reorder Apply Integrationから�
 - 入力問題や修正順序を独自に判定しない。
 - 確定後位置または代替位置をTable構造から推測しない。
 - stale intentで利用者の新しい操作位置を奪わない。
+- success側のpending intentをApply Lifecycle終了によって先に破棄しない。
 - Wide / Narrowまたはiframe / non-iframeの差をfocus意味の差にしない。
 
 #### Announcement Delivery {#RESP_ANNOUNCEMENT_DELIVERY}
@@ -468,19 +529,20 @@ RF候補の現在Table再照合、反映経路、確認、確定更新、表示�
 
 ##### Contract
 
-方向固有Table Integrationへ現在候補のApply評価と確定更新を要求する。確認用summaryとsuccess announcementに必要な移動前位置 / 確定後位置を、方向固有結果から一度確定してWordPress接続へ公開する。表示復帰完了後にだけsuccessをRF Interactionへ返す。
+方向固有Table Integrationへ現在候補のApply評価と確定更新を要求し、Reorder Apply Policyで反映経路を選択する。確認用summaryとsuccess announcementに必要な移動前位置 / 確定後位置を、方向固有結果から一度確定してWordPress接続へ公開する。editing surface再成立とsuccess後のfocus intentのsettleを含む表示復帰完了後にだけsuccessをRF Interactionへ返す。
 
 failureではTable未変更の結果を返し、現在入力のどこを修正すべきかを独自に決めない。Focus CoordinationとAnnouncement Deliveryは直接所有せず、WordPress接続が確定済み結果を各Presentation責務へ接続する。
 
 ##### Lifecycle
 
-既存の通常反映および確認付き大規模反映Lifecycleを維持する。Focus intentとannouncementはそのLifecycleの観測結果であり、新しいApply phaseを追加しない。
+既存の通常反映および確認付き大規模反映Lifecycleを維持する。Focus intentとannouncementはそのLifecycleの観測結果であり、新しいApply phaseを追加しない。成功側の表示復帰はfocus intentがsettleするまで継続し、その完了前にApply Lifecycleを終了しない。
 
 ##### Invariants
 
 - success用の確定後位置をRF入力の移動先番号から推測しない。
 - AccessibilityのためにTable再照合または確定更新を重複実行しない。
 - 表示復帰完了前にsuccessを通知可能な結果として確定しない。
+- success後のfocus intentがpendingの間は表示復帰完了として扱わない。
 - 確認Cancelをfailureとして公開しない。
 
 #### Row Table Integration {#RESP_ROW_TABLE_INTEGRATION}
@@ -630,12 +692,13 @@ Row反映中の安定した位置を維持し、Table表示再生成後に確定
 | 5 | RESP_RF_APPLY_COORDINATION | RESP_WORDPRESS_REORDER_APPLY_INTEGRATION | success時の確定後位置とediting surface restoration要求を公開する。 |
 | 6 | RESP_WORDPRESS_REORDER_APPLY_INTEGRATION | EXT_WORDPRESS_EDITOR | 更新後の対象Table editing surfaceを再成立させる。 |
 | 7 | RESP_WORDPRESS_REORDER_APPLY_INTEGRATION | RESP_FOCUS_COORDINATION | 確定後Row位置に対応する結果確認targetを渡す。 |
-| 8 | RESP_FOCUS_COORDINATION | EXT_BROWSER_ACCESSIBILITY | 現在Table上で正確に確認できるtargetへfocusを適用する。 |
-| 9 | RESP_WORDPRESS_REORDER_APPLY_INTEGRATION | RESP_RF_APPLY_COORDINATION | 表示復帰完了を返す。 |
-| 10 | RESP_RF_APPLY_COORDINATION | RESP_RF_INTERACTION | 確定済みRow Move summaryを持つsuccessを返す。 |
-| 11 | RESP_RF_INTERACTION | RESP_WORDPRESS_REORDER_INTEGRATION | 一度だけ提示可能なsuccessを提供する。 |
-| 12 | RESP_WORDPRESS_REORDER_INTEGRATION | RESP_ANNOUNCEMENT_DELIVERY | 確定済み移動前Row位置と確定後位置を持つsuccess通知を渡す。 |
-| 13 | RESP_ANNOUNCEMENT_DELIVERY | EXT_BROWSER_ACCESSIBILITY | successをfocusから独立して公開する。 |
+| 8 | RESP_FOCUS_COORDINATION | EXT_BROWSER_ACCESSIBILITY | 最終targetが成立すればfocusを適用し、成立しないことが確定した場合は明示されたfallbackへ限定して適用する。 |
+| 9 | RESP_FOCUS_COORDINATION | RESP_WORDPRESS_REORDER_APPLY_INTEGRATION | focus適用、明示されたfallback、対象Table消失、または利用者の別位置への移動によってintentがsettleしたことを返す。 |
+| 10 | RESP_WORDPRESS_REORDER_APPLY_INTEGRATION | RESP_RF_APPLY_COORDINATION | focus intentのsettleを含む表示復帰完了を返す。 |
+| 11 | RESP_RF_APPLY_COORDINATION | RESP_RF_INTERACTION | 確定済みRow Move summaryを持つsuccessを返す。 |
+| 12 | RESP_RF_INTERACTION | RESP_WORDPRESS_REORDER_INTEGRATION | 一度だけ提示可能なsuccessを提供する。 |
+| 13 | RESP_WORDPRESS_REORDER_INTEGRATION | RESP_ANNOUNCEMENT_DELIVERY | 確定済み移動前Row位置と確定後位置を持つsuccess通知を渡す。 |
+| 14 | RESP_ANNOUNCEMENT_DELIVERY | EXT_BROWSER_ACCESSIBILITY | successをfocusから独立して公開する。 |
 
 ### Column apply restoration and success {#RV_ACCESSIBILITY_COLUMN_APPLY_SUCCESS}
 
@@ -650,12 +713,13 @@ Column反映中の安定した位置を維持し、Table表示再生成後に確
 | 5 | RESP_RF_APPLY_COORDINATION | RESP_WORDPRESS_REORDER_APPLY_INTEGRATION | success時の確定後位置とediting surface restoration要求を公開する。 |
 | 6 | RESP_WORDPRESS_REORDER_APPLY_INTEGRATION | EXT_WORDPRESS_EDITOR | 更新後の対象Table editing surfaceを再成立させる。 |
 | 7 | RESP_WORDPRESS_REORDER_APPLY_INTEGRATION | RESP_FOCUS_COORDINATION | 確定後Column位置に対応する結果確認targetを渡す。 |
-| 8 | RESP_FOCUS_COORDINATION | EXT_BROWSER_ACCESSIBILITY | 現在Table上で正確に確認できるtargetへfocusを適用する。 |
-| 9 | RESP_WORDPRESS_REORDER_APPLY_INTEGRATION | RESP_RF_APPLY_COORDINATION | 表示復帰完了を返す。 |
-| 10 | RESP_RF_APPLY_COORDINATION | RESP_RF_INTERACTION | 確定済みColumn Move summaryを持つsuccessを返す。 |
-| 11 | RESP_RF_INTERACTION | RESP_WORDPRESS_REORDER_INTEGRATION | 一度だけ提示可能なsuccessを提供する。 |
-| 12 | RESP_WORDPRESS_REORDER_INTEGRATION | RESP_ANNOUNCEMENT_DELIVERY | 確定済み移動前Column位置と確定後位置を持つsuccess通知を渡す。 |
-| 13 | RESP_ANNOUNCEMENT_DELIVERY | EXT_BROWSER_ACCESSIBILITY | successをfocusから独立して公開する。 |
+| 8 | RESP_FOCUS_COORDINATION | EXT_BROWSER_ACCESSIBILITY | 最終targetが成立すればfocusを適用し、成立しないことが確定した場合は明示されたfallbackへ限定して適用する。 |
+| 9 | RESP_FOCUS_COORDINATION | RESP_WORDPRESS_REORDER_APPLY_INTEGRATION | focus適用、明示されたfallback、対象Table消失、または利用者の別位置への移動によってintentがsettleしたことを返す。 |
+| 10 | RESP_WORDPRESS_REORDER_APPLY_INTEGRATION | RESP_RF_APPLY_COORDINATION | focus intentのsettleを含む表示復帰完了を返す。 |
+| 11 | RESP_RF_APPLY_COORDINATION | RESP_RF_INTERACTION | 確定済みColumn Move summaryを持つsuccessを返す。 |
+| 12 | RESP_RF_INTERACTION | RESP_WORDPRESS_REORDER_INTEGRATION | 一度だけ提示可能なsuccessを提供する。 |
+| 13 | RESP_WORDPRESS_REORDER_INTEGRATION | RESP_ANNOUNCEMENT_DELIVERY | 確定済み移動前Column位置と確定後位置を持つsuccess通知を渡す。 |
+| 14 | RESP_ANNOUNCEMENT_DELIVERY | EXT_BROWSER_ACCESSIBILITY | successをfocusから独立して公開する。 |
 
 ### Row apply restoration failure and correction return {#RV_ACCESSIBILITY_ROW_APPLY_FAILURE}
 
@@ -706,6 +770,7 @@ Accessibility v1は、新しいdomain stateを必要最小限にする。次の�
 | 入力成立性と修正対象 | RF Input Interpretation | 対象入力との関係と修正案内を導出する。 |
 | no-op、構造拒否、利用不能 | Row / Column RF Resolution | 指定全体の現在結果とannouncement候補を導出する。 |
 | Row / Column構造、列記述、診断 | Row / Column Table Integration | 入力範囲、列識別、移動不可理由を既存Contract経由で利用する。 |
+| 通常反映 / 確認付き大規模反映 | Reorder Apply Policy | 更新対象セル数に対する既存の反映経路を維持する。 |
 | Apply phase、確認summary、success / failure、確定後位置 | RF Apply Coordination | 確認、反映中、focus復帰、結果announcementを導出する。 |
 | 一回性通知の適格性 | RF Interaction | 同じ評価または結果の再通知を防ぐ。 |
 | 一時的に適用不能なfocus intent | Focus Coordination | 同じLifecycleの表示復帰後にだけ適用する。 |
@@ -740,7 +805,7 @@ YTRは、要件を満たすprimitiveの選択、利用者向け意味の供給�
 
 focusはDOM位置ではなく、RF入口、方向選択、実行操作、確認の主要操作、反映中状態、修正対象入力、確定後セル、対象Tableの安定位置等の意味上のtargetとして責務間を渡す。具体的な要素探索やfocus APIはArchitecture Contractにしない。
 
-Focus Coordinationは現在のEditor contextだけを利用する。Presentation再生成前のDOM参照を復元の正本にせず、同じTableとLifecycleに属する現在targetを要求時点で解決する。対象Table消失、別操作対象への移動、Lifecycle終了ではpending intentを破棄する。
+Focus Coordinationは現在のEditor contextだけを利用する。Presentation再生成前のDOM参照を復元の正本にせず、同じTableとLifecycleに属する現在targetを要求時点で解決する。成功側のpending intentは、最終targetへの適用、明示されたfallbackへの適用、対象Table消失、または別操作対象への移動によってsettleする。Apply Lifecycle終了はsettle後にのみ成立し、pending intentを先に破棄する契機にはしない。
 
 ### Announcement source and delivery
 
@@ -756,6 +821,7 @@ Announcement Deliveryは視覚Noticeとは独立したdelivery境界である。
 - native semanticsとWordPress Componentの標準Contractを優先し、独自Keyboard state machineを導入しない。
 - focusはDesignで定義されたLifecycle境界でだけ移動し、通知または再描画だけでは移動しない。
 - pending focus intentは同じ対象TableとLifecycleにだけ適用し、利用者の新しい操作位置を奪わない。
+- successはfocus intentが最終target、明示されたfallback、またはfocusを変更しない終了条件へsettleした後にだけ確定する。
 - 成功後focusとannouncementは確定済み最終位置だけを利用し、指定した移動先や隣接位置から結果を推測しない。
 - 同じ結果または同じblocked状態をPresentation再生成によって繰り返し通知しない。
 - Wide / Narrow、iframe / non-iframe、Core Table / Flexible Table Blockの差は操作意味、focus方針、announcement意味を変えない。
@@ -774,7 +840,7 @@ RFのKeyboard操作はnative semanticsとWordPress Componentsの標準Contract�
 
 ### Focus Coordination is a Narrow Lifecycle Responsibility
 
-表示再生成をまたぐfocus復帰には一時的なintent所有が必要なため、Focus Coordinationを独立責務として明示する。ただしRF / Apply phaseやTable位置を複製せず、既存Lifecycleから確定した意味上のtargetだけを調停する。
+表示再生成をまたぐfocus復帰には一時的なintent所有が必要なため、Focus Coordinationを独立責務として明示する。ただしRF / Apply phaseやTable位置を複製せず、既存Lifecycleから確定した意味上のtargetだけを調停する。成功側の表示復帰完了をfocus intentのsettle後に置き、Apply Lifecycle終了によるpending intentの先行破棄を防ぐ。
 
 ### Announcement Meaning Remains Source-owned
 
@@ -792,7 +858,7 @@ Announcement Deliveryはdeliveryだけを所有する。blocked / no-opの意味
 
 - **Keyboard operability**: RF開始から結果確認まで、platform標準のKeyboard Contractを通じて既存RF / Apply Lifecycleを完了できる。
 - **Semantic consistency**: 視覚Presentationと支援技術向けPresentationが同じRF / Apply / Table意味状態を利用し、表示方式または方向ごとに矛盾しない。
-- **Focus continuity**: RF open / close、確認、反映中、表示復帰、success / failureで、Designが定めた次の操作位置を維持し、stale intentで利用者の現在位置を奪わない。
+- **Focus continuity**: RF open / close、確認、反映中、表示復帰、success / failureで、Designが定めた次の操作位置を維持し、success確定前に最終focus intentをsettleさせ、stale intentで利用者の現在位置を奪わない。
 - **Notification correctness**: success、failure、構造拒否、no-opを正しい確定済み意味から一度だけ通知し、focus移動をdelivery手段にしない。
 - **Correctness**: Accessibility Presentationが入力成立性、Table構造、no-op、確定後位置を再計算しない。
 - **State minimality**: 新しい永続状態を追加せず、Focus Coordinationのpending intent以外は既存状態から導出する。
@@ -803,7 +869,7 @@ Announcement Deliveryはdeliveryだけを所有する。blocked / no-opの意味
 ## 11. Risks and Technical Debt
 
 - WordPress EditorまたはWordPress Componentsのversion差により、標準Keyboard / semantic / focus Contractの実際の挙動が異なる可能性がある。差異は外部能力とYTR接続のどちらに原因があるかを分離して評価する必要がある。
-- Table更新時のediting surface再生成では、focus targetが成立する時点がEditor Lifecycleに依存する。Focus Coordinationのpending intentをRF / Apply状態の複製へ拡張すると、stale focusや二重正本を生む危険がある。
+- Table更新時のediting surface再生成では、focus targetが成立する時点がEditor Lifecycleに依存する。表示復帰完了のbarrierはpending intentのsettleを待つが、Focus Coordinationのpending intentをRF / Apply状態の複製へ拡張すると、stale focusや二重正本を生む危険がある。
 - BrowserとAssistive Technologyの組み合わせによりannouncementの伝達挙動が異なる可能性がある。Phase 1では特定製品向け分岐を設けず、Issue #1047の代表環境でbaselineを検証する。
 - 成功後の正確なセルを現在Tableで特定できない場合がある。Architectureは推測focusを禁止し、対象Tableの安定位置へのfallbackに限定するため、将来より強い結果位置Contractが必要になった場合はTable Integration側の設計判断が必要になる。
 
@@ -813,7 +879,7 @@ Announcement Deliveryはdeliveryだけを所有する。blocked / no-opの意味
 | --- | --- |
 | Accessibility Presentation | 既存RF / Apply状態を標準操作部品の意味、状態、案内、入力問題との関係として表現する責務。domain stateやvalidationは所有しない。 |
 | Focus intent | Lifecycle上の遷移理由と意味上のfocus targetを表す一時的な要求。DOM nodeまたはRF / Apply phaseの複製ではない。 |
-| Pending focus intent | 表示再生成中にtargetが一時的に存在しない場合だけ、同じ対象TableとLifecycleへ限定して保持するfocus intent。 |
+| Pending focus intent | 表示再生成中にtargetが一時的に存在しない場合だけ、同じ対象TableとLifecycleへ限定して保持し、target、明示されたfallback、またはfocusを変更しない終了条件のいずれかへsettleするfocus intent。 |
 | Announcement | focusを移動せず、確定した結果または現在状態の意味変化を支援技術へ伝える一回性通知。 |
 | Input problem | RF Input Interpretationが特定入力について修正を必要とすると解釈した結果。構造拒否またはno-opとは異なる。 |
 | Structural result | Row / Column RF ResolutionとTable Integrationが現在指定全体について返すno-op、構造拒否、または利用不能。特定入力だけのvalidation errorではない。 |
