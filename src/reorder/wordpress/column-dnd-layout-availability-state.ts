@@ -38,6 +38,7 @@ export const updateColumnDndLayoutAvailabilitySnapshot = (
 	tableIdentity: string,
 	availability: ColumnDndLayoutAvailability
 ): void => {
+	/* 同じ表示可否を再通知せず、Toolbar購読者には意味のあるsnapshot変更だけを伝える。 */
 	if ( getColumnDndLayoutAvailabilitySnapshot( tableIdentity ) === availability ) {
 		return;
 	}
@@ -55,6 +56,7 @@ export const clearColumnDndLayoutAvailabilitySnapshot = ( tableIdentity: string 
 	const previousAvailability = getColumnDndLayoutAvailabilitySnapshot( tableIdentity );
 	availabilityByTable.delete( tableIdentity );
 
+	/* availableから安全側の既定値へ戻る場合だけ、Toolbarへ表示可否の変化を通知する。 */
 	if ( previousAvailability !== DEFAULT_AVAILABILITY ) {
 		listenersByTable.get( tableIdentity )?.forEach( ( listener ) => listener() );
 	}
@@ -77,6 +79,7 @@ export const subscribeColumnDndLayoutAvailabilitySnapshot = (
 
 	return () => {
 		listeners.delete( listener );
+		/* 最後の購読終了後はTable Identityごとの空集合を保持しない。 */
 		if ( listeners.size === 0 ) {
 			listenersByTable.delete( tableIdentity );
 		}
