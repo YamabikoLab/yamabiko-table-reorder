@@ -175,7 +175,7 @@ describe( 'Column insertion line', () => {
 				innerHeight: 600,
 				requestAnimationFrame: requestAnimationFrameMock,
 				cancelAnimationFrame: cancelAnimationFrameMock,
-			} as unknown as Window,
+			} as unknown as NonNullable< Document[ 'defaultView' ] >,
 		} );
 	} );
 
