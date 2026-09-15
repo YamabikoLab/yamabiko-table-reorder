@@ -155,7 +155,7 @@ describe( 'Column insertion line direction', () => {
 				innerHeight: 600,
 				requestAnimationFrame: () => 1,
 				cancelAnimationFrame: () => undefined,
-			} as unknown as Window,
+			} as unknown as NonNullable< Document[ 'defaultView' ] >,
 		} );
 	} );
 
