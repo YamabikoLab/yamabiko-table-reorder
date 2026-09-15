@@ -7,6 +7,20 @@
 
 @use '@/reorder/reorder-tuning' as tuning;
 
+@keyframes yamabiko-table-reorder-row-moving-display-enter {
+	from {
+		opacity: 0.92;
+		transform: scale(0.995);
+		box-shadow: 0 2px 8px rgb(0 0 0 / 14%);
+	}
+
+	to {
+		opacity: 1;
+		transform: scale(1);
+		box-shadow: 0 4px 12px rgb(0 0 0 / 20%);
+	}
+}
+
 /* 移動元は配置を変えず、移動表示との区別に必要な視覚差だけを付ける。 */
 .yamabiko-table-reorder-moving-row-source {
 	opacity: tuning.$reorder-moving-source-opacity;
@@ -22,6 +36,8 @@
 	background: #fff;
 	outline: 2px solid #3858e9;
 	box-shadow: 0 4px 12px rgb(0 0 0 / 20%);
+	animation: yamabiko-table-reorder-row-moving-display-enter
+		tuning.$row-moving-display-enter-duration tuning.$row-moving-display-enter-easing;
 }
 
 /* 行DnD中は移動表示が入力対象外でも、ポインター下の要素に依存せず掴んでいる状態を示す。 */
@@ -49,4 +65,10 @@
 .yamabiko-table-reorder-moving-row-table td:last-child,
 .yamabiko-table-reorder-moving-row-table th:last-child {
 	border-right: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.yamabiko-table-reorder-moving-row {
+		animation: none;
+	}
 }
