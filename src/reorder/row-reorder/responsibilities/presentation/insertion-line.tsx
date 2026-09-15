@@ -29,6 +29,7 @@ type RowInsertionLineSessionLayout = {
 
 /** 挿入線を現在のeditor表示領域へ描画するための配置情報。 */
 type RowInsertionLineLayout = {
+	boundaryIndex: number;
 	top: number;
 	left: number;
 	width: number;
@@ -121,6 +122,7 @@ const resolveInsertionLineLayout = (
 	}
 
 	return {
+		boundaryIndex,
 		top,
 		left: visibleLeft,
 		width: visibleWidth,
@@ -181,7 +183,12 @@ export const RowInsertionLine = () => {
 	};
 
 	return createPortal(
-		<div aria-hidden="true" className="yamabiko-table-reorder-insertion-line" style={ style } />,
+		<div
+			key={ layout.boundaryIndex }
+			aria-hidden="true"
+			className="yamabiko-table-reorder-insertion-line"
+			style={ style }
+		/>,
 		layout.editorDocument.body
 	);
 };
