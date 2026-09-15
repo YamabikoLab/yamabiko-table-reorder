@@ -48,6 +48,11 @@ export const DND_MOVING_SOURCE_OPACITY = '0.35';
 /** 結合セルによりDnDを開始できない場合の通知表示時間（ミリ秒）。 */
 export const DND_START_REJECTION_NOTICE_DURATION_MS = 2500;
 
+// Column DnD Layout Availability
+
+/** Toolbar表示用Layout Availabilityの連続した変化通知をまとめる待機時間（ミリ秒）。 */
+export const COLUMN_DND_LAYOUT_AVAILABILITY_DEBOUNCE_MS = 100;
+
 // RF Interaction
 
 /** RF narrow表示で高さ変更グリップとして扱うPointer操作領域の高さ（px）。 */
