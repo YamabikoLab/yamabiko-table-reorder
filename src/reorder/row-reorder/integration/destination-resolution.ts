@@ -140,7 +140,7 @@ const resolveDestinationBoundaryIndex = (
 /**
  * 1回の行DnDで利用する移動先解決境界を、移動対象行の開始時配置から生成する。
  *
- * DnD開始時の行境界を固定することで、押しのけ表示等による行の見かけ上の移動を移動先判定へ混入させない。
+ * DnD開始時の行境界を固定することで、DnD中のPresentationによる表示位置の変化を移動先判定へ混入させない。
  * sourceElementから対象tbodyを確認できない場合は解決境界を成立させず、呼び出し側が後続の移動通知から再試行できるようにする。
  *
  * @param sourceElement DnD Engineが現在の移動対象として管理するDOM要素。
