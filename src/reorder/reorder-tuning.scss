@@ -15,11 +15,23 @@ $reorder-displacement-easing: ease;
 // Row / ColumnのDnD中に移動元を表示する不透明度。
 $reorder-moving-source-opacity: 0.35;
 
-// Rowの移動表示をDnD開始時に軽く強調するアニメーション時間。
-$row-moving-display-enter-duration: 120ms;
+// Rowの移動表示をDnD開始時に浮かせるアニメーション時間。
+$row-moving-display-enter-duration: 170ms;
 
-// Rowの移動表示をDnD開始時に軽く強調するアニメーションのeasing。
+// Rowの移動表示をDnD開始時に浮かせるアニメーションのeasing。
 $row-moving-display-enter-easing: ease-out;
+
+// Rowの移動表示をDnD開始時に浮かせる開始不透明度。
+$row-moving-display-enter-opacity: 0.82;
+
+// Rowの移動表示をDnD開始時に浮かせる開始拡大率。
+$row-moving-display-enter-scale: 0.98;
+
+// Rowの移動表示をDnD開始時に浮かせる開始影。
+$row-moving-display-enter-shadow: 0 2px 6px rgb(0 0 0 / 15%);
+
+// Rowの移動表示が持ち上がった状態を示す影。
+$row-moving-display-active-shadow: 0 8px 22px rgb(0 0 0 / 28%);
 
 // Rowの挿入位置変更を短く強調するアニメーション時間。
 $row-insertion-line-emphasis-duration: 140ms;
