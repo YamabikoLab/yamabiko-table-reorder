@@ -435,177 +435,308 @@ workspace "YTR Reorder v1 Architecture" {
 				"runtime.RV_RF_COLUMN_RESOLUTION.step.6" "成立候補、no-op、構造拒否、利用不能を返す。"
 			}
 		}
-		RT_029 = EXT_WORDPRESS_EDITOR -> RESP_WORDPRESS_REORDER_INTEGRATION "利用者が成立候補の並び替えを要求する。" {
-			tags "Runtime Interaction,Runtime_RV_RF_NORMAL_APPLY"
+		RT_029 = EXT_WORDPRESS_EDITOR -> RESP_WORDPRESS_REORDER_INTEGRATION "利用者が成立したRow候補の並び替えを要求する。" {
+			tags "Runtime Interaction,Runtime_RV_RF_ROW_NORMAL_APPLY"
 			properties {
-				"runtime.RV_RF_NORMAL_APPLY.step.1" "利用者が成立候補の並び替えを要求する。"
+				"runtime.RV_RF_ROW_NORMAL_APPLY.step.1" "利用者が成立したRow候補の並び替えを要求する。"
 			}
 		}
 		RT_030 = RESP_WORDPRESS_REORDER_INTEGRATION -> RESP_RF_INTERACTION "Apply要求をRF Sessionへ渡す。" {
-			tags "Runtime Interaction,Runtime_RV_RF_NORMAL_APPLY"
+			tags "Runtime Interaction,Runtime_RV_RF_ROW_NORMAL_APPLY,Runtime_RV_RF_COLUMN_NORMAL_APPLY"
 			properties {
-				"runtime.RV_RF_NORMAL_APPLY.step.2" "Apply要求をRF Sessionへ渡す。"
+				"runtime.RV_RF_ROW_NORMAL_APPLY.step.2" "Apply要求をRF Sessionへ渡す。"
+				"runtime.RV_RF_COLUMN_NORMAL_APPLY.step.2" "Apply要求をRF Sessionへ渡す。"
 			}
 		}
-		RT_031 = RESP_RF_INTERACTION -> RESP_RF_APPLY_COORDINATION "現在の成立候補を渡す。" {
-			tags "Runtime Interaction,Runtime_RV_RF_NORMAL_APPLY"
+		RT_031 = RESP_RF_INTERACTION -> RESP_RF_APPLY_COORDINATION "Rowの成立候補を渡す。" {
+			tags "Runtime Interaction,Runtime_RV_RF_ROW_NORMAL_APPLY"
 			properties {
-				"runtime.RV_RF_NORMAL_APPLY.step.3" "現在の成立候補を渡す。"
+				"runtime.RV_RF_ROW_NORMAL_APPLY.step.3" "Rowの成立候補を渡す。"
 			}
 		}
-		RT_032 = RESP_RF_APPLY_COORDINATION -> RESP_REORDER_APPLY_POLICY "現在Tableで成立する候補の更新対象セル数から反映経路を要求する。" {
-			tags "Runtime Interaction,Runtime_RV_RF_NORMAL_APPLY"
+		RT_032 = RESP_RF_APPLY_COORDINATION -> RESP_ROW_TABLE_INTEGRATION "現在TableでRow候補を再照合し、更新対象セル数と確定後位置を要求する。" {
+			tags "Runtime Interaction,Runtime_RV_RF_ROW_NORMAL_APPLY"
 			properties {
-				"runtime.RV_RF_NORMAL_APPLY.step.4" "現在Tableで成立する候補の更新対象セル数から反映経路を要求する。"
+				"runtime.RV_RF_ROW_NORMAL_APPLY.step.4" "現在TableでRow候補を再照合し、更新対象セル数と確定後位置を要求する。"
 			}
 		}
-		RT_033 = RESP_REORDER_APPLY_POLICY -> RESP_RF_APPLY_COORDINATION "通常反映を返す。" {
-			tags "Runtime Interaction,Runtime_RV_RF_NORMAL_APPLY"
+		RT_033 = RESP_ROW_TABLE_INTEGRATION -> RESP_RF_APPLY_COORDINATION "現在も成立するRow候補のApply評価を返す。" {
+			tags "Runtime Interaction,Runtime_RV_RF_ROW_NORMAL_APPLY"
 			properties {
-				"runtime.RV_RF_NORMAL_APPLY.step.5" "通常反映を返す。"
+				"runtime.RV_RF_ROW_NORMAL_APPLY.step.5" "現在も成立するRow候補のApply評価を返す。"
 			}
 		}
-		RT_034 = RESP_RF_APPLY_COORDINATION -> RESP_WORDPRESS_REORDER_APPLY_INTEGRATION "方向固有Table Integrationによる確定更新成功後、表示復帰を要求して最終位置を公開する。" {
-			tags "Runtime Interaction,Runtime_RV_RF_NORMAL_APPLY"
+		RT_034 = RESP_RF_APPLY_COORDINATION -> RESP_REORDER_APPLY_POLICY "更新対象セル数から反映経路を要求する。" {
+			tags "Runtime Interaction,Runtime_RV_RF_ROW_NORMAL_APPLY,Runtime_RV_RF_COLUMN_NORMAL_APPLY"
 			properties {
-				"runtime.RV_RF_NORMAL_APPLY.step.6" "方向固有Table Integrationによる確定更新成功後、表示復帰を要求して最終位置を公開する。"
+				"runtime.RV_RF_ROW_NORMAL_APPLY.step.6" "更新対象セル数から反映経路を要求する。"
+				"runtime.RV_RF_COLUMN_NORMAL_APPLY.step.6" "更新対象セル数から反映経路を要求する。"
 			}
 		}
-		RT_035 = RESP_WORDPRESS_REORDER_APPLY_INTEGRATION -> EXT_WORDPRESS_EDITOR "更新後の対象Table editing surfaceを再成立させる。" {
-			tags "Runtime Interaction,Runtime_RV_RF_NORMAL_APPLY"
+		RT_035 = RESP_REORDER_APPLY_POLICY -> RESP_RF_APPLY_COORDINATION "通常反映を返す。" {
+			tags "Runtime Interaction,Runtime_RV_RF_ROW_NORMAL_APPLY,Runtime_RV_RF_COLUMN_NORMAL_APPLY"
 			properties {
-				"runtime.RV_RF_NORMAL_APPLY.step.7" "更新後の対象Table editing surfaceを再成立させる。"
+				"runtime.RV_RF_ROW_NORMAL_APPLY.step.7" "通常反映を返す。"
+				"runtime.RV_RF_COLUMN_NORMAL_APPLY.step.7" "通常反映を返す。"
 			}
 		}
-		RT_036 = RESP_WORDPRESS_REORDER_APPLY_INTEGRATION -> RESP_RF_APPLY_COORDINATION "表示復帰完了を返す。" {
-			tags "Runtime Interaction,Runtime_RV_RF_NORMAL_APPLY,Runtime_RV_RF_LARGE_APPLY_CONTINUE"
+		RT_036 = RESP_RF_APPLY_COORDINATION -> RESP_ROW_TABLE_INTEGRATION "更新要求時点の現在Tableを最終確認し、一回の確定行移動を要求する。" {
+			tags "Runtime Interaction,Runtime_RV_RF_ROW_NORMAL_APPLY"
 			properties {
-				"runtime.RV_RF_NORMAL_APPLY.step.8" "表示復帰完了を返す。"
-				"runtime.RV_RF_LARGE_APPLY_CONTINUE.step.11" "表示復帰完了を返す。"
+				"runtime.RV_RF_ROW_NORMAL_APPLY.step.8" "更新要求時点の現在Tableを最終確認し、一回の確定行移動を要求する。"
 			}
 		}
-		RT_037 = RESP_RF_APPLY_COORDINATION -> RESP_RF_INTERACTION "successを返す。" {
-			tags "Runtime Interaction,Runtime_RV_RF_NORMAL_APPLY"
+		RT_037 = RESP_ROW_TABLE_INTEGRATION -> RESP_RF_APPLY_COORDINATION "確定更新成功と表示復帰に用いる最終位置を返す。" {
+			tags "Runtime Interaction,Runtime_RV_RF_ROW_NORMAL_APPLY"
 			properties {
-				"runtime.RV_RF_NORMAL_APPLY.step.9" "successを返す。"
+				"runtime.RV_RF_ROW_NORMAL_APPLY.step.9" "確定更新成功と表示復帰に用いる最終位置を返す。"
 			}
 		}
-		RT_038 = RESP_WORDPRESS_REORDER_INTEGRATION -> EXT_WORDPRESS_EDITOR "RFを終了し、successを一度だけ通知する。" {
-			tags "Runtime Interaction,Runtime_RV_RF_NORMAL_APPLY"
+		RT_038 = RESP_RF_APPLY_COORDINATION -> RESP_WORDPRESS_REORDER_APPLY_INTEGRATION "更新成功後の表示復帰を要求し、最終位置を公開する。" {
+			tags "Runtime Interaction,Runtime_RV_RF_ROW_NORMAL_APPLY,Runtime_RV_RF_COLUMN_NORMAL_APPLY"
 			properties {
-				"runtime.RV_RF_NORMAL_APPLY.step.10" "RFを終了し、successを一度だけ通知する。"
+				"runtime.RV_RF_ROW_NORMAL_APPLY.step.10" "更新成功後の表示復帰を要求し、最終位置を公開する。"
+				"runtime.RV_RF_COLUMN_NORMAL_APPLY.step.10" "更新成功後の表示復帰を要求し、最終位置を公開する。"
 			}
 		}
-		RT_039 = RESP_RF_APPLY_COORDINATION -> RESP_RF_INTERACTION "方向固有Table IntegrationでApply評価または確定更新が成立しなかったfailureを返す。" {
-			tags "Runtime Interaction,Runtime_RV_RF_NORMAL_APPLY_FAILURE"
+		RT_039 = RESP_WORDPRESS_REORDER_APPLY_INTEGRATION -> EXT_WORDPRESS_EDITOR "更新後の対象Table editing surfaceを再成立させる。" {
+			tags "Runtime Interaction,Runtime_RV_RF_ROW_NORMAL_APPLY,Runtime_RV_RF_COLUMN_NORMAL_APPLY"
 			properties {
-				"runtime.RV_RF_NORMAL_APPLY_FAILURE.step.1" "方向固有Table IntegrationでApply評価または確定更新が成立しなかったfailureを返す。"
+				"runtime.RV_RF_ROW_NORMAL_APPLY.step.11" "更新後の対象Table editing surfaceを再成立させる。"
+				"runtime.RV_RF_COLUMN_NORMAL_APPLY.step.11" "更新後の対象Table editing surfaceを再成立させる。"
 			}
 		}
-		RT_040 = RESP_WORDPRESS_REORDER_INTEGRATION -> EXT_WORDPRESS_EDITOR "入力を保持したRFへ戻り、failureを一度だけ通知する。" {
-			tags "Runtime Interaction,Runtime_RV_RF_NORMAL_APPLY_FAILURE"
+		RT_040 = RESP_WORDPRESS_REORDER_APPLY_INTEGRATION -> RESP_RF_APPLY_COORDINATION "表示復帰完了を返す。" {
+			tags "Runtime Interaction,Runtime_RV_RF_ROW_NORMAL_APPLY,Runtime_RV_RF_COLUMN_NORMAL_APPLY,Runtime_RV_RF_ROW_LARGE_APPLY_CONTINUE,Runtime_RV_RF_COLUMN_LARGE_APPLY_CONTINUE"
 			properties {
-				"runtime.RV_RF_NORMAL_APPLY_FAILURE.step.2" "入力を保持したRFへ戻り、failureを一度だけ通知する。"
+				"runtime.RV_RF_ROW_NORMAL_APPLY.step.12" "表示復帰完了を返す。"
+				"runtime.RV_RF_COLUMN_NORMAL_APPLY.step.12" "表示復帰完了を返す。"
+				"runtime.RV_RF_ROW_LARGE_APPLY_CONTINUE.step.13" "表示復帰完了を返す。"
+				"runtime.RV_RF_COLUMN_LARGE_APPLY_CONTINUE.step.13" "表示復帰完了を返す。"
 			}
 		}
-		RT_041 = RESP_REORDER_APPLY_POLICY -> RESP_RF_APPLY_COORDINATION "確認付き大規模反映を返す。" {
-			tags "Runtime Interaction,Runtime_RV_RF_LARGE_APPLY_CONTINUE"
+		RT_041 = RESP_RF_APPLY_COORDINATION -> RESP_RF_INTERACTION "successを返す。" {
+			tags "Runtime Interaction,Runtime_RV_RF_ROW_NORMAL_APPLY,Runtime_RV_RF_COLUMN_NORMAL_APPLY"
 			properties {
-				"runtime.RV_RF_LARGE_APPLY_CONTINUE.step.1" "確認付き大規模反映を返す。"
+				"runtime.RV_RF_ROW_NORMAL_APPLY.step.13" "successを返す。"
+				"runtime.RV_RF_COLUMN_NORMAL_APPLY.step.13" "successを返す。"
 			}
 		}
-		RT_042 = RESP_RF_APPLY_COORDINATION -> RESP_WORDPRESS_REORDER_APPLY_INTEGRATION "確認状態と確認用Move summaryを公開する。" {
-			tags "Runtime Interaction,Runtime_RV_RF_LARGE_APPLY_CONTINUE,Runtime_RV_RF_LARGE_APPLY_CANCEL"
+		RT_042 = RESP_WORDPRESS_REORDER_INTEGRATION -> EXT_WORDPRESS_EDITOR "RFを終了し、successを一度だけ通知する。" {
+			tags "Runtime Interaction,Runtime_RV_RF_ROW_NORMAL_APPLY,Runtime_RV_RF_COLUMN_NORMAL_APPLY"
 			properties {
-				"runtime.RV_RF_LARGE_APPLY_CONTINUE.step.2" "確認状態と確認用Move summaryを公開する。"
+				"runtime.RV_RF_ROW_NORMAL_APPLY.step.14" "RFを終了し、successを一度だけ通知する。"
+				"runtime.RV_RF_COLUMN_NORMAL_APPLY.step.14" "RFを終了し、successを一度だけ通知する。"
+			}
+		}
+		RT_043 = EXT_WORDPRESS_EDITOR -> RESP_WORDPRESS_REORDER_INTEGRATION "利用者が成立したColumn候補の並び替えを要求する。" {
+			tags "Runtime Interaction,Runtime_RV_RF_COLUMN_NORMAL_APPLY"
+			properties {
+				"runtime.RV_RF_COLUMN_NORMAL_APPLY.step.1" "利用者が成立したColumn候補の並び替えを要求する。"
+			}
+		}
+		RT_044 = RESP_RF_INTERACTION -> RESP_RF_APPLY_COORDINATION "Columnの成立候補を渡す。" {
+			tags "Runtime Interaction,Runtime_RV_RF_COLUMN_NORMAL_APPLY"
+			properties {
+				"runtime.RV_RF_COLUMN_NORMAL_APPLY.step.3" "Columnの成立候補を渡す。"
+			}
+		}
+		RT_045 = RESP_RF_APPLY_COORDINATION -> RESP_COLUMN_TABLE_INTEGRATION "現在TableでColumn候補を再照合し、更新対象セル数と確定後位置を要求する。" {
+			tags "Runtime Interaction,Runtime_RV_RF_COLUMN_NORMAL_APPLY"
+			properties {
+				"runtime.RV_RF_COLUMN_NORMAL_APPLY.step.4" "現在TableでColumn候補を再照合し、更新対象セル数と確定後位置を要求する。"
+			}
+		}
+		RT_046 = RESP_COLUMN_TABLE_INTEGRATION -> RESP_RF_APPLY_COORDINATION "現在も成立するColumn候補のApply評価を返す。" {
+			tags "Runtime Interaction,Runtime_RV_RF_COLUMN_NORMAL_APPLY"
+			properties {
+				"runtime.RV_RF_COLUMN_NORMAL_APPLY.step.5" "現在も成立するColumn候補のApply評価を返す。"
+			}
+		}
+		RT_047 = RESP_RF_APPLY_COORDINATION -> RESP_COLUMN_TABLE_INTEGRATION "更新要求時点の現在Tableを最終確認し、一回の確定列移動を要求する。" {
+			tags "Runtime Interaction,Runtime_RV_RF_COLUMN_NORMAL_APPLY"
+			properties {
+				"runtime.RV_RF_COLUMN_NORMAL_APPLY.step.8" "更新要求時点の現在Tableを最終確認し、一回の確定列移動を要求する。"
+			}
+		}
+		RT_048 = RESP_COLUMN_TABLE_INTEGRATION -> RESP_RF_APPLY_COORDINATION "確定更新成功と表示復帰に用いる最終位置を返す。" {
+			tags "Runtime Interaction,Runtime_RV_RF_COLUMN_NORMAL_APPLY"
+			properties {
+				"runtime.RV_RF_COLUMN_NORMAL_APPLY.step.9" "確定更新成功と表示復帰に用いる最終位置を返す。"
+			}
+		}
+		RT_049 = RESP_RF_APPLY_COORDINATION -> RESP_ROW_TABLE_INTEGRATION "現在TableでRow候補のApply評価または確定更新を要求する。" {
+			tags "Runtime Interaction,Runtime_RV_RF_ROW_NORMAL_APPLY_FAILURE"
+			properties {
+				"runtime.RV_RF_ROW_NORMAL_APPLY_FAILURE.step.1" "現在TableでRow候補のApply評価または確定更新を要求する。"
+			}
+		}
+		RT_050 = RESP_ROW_TABLE_INTEGRATION -> RESP_RF_APPLY_COORDINATION "現在Tableで成立しない、または更新不能であることをTableを不完全に変更せず返す。" {
+			tags "Runtime Interaction,Runtime_RV_RF_ROW_NORMAL_APPLY_FAILURE"
+			properties {
+				"runtime.RV_RF_ROW_NORMAL_APPLY_FAILURE.step.2" "現在Tableで成立しない、または更新不能であることをTableを不完全に変更せず返す。"
+			}
+		}
+		RT_051 = RESP_RF_APPLY_COORDINATION -> RESP_RF_INTERACTION "failureを返す。" {
+			tags "Runtime Interaction,Runtime_RV_RF_ROW_NORMAL_APPLY_FAILURE,Runtime_RV_RF_COLUMN_NORMAL_APPLY_FAILURE"
+			properties {
+				"runtime.RV_RF_ROW_NORMAL_APPLY_FAILURE.step.3" "failureを返す。"
+				"runtime.RV_RF_COLUMN_NORMAL_APPLY_FAILURE.step.3" "failureを返す。"
+			}
+		}
+		RT_052 = RESP_WORDPRESS_REORDER_INTEGRATION -> EXT_WORDPRESS_EDITOR "入力を保持したRFへ戻り、failureを一度だけ通知する。" {
+			tags "Runtime Interaction,Runtime_RV_RF_ROW_NORMAL_APPLY_FAILURE,Runtime_RV_RF_COLUMN_NORMAL_APPLY_FAILURE"
+			properties {
+				"runtime.RV_RF_ROW_NORMAL_APPLY_FAILURE.step.4" "入力を保持したRFへ戻り、failureを一度だけ通知する。"
+				"runtime.RV_RF_COLUMN_NORMAL_APPLY_FAILURE.step.4" "入力を保持したRFへ戻り、failureを一度だけ通知する。"
+			}
+		}
+		RT_053 = RESP_RF_APPLY_COORDINATION -> RESP_COLUMN_TABLE_INTEGRATION "現在TableでColumn候補のApply評価または確定更新を要求する。" {
+			tags "Runtime Interaction,Runtime_RV_RF_COLUMN_NORMAL_APPLY_FAILURE"
+			properties {
+				"runtime.RV_RF_COLUMN_NORMAL_APPLY_FAILURE.step.1" "現在TableでColumn候補のApply評価または確定更新を要求する。"
+			}
+		}
+		RT_054 = RESP_COLUMN_TABLE_INTEGRATION -> RESP_RF_APPLY_COORDINATION "現在Tableで成立しない、または更新不能であることをTableを不完全に変更せず返す。" {
+			tags "Runtime Interaction,Runtime_RV_RF_COLUMN_NORMAL_APPLY_FAILURE"
+			properties {
+				"runtime.RV_RF_COLUMN_NORMAL_APPLY_FAILURE.step.2" "現在Tableで成立しない、または更新不能であることをTableを不完全に変更せず返す。"
+			}
+		}
+		RT_055 = RESP_REORDER_APPLY_POLICY -> RESP_RF_APPLY_COORDINATION "確認付き大規模反映を返す。" {
+			tags "Runtime Interaction,Runtime_RV_RF_ROW_LARGE_APPLY_CONTINUE,Runtime_RV_RF_COLUMN_LARGE_APPLY_CONTINUE"
+			properties {
+				"runtime.RV_RF_ROW_LARGE_APPLY_CONTINUE.step.1" "確認付き大規模反映を返す。"
+				"runtime.RV_RF_COLUMN_LARGE_APPLY_CONTINUE.step.1" "確認付き大規模反映を返す。"
+			}
+		}
+		RT_056 = RESP_RF_APPLY_COORDINATION -> RESP_WORDPRESS_REORDER_APPLY_INTEGRATION "確認状態と確認用Move summaryを公開する。" {
+			tags "Runtime Interaction,Runtime_RV_RF_ROW_LARGE_APPLY_CONTINUE,Runtime_RV_RF_COLUMN_LARGE_APPLY_CONTINUE,Runtime_RV_RF_LARGE_APPLY_CANCEL"
+			properties {
+				"runtime.RV_RF_ROW_LARGE_APPLY_CONTINUE.step.2" "確認状態と確認用Move summaryを公開する。"
+				"runtime.RV_RF_COLUMN_LARGE_APPLY_CONTINUE.step.2" "確認状態と確認用Move summaryを公開する。"
 				"runtime.RV_RF_LARGE_APPLY_CANCEL.step.1" "確認状態と確認用Move summaryを公開する。"
 			}
 		}
-		RT_043 = RESP_WORDPRESS_REORDER_APPLY_INTEGRATION -> EXT_WORDPRESS_EDITOR "対象Tableを維持したまま確認UIを表示する。" {
-			tags "Runtime Interaction,Runtime_RV_RF_LARGE_APPLY_CONTINUE"
+		RT_057 = RESP_WORDPRESS_REORDER_APPLY_INTEGRATION -> EXT_WORDPRESS_EDITOR "対象Tableを維持したまま確認UIを表示する。" {
+			tags "Runtime Interaction,Runtime_RV_RF_ROW_LARGE_APPLY_CONTINUE,Runtime_RV_RF_COLUMN_LARGE_APPLY_CONTINUE"
 			properties {
-				"runtime.RV_RF_LARGE_APPLY_CONTINUE.step.3" "対象Tableを維持したまま確認UIを表示する。"
+				"runtime.RV_RF_ROW_LARGE_APPLY_CONTINUE.step.3" "対象Tableを維持したまま確認UIを表示する。"
+				"runtime.RV_RF_COLUMN_LARGE_APPLY_CONTINUE.step.3" "対象Tableを維持したまま確認UIを表示する。"
 			}
 		}
-		RT_044 = EXT_WORDPRESS_EDITOR -> RESP_WORDPRESS_REORDER_APPLY_INTEGRATION "利用者がContinueを選択する。" {
-			tags "Runtime Interaction,Runtime_RV_RF_LARGE_APPLY_CONTINUE"
+		RT_058 = EXT_WORDPRESS_EDITOR -> RESP_WORDPRESS_REORDER_APPLY_INTEGRATION "利用者がContinueを選択する。" {
+			tags "Runtime Interaction,Runtime_RV_RF_ROW_LARGE_APPLY_CONTINUE,Runtime_RV_RF_COLUMN_LARGE_APPLY_CONTINUE"
 			properties {
-				"runtime.RV_RF_LARGE_APPLY_CONTINUE.step.4" "利用者がContinueを選択する。"
+				"runtime.RV_RF_ROW_LARGE_APPLY_CONTINUE.step.4" "利用者がContinueを選択する。"
+				"runtime.RV_RF_COLUMN_LARGE_APPLY_CONTINUE.step.4" "利用者がContinueを選択する。"
 			}
 		}
-		RT_045 = RESP_WORDPRESS_REORDER_APPLY_INTEGRATION -> RESP_RF_APPLY_COORDINATION "Continueを返す。" {
-			tags "Runtime Interaction,Runtime_RV_RF_LARGE_APPLY_CONTINUE"
+		RT_059 = RESP_WORDPRESS_REORDER_APPLY_INTEGRATION -> RESP_RF_APPLY_COORDINATION "Continueを返す。" {
+			tags "Runtime Interaction,Runtime_RV_RF_ROW_LARGE_APPLY_CONTINUE,Runtime_RV_RF_COLUMN_LARGE_APPLY_CONTINUE"
 			properties {
-				"runtime.RV_RF_LARGE_APPLY_CONTINUE.step.5" "Continueを返す。"
+				"runtime.RV_RF_ROW_LARGE_APPLY_CONTINUE.step.5" "Continueを返す。"
+				"runtime.RV_RF_COLUMN_LARGE_APPLY_CONTINUE.step.5" "Continueを返す。"
 			}
 		}
-		RT_046 = RESP_RF_APPLY_COORDINATION -> RESP_WORDPRESS_REORDER_APPLY_INTEGRATION "反映準備状態を公開する。" {
-			tags "Runtime Interaction,Runtime_RV_RF_LARGE_APPLY_CONTINUE"
+		RT_060 = RESP_RF_APPLY_COORDINATION -> RESP_WORDPRESS_REORDER_APPLY_INTEGRATION "反映準備状態を公開する。" {
+			tags "Runtime Interaction,Runtime_RV_RF_ROW_LARGE_APPLY_CONTINUE,Runtime_RV_RF_COLUMN_LARGE_APPLY_CONTINUE"
 			properties {
-				"runtime.RV_RF_LARGE_APPLY_CONTINUE.step.6" "反映準備状態を公開する。"
+				"runtime.RV_RF_ROW_LARGE_APPLY_CONTINUE.step.6" "反映準備状態を公開する。"
+				"runtime.RV_RF_COLUMN_LARGE_APPLY_CONTINUE.step.6" "反映準備状態を公開する。"
 			}
 		}
-		RT_047 = RESP_WORDPRESS_REORDER_APPLY_INTEGRATION -> EXT_WORDPRESS_EDITOR "対象Tableの競合編集を抑止し、反映中表示を成立させる。" {
-			tags "Runtime Interaction,Runtime_RV_RF_LARGE_APPLY_CONTINUE"
+		RT_061 = RESP_WORDPRESS_REORDER_APPLY_INTEGRATION -> EXT_WORDPRESS_EDITOR "対象Tableの競合編集を抑止し、反映中表示を成立させる。" {
+			tags "Runtime Interaction,Runtime_RV_RF_ROW_LARGE_APPLY_CONTINUE,Runtime_RV_RF_COLUMN_LARGE_APPLY_CONTINUE"
 			properties {
-				"runtime.RV_RF_LARGE_APPLY_CONTINUE.step.7" "対象Tableの競合編集を抑止し、反映中表示を成立させる。"
+				"runtime.RV_RF_ROW_LARGE_APPLY_CONTINUE.step.7" "対象Tableの競合編集を抑止し、反映中表示を成立させる。"
+				"runtime.RV_RF_COLUMN_LARGE_APPLY_CONTINUE.step.7" "対象Tableの競合編集を抑止し、反映中表示を成立させる。"
 			}
 		}
-		RT_048 = RESP_WORDPRESS_REORDER_APPLY_INTEGRATION -> RESP_RF_APPLY_COORDINATION "反映準備完了を返す。" {
-			tags "Runtime Interaction,Runtime_RV_RF_LARGE_APPLY_CONTINUE"
+		RT_062 = RESP_WORDPRESS_REORDER_APPLY_INTEGRATION -> RESP_RF_APPLY_COORDINATION "反映準備完了を返す。" {
+			tags "Runtime Interaction,Runtime_RV_RF_ROW_LARGE_APPLY_CONTINUE,Runtime_RV_RF_COLUMN_LARGE_APPLY_CONTINUE"
 			properties {
-				"runtime.RV_RF_LARGE_APPLY_CONTINUE.step.8" "反映準備完了を返す。"
+				"runtime.RV_RF_ROW_LARGE_APPLY_CONTINUE.step.8" "反映準備完了を返す。"
+				"runtime.RV_RF_COLUMN_LARGE_APPLY_CONTINUE.step.8" "反映準備完了を返す。"
 			}
 		}
-		RT_049 = RESP_RF_APPLY_COORDINATION -> RESP_WORDPRESS_REORDER_APPLY_INTEGRATION "方向固有Table Integrationによる現在Table再評価と確定更新後、success / failureにかかわらず表示復帰を要求する。" {
-			tags "Runtime Interaction,Runtime_RV_RF_LARGE_APPLY_CONTINUE"
+		RT_063 = RESP_RF_APPLY_COORDINATION -> RESP_ROW_TABLE_INTEGRATION "現在TableでRow候補を再照合し、成立する場合だけ一回の確定行移動を要求する。" {
+			tags "Runtime Interaction,Runtime_RV_RF_ROW_LARGE_APPLY_CONTINUE"
 			properties {
-				"runtime.RV_RF_LARGE_APPLY_CONTINUE.step.9" "方向固有Table Integrationによる現在Table再評価と確定更新後、success / failureにかかわらず表示復帰を要求する。"
+				"runtime.RV_RF_ROW_LARGE_APPLY_CONTINUE.step.9" "現在TableでRow候補を再照合し、成立する場合だけ一回の確定行移動を要求する。"
 			}
 		}
-		RT_050 = RESP_WORDPRESS_REORDER_APPLY_INTEGRATION -> EXT_WORDPRESS_EDITOR "更新後または未変更のediting surfaceを再成立させる。" {
-			tags "Runtime Interaction,Runtime_RV_RF_LARGE_APPLY_CONTINUE"
+		RT_064 = RESP_ROW_TABLE_INTEGRATION -> RESP_RF_APPLY_COORDINATION "確定更新のsuccess / failureと、success時の最終位置を返す。" {
+			tags "Runtime Interaction,Runtime_RV_RF_ROW_LARGE_APPLY_CONTINUE"
 			properties {
-				"runtime.RV_RF_LARGE_APPLY_CONTINUE.step.10" "更新後または未変更のediting surfaceを再成立させる。"
+				"runtime.RV_RF_ROW_LARGE_APPLY_CONTINUE.step.10" "確定更新のsuccess / failureと、success時の最終位置を返す。"
 			}
 		}
-		RT_051 = RESP_RF_APPLY_COORDINATION -> RESP_RF_INTERACTION "successまたはfailureを返す。" {
-			tags "Runtime Interaction,Runtime_RV_RF_LARGE_APPLY_CONTINUE"
+		RT_065 = RESP_RF_APPLY_COORDINATION -> RESP_WORDPRESS_REORDER_APPLY_INTEGRATION "success / failureにかかわらず表示復帰を要求する。" {
+			tags "Runtime Interaction,Runtime_RV_RF_ROW_LARGE_APPLY_CONTINUE,Runtime_RV_RF_COLUMN_LARGE_APPLY_CONTINUE"
 			properties {
-				"runtime.RV_RF_LARGE_APPLY_CONTINUE.step.12" "successまたはfailureを返す。"
+				"runtime.RV_RF_ROW_LARGE_APPLY_CONTINUE.step.11" "success / failureにかかわらず表示復帰を要求する。"
+				"runtime.RV_RF_COLUMN_LARGE_APPLY_CONTINUE.step.11" "success / failureにかかわらず表示復帰を要求する。"
 			}
 		}
-		RT_052 = RESP_WORDPRESS_REORDER_INTEGRATION -> EXT_WORDPRESS_EDITOR "successではRFを終了し、failureでは入力を保持したRFを表示する。" {
-			tags "Runtime Interaction,Runtime_RV_RF_LARGE_APPLY_CONTINUE"
+		RT_066 = RESP_WORDPRESS_REORDER_APPLY_INTEGRATION -> EXT_WORDPRESS_EDITOR "更新後または未変更のediting surfaceを再成立させる。" {
+			tags "Runtime Interaction,Runtime_RV_RF_ROW_LARGE_APPLY_CONTINUE,Runtime_RV_RF_COLUMN_LARGE_APPLY_CONTINUE"
 			properties {
-				"runtime.RV_RF_LARGE_APPLY_CONTINUE.step.13" "successではRFを終了し、failureでは入力を保持したRFを表示する。"
+				"runtime.RV_RF_ROW_LARGE_APPLY_CONTINUE.step.12" "更新後または未変更のediting surfaceを再成立させる。"
+				"runtime.RV_RF_COLUMN_LARGE_APPLY_CONTINUE.step.12" "更新後または未変更のediting surfaceを再成立させる。"
 			}
 		}
-		RT_053 = RESP_WORDPRESS_REORDER_APPLY_INTEGRATION -> EXT_WORDPRESS_EDITOR "確認UIを表示する。" {
+		RT_067 = RESP_RF_APPLY_COORDINATION -> RESP_RF_INTERACTION "successまたはfailureを返す。" {
+			tags "Runtime Interaction,Runtime_RV_RF_ROW_LARGE_APPLY_CONTINUE,Runtime_RV_RF_COLUMN_LARGE_APPLY_CONTINUE"
+			properties {
+				"runtime.RV_RF_ROW_LARGE_APPLY_CONTINUE.step.14" "successまたはfailureを返す。"
+				"runtime.RV_RF_COLUMN_LARGE_APPLY_CONTINUE.step.14" "successまたはfailureを返す。"
+			}
+		}
+		RT_068 = RESP_WORDPRESS_REORDER_INTEGRATION -> EXT_WORDPRESS_EDITOR "successではRFを終了し、failureでは入力を保持したRFを表示する。" {
+			tags "Runtime Interaction,Runtime_RV_RF_ROW_LARGE_APPLY_CONTINUE,Runtime_RV_RF_COLUMN_LARGE_APPLY_CONTINUE"
+			properties {
+				"runtime.RV_RF_ROW_LARGE_APPLY_CONTINUE.step.15" "successではRFを終了し、failureでは入力を保持したRFを表示する。"
+				"runtime.RV_RF_COLUMN_LARGE_APPLY_CONTINUE.step.15" "successではRFを終了し、failureでは入力を保持したRFを表示する。"
+			}
+		}
+		RT_069 = RESP_RF_APPLY_COORDINATION -> RESP_COLUMN_TABLE_INTEGRATION "現在TableでColumn候補を再照合し、成立する場合だけ一回の確定列移動を要求する。" {
+			tags "Runtime Interaction,Runtime_RV_RF_COLUMN_LARGE_APPLY_CONTINUE"
+			properties {
+				"runtime.RV_RF_COLUMN_LARGE_APPLY_CONTINUE.step.9" "現在TableでColumn候補を再照合し、成立する場合だけ一回の確定列移動を要求する。"
+			}
+		}
+		RT_070 = RESP_COLUMN_TABLE_INTEGRATION -> RESP_RF_APPLY_COORDINATION "確定更新のsuccess / failureと、success時の最終位置を返す。" {
+			tags "Runtime Interaction,Runtime_RV_RF_COLUMN_LARGE_APPLY_CONTINUE"
+			properties {
+				"runtime.RV_RF_COLUMN_LARGE_APPLY_CONTINUE.step.10" "確定更新のsuccess / failureと、success時の最終位置を返す。"
+			}
+		}
+		RT_071 = RESP_WORDPRESS_REORDER_APPLY_INTEGRATION -> EXT_WORDPRESS_EDITOR "確認UIを表示する。" {
 			tags "Runtime Interaction,Runtime_RV_RF_LARGE_APPLY_CANCEL"
 			properties {
 				"runtime.RV_RF_LARGE_APPLY_CANCEL.step.2" "確認UIを表示する。"
 			}
 		}
-		RT_054 = EXT_WORDPRESS_EDITOR -> RESP_WORDPRESS_REORDER_APPLY_INTEGRATION "利用者がCancelを選択する。" {
+		RT_072 = EXT_WORDPRESS_EDITOR -> RESP_WORDPRESS_REORDER_APPLY_INTEGRATION "利用者がCancelを選択する。" {
 			tags "Runtime Interaction,Runtime_RV_RF_LARGE_APPLY_CANCEL"
 			properties {
 				"runtime.RV_RF_LARGE_APPLY_CANCEL.step.3" "利用者がCancelを選択する。"
 			}
 		}
-		RT_055 = RESP_WORDPRESS_REORDER_APPLY_INTEGRATION -> RESP_RF_APPLY_COORDINATION "Cancelを返す。" {
+		RT_073 = RESP_WORDPRESS_REORDER_APPLY_INTEGRATION -> RESP_RF_APPLY_COORDINATION "Cancelを返す。" {
 			tags "Runtime Interaction,Runtime_RV_RF_LARGE_APPLY_CANCEL"
 			properties {
 				"runtime.RV_RF_LARGE_APPLY_CANCEL.step.4" "Cancelを返す。"
 			}
 		}
-		RT_056 = RESP_RF_APPLY_COORDINATION -> RESP_RF_INTERACTION "Table未変更のCancelを返す。" {
+		RT_074 = RESP_RF_APPLY_COORDINATION -> RESP_RF_INTERACTION "Table未変更のCancelを返す。" {
 			tags "Runtime Interaction,Runtime_RV_RF_LARGE_APPLY_CANCEL"
 			properties {
 				"runtime.RV_RF_LARGE_APPLY_CANCEL.step.5" "Table未変更のCancelを返す。"
 			}
 		}
-		RT_057 = RESP_WORDPRESS_REORDER_INTEGRATION -> EXT_WORDPRESS_EDITOR "入力を保持したRFへ戻る。failure通知は表示しない。" {
+		RT_075 = RESP_WORDPRESS_REORDER_INTEGRATION -> EXT_WORDPRESS_EDITOR "入力を保持したRFへ戻る。failure通知は表示しない。" {
 			tags "Runtime Interaction,Runtime_RV_RF_LARGE_APPLY_CANCEL"
 			properties {
 				"runtime.RV_RF_LARGE_APPLY_CANCEL.step.6" "入力を保持したRFへ戻る。failure通知は表示しない。"
@@ -706,32 +837,62 @@ workspace "YTR Reorder v1 Architecture" {
 			autoLayout lr
 		}
 
-		custom "RV_RF_NORMAL_APPLY" {
-			title "Runtime - RF normal apply success"
-			include EXT_WORDPRESS_EDITOR RESP_WORDPRESS_REORDER_INTEGRATION RESP_RF_INTERACTION RESP_RF_APPLY_COORDINATION RESP_REORDER_APPLY_POLICY RESP_WORDPRESS_REORDER_APPLY_INTEGRATION
-			exclude "relationship.tag!=Runtime_RV_RF_NORMAL_APPLY"
+		custom "RV_RF_ROW_NORMAL_APPLY" {
+			title "Runtime - RF Row normal apply success"
+			include EXT_WORDPRESS_EDITOR RESP_WORDPRESS_REORDER_INTEGRATION RESP_RF_INTERACTION RESP_RF_APPLY_COORDINATION RESP_ROW_TABLE_INTEGRATION RESP_REORDER_APPLY_POLICY RESP_WORDPRESS_REORDER_APPLY_INTEGRATION
+			exclude "relationship.tag!=Runtime_RV_RF_ROW_NORMAL_APPLY"
 			properties {
-				"runtime.steps" "1=RT_029;2=RT_030;3=RT_031;4=RT_032;5=RT_033;6=RT_034;7=RT_035;8=RT_036;9=RT_037;10=RT_038"
+				"runtime.steps" "1=RT_029;2=RT_030;3=RT_031;4=RT_032;5=RT_033;6=RT_034;7=RT_035;8=RT_036;9=RT_037;10=RT_038;11=RT_039;12=RT_040;13=RT_041;14=RT_042"
 			}
 			autoLayout lr
 		}
 
-		custom "RV_RF_NORMAL_APPLY_FAILURE" {
-			title "Runtime - RF normal apply failure"
-			include RESP_RF_APPLY_COORDINATION RESP_RF_INTERACTION RESP_WORDPRESS_REORDER_INTEGRATION EXT_WORDPRESS_EDITOR
-			exclude "relationship.tag!=Runtime_RV_RF_NORMAL_APPLY_FAILURE"
+		custom "RV_RF_COLUMN_NORMAL_APPLY" {
+			title "Runtime - RF Column normal apply success"
+			include EXT_WORDPRESS_EDITOR RESP_WORDPRESS_REORDER_INTEGRATION RESP_RF_INTERACTION RESP_RF_APPLY_COORDINATION RESP_COLUMN_TABLE_INTEGRATION RESP_REORDER_APPLY_POLICY RESP_WORDPRESS_REORDER_APPLY_INTEGRATION
+			exclude "relationship.tag!=Runtime_RV_RF_COLUMN_NORMAL_APPLY"
 			properties {
-				"runtime.steps" "1=RT_039;2=RT_040"
+				"runtime.steps" "1=RT_043;2=RT_030;3=RT_044;4=RT_045;5=RT_046;6=RT_034;7=RT_035;8=RT_047;9=RT_048;10=RT_038;11=RT_039;12=RT_040;13=RT_041;14=RT_042"
 			}
 			autoLayout lr
 		}
 
-		custom "RV_RF_LARGE_APPLY_CONTINUE" {
-			title "Runtime - RF large apply continue"
-			include RESP_REORDER_APPLY_POLICY RESP_RF_APPLY_COORDINATION RESP_WORDPRESS_REORDER_APPLY_INTEGRATION EXT_WORDPRESS_EDITOR RESP_RF_INTERACTION RESP_WORDPRESS_REORDER_INTEGRATION
-			exclude "relationship.tag!=Runtime_RV_RF_LARGE_APPLY_CONTINUE"
+		custom "RV_RF_ROW_NORMAL_APPLY_FAILURE" {
+			title "Runtime - RF Row normal apply failure"
+			include RESP_RF_APPLY_COORDINATION RESP_ROW_TABLE_INTEGRATION RESP_RF_INTERACTION RESP_WORDPRESS_REORDER_INTEGRATION EXT_WORDPRESS_EDITOR
+			exclude "relationship.tag!=Runtime_RV_RF_ROW_NORMAL_APPLY_FAILURE"
 			properties {
-				"runtime.steps" "1=RT_041;2=RT_042;3=RT_043;4=RT_044;5=RT_045;6=RT_046;7=RT_047;8=RT_048;9=RT_049;10=RT_050;11=RT_036;12=RT_051;13=RT_052"
+				"runtime.steps" "1=RT_049;2=RT_050;3=RT_051;4=RT_052"
+			}
+			autoLayout lr
+		}
+
+		custom "RV_RF_COLUMN_NORMAL_APPLY_FAILURE" {
+			title "Runtime - RF Column normal apply failure"
+			include RESP_RF_APPLY_COORDINATION RESP_COLUMN_TABLE_INTEGRATION RESP_RF_INTERACTION RESP_WORDPRESS_REORDER_INTEGRATION EXT_WORDPRESS_EDITOR
+			exclude "relationship.tag!=Runtime_RV_RF_COLUMN_NORMAL_APPLY_FAILURE"
+			properties {
+				"runtime.steps" "1=RT_053;2=RT_054;3=RT_051;4=RT_052"
+			}
+			autoLayout lr
+		}
+
+		custom "RV_RF_ROW_LARGE_APPLY_CONTINUE" {
+			title "Runtime - RF Row large apply continue"
+			include RESP_REORDER_APPLY_POLICY RESP_RF_APPLY_COORDINATION RESP_WORDPRESS_REORDER_APPLY_INTEGRATION EXT_WORDPRESS_EDITOR RESP_ROW_TABLE_INTEGRATION RESP_RF_INTERACTION RESP_WORDPRESS_REORDER_INTEGRATION
+			exclude "relationship.tag!=Runtime_RV_RF_ROW_LARGE_APPLY_CONTINUE"
+			properties {
+				"runtime.steps" "1=RT_055;2=RT_056;3=RT_057;4=RT_058;5=RT_059;6=RT_060;7=RT_061;8=RT_062;9=RT_063;10=RT_064;11=RT_065;12=RT_066;13=RT_040;14=RT_067;15=RT_068"
+			}
+			autoLayout lr
+		}
+
+		custom "RV_RF_COLUMN_LARGE_APPLY_CONTINUE" {
+			title "Runtime - RF Column large apply continue"
+			include RESP_REORDER_APPLY_POLICY RESP_RF_APPLY_COORDINATION RESP_WORDPRESS_REORDER_APPLY_INTEGRATION EXT_WORDPRESS_EDITOR RESP_COLUMN_TABLE_INTEGRATION RESP_RF_INTERACTION RESP_WORDPRESS_REORDER_INTEGRATION
+			exclude "relationship.tag!=Runtime_RV_RF_COLUMN_LARGE_APPLY_CONTINUE"
+			properties {
+				"runtime.steps" "1=RT_055;2=RT_056;3=RT_057;4=RT_058;5=RT_059;6=RT_060;7=RT_061;8=RT_062;9=RT_069;10=RT_070;11=RT_065;12=RT_066;13=RT_040;14=RT_067;15=RT_068"
 			}
 			autoLayout lr
 		}
@@ -741,7 +902,7 @@ workspace "YTR Reorder v1 Architecture" {
 			include RESP_RF_APPLY_COORDINATION RESP_WORDPRESS_REORDER_APPLY_INTEGRATION EXT_WORDPRESS_EDITOR RESP_RF_INTERACTION RESP_WORDPRESS_REORDER_INTEGRATION
 			exclude "relationship.tag!=Runtime_RV_RF_LARGE_APPLY_CANCEL"
 			properties {
-				"runtime.steps" "1=RT_042;2=RT_053;3=RT_054;4=RT_055;5=RT_056;6=RT_057"
+				"runtime.steps" "1=RT_056;2=RT_071;3=RT_072;4=RT_073;5=RT_074;6=RT_075"
 			}
 			autoLayout lr
 		}
