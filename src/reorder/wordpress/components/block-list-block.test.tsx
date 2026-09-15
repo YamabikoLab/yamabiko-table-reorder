@@ -5,9 +5,11 @@
  */
 
 import { act, render, waitFor } from '@testing-library/react';
+import { useState } from '@wordpress/element';
 import type { DragEventHandler, MouseEventHandler, PointerEventHandler, ReactNode } from 'react';
 
 import { reorderMode } from '@/reorder/reorder-mode';
+import { COLUMN_DND_LAYOUT_AVAILABILITY_DEBOUNCE_MS } from '@/reorder/reorder-tuning';
 import {
 	ReorderModeBlockListBlock,
 	type ReorderModeBlockListBlockProps,
@@ -16,12 +18,15 @@ import {
 	clearColumnDndLayoutAvailabilitySnapshot,
 	getColumnDndLayoutAvailabilitySnapshot,
 } from '@/reorder/wordpress/column-dnd-layout-availability-state';
-import { useState } from '@wordpress/element';
 
 let mockColumnDndLayoutAvailability: 'available' | 'unavailable' = 'available';
+let mockColumnDndLayoutAvailabilityCallCount = 0;
 
 jest.mock( '@/reorder/column-reorder/responsibilities/layout-availability', () => ( {
-	resolveColumnDndLayoutAvailability: () => mockColumnDndLayoutAvailability,
+	resolveColumnDndLayoutAvailability: () => {
+		mockColumnDndLayoutAvailabilityCallCount += 1;
+		return mockColumnDndLayoutAvailability;
+	},
 } ) );
 
 jest.mock( '@/reorder/row-reorder/responsibilities/presentation/row-highlight', () => ( {
@@ -160,6 +165,7 @@ describe( 'Reorder Mode Block wrapper integration', () => {
 		reorderMode.notifyTableInactive( 'table-a' );
 		clearColumnDndLayoutAvailabilitySnapshot( 'table-a' );
 		mockColumnDndLayoutAvailability = 'available';
+		mockColumnDndLayoutAvailabilityCallCount = 0;
 		blockListBlockRenderCount = 0;
 	} );
 
@@ -340,6 +346,71 @@ describe( 'Reorder Mode Block wrapper integration', () => {
 			expect( getColumnDndLayoutAvailabilitySnapshot( 'table-a' ) ).toBe( 'unavailable' );
 			expect( reorderMode.getMode( 'table-a' ) ).toBe( 'edit' );
 		} );
+	} );
+
+	/**
+	 * 連続するlayout変化をToolbar表示用の1回の再評価へまとめることを確認する。
+	 *
+	 * 事前条件:
+	 * - 選択中Tableの初期Layout Availability評価が完了している。
+	 *
+	 * 操作:
+	 * - debounce待機時間内にwindow resizeを複数回発生させる。
+	 *
+	 * 期待結果:
+	 * - 最後の通知から待機時間が経過するまで再評価しない。
+	 * - 変化が落ち着いた後に1回だけ再評価する。
+	 */
+	it( 'when layout changes continue within the debounce period, should evaluate toolbar availability once after changes settle', () => {
+		jest.useFakeTimers();
+		const { unmount } = render( renderBlockListBlock() );
+
+		expect( mockColumnDndLayoutAvailabilityCallCount ).toBe( 1 );
+
+		act( () => {
+			window.dispatchEvent( new Event( 'resize' ) );
+			jest.advanceTimersByTime( COLUMN_DND_LAYOUT_AVAILABILITY_DEBOUNCE_MS / 2 );
+			window.dispatchEvent( new Event( 'resize' ) );
+			jest.advanceTimersByTime( COLUMN_DND_LAYOUT_AVAILABILITY_DEBOUNCE_MS - 1 );
+		} );
+		expect( mockColumnDndLayoutAvailabilityCallCount ).toBe( 1 );
+
+		act( () => {
+			jest.advanceTimersByTime( 1 );
+		} );
+		expect( mockColumnDndLayoutAvailabilityCallCount ).toBe( 2 );
+
+		unmount();
+		jest.useRealTimers();
+	} );
+
+	/**
+	 * BlockListBlock接続終了時に予約済みのToolbar表示用再評価を破棄することを確認する。
+	 *
+	 * 事前条件:
+	 * - 選択中Tableに対する再評価がdebounce待機中である。
+	 *
+	 * 操作:
+	 * - 対象BlockListBlockをunmountし、その後debounce待機時間を経過させる。
+	 *
+	 * 期待結果:
+	 * - unmount後にLayout Availabilityを再評価しない。
+	 */
+	it( 'when BlockListBlock unmounts during the debounce period, should cancel the pending toolbar reevaluation', () => {
+		jest.useFakeTimers();
+		const { unmount } = render( renderBlockListBlock() );
+
+		expect( mockColumnDndLayoutAvailabilityCallCount ).toBe( 1 );
+		act( () => {
+			window.dispatchEvent( new Event( 'resize' ) );
+		} );
+		unmount();
+
+		act( () => {
+			jest.advanceTimersByTime( COLUMN_DND_LAYOUT_AVAILABILITY_DEBOUNCE_MS );
+		} );
+		expect( mockColumnDndLayoutAvailabilityCallCount ).toBe( 1 );
+		jest.useRealTimers();
 	} );
 
 	/**
