@@ -1,7 +1,7 @@
 /**
  * Column Reorderの移動対象表示が、意味上のDnD Sessionと物理DnD情報を責務どおり組み合わせることを確認する。
  *
- * active Session中だけの表示、可視範囲への限定、元Tableの表示寸法維持、縦横追従、背景表示、横罫線、入力対象外、終了時解除を検証する。
+ * active Session中だけの表示、可視範囲への限定、元Tableの表示寸法維持、結合セル、DOM識別子、縦横追従、入力対象外、元Table非変更、終了時解除を検証する。
  */
 
 import { act, render } from '@testing-library/react';
@@ -57,7 +57,6 @@ const rectangle = ( values: Partial< DOMRect > ): DOMRect =>
 const createSourceTable = () => {
 	const table = document.createElement( 'table' );
 	const tbody = document.createElement( 'tbody' );
-	const rows: HTMLTableRowElement[] = [];
 	const cells: HTMLTableCellElement[] = [];
 	const tops = [ -40, 0, 40, 80, 120 ];
 
@@ -67,7 +66,6 @@ const createSourceTable = () => {
 		cell.textContent = index === 2 ? 'Source' : `Cell ${ index }`;
 		row.appendChild( cell );
 		tbody.appendChild( row );
-		rows.push( row );
 		cells.push( cell );
 		jest.spyOn( cell, 'getBoundingClientRect' ).mockReturnValue(
 			rectangle( {
@@ -111,7 +109,7 @@ const createSourceTable = () => {
 		} ),
 	} );
 
-	return { table, rows, cells, sourceCell: cells[ 2 ] };
+	return { table, cells, sourceCell: cells[ 2 ] };
 };
 
 /**
@@ -159,8 +157,8 @@ describe( 'Column moving display', () => {
 	 * - その後Column DnD Sessionをactiveへ遷移させる。
 	 *
 	 * 期待結果:
-	 * - idle中は移動表示も元列の半透明表示も開始しない。
-	 * - activeになった時点で、同じ物理DnDの移動表示と元列表示が開始する。
+	 * - idle中は移動表示を開始しない。
+	 * - activeになった時点で、同じ物理DnDの移動表示を開始する。
 	 */
 	it( 'when physical drag information exists before the column session becomes active, should show the moving column only after the session is active', () => {
 		mockColumnDndPhase = 'idle';
@@ -168,15 +166,11 @@ describe( 'Column moving display', () => {
 		const { rerender } = render( <ColumnMovingDisplay /> );
 
 		startPhysicalDrag( sourceCell );
-
 		expect( document.querySelector( '.yamabiko-table-reorder-moving-column' ) ).toBeNull();
-		expect( sourceCell.classList ).not.toContain( 'yamabiko-table-reorder-moving-column-source' );
 
 		mockColumnDndPhase = 'active';
 		rerender( <ColumnMovingDisplay /> );
-
 		expect( document.querySelector( '.yamabiko-table-reorder-moving-column' ) ).not.toBeNull();
-		expect( sourceCell.classList ).toContain( 'yamabiko-table-reorder-moving-column-source' );
 	} );
 
 	/**
@@ -192,6 +186,7 @@ describe( 'Column moving display', () => {
 	 * 期待結果:
 	 * - 可視2セルだけが移動表示へ含まれる。
 	 * - 表示領域外の前後セルは移動表示のために計測されない。
+	 * - 移動表示は入力・フォーカス対象にならない。
 	 */
 	it( 'when a large table extends beyond the editor viewport, should snapshot only cells visible in the editor viewport', () => {
 		const { cells, sourceCell } = createSourceTable();
@@ -207,6 +202,7 @@ describe( 'Column moving display', () => {
 		expect( previousOutsideMeasurement ).not.toHaveBeenCalled();
 		expect( nextOutsideMeasurement ).not.toHaveBeenCalled();
 		expect( overlay?.hasAttribute( 'inert' ) ).toBe( true );
+		expect( overlay?.getAttribute( 'aria-hidden' ) ).toBe( 'true' );
 	} );
 
 	/**
@@ -247,233 +243,71 @@ describe( 'Column moving display', () => {
 		expect( overlay?.style.width ).toBe( '100px' );
 		expect( movingSource?.style.width ).toBe( '100px' );
 		expect( movingSource?.style.height ).toBe( '80px' );
+		expect( movingSource?.rowSpan ).toBe( 2 );
 		expect( cells[ 1 ].getBoundingClientRect ).toHaveBeenCalled();
 	} );
 
 	/**
-	 * Core Tableのセル自身に表示されている背景色を移動表示へ維持することを確認する。
+	 * 元セルDOMを複製する場合でも、元Tableと移動表示でDOM識別子を重複させないことを確認する。
 	 *
 	 * 事前条件:
-	 * - 移動対象セル自身に非透明な背景色がある。
-	 * - 元行にも別の背景色がある。
+	 * - 移動対象セル自身とその子要素にidが設定されている。
 	 *
 	 * 操作:
-	 * - 移動対象列のDnDを開始する。
+	 * - activeなColumn DnDで移動表示を開始する。
 	 *
 	 * 期待結果:
-	 * - セル自身の計算済み背景色が元行背景より優先される。
-	 * - 1セルTableへ再構成された行とセルの両方で同じ背景色が維持される。
+	 * - 元セルと子要素のidは維持される。
+	 * - 移動表示内の複製セルと子要素からidが除去される。
 	 */
-	it( 'when a Core Table cell has its own background, should preserve the cell background across the reconstructed table layers', () => {
-		const { rows, sourceCell } = createSourceTable();
-		rows[ 2 ].style.backgroundColor = 'rgb(90, 91, 92)';
-		sourceCell.style.backgroundColor = 'rgb(12, 34, 56)';
-		render( <ColumnMovingDisplay /> );
-
-		startPhysicalDrag( sourceCell );
-
-		const movingSource = getMovingSourceCell();
-		expect( movingSource?.style.backgroundColor ).toBe( 'rgb(12, 34, 56)' );
-		expect( movingSource?.parentElement?.style.backgroundColor ).toBe( 'rgb(12, 34, 56)' );
-		expect( movingSource?.style.getPropertyPriority( 'background-color' ) ).toBe( 'important' );
-	} );
-
-	/**
-	 * FTB相当のセルインライン背景色を、元DOMの実際の表示から取得して移動表示へ維持することを確認する。
-	 *
-	 * 事前条件:
-	 * - FTBと同様に、移動対象セルのインラインstyleへ背景色が設定されている。
-	 *
-	 * 操作:
-	 * - 移動対象列のDnDを開始する。
-	 *
-	 * 期待結果:
-	 * - セルの計算済み背景色がsnapshotされ、移動表示の行とセルへ同じ色が固定される。
-	 */
-	it( 'when an FTB-style cell has an inline background color, should preserve its computed background in the moving display', () => {
+	it( 'when source cell content contains DOM ids, should remove the ids only from the moving clone', () => {
 		const { sourceCell } = createSourceTable();
-		sourceCell.style.backgroundColor = 'rgb(21, 43, 65)';
+		sourceCell.id = 'source-cell-id';
+		const child = document.createElement( 'span' );
+		child.id = 'source-child-id';
+		child.textContent = 'Nested';
+		sourceCell.appendChild( child );
 		render( <ColumnMovingDisplay /> );
 
 		startPhysicalDrag( sourceCell );
 
 		const movingSource = getMovingSourceCell();
-		expect( movingSource?.style.backgroundColor ).toBe( 'rgb(21, 43, 65)' );
-		expect( movingSource?.parentElement?.style.backgroundColor ).toBe( 'rgb(21, 43, 65)' );
+		expect( sourceCell.id ).toBe( 'source-cell-id' );
+		expect( child.id ).toBe( 'source-child-id' );
+		expect( movingSource?.hasAttribute( 'id' ) ).toBe( false );
+		expect( movingSource?.querySelector( '[id]' ) ).toBeNull();
 	} );
 
 	/**
-	 * セル自身が透明で元行に背景色がある場合、元Tableで見えていた行背景を移動表示へ維持することを確認する。
+	 * Column Moving Displayのために実Tableの移動元セルへclassやstyleを追加しないことを確認する。
 	 *
 	 * 事前条件:
-	 * - 移動対象セル自身の背景は透明である。
-	 * - 元行には非透明な背景色が設定されている。
+	 * - 移動対象列の可視セルに既存classとstyleがある。
 	 *
 	 * 操作:
-	 * - 移動対象列のDnDを開始する。
+	 * - activeなColumn DnDで移動表示を開始する。
 	 *
 	 * 期待結果:
-	 * - 移動表示の行とセルには元行の計算済み背景色が固定される。
+	 * - 可視セルのclass属性とstyle属性はDnD開始前から変化しない。
 	 */
-	it( 'when a source cell is transparent and its row has a background, should preserve the row background in the moving cell', () => {
-		const { rows, sourceCell } = createSourceTable();
-		rows[ 2 ].style.backgroundColor = 'rgb(34, 56, 78)';
+	it( 'when the moving display is active, should not mutate source cell classes or styles', () => {
+		const { cells, sourceCell } = createSourceTable();
+		cells[ 1 ].className = 'existing-cell';
+		cells[ 1 ].style.textAlign = 'right';
+		sourceCell.className = 'source-existing-cell';
+		sourceCell.style.verticalAlign = 'middle';
+		const before = cells.map( ( cell ) => ( {
+			className: cell.className,
+			style: cell.getAttribute( 'style' ),
+		} ) );
 		render( <ColumnMovingDisplay /> );
 
 		startPhysicalDrag( sourceCell );
 
-		const movingSource = getMovingSourceCell();
-		expect( movingSource?.style.backgroundColor ).toBe( 'rgb(34, 56, 78)' );
-		expect( movingSource?.parentElement?.style.backgroundColor ).toBe( 'rgb(34, 56, 78)' );
-	} );
-
-	/**
-	 * セルと元行が透明でも、元Table自身に背景色がある場合はTable背景レイヤーを移動表示へ維持することを確認する。
-	 *
-	 * 事前条件:
-	 * - 移動対象セルと元行の背景は透明である。
-	 * - 元Tableにはクラス経由の非透明な背景色がある。
-	 *
-	 * 操作:
-	 * - 移動対象列のDnDを開始する。
-	 *
-	 * 期待結果:
-	 * - 再構成した行とセルへ白背景を固定しない。
-	 * - 複製Tableでは元Tableと同じ背景色が計算済み背景として維持される。
-	 */
-	it( 'when a source table has a background and its row and cell are transparent, should preserve the table background layer', () => {
-		const { table, sourceCell } = createSourceTable();
-		const style = document.createElement( 'style' );
-		style.textContent = '.ytr-test-table-background { background-color: rgb(255, 238, 88); }';
-		document.head.appendChild( style );
-		table.classList.add( 'ytr-test-table-background' );
-		render( <ColumnMovingDisplay /> );
-
-		startPhysicalDrag( sourceCell );
-
-		const movingSource = getMovingSourceCell();
-		const movingTable = movingSource?.closest( 'table' );
-		expect( movingSource?.style.backgroundColor ).toBe( '' );
-		expect( movingSource?.parentElement?.style.backgroundColor ).toBe( '' );
-		expect( movingTable ? window.getComputedStyle( movingTable ).backgroundColor : '' ).toBe(
-			'rgb(255, 238, 88)'
-		);
-		style.remove();
-	} );
-
-	/**
-	 * セル、元行、元Tableのすべてが透明な場合、Overlayの白背景をセル単位のfallbackとして維持することを確認する。
-	 *
-	 * 事前条件:
-	 * - 移動対象セル、元行、元Tableの背景がすべて透明である。
-	 *
-	 * 操作:
-	 * - 移動対象列のDnDを開始する。
-	 *
-	 * 期待結果:
-	 * - 再構成した行とセルの背景は白となり、背後のTable内容を透過しない。
-	 */
-	it( 'when the source cell, row, and table backgrounds are transparent, should use white as the moving cell fallback', () => {
-		const { sourceCell } = createSourceTable();
-		render( <ColumnMovingDisplay /> );
-
-		startPhysicalDrag( sourceCell );
-
-		const movingSource = getMovingSourceCell();
-		expect( movingSource?.style.backgroundColor ).toBe( 'rgb(255, 255, 255)' );
-		expect( movingSource?.parentElement?.style.backgroundColor ).toBe( 'rgb(255, 255, 255)' );
-	} );
-
-	/**
-	 * 見出し区切りがsectionの太い罫線として設定されている場合も、移動表示へ同じ横罫線を維持することを確認する。
-	 *
-	 * 事前条件:
-	 * - 移動対象はtheadの唯一の見出し行にある。
-	 * - 見出しsectionの下辺に通常セルより太い罫線が設定されている。
-	 *
-	 * 操作:
-	 * - 見出し列のDnDを開始する。
-	 *
-	 * 期待結果:
-	 * - 移動表示の見出しセル下辺には元sectionの太い罫線が固定される。
-	 */
-	it( 'when a header section has a thick bottom border, should preserve that horizontal border in the moving header cell', () => {
-		const table = document.createElement( 'table' );
-		const thead = document.createElement( 'thead' );
-		const row = document.createElement( 'tr' );
-		const sourceCell = document.createElement( 'th' );
-		sourceCell.textContent = 'Header';
-		thead.style.borderBottom = '4px solid rgb(10, 20, 30)';
-		sourceCell.style.borderBottom = '1px solid rgb(100, 100, 100)';
-		row.appendChild( sourceCell );
-		thead.appendChild( row );
-		table.appendChild( thead );
-		document.body.appendChild( table );
-		jest.spyOn( sourceCell, 'getBoundingClientRect' ).mockReturnValue(
-			rectangle( {
-				top: 0,
-				bottom: 40,
-				left: 100,
-				right: 200,
-				width: 100,
-				height: 40,
-			} )
-		);
-		jest.spyOn( table, 'getBoundingClientRect' ).mockReturnValue(
-			rectangle( {
-				top: 0,
-				bottom: 40,
-				left: 100,
-				right: 200,
-				width: 100,
-				height: 40,
-			} )
-		);
-		Object.defineProperty( window, 'innerHeight', {
-			configurable: true,
-			value: 80,
+		cells.forEach( ( cell, index ) => {
+			expect( cell.className ).toBe( before[ index ].className );
+			expect( cell.getAttribute( 'style' ) ).toBe( before[ index ].style );
 		} );
-		Object.defineProperty( document, 'elementFromPoint', {
-			configurable: true,
-			value: jest.fn( () => sourceCell ),
-		} );
-		render( <ColumnMovingDisplay /> );
-
-		startPhysicalDrag( sourceCell );
-
-		const movingHeader = document.querySelector(
-			'.yamabiko-table-reorder-moving-column th'
-		) as HTMLTableCellElement | null;
-		expect( movingHeader?.style.borderBottom ).toContain( '4px' );
-		expect( movingHeader?.style.borderBottom ).toContain( 'rgb(10, 20, 30)' );
-		expect( movingHeader?.style.getPropertyPriority( 'border-bottom' ) ).toBe( 'important' );
-	} );
-
-	/**
-	 * 通常行の横罫線を背景対応後も維持することを確認する。
-	 *
-	 * 事前条件:
-	 * - 移動対象セル下辺に通常の横罫線が設定されている。
-	 * - 移動対象セルには背景色も設定されている。
-	 *
-	 * 操作:
-	 * - 移動対象列のDnDを開始する。
-	 *
-	 * 期待結果:
-	 * - 背景色と横罫線の両方が移動表示へ維持される。
-	 */
-	it( 'when a moving cell has a background and a horizontal border, should preserve both appearances', () => {
-		const { sourceCell } = createSourceTable();
-		sourceCell.style.backgroundColor = 'rgb(70, 80, 90)';
-		sourceCell.style.borderBottom = '2px solid rgb(40, 50, 60)';
-		render( <ColumnMovingDisplay /> );
-
-		startPhysicalDrag( sourceCell );
-
-		const movingSource = getMovingSourceCell();
-		expect( movingSource?.style.backgroundColor ).toBe( 'rgb(70, 80, 90)' );
-		expect( movingSource?.style.borderBottom ).toContain( '2px' );
-		expect( movingSource?.style.borderBottom ).toContain( 'rgb(40, 50, 60)' );
 	} );
 
 	/**
@@ -511,27 +345,28 @@ describe( 'Column moving display', () => {
 	} );
 
 	/**
-	 * Column DnD Session終了時に移動表示と元セルの一時表示を残さないことを確認する。
+	 * Column DnD Session終了時に移動表示とeditor全体の一時表示を残さないことを確認する。
 	 *
 	 * 事前条件:
-	 * - active Session中に移動表示と元列の半透明表示が成立している。
+	 * - active Session中に移動表示が成立している。
 	 *
 	 * 操作:
 	 * - DnD Interactionの状態をidleへ戻す。
 	 *
 	 * 期待結果:
-	 * - 移動表示が消え、元セルの半透明表示も解除される。
+	 * - 移動表示が消える。
+	 * - 掴んでいるポインター状態の一時classがeditorから除去される。
 	 */
-	it( 'when the column DnD session returns to idle, should remove the moving display and restore source cells', () => {
+	it( 'when the column DnD session returns to idle, should remove the moving display and temporary editor state', () => {
 		const { sourceCell } = createSourceTable();
 		const { rerender } = render( <ColumnMovingDisplay /> );
 		startPhysicalDrag( sourceCell );
-		expect( sourceCell.classList ).toContain( 'yamabiko-table-reorder-moving-column-source' );
+		expect( document.body.classList ).toContain( 'yamabiko-table-reorder-column-dragging' );
 
 		mockColumnDndPhase = 'idle';
 		rerender( <ColumnMovingDisplay /> );
 
 		expect( document.querySelector( '.yamabiko-table-reorder-moving-column' ) ).toBeNull();
-		expect( sourceCell.classList ).not.toContain( 'yamabiko-table-reorder-moving-column-source' );
+		expect( document.body.classList ).not.toContain( 'yamabiko-table-reorder-column-dragging' );
 	} );
 } );
