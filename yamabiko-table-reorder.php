@@ -106,8 +106,7 @@ final class Plugin {
 			'yamabiko-table-reorder-index',
 			plugins_url( 'build/index.css', __FILE__ ),
 			array(),
-			(string) filemtime( $file_path ),
-			true
+			(string) filemtime( $file_path )
 		);
 	}
 
