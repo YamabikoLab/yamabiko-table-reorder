@@ -2,12 +2,13 @@
  * Row Reorderの挿入位置表示が、DnD Interactionの有効な移動先境界を対象Tableの論理境界へ正しく表現することを確認する。
  *
  * 移動先解決そのものは重複して検証せず、null時の非表示、先頭・行間・末尾境界への対応、editor表示領域への制限、
- * スクロール時の再計測、およびDnD終了時の表示解除を検証する。
+ * スクロール時の再計測、および正常なdrop後の短時間表示とcleanupを検証する。
  */
 
 import { act, render } from '@testing-library/react';
 
 import { resolveEditorDomContext } from '@/reorder/editor-dom-context';
+import { DND_POST_DROP_INSERTION_LINE_DURATION_MS } from '@/reorder/reorder-tuning';
 
 import { RowInsertionLine } from './insertion-line';
 
@@ -15,7 +16,7 @@ let mockDestinationBoundaryIndex: number | null = null;
 let mockDragDropMonitor: {
 	onDragStart?: ( event: any ) => void;
 	onDragMove?: () => void;
-	onDragEnd?: () => void;
+	onDragEnd?: ( event: { canceled: boolean } ) => void;
 } = {};
 
 jest.mock( '@/reorder/row-reorder/integration/dnd-interaction-react', () => ( {
@@ -97,8 +98,20 @@ const startPhysicalDrag = ( row: HTMLTableRowElement ) => {
 	} );
 };
 
+/**
+ * DnD Engineから物理DnD終了が通知された状態を作る。
+ *
+ * @param canceled DnDがcancelされた終了かどうか。
+ */
+const endPhysicalDrag = ( canceled: boolean ) => {
+	act( () => {
+		mockDragDropMonitor.onDragEnd?.( { canceled } );
+	} );
+};
+
 describe( 'Row insertion line', () => {
 	beforeEach( () => {
+		jest.useFakeTimers();
 		mockDestinationBoundaryIndex = null;
 		mockDragDropMonitor = {};
 		document.body.replaceChildren();
@@ -108,6 +121,10 @@ describe( 'Row insertion line', () => {
 				Document[ 'defaultView' ]
 			>,
 		} );
+	} );
+
+	afterEach( () => {
+		jest.useRealTimers();
 	} );
 
 	/**
@@ -248,29 +265,143 @@ describe( 'Row insertion line', () => {
 
 	/**
 	 * 概要:
-	 * - 物理DnD終了時に、そのDnDの挿入位置表示を残さないことを確認する。
+	 * - 有効な挿入位置への正常なdrop後も、最後の挿入線を短時間維持することを確認する。
 	 *
 	 * 事前条件:
 	 * - 有効な移動先境界に挿入線が表示されている。
 	 *
 	 * 操作:
-	 * - DnD Engineから物理DnD終了を通知する。
+	 * - 正常なphysical dropを完了する。
+	 * - drop後表示時間を経過させる。
 	 *
 	 * 期待結果:
-	 * - 挿入線が表示から除去される。
+	 * - 表示時間内は最後の挿入線が残る。
+	 * - 表示時間経過後に挿入線が自動的に消える。
 	 */
-	it( 'when the physical drag ends, should remove the insertion line', () => {
+	it( 'when a valid physical drop ends, should keep the last insertion line briefly and then remove it', () => {
 		const { first } = createSourceTable();
 		const { rerender } = render( <RowInsertionLine /> );
 		startPhysicalDrag( first );
 		mockDestinationBoundaryIndex = 1;
 		rerender( <RowInsertionLine /> );
+
+		endPhysicalDrag( false );
 		expect( document.querySelector( '.yamabiko-table-reorder-insertion-line' ) ).not.toBeNull();
 
 		act( () => {
-			mockDragDropMonitor.onDragEnd?.();
+			jest.advanceTimersByTime( DND_POST_DROP_INSERTION_LINE_DURATION_MS - 1 );
 		} );
+		expect( document.querySelector( '.yamabiko-table-reorder-insertion-line' ) ).not.toBeNull();
+
+		act( () => {
+			jest.advanceTimersByTime( 1 );
+		} );
+		expect( document.querySelector( '.yamabiko-table-reorder-insertion-line' ) ).toBeNull();
+	} );
+
+	/**
+	 * 概要:
+	 * - cancelされたDnDではdrop後の挿入線を残さないことを確認する。
+	 *
+	 * 事前条件:
+	 * - 有効な移動先境界に挿入線が表示されている。
+	 *
+	 * 操作:
+	 * - physical DnDをcancelする。
+	 *
+	 * 期待結果:
+	 * - 挿入線は直ちに表示から除去される。
+	 */
+	it( 'when the physical drag is canceled, should remove the insertion line immediately', () => {
+		const { first } = createSourceTable();
+		const { rerender } = render( <RowInsertionLine /> );
+		startPhysicalDrag( first );
+		mockDestinationBoundaryIndex = 1;
+		rerender( <RowInsertionLine /> );
+
+		endPhysicalDrag( true );
 
 		expect( document.querySelector( '.yamabiko-table-reorder-insertion-line' ) ).toBeNull();
+		expect( jest.getTimerCount() ).toBe( 0 );
+	} );
+
+	/**
+	 * 概要:
+	 * - 有効な挿入線がないDnD終了ではdrop後表示を開始しないことを確認する。
+	 *
+	 * 事前条件:
+	 * - 物理DnDは開始しているが、有効な移動先境界はない。
+	 *
+	 * 操作:
+	 * - physical dropを完了する。
+	 *
+	 * 期待結果:
+	 * - 挿入線は表示されず、drop後表示用のtimerも開始されない。
+	 */
+	it( 'when a physical drop ends without a visible insertion line, should not start post-drop display', () => {
+		const { first } = createSourceTable();
+		render( <RowInsertionLine /> );
+		startPhysicalDrag( first );
+
+		endPhysicalDrag( false );
+
+		expect( document.querySelector( '.yamabiko-table-reorder-insertion-line' ) ).toBeNull();
+		expect( jest.getTimerCount() ).toBe( 0 );
+	} );
+
+	/**
+	 * 概要:
+	 * - drop後表示中に次のDnDが始まった場合、前回の表示を次の操作へ持ち越さないことを確認する。
+	 *
+	 * 事前条件:
+	 * - 前回の正常なdropによる挿入線が表示時間内で残っている。
+	 *
+	 * 操作:
+	 * - 次のphysical DnDを開始する。
+	 *
+	 * 期待結果:
+	 * - 前回のdrop後表示とtimerが破棄される。
+	 */
+	it( 'when a new physical drag starts during post-drop display, should clear the previous display and timer', () => {
+		const { first } = createSourceTable();
+		const { rerender } = render( <RowInsertionLine /> );
+		startPhysicalDrag( first );
+		mockDestinationBoundaryIndex = 1;
+		rerender( <RowInsertionLine /> );
+		endPhysicalDrag( false );
+		expect( jest.getTimerCount() ).toBe( 1 );
+
+		mockDestinationBoundaryIndex = null;
+		startPhysicalDrag( first );
+
+		expect( document.querySelector( '.yamabiko-table-reorder-insertion-line' ) ).toBeNull();
+		expect( jest.getTimerCount() ).toBe( 0 );
+	} );
+
+	/**
+	 * 概要:
+	 * - componentが破棄された場合、drop後表示の未完了timerを残さないことを確認する。
+	 *
+	 * 事前条件:
+	 * - 正常なdrop後の挿入線が表示時間内で残っている。
+	 *
+	 * 操作:
+	 * - 挿入位置表示componentをunmountする。
+	 *
+	 * 期待結果:
+	 * - 未完了のdrop後表示timerが破棄される。
+	 */
+	it( 'when the component unmounts during post-drop display, should clear the pending timer', () => {
+		const { first } = createSourceTable();
+		const { rerender, unmount } = render( <RowInsertionLine /> );
+		startPhysicalDrag( first );
+		mockDestinationBoundaryIndex = 1;
+		rerender( <RowInsertionLine /> );
+		endPhysicalDrag( false );
+		expect( jest.getTimerCount() ).toBe( 1 );
+
+		unmount();
+
+		expect( jest.getTimerCount() ).toBe( 0 );
 	} );
 } );
