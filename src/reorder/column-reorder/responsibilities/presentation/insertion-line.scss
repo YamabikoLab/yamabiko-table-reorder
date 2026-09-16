@@ -1,7 +1,7 @@
 /**
- * Column Reorderの現在の有効な挿入位置を示す垂直線の視覚表現を所有する。
+ * Column Reorderの挿入位置とdrop直後の列領域を示す視覚表現を所有する。
  *
- * 挿入線は対象Tableと現在のeditor表示領域が重なる縦幅だけを青色で描画し、DnD入力を遮らない。
+ * DnD中の挿入線とdrop後の列領域枠はいずれも対象Tableと現在のeditor表示領域が重なる縦幅だけを描画し、DnD入力を遮らない。
  */
 
 .yamabiko-table-reorder-column-insertion-line {
@@ -11,4 +11,12 @@
 	pointer-events: none;
 	background: #3858e9;
 	transform: translateX(-50%);
+}
+
+.yamabiko-table-reorder-post-drop-column-outline {
+	position: fixed;
+	z-index: 100001;
+	box-sizing: border-box;
+	pointer-events: none;
+	border: 3px solid #3858e9;
 }

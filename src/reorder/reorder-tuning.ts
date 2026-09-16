@@ -39,6 +39,9 @@ export const ROW_AUTO_SCROLL_EDGE_THRESHOLD_RATIO = 0.2;
 /** 正常なphysical drop後にdrop位置の行領域枠を表示する時間（ミリ秒）。 */
 export const DND_POST_DROP_ROW_OUTLINE_DURATION_MS = 2000;
 
+/** 正常なphysical drop後にdrop位置の列領域枠を表示する時間（ミリ秒）。 */
+export const DND_POST_DROP_COLUMN_OUTLINE_DURATION_MS = 2000;
+
 /** 結合セルによりDnDを開始できない場合の通知表示時間（ミリ秒）。 */
 export const DND_START_REJECTION_NOTICE_DURATION_MS = 2500;
 
