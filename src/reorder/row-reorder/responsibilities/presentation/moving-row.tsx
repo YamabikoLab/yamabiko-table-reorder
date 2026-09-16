@@ -18,6 +18,17 @@ import './moving-row.scss';
 
 const SOURCE_ROW_CLASS = 'yamabiko-table-reorder-moving-row-source';
 const DRAGGING_CLASS = 'yamabiko-table-reorder-row-dragging';
+const FTB_EDITOR_CONTROL_SELECTOR = [
+	'.ftb-table-cell-label',
+	'.ftb-row-selector',
+	'.ftb-column-selector',
+	'.ftb-row-before-inserter',
+	'.ftb-row-after-inserter',
+	'.ftb-column-before-inserter',
+	'.ftb-column-after-inserter',
+	'.ftb-row-remover',
+	'.ftb-column-remover',
+].join( ', ' );
 
 /** Row DnD開始時に確定し、そのDnD中の移動表示で維持する配置情報。 */
 type RowMovingDisplayLayout = {
@@ -115,6 +126,18 @@ const removeDuplicatedIds = ( row: HTMLTableRowElement ): void => {
 };
 
 /**
+ * 複製した移動表示から、Table内容ではないFTBのeditor操作要素を除去する。
+ *
+ * @param row 移動表示として複製した行。
+ */
+const removeFtbEditorControls = ( row: HTMLTableRowElement ): void => {
+	/* FTBの操作要素は元Tableでのみ成立するため、独立した移動表示へ持ち込まない。 */
+	row.querySelectorAll( FTB_EDITOR_CONTROL_SELECTOR ).forEach( ( element ) => {
+		element.remove();
+	} );
+};
+
+/**
  * 元行の現在表示を基準に、セル幅と行高を維持した移動表示用の行を構成する。
  *
  * @param layout    DnD開始時に確定した元行の表示配置。
@@ -126,6 +149,7 @@ const renderMovingRow = (
 ): void => {
 	const clonedRow = layout.sourceRow.cloneNode( true ) as HTMLTableRowElement;
 	removeDuplicatedIds( clonedRow );
+	removeFtbEditorControls( clonedRow );
 
 	/* 元行だけに適用する識別表示を複製側へ持ち込まず、移動表示は独立したoutlineで区別する。 */
 	clonedRow.classList.remove( SOURCE_ROW_CLASS );
