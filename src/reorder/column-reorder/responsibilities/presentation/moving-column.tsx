@@ -3,7 +3,7 @@
  *
  * Column DnDの意味上のLifecycleはDnD InteractionのReact境界から受け取り、表示に必要な移動対象DOMと物理位置だけをDnD Engineから利用する。
  * 大規模Tableでは全行を複製せず、現在のeditor表示領域に見えているセルの内容と表示寸法だけをDnD開始時に保持する。
- * 移動表示は元Tableの背景や罫線を再現せず、「どの列を掴み、現在どこへ動かしているか」を認識するための必要十分な表示に限定する。
+ * 実Tableの移動元セル群は変更せず、開始時の元列位置を単一のframeで示し、移動表示は「どの列を掴み、現在どこへ動かしているか」を認識するための必要十分な表示に限定する。
  */
 
 import { getFrameTransform } from '@dnd-kit/dom/utilities';
@@ -273,6 +273,32 @@ const renderMovingColumn = (
 };
 
 /**
+ * DnD開始時に確定した元列の位置と可視範囲を、実Tableを変更しない単一frameとして示す。
+ *
+ * @param props        移動元列表示に必要な配置。
+ * @param props.layout DnD開始時に確定した移動対象列の配置情報。
+ * @return 現在のeditor contextへ描画する移動元列frame。
+ */
+const ColumnSourceFrame = ( props: { layout: ColumnMovingDisplayLayout } ) => {
+	const { layout } = props;
+	const frameStyle: CSSProperties = {
+		top: layout.initialTop,
+		left: layout.initialLeft,
+		width: layout.columnWidth,
+		height: layout.snapshotHeight,
+	};
+
+	return createPortal(
+		<div
+			aria-hidden="true"
+			className="yamabiko-table-reorder-moving-column-source-frame"
+			style={ frameStyle }
+		/>,
+		layout.editorDocument.body
+	);
+};
+
+/**
  * DnD開始時に確定した列表示を、現在の物理ドラッグ位置へ縦横とも追従する独立表示として描画する。
  * 移動表示は視覚的な補助だけを担い、複製した編集可能要素を含めて入力・フォーカス対象にしない。
  *
@@ -321,13 +347,13 @@ const ColumnMovingOverlay = ( props: {
 };
 
 /**
- * Column DnDの意味状態とDnD Engineの物理情報を組み合わせ、移動対象列の独立表示だけを管理する。
+ * Column DnDの意味状態とDnD Engineの物理情報を組み合わせ、移動元列表示と独立した移動表示だけを管理する。
  *
  * DnD Interactionからはactive / idleだけを受け取り、物理座標やDOM参照をSessionへ複製しない。
- * 実Tableの移動元セル群は変更せず、移動表示とInsertion Lineだけで現在の操作対象と移動位置を示す。
- * 移動表示は縦横とも物理移動へ追従するが、縦方向の見かけ上の移動を論理移動先判定へ反映しない。
+ * 実Tableの移動元セル群は変更せず、単一の移動元frame、移動表示、Insertion Lineで操作対象と移動位置を示す。
+ * 移動表示は縦横とも物理移動へ追従するが、移動元frameはDnD開始時の位置へ留まり、縦方向の見かけ上の移動を論理移動先判定へ反映しない。
  *
- * @return activeなColumn DnD中は移動対象列表示。それ以外はnull。
+ * @return activeなColumn DnD中は移動元列frameと移動対象列表示。それ以外はnull。
  */
 export const ColumnMovingDisplay = () => {
 	const phase = useColumnDndPhase();
@@ -414,5 +440,10 @@ export const ColumnMovingDisplay = () => {
 		return null;
 	}
 
-	return <ColumnMovingOverlay layout={ movingColumn.layout } position={ movingColumn.position } />;
+	return (
+		<>
+			<ColumnSourceFrame layout={ movingColumn.layout } />
+			<ColumnMovingOverlay layout={ movingColumn.layout } position={ movingColumn.position } />
+		</>
+	);
 };
