@@ -96,3 +96,43 @@ test( 'when first-use guidance is dismissed, should highlight all reorder entrie
 	await expect( guidance ).toBeHidden();
 	await expect( guidanceTarget ).toHaveCount( 0 );
 } );
+
+/**
+ * 並び替え入口の選択でも初回案内が終了し、表示済み状態が保持されることを確認する。
+ *
+ * 事前条件:
+ * - PC環境の並び替え初回案内が未確認である。
+ *
+ * 操作:
+ * - Tableを表示して初回案内を確認する。
+ * - 並び替え入口を選択する。
+ * - 別のTableを表示する。
+ *
+ * 期待結果:
+ * - 並び替え入口を選択すると初回案内が終了する。
+ * - 別のTableでは初回案内が再表示されない。
+ */
+test( 'when first-use guidance is completed by a reorder entry, should end the guidance and keep it acknowledged', async ( {
+	admin,
+	page,
+	editor,
+} ) => {
+	await admin.createNewPost();
+	await setGuidancePreferences( page, false );
+	await insertGuidanceTable( page, editor );
+
+	const guidance = page.getByText( GUIDANCE );
+	const guidanceTarget = page.locator( '.yamabiko-table-reorder-guidance-target' );
+	const entry = page.getByRole( 'button', { name: ROW_BUTTON } );
+	await expect( guidance ).toBeVisible();
+	await expect( entry ).toBeVisible();
+
+	await entry.click();
+	await expect( guidance ).toBeHidden();
+	await expect( guidanceTarget ).toHaveCount( 0 );
+
+	await insertGuidanceTable( page, editor );
+	await expect( page.getByRole( 'button', { name: ROW_BUTTON } ) ).toBeVisible();
+	await expect( guidance ).toBeHidden();
+	await expect( guidanceTarget ).toHaveCount( 0 );
+} );
