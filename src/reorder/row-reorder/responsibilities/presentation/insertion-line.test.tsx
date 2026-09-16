@@ -405,9 +405,7 @@ describe( 'Row insertion line', () => {
 		act( () => {
 			jest.advanceTimersByTime( 1 );
 		} );
-		expect(
-			document.querySelector( '.yamabiko-table-reorder-post-drop-row-outline' )
-		).toBeNull();
+		expect( document.querySelector( '.yamabiko-table-reorder-post-drop-row-outline' ) ).toBeNull();
 	} );
 
 	/**
@@ -433,9 +431,7 @@ describe( 'Row insertion line', () => {
 		endPhysicalDrag( true );
 
 		expect( document.querySelector( '.yamabiko-table-reorder-insertion-line' ) ).toBeNull();
-		expect(
-			document.querySelector( '.yamabiko-table-reorder-post-drop-row-outline' )
-		).toBeNull();
+		expect( document.querySelector( '.yamabiko-table-reorder-post-drop-row-outline' ) ).toBeNull();
 		expect( jest.getTimerCount() ).toBe( 0 );
 	} );
 
@@ -459,9 +455,7 @@ describe( 'Row insertion line', () => {
 
 		endPhysicalDrag( false );
 
-		expect(
-			document.querySelector( '.yamabiko-table-reorder-post-drop-row-outline' )
-		).toBeNull();
+		expect( document.querySelector( '.yamabiko-table-reorder-post-drop-row-outline' ) ).toBeNull();
 		expect( jest.getTimerCount() ).toBe( 0 );
 	} );
 
@@ -490,9 +484,7 @@ describe( 'Row insertion line', () => {
 		mockDestinationBoundaryIndex = null;
 		startPhysicalDrag( first );
 
-		expect(
-			document.querySelector( '.yamabiko-table-reorder-post-drop-row-outline' )
-		).toBeNull();
+		expect( document.querySelector( '.yamabiko-table-reorder-post-drop-row-outline' ) ).toBeNull();
 		expect( jest.getTimerCount() ).toBe( 0 );
 	} );
 
