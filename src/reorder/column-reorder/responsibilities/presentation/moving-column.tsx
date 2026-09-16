@@ -414,7 +414,5 @@ export const ColumnMovingDisplay = () => {
 		return null;
 	}
 
-	return (
-		<ColumnMovingOverlay layout={ movingColumn.layout } position={ movingColumn.position } />
-	);
+	return <ColumnMovingOverlay layout={ movingColumn.layout } position={ movingColumn.position } />;
 };
