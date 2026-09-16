@@ -8,18 +8,23 @@ on:
         required: true
         type: boolean
         default: true
+      run_common_e2e:
+        description: 'E2E / Common'
+        required: true
+        type: boolean
+        default: true
       run_row_e2e:
-        description: 'Row Reorder'
+        description: 'E2E / Row Reorder'
         required: true
         type: boolean
         default: true
       run_column_e2e:
-        description: 'Column Reorder'
+        description: 'E2E / Column Reorder'
         required: true
         type: boolean
         default: true
       run_form_e2e:
-        description: 'Reorder Form'
+        description: 'E2E / Reorder Form'
         required: true
         type: boolean
         default: true
@@ -130,7 +135,7 @@ jobs:
         run: composer analyse:php
 
   e2e:
-    if: ${{ inputs.run_e2e }}
+    if: ${{ inputs.run_e2e && (inputs.run_common_e2e || inputs.run_row_e2e || inputs.run_column_e2e || inputs.run_form_e2e) }}
     name: E2E (WordPress ${{ matrix.wordpress_version }})
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -157,6 +162,7 @@ jobs:
       WP_BASE_URL: http://127.0.0.1:8080
       WP_USERNAME: admin
       WP_PASSWORD: admin
+      RUN_COMMON_E2E: ${{ inputs.run_common_e2e }}
       RUN_ROW_E2E: ${{ inputs.run_row_e2e }}
       RUN_COLUMN_E2E: ${{ inputs.run_column_e2e }}
       RUN_FORM_E2E: ${{ inputs.run_form_e2e }}
@@ -232,7 +238,10 @@ jobs:
 
       - name: Run Playwright E2E
         run: |
-          projects=(--project=common)
+          projects=()
+          if [[ "${RUN_COMMON_E2E}" == "true" ]]; then
+            projects+=(--project=common)
+          fi
           if [[ "${RUN_ROW_E2E}" == "true" ]]; then
             projects+=(--project=row)
           fi

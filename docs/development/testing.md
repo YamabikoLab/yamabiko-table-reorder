@@ -137,7 +137,7 @@ npm run test:e2e:column
 npm run test:e2e:form
 ```
 
-`common` owns only direction-independent contracts. Tests that select a Row / Column entry or perform direction-specific DnD remain in the corresponding direction project. Reorder Form owns one entry and both directions, so its browser contracts remain in the independent `form` project.
+`common` owns direction-independent product contracts, including first-use guidance even when a representative Row / Column entry is selected to complete that common flow. Direction-specific Row / Column behavior and DnD remain in the corresponding direction project. Reorder Form owns one entry and both directions, so its browser contracts remain in the independent `form` project.
 
 Refresh authentication only:
 
@@ -155,7 +155,7 @@ UI Mode includes the normal `common`, `row`, `column`, and `form` projects.
 
 ### PR Validation E2E
 
-PR Validation uses the CI-only environment defined in `tests/e2e/compose.ci.yaml`. For manually triggered validation, `Run E2E`, `Row Reorder`, `Column Reorder`, and `Reorder Form` all default to enabled. Disabling `Run E2E` skips the E2E job. When E2E runs, `common` always runs, and the feature checkboxes select `row`, `column`, and `form` within the existing WordPress environment matrix. If all three feature checkboxes are disabled, only `common` runs.
+PR Validation uses the CI-only environment defined in `tests/e2e/compose.ci.yaml`. For manually triggered validation, `Run E2E`, `E2E / Common`, `E2E / Row Reorder`, `E2E / Column Reorder`, and `E2E / Reorder Form` all default to enabled. Disabling `Run E2E` skips the E2E job. When E2E runs, the four `E2E / ...` checkboxes independently select `common`, `row`, `column`, and `form` within the existing WordPress environment matrix. If all four project checkboxes are disabled, the E2E job is skipped.
 
 CI checks the smoke test and selected major Row / Column / Reorder Form suites against these representative supported environments:
 
