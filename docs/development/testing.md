@@ -155,7 +155,7 @@ UI Mode includes the normal `common`, `row`, `column`, and `form` projects.
 
 ### PR Validation E2E
 
-PR Validation uses the CI-only environment defined in `tests/e2e/compose.ci.yaml`. For manually triggered validation, `Run E2E`, `Row Reorder`, `Column Reorder`, and `Reorder Form` all default to enabled. Disabling `Run E2E` skips the E2E job. When E2E runs, `common` always runs, and the feature checkboxes select `row`, `column`, and `form` within the existing WordPress environment matrix. If all three feature checkboxes are disabled, only `common` runs.
+PR Validation uses the CI-only environment defined in `tests/e2e/compose.ci.yaml`. For manually triggered validation, `Run E2E`, `E2E / Row Reorder`, `E2E / Column Reorder`, and `E2E / Reorder Form` all default to enabled. Disabling `Run E2E` skips the E2E job. When E2E runs, `common` always runs, and the feature checkboxes select `row`, `column`, and `form` within the existing WordPress environment matrix. If all three feature checkboxes are disabled, only `common` runs.
 
 CI checks the smoke test and selected major Row / Column / Reorder Form suites against these representative supported environments:
 
@@ -217,53 +217,3 @@ Check the main plugin file for syntax errors:
 ```bash
 php -l yamabiko-table-reorder.php
 ```
-
-Check WordPress coding standards:
-
-```bash
-composer lint:php
-```
-
-Run PHPStan:
-
-```bash
-composer analyse:php
-```
-
-Use `composer format:php` only when intentionally applying automatic fixes.
-
-## Dependency security audits
-
-Run dependency vulnerability checks:
-
-```bash
-npm run audit:security
-composer run audit:security
-```
-
-Run the relevant audit when dependency manifests or lock files change, or when investigating a dependency advisory.
-
-## Repository checks
-
-Check changed lines for whitespace errors:
-
-```bash
-git diff --check origin/main...HEAD
-```
-
-The manually triggered `.github/workflows/pr-validation.yml` workflow runs dependency security audits, Node.js checks, the production build, and PHP checks. Playwright E2E is optional.
-
-## Which checks to run
-
-- Documentation-only changes: `git diff --check origin/main...HEAD`.
-- JavaScript, TypeScript, JSON, CSS, or SCSS changes: `npm test`, `npm run build`, and the repository check.
-- Architecture Markdown or architecture tooling changes: the Node.js checks, `npm run architecture:generate -- <architecture-markdown-path>`, and the repository check. The generation command includes Structurizr validation and requires Docker.
-- Playwright configuration or E2E changes: the Node.js checks and `npm run test:e2e` when a compatible WordPress environment is available.
-- GitHub Actions or CI environment changes: the repository check and GitHub-hosted PR Validation.
-- PHP or Composer changes: Composer validation, PHP syntax, coding standards, and PHPStan.
-- npm or Composer dependency manifest / lock-file changes: the relevant dependency security audit in addition to applicable checks.
-- Mixed changes: combine the applicable groups.
-
-For checks requiring a local WordPress environment, follow the separate `YamabikoLab/wp-dev` documentation.
-
-Do not claim checks were run when they were skipped or unavailable. Record the reason when an applicable check cannot be executed.
