@@ -3,6 +3,7 @@
  *
  * DnD中はDnD Interactionが提供する0-based移動先境界だけを利用し、Presentation独自の移動先状態を持たない。
  * DnD Engineからは描画対象Tableの特定と物理移動に伴う再計測のきっかけだけを受け取り、スクロールによるTable全体の現在位置へ追従する。
+ * 有効な境界ではInsertion Lineに加えてVirtual Insertion Gapを重ね、実Tableを動かさずにdrop後の行領域を示す。
  * 正常なphysical drop後は、最後に表示していた境界と移動元行の実測高さからdrop位置の行領域を短時間だけ枠で示す。
  */
 
@@ -38,6 +39,14 @@ type RowInsertionLineLayout = {
 	width: number;
 	boundaryIndex: number;
 	editorDocument: Document;
+};
+
+/** Virtual Insertion Gapを現在のeditor表示領域へ描画するための配置情報。 */
+type RowVirtualInsertionGapLayout = {
+	top: number;
+	left: number;
+	width: number;
+	height: number;
 };
 
 /** drop位置の行領域を現在のeditor表示領域へ描画するための配置情報。 */
@@ -148,20 +157,20 @@ const resolveInsertionLineLayout = (
 };
 
 /**
- * 最後に表示していた挿入境界から、drop位置を示す行領域の枠を解決する。
+ * 有効な挿入境界から、drop後に移動行が占める領域をVirtual Insertion Gapとして解決する。
  *
  * 上方向の移動では境界の下側、下方向の移動では境界の上側へ、移動元行の実測高さぶんだけ領域を展開する。
- * この表示はdrop位置を示すだけで、Table更新成功の判定や更新後DOMの追跡は行わない。
+ * 実Tableのlayoutや行要素は変更せず、挿入線と同じ論理境界から表示領域だけを導出する。
  *
  * @param sessionLayout       DnD開始時に確定した移動元行と論理配置。
- * @param insertionLineLayout drop直前に実際に表示されていた挿入線配置。
- * @return drop位置の行領域を示す枠配置。移動元行の高さが成立しない場合はnull。
+ * @param insertionLineLayout 現在表示している挿入線配置。
+ * @return drop後に移動行が占める領域。移動元行の高さが成立しない場合はnull。
  */
-const resolvePostDropOutlineLayout = (
+const resolveVirtualInsertionGapLayout = (
 	sessionLayout: RowInsertionLineSessionLayout,
 	insertionLineLayout: RowInsertionLineLayout
-): RowPostDropOutlineLayout | null => {
-	/* 行領域として成立しない実測高さから、drop後の枠を推測して表示しない。 */
+): RowVirtualInsertionGapLayout | null => {
+	/* 行領域として成立しない実測高さから、挿入予定領域を推測して表示しない。 */
 	if ( sessionLayout.sourceRowHeight <= 0 ) {
 		return null;
 	}
@@ -176,17 +185,46 @@ const resolvePostDropOutlineLayout = (
 		left: insertionLineLayout.left,
 		width: insertionLineLayout.width,
 		height: sessionLayout.sourceRowHeight,
+	};
+};
+
+/**
+ * 最後に表示していた挿入境界から、drop位置を示す行領域の枠を解決する。
+ *
+ * 上方向の移動では境界の下側、下方向の移動では境界の上側へ、移動元行の実測高さぶんだけ領域を展開する。
+ * この表示はdrop位置を示すだけで、Table更新成功の判定や更新後DOMの追跡は行わない。
+ *
+ * @param sessionLayout       DnD開始時に確定した移動元行と論理配置。
+ * @param insertionLineLayout drop直前に実際に表示されていた挿入線配置。
+ * @return drop位置の行領域を示す枠配置。移動元行の高さが成立しない場合はnull。
+ */
+const resolvePostDropOutlineLayout = (
+	sessionLayout: RowInsertionLineSessionLayout,
+	insertionLineLayout: RowInsertionLineLayout
+): RowPostDropOutlineLayout | null => {
+	const virtualInsertionGapLayout = resolveVirtualInsertionGapLayout(
+		sessionLayout,
+		insertionLineLayout
+	);
+
+	if ( virtualInsertionGapLayout === null ) {
+		return null;
+	}
+
+	return {
+		...virtualInsertionGapLayout,
 		editorDocument: insertionLineLayout.editorDocument,
 	};
 };
 
 /**
- * DnD中の有効な移動先境界を挿入線として描画し、正常なdrop直後はdrop位置の行領域を短時間だけ枠で示す。
+ * DnD中の有効な移動先境界を挿入線とVirtual Insertion Gapで描画し、正常なdrop直後はdrop位置の行領域を短時間だけ枠で示す。
  *
  * DnD開始時の論理境界と移動元行高をそのSession中の表示基準として維持し、DnD Engineの移動通知ごとに現在のTable位置を再計測する。
+ * Virtual Insertion Gapは実Tableを変更せず、drop後に移動行が占める領域だけを1要素で示す。
  * cancelまたは有効な挿入線がない終了ではdrop後表示を行わない。
  *
- * @return DnD中の挿入線、または正常なdrop直後の行領域枠。表示位置がない場合はnull。
+ * @return DnD中の挿入線とVirtual Insertion Gap、または正常なdrop直後の行領域枠。表示位置がない場合はnull。
  */
 export const RowInsertionLine = () => {
 	const destinationBoundaryIndex = useRowDndDestinationBoundaryIndex();
@@ -254,7 +292,7 @@ export const RowInsertionLine = () => {
 	} );
 
 	useEffect( () => {
-		/* 有効な移動先境界またはDnD開始時の論理配置を確認できない期間は、DnD中の挿入線を表示しない。 */
+		/* 有効な移動先境界またはDnD開始時の論理配置を確認できない期間は、DnD中の挿入位置表示を行わない。 */
 		if ( destinationBoundaryIndex === null || sessionLayout === null ) {
 			setLayout( null );
 			return;
@@ -263,15 +301,38 @@ export const RowInsertionLine = () => {
 		setLayout( resolveInsertionLineLayout( sessionLayout, destinationBoundaryIndex ) );
 	}, [ destinationBoundaryIndex, measurementRevision, sessionLayout ] );
 
-	if ( layout !== null ) {
-		const style: CSSProperties = {
+	if ( layout !== null && sessionLayout !== null ) {
+		const virtualInsertionGapLayout = resolveVirtualInsertionGapLayout( sessionLayout, layout );
+		const lineStyle: CSSProperties = {
 			top: layout.top,
 			left: layout.left,
 			width: layout.width,
 		};
+		const virtualGapStyle: CSSProperties | null =
+			virtualInsertionGapLayout === null
+				? null
+				: {
+						top: virtualInsertionGapLayout.top,
+						left: virtualInsertionGapLayout.left,
+						width: virtualInsertionGapLayout.width,
+						height: virtualInsertionGapLayout.height,
+					};
 
 		return createPortal(
-			<div aria-hidden="true" className="yamabiko-table-reorder-insertion-line" style={ style } />,
+			<>
+				{ virtualGapStyle !== null && (
+					<div
+						aria-hidden="true"
+						className="yamabiko-table-reorder-virtual-insertion-gap"
+						style={ virtualGapStyle }
+					/>
+				) }
+				<div
+					aria-hidden="true"
+					className="yamabiko-table-reorder-insertion-line"
+					style={ lineStyle }
+				/>
+			</>,
 			layout.editorDocument.body
 		);
 	}
