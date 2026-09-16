@@ -137,7 +137,7 @@ npm run test:e2e:column
 npm run test:e2e:form
 ```
 
-`common` owns only direction-independent contracts. Tests that select a Row / Column entry or perform direction-specific DnD remain in the corresponding direction project. Reorder Form owns one entry and both directions, so its browser contracts remain in the independent `form` project.
+`common` owns direction-independent product contracts, including first-use guidance even when a representative Row / Column entry is selected to complete that common flow. Direction-specific Row / Column behavior and DnD remain in the corresponding direction project. Reorder Form owns one entry and both directions, so its browser contracts remain in the independent `form` project.
 
 Refresh authentication only:
 
@@ -196,7 +196,7 @@ npm run test:e2e:performance -- --repeat-each=3
 
 Each direction's performance report attaches a JSON summary and Chrome CPU profiles for the same Table's ordinary WordPress attribute update, mode entry, physical drag start, progress, and commit. The baseline uses the same row or Table-wide column move through the public WordPress update API; Undo restores the initial data outside measurement. The summary records Table size, browser version, editor context, wall time, and sampled CPU self time grouped by script owner. Record WordPress / FTB versions, machine conditions, and the tested SHA alongside the results.
 
-Review the attached `.cpuprofile` files in browser developer tools when a phase is slow. Distinguish YTR and its bundled dnd-kit code from Table Block code, WordPress / React, browser work, and idle time. Script self-time attribution is sampling evidence, not exact end-to-end ownership: layout and React work triggered by YTR can appear under browser / WordPress frames. Use caller stacks and the baseline to investigate such work; do not subtract whole-operation wall times and call the difference YTR cost. Look for new sustained stalls in YTR calculation, state / presentation updates, and engine connection management. Total Table commit duration is not a QR-01 pass/fail threshold. A passing performance scenario establishes measurement completion and the row or column result; QR-01 assessment also requires reviewing the measurements. Record inconclusive attribution or unexecuted environments explicitly.
+Review the attached `.cpuprofile` files in browser developer tools when a phase is slow. Distinguish YTR and its bundled dnd-kit code from Table Block code, WordPress / React, browser work, and engine connection management. Total Table commit duration is not a QR-01 pass/fail threshold. A passing performance scenario establishes measurement completion and the row or column result; QR-01 assessment also requires reviewing the measurements. Record inconclusive attribution or unexecuted environments explicitly.
 
 ## PHP
 
