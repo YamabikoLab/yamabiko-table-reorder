@@ -10,6 +10,7 @@ import { ReorderModeToolbar } from './toolbar';
 let mockSelectedKind: 'row' | 'column' | null = null;
 let mockRfState: any = { status: 'closed' };
 let mockColumnDndLayoutAvailability: 'available' | 'unavailable' = 'available';
+let mockGuidance: { environment: 'pc' | 'touch' } | null = null;
 const mockSelectMode = jest.fn();
 const mockOpenRf = jest.fn();
 const mockCloseRf = jest.fn();
@@ -23,7 +24,11 @@ jest.mock( '@wordpress/block-editor', () => ( {
 jest.mock( '@wordpress/components', () => {
 	const react = jest.requireActual( 'react' ) as typeof import('react');
 	return {
-		ToolbarGroup: ( props: { children: ReactNode } ) => <div>{ props.children }</div>,
+		ToolbarGroup: ( props: { children: ReactNode; className?: string } ) => (
+			<div className={ props.className } role="group">
+				{ props.children }
+			</div>
+		),
 		ToolbarButton: react.forwardRef<
 			HTMLButtonElement,
 			{
@@ -134,7 +139,7 @@ jest.mock( '@/reorder/wordpress/components/guidance', () => ( {
 jest.mock( '@/reorder/wordpress/hooks/use-reorder-guidance', () => ( {
 	useReorderGuidance: () => ( {
 		dismiss: jest.fn(),
-		guidance: null,
+		guidance: mockGuidance,
 	} ),
 } ) );
 
@@ -143,6 +148,7 @@ describe( 'Reorder toolbar RF exclusivity', () => {
 		mockSelectedKind = null;
 		mockRfState = { status: 'closed' };
 		mockColumnDndLayoutAvailability = 'available';
+		mockGuidance = null;
 		jest.clearAllMocks();
 	} );
 
@@ -168,6 +174,40 @@ describe( 'Reorder toolbar RF exclusivity', () => {
 			'Reorder columns',
 			'Reorder with form',
 		] );
+	} );
+
+	/**
+	 * 概要:
+	 * - 初回案内中は3つの並び替え入口を個別ではなく1つの機能群として強調することを確認する。
+	 *
+	 * 事前条件:
+	 * - 対象Tableで初回案内が表示されている。
+	 *
+	 * 操作:
+	 * - Toolbarを表示した後、初回案内を終了した状態へ更新する。
+	 *
+	 * 期待結果:
+	 * - 案内中はToolbarGroupだけに強調classが付与され、各入口には付与されない。
+	 * - 案内終了後はToolbarGroupから強調classが外れる。
+	 */
+	it( 'when guidance is visible, should highlight only the reorder entry group until guidance ends', () => {
+		mockGuidance = { environment: 'pc' };
+		const { rerender } = render( <ReorderModeToolbar tableIdentity="table-a" /> );
+
+		const group = screen.getByRole( 'group' );
+		expect( group.classList.contains( 'yamabiko-table-reorder-guidance-target' ) ).toBe( true );
+		expect(
+			screen
+				.getAllByRole( 'button' )
+				.some( ( button ) =>
+					button.classList.contains( 'yamabiko-table-reorder-guidance-target' )
+				)
+		).toBe( false );
+
+		mockGuidance = null;
+		rerender( <ReorderModeToolbar tableIdentity="table-a" /> );
+
+		expect( screen.getByRole( 'group' ).className ).toBe( '' );
 	} );
 
 	/**
