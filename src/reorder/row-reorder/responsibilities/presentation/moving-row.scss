@@ -18,9 +18,14 @@
 	z-index: 100000;
 	pointer-events: none;
 	box-sizing: border-box;
-	color: #1e1e1e;
 	background: #fff;
 	outline: 2px solid #3858e9;
+}
+
+/* theme側で子要素自身に前景色が指定されていても、移動表示内では白背景と対になる濃色へ統一する。 */
+.yamabiko-table-reorder-moving-row,
+.yamabiko-table-reorder-moving-row * {
+	color: #1e1e1e !important;
 }
 
 /* 行DnD中は移動表示が入力対象外でも、ポインター下の要素に依存せず掴んでいる状態を示す。 */
@@ -33,7 +38,6 @@
 .yamabiko-table-reorder-moving-row-table {
 	margin: 0;
 	table-layout: fixed;
-	color: #1e1e1e;
 	background: #fff;
 	opacity: 1;
 }
@@ -41,7 +45,6 @@
 .yamabiko-table-reorder-moving-row-table td,
 .yamabiko-table-reorder-moving-row-table th {
 	border-right: 1px solid currentcolor;
-	color: #1e1e1e;
 	opacity: 1;
 }
 
