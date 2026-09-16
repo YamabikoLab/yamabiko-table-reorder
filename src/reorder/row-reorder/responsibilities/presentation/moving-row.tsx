@@ -2,8 +2,8 @@
  * Row Reorderの移動対象行を、実Tableの配置を変えない独立した移動表示として描画する。
  *
  * Row DnDの意味上のLifecycleはDnD InteractionのReact境界から受け取り、表示に必要な移動対象DOMと物理位置だけをDnD Engineから直接利用する。
- * 移動表示は現在のドラッグ位置へ縦横とも追従し、利用者が移動先のTable内容を確認しやすい位置へ自由に動かせる。
- * 元行は実DOM上の位置と大きさを維持したまま半透明で残し、独立した移動表示によって現在の移動対象を識別できるようにする。
+ * 移動表示は「どの行を掴み、現在どこへ動かしているか」を認識するための必要十分な表示に限定し、元Tableの可視範囲や計算済み背景色は再現しない。
+ * 元行は実DOM上の位置と大きさを維持したままoutlineで識別し、移動表示はPortal内で現在のドラッグ位置へ縦横とも追従する。
  */
 
 import { useDragDropMonitor } from '@dnd-kit/react';
@@ -22,14 +22,10 @@ const DRAGGING_CLASS = 'yamabiko-table-reorder-row-dragging';
 /** Row DnD開始時に確定し、そのDnD中の移動表示で維持する配置情報。 */
 type RowMovingDisplayLayout = {
 	sourceRow: HTMLTableRowElement;
-	sourceTable: HTMLTableElement;
+	sourceTableClasses: string;
 	rowHeight: number;
-	rowBackgroundColor: string;
-	tableWidth: number;
-	visibleWidth: number;
-	tableOffsetLeft: number;
+	rowWidth: number;
 	cellWidths: number[];
-	cellBackgroundColors: string[];
 	initialPositionX: number;
 	initialPositionY: number;
 	initialLeft: number;
@@ -37,10 +33,13 @@ type RowMovingDisplayLayout = {
 	editorDocument: Document;
 };
 
-/** 移動表示が現在追従するeditor表示領域内の位置。 */
-type RowMovingDisplayPosition = {
-	left: number;
-	top: number;
+/** activeな物理DnDに対応する移動表示の配置と現在位置。 */
+type RowMovingDisplayState = {
+	layout: RowMovingDisplayLayout;
+	position: {
+		left: number;
+		top: number;
+	};
 };
 
 /**
@@ -78,39 +77,24 @@ const resolveMovingDisplayLayout = (
 	}
 
 	const rowRectangle = sourceRow.getBoundingClientRect();
-	const tableRectangle = sourceTable.getBoundingClientRect();
-	const visibleLeft = Math.max( tableRectangle.left, 0 );
-	const visibleRight = Math.min( tableRectangle.right, editorContext.window.innerWidth );
-	const visibleWidth = visibleRight - visibleLeft;
 
-	/* Tableと現在表示領域が重ならない場合、または元行の表示寸法を確定できない場合は移動表示を成立させない。 */
-	if ( visibleWidth <= 0 || tableRectangle.width <= 0 || rowRectangle.height <= 0 ) {
+	/* 元行の表示寸法を確定できない場合は、識別可能な移動表示を成立させられない。 */
+	if ( rowRectangle.width <= 0 || rowRectangle.height <= 0 ) {
 		return null;
 	}
 
-	/* 内容量に左右されず元行の列配置を維持できるよう、DnD開始時の各セル幅を確定する。 */
+	/* 内容量や空セルに左右されず元行の列配置を維持できるよう、DnD開始時の各セル幅を確定する。 */
 	const cellWidths = Array.from( sourceRow.cells, ( cell ) => cell.getBoundingClientRect().width );
-
-	/* 元Table内の位置や親要素に依存する背景表示も維持できるよう、DnD開始時の行と各セルの計算済み背景色を確定する。 */
-	const rowBackgroundColor = editorContext.window.getComputedStyle( sourceRow ).backgroundColor;
-	const cellBackgroundColors = Array.from(
-		sourceRow.cells,
-		( cell ) => editorContext.window.getComputedStyle( cell ).backgroundColor
-	);
 
 	return {
 		sourceRow,
-		sourceTable,
+		sourceTableClasses: sourceTable.className,
 		rowHeight: rowRectangle.height,
-		rowBackgroundColor,
-		tableWidth: tableRectangle.width,
-		visibleWidth,
-		tableOffsetLeft: tableRectangle.left - visibleLeft,
+		rowWidth: rowRectangle.width,
 		cellWidths,
-		cellBackgroundColors,
 		initialPositionX,
 		initialPositionY,
-		initialLeft: visibleLeft,
+		initialLeft: rowRectangle.left,
 		initialTop: rowRectangle.top,
 		editorDocument: editorContext.document,
 	};
@@ -133,7 +117,7 @@ const removeDuplicatedIds = ( row: HTMLTableRowElement ): void => {
 /**
  * 元行の現在表示を基準に、セル幅と行高を維持した移動表示用の行を構成する。
  *
- * @param layout    DnD開始時に確定した元行とTableの表示配置。
+ * @param layout    DnD開始時に確定した元行の表示配置。
  * @param tableBody 移動表示を描画するtbody。
  */
 const renderMovingRow = (
@@ -143,16 +127,14 @@ const renderMovingRow = (
 	const clonedRow = layout.sourceRow.cloneNode( true ) as HTMLTableRowElement;
 	removeDuplicatedIds( clonedRow );
 
-	/* 元行だけに適用する半透明表示を複製側へ持ち込まず、移動表示の内容は通常濃度で表示する。 */
+	/* 元行だけに適用する識別表示を複製側へ持ち込まず、移動表示は独立したoutlineで区別する。 */
 	clonedRow.classList.remove( SOURCE_ROW_CLASS );
 	clonedRow.style.height = `${ layout.rowHeight }px`;
-	clonedRow.style.backgroundColor = layout.rowBackgroundColor;
 
-	/* 空セルを含む場合もDnD開始時のセル配置と背景表示を維持し、複製先の位置による表示変化を発生させない。 */
+	/* 空セルを含む場合もDnD開始時のセル配置を維持し、内容量による大きな形崩れを防ぐ。 */
 	Array.from( clonedRow.cells ).forEach( ( cell, index ) => {
 		const width = layout.cellWidths[ index ];
-		const backgroundColor = layout.cellBackgroundColors[ index ];
-		if ( width === undefined || backgroundColor === undefined ) {
+		if ( width === undefined ) {
 			return;
 		}
 
@@ -160,7 +142,6 @@ const renderMovingRow = (
 		cell.style.width = `${ width }px`;
 		cell.style.minWidth = `${ width }px`;
 		cell.style.maxWidth = `${ width }px`;
-		cell.style.backgroundColor = backgroundColor;
 	} );
 
 	tableBody.replaceChildren( clonedRow );
@@ -171,13 +152,13 @@ const renderMovingRow = (
  * 移動表示は視覚的な補助だけを担い、複製した編集可能要素を含めて入力・フォーカス対象にしない。
  *
  * @param props          移動表示に必要な配置と現在位置。
- * @param props.layout   DnD開始時に確定した元行とTableの配置情報。
+ * @param props.layout   DnD開始時に確定した元行の配置情報。
  * @param props.position 現在の移動表示位置。
  * @return 現在のeditor contextへ描画する移動対象行表示。
  */
 const RowMovingOverlay = ( props: {
 	layout: RowMovingDisplayLayout;
-	position: RowMovingDisplayPosition;
+	position: RowMovingDisplayState[ 'position' ];
 } ) => {
 	const { layout, position } = props;
 	const tableBodyRef = useRef< HTMLTableSectionElement | null >( null );
@@ -193,26 +174,24 @@ const RowMovingOverlay = ( props: {
 		renderMovingRow( layout, tableBody );
 	}, [ layout ] );
 
-	const viewportStyle: CSSProperties = {
+	const frameStyle: CSSProperties = {
 		top: position.top,
 		left: position.left,
-		width: layout.visibleWidth,
+		width: layout.rowWidth,
 		height: layout.rowHeight,
 	};
 	const tableStyle: CSSProperties = {
-		left: layout.tableOffsetLeft,
-		width: layout.tableWidth,
+		width: layout.rowWidth,
 	};
-	const sourceTableClasses = layout.sourceTable.className;
 	const movingTableClasses =
-		`${ sourceTableClasses } yamabiko-table-reorder-moving-row-table`.trim();
+		`${ layout.sourceTableClasses } yamabiko-table-reorder-moving-row-table`.trim();
 
 	return createPortal(
 		<div
 			ref={ ( element ) => element?.setAttribute( 'inert', '' ) }
 			aria-hidden="true"
 			className="editor-styles-wrapper yamabiko-table-reorder-moving-row"
-			style={ viewportStyle }
+			style={ frameStyle }
 		>
 			<table className={ movingTableClasses } style={ tableStyle } aria-hidden="true">
 				<tbody ref={ tableBodyRef } />
@@ -226,57 +205,58 @@ const RowMovingOverlay = ( props: {
  * Row DnDの意味上のLifecycleとDnD Engineの物理情報を組み合わせ、移動対象行の表示だけを管理する。
  *
  * DnD Interactionからはactive / idleだけを受け取り、物理座標やDOM参照をSessionへ複製しない。
- * 元行はactive Session中も実Tableに残し、レイアウトを変えない半透明表示だけで移動元として区別する。
+ * 元行はactive Session中も実Tableに残し、レイアウトを変えないoutlineだけで移動元として区別する。
  * 移動表示はDnD Engineの物理移動へ縦横とも追従するが、行の移動先判定には関与しない。
  *
  * @return activeなRow DnD中は移動対象行表示。それ以外はnull。
  */
 export const RowMovingDisplay = () => {
 	const phase = useRowDndPhase();
-	const activeLayout = useRef< RowMovingDisplayLayout | null >( null );
 	const sessionBecameActive = useRef( false );
-	const [ layout, setLayout ] = useState< RowMovingDisplayLayout | null >( null );
-	const [ position, setPosition ] = useState< RowMovingDisplayPosition >( {
-		left: 0,
-		top: 0,
-	} );
+	const [ movingRow, setMovingRow ] = useState< RowMovingDisplayState | null >( null );
 
 	useDragDropMonitor( {
 		onDragStart: ( event ) => {
 			const dragPosition = event.operation.position;
 			const initialPositionX = dragPosition.initial.x ?? 0;
-			const nextLayout = resolveMovingDisplayLayout(
+			const layout = resolveMovingDisplayLayout(
 				event.operation.source?.element,
 				initialPositionX,
 				dragPosition.initial.y
 			);
 
-			activeLayout.current = nextLayout;
-			setLayout( nextLayout );
-
-			/* 表示を成立させられる場合だけ、移動開始位置を元行の表示位置へ合わせる。 */
-			if ( nextLayout !== null ) {
-				setPosition( {
-					left: nextLayout.initialLeft,
-					top: nextLayout.initialTop,
-				} );
-			}
+			const nextMovingRow =
+				layout === null
+					? null
+					: {
+							layout,
+							position: {
+								left: layout.initialLeft,
+								top: layout.initialTop,
+							},
+					  };
+			setMovingRow( nextMovingRow );
 		},
 		onDragMove: ( event ) => {
-			const currentLayout = activeLayout.current;
+			setMovingRow( ( currentMovingRow ) => {
+				/* DnD開始時に移動表示が成立していない場合は、物理移動だけで途中から表示を開始しない。 */
+				if ( currentMovingRow === null ) {
+					return null;
+				}
 
-			/* DnD開始時に移動表示が成立していない場合は、物理移動だけで途中から表示を開始しない。 */
-			if ( currentLayout === null ) {
-				return;
-			}
+				const { layout } = currentMovingRow;
+				const currentPosition = event.operation.position.current;
+				const currentPositionX = currentPosition.x ?? layout.initialPositionX;
+				const horizontalMovement = currentPositionX - layout.initialPositionX;
+				const verticalMovement = currentPosition.y - layout.initialPositionY;
 
-			const currentPosition = event.operation.position.current;
-			const currentPositionX = currentPosition.x ?? currentLayout.initialPositionX;
-			const horizontalMovement = currentPositionX - currentLayout.initialPositionX;
-			const verticalMovement = currentPosition.y - currentLayout.initialPositionY;
-			setPosition( {
-				left: currentLayout.initialLeft + horizontalMovement,
-				top: currentLayout.initialTop + verticalMovement,
+				return {
+					layout,
+					position: {
+						left: layout.initialLeft + horizontalMovement,
+						top: layout.initialTop + verticalMovement,
+					},
+				};
 			} );
 		},
 	} );
@@ -286,8 +266,7 @@ export const RowMovingDisplay = () => {
 		if ( phase === 'idle' ) {
 			if ( sessionBecameActive.current ) {
 				sessionBecameActive.current = false;
-				activeLayout.current = null;
-				setLayout( null );
+				setMovingRow( null );
 			}
 			return;
 		}
@@ -295,26 +274,28 @@ export const RowMovingDisplay = () => {
 		sessionBecameActive.current = true;
 	}, [ phase ] );
 
+	const activeLayout = movingRow?.layout ?? null;
+
 	useEffect( () => {
 		/* Row DnD Sessionと移動表示の両方が成立している期間だけ、移動元と掴んでいるポインター状態を表示する。 */
-		if ( phase !== 'active' || layout === null ) {
+		if ( phase !== 'active' || activeLayout === null ) {
 			return;
 		}
 
-		layout.sourceRow.classList.add( SOURCE_ROW_CLASS );
-		layout.editorDocument.body.classList.add( DRAGGING_CLASS );
+		activeLayout.sourceRow.classList.add( SOURCE_ROW_CLASS );
+		activeLayout.editorDocument.body.classList.add( DRAGGING_CLASS );
 		return () => {
-			layout.sourceRow.classList.remove( SOURCE_ROW_CLASS );
-			layout.editorDocument.body.classList.remove( DRAGGING_CLASS );
+			activeLayout.sourceRow.classList.remove( SOURCE_ROW_CLASS );
+			activeLayout.editorDocument.body.classList.remove( DRAGGING_CLASS );
 		};
-	}, [ phase, layout ] );
+	}, [ phase, activeLayout ] );
 
-	const visible = phase === 'active' && layout !== null;
+	const visible = phase === 'active' && movingRow !== null;
 
-	/* 意味上のRow DnD Sessionまたは表示配置のどちらかが成立しない間は、利用者向け移動表示を出さない。 */
+	/* 意味上のRow DnD Sessionまたは移動表示のどちらかが成立しない間は、利用者向け表示を出さない。 */
 	if ( ! visible ) {
 		return null;
 	}
 
-	return <RowMovingOverlay layout={ layout } position={ position } />;
+	return <RowMovingOverlay layout={ movingRow.layout } position={ movingRow.position } />;
 };
