@@ -1,7 +1,7 @@
 /**
  * Column Reorderの移動対象表示が、意味上のDnD Sessionと物理DnD情報を責務どおり組み合わせることを確認する。
  *
- * active Session中だけの表示、可視範囲への限定、元Tableの表示寸法維持、結合セル、DOM識別子、縦横追従、入力対象外、元Table非変更、終了時解除を検証する。
+ * active Session中だけの表示、移動元frame、可視範囲への限定、元Tableの表示寸法維持、結合セル、DOM識別子、縦横追従、入力対象外、元Table非変更、終了時解除を検証する。
  */
 
 import { act, render } from '@testing-library/react';
@@ -146,7 +146,7 @@ describe( 'Column moving display', () => {
 	} );
 
 	/**
-	 * 物理DnD情報だけでは移動表示を開始せず、Column DnD Sessionの意味状態を表示Lifecycleの正本とすることを確認する。
+	 * 物理DnD情報だけでは利用者向け表示を開始せず、Column DnD Sessionの意味状態を表示Lifecycleの正本とすることを確認する。
 	 *
 	 * 事前条件:
 	 * - DnD Engineから移動対象セルと開始位置を取得できる。
@@ -157,19 +157,25 @@ describe( 'Column moving display', () => {
 	 * - その後Column DnD Sessionをactiveへ遷移させる。
 	 *
 	 * 期待結果:
-	 * - idle中は移動表示を開始しない。
-	 * - activeになった時点で、同じ物理DnDの移動表示を開始する。
+	 * - idle中は移動元frameも移動表示も開始しない。
+	 * - activeになった時点で、同じ物理DnDの移動元frameと移動表示を開始する。
 	 */
-	it( 'when physical drag information exists before the column session becomes active, should show the moving column only after the session is active', () => {
+	it( 'when physical drag information exists before the column session becomes active, should show the source frame and moving column only after the session is active', () => {
 		mockColumnDndPhase = 'idle';
 		const { sourceCell } = createSourceTable();
 		const { rerender } = render( <ColumnMovingDisplay /> );
 
 		startPhysicalDrag( sourceCell );
+		expect(
+			document.querySelector( '.yamabiko-table-reorder-moving-column-source-frame' )
+		).toBeNull();
 		expect( document.querySelector( '.yamabiko-table-reorder-moving-column' ) ).toBeNull();
 
 		mockColumnDndPhase = 'active';
 		rerender( <ColumnMovingDisplay /> );
+		expect(
+			document.querySelector( '.yamabiko-table-reorder-moving-column-source-frame' )
+		).not.toBeNull();
 		expect( document.querySelector( '.yamabiko-table-reorder-moving-column' ) ).not.toBeNull();
 	} );
 
@@ -280,7 +286,7 @@ describe( 'Column moving display', () => {
 	} );
 
 	/**
-	 * Column Moving Displayのために実Tableの移動元セルへclassやstyleを追加しないことを確認する。
+	 * 移動元frameを表示するために実Tableの移動元セルへclassやstyleを追加しないことを確認する。
 	 *
 	 * 事前条件:
 	 * - 移動対象列の可視セルに既存classとstyleがある。
@@ -290,8 +296,9 @@ describe( 'Column moving display', () => {
 	 *
 	 * 期待結果:
 	 * - 可視セルのclass属性とstyle属性はDnD開始前から変化しない。
+	 * - 移動元列は実Table外の単一frameとして表示される。
 	 */
-	it( 'when the moving display is active, should not mutate source cell classes or styles', () => {
+	it( 'when the moving display is active, should show one source frame without mutating source cell classes or styles', () => {
 		const { cells, sourceCell } = createSourceTable();
 		cells[ 1 ].className = 'existing-cell';
 		cells[ 1 ].style.textAlign = 'right';
@@ -309,21 +316,25 @@ describe( 'Column moving display', () => {
 			expect( cell.className ).toBe( before[ index ].className );
 			expect( cell.getAttribute( 'style' ) ).toBe( before[ index ].style );
 		} );
+		expect(
+			document.querySelectorAll( '.yamabiko-table-reorder-moving-column-source-frame' )
+		).toHaveLength( 1 );
 	} );
 
 	/**
-	 * 移動表示が物理DnDの横方向・縦方向の両方へ追従することを確認する。
+	 * 物理DnD中は移動表示だけが現在位置へ追従し、移動元frameは開始位置へ留まることを確認する。
 	 *
 	 * 事前条件:
-	 * - Column DnD Sessionがactiveで移動表示が成立している。
+	 * - Column DnD Sessionがactiveで移動元frameと移動表示が成立している。
 	 *
 	 * 操作:
 	 * - 開始位置から右へ20px、下へ40pxの物理移動を通知する。
 	 *
 	 * 期待結果:
 	 * - 移動表示全体が同じ距離だけ横方向・縦方向へ移動する。
+	 * - 移動元frameはDnD開始時の位置と寸法を維持する。
 	 */
-	it( 'when the physical drag moves horizontally and vertically, should move the column overlay by the same distances', () => {
+	it( 'when the physical drag moves horizontally and vertically, should move only the column overlay and keep the source frame at its initial position', () => {
 		const { sourceCell } = createSourceTable();
 		render( <ColumnMovingDisplay /> );
 		startPhysicalDrag( sourceCell );
@@ -338,27 +349,34 @@ describe( 'Column moving display', () => {
 			} );
 		} );
 
+		const sourceFrame = document.querySelector(
+			'.yamabiko-table-reorder-moving-column-source-frame'
+		) as HTMLElement | null;
 		const overlay = document.querySelector(
 			'.yamabiko-table-reorder-moving-column'
 		) as HTMLElement | null;
+		expect( sourceFrame?.style.left ).toBe( '100px' );
+		expect( sourceFrame?.style.top ).toBe( '0px' );
+		expect( sourceFrame?.style.width ).toBe( '100px' );
+		expect( sourceFrame?.style.height ).toBe( '80px' );
 		expect( overlay?.style.left ).toBe( '120px' );
 		expect( overlay?.style.top ).toBe( '40px' );
 	} );
 
 	/**
-	 * Column DnD Session終了時に移動表示とeditor全体の一時表示を残さないことを確認する。
+	 * Column DnD Session終了時に移動元frame、移動表示、editor全体の一時表示を残さないことを確認する。
 	 *
 	 * 事前条件:
-	 * - active Session中に移動表示が成立している。
+	 * - active Session中に移動元frameと移動表示が成立している。
 	 *
 	 * 操作:
 	 * - DnD Interactionの状態をidleへ戻す。
 	 *
 	 * 期待結果:
-	 * - 移動表示が消える。
+	 * - 移動元frameと移動表示が消える。
 	 * - 掴んでいるポインター状態の一時classがeditorから除去される。
 	 */
-	it( 'when the column DnD session returns to idle, should remove the moving display and temporary editor state', () => {
+	it( 'when the column DnD session returns to idle, should remove the source frame, moving display, and temporary editor state', () => {
 		const { sourceCell } = createSourceTable();
 		const { rerender } = render( <ColumnMovingDisplay /> );
 		startPhysicalDrag( sourceCell );
@@ -367,6 +385,9 @@ describe( 'Column moving display', () => {
 		mockColumnDndPhase = 'idle';
 		rerender( <ColumnMovingDisplay /> );
 
+		expect(
+			document.querySelector( '.yamabiko-table-reorder-moving-column-source-frame' )
+		).toBeNull();
 		expect( document.querySelector( '.yamabiko-table-reorder-moving-column' ) ).toBeNull();
 		expect( document.body.classList ).not.toContain( 'yamabiko-table-reorder-column-dragging' );
 	} );
