@@ -199,9 +199,7 @@ describe( 'Reorder toolbar RF exclusivity', () => {
 		expect(
 			screen
 				.getAllByRole( 'button' )
-				.some( ( button ) =>
-					button.classList.contains( 'yamabiko-table-reorder-guidance-target' )
-				)
+				.some( ( button ) => button.classList.contains( 'yamabiko-table-reorder-guidance-target' ) )
 		).toBe( false );
 
 		mockGuidance = null;
