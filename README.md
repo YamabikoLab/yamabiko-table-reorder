@@ -9,7 +9,7 @@ Reorder rows and columns in supported WordPress Table blocks with drag-and-drop 
 
 Yamabiko Table Reorder adds Row Reorder, Column Reorder, and Reorder Form to WordPress Core Table and [Flexible Table Block](https://wordpress.org/plugins/flexible-table-block/) while preserving supported Table structure, including merged-cell constraints.
 
-<img width="1647" height="705" alt="demo" src="https://github.com/user-attachments/assets/251ac0a1-92e7-4d52-b19b-cc3cfc13836a" />
+<img width="1632" height="702" alt="demo" src="https://github.com/user-attachments/assets/7c2c2f86-ce3f-4b80-b16f-fecded3eace4" />
 
 ## Quick Start
 
