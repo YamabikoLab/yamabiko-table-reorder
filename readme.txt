@@ -58,7 +58,7 @@ The generated archive is `yamabiko-table-reorder.zip`.
 
 = 0.9.3 =
 
-* Fixed: Prevented Column Reorder drag-and-drop from starting when the current table layout does not provide a reliable horizontal column geometry, including stacked or reflow-style layouts.
+* Fixed: Prevented Column Reorder drag-and-drop from starting when the current table layout does not provide reliable horizontal column geometry, including stacked or reflow-style layouts.
 * Changed: When Column Reorder drag-and-drop is unavailable for the current layout, the toolbar now explains the limitation and points to Reorder Form as the alternative while Row Reorder remains unaffected.
 
 = 0.9.2 =
