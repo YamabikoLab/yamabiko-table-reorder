@@ -82,7 +82,7 @@ test( 'when first-use guidance is dismissed, should highlight all reorder entrie
 	const guidanceTarget = page.locator( '.yamabiko-table-reorder-guidance-target' );
 	await expect( guidance ).toBeVisible();
 	await expect( guidanceTarget ).toBeVisible();
-	await expect( guidanceTarget ).toHaveCSS( 'box-shadow', /inset.*2px/ );
+	await expect( guidanceTarget ).toHaveCSS( 'box-shadow', /2px inset$/ );
 	await expect( guidanceTarget.getByRole( 'button', { name: ROW_BUTTON } ) ).toBeVisible();
 	await expect( guidanceTarget.getByRole( 'button', { name: COLUMN_BUTTON } ) ).toBeVisible();
 	await expect( guidanceTarget.getByRole( 'button', { name: FORM_BUTTON } ) ).toBeVisible();
