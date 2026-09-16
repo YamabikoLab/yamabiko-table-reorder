@@ -9,17 +9,17 @@ on:
         type: boolean
         default: true
       run_row_e2e:
-        description: 'Row Reorder'
+        description: 'E2E / Row Reorder'
         required: true
         type: boolean
         default: true
       run_column_e2e:
-        description: 'Column Reorder'
+        description: 'E2E / Column Reorder'
         required: true
         type: boolean
         default: true
       run_form_e2e:
-        description: 'Reorder Form'
+        description: 'E2E / Reorder Form'
         required: true
         type: boolean
         default: true
