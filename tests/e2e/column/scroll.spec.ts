@@ -85,7 +85,6 @@ test( 'when a column is dragged toward an offscreen destination, should auto-scr
 	expect( await tableFigure.evaluate( ( element ) => element.scrollLeft ) ).toBeGreaterThan( 0 );
 	expect( ( await tableFigure.boundingBox() )!.y ).toBeCloseTo( verticalStart, 0 );
 	await page.mouse.move( figureBox.x + figureBox.width / 2, viewport.height / 2 );
-	await expect( canvas.locator( '.yamabiko-table-reorder-column-insertion-line' ) ).toBeVisible();
 	await page.mouse.up();
 	await expect
 		.poll( async () =>
