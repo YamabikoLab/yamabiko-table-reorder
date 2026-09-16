@@ -2,7 +2,7 @@
  * Row Reorderの移動対象行について、実Table上の移動元、独立した移動表示、DnD中のポインター表示を所有する。
  *
  * 移動元は配置を変えないoutlineだけで識別し、移動表示は独立した実線outlineで現在の移動対象を示す。
- * 移動表示は背景を透過し、destination周辺の実Table内容を不透明に覆わない。
+ * 移動表示は背景だけを透過し、内容とoutlineを維持したままdestination周辺の実Table内容を確認できるようにする。
  * DnD中はポインター下の要素に依存せず、掴んでいる状態をeditor全体へ示す。
  */
 
@@ -18,7 +18,8 @@
 	z-index: 100000;
 	pointer-events: none;
 	box-sizing: border-box;
-	background: transparent;
+	background-color: transparent !important;
+	background-image: none !important;
 	outline: 2px solid #3858e9;
 }
 
@@ -32,15 +33,22 @@
 .yamabiko-table-reorder-moving-row-table {
 	margin: 0;
 	table-layout: fixed;
-	background: transparent !important;
 	opacity: 1;
 }
 
-/* clone元の背景指定より移動表示の透過方針を優先し、背景によるdestinationの遮蔽を防ぐ。 */
+/* themeやclone元の背景指定より移動表示の透過方針を優先し、背景によるdestinationの遮蔽を防ぐ。 */
+.yamabiko-table-reorder-moving-row-table,
 .yamabiko-table-reorder-moving-row-table tr,
 .yamabiko-table-reorder-moving-row-table td,
 .yamabiko-table-reorder-moving-row-table th {
-	background: transparent !important;
+	background-color: transparent !important;
+	background-image: none !important;
+}
+
+/* 移動対象行の内容とセル境界は通常の濃さで維持する。 */
+.yamabiko-table-reorder-moving-row-table tr,
+.yamabiko-table-reorder-moving-row-table td,
+.yamabiko-table-reorder-moving-row-table th {
 	opacity: 1;
 }
 
