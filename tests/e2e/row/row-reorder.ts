@@ -4,7 +4,6 @@ import type { Editor } from '@wordpress/e2e-test-utils-playwright';
 import { getEditorContext } from '../editor-context';
 
 export const ROW_BUTTON = /^(Reorder rows|行を並び替え|行を並べ替え)$/;
-export const GUIDANCE = /^(Reorder rows and columns\.|行・列を並び替えられます。)$/;
 export const MERGED_RANGE_REJECTION =
 	/^(A merged cell spanning rows 1–2 in column 1 prevents this move\.|1〜2行目の1列目に結合セルがあるため、この指定では移動できません。)$/;
 
