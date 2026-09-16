@@ -58,6 +58,19 @@ describe( 'Column DnD React state interface', () => {
 		} );
 	} );
 
+	/**
+	 * 公開Hookをmountした時点で、現在の列DnD共有状態をReact利用者へ返すことを確認する。
+	 *
+	 * 事前条件:
+	 * - 列DnDはactiveである。
+	 * - 現在の有効な移動先境界は4である。
+	 *
+	 * 操作:
+	 * - phaseと移動先境界を公開するHookをmountする。
+	 *
+	 * 期待結果:
+	 * - 各Hookは現在状態としてactiveと4を返す。
+	 */
 	it( 'when hooks mount with existing column DnD state, should expose each current public value', () => {
 		getColumnDndPhaseMock.mockReturnValue( 'active' );
 		getColumnDndDestinationBoundaryIndexMock.mockReturnValue( 4 );
@@ -69,6 +82,18 @@ describe( 'Column DnD React state interface', () => {
 		expect( destination.result.current ).toBe( 4 );
 	} );
 
+	/**
+	 * 列DnD共有状態の変更通知を受けたとき、公開Hookが最新状態へ追従することを確認する。
+	 *
+	 * 事前条件:
+	 * - 各Hookはidleかつ移動先なしの状態を購読している。
+	 *
+	 * 操作:
+	 * - 共有状態をactiveかつ移動先境界4へ変更し、購読者へ変更を通知する。
+	 *
+	 * 期待結果:
+	 * - React描画結果がactiveと4へ更新される。
+	 */
 	it( 'when column DnD state changes, should update every subscribed public value', () => {
 		const phase = renderHook( useColumnDndPhase );
 		const destination = renderHook( useColumnDndDestinationBoundaryIndex );
@@ -84,6 +109,18 @@ describe( 'Column DnD React state interface', () => {
 		expect( destination.result.current ).toBe( 4 );
 	} );
 
+	/**
+	 * React利用者が終了したとき、列DnD共有状態への購読を残さないことを確認する。
+	 *
+	 * 事前条件:
+	 * - phaseと移動先境界のHookが共有状態を購読している。
+	 *
+	 * 操作:
+	 * - すべてのHookをunmountする。
+	 *
+	 * 期待結果:
+	 * - React利用者に対応する購読がすべて解除される。
+	 */
 	it( 'when React consumers unmount, should release their column DnD state subscriptions', () => {
 		const phase = renderHook( useColumnDndPhase );
 		const destination = renderHook( useColumnDndDestinationBoundaryIndex );
