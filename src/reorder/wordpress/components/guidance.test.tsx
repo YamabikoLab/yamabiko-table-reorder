@@ -9,8 +9,9 @@ import { ReorderGuidance } from '@/reorder/wordpress/components/guidance';
 
 jest.mock( '@/messages', () => ( {
 	getCloseReorderGuidanceLabel: () => 'Close reorder guidance',
-	getPcReorderGuidanceMessage: () => 'Reorder rows and columns.',
-	getTouchReorderGuidanceMessage: () => 'Long press a cell, then drag to reorder rows and columns.',
+	getPcReorderGuidanceMessage: () => 'Reorder rows and columns by dragging or using the form.',
+	getTouchReorderGuidanceMessage: () =>
+		'Long press a cell, then drag, or use the form to reorder rows and columns.',
 } ) );
 
 jest.mock( '@wordpress/components', () => ( {
@@ -51,7 +52,7 @@ jest.mock( '@wordpress/components', () => ( {
 describe( 'Reorder Guidance presentation', () => {
 	/**
 	 * 概要:
-	 * - PC環境の初回案内で通常の行・列案内と閉じる入口を利用できることを確認する。
+	 * - PC環境の初回案内でドラッグとフォームの並び替え方法、および閉じる入口を利用できることを確認する。
 	 *
 	 * 事前条件:
 	 * - PC環境の初回案内が表示対象であり、ツールバー上の配置基準を取得済みである。
@@ -67,7 +68,9 @@ describe( 'Reorder Guidance presentation', () => {
 		const anchor = document.createElement( 'button' );
 		render( <ReorderGuidance anchor={ anchor } environment="pc" onDismiss={ onDismiss } /> );
 
-		expect( screen.getByText( 'Reorder rows and columns.' ) ).not.toBeNull();
+		expect(
+			screen.getByText( 'Reorder rows and columns by dragging or using the form.' )
+		).not.toBeNull();
 
 		fireEvent.click( screen.getByRole( 'button', { name: 'Close reorder guidance' } ) );
 
@@ -76,7 +79,7 @@ describe( 'Reorder Guidance presentation', () => {
 
 	/**
 	 * 概要:
-	 * - タッチ環境の初回案内で長押し操作を案内することを確認する。
+	 * - タッチ環境の初回案内で長押しDnDとフォームの並び替え方法を案内することを確認する。
 	 *
 	 * 事前条件:
 	 * - タッチ環境の初回案内が表示対象であり、ツールバー上の配置基準を取得済みである。
@@ -85,14 +88,16 @@ describe( 'Reorder Guidance presentation', () => {
 	 * - 初回案内を描画する。
 	 *
 	 * 期待結果:
-	 * - 長押ししてからドラッグするタッチ向け案内文が表示される。
+	 * - 長押ししてからドラッグする方法とフォームを利用する方法を含むタッチ向け案内文が表示される。
 	 */
 	it( 'when touch guidance is rendered, should present the long-press message', () => {
 		const anchor = document.createElement( 'button' );
 		render( <ReorderGuidance anchor={ anchor } environment="touch" onDismiss={ jest.fn() } /> );
 
 		expect(
-			screen.getByText( 'Long press a cell, then drag to reorder rows and columns.' )
+			screen.getByText(
+				'Long press a cell, then drag, or use the form to reorder rows and columns.'
+			)
 		).not.toBeNull();
 	} );
 
