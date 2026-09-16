@@ -320,7 +320,7 @@ test.describe( 'merged cells', () => {
 		await expect( canvas.locator( '.yamabiko-table-reorder-moving-column' ) ).toBeHidden();
 		await expect( canvas.locator( '.yamabiko-table-reorder-column-insertion-line' ) ).toBeHidden();
 		await page.mouse.up();
-	expect( await tableData( editor ) ).toEqual( before );
+		expect( await tableData( editor ) ).toEqual( before );
 		await expect( notice ).toBeHidden( { timeout: 5_000 } );
 		expect( Date.now() - shown ).toBeGreaterThan( 800 );
 	} );
