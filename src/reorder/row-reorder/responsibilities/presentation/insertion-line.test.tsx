@@ -60,7 +60,7 @@ const rectangle = ( values: Partial< DOMRect > ): DOMRect =>
 /**
  * 挿入位置表示の成立条件を満たす2行の対象Tableを用意する。
  *
- * @param firstHeight 先頭行の実測高さとして扱う値。
+ * @param firstHeight  先頭行の実測高さとして扱う値。
  * @param secondHeight 2行目の実測高さとして扱う値。
  * @return 対象行とtbodyの表示位置を変更できるmock。
  */

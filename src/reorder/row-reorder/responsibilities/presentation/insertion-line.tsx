@@ -153,7 +153,7 @@ const resolveInsertionLineLayout = (
  * 上方向の移動では境界の下側、下方向の移動では境界の上側へ、移動元行の実測高さぶんだけ領域を展開する。
  * この表示はdrop位置を示すだけで、Table更新成功の判定や更新後DOMの追跡は行わない。
  *
- * @param sessionLayout DnD開始時に確定した移動元行と論理配置。
+ * @param sessionLayout       DnD開始時に確定した移動元行と論理配置。
  * @param insertionLineLayout drop直前に実際に表示されていた挿入線配置。
  * @return drop位置の行領域を示す枠配置。移動元行の高さが成立しない場合はnull。
  */
