@@ -149,7 +149,7 @@ export const RowInsertionLine = () => {
 	const [ postDropLayout, setPostDropLayout ] = useState< RowInsertionLineLayout | null >( null );
 	const postDropTimerRef = useRef< ReturnType< typeof setTimeout > | null >( null );
 
-	/** 前回のdrop後表示が新しい操作やunmountへ持ち越されないよう、保留中のtimerを破棄する。 */
+	/** 前回のdrop後表示が新しい操作へ持ち越されないよう、保留中のtimerを破棄する。 */
 	const clearPostDropTimer = () => {
 		if ( postDropTimerRef.current === null ) {
 			return;
@@ -161,7 +161,10 @@ export const RowInsertionLine = () => {
 
 	useEffect( () => {
 		return () => {
-			clearPostDropTimer();
+			if ( postDropTimerRef.current !== null ) {
+				clearTimeout( postDropTimerRef.current );
+				postDropTimerRef.current = null;
+			}
 		};
 	}, [] );
 
