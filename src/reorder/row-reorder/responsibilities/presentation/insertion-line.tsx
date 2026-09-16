@@ -1,9 +1,9 @@
 /**
- * Row Reorderの現在の有効な挿入位置を、対象Tableの論理境界上へ水平線として描画する。
+ * Row Reorderの現在の有効な挿入位置と、正常なdrop直後の行領域を対象Table上へ描画する。
  *
- * 挿入位置そのものはDnD Interactionが提供する0-based移動先境界だけを利用し、Presentation独自の移動先状態を持たない。
+ * DnD中はDnD Interactionが提供する0-based移動先境界だけを利用し、Presentation独自の移動先状態を持たない。
  * DnD Engineからは描画対象Tableの特定と物理移動に伴う再計測のきっかけだけを受け取り、スクロールによるTable全体の現在位置へ追従する。
- * 正常なphysical drop後は、最後に表示していた挿入線だけを短時間維持し、dropした位置を追跡できるようにする。
+ * 正常なphysical drop後は、最後に表示していた境界と移動元行の実測高さからdrop位置の行領域を短時間だけ枠で示す。
  */
 
 import { useDragDropMonitor } from '@dnd-kit/react';
@@ -11,7 +11,7 @@ import { createPortal, useEffect, useRef, useState } from '@wordpress/element';
 import type { CSSProperties } from 'react';
 
 import { resolveEditorDomContext } from '@/reorder/editor-dom-context';
-import { DND_POST_DROP_INSERTION_LINE_DURATION_MS } from '@/reorder/reorder-tuning';
+import { DND_POST_DROP_ROW_OUTLINE_DURATION_MS } from '@/reorder/reorder-tuning';
 import { useRowDndDestinationBoundaryIndex } from '@/reorder/row-reorder/integration/dnd-interaction-react';
 import {
 	measureTableBodyRowGeometry,
@@ -20,11 +20,13 @@ import {
 
 import './insertion-line.scss';
 
-/** 1回のRow DnD中に維持する挿入線配置基準。 */
+/** 1回のRow DnD中に維持する挿入位置表示の論理配置基準。 */
 type RowInsertionLineSessionLayout = {
 	tableBody: HTMLTableSectionElement;
 	sourceTable: HTMLTableElement;
 	boundaryOffsets: readonly number[];
+	sourceRowIndex: number;
+	sourceRowHeight: number;
 	editorDocument: Document;
 	editorWindow: Window;
 };
@@ -34,19 +36,29 @@ type RowInsertionLineLayout = {
 	top: number;
 	left: number;
 	width: number;
+	boundaryIndex: number;
+	editorDocument: Document;
+};
+
+/** drop位置の行領域を現在のeditor表示領域へ描画するための配置情報。 */
+type RowPostDropOutlineLayout = {
+	top: number;
+	left: number;
+	width: number;
+	height: number;
 	editorDocument: Document;
 };
 
 /**
- * 移動対象行から、そのDnD中の挿入線表示で維持する論理配置を解決する。
+ * 移動対象行から、そのDnD中の挿入位置表示で維持する論理配置を解決する。
  *
  * @param sourceElement DnD Engineが現在の移動対象として管理するDOM要素。
- * @return 挿入線の基準となる論理配置。Row Reorder対象として成立しない場合はnull。
+ * @return 挿入位置表示の基準となる論理配置。Row Reorder対象として成立しない場合はnull。
  */
 const resolveInsertionLineSessionLayout = (
 	sourceElement: Element | undefined
 ): RowInsertionLineSessionLayout | null => {
-	/* Row Reorderの移動対象としてtbody直下行を確認できない場合は、挿入線を成立させない。 */
+	/* Row Reorderの移動対象としてtbody直下行を確認できない場合は、挿入位置表示を成立させない。 */
 	if ( ! sourceElement || sourceElement.tagName !== 'TR' ) {
 		return null;
 	}
@@ -69,9 +81,11 @@ const resolveInsertionLineSessionLayout = (
 
 	const typedTableBody = tableBody as HTMLTableSectionElement;
 	const rowGeometry = measureTableBodyRowGeometry( typedTableBody );
+	const sourceRowIndex = Array.from( typedTableBody.rows ).indexOf( sourceRow );
+	const sourceRowGeometry = rowGeometry[ sourceRowIndex ];
 
-	/* 行境界を確定できないTable状態では、そのDnDの挿入線表示を成立させない。 */
-	if ( rowGeometry.length === 0 ) {
+	/* 行境界と移動元行の論理配置を確定できないTable状態では、そのDnDの挿入位置表示を成立させない。 */
+	if ( rowGeometry.length === 0 || sourceRowGeometry === undefined ) {
 		return null;
 	}
 
@@ -79,6 +93,8 @@ const resolveInsertionLineSessionLayout = (
 		tableBody: typedTableBody,
 		sourceTable,
 		boundaryOffsets: resolveRowBoundaryOffsets( rowGeometry ),
+		sourceRowIndex,
+		sourceRowHeight: sourceRowGeometry.bottom - sourceRowGeometry.top,
 		editorDocument: editorContext.document,
 		editorWindow: editorContext.window,
 	};
@@ -126,18 +142,51 @@ const resolveInsertionLineLayout = (
 		top,
 		left: visibleLeft,
 		width: visibleWidth,
+		boundaryIndex,
 		editorDocument: sessionLayout.editorDocument,
 	};
 };
 
 /**
- * DnD Interactionが示す現在の有効な移動先境界を、対象Table上の挿入線として描画する。
+ * 最後に表示していた挿入境界から、drop位置を示す行領域の枠を解決する。
  *
- * DnD開始時の論理境界をそのSession中の表示基準として維持し、DnD Engineの移動通知ごとに現在のTable位置を再計測する。
- * 正常なphysical drop時に挿入線が表示されていた場合だけ、その最終位置を短時間維持する。
- * cancelまたは有効な表示位置がない終了ではdrop後表示を行わない。
+ * 上方向の移動では境界の下側、下方向の移動では境界の上側へ、移動元行の実測高さぶんだけ領域を展開する。
+ * この表示はdrop位置を示すだけで、Table更新成功の判定や更新後DOMの追跡は行わない。
  *
- * @return 現在の有効な挿入位置、または正常なdrop直後の最終挿入位置を示す水平線。表示位置がない場合はnull。
+ * @param sessionLayout DnD開始時に確定した移動元行と論理配置。
+ * @param insertionLineLayout drop直前に実際に表示されていた挿入線配置。
+ * @return drop位置の行領域を示す枠配置。移動元行の高さが成立しない場合はnull。
+ */
+const resolvePostDropOutlineLayout = (
+	sessionLayout: RowInsertionLineSessionLayout,
+	insertionLineLayout: RowInsertionLineLayout
+): RowPostDropOutlineLayout | null => {
+	/* 行領域として成立しない実測高さから、drop後の枠を推測して表示しない。 */
+	if ( sessionLayout.sourceRowHeight <= 0 ) {
+		return null;
+	}
+
+	const isMovingDown = insertionLineLayout.boundaryIndex > sessionLayout.sourceRowIndex;
+	const top = isMovingDown
+		? insertionLineLayout.top - sessionLayout.sourceRowHeight
+		: insertionLineLayout.top;
+
+	return {
+		top,
+		left: insertionLineLayout.left,
+		width: insertionLineLayout.width,
+		height: sessionLayout.sourceRowHeight,
+		editorDocument: insertionLineLayout.editorDocument,
+	};
+};
+
+/**
+ * DnD中の有効な移動先境界を挿入線として描画し、正常なdrop直後はdrop位置の行領域を短時間だけ枠で示す。
+ *
+ * DnD開始時の論理境界と移動元行高をそのSession中の表示基準として維持し、DnD Engineの移動通知ごとに現在のTable位置を再計測する。
+ * cancelまたは有効な挿入線がない終了ではdrop後表示を行わない。
+ *
+ * @return DnD中の挿入線、または正常なdrop直後の行領域枠。表示位置がない場合はnull。
  */
 export const RowInsertionLine = () => {
 	const destinationBoundaryIndex = useRowDndDestinationBoundaryIndex();
@@ -146,7 +195,8 @@ export const RowInsertionLine = () => {
 	);
 	const [ measurementRevision, setMeasurementRevision ] = useState( 0 );
 	const [ layout, setLayout ] = useState< RowInsertionLineLayout | null >( null );
-	const [ postDropLayout, setPostDropLayout ] = useState< RowInsertionLineLayout | null >( null );
+	const [ postDropOutlineLayout, setPostDropOutlineLayout ] =
+		useState< RowPostDropOutlineLayout | null >( null );
 	const postDropTimerRef = useRef< ReturnType< typeof setTimeout > | null >( null );
 
 	/** 前回のdrop後表示が新しい操作へ持ち越されないよう、保留中のtimerを破棄する。 */
@@ -171,7 +221,7 @@ export const RowInsertionLine = () => {
 	useDragDropMonitor( {
 		onDragStart: ( event ) => {
 			clearPostDropTimer();
-			setPostDropLayout( null );
+			setPostDropOutlineLayout( null );
 			setLayout( null );
 			setSessionLayout( resolveInsertionLineSessionLayout( event.operation.source?.element ) );
 		},
@@ -181,20 +231,25 @@ export const RowInsertionLine = () => {
 		},
 		onDragEnd: ( event ) => {
 			clearPostDropTimer();
+
+			const postDropLayout =
+				! event.canceled && sessionLayout !== null && layout !== null
+					? resolvePostDropOutlineLayout( sessionLayout, layout )
+					: null;
+
 			setSessionLayout( null );
 			setLayout( null );
+			setPostDropOutlineLayout( postDropLayout );
 
-			/* cancelまたは有効な挿入線が表示されていない終了では、drop位置の表示を残さない。 */
-			if ( event.canceled || layout === null ) {
-				setPostDropLayout( null );
+			/* cancelまたは有効な行領域を確定できない終了では、drop後表示を開始しない。 */
+			if ( postDropLayout === null ) {
 				return;
 			}
 
-			setPostDropLayout( layout );
 			postDropTimerRef.current = setTimeout( () => {
-				setPostDropLayout( null );
+				setPostDropOutlineLayout( null );
 				postDropTimerRef.current = null;
-			}, DND_POST_DROP_INSERTION_LINE_DURATION_MS );
+			}, DND_POST_DROP_ROW_OUTLINE_DURATION_MS );
 		},
 	} );
 
@@ -208,21 +263,37 @@ export const RowInsertionLine = () => {
 		setLayout( resolveInsertionLineLayout( sessionLayout, destinationBoundaryIndex ) );
 	}, [ destinationBoundaryIndex, measurementRevision, sessionLayout ] );
 
-	const visibleLayout = layout ?? postDropLayout;
+	if ( layout !== null ) {
+		const style: CSSProperties = {
+			top: layout.top,
+			left: layout.left,
+			width: layout.width,
+		};
 
-	/* 現在描画できる挿入位置またはdrop直後の最終挿入位置がない期間は、表示要素自体を生成しない。 */
-	if ( visibleLayout === null ) {
+		return createPortal(
+			<div aria-hidden="true" className="yamabiko-table-reorder-insertion-line" style={ style } />,
+			layout.editorDocument.body
+		);
+	}
+
+	/* drop直後の行領域を表示する期間以外は、表示要素自体を生成しない。 */
+	if ( postDropOutlineLayout === null ) {
 		return null;
 	}
 
-	const style: CSSProperties = {
-		top: visibleLayout.top,
-		left: visibleLayout.left,
-		width: visibleLayout.width,
+	const postDropStyle: CSSProperties = {
+		top: postDropOutlineLayout.top,
+		left: postDropOutlineLayout.left,
+		width: postDropOutlineLayout.width,
+		height: postDropOutlineLayout.height,
 	};
 
 	return createPortal(
-		<div aria-hidden="true" className="yamabiko-table-reorder-insertion-line" style={ style } />,
-		visibleLayout.editorDocument.body
+		<div
+			aria-hidden="true"
+			className="yamabiko-table-reorder-post-drop-row-outline"
+			style={ postDropStyle }
+		/>,
+		postDropOutlineLayout.editorDocument.body
 	);
 };
