@@ -138,7 +138,7 @@ export const ReorderModeToolbar = ( props: ReorderModeToolbarProps ) => {
 	const { dismiss, guidance } = useReorderGuidance( tableIdentity, guidanceAnchor, rfActive );
 	useReorderFormNarrowHeight( tableIdentity, rfAnchor, rfState.status === 'open' );
 
-	/* 初回案内中は、3つの入口を共通の開始位置として通常時より強調する。 */
+	/* 初回案内中は、3つの入口全体を共通の開始位置として通常時より強調する。 */
 	const guidanceTargetClassName =
 		guidance !== null ? 'yamabiko-table-reorder-guidance-target' : undefined;
 
@@ -171,7 +171,6 @@ export const ReorderModeToolbar = ( props: ReorderModeToolbarProps ) => {
 				columnDndUnavailable && columnDndReasonVisible ? columnDndUnavailableReasonId : undefined
 			}
 			ref={ setColumnDndAnchor }
-			className={ guidanceTargetClassName }
 			disabled={ rfApplying }
 			icon={ columnReorderIcon }
 			isPressed={ selectedKind === 'column' }
@@ -231,11 +230,10 @@ export const ReorderModeToolbar = ( props: ReorderModeToolbarProps ) => {
 
 	return (
 		<BlockControls>
-			<ToolbarGroup>
+			<ToolbarGroup className={ guidanceTargetClassName }>
 				{ /* 選択中の入口だけを現在の並び替え手段として表示する。 */ }
 				<ToolbarButton
 					ref={ setGuidanceAnchor }
-					className={ guidanceTargetClassName }
 					disabled={ rfApplying }
 					icon={ rowReorderIcon }
 					isPressed={ selectedKind === 'row' }
@@ -245,7 +243,6 @@ export const ReorderModeToolbar = ( props: ReorderModeToolbarProps ) => {
 				{ columnDndEntry }
 				<ToolbarButton
 					ref={ setRfAnchor }
-					className={ guidanceTargetClassName }
 					disabled={ rfApplying }
 					icon={ formReorderIcon }
 					isPressed={ rfState.status === 'open' }
