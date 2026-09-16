@@ -2,6 +2,7 @@
  * Row Reorderの移動対象行について、実Table上の移動元、独立した移動表示、DnD中のポインター表示を所有する。
  *
  * 移動元は配置を変えないoutlineだけで識別し、移動表示は独立した実線outlineで現在の移動対象を示す。
+ * 移動表示はthemeの配色に依存せず内容を識別できるよう、白背景と濃色の前景色を組み合わせる。
  * DnD中はポインター下の要素に依存せず、掴んでいる状態をeditor全体へ示す。
  */
 
@@ -17,6 +18,7 @@
 	z-index: 100000;
 	pointer-events: none;
 	box-sizing: border-box;
+	color: #1e1e1e;
 	background: #fff;
 	outline: 2px solid #3858e9;
 }
@@ -31,6 +33,7 @@
 .yamabiko-table-reorder-moving-row-table {
 	margin: 0;
 	table-layout: fixed;
+	color: #1e1e1e;
 	background: #fff;
 	opacity: 1;
 }
@@ -38,6 +41,7 @@
 .yamabiko-table-reorder-moving-row-table td,
 .yamabiko-table-reorder-moving-row-table th {
 	border-right: 1px solid currentcolor;
+	color: #1e1e1e;
 	opacity: 1;
 }
 
