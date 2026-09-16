@@ -234,7 +234,7 @@ export const RowMovingDisplay = () => {
 								left: layout.initialLeft,
 								top: layout.initialTop,
 							},
-						};
+					  };
 			setMovingRow( nextMovingRow );
 		},
 		onDragMove: ( event ) => {
