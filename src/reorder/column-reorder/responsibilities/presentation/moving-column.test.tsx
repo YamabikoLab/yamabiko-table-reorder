@@ -109,7 +109,7 @@ const createSourceTable = () => {
 		} ),
 	} );
 
-	return { table, cells, sourceCell: cells[ 2 ] };
+	return { cells, sourceCell: cells[ 2 ] };
 };
 
 /**
@@ -117,7 +117,7 @@ const createSourceTable = () => {
  *
  * @param sourceCell DnD Engineが移動対象として管理する開始セル。
  */
-const startPhysicalDrag = ( sourceCell: HTMLTableCellElement ) => {
+const startPhysicalDrag = ( sourceCell: HTMLTableCellElement ): void => {
 	act( () => {
 		mockDragDropMonitor.onDragStart?.( {
 			operation: {
@@ -134,7 +134,7 @@ const startPhysicalDrag = ( sourceCell: HTMLTableCellElement ) => {
 /** 移動表示内のDnD開始セルを取得する。 */
 const getMovingSourceCell = (): HTMLTableCellElement | undefined =>
 	Array.from( document.querySelectorAll( '.yamabiko-table-reorder-moving-column td' ) ).find(
-		( cell ) => cell.textContent === 'Source'
+		( cell ) => cell.textContent?.startsWith( 'Source' ) === true
 	) as HTMLTableCellElement | undefined;
 
 describe( 'Column moving display', () => {
@@ -272,6 +272,7 @@ describe( 'Column moving display', () => {
 		startPhysicalDrag( sourceCell );
 
 		const movingSource = getMovingSourceCell();
+		expect( movingSource ).toBeDefined();
 		expect( sourceCell.id ).toBe( 'source-cell-id' );
 		expect( child.id ).toBe( 'source-child-id' );
 		expect( movingSource?.hasAttribute( 'id' ) ).toBe( false );
