@@ -10,7 +10,6 @@ import { useSyncExternalStore } from 'react';
 import {
 	getColumnDndDestinationBoundaryIndex,
 	getColumnDndPhase,
-	getColumnDndSourceColumnIndex,
 	subscribeColumnDndState,
 } from '@/reorder/column-reorder/responsibilities/dnd-interaction';
 
@@ -21,14 +20,6 @@ import {
  */
 export const useColumnDndPhase = (): ReturnType< typeof getColumnDndPhase > =>
 	useSyncExternalStore( subscribeColumnDndState, getColumnDndPhase );
-
-/**
- * Reorder PresentationがSession開始時に確定した移動元論理列をReact描画へ反映するために利用する。
- *
- * @return active Sessionの0-based移動元論理列位置。idleの場合はnull。
- */
-export const useColumnDndSourceColumnIndex = (): number | null =>
-	useSyncExternalStore( subscribeColumnDndState, getColumnDndSourceColumnIndex );
 
 /**
  * Reorder Presentationが現在の有効な挿入位置をReact描画へ反映するために利用する。

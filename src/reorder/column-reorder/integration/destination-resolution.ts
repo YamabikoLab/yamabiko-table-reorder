@@ -252,7 +252,7 @@ const resolveDestinationBoundaryIndex = (
  * 1回の列DnDで利用する移動先解決境界を、移動対象セルの開始時Table配置から生成する。
  *
  * DnD開始時の論理列境界、論理進行方向、移動対象列の物理横位置と幅を固定し、
- * 押しのけ表示等による列の見かけ上の移動やPresentation DOMを移動先判定へ混入させない。
+ * Presentationが生成する表示要素や表示状態を移動先判定へ混入させない。
  * Resolverの生成、再試行、参照保持、破棄のLifecycleはDnD Engine Integrationが所有し、この境界は共有状態を持たない。
  *
  * @param sourceElement DnD Engineが現在の移動対象として管理するDOM要素。

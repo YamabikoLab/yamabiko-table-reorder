@@ -1,8 +1,7 @@
 /**
- * Column Reorderの現在の有効な挿入位置を、押しのけ表示から独立した垂直線として描画する。
+ * Column Reorderの現在の有効な挿入位置を、対象Table上の垂直線として描画する。
  *
- * 挿入位置そのものはDnD Interactionが提供する0-based移動先境界だけを利用し、Presentation独自の移動先状態を持たない。
- * 挿入線の表示側はオーバーレイの現在の横移動方向へ追従し、左方向では挿入空間の左端、右方向では右端へ表示する。
+ * 挿入位置はDnD Interactionが提供する0-based移動先境界をそのまま利用し、Presentation独自の移動先補正を持たない。
  * DnD開始時の論理列境界をSession中の基準として固定し、物理移動やスクロールではTable全体の現在位置だけへ追従する。
  */
 
@@ -10,10 +9,7 @@ import { useDragDropMonitor } from '@dnd-kit/react';
 import { createPortal, useEffect, useState } from '@wordpress/element';
 import type { CSSProperties } from 'react';
 
-import {
-	useColumnDndDestinationBoundaryIndex,
-	useColumnDndSourceColumnIndex,
-} from '@/reorder/column-reorder/integration/dnd-interaction-react';
+import { useColumnDndDestinationBoundaryIndex } from '@/reorder/column-reorder/integration/dnd-interaction-react';
 import {
 	measureTableColumnBoundaryGeometry,
 	resolveTableColumnInlineDirection,
@@ -23,15 +19,10 @@ import { resolveEditorDomContext } from '@/reorder/editor-dom-context';
 
 import './insertion-line.scss';
 
-/** 挿入線の表示側を決める、オーバーレイの現在の横移動方向。 */
-type ColumnHorizontalMovementDirection = 'leftward' | 'rightward' | null;
-
-/** 1回のColumn DnD中に維持する、押しのけ前の挿入線配置基準。 */
+/** 1回のColumn DnD中に維持する挿入線配置基準。 */
 type ColumnInsertionLineSessionLayout = {
 	/** スクロール後の現在位置を追従する対象Table。論理列境界の再計測には使用しない。 */
 	sourceTable: HTMLTableElement;
-	/** DnD開始時に確定した移動対象1列分の表示幅。 */
-	sourceColumnWidth: number;
 	/** DnD開始時にDOMから観測できた論理列境界を、0-based境界位置ごとに固定したTable相対位置。 */
 	boundaryOffsets: ReadonlyMap< number, number >;
 	/** 論理列方向の位置を現在の物理横位置へ変換するためのTable方向。 */
@@ -82,11 +73,10 @@ const resolveInsertionLineSessionLayout = (
 		return null;
 	}
 
-	const sourceColumnWidth = sourceCell.getBoundingClientRect().width;
 	const boundaryGeometry = measureTableColumnBoundaryGeometry( sourceTable );
 
-	/* 移動対象1列分の幅と論理列境界を確定できないTable状態では、そのDnDの挿入線表示を成立させない。 */
-	if ( sourceColumnWidth <= 0 || boundaryGeometry.length === 0 ) {
+	/* 論理列境界を確定できないTable状態では、そのDnDの挿入線表示を成立させない。 */
+	if ( boundaryGeometry.length === 0 ) {
 		return null;
 	}
 
@@ -96,7 +86,6 @@ const resolveInsertionLineSessionLayout = (
 
 	return {
 		sourceTable,
-		sourceColumnWidth,
 		boundaryOffsets,
 		inlineDirection: resolveTableColumnInlineDirection( sourceTable ),
 		editorDocument: editorContext.document,
@@ -105,25 +94,21 @@ const resolveInsertionLineSessionLayout = (
 };
 
 /**
- * DnD開始時の論理境界と現在の横移動方向から、現在の挿入線表示位置を解決する。
+ * DnD開始時の論理境界から、現在の挿入線表示位置を解決する。
  *
- * 押しのけ後の個別セル位置には追従せず、現在の挿入空間に対して左方向移動では左端、右方向移動では右端を示す。
+ * DnD Interactionが有効としたdestination boundaryをPresentation側で補正せず、その境界を現在のTable位置へ変換する。
  * Table自体の現在位置だけを再計測し、スクロールや表示領域の変化へ追従する。
  *
  * @param sessionLayout            DnD開始時に確定した論理配置。
- * @param sourceColumnIndex        DnD InteractionがSession開始時から所有する0-based移動元論理列位置。
  * @param destinationBoundaryIndex DnD Interactionが有効とした0-based移動先境界。
- * @param movementDirection        オーバーレイの現在の横移動方向。未確定時は論理境界をそのまま表示する。
  * @return 現在のeditor表示領域内へ描画できる挿入線配置。描画できない場合はnull。
  */
 const resolveInsertionLineLayout = (
 	sessionLayout: ColumnInsertionLineSessionLayout,
-	sourceColumnIndex: number | null,
-	destinationBoundaryIndex: number | null,
-	movementDirection: ColumnHorizontalMovementDirection
+	destinationBoundaryIndex: number | null
 ): ColumnInsertionLineLayout | null => {
-	/* DnD Interactionが移動元または有効な移動先を持たない期間は、Presentation側で挿入位置を補完しない。 */
-	if ( sourceColumnIndex === null || destinationBoundaryIndex === null ) {
+	/* DnD Interactionが有効な移動先を持たない期間は、Presentation側で挿入位置を補完しない。 */
+	if ( destinationBoundaryIndex === null ) {
 		return null;
 	}
 
@@ -140,25 +125,6 @@ const resolveInsertionLineLayout = (
 	/* RTLでは論理開始端がTable右端になるため、論理境界を現在の物理横位置へ変換する。 */
 	if ( sessionLayout.inlineDirection === 'rtl' ) {
 		left = tableRectangle.right - destinationBoundaryOffset;
-	}
-
-	if ( movementDirection !== null ) {
-		let logicalGapStartOffset = destinationBoundaryOffset;
-
-		/* 現在の挿入空間はGap表示と同じ論理位置を基準とし、挿入線だけを物理移動方向に応じて左右端へ切り替える。 */
-		if ( destinationBoundaryIndex > sourceColumnIndex ) {
-			logicalGapStartOffset -= sessionLayout.sourceColumnWidth;
-		}
-
-		let gapLeft = tableRectangle.left + logicalGapStartOffset;
-		if ( sessionLayout.inlineDirection === 'rtl' ) {
-			gapLeft = tableRectangle.right - logicalGapStartOffset - sessionLayout.sourceColumnWidth;
-		}
-
-		left = gapLeft;
-		if ( movementDirection === 'rightward' ) {
-			left += sessionLayout.sourceColumnWidth;
-		}
 	}
 
 	const top = Math.max( tableRectangle.top, 0 );
@@ -181,47 +147,32 @@ const resolveInsertionLineLayout = (
 /**
  * DnD Interactionが示す現在の有効な移動先境界を、対象Table上の挿入線として描画する。
  *
- * DnD開始時の論理境界をそのSession中の表示基準として維持し、DnD Engineの移動通知から現在の横移動方向を更新する。
- * DnD Interactionが移動元または有効な移動先を持たない期間は表示位置を補完せず、挿入線を表示しない。
+ * DnD開始時の論理境界をそのSession中の表示基準として維持し、現在のdestination boundaryを直接表示する。
+ * DnD Interactionが有効な移動先を持たない期間は表示位置を補完せず、挿入線を表示しない。
  * scrollは現在のeditor documentで監視し、入力位置が変わらないAuto ScrollでもTableの現在位置へ追従する。
  * DnD終了またはPresentation終了時はscroll監視と予約済み再計測を破棄し、Session表示を次の操作へ持ち越さない。
  *
  * @return 現在の有効な挿入位置を示す垂直線。有効な表示位置がない場合はnull。
  */
 export const ColumnInsertionLine = () => {
-	const sourceColumnIndex = useColumnDndSourceColumnIndex();
 	const destinationBoundaryIndex = useColumnDndDestinationBoundaryIndex();
 	const [ sessionLayout, setSessionLayout ] = useState< ColumnInsertionLineSessionLayout | null >(
 		null
 	);
-	const [ movementDirection, setMovementDirection ] =
-		useState< ColumnHorizontalMovementDirection >( null );
 	const [ measurementRevision, setMeasurementRevision ] = useState( 0 );
 	const [ layout, setLayout ] = useState< ColumnInsertionLineLayout | null >( null );
 
 	useDragDropMonitor( {
 		onDragStart: ( event ) => {
 			setSessionLayout( resolveInsertionLineSessionLayout( event.operation.source?.element ) );
-			setMovementDirection( null );
 		},
-		onDragMove: ( event ) => {
-			const nextX = event.to?.x;
-			const currentX = event.operation.position.current.x;
-
-			/* 同一移動通知内の更新前後位置から現在方向を確定し、横位置が変わらない通知では直前方向を維持する。 */
-			if ( nextX !== undefined && nextX !== currentX ) {
-				const nextDirection: ColumnHorizontalMovementDirection =
-					nextX < currentX ? 'leftward' : 'rightward';
-				setMovementDirection( nextDirection );
-			}
-
+		onDragMove: () => {
 			/* 同じ移動先境界でもスクロール等でTable全体の画面上の位置が変わるため、現在位置を再計測する。 */
 			setMeasurementRevision( ( current ) => current + 1 );
 		},
 		onDragEnd: () => {
-			/* 物理DnD終了後は、そのSessionの論理配置・移動方向・挿入位置表示を次の操作へ持ち越さない。 */
+			/* 物理DnD終了後は、そのSessionの論理配置と挿入位置表示を次の操作へ持ち越さない。 */
 			setSessionLayout( null );
-			setMovementDirection( null );
 			setLayout( null );
 		},
 	} );
@@ -268,21 +219,8 @@ export const ColumnInsertionLine = () => {
 			return;
 		}
 
-		setLayout(
-			resolveInsertionLineLayout(
-				sessionLayout,
-				sourceColumnIndex,
-				destinationBoundaryIndex,
-				movementDirection
-			)
-		);
-	}, [
-		destinationBoundaryIndex,
-		measurementRevision,
-		movementDirection,
-		sessionLayout,
-		sourceColumnIndex,
-	] );
+		setLayout( resolveInsertionLineLayout( sessionLayout, destinationBoundaryIndex ) );
+	}, [ destinationBoundaryIndex, measurementRevision, sessionLayout ] );
 
 	/* 現在描画できる有効な挿入位置がない期間は、表示要素自体を生成しない。 */
 	if ( layout === null ) {
