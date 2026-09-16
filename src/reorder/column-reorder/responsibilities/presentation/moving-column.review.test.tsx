@@ -1,7 +1,7 @@
 /**
- * Column Moving Overlayの可視列探索とTable背景snapshotが、DnD開始時の実表示を維持することを確認する。
+ * Column Moving Overlayの可視列探索が、DnD開始時に利用者が掴んだ列を必要十分な移動表示として維持することを確認する。
  *
- * 横に部分表示された列、editor iframeの位置補正、Portal内で再評価できないTable背景を対象に、利用者が開始時に見ていた列表示を欠落させないことを検証する。
+ * 横に部分表示された列とeditor iframeの位置補正を対象に、忠実なtheme再現や実Tableへの表示変更へ依存せず移動対象列を識別できることを検証する。
  */
 
 import { getFrameTransform } from '@dnd-kit/dom/utilities';
@@ -157,7 +157,7 @@ describe( 'Column moving display snapshot', () => {
 	} );
 
 	/**
-	 * editor iframeが外側viewportで横にずれていても、利用者が掴んだ列を移動元表示として維持できることを確認する。
+	 * editor iframeが外側viewportで横にずれていても、利用者が掴んだ列を移動表示として維持できることを確認する。
 	 *
 	 * 事前条件:
 	 * - editor iframeは外側viewport上で横方向にoffsetを持つ。
@@ -169,7 +169,7 @@ describe( 'Column moving display snapshot', () => {
 	 *
 	 * 期待結果:
 	 * - editor内の開始位置を基準に移動元列の可視セルだけがsnapshotされる。
-	 * - 隣接列は移動元として半透明にならない。
+	 * - 実Tableの移動元列と隣接列には表示用classを追加しない。
 	 */
 	it( 'when the editor iframe has a horizontal frame offset, should keep the dragged column as the moving source', () => {
 		mockGetFrameTransform.mockReturnValue( {
@@ -237,30 +237,33 @@ describe( 'Column moving display snapshot', () => {
 
 		startDrag( sourceCells[ 1 ], 170 );
 
+		const movingCells = Array.from(
+			document.querySelectorAll( '.yamabiko-table-reorder-moving-column td' )
+		);
 		expect( document.elementFromPoint ).toHaveBeenCalledWith( 10, expect.any( Number ) );
-		sourceCells.forEach( ( cell ) => {
-			expect( cell.classList ).toContain( 'yamabiko-table-reorder-moving-column-source' );
+		expect( movingCells ).toHaveLength( 2 );
+		movingCells.forEach( ( cell ) => {
+			expect( cell.textContent ).toBe( 'Source' );
 		} );
-		adjacentCells.forEach( ( cell ) => {
+		[ ...sourceCells, ...adjacentCells ].forEach( ( cell ) => {
 			expect( cell.classList ).not.toContain( 'yamabiko-table-reorder-moving-column-source' );
 		} );
 	} );
 
 	/**
-	 * 元Tableの背景がインライン指定でも、Portal内の再構成Tableへ開始時背景を固定できることを確認する。
+	 * 元Tableに独自背景があっても、移動表示がthemeの忠実な背景snapshotへ依存しないことを確認する。
 	 *
 	 * 事前条件:
-	 * - セルと行の背景は透明である。
 	 * - 元Tableにはインライン指定の非透明な背景色がある。
 	 *
 	 * 操作:
 	 * - 移動対象列のDnDを開始する。
 	 *
 	 * 期待結果:
-	 * - 再構成したTableへ開始時のTable背景色が優先度付きで固定される。
-	 * - 行とセルへ白fallbackは適用されない。
+	 * - 元Tableの背景指定は変更されない。
+	 * - 再構成した移動表示Tableへ元Table背景色をインライン転写しない。
 	 */
-	it( 'when the source table background comes from inline style, should snapshot that background onto the reconstructed table', () => {
+	it( 'when the source table has a custom background, should not snapshot that background onto the moving display', () => {
 		const table = document.createElement( 'table' );
 		const tbody = document.createElement( 'tbody' );
 		const row = document.createElement( 'tr' );
@@ -303,9 +306,7 @@ describe( 'Column moving display snapshot', () => {
 			'.yamabiko-table-reorder-moving-column td'
 		) as HTMLTableCellElement | null;
 		const movingTable = movingCell?.closest( 'table' );
-		expect( movingTable?.style.backgroundColor ).toBe( 'rgb(12, 34, 56)' );
-		expect( movingTable?.style.getPropertyPriority( 'background-color' ) ).toBe( 'important' );
-		expect( movingCell?.style.backgroundColor ).toBe( '' );
-		expect( movingCell?.parentElement?.style.backgroundColor ).toBe( '' );
+		expect( table.style.backgroundColor ).toBe( 'rgb(12, 34, 56)' );
+		expect( movingTable?.style.backgroundColor ).toBe( '' );
 	} );
 } );
