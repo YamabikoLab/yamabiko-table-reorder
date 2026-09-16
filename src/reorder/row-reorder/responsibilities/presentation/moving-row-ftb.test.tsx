@@ -32,7 +32,10 @@ const FTB_EDITOR_CONTROL_CLASSES = [
 	'ftb-column-remover',
 ];
 
-/** 移動表示の成立条件を満たすDOM矩形を作成する。 */
+/**
+ * 移動表示の成立条件を満たすDOM矩形を作成する。
+ * @param values
+ */
 const rectangle = ( values: Partial< DOMRect > ): DOMRect =>
 	( {
 		top: 0,
