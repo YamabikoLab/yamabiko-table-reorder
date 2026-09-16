@@ -274,20 +274,21 @@ export const RowMovingDisplay = () => {
 		sessionBecameActive.current = true;
 	}, [ phase ] );
 
+	const activeLayout = movingRow?.layout ?? null;
+
 	useEffect( () => {
 		/* Row DnD Sessionと移動表示の両方が成立している期間だけ、移動元と掴んでいるポインター状態を表示する。 */
-		if ( phase !== 'active' || movingRow === null ) {
+		if ( phase !== 'active' || activeLayout === null ) {
 			return;
 		}
 
-		const { layout } = movingRow;
-		layout.sourceRow.classList.add( SOURCE_ROW_CLASS );
-		layout.editorDocument.body.classList.add( DRAGGING_CLASS );
+		activeLayout.sourceRow.classList.add( SOURCE_ROW_CLASS );
+		activeLayout.editorDocument.body.classList.add( DRAGGING_CLASS );
 		return () => {
-			layout.sourceRow.classList.remove( SOURCE_ROW_CLASS );
-			layout.editorDocument.body.classList.remove( DRAGGING_CLASS );
+			activeLayout.sourceRow.classList.remove( SOURCE_ROW_CLASS );
+			activeLayout.editorDocument.body.classList.remove( DRAGGING_CLASS );
 		};
-	}, [ phase, movingRow ] );
+	}, [ phase, activeLayout ] );
 
 	const visible = phase === 'active' && movingRow !== null;
 
