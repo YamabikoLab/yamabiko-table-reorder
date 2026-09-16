@@ -337,6 +337,34 @@ describe( 'Column insertion line', () => {
 	} );
 
 	/**
+	 * LTR Tableで論理前方へdropした場合は、境界の物理右側へ移動元列幅ぶんの枠を表示することを確認する。
+	 *
+	 * 事前条件:
+	 * - LTR Tableで論理列1を移動している。
+	 * - 移動元より前方の境界0に挿入線が表示されている。
+	 *
+	 * 操作:
+	 * - cancelされていない物理DnD終了を通知する。
+	 *
+	 * 期待結果:
+	 * - 境界0の物理位置を左端として、右側へ移動元列幅120pxの枠を表示する。
+	 */
+	it( 'when a backward LTR drop completes with a visible insertion line, should extend the outline to the physical right of that boundary', () => {
+		const { sourceCell } = createSourceTable();
+		const { rerender } = render( <ColumnInsertionLine /> );
+		startPhysicalDrag( sourceCell );
+		mockDestinationBoundaryIndex = 0;
+		rerender( <ColumnInsertionLine /> );
+		endPhysicalDrag( false );
+
+		const outline = document.querySelector(
+			'.yamabiko-table-reorder-post-drop-column-outline'
+		) as HTMLElement | null;
+		expect( outline?.style.left ).toBe( '40px' );
+		expect( outline?.style.width ).toBe( '120px' );
+	} );
+
+	/**
 	 * cancelまたは移動元列幅を確定できない終了ではdrop後枠を表示しないことを確認する。
 	 *
 	 * 事前条件:
