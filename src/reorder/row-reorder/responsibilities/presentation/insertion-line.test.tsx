@@ -1,13 +1,14 @@
 /**
- * Row Reorderの挿入位置表示が、DnD Interactionの有効な移動先境界を対象Tableの論理境界へ正しく表現することを確認する。
+ * Row Reorderの挿入位置表示が、DnD中の有効な移動先境界とdrop直後の行領域を正しく表現することを確認する。
  *
  * 移動先解決そのものは重複して検証せず、null時の非表示、先頭・行間・末尾境界への対応、editor表示領域への制限、
- * スクロール時の再計測、およびDnD終了時の表示解除を検証する。
+ * スクロール時の再計測、および正常なdrop後の可変行高枠とcleanupを検証する。
  */
 
 import { act, render } from '@testing-library/react';
 
 import { resolveEditorDomContext } from '@/reorder/editor-dom-context';
+import { DND_POST_DROP_ROW_OUTLINE_DURATION_MS } from '@/reorder/reorder-tuning';
 
 import { RowInsertionLine } from './insertion-line';
 
@@ -15,7 +16,7 @@ let mockDestinationBoundaryIndex: number | null = null;
 let mockDragDropMonitor: {
 	onDragStart?: ( event: any ) => void;
 	onDragMove?: () => void;
-	onDragEnd?: () => void;
+	onDragEnd?: ( event: { canceled: boolean } ) => void;
 } = {};
 
 jest.mock( '@/reorder/row-reorder/integration/dnd-interaction-react', () => ( {
@@ -37,7 +38,7 @@ const resolveEditorDomContextMock = resolveEditorDomContext as jest.MockedFuncti
 >;
 
 /**
- * 挿入線の表示条件を必要な値だけで表せるDOM矩形を作成する。
+ * 挿入位置表示の成立条件を必要な値だけで表せるDOM矩形を作成する。
  *
  * @param values テスト条件として上書きする表示寸法と位置。
  * @return 指定値以外を0としたDOM矩形。
@@ -56,8 +57,17 @@ const rectangle = ( values: Partial< DOMRect > ): DOMRect =>
 		...values,
 	} ) as DOMRect;
 
-/** 挿入位置表示の成立条件を満たす2行の対象Tableを用意する。 */
-const createSourceTable = () => {
+/**
+ * 挿入位置表示の成立条件を満たす2行の対象Tableを用意する。
+ *
+ * @param firstHeight  先頭行の実測高さとして扱う値。
+ * @param secondHeight 2行目の実測高さとして扱う値。
+ * @return 対象行とtbodyの表示位置を変更できるmock。
+ */
+const createSourceTable = ( firstHeight = 40, secondHeight = 50 ) => {
+	const tableTop = 80;
+	const firstBottom = tableTop + firstHeight;
+	const secondBottom = firstBottom + secondHeight;
 	const table = document.createElement( 'table' );
 	const tbody = document.createElement( 'tbody' );
 	const first = document.createElement( 'tr' );
@@ -73,15 +83,25 @@ const createSourceTable = () => {
 		.mockReturnValue( rectangle( { left: -20, right: 300, width: 320 } ) );
 	const bodyRectangleMock = jest
 		.spyOn( tbody, 'getBoundingClientRect' )
-		.mockReturnValue( rectangle( { top: 80, bottom: 170, height: 90 } ) );
-	jest
-		.spyOn( first, 'getBoundingClientRect' )
-		.mockReturnValue( rectangle( { top: 80, bottom: 120, height: 40 } ) );
-	jest
-		.spyOn( second, 'getBoundingClientRect' )
-		.mockReturnValue( rectangle( { top: 120, bottom: 170, height: 50 } ) );
+		.mockReturnValue(
+			rectangle( { top: tableTop, bottom: secondBottom, height: firstHeight + secondHeight } )
+		);
+	jest.spyOn( first, 'getBoundingClientRect' ).mockReturnValue(
+		rectangle( {
+			top: tableTop,
+			bottom: firstBottom,
+			height: firstHeight,
+		} )
+	);
+	jest.spyOn( second, 'getBoundingClientRect' ).mockReturnValue(
+		rectangle( {
+			top: firstBottom,
+			bottom: secondBottom,
+			height: secondHeight,
+		} )
+	);
 
-	return { first, bodyRectangleMock };
+	return { first, second, bodyRectangleMock };
 };
 
 /**
@@ -97,8 +117,20 @@ const startPhysicalDrag = ( row: HTMLTableRowElement ) => {
 	} );
 };
 
+/**
+ * DnD Engineから物理DnD終了が通知された状態を作る。
+ *
+ * @param canceled DnDがcancelされた終了かどうか。
+ */
+const endPhysicalDrag = ( canceled: boolean ) => {
+	act( () => {
+		mockDragDropMonitor.onDragEnd?.( { canceled } );
+	} );
+};
+
 describe( 'Row insertion line', () => {
 	beforeEach( () => {
+		jest.useFakeTimers();
 		mockDestinationBoundaryIndex = null;
 		mockDragDropMonitor = {};
 		document.body.replaceChildren();
@@ -108,6 +140,10 @@ describe( 'Row insertion line', () => {
 				Document[ 'defaultView' ]
 			>,
 		} );
+	} );
+
+	afterEach( () => {
+		jest.useRealTimers();
 	} );
 
 	/**
@@ -248,29 +284,234 @@ describe( 'Row insertion line', () => {
 
 	/**
 	 * 概要:
-	 * - 物理DnD終了時に、そのDnDの挿入位置表示を残さないことを確認する。
+	 * - 下方向への正常なdrop後に、移動元行の実測高さでdrop位置を囲むことを確認する。
+	 *
+	 * 事前条件:
+	 * - 先頭の40px行を最終境界へ移動している。
+	 *
+	 * 操作:
+	 * - 正常なphysical dropを完了する。
+	 *
+	 * 期待結果:
+	 * - 挿入線は消え、最終境界の上側40pxを囲む枠が表示される。
+	 */
+	it( 'when a row is dropped downward, should outline the measured source-row height above the destination boundary', () => {
+		const { first } = createSourceTable();
+		const { rerender } = render( <RowInsertionLine /> );
+		startPhysicalDrag( first );
+		mockDestinationBoundaryIndex = 2;
+		rerender( <RowInsertionLine /> );
+
+		endPhysicalDrag( false );
+
+		const outline = document.querySelector(
+			'.yamabiko-table-reorder-post-drop-row-outline'
+		) as HTMLElement;
+		expect( document.querySelector( '.yamabiko-table-reorder-insertion-line' ) ).toBeNull();
+		expect( outline ).not.toBeNull();
+		expect( outline.style.top ).toBe( '130px' );
+		expect( outline.style.height ).toBe( '40px' );
+		expect( outline.style.left ).toBe( '0px' );
+		expect( outline.style.width ).toBe( '240px' );
+	} );
+
+	/**
+	 * 概要:
+	 * - 上方向への正常なdrop後に、移動元行の実測高さでdrop位置を囲むことを確認する。
+	 *
+	 * 事前条件:
+	 * - 2行目の50px行を先頭境界へ移動している。
+	 *
+	 * 操作:
+	 * - 正常なphysical dropを完了する。
+	 *
+	 * 期待結果:
+	 * - 先頭境界の下側50pxを囲む枠が表示される。
+	 */
+	it( 'when a row is dropped upward, should outline the measured source-row height below the destination boundary', () => {
+		const { second } = createSourceTable();
+		const { rerender } = render( <RowInsertionLine /> );
+		startPhysicalDrag( second );
+		mockDestinationBoundaryIndex = 0;
+		rerender( <RowInsertionLine /> );
+
+		endPhysicalDrag( false );
+
+		const outline = document.querySelector(
+			'.yamabiko-table-reorder-post-drop-row-outline'
+		) as HTMLElement;
+		expect( outline ).not.toBeNull();
+		expect( outline.style.top ).toBe( '80px' );
+		expect( outline.style.height ).toBe( '50px' );
+	} );
+
+	/**
+	 * 概要:
+	 * - 複数行テキスト等で高さのある行でも、固定値ではなく実測高さをdrop後表示へ反映することを確認する。
+	 *
+	 * 事前条件:
+	 * - 移動元の先頭行は90pxの高さで描画されている。
+	 *
+	 * 操作:
+	 * - 最終境界へ正常にdropする。
+	 *
+	 * 期待結果:
+	 * - drop位置の枠は移動元行と同じ90pxの高さになる。
+	 */
+	it( 'when the source row has a taller measured height, should preserve that height in the post-drop outline', () => {
+		const { first } = createSourceTable( 90, 50 );
+		const { rerender } = render( <RowInsertionLine /> );
+		startPhysicalDrag( first );
+		mockDestinationBoundaryIndex = 2;
+		rerender( <RowInsertionLine /> );
+
+		endPhysicalDrag( false );
+
+		const outline = document.querySelector(
+			'.yamabiko-table-reorder-post-drop-row-outline'
+		) as HTMLElement;
+		expect( outline.style.top ).toBe( '130px' );
+		expect( outline.style.height ).toBe( '90px' );
+	} );
+
+	/**
+	 * 概要:
+	 * - drop後の行領域枠が所定時間だけ表示され、その後自動的に消えることを確認する。
+	 *
+	 * 事前条件:
+	 * - 正常なdropによる行領域枠が表示されている。
+	 *
+	 * 操作:
+	 * - drop後表示時間を経過させる。
+	 *
+	 * 期待結果:
+	 * - 表示時間内は枠が残り、表示時間経過後に自動的に消える。
+	 */
+	it( 'when the post-drop duration elapses, should remove the row outline', () => {
+		const { first } = createSourceTable();
+		const { rerender } = render( <RowInsertionLine /> );
+		startPhysicalDrag( first );
+		mockDestinationBoundaryIndex = 2;
+		rerender( <RowInsertionLine /> );
+		endPhysicalDrag( false );
+
+		act( () => {
+			jest.advanceTimersByTime( DND_POST_DROP_ROW_OUTLINE_DURATION_MS - 1 );
+		} );
+		expect(
+			document.querySelector( '.yamabiko-table-reorder-post-drop-row-outline' )
+		).not.toBeNull();
+
+		act( () => {
+			jest.advanceTimersByTime( 1 );
+		} );
+		expect( document.querySelector( '.yamabiko-table-reorder-post-drop-row-outline' ) ).toBeNull();
+	} );
+
+	/**
+	 * 概要:
+	 * - cancelされたDnDではdrop後の行領域枠を表示しないことを確認する。
 	 *
 	 * 事前条件:
 	 * - 有効な移動先境界に挿入線が表示されている。
 	 *
 	 * 操作:
-	 * - DnD Engineから物理DnD終了を通知する。
+	 * - physical DnDをcancelする。
 	 *
 	 * 期待結果:
-	 * - 挿入線が表示から除去される。
+	 * - 挿入線は除去され、行領域枠とtimerは作成されない。
 	 */
-	it( 'when the physical drag ends, should remove the insertion line', () => {
+	it( 'when the physical drag is canceled, should not show a post-drop row outline', () => {
 		const { first } = createSourceTable();
 		const { rerender } = render( <RowInsertionLine /> );
 		startPhysicalDrag( first );
-		mockDestinationBoundaryIndex = 1;
+		mockDestinationBoundaryIndex = 2;
 		rerender( <RowInsertionLine /> );
-		expect( document.querySelector( '.yamabiko-table-reorder-insertion-line' ) ).not.toBeNull();
 
-		act( () => {
-			mockDragDropMonitor.onDragEnd?.();
-		} );
+		endPhysicalDrag( true );
 
 		expect( document.querySelector( '.yamabiko-table-reorder-insertion-line' ) ).toBeNull();
+		expect( document.querySelector( '.yamabiko-table-reorder-post-drop-row-outline' ) ).toBeNull();
+		expect( jest.getTimerCount() ).toBe( 0 );
+	} );
+
+	/**
+	 * 概要:
+	 * - 有効な挿入線がないDnD終了ではdrop後表示を開始しないことを確認する。
+	 *
+	 * 事前条件:
+	 * - 物理DnDは開始しているが、有効な移動先境界はない。
+	 *
+	 * 操作:
+	 * - physical dropを完了する。
+	 *
+	 * 期待結果:
+	 * - 行領域枠は表示されず、drop後表示用のtimerも開始されない。
+	 */
+	it( 'when a physical drop ends without a visible insertion line, should not start post-drop display', () => {
+		const { first } = createSourceTable();
+		render( <RowInsertionLine /> );
+		startPhysicalDrag( first );
+
+		endPhysicalDrag( false );
+
+		expect( document.querySelector( '.yamabiko-table-reorder-post-drop-row-outline' ) ).toBeNull();
+		expect( jest.getTimerCount() ).toBe( 0 );
+	} );
+
+	/**
+	 * 概要:
+	 * - drop後表示中に次のDnDが始まった場合、前回の表示を次の操作へ持ち越さないことを確認する。
+	 *
+	 * 事前条件:
+	 * - 前回の正常なdropによる行領域枠が表示時間内で残っている。
+	 *
+	 * 操作:
+	 * - 次のphysical DnDを開始する。
+	 *
+	 * 期待結果:
+	 * - 前回のdrop後表示とtimerが破棄される。
+	 */
+	it( 'when a new physical drag starts during post-drop display, should clear the previous outline and timer', () => {
+		const { first } = createSourceTable();
+		const { rerender } = render( <RowInsertionLine /> );
+		startPhysicalDrag( first );
+		mockDestinationBoundaryIndex = 2;
+		rerender( <RowInsertionLine /> );
+		endPhysicalDrag( false );
+		expect( jest.getTimerCount() ).toBe( 1 );
+
+		mockDestinationBoundaryIndex = null;
+		startPhysicalDrag( first );
+
+		expect( document.querySelector( '.yamabiko-table-reorder-post-drop-row-outline' ) ).toBeNull();
+		expect( jest.getTimerCount() ).toBe( 0 );
+	} );
+
+	/**
+	 * 概要:
+	 * - componentが破棄された場合、drop後表示の未完了timerを残さないことを確認する。
+	 *
+	 * 事前条件:
+	 * - 正常なdrop後の行領域枠が表示時間内で残っている。
+	 *
+	 * 操作:
+	 * - 挿入位置表示componentをunmountする。
+	 *
+	 * 期待結果:
+	 * - 未完了のdrop後表示timerが破棄される。
+	 */
+	it( 'when the component unmounts during post-drop display, should clear the pending timer', () => {
+		const { first } = createSourceTable();
+		const { rerender, unmount } = render( <RowInsertionLine /> );
+		startPhysicalDrag( first );
+		mockDestinationBoundaryIndex = 2;
+		rerender( <RowInsertionLine /> );
+		endPhysicalDrag( false );
+		expect( jest.getTimerCount() ).toBe( 1 );
+
+		unmount();
+
+		expect( jest.getTimerCount() ).toBe( 0 );
 	} );
 } );
