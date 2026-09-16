@@ -1,17 +1,19 @@
 /**
- * Column Reorderの挿入線表示が、DnD Interactionの移動先境界を開始時の論理列配置へ直接対応させることを確認する。
+ * Column Reorderの挿入位置表示が、DnD中の有効な移動先境界とdrop直後の列領域を正しく表現することを確認する。
  *
  * 移動先解決そのものは重複して検証せず、null時の非表示、LTR / RTLの論理境界表示、表示領域外の非表示、scroll時の再計測、
- * およびDnD終了・Presentation終了時の解除を検証する。
+ * および正常なdrop後の実測列幅枠とcleanupを検証する。
  */
 
 import { act, render } from '@testing-library/react';
 
+import { resolveColumnSourceIndex } from '@/reorder/column-reorder/integration/source-column-resolution';
 import {
 	measureTableColumnBoundaryGeometry,
 	resolveTableColumnInlineDirection,
 } from '@/reorder/column-reorder/infrastructure/column-geometry';
 import { resolveEditorDomContext } from '@/reorder/editor-dom-context';
+import { DND_POST_DROP_COLUMN_OUTLINE_DURATION_MS } from '@/reorder/reorder-tuning';
 
 import { ColumnInsertionLine } from './insertion-line';
 
@@ -20,7 +22,7 @@ let mockAnimationFrameCallback: FrameRequestCallback | null = null;
 let mockDragDropMonitor: {
 	onDragStart?: ( event: any ) => void;
 	onDragMove?: () => void;
-	onDragEnd?: () => void;
+	onDragEnd?: ( event: { canceled: boolean } ) => void;
 } = {};
 
 const requestAnimationFrameMock = jest.fn( ( callback: FrameRequestCallback ): number => {
@@ -31,6 +33,10 @@ const cancelAnimationFrameMock = jest.fn();
 
 jest.mock( '@/reorder/column-reorder/integration/dnd-interaction-react', () => ( {
 	useColumnDndDestinationBoundaryIndex: () => mockDestinationBoundaryIndex,
+} ) );
+
+jest.mock( '@/reorder/column-reorder/integration/source-column-resolution', () => ( {
+	resolveColumnSourceIndex: jest.fn(),
 } ) );
 
 jest.mock( '@/reorder/column-reorder/infrastructure/column-geometry', () => ( {
@@ -48,6 +54,9 @@ jest.mock( '@dnd-kit/react', () => ( {
 	},
 } ) );
 
+const resolveColumnSourceIndexMock = resolveColumnSourceIndex as jest.MockedFunction<
+	typeof resolveColumnSourceIndex
+>;
 const measureTableColumnBoundaryGeometryMock =
 	measureTableColumnBoundaryGeometry as jest.MockedFunction<
 		typeof measureTableColumnBoundaryGeometry
@@ -60,6 +69,12 @@ const resolveEditorDomContextMock = resolveEditorDomContext as jest.MockedFuncti
 	typeof resolveEditorDomContext
 >;
 
+/**
+ * 挿入位置表示の成立条件を必要な値だけで表せるDOM矩形を作成する。
+ *
+ * @param values テスト条件として上書きする表示寸法と位置。
+ * @return 指定値以外を0としたDOM矩形。
+ */
 const rectangle = ( values: Partial< DOMRect > ): DOMRect =>
 	( {
 		top: 0,
@@ -74,6 +89,11 @@ const rectangle = ( values: Partial< DOMRect > ): DOMRect =>
 		...values,
 	} ) as DOMRect;
 
+/**
+ * Column Reorderの挿入位置表示を成立させる対象Tableを用意する。
+ *
+ * @return 移動元セルとTableの表示位置を変更できるmock。
+ */
 const createSourceTable = () => {
 	const table = document.createElement( 'table' );
 	const tbody = document.createElement( 'tbody' );
@@ -98,11 +118,27 @@ const createSourceTable = () => {
 	return { table, sourceCell, tableRectangleMock };
 };
 
+/**
+ * DnD Engineから対象列の物理DnD開始が通知された状態を作る。
+ *
+ * @param sourceCell 物理DnDの移動対象として通知するセル。
+ */
 const startPhysicalDrag = ( sourceCell: HTMLTableCellElement ): void => {
 	act( () => {
 		mockDragDropMonitor.onDragStart?.( {
 			operation: { source: { element: sourceCell } },
 		} );
+	} );
+};
+
+/**
+ * DnD Engineから物理DnD終了が通知された状態を作る。
+ *
+ * @param canceled DnDがcancelされた終了かどうか。
+ */
+const endPhysicalDrag = ( canceled: boolean ): void => {
+	act( () => {
+		mockDragDropMonitor.onDragEnd?.( { canceled } );
 	} );
 };
 
@@ -116,11 +152,13 @@ const flushAnimationFrame = (): void => {
 
 describe( 'Column insertion line', () => {
 	beforeEach( () => {
+		jest.useFakeTimers();
 		jest.clearAllMocks();
 		mockDestinationBoundaryIndex = null;
 		mockAnimationFrameCallback = null;
 		mockDragDropMonitor = {};
 		document.body.replaceChildren();
+		resolveColumnSourceIndexMock.mockReturnValue( 1 );
 		measureTableColumnBoundaryGeometryMock.mockReturnValue( [
 			{ index: 0, offset: 0 },
 			{ index: 1, offset: 80 },
@@ -138,6 +176,10 @@ describe( 'Column insertion line', () => {
 				cancelAnimationFrame: cancelAnimationFrameMock,
 			} as unknown as NonNullable< Document[ 'defaultView' ] >,
 		} );
+	} );
+
+	afterEach( () => {
+		jest.useRealTimers();
 	} );
 
 	/**
@@ -215,6 +257,180 @@ describe( 'Column insertion line', () => {
 			'.yamabiko-table-reorder-column-insertion-line'
 		) as HTMLElement | null;
 		expect( line?.style.left ).toBe( '360px' );
+	} );
+
+	/**
+	 * 正常なLTR drop後は最後の境界の論理開始側へ移動元列の実測幅で枠を表示することを確認する。
+	 *
+	 * 事前条件:
+	 * - LTR Tableで論理列1を移動している。
+	 * - 移動元列幅は開始時境界1から境界2までの120pxである。
+	 * - 移動元より後方の境界3に挿入線が表示されている。
+	 *
+	 * 操作:
+	 * - cancelされていない物理DnD終了を通知する。
+	 *
+	 * 期待結果:
+	 * - 挿入線は消える。
+	 * - 境界3の論理開始側へ120px幅の列領域枠を表示する。
+	 * - 表示時間の経過後に枠を自動で消去する。
+	 */
+	it( 'when a forward LTR drop completes with a visible insertion line, should show the measured source width before that boundary and then clear it', () => {
+		const { sourceCell } = createSourceTable();
+		const { rerender } = render( <ColumnInsertionLine /> );
+		startPhysicalDrag( sourceCell );
+		mockDestinationBoundaryIndex = 3;
+		rerender( <ColumnInsertionLine /> );
+		endPhysicalDrag( false );
+
+		expect( document.querySelector( '.yamabiko-table-reorder-column-insertion-line' ) ).toBeNull();
+		const outline = document.querySelector(
+			'.yamabiko-table-reorder-post-drop-column-outline'
+		) as HTMLElement | null;
+		expect( outline?.style.left ).toBe( '180px' );
+		expect( outline?.style.width ).toBe( '120px' );
+		expect( outline?.style.top ).toBe( '0px' );
+		expect( outline?.style.height ).toBe( '600px' );
+
+		act( () => {
+			jest.advanceTimersByTime( DND_POST_DROP_COLUMN_OUTLINE_DURATION_MS - 1 );
+		} );
+		expect(
+			document.querySelector( '.yamabiko-table-reorder-post-drop-column-outline' )
+		).not.toBeNull();
+
+		act( () => {
+			jest.advanceTimersByTime( 1 );
+		} );
+		expect(
+			document.querySelector( '.yamabiko-table-reorder-post-drop-column-outline' )
+		).toBeNull();
+	} );
+
+	/**
+	 * RTL Tableで論理前方へdropした場合も、論理方向を対応する物理左側へ変換して枠を表示することを確認する。
+	 *
+	 * 事前条件:
+	 * - RTL Tableで論理列1を移動している。
+	 * - 移動元より前方の境界0に挿入線が表示されている。
+	 *
+	 * 操作:
+	 * - cancelされていない物理DnD終了を通知する。
+	 *
+	 * 期待結果:
+	 * - 境界0の物理左側へ移動元列幅120pxの枠を表示する。
+	 */
+	it( 'when a backward RTL drop completes with a visible insertion line, should place the outline on the corresponding physical side', () => {
+		resolveTableColumnInlineDirectionMock.mockReturnValue( 'rtl' );
+		const { sourceCell } = createSourceTable();
+		const { rerender } = render( <ColumnInsertionLine /> );
+		startPhysicalDrag( sourceCell );
+		mockDestinationBoundaryIndex = 0;
+		rerender( <ColumnInsertionLine /> );
+		endPhysicalDrag( false );
+
+		const outline = document.querySelector(
+			'.yamabiko-table-reorder-post-drop-column-outline'
+		) as HTMLElement | null;
+		expect( outline?.style.left ).toBe( '320px' );
+		expect( outline?.style.width ).toBe( '120px' );
+	} );
+
+	/**
+	 * LTR Tableで論理前方へdropした場合は、境界の物理右側へ移動元列幅ぶんの枠を表示することを確認する。
+	 *
+	 * 事前条件:
+	 * - LTR Tableで論理列1を移動している。
+	 * - 移動元より前方の境界0に挿入線が表示されている。
+	 *
+	 * 操作:
+	 * - cancelされていない物理DnD終了を通知する。
+	 *
+	 * 期待結果:
+	 * - 境界0の物理位置を左端として、右側へ移動元列幅120pxの枠を表示する。
+	 */
+	it( 'when a backward LTR drop completes with a visible insertion line, should extend the outline to the physical right of that boundary', () => {
+		const { sourceCell } = createSourceTable();
+		const { rerender } = render( <ColumnInsertionLine /> );
+		startPhysicalDrag( sourceCell );
+		mockDestinationBoundaryIndex = 0;
+		rerender( <ColumnInsertionLine /> );
+		endPhysicalDrag( false );
+
+		const outline = document.querySelector(
+			'.yamabiko-table-reorder-post-drop-column-outline'
+		) as HTMLElement | null;
+		expect( outline?.style.left ).toBe( '40px' );
+		expect( outline?.style.width ).toBe( '120px' );
+	} );
+
+	/**
+	 * cancelまたは移動元列幅を確定できない終了ではdrop後枠を表示しないことを確認する。
+	 *
+	 * 事前条件:
+	 * - 有効な挿入線を表示できるColumn DnDである。
+	 *
+	 * 操作:
+	 * - cancel終了と、移動元論理列を解決できない正常終了をそれぞれ通知する。
+	 *
+	 * 期待結果:
+	 * - どちらの終了でもdrop後枠を表示しない。
+	 */
+	it( 'when the drag is canceled or the source width cannot be resolved, should not show a post-drop outline', () => {
+		const first = createSourceTable();
+		const { rerender } = render( <ColumnInsertionLine /> );
+		startPhysicalDrag( first.sourceCell );
+		mockDestinationBoundaryIndex = 3;
+		rerender( <ColumnInsertionLine /> );
+		endPhysicalDrag( true );
+		expect(
+			document.querySelector( '.yamabiko-table-reorder-post-drop-column-outline' )
+		).toBeNull();
+
+		resolveColumnSourceIndexMock.mockReturnValue( null );
+		const second = createSourceTable();
+		startPhysicalDrag( second.sourceCell );
+		rerender( <ColumnInsertionLine /> );
+		endPhysicalDrag( false );
+		expect(
+			document.querySelector( '.yamabiko-table-reorder-post-drop-column-outline' )
+		).toBeNull();
+	} );
+
+	/**
+	 * 新しいDnD開始とPresentation終了で前回のdrop後表示とtimerを残さないことを確認する。
+	 *
+	 * 事前条件:
+	 * - 正常なdrop後の列領域枠と自動消去timerが存在する。
+	 *
+	 * 操作:
+	 * - 次のDnDを開始して前回表示を破棄し、そのDnDの正常drop後にPresentationを終了する。
+	 *
+	 * 期待結果:
+	 * - 新しいDnD開始時に前回の枠とtimerを破棄する。
+	 * - Presentation終了時に新しいdrop後timerも破棄する。
+	 */
+	it( 'when another drag starts or the presentation unmounts, should clear the previous post-drop outline timer', () => {
+		const first = createSourceTable();
+		const { rerender, unmount } = render( <ColumnInsertionLine /> );
+		startPhysicalDrag( first.sourceCell );
+		mockDestinationBoundaryIndex = 3;
+		rerender( <ColumnInsertionLine /> );
+		endPhysicalDrag( false );
+		expect( jest.getTimerCount() ).toBe( 1 );
+
+		const second = createSourceTable();
+		startPhysicalDrag( second.sourceCell );
+		expect(
+			document.querySelector( '.yamabiko-table-reorder-post-drop-column-outline' )
+		).toBeNull();
+		expect( jest.getTimerCount() ).toBe( 0 );
+
+		rerender( <ColumnInsertionLine /> );
+		endPhysicalDrag( false );
+		expect( jest.getTimerCount() ).toBe( 1 );
+		unmount();
+		expect( jest.getTimerCount() ).toBe( 0 );
 	} );
 
 	/**
@@ -304,7 +520,7 @@ describe( 'Column insertion line', () => {
 	 * - Presentation終了時にはscrollによる再計測が予約されている。
 	 *
 	 * 操作:
-	 * - 物理DnDを終了し、別の開始後にはPresentationを終了する。
+	 * - 物理DnDをcancel終了し、別の開始後にはPresentationを終了する。
 	 *
 	 * 期待結果:
 	 * - DnD終了後に挿入線を残さない。
@@ -320,9 +536,7 @@ describe( 'Column insertion line', () => {
 		mockDestinationBoundaryIndex = 4;
 		rerender( <ColumnInsertionLine /> );
 
-		act( () => {
-			mockDragDropMonitor.onDragEnd?.();
-		} );
+		endPhysicalDrag( true );
 		expect( document.querySelector( '.yamabiko-table-reorder-column-insertion-line' ) ).toBeNull();
 
 		startPhysicalDrag( sourceCell );
