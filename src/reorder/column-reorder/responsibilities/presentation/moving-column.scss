@@ -1,9 +1,18 @@
 /**
- * Column Reorderの移動対象列について、独立した移動表示とDnD中のポインター表示を所有する。
+ * Column Reorderの移動対象列について、実Table上の移動元frame、独立した移動表示、DnD中のポインター表示を所有する。
  *
- * 実Tableの移動元セル群は変更せず、移動表示は元Tableのtheme依存装飾を再現しない必要十分なゴーストとして描画する。
- * 移動表示は白背景、濃色の前景色、実線outlineで内容と現在位置を識別できるようにする。
+ * 実Tableの移動元セル群は変更せず、移動元列は単一の点線frameで識別する。
+ * 移動表示は元Tableのtheme依存装飾を再現しない必要十分なゴーストとして描画し、白背景、濃色の前景色、実線outlineで内容と現在位置を示す。
  */
+
+/* 移動元列は実Tableへclassやstyleを追加せず、開始時位置へ重ねた単一frameで示す。 */
+.yamabiko-table-reorder-moving-column-source-frame {
+	position: fixed;
+	z-index: 99999;
+	box-sizing: border-box;
+	pointer-events: none;
+	border: 2px dashed #3858e9;
+}
 
 /* 移動表示はDnD入力を遮らず、開始時snapshotの列幅と縦配置を維持する。 */
 .yamabiko-table-reorder-moving-column {
