@@ -66,7 +66,7 @@ type ColumnPostDropOutlineLayout = {
 /**
  * 移動元論理列の実測幅を、DnD開始時に観測できた隣接境界から解決する。
  *
- * @param boundaryOffsets DnD開始時に観測できた論理列境界位置。
+ * @param boundaryOffsets   DnD開始時に観測できた論理列境界位置。
  * @param sourceColumnIndex 移動元列の0-based論理列位置。
  * @return 移動元列の実測幅。隣接境界を安全に利用できない場合はnull。
  */
