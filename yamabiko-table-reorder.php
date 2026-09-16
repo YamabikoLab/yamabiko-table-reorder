@@ -106,7 +106,8 @@ final class Plugin {
 			'yamabiko-table-reorder-index',
 			plugins_url( 'build/index.css', __FILE__ ),
 			array(),
-			(string) filemtime( $file_path )
+			(string) filemtime( $file_path ),
+			true
 		);
 	}
 
@@ -117,6 +118,7 @@ final class Plugin {
 	 */
 	private static function register_webpack_runtime_script(): ?string {
 		$file_path = __DIR__ . '/build/runtime.js';
+
 		if ( ! is_readable( $file_path ) ) {
 			return null;
 		}
