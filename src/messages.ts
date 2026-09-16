@@ -246,7 +246,7 @@ export const getRowDndTerminationMessage = () =>
  * @return 現在の言語に対応したPC向け初回案内文。
  */
 export const getPcReorderGuidanceMessage = () =>
-	__( 'Reorder rows and columns.', 'yamabiko-table-reorder' );
+	__( 'Reorder rows and columns by dragging or using the form.', 'yamabiko-table-reorder' );
 
 /**
  * タッチ環境の初回案内に表示する長押し操作を含む説明文を取得する。
@@ -254,7 +254,10 @@ export const getPcReorderGuidanceMessage = () =>
  * @return 現在の言語に対応したタッチ向け初回案内文。
  */
 export const getTouchReorderGuidanceMessage = () =>
-	__( 'Long press a cell, then drag to reorder rows and columns.', 'yamabiko-table-reorder' );
+	__(
+		'Long press a cell, then drag, or use the form to reorder rows and columns.',
+		'yamabiko-table-reorder'
+	);
 
 /**
  * 初回案内を閉じる入口の支援技術向け表示名を取得する。
