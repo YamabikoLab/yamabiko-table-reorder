@@ -2,8 +2,8 @@
  * Column Reorderの移動対象列を、実Tableの列順を変えない独立した移動表示として描画する。
  *
  * Column DnDの意味上のLifecycleはDnD InteractionのReact境界から受け取り、表示に必要な移動対象DOMと物理位置だけをDnD Engineから利用する。
- * 大規模Tableでは全行を複製せず、現在のeditor表示領域だけを開始時表示として保持する。
- * 移動表示は物理DnDへ縦横とも追従し、利用者が元Tableからずらしてセル内容を比較できるようにする。
+ * 大規模Tableでは全行を複製せず、現在のeditor表示領域に見えているセルの内容と表示寸法だけをDnD開始時に保持する。
+ * 移動表示は元Tableの背景や罫線を再現せず、「どの列を掴み、現在どこへ動かしているか」を認識するための必要十分な表示に限定する。
  */
 
 import { getFrameTransform } from '@dnd-kit/dom/utilities';
@@ -16,35 +16,23 @@ import { resolveEditorDomContext } from '@/reorder/editor-dom-context';
 
 import './moving-column.scss';
 
-const SOURCE_CELL_CLASS = 'yamabiko-table-reorder-moving-column-source';
 const DRAGGING_CLASS = 'yamabiko-table-reorder-column-dragging';
 const VIEWPORT_SCAN_STEP = 8;
-
-/** DnD開始時に確定し、移動表示へ保持する横罫線。 */
-type ColumnMovingHorizontalBorderSnapshot = {
-	width: string;
-	style: string;
-	color: string;
-};
 
 /** DnD開始時に確定し、移動表示へ保持する一つの移動対象列セル。 */
 type ColumnMovingCellSnapshot = {
 	sourceCell: HTMLTableCellElement;
 	top: number;
 	height: number;
-	backgroundColor: string | null;
-	borderTop: ColumnMovingHorizontalBorderSnapshot | null;
-	borderBottom: ColumnMovingHorizontalBorderSnapshot | null;
 };
 
 /** Column DnD開始時に確定し、そのDnD中の移動表示で維持する配置情報。 */
 type ColumnMovingDisplayLayout = {
-	sourceTable: HTMLTableElement;
+	sourceTableClasses: string;
 	cells: ColumnMovingCellSnapshot[];
 	columnWidth: number;
 	snapshotTop: number;
 	snapshotHeight: number;
-	tableBackgroundColor: string | null;
 	initialPositionX: number;
 	initialPositionY: number;
 	initialLeft: number;
@@ -52,172 +40,13 @@ type ColumnMovingDisplayLayout = {
 	editorDocument: Document;
 };
 
-/** 移動表示が現在追従するeditor表示領域内の位置。 */
-type ColumnMovingDisplayPosition = {
-	left: number;
-	top: number;
-};
-
-/**
- * 計算済み背景色が、背後の背景をそのまま透過する色かを判定する。
- *
- * @param backgroundColor 現在のeditor contextで得た計算済み背景色。
- * @return 完全に透明な背景色の場合はtrue。
- */
-const isTransparentBackground = ( backgroundColor: string ): boolean => {
-	const normalized = backgroundColor.toLowerCase().replaceAll( ' ', '' );
-
-	if ( normalized === 'transparent' ) {
-		return true;
-	}
-
-	if ( normalized.startsWith( 'rgba(' ) ) {
-		const components = normalized.slice( 5, -1 ).split( ',' );
-		const alpha = components[ 3 ];
-		if ( alpha !== undefined ) {
-			return Number.parseFloat( alpha ) === 0;
-		}
-	}
-
-	const slashAlpha = normalized.match( /\/([^)]*)\)$/ );
-	if ( slashAlpha?.[ 1 ] !== undefined ) {
-		const alpha = slashAlpha[ 1 ];
-		const numericAlpha = alpha.endsWith( '%' )
-			? Number.parseFloat( alpha ) / 100
-			: Number.parseFloat( alpha );
-		return numericAlpha === 0;
-	}
-
-	return false;
-};
-
-/**
- * 元Tableで実際に見えている背景を、セル背景、行背景の優先順位で解決する。
- *
- * セル背景と行背景の両方が透明な場合はnullを返し、複製したTable自身の背景レイヤーへ委ねる。
- *
- * @param cell         移動対象列として描画する元セル。
- * @param editorWindow 現在のeditor contextに対応するwindow。
- * @return 移動表示へ固定する背景色。セル背景と行背景の両方が透明な場合はnull。
- */
-const resolveCellBackgroundColor = (
-	cell: HTMLTableCellElement,
-	editorWindow: Window
-): string | null => {
-	const cellBackgroundColor = editorWindow.getComputedStyle( cell ).backgroundColor;
-
-	/* セル自身が背景を持つ場合は、元Table上で最も手前に見えている背景をそのまま維持する。 */
-	if ( ! isTransparentBackground( cellBackgroundColor ) ) {
-		return cellBackgroundColor;
-	}
-
-	const sourceRow = cell.parentElement;
-	const rowBackgroundColor =
-		sourceRow?.tagName === 'TR'
-			? editorWindow.getComputedStyle( sourceRow ).backgroundColor
-			: 'transparent';
-
-	/* セルが透明でも元行に背景がある場合は、複製先で失われる行背景をセル表示へ引き継ぐ。 */
-	if ( ! isTransparentBackground( rowBackgroundColor ) ) {
-		return rowBackgroundColor;
-	}
-
-	return null;
-};
-
-/**
- * 計算済み罫線から、元Tableで見えている横罫線をsnapshotする。
- *
- * @param style 計算済みスタイル。
- * @param side  上辺または下辺。
- * @return 表示される横罫線。罫線がない場合はnull。
- */
-const resolveHorizontalBorder = (
-	style: CSSStyleDeclaration,
-	side: 'top' | 'bottom'
-): ColumnMovingHorizontalBorderSnapshot | null => {
-	const width = side === 'top' ? style.borderTopWidth : style.borderBottomWidth;
-	const borderStyle = side === 'top' ? style.borderTopStyle : style.borderBottomStyle;
-	const color = side === 'top' ? style.borderTopColor : style.borderBottomColor;
-	const numericWidth = Number.parseFloat( width );
-
-	if (
-		! Number.isFinite( numericWidth ) ||
-		numericWidth <= 0 ||
-		borderStyle === 'none' ||
-		borderStyle === 'hidden'
-	) {
-		return null;
-	}
-
-	return { width, style: borderStyle, color };
-};
-
-/**
- * 同じ境界へ寄与する罫線のうち、元Tableで優先して見える太い罫線を選ぶ。
- *
- * @param candidates セル、行、sectionから得た同じ境界の罫線候補。
- * @return 最も太い罫線。候補がない場合はnull。
- */
-const resolveStrongestHorizontalBorder = (
-	candidates: Array< ColumnMovingHorizontalBorderSnapshot | null >
-): ColumnMovingHorizontalBorderSnapshot | null => {
-	let strongest: ColumnMovingHorizontalBorderSnapshot | null = null;
-
-	/* セル・行・sectionが同じ境界へ持つ罫線から、見出し区切りなど太い線を失わない候補を選ぶ。 */
-	for ( const candidate of candidates ) {
-		if ( candidate === null ) {
-			continue;
-		}
-
-		if (
-			strongest === null ||
-			Number.parseFloat( candidate.width ) > Number.parseFloat( strongest.width )
-		) {
-			strongest = candidate;
-		}
-	}
-
-	return strongest;
-};
-
-/**
- * 元セルの上下境界について、セル、行、sectionの計算済み罫線を元Tableの見た目として解決する。
- *
- * sectionの罫線は、そのsectionの先頭行または末尾行に接する場合だけ対象とする。
- *
- * @param cell         移動対象列として描画する元セル。
- * @param editorWindow 現在のeditor contextに対応するwindow。
- * @return 移動表示へ固定する上辺と下辺の横罫線。
- */
-const resolveCellHorizontalBorders = (
-	cell: HTMLTableCellElement,
-	editorWindow: Window
-): Pick< ColumnMovingCellSnapshot, 'borderTop' | 'borderBottom' > => {
-	const sourceRow = cell.parentElement?.tagName === 'TR' ? cell.parentElement : null;
-	const sourceSection =
-		sourceRow?.parentElement &&
-		[ 'THEAD', 'TBODY', 'TFOOT' ].includes( sourceRow.parentElement.tagName )
-			? sourceRow.parentElement
-			: null;
-	const cellStyle = editorWindow.getComputedStyle( cell );
-	const rowStyle = sourceRow ? editorWindow.getComputedStyle( sourceRow ) : null;
-	const sectionStyle = sourceSection ? editorWindow.getComputedStyle( sourceSection ) : null;
-	const isFirstRowInSection = sourceRow !== null && sourceSection?.firstElementChild === sourceRow;
-	const isLastRowInSection = sourceRow !== null && sourceSection?.lastElementChild === sourceRow;
-
-	const borderTop = resolveStrongestHorizontalBorder( [
-		resolveHorizontalBorder( cellStyle, 'top' ),
-		rowStyle ? resolveHorizontalBorder( rowStyle, 'top' ) : null,
-		isFirstRowInSection && sectionStyle ? resolveHorizontalBorder( sectionStyle, 'top' ) : null,
-	] );
-	const borderBottom = resolveStrongestHorizontalBorder( [
-		resolveHorizontalBorder( cellStyle, 'bottom' ),
-		rowStyle ? resolveHorizontalBorder( rowStyle, 'bottom' ) : null,
-		isLastRowInSection && sectionStyle ? resolveHorizontalBorder( sectionStyle, 'bottom' ) : null,
-	] );
-
-	return { borderTop, borderBottom };
+/** activeな物理DnDに対応する移動表示の配置と現在位置。 */
+type ColumnMovingDisplayState = {
+	layout: ColumnMovingDisplayLayout;
+	position: {
+		left: number;
+		top: number;
+	};
 };
 
 /**
@@ -243,6 +72,8 @@ const resolveTableCellAtPoint = (
 
 /**
  * 現在見えている移動対象列セルだけを開始時snapshotとして取得する。
+ *
+ * 元Tableの装飾は取得せず、列内容の識別と結合セルの表示形状維持に必要なDOM参照と縦寸法だけを保持する。
  *
  * @param table            Column Reorder対象Table。
  * @param sourceCell       DnD Engineが移動対象として管理する開始セル。
@@ -288,22 +119,18 @@ const collectMovingColumnCells = (
 		y = rectangle.bottom > y ? rectangle.bottom + 0.5 : y + VIEWPORT_SCAN_STEP;
 	}
 
-	/* 開始セルが表示領域端の判定差で取得されなくても、実際のDnD開始対象だけは移動表示から失わない。 */
+	/* 表示領域端の判定差があっても、実際のDnD開始対象だけは移動表示から失わない。 */
 	if ( ! seenCells.has( sourceCell ) ) {
-		seenCells.add( sourceCell );
 		visibleCells.push( sourceCell );
 	}
 
 	return visibleCells
 		.map( ( cell ) => {
 			const rectangle = cell.getBoundingClientRect();
-			const horizontalBorders = resolveCellHorizontalBorders( cell, editorWindow );
 			return {
 				sourceCell: cell,
 				top: rectangle.top,
 				height: rectangle.height,
-				backgroundColor: resolveCellBackgroundColor( cell, editorWindow ),
-				...horizontalBorders,
 			};
 		} )
 		.sort( ( first, second ) => first.top - second.top );
@@ -356,6 +183,7 @@ const resolveMovingDisplayLayout = (
 	if ( ! Number.isFinite( frameTransform.scaleX ) || frameTransform.scaleX === 0 ) {
 		return null;
 	}
+
 	const editorPositionX = ( initialPositionX - frameTransform.x ) / frameTransform.scaleX;
 	const cells = collectMovingColumnCells(
 		sourceTable,
@@ -370,17 +198,13 @@ const resolveMovingDisplayLayout = (
 
 	const snapshotTop = Math.min( ...cells.map( ( cell ) => cell.top ) );
 	const snapshotBottom = Math.max( ...cells.map( ( cell ) => cell.top + cell.height ) );
-	const tableBackgroundColor = editorContext.window.getComputedStyle( sourceTable ).backgroundColor;
 
 	return {
-		sourceTable,
+		sourceTableClasses: sourceTable.className,
 		cells,
 		columnWidth: sourceRectangle.width,
 		snapshotTop,
 		snapshotHeight: snapshotBottom - snapshotTop,
-		tableBackgroundColor: isTransparentBackground( tableBackgroundColor )
-			? null
-			: tableBackgroundColor,
 		initialPositionX,
 		initialPositionY,
 		initialLeft: sourceRectangle.left,
@@ -396,36 +220,15 @@ const resolveMovingDisplayLayout = (
  */
 const removeDuplicatedIds = ( element: Element ): void => {
 	element.removeAttribute( 'id' );
-	element.querySelectorAll( '[id]' ).forEach( ( child ) => child.removeAttribute( 'id' ) );
+
+	/* 元Tableと移動表示が同時に存在しても、子要素のDOM識別子が重複しない状態にする。 */
+	element.querySelectorAll( '[id]' ).forEach( ( child ) => {
+		child.removeAttribute( 'id' );
+	} );
 };
 
 /**
- * 元Tableの横罫線を、複製先のCSS再評価に左右されない開始時表示として固定する。
- *
- * @param cell   移動表示として描画する複製セル。
- * @param side   上辺または下辺。
- * @param border DnD開始時に確定した横罫線。元Tableに罫線がない場合はnull。
- */
-const applyHorizontalBorder = (
-	cell: HTMLTableCellElement,
-	side: 'top' | 'bottom',
-	border: ColumnMovingHorizontalBorderSnapshot | null
-): void => {
-	const property = `border-${ side }`;
-	if ( border === null ) {
-		cell.style.setProperty( property, 'none', 'important' );
-		return;
-	}
-
-	cell.style.setProperty(
-		property,
-		`${ border.width } ${ border.style } ${ border.color }`,
-		'important'
-	);
-};
-
-/**
- * DnD開始時のセル表示を、移動対象列の開始時配置を保つ独立した表示へ構成する。
+ * DnD開始時の可視セル内容を、移動対象列の開始時寸法を保つ独立した表示へ構成する。
  *
  * @param layout    DnD開始時に確定した移動対象列の表示配置。
  * @param container 移動対象列セルを描画する境界。
@@ -436,7 +239,7 @@ const renderMovingColumn = (
 ): void => {
 	const fragment = layout.editorDocument.createDocumentFragment();
 
-	/* 可視範囲だけを独立したセル表示へ変換し、Table全行の複製を発生させない。 */
+	/* 可視範囲だけを独立したセル表示へ変換し、Table全行の複製や元Table装飾の再構成を発生させない。 */
 	layout.cells.forEach( ( snapshot ) => {
 		const sourceRow = snapshot.sourceCell.parentElement as HTMLTableRowElement | null;
 		const sourceSection = sourceRow?.parentElement as HTMLTableSectionElement | null;
@@ -449,36 +252,17 @@ const renderMovingColumn = (
 		const clonedCell = snapshot.sourceCell.cloneNode( true ) as HTMLTableCellElement;
 
 		removeDuplicatedIds( clonedCell );
-		clonedCell.classList.remove( SOURCE_CELL_CLASS );
 		clonedCell.style.boxSizing = 'border-box';
 		clonedCell.style.width = `${ layout.columnWidth }px`;
 		clonedCell.style.minWidth = `${ layout.columnWidth }px`;
 		clonedCell.style.maxWidth = `${ layout.columnWidth }px`;
 		clonedCell.style.height = `${ snapshot.height }px`;
 
-		/* セルまたは元行に実背景がある場合だけ固定し、両方が透明なら複製Table自身の開始時背景を表示する。 */
-		if ( snapshot.backgroundColor !== null ) {
-			row.style.setProperty( 'background-color', snapshot.backgroundColor, 'important' );
-			clonedCell.style.setProperty( 'background-color', snapshot.backgroundColor, 'important' );
-		} else if ( layout.tableBackgroundColor === null ) {
-			/* Tableまで透明な場合だけ、背後の実Table内容を透過しない最終fallbackとして白を固定する。 */
-			row.style.setProperty( 'background-color', '#fff', 'important' );
-			clonedCell.style.setProperty( 'background-color', '#fff', 'important' );
-		}
-
-		applyHorizontalBorder( clonedCell, 'top', snapshot.borderTop );
-		applyHorizontalBorder( clonedCell, 'bottom', snapshot.borderBottom );
-		row.className = sourceRow?.className ?? '';
-		section.className = sourceSection?.className ?? '';
 		row.appendChild( clonedCell );
 		section.appendChild( row );
 		table.appendChild( section );
 		table.className =
-			`${ layout.sourceTable.className } yamabiko-table-reorder-moving-column-cell-table`.trim();
-		if ( layout.tableBackgroundColor !== null ) {
-			/* Portal内のCSS再評価に依存せず、DnD開始時に見えていたTable背景レイヤーを維持する。 */
-			table.style.setProperty( 'background-color', layout.tableBackgroundColor, 'important' );
-		}
+			`${ layout.sourceTableClasses } yamabiko-table-reorder-moving-column-cell-table`.trim();
 		table.style.top = `${ snapshot.top - layout.snapshotTop }px`;
 		table.style.width = `${ layout.columnWidth }px`;
 		table.style.height = `${ snapshot.height }px`;
@@ -490,23 +274,29 @@ const renderMovingColumn = (
 
 /**
  * DnD開始時に確定した列表示を、現在の物理ドラッグ位置へ縦横とも追従する独立表示として描画する。
+ * 移動表示は視覚的な補助だけを担い、複製した編集可能要素を含めて入力・フォーカス対象にしない。
  *
  * @param props          移動表示に必要な配置と現在位置。
- * @param props.layout   DnD開始時に確定した元行とTableの配置情報。
+ * @param props.layout   DnD開始時に確定した移動対象列の配置情報。
  * @param props.position 現在の移動表示位置。
  * @return 現在のeditor contextへ描画する移動対象列表示。
  */
 const ColumnMovingOverlay = ( props: {
 	layout: ColumnMovingDisplayLayout;
-	position: ColumnMovingDisplayPosition;
+	position: ColumnMovingDisplayState[ 'position' ];
 } ) => {
 	const { layout, position } = props;
 	const containerRef = useRef< HTMLDivElement | null >( null );
 
 	useEffect( () => {
-		if ( containerRef.current !== null ) {
-			renderMovingColumn( layout, containerRef.current );
+		const container = containerRef.current;
+
+		/* 描画先がまだ成立していない段階では、移動対象列の複製を行わない。 */
+		if ( container === null ) {
+			return;
 		}
+
+		renderMovingColumn( layout, container );
 	}, [ layout ] );
 
 	const overlayStyle: CSSProperties = {
@@ -533,63 +323,69 @@ const ColumnMovingOverlay = ( props: {
 /**
  * Column DnDの意味状態とDnD Engineの物理情報を組み合わせ、移動対象列の独立表示だけを管理する。
  *
- * 元Tableの列順は変更せず、開始時に取得した可視範囲だけをそのDnD中のsnapshotとして維持する。
+ * DnD Interactionからはactive / idleだけを受け取り、物理座標やDOM参照をSessionへ複製しない。
+ * 実Tableの移動元セル群は変更せず、移動表示とInsertion Lineだけで現在の操作対象と移動位置を示す。
  * 移動表示は縦横とも物理移動へ追従するが、縦方向の見かけ上の移動を論理移動先判定へ反映しない。
  *
  * @return activeなColumn DnD中は移動対象列表示。それ以外はnull。
  */
 export const ColumnMovingDisplay = () => {
 	const phase = useColumnDndPhase();
-	const activeLayout = useRef< ColumnMovingDisplayLayout | null >( null );
 	const sessionBecameActive = useRef( false );
-	const [ layout, setLayout ] = useState< ColumnMovingDisplayLayout | null >( null );
-	const [ position, setPosition ] = useState< ColumnMovingDisplayPosition >( {
-		left: 0,
-		top: 0,
-	} );
+	const [ movingColumn, setMovingColumn ] = useState< ColumnMovingDisplayState | null >( null );
 
 	useDragDropMonitor( {
 		onDragStart: ( event ) => {
 			const dragPosition = event.operation.position;
 			const initialPositionX = dragPosition.initial.x ?? 0;
-			const initialPositionY = dragPosition.initial.y;
-			const nextLayout = resolveMovingDisplayLayout(
+			const layout = resolveMovingDisplayLayout(
 				event.operation.source?.element,
 				initialPositionX,
-				initialPositionY
+				dragPosition.initial.y
 			);
+			const nextMovingColumn =
+				layout === null
+					? null
+					: {
+							layout,
+							position: {
+								left: layout.initialLeft,
+								top: layout.initialTop,
+							},
+					  };
 
-			activeLayout.current = nextLayout;
-			setLayout( nextLayout );
-			if ( nextLayout !== null ) {
-				setPosition( {
-					left: nextLayout.initialLeft,
-					top: nextLayout.initialTop,
-				} );
-			}
+			setMovingColumn( nextMovingColumn );
 		},
 		onDragMove: ( event ) => {
-			const currentLayout = activeLayout.current;
-			if ( currentLayout === null ) {
-				return;
-			}
+			setMovingColumn( ( currentMovingColumn ) => {
+				/* DnD開始時に移動表示が成立していない場合は、物理移動だけで途中から表示を開始しない。 */
+				if ( currentMovingColumn === null ) {
+					return null;
+				}
 
-			const currentPosition = event.operation.position.current;
-			const currentPositionX = currentPosition.x ?? currentLayout.initialPositionX;
-			setPosition( {
-				left: currentLayout.initialLeft + currentPositionX - currentLayout.initialPositionX,
-				top: currentLayout.initialTop + currentPosition.y - currentLayout.initialPositionY,
+				const { layout } = currentMovingColumn;
+				const currentPosition = event.operation.position.current;
+				const currentPositionX = currentPosition.x ?? layout.initialPositionX;
+				const horizontalMovement = currentPositionX - layout.initialPositionX;
+				const verticalMovement = currentPosition.y - layout.initialPositionY;
+
+				return {
+					layout,
+					position: {
+						left: layout.initialLeft + horizontalMovement,
+						top: layout.initialTop + verticalMovement,
+					},
+				};
 			} );
 		},
 	} );
 
 	useEffect( () => {
-		/* 物理DnD開始直後のidleを終了と誤認せず、一度activeになった意味Sessionがidleへ戻った場合だけ表示を破棄する。 */
+		/* 物理DnD開始直後のidleはSession開始前の一時状態であり、一度activeになったSessionがidleへ戻った場合だけ終了として扱う。 */
 		if ( phase === 'idle' ) {
 			if ( sessionBecameActive.current ) {
 				sessionBecameActive.current = false;
-				activeLayout.current = null;
-				setLayout( null );
+				setMovingColumn( null );
 			}
 			return;
 		}
@@ -597,25 +393,28 @@ export const ColumnMovingDisplay = () => {
 		sessionBecameActive.current = true;
 	}, [ phase ] );
 
+	const activeLayout = movingColumn?.layout ?? null;
+
 	useEffect( () => {
-		/* active Session中だけ元列の描画対象セルを半透明にし、DnD終了時は元Table表示へ確実に戻す。 */
-		if ( phase !== 'active' || layout === null ) {
+		/* Column DnD Sessionと移動表示の両方が成立している期間だけ、editor全体へ掴んでいるポインター状態を示す。 */
+		if ( phase !== 'active' || activeLayout === null ) {
 			return;
 		}
 
-		layout.cells.forEach( ( snapshot ) => snapshot.sourceCell.classList.add( SOURCE_CELL_CLASS ) );
-		layout.editorDocument.body.classList.add( DRAGGING_CLASS );
+		activeLayout.editorDocument.body.classList.add( DRAGGING_CLASS );
 		return () => {
-			layout.cells.forEach( ( snapshot ) =>
-				snapshot.sourceCell.classList.remove( SOURCE_CELL_CLASS )
-			);
-			layout.editorDocument.body.classList.remove( DRAGGING_CLASS );
+			activeLayout.editorDocument.body.classList.remove( DRAGGING_CLASS );
 		};
-	}, [ phase, layout ] );
+	}, [ phase, activeLayout ] );
 
-	const visible = phase === 'active' && layout !== null;
-	const movingDisplay = visible ? (
-		<ColumnMovingOverlay layout={ layout } position={ position } />
-	) : null;
-	return movingDisplay;
+	const visible = phase === 'active' && movingColumn !== null;
+
+	/* 意味上のColumn DnD Sessionまたは移動表示のどちらかが成立しない間は、利用者向け表示を出さない。 */
+	if ( ! visible ) {
+		return null;
+	}
+
+	return (
+		<ColumnMovingOverlay layout={ movingColumn.layout } position={ movingColumn.position } />
+	);
 };
