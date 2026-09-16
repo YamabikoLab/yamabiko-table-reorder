@@ -1,8 +1,17 @@
 /**
  * Row Reorderの挿入位置とdrop直後の行領域を示す視覚表現を所有する。
  *
- * DnD中の挿入線とdrop後の行領域枠はいずれも対象Tableと現在のeditor表示領域が重なる横幅だけを描画し、DnD入力を遮らない。
+ * DnD中の挿入線、Virtual Insertion Gap、drop後の行領域枠はいずれも対象Tableと現在のeditor表示領域が重なる横幅だけを描画し、DnD入力を遮らない。
  */
+
+.yamabiko-table-reorder-virtual-insertion-gap {
+	position: fixed;
+	z-index: 100000;
+	box-sizing: border-box;
+	pointer-events: none;
+	background: rgb(56 88 233 / 10%);
+	border: 2px dashed #3858e9;
+}
 
 .yamabiko-table-reorder-insertion-line {
 	position: fixed;
