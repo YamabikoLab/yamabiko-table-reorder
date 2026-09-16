@@ -75,53 +75,45 @@ msgstr "%1$sの%2$d〜%3$d行目の%4$d〜%5$d列目に結合セルがあるた�
 msgid "Reordering could not continue, so the operation was ended."
 msgstr "並び替えを続けられないため、操作を終了しました。"
 
-#: src/messages.ts:249
-msgid "Reorder rows and columns."
-msgstr "行・列を並び替えられます。"
-
-#: src/messages.ts:257
-msgid "Long press a cell, then drag to reorder rows and columns."
-msgstr "セルを長押ししてからドラッグすると、行・列を並び替えられます。"
-
-#: src/messages.ts:265
+#: src/messages.ts:268
 msgid "Close reorder guidance"
 msgstr "並び替えの案内を閉じる"
 
-#: src/messages.ts:269
+#: src/messages.ts:272
 msgid "Apply the new order?"
 msgstr "並び替えを反映しますか？"
 
 #. 1: 移動元の行番号, 2: 移動先の行番号
-#: src/messages.ts:283
+#: src/messages.ts:286
 msgid "Row %1$d → %2$d"
 msgstr "%1$d行目 → %2$d行目"
 
 #. 1: 移動元の列番号, 2: 移動先の列番号
-#: src/messages.ts:299
+#: src/messages.ts:302
 msgid "Column %1$d → %2$d"
 msgstr "%1$d列目 → %2$d列目"
 
-#: src/messages.ts:305
+#: src/messages.ts:308
 msgid "Applying this reorder may take some time."
 msgstr "この並び替えの反映には時間がかかる場合があります。"
 
-#: src/messages.ts:308
+#: src/messages.ts:311
 msgid "Continue"
 msgstr "続行"
 
-#: src/messages.ts:311
+#: src/messages.ts:314
 msgid "Cancel"
 msgstr "キャンセル"
 
-#: src/messages.ts:315
+#: src/messages.ts:318
 msgid "Applying the new order…"
 msgstr "並び替えを反映しています…"
 
-#: src/messages.ts:319
+#: src/messages.ts:322
 msgid "Please wait until the update is complete."
 msgstr "完了するまでしばらくお待ちください。"
 
-#: src/messages.ts:323
+#: src/messages.ts:326
 msgid "Reordering complete."
 msgstr "並び替えが完了しました。"
 
@@ -219,3 +211,11 @@ msgstr "並び替えが失敗しました。テーブルは変更されていま
 #: src/messages.ts:28
 msgid "Column drag reordering is unavailable in the current view. You can reorder columns using the form."
 msgstr "現在の表示では列のドラッグ並び替えを使用できません。列の並び替えはフォームから行えます。"
+
+#: src/messages.ts:249
+msgid "Reorder rows and columns by dragging or using the form."
+msgstr "行・列をドラッグまたはフォームで並び替えられます。"
+
+#: src/messages.ts:257
+msgid "Long press a cell, then drag, or use the form to reorder rows and columns."
+msgstr "セルを長押ししてからドラッグするか、フォームを使って行・列を並び替えられます。"
