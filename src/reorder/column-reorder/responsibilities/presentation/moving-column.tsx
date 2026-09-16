@@ -18,6 +18,17 @@ import './moving-column.scss';
 
 const DRAGGING_CLASS = 'yamabiko-table-reorder-column-dragging';
 const VIEWPORT_SCAN_STEP = 8;
+const FTB_EDITOR_CONTROL_SELECTOR = [
+	'.ftb-table-cell-label',
+	'.ftb-row-selector',
+	'.ftb-column-selector',
+	'.ftb-row-before-inserter',
+	'.ftb-row-after-inserter',
+	'.ftb-column-before-inserter',
+	'.ftb-column-after-inserter',
+	'.ftb-row-remover',
+	'.ftb-column-remover',
+].join( ', ' );
 
 /** DnD開始時に確定し、移動表示へ保持する一つの移動対象列セル。 */
 type ColumnMovingCellSnapshot = {
@@ -228,6 +239,18 @@ const removeDuplicatedIds = ( element: Element ): void => {
 };
 
 /**
+ * 複製した移動表示から、Table内容ではないFTBのeditor操作要素を除去する。
+ *
+ * @param cell 移動表示として複製したセル。
+ */
+const removeFtbEditorControls = ( cell: HTMLTableCellElement ): void => {
+	/* FTBの操作要素は元Tableでのみ成立するため、独立した移動表示へ持ち込まない。 */
+	cell.querySelectorAll( FTB_EDITOR_CONTROL_SELECTOR ).forEach( ( element ) => {
+		element.remove();
+	} );
+};
+
+/**
  * DnD開始時の可視セル内容を、移動対象列の開始時寸法を保つ独立した表示へ構成する。
  *
  * @param layout    DnD開始時に確定した移動対象列の表示配置。
@@ -252,6 +275,7 @@ const renderMovingColumn = (
 		const clonedCell = snapshot.sourceCell.cloneNode( true ) as HTMLTableCellElement;
 
 		removeDuplicatedIds( clonedCell );
+		removeFtbEditorControls( clonedCell );
 		clonedCell.style.boxSizing = 'border-box';
 		clonedCell.style.width = `${ layout.columnWidth }px`;
 		clonedCell.style.minWidth = `${ layout.columnWidth }px`;
