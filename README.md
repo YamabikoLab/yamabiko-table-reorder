@@ -44,15 +44,13 @@ The Playground demo uses the latest stable release and includes WordPress Core T
 
 ### Row Reorder
 
-Choose **Reorder rows** from the Table toolbar, then drag a `tbody` row with Mouse or Touch. During the drag, the moving row and destination are shown, and surrounding rows are displaced to preview the result before it is committed.
+Choose **Reorder rows** from the Table toolbar, then drag a `tbody` row with Mouse or Touch. During the drag, the moving row and insertion line show the source and destination while the surrounding Table remains in place. After a valid drop, the destination row area is outlined briefly so you can confirm where the row was dropped.
 
 ### Column Reorder
 
-Choose **Reorder columns** from the Table toolbar, then drag a Table column with Mouse or Touch. The moving column and insertion line show the source and destination.
+Choose **Reorder columns** from the Table toolbar, then drag a Table column with Mouse or Touch. During the drag, the moving column and insertion line show the source and destination while the surrounding Table remains in place. After a valid drop, the destination column area is outlined briefly so you can confirm where the column was dropped.
 
 Column drag-and-drop is available only when the current editor view exposes the Table as a reliable horizontal column layout. If the current view stacks or reflows cells so that Column Reorder cannot resolve horizontal column positions safely, the toolbar explains the limitation and you can still reorder columns with **Reorder with form**.
-
-In iframe editors, surrounding columns are also displaced to preview the result. In non-iframe editors, surrounding-column displacement is intentionally omitted to preserve responsiveness.
 
 ### Reorder Form
 
