@@ -2,7 +2,7 @@
  * Column Reorderの移動対象列について、実Table上の移動元frame、独立した移動表示、DnD中のポインター表示を所有する。
  *
  * 実Tableの移動元セル群は変更せず、移動元列は単一の点線frameで識別する。
- * 移動表示は元Tableのtheme依存装飾を再現しない必要十分なゴーストとして描画し、白背景、濃色の前景色、実線outlineで内容と現在位置を示す。
+ * 移動表示は背景だけを透過し、内容とoutlineを維持したままdestination周辺の実Table内容を確認できるようにする。
  */
 
 /* 移動元列は実Tableへclassやstyleを追加せず、開始時位置へ重ねた単一frameで示す。 */
@@ -21,14 +21,9 @@
 	overflow: hidden;
 	pointer-events: none;
 	box-sizing: border-box;
-	background: #fff;
+	background-color: transparent !important;
+	background-image: none !important;
 	outline: 2px solid #3858e9;
-}
-
-/* theme側で子要素自身に前景色や背景色が指定されていても、移動表示内では識別用の配色へ統一する。 */
-.yamabiko-table-reorder-moving-column,
-.yamabiko-table-reorder-moving-column * {
-	color: #1e1e1e !important;
 }
 
 /* 列DnD中は移動表示が入力対象外でも、ポインター下の要素に依存せず掴んでいる状態を示す。 */
@@ -44,13 +39,21 @@
 	margin: 0;
 	table-layout: fixed;
 	border-collapse: collapse;
-	background: #fff !important;
 	opacity: 1;
 }
 
+/* themeやclone元の背景指定より移動表示の透過方針を優先し、背景によるdestinationの遮蔽を防ぐ。 */
+.yamabiko-table-reorder-moving-column-cell-table,
 .yamabiko-table-reorder-moving-column-cell-table tr,
 .yamabiko-table-reorder-moving-column-cell-table td,
 .yamabiko-table-reorder-moving-column-cell-table th {
-	background: #fff !important;
+	background-color: transparent !important;
+	background-image: none !important;
+}
+
+/* 移動対象列の内容は通常の濃さで維持する。 */
+.yamabiko-table-reorder-moving-column-cell-table tr,
+.yamabiko-table-reorder-moving-column-cell-table td,
+.yamabiko-table-reorder-moving-column-cell-table th {
 	opacity: 1;
 }
