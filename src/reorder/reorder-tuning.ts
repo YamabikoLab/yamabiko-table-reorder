@@ -45,8 +45,8 @@ export const DND_DROP_ANIMATION_EASING = 'ease-out';
 /** DnD中の移動元を表示する不透明度。 */
 export const DND_MOVING_SOURCE_OPACITY = '0.35';
 
-/** 正常なphysical drop後に最後の挿入線を維持する時間（ミリ秒）。 */
-export const DND_POST_DROP_INSERTION_LINE_DURATION_MS = 600;
+/** 正常なphysical drop後にdrop位置の行領域枠を表示する時間（ミリ秒）。 */
+export const DND_POST_DROP_ROW_OUTLINE_DURATION_MS = 600;
 
 /** 結合セルによりDnDを開始できない場合の通知表示時間（ミリ秒）。 */
 export const DND_START_REJECTION_NOTICE_DURATION_MS = 2500;
