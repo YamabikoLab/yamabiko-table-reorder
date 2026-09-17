@@ -77,6 +77,7 @@
 		"@wordpress/block-editor": "^16.1.0",
 		"@wordpress/blocks": "^15.25.0",
 		"@wordpress/components": "^38.0.0",
+		"@wordpress/core-abilities": "^0.20.0",
 		"@wordpress/data": "^10.53.0",
 		"@wordpress/element": "^8.4.0",
 		"@wordpress/hooks": "^4.52.0",
