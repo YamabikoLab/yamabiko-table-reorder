@@ -6,7 +6,7 @@
  * Highlight表示はTable subtreeのReact renderへ伝播させず、表示開始時の位置を一時的なPresentation snapshotとして扱う。
  */
 
-import { useEffect, useRef } from '@wordpress/element';
+import { useCallback, useEffect, useRef } from '@wordpress/element';
 import type { PointerEvent, ReactNode } from 'react';
 
 import { resolveColumnSourceIndex } from '@/reorder/column-reorder/integration/source-column-resolution';
@@ -122,7 +122,7 @@ export const ColumnHighlight = ( props: {
 	const currentCell = useRef< HTMLTableCellElement | null >( null );
 	const currentPresentation = useRef< ColumnHighlightPresentation | null >( null );
 
-	const clearHighlightState = (): void => {
+	const clearHighlightState = useCallback( (): void => {
 		const presentation = currentPresentation.current;
 
 		if ( presentation !== null ) {
@@ -136,7 +136,7 @@ export const ColumnHighlight = ( props: {
 
 		currentPresentation.current = null;
 		currentCell.current = null;
-	};
+	}, [] );
 
 	useEffect( () => {
 		const synchronizeDndLifecycle = (): void => {
@@ -158,7 +158,7 @@ export const ColumnHighlight = ( props: {
 			unsubscribeMode();
 			clearHighlightState();
 		};
-	}, [ tableIdentity ] );
+	}, [ clearHighlightState, tableIdentity ] );
 
 	const onPointerOverCapture: ColumnHighlightPointerOverHandler = ( event ) => {
 		const cell = ( event.target as Element | null )?.closest(
