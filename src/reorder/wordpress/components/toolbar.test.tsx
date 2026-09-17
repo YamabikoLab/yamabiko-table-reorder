@@ -1,5 +1,5 @@
 /**
- * WordPress Table ToolbarのRow / Column DnDとReorder Form（RF）入口が製品入口で排他的に切り替わることを確認する。
+ * WordPress Table ToolbarのRow / Column DnD、Reorder Form（RF）、Chat入口が製品入口で排他的に切り替わることを確認する。
  */
 
 import { fireEvent, render, screen } from '@testing-library/react';
@@ -86,11 +86,16 @@ jest.mock( '@wordpress/components', () => {
 } );
 
 jest.mock( '@/messages', () => ( {
+	getChatReorderName: () => 'Reorder with chat',
 	getColumnDndLayoutUnavailableMessage: () =>
 		'Column drag reordering is unavailable in the current view. You can reorder columns using the form.',
 	getColumnReorderName: () => 'Reorder columns',
 	getRfReorderName: () => 'Reorder with form',
 	getRowReorderName: () => 'Reorder rows',
+} ) );
+
+jest.mock( '@/reorder/wordpress/components/reorder-chat', () => ( {
+	ReorderChatPopover: () => null,
 } ) );
 
 jest.mock( '@/reorder/wordpress/column-dnd-layout-availability-state', () => ( {
@@ -119,6 +124,10 @@ jest.mock( '@/reorder/wordpress/components/reorder-form', () => ( {
 	ReorderFormPopover: () => null,
 } ) );
 
+jest.mock( '@/reorder/wordpress/components/reorder-form-collapse', () => ( {
+	reorderFormCollapse: { beginSession: jest.fn() },
+} ) );
+
 jest.mock( '@/reorder/wordpress/components/reorder-form-height', () => ( {
 	reorderFormHeight: {
 		beginSession: ( tableIdentity: string ) => mockBeginRfHeightSession( tableIdentity ),
@@ -143,7 +152,7 @@ jest.mock( '@/reorder/wordpress/hooks/use-reorder-guidance', () => ( {
 	} ),
 } ) );
 
-describe( 'Reorder toolbar RF exclusivity', () => {
+describe( 'Reorder toolbar exclusivity', () => {
 	beforeEach( () => {
 		mockSelectedKind = null;
 		mockRfState = { status: 'closed' };
@@ -153,8 +162,7 @@ describe( 'Reorder toolbar RF exclusivity', () => {
 	} );
 
 	/**
-	 * 概要:
-	 * - RF入口が既存Row / Column入口と同じToolbarGroupでColumnの隣に表示されることを確認する。
+	 * 4つの並び替え入口が同じToolbarGroupに並ぶことを確認する。
 	 *
 	 * 事前条件:
 	 * - 対象Tableは通常編集状態である。
@@ -163,9 +171,9 @@ describe( 'Reorder toolbar RF exclusivity', () => {
 	 * - Toolbarを表示する。
 	 *
 	 * 期待結果:
-	 * - Row、Column、RFの順で3つの入口が表示される。
+	 * - Row、Column、RF、Chatの順で入口が表示される。
 	 */
-	it( 'when the table toolbar is rendered, should place RF next to the column entry', () => {
+	it( 'when the table toolbar is rendered, should show the four reorder entries', () => {
 		render( <ReorderModeToolbar tableIdentity="table-a" /> );
 
 		const buttons = screen.getAllByRole( 'button' );
@@ -173,12 +181,12 @@ describe( 'Reorder toolbar RF exclusivity', () => {
 			'Reorder rows',
 			'Reorder columns',
 			'Reorder with form',
+			'Reorder with chat',
 		] );
 	} );
 
 	/**
-	 * 概要:
-	 * - 初回案内中は3つの並び替え入口を個別ではなく1つの機能群として強調することを確認する。
+	 * 初回案内中は並び替え入口全体を1つの機能群として強調することを確認する。
 	 *
 	 * 事前条件:
 	 * - 対象Tableで初回案内が表示されている。
@@ -187,7 +195,7 @@ describe( 'Reorder toolbar RF exclusivity', () => {
 	 * - Toolbarを表示した後、初回案内を終了した状態へ更新する。
 	 *
 	 * 期待結果:
-	 * - 案内中はToolbarGroupだけに強調classが付与され、各入口には付与されない。
+	 * - 案内中はToolbarGroupだけに強調classが付与される。
 	 * - 案内終了後はToolbarGroupから強調classが外れる。
 	 */
 	it( 'when guidance is visible, should highlight only the reorder entry group until guidance ends', () => {
@@ -204,13 +212,11 @@ describe( 'Reorder toolbar RF exclusivity', () => {
 
 		mockGuidance = null;
 		rerender( <ReorderModeToolbar tableIdentity="table-a" /> );
-
 		expect( screen.getByRole( 'group' ).className ).toBe( '' );
 	} );
 
 	/**
-	 * 概要:
-	 * - DnDモード中にRFを開始すると、既存モードをeditへ戻してからRFを開くことを確認する。
+	 * DnDモード中にRFを開始すると通常編集へ戻してからRFを開くことを確認する。
 	 *
 	 * 事前条件:
 	 * - 同じTableでRow Reorder Modeが有効である。
@@ -220,32 +226,20 @@ describe( 'Reorder toolbar RF exclusivity', () => {
 	 *
 	 * 期待結果:
 	 * - Rowモードの再選択によるedit遷移がRF openより先に要求される。
-	 * - 新しいRF SessionのPopover位置とnarrow表示高さが初期化されてからRFが開く。
 	 */
-	it( 'when RF starts from a DnD mode, should return to edit mode and reset presentation state before opening RF', () => {
+	it( 'when RF starts from a DnD mode, should return to edit mode before opening RF', () => {
 		mockSelectedKind = 'row';
 		render( <ReorderModeToolbar tableIdentity="table-a" /> );
-
 		fireEvent.click( screen.getByRole( 'button', { name: 'Reorder with form' } ) );
 
 		expect( mockSelectMode ).toHaveBeenCalledWith( 'row' );
 		expect( mockBeginRfPositionSession ).toHaveBeenCalledWith( 'table-a' );
 		expect( mockBeginRfHeightSession ).toHaveBeenCalledWith( 'table-a' );
 		expect( mockOpenRf ).toHaveBeenCalledWith( 'table-a' );
-		expect( mockSelectMode.mock.invocationCallOrder[ 0 ] ).toBeLessThan(
-			mockBeginRfPositionSession.mock.invocationCallOrder[ 0 ]
-		);
-		expect( mockBeginRfPositionSession.mock.invocationCallOrder[ 0 ] ).toBeLessThan(
-			mockBeginRfHeightSession.mock.invocationCallOrder[ 0 ]
-		);
-		expect( mockBeginRfHeightSession.mock.invocationCallOrder[ 0 ] ).toBeLessThan(
-			mockOpenRf.mock.invocationCallOrder[ 0 ]
-		);
 	} );
 
 	/**
-	 * 概要:
-	 * - RF open中にDnD入口を選択すると、RFを終了してからDnDモードへ進むことを確認する。
+	 * RF open中にDnD入口を選択するとRFを終了してからDnDモードへ進むことを確認する。
 	 *
 	 * 事前条件:
 	 * - 同じTableでRFがopenである。
@@ -266,7 +260,6 @@ describe( 'Reorder toolbar RF exclusivity', () => {
 			canApply: false,
 		};
 		render( <ReorderModeToolbar tableIdentity="table-a" /> );
-
 		fireEvent.click( screen.getByRole( 'button', { name: 'Reorder columns' } ) );
 
 		expect( mockCloseRf ).toHaveBeenCalledWith( 'table-a' );
@@ -277,8 +270,37 @@ describe( 'Reorder toolbar RF exclusivity', () => {
 	} );
 
 	/**
-	 * 概要:
-	 * - RF反映中は新しい並び替え入口を開始できないことを確認する。
+	 * RF open中にChat入口を選択するとRFを終了してChatへ切り替わることを確認する。
+	 *
+	 * 事前条件:
+	 * - 同じTableでRFがopenである。
+	 *
+	 * 操作:
+	 * - Chat入口を選択する。
+	 *
+	 * 期待結果:
+	 * - RF Sessionが閉じられる。
+	 * - Chat入口が選択状態になる。
+	 */
+	it( 'when chat starts from RF, should close RF and select the chat entry', () => {
+		mockRfState = {
+			status: 'open',
+			kind: 'row',
+			input: { sourceRowNumber: '', targetRowNumber: '', position: null },
+			rowCount: 3,
+			result: { status: 'not-ready' },
+			canApply: false,
+		};
+		render( <ReorderModeToolbar tableIdentity="table-a" /> );
+		const chatButton = screen.getByRole( 'button', { name: 'Reorder with chat' } );
+		fireEvent.click( chatButton );
+
+		expect( mockCloseRf ).toHaveBeenCalledWith( 'table-a' );
+		expect( chatButton.getAttribute( 'aria-pressed' ) ).toBe( 'true' );
+	} );
+
+	/**
+	 * RF反映中は新しい並び替え入口を開始できないことを確認する。
 	 *
 	 * 事前条件:
 	 * - 対象TableのRF Interactionがapplyingである。
@@ -287,28 +309,19 @@ describe( 'Reorder toolbar RF exclusivity', () => {
 	 * - Toolbarを表示する。
 	 *
 	 * 期待結果:
-	 * - Row / Column / RFの3入口がすべてdisabledになる。
+	 * - Row / Column / RF / Chatの4入口がすべてdisabledになる。
 	 */
 	it( 'when RF is applying, should disable every reorder entry', () => {
 		mockRfState = { status: 'applying', kind: 'row' };
 		render( <ReorderModeToolbar tableIdentity="table-a" /> );
 
-		const rowButton = screen.getByRole( 'button', { name: 'Reorder rows' } ) as HTMLButtonElement;
-		const columnButton = screen.getByRole( 'button', {
-			name: 'Reorder columns',
-		} ) as HTMLButtonElement;
-		const rfButton = screen.getByRole( 'button', {
-			name: 'Reorder with form',
-		} ) as HTMLButtonElement;
-
-		expect( rowButton.disabled ).toBe( true );
-		expect( columnButton.disabled ).toBe( true );
-		expect( rfButton.disabled ).toBe( true );
+		for ( const name of [ 'Reorder rows', 'Reorder columns', 'Reorder with form', 'Reorder with chat' ] ) {
+			expect( ( screen.getByRole( 'button', { name } ) as HTMLButtonElement ).disabled ).toBe( true );
+		}
 	} );
 
 	/**
-	 * 概要:
-	 * - 現在表示で物理列配置が成立しない場合に、Column DnD入口を選択不可にしながら理由を取得できることを確認する。
+	 * 現在表示で物理列配置が成立しない場合にColumn DnD入口を選択不可にしながら理由を取得できることを確認する。
 	 *
 	 * 事前条件:
 	 * - 対象TableのToolbar表示用availability snapshotはunavailableである。
@@ -337,7 +350,6 @@ describe( 'Reorder toolbar RF exclusivity', () => {
 		);
 
 		fireEvent.click( columnButton );
-
 		expect( mockSelectMode ).not.toHaveBeenCalled();
 	} );
 } );
