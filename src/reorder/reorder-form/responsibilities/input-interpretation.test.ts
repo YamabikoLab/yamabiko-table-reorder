@@ -229,9 +229,7 @@ describe( 'RF Input Interpretation', () => {
 				)
 			).toEqual( {
 				status: 'not-ready',
-				inputProblems: [
-					{ target: 'target', correction: { kind: 'select-current-column' } },
-				],
+				inputProblems: [ { target: 'target', correction: { kind: 'select-current-column' } } ],
 			} );
 		} );
 
