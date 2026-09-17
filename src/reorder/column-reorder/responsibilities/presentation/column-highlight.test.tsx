@@ -152,9 +152,9 @@ describe( 'Column highlight', () => {
 	it( 'when target resolution resolves the current column, should show a YTR-owned resolved highlight without changing the cell class', () => {
 		const { getByTestId } = render( <TestTable /> );
 		const currentCell = getByTestId( 'column-1' );
-		jest.spyOn( currentCell, 'getBoundingClientRect' ).mockReturnValue(
-			rectangle( { top: 20, left: 40, width: 120, height: 48 } )
-		);
+		jest
+			.spyOn( currentCell, 'getBoundingClientRect' )
+			.mockReturnValue( rectangle( { top: 20, left: 40, width: 120, height: 48 } ) );
 
 		fireEvent.pointerOver( currentCell, { pointerType: 'mouse' } );
 
@@ -196,9 +196,7 @@ describe( 'Column highlight', () => {
 		const highlight = document.querySelector( '.yamabiko-table-reorder-column-highlight' );
 		expect( currentCell.className ).toBe( '' );
 		expect( highlight ).toHaveClass( 'yamabiko-table-reorder-column-highlight-rejected' );
-		expect( document.body ).toHaveClass(
-			'yamabiko-table-reorder-column-highlight-cursor-default'
-		);
+		expect( document.body ).toHaveClass( 'yamabiko-table-reorder-column-highlight-cursor-default' );
 	} );
 
 	/**
@@ -240,7 +238,9 @@ describe( 'Column highlight', () => {
 		currentCell.className = 'is-selected';
 
 		expect( currentCell.className ).toBe( 'is-selected' );
-		expect( document.querySelector( '.yamabiko-table-reorder-column-highlight' ) ).toBe( highlight );
+		expect( document.querySelector( '.yamabiko-table-reorder-column-highlight' ) ).toBe(
+			highlight
+		);
 	} );
 
 	/**
@@ -331,9 +331,7 @@ describe( 'Column highlight', () => {
 	it( 'when touch input recognizes another cell, should replace the highlight with the new cell snapshot', () => {
 		const { getByTestId } = render( <TestTable /> );
 		fireEvent.pointerOver( getByTestId( 'column-1' ), { pointerType: 'touch' } );
-		const previousHighlight = document.querySelector(
-			'.yamabiko-table-reorder-column-highlight'
-		);
+		const previousHighlight = document.querySelector( '.yamabiko-table-reorder-column-highlight' );
 		fireEvent.pointerOver( getByTestId( 'column-2' ), { pointerType: 'touch' } );
 		const nextHighlight = document.querySelector( '.yamabiko-table-reorder-column-highlight' );
 

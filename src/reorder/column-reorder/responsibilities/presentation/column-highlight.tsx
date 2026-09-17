@@ -128,10 +128,7 @@ export const ColumnHighlight = ( props: {
 		if ( presentation !== null ) {
 			presentation.editorDocument.removeEventListener( 'scroll', presentation.onScroll, true );
 			presentation.overlay.remove();
-			presentation.editorDocument.body.classList.remove(
-				CURSOR_GRAB_CLASS,
-				CURSOR_DEFAULT_CLASS
-			);
+			presentation.editorDocument.body.classList.remove( CURSOR_GRAB_CLASS, CURSOR_DEFAULT_CLASS );
 		}
 
 		currentPresentation.current = null;
