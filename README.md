@@ -39,6 +39,7 @@ The Playground demo uses the latest stable release and includes WordPress Core T
 > - [**Flexible Table Block**](https://wordpress.org/plugins/flexible-table-block/)
 >
 > Other Table blocks provided by plugins or themes are not currently supported.
+> Support for additional Table blocks is planned for future releases.
 
 ## How It Works
 
