@@ -25,11 +25,25 @@ export type RowRfSpecification = {
 	position: 'above' | 'below';
 };
 
+/** Row RF入力で修正が必要な対象と現在有効な修正条件。 */
+export type RowRfInputProblem = {
+	/** 修正が必要な入力。 */
+	target: 'source' | 'target';
+	/** 現在Tableで入力できる1-based行番号範囲。 */
+	correction: {
+		kind: 'row-number-range';
+		min: number;
+		max: number;
+	};
+};
+
 /** Row RFフォーム入力の解釈結果。 */
 export type RowRfInputInterpretation =
 	| {
 			/** Resolutionへ進めない入力状態。 */
 			status: 'not-ready';
+			/** 未入力を除き、現在修正が必要なsource / target入力。 */
+			inputProblems: readonly RowRfInputProblem[];
 	  }
 	| {
 			/** Resolutionへ進める入力状態。 */
@@ -58,11 +72,23 @@ export type ColumnRfSpecification = {
 	position: 'left' | 'right';
 };
 
+/** Column RF入力で修正が必要な対象と再選択条件。 */
+export type ColumnRfInputProblem = {
+	/** 修正が必要な入力。 */
+	target: 'source' | 'target';
+	/** 現在の列選択肢から再選択する必要があることを示す修正条件。 */
+	correction: {
+		kind: 'select-current-column';
+	};
+};
+
 /** Column RFフォーム入力の解釈結果。 */
 export type ColumnRfInputInterpretation =
 	| {
 			/** Resolutionへ進めない入力状態。 */
 			status: 'not-ready';
+			/** 未選択を除き、現在修正が必要なsource / target入力。 */
+			inputProblems: readonly ColumnRfInputProblem[];
 	  }
 	| {
 			/** Resolutionへ進める入力状態。 */
@@ -76,9 +102,6 @@ type ColumnRfInputChoice = {
 	/** 現在Table上の0-based論理列Identity。 */
 	columnIndex: number;
 };
-
-/** Resolutionへ進めない共通結果。 */
-const NOT_READY = { status: 'not-ready' } as const;
 
 /**
  * 利用者向け行番号を、現在のRow RF入力範囲内にある0-based indexへ変換する。
@@ -107,6 +130,7 @@ const interpretRowNumber = ( value: string, rowCount: number ): number | null =>
  * Row RFフォーム入力を解釈する。
  *
  * 必要な3入力が成立した場合だけ、利用者向け1-based行番号を0-based indexへ変換した内部指定を返す。
+ * 未入力は入力待ちとして扱い、入力済みだが現在範囲で成立しないsource / targetだけを修正対象として公開する。
  * source / targetの位置関係によるno-opやTable構造上の移動可否は判定しない。
  *
  * @param input    Row RFフォームの現在入力。
@@ -117,16 +141,37 @@ export const interpretRowRfInput = (
 	input: RowRfFormInput,
 	rowCount: number
 ): RowRfInputInterpretation => {
-	/* 位置が未選択、または現在行数自体が入力範囲として成立しない場合はResolutionへ進めない。 */
-	if ( input.position === null || ! Number.isSafeInteger( rowCount ) || rowCount < 1 ) {
-		return NOT_READY;
+	/* 有効な入力範囲自体が成立しない場合は修正条件を推測せず入力待ちとして扱う。 */
+	if ( ! Number.isSafeInteger( rowCount ) || rowCount < 1 ) {
+		return { status: 'not-ready', inputProblems: [] };
 	}
 
 	const sourceRowIndex = interpretRowNumber( input.sourceRowNumber, rowCount );
 	const targetRowIndex = interpretRowNumber( input.targetRowNumber, rowCount );
-	/* source / targetのどちらか一方でも現在の入力範囲へ変換できない場合は内部指定を生成しない。 */
-	if ( sourceRowIndex === null || targetRowIndex === null ) {
-		return NOT_READY;
+	const inputProblems: RowRfInputProblem[] = [];
+	/* 未入力は問題にせず、入力済みだが現在範囲へ変換できないsourceだけを修正対象とする。 */
+	if ( input.sourceRowNumber.trim() !== '' && sourceRowIndex === null ) {
+		inputProblems.push( {
+			target: 'source',
+			correction: { kind: 'row-number-range', min: 1, max: rowCount },
+		} );
+	}
+	/* targetもsourceと独立して評価し、両方が不正なら二つの問題を同時に公開する。 */
+	if ( input.targetRowNumber.trim() !== '' && targetRowIndex === null ) {
+		inputProblems.push( {
+			target: 'target',
+			correction: { kind: 'row-number-range', min: 1, max: rowCount },
+		} );
+	}
+
+	/* 必要入力が未成立、または修正対象がある場合は内部指定を生成しない。 */
+	if (
+		sourceRowIndex === null ||
+		targetRowIndex === null ||
+		input.position === null ||
+		inputProblems.length > 0
+	) {
+		return { status: 'not-ready', inputProblems };
 	}
 
 	return {
@@ -143,6 +188,7 @@ export const interpretRowRfInput = (
  * Column RFフォーム入力を解釈する。
  *
  * 必要な3入力が成立し、source / targetの論理列Identityが現在の列選択肢に存在する場合だけ内部指定を返す。
+ * 未選択は入力待ちとして扱い、選択済みだが現在の列選択肢から消えたsource / targetだけを修正対象として公開する。
  * blocked boundary、結合セル、no-op、移動先境界などの方向固有制約は判定しない。
  *
  * @param input   Column RFフォームの現在入力。
@@ -153,20 +199,36 @@ export const interpretColumnRfInput = (
 	input: ColumnRfFormInput,
 	columns: readonly ColumnRfInputChoice[]
 ): ColumnRfInputInterpretation => {
-	/* 必要な選択が揃うまでは方向固有Resolutionへ内部指定を渡さない。 */
+	const sourceExists =
+		input.sourceColumnIndex !== null &&
+		columns.some( ( column ) => column.columnIndex === input.sourceColumnIndex );
+	const targetExists =
+		input.targetColumnIndex !== null &&
+		columns.some( ( column ) => column.columnIndex === input.targetColumnIndex );
+	const inputProblems: ColumnRfInputProblem[] = [];
+	/* 選択済みsourceが現在の列選択肢から消えた場合だけ、再選択が必要な問題として公開する。 */
+	if ( input.sourceColumnIndex !== null && ! sourceExists ) {
+		inputProblems.push( {
+			target: 'source',
+			correction: { kind: 'select-current-column' },
+		} );
+	}
+	/* targetもsourceと独立して評価し、両方が消失した場合は二つの問題を同時に公開する。 */
+	if ( input.targetColumnIndex !== null && ! targetExists ) {
+		inputProblems.push( {
+			target: 'target',
+			correction: { kind: 'select-current-column' },
+		} );
+	}
+
+	/* 必要な選択が不足している、または修正対象がある場合は方向固有Resolutionへ内部指定を渡さない。 */
 	if (
 		input.sourceColumnIndex === null ||
 		input.targetColumnIndex === null ||
-		input.position === null
+		input.position === null ||
+		inputProblems.length > 0
 	) {
-		return NOT_READY;
-	}
-
-	const sourceExists = columns.some( ( column ) => column.columnIndex === input.sourceColumnIndex );
-	const targetExists = columns.some( ( column ) => column.columnIndex === input.targetColumnIndex );
-	/* 現在の選択肢から消えた論理列Identityは入力成立性を満たさないためResolutionへ進めない。 */
-	if ( ! sourceExists || ! targetExists ) {
-		return NOT_READY;
+		return { status: 'not-ready', inputProblems };
 	}
 
 	return {
