@@ -27,7 +27,7 @@ const getCommandText = ( result: unknown ): string => {
 	if (
 		typeof result !== 'object' ||
 		result === null ||
-		!( 'command' in result ) ||
+		! ( 'command' in result ) ||
 		typeof ( result as NormalizeReorderCommandResult ).command !== 'string'
 	) {
 		throw new Error( 'Invalid normalize reorder command ability output.' );

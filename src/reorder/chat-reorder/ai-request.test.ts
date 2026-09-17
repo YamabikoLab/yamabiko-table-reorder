@@ -49,12 +49,12 @@ describe( 'Chat Reorder Ability request', () => {
 		expect( result ).toBe( 'column "価格" before #1' );
 		expect( executeAbilityMock ).toHaveBeenCalledTimes( 1 );
 		expect( executeAbilityMock ).toHaveBeenCalledWith(
-		'yamabiko-table-reorder/normalize-reorder-command',
-		{
-			input: '価格を1列目の前に移動して',
-			context: 'R=12\nC=1:商品名,2:価格',
-		}
-	);
+			'yamabiko-table-reorder/normalize-reorder-command',
+			{
+				input: '価格を1列目の前に移動して',
+				context: 'R=12\nC=1:商品名,2:価格',
+			}
+		);
 	} );
 
 	/**
