@@ -73,21 +73,21 @@ Phase 1ではRFをKeyboardと支援技術から利用できる正式な並び替
 
 - 既存RF / Apply状態からName / Role / State、入力条件、入力問題との関係を一貫して導出するAccessibility Presentation
 - Accessibility Presentationが再validationせずに利用できる、対象入力と修正情報を含む入力問題の公開境界
-- blocked / no-op等の現在評価について、同一RF Session内で新しく成立した意味だけを一回性通知へ渡す境界
+- blocked / no-op等の現在評価をそのままAnnouncementへ渡し、RF Interactionへ差分判定・重複抑制・一回性通知状態を追加しない接続
 - 通常反映 / 確認付き大規模反映の両方で、success時の移動前位置と確定後位置をLifecycle完了時に引き渡す確定Move summary Contract
 - RF open / closeや方向切替、Wide / Narrow切替でDesignどおりにfocusを維持・移動する接続
 - 確認、反映中、Table表示再生成、success / failureをまたぐFocus Coordination
 - 表示再生成中だけ保持し、対象Table・Lifecycle・利用者の現在位置を検証して適用するpending focus intent
 - success時に確定済み最終位置へfocusをsettleしてからRF Apply Coordinationの表示復帰を完了するbarrier
 - 視覚Noticeのmount / unmountとは独立したAnnouncement Delivery
-- success / failure / blocked / no-opをfocus移動なしで一度だけ通知するsource-owned event接続
+- success / failureの一回性結果とblocked / no-opの現在評価をfocus移動なしで通知する接続
 - Keyboard、semantic、focus、announcementを実ブラウザーとWordPress Editorで検証するE2E coverage
 
 ## Approach
 
 実装は「意味の正本 → semantic Presentation → focus調停 → Apply focus lifecycle → announcement → 横断validation」の順に進める。
 
-最初に、Accessibility PresentationとAnnouncement Deliveryが既存RF状態を再解釈せず利用できるよう、RF Input Interpretation、RF Interaction、RF Apply Coordination、Row / Column Table Integrationがすでに所有する意味情報の公開形を確認し、不足する最小Contractだけを補う。ここではAccessibility専用状態を追加せず、入力問題の対象、現在評価、一回性通知適格性、確定済み最終位置、およびsuccess時の移動前位置 + 確定後位置を持つMove summaryを既存責務から値として渡せる状態にする。確定Move summaryは通常反映と確認付き大規模反映の両経路でLifecycle完了時に結果として引き渡し、RF Interactionが一回性結果としてPresentation / Announcementへ安全にfan-outできる形にする。
+最初に、Accessibility PresentationとAnnouncement Deliveryが既存RF状態を再解釈せず利用できるよう、RF Input Interpretation、RF Interaction、RF Apply Coordination、Row / Column Table Integrationがすでに所有する意味情報の公開形を確認し、不足する最小Contractだけを補う。ここではAccessibility専用状態を追加せず、入力問題の対象、現在評価、確定済み最終位置、およびsuccess時の移動前位置 + 確定後位置を持つMove summaryを既存責務から値として渡せる状態にする。blocked / no-opは既存の現在評価をそのまま利用し、RF Interactionへ差分判定・重複抑制・一回性通知状態を追加しない。確定Move summaryは通常反映と確認付き大規模反映の両経路でLifecycle完了時に結果として引き渡し、RF Interactionが一回性結果としてPresentation / Announcementへ安全にfan-outできる形にする。
 
 次にAccessibility PresentationをWordPress Reorder Integration / WordPress Reorder Apply Integrationへ接続する。標準UI primitiveが提供するKeyboard / semantic Contractを優先し、YTRは操作名、選択状態、入力条件、実行可否、展開状態、入力問題との関係等の不足分だけを補う。この段階でRFの主要経路がKeyboardだけで操作可能であることと、focus対象として利用するsemantic targetが安定して識別できることを成立させる。
 
@@ -95,7 +95,7 @@ Phase 1ではRFをKeyboardと支援技術から利用できる正式な並び替
 
 Focus Coordinationの基盤成立後、まずRF open / close、方向切替、Wide / Narrow切替、入力問題という通常RF lifecycleを接続する。次に確認付き大規模反映と通常反映のApply lifecycleへ接続し、表示再生成時のpending intentとsuccess完了barrierを実装する。Apply結果のsuccess確定がfocus復帰より先行しないことをこの段階で保証する。
 
-focus lifecycleが確定してからAnnouncement Deliveryを接続する。通知意味はRF Interaction / RF Apply Coordination / 方向固有Resolution・Table Integrationを正本とし、Announcement Deliveryはdeliveryだけを担当する。blocked / no-opは同じ現在評価の再描画で再通知せず、success / failureは一回だけ消費できる結果から通知する。successの位置情報はPhase 1で引き渡された確定Move summaryだけを利用し、candidateや入力値から再計算しない。視覚Noticeの存在やfocus移動をdelivery条件にしない。
+focus lifecycleが確定してからAnnouncement Deliveryを接続する。通知意味はRF Interaction / RF Apply Coordination / 方向固有Resolution・Table Integrationを正本とし、Announcement Deliveryはdeliveryだけを担当する。blocked / no-opはRF Interactionの現在評価が発生するたびに通知対象として扱い、差分判定・重複抑制は追加しない。success / failureは一回だけ取得する未提示結果から通知する。successの位置情報はPhase 1で引き渡された確定Move summaryだけを利用し、candidateや入力値から再計算しない。視覚Noticeの存在やfocus移動をdelivery条件にしない。
 
 各PhaseではJestで純粋な意味変換、状態遷移、一回性、stale防止等を検証し、WordPress / browser固有のKeyboard、focus、iframe、再mount、accessibility treeへの公開はPlaywright E2Eで検証する。最終PhaseではCore Table / Flexible Table Blockとiframe / non-iframeの代表環境を横断する。
 
@@ -108,7 +108,7 @@ focus lifecycleが確定してからAnnouncement Deliveryを接続する。通�
 実装時に影響する既存責務は次のとおりとする。
 
 - RF Input Interpretationは入力成立性と修正対象の正本を維持し、Accessibility Presentation用にvalidationを複製しない。
-- RF InteractionはRF Session、現在評価、未提示Apply結果、および一回性通知適格性の正本を維持する。確定済みsuccess結果はPresentationとAnnouncementが競合して消費しない形で一回性結果として保持する。
+- RF InteractionはRF Session、現在評価、未提示Apply結果の正本を維持する。blocked / no-opは現在評価をそのまま公開し、差分判定・重複抑制・一回性通知状態を所有しない。確定済みsuccess結果はPresentationとAnnouncementが競合して消費しない形で一回性結果として保持する。
 - Row / Column RF ResolutionとTable Integrationはno-op、構造拒否、利用不能、方向固有診断、確定後位置の正本を維持する。
 - RF Apply CoordinationはApply Lifecycle、確認summary、結果、確定後位置を維持し、通常反映 / 確認付き大規模反映の両方で、移動前位置と確定後位置を持つ確定Move summaryをLifecycle完了時のsuccess結果へ引き渡す。success側ではfocus intentのsettleを含む表示復帰後にのみ完了する。
 - WordPress Reorder Integration / WordPress Reorder Apply IntegrationはAccessibility Presentation、Focus Coordination、Announcement Deliveryへの接続を追加するが、RF / Apply意味を別状態として所有しない。
@@ -126,14 +126,14 @@ Plan作成時点でArchitecture変更を必要とする事項は確認されて�
 - Tasks:
   - RF Input Interpretationの現在結果から、入力問題の対象と修正情報をPresentationへ渡せる境界を確認し、不足する最小の構造化情報を追加する。
   - RF Interactionから、現在方向、方向固有入力descriptor、現在評価、実行可否をWordPress接続が一貫して参照できるよう既存React境界を整理する。
-  - blocked / no-op等の現在評価について、同一RF Session内で「新しく成立した意味」だけを一回性通知候補として公開できるようにする。
+  - blocked / no-op等は既存のRF Interactionが公開する現在評価をそのままAnnouncement入力として利用し、差分判定・重複抑制・一回性通知状態を追加しない。
   - 通常反映 / 確認付き大規模反映の両方で、RF Apply Coordinationが確定した移動前位置と確定後位置を持つMove summaryをsuccess結果としてLifecycle完了時に引き渡せるContractへ拡張する。
   - successは確定Move summaryを含む一回性の未提示Apply結果として保持し、RF InteractionからPresentationとAnnouncementへ二重消費なしで安全にfan-outできる公開方法を整理する。
   - failureも一回性の未提示Apply結果として同じfan-out境界から公開するが、確定Move summaryは要求しない。
   - 確認時summaryは`confirming`中だけ利用し、Continue時に破棄する。以降はContinue後の再assessmentで得た確定Move summaryを移動結果の正本とする。Focus / 表示復帰で必要な`destinationIndex`は確定Move summaryから接続境界で表現変換し、Announcementは確定Move summaryを直接利用する。candidate、入力値、cleanup済みLifecycleから位置を再計算しない。
   - Row / Column Table Integrationの既存確定後位置・診断ContractをAccessibility用に再計算しない。
 - Validation:
-  - Jestで入力問題の対象、現在評価、一回性通知適格性、Apply結果の一回性、確定済み最終位置の保持を検証する。
+  - Jestで入力問題の対象と現在評価を検証し、blocked / no-op用の差分判定・重複抑制・一回性通知状態を追加していないことを確認する。
   - Jestで通常反映と確認付き大規模反映の両経路について、Apply Lifecycle cleanup後にRF Interactionへ引き渡される一回性success結果が移動前位置と確定後位置のMove summaryを含むことを検証する。
   - failureが一回性結果として保持・公開される一方、確定Move summaryを要求しないことを検証する。
   - PresentationとAnnouncementの双方が同じ確定済みsuccess / failure意味を利用でき、どちらかの消費によって他方が欠落しないことを検証する。
@@ -205,22 +205,22 @@ Plan作成時点でArchitecture変更を必要とする事項は確認されて�
   - Jestでconfirm → cancel、confirm → apply → restore、通常反映 → restore、failure restoration、pending focus barrierを検証する。
   - Playwrightで通常Tableと大規模Tableのunmount / remount後にfocusが失われず、success確定前に最終focusがsettleすることを確認する。
 
-### Phase 6: Announcement Delivery and source-owned one-time events
+### Phase 6: Announcement Delivery and source-owned result events
 
 - Dependencies: Phase 1。success / failure通知についてはPhase 5完了後に接続する。
-- Outcome: blocked / no-op / success / failureを、視覚Noticeやfocus移動に依存せず、一度だけ支援技術へ公開できる。
+- Outcome: blocked / no-opの現在評価とsuccess / failureの一回性結果を、視覚Noticeやfocus移動に依存せず支援技術へ公開できる。
 - Tasks:
   - Announcement DeliveryをWordPress接続境界へ追加し、deliveryだけを所有させる。
-  - RF Interactionが新しく成立したと判定したblocked / no-op意味だけを通知入力として渡す。
+  - blocked / no-opはRF Interactionが公開する現在評価をそのまま通知入力として利用し、その評価が発生するたびにAnnouncement対象として扱う。
   - success / failureはPhase 1で成立させた未提示Apply結果を利用し、Apply結果をAnnouncement側で再判定しない。
   - success文言の移動前位置 / 移動後位置は、RF Apply CoordinationがLifecycle完了時に引き渡した確定Move summaryだけを利用し、candidate、入力値、確認summary、隣接位置から再計算・推測しない。
   - failureはTable未変更であることを既存結果意味から通知し、確定Move summaryを要求せず、入力修正位置をAnnouncement側で決定しない。
-  - 視覚的な`ReorderCompletionNotice`と意味情報を必要に応じて共有しても、Announcementの一回性をNoticeのmount / unmountへ結び付けない。
-  - Presentation再生成、Wide / Narrow切替、同じ評価の再計算で同一結果を再通知しない。
+  - 視覚的な`ReorderCompletionNotice`と意味情報を必要に応じて共有しても、success / failure Announcementの一回性をNoticeのmount / unmountへ結び付けない。
+  - Presentation再生成やWide / Narrow切替そのものを新しい評価やApply結果として扱わない。
   - 通知を聞かせるためのfocus移動を追加しない。
 - Validation:
-  - Jestでblocked / no-opの意味変化、一回性、同一状態再描画、確定Move summaryを含むsuccessの一回消費、およびsummaryを要求しないfailureの一回消費を検証する。
-  - React / browser testでAnnouncement surface再生成が新しい通知を発行しないことを確認する。
+  - Jestでblocked / no-opの現在評価を追加状態なしで通知入力に利用できること、確定Move summaryを含むsuccessの一回取得、およびsummaryを要求しないfailureの一回取得を検証する。
+  - React / browser testでPresentation再生成自体が新しい評価やApply結果を生成しないことを確認する。
   - Playwrightでfocusを維持したまま結果通知を観測できることを確認する。
 
 ### Phase 7: End-to-end accessibility validation
@@ -320,9 +320,9 @@ Plan自体はdocumentation-only変更のため、アプリケーションbuild�
 - successは確定済み最終位置へのfocus適用、明示されたfallback、対象Table消失、または利用者の別位置への移動でintentがsettleした後だけ確定する。
 - 通常反映 / 確認付き大規模反映の両方で、success結果が移動前位置と確定後位置を持つ確定Move summaryを含み、Lifecycle cleanup後もRF Interactionの一回性結果として利用できる。
 - failureはTable未変更を表す一回性結果として利用でき、確定Move summaryを要求しない。
-- blocked / no-op / success / failureをfocus移動なしで一度だけ通知できる。
+- blocked / no-opは既存の現在評価が発生するたびに通知対象として利用でき、success / failureは同じ確定結果を二重消費せず一回だけ通知できる。
 - success focusは確定Move summaryから接続境界で表現変換した`destinationIndex`を、success announcementは確定Move summaryを利用し、移動先入力、candidate、確認summary、隣接位置から結果を推測・再計算しない。
-- 視覚Noticeの再mountやWide / Narrow切替だけで同じ結果を再通知しない。
+- 視覚Noticeの再mountやWide / Narrow切替だけで同じsuccess / failure結果を再通知しない。
 - Core Table / Flexible Table Block、iframe / non-iframeの代表経路で主要contractを確認できる。
 - Row / Column DnDへKeyboard DnDまたはAccessibility v1固有状態を追加していない。
 - Accessibility専用のTable構造model、Apply結果model、永続Storeを追加していない。
