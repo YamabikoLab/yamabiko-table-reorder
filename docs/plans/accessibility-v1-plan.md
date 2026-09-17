@@ -130,7 +130,7 @@ Plan作成時点でArchitecture変更を必要とする事項は確認されて�
   - 通常反映 / 確認付き大規模反映の両方で、RF Apply Coordinationが確定した移動前位置と確定後位置を持つMove summaryをsuccess結果としてLifecycle完了時に引き渡せるContractへ拡張する。
   - successは確定Move summaryを含む一回性の未提示Apply結果として保持し、RF InteractionからPresentationとAnnouncementへ二重消費なしで安全にfan-outできる公開方法を整理する。
   - failureも一回性の未提示Apply結果として同じfan-out境界から公開するが、確定Move summaryは要求しない。
-  - focus用の確定済み`destinationIndex`、確認表示用summary、success結果用の確定Move summaryをそれぞれの用途で利用し、Announcement側でcandidate、入力値、cleanup済みLifecycleから位置を再計算しない。
+  - 確認時summaryは`confirming`中だけ利用し、Continue時に破棄する。以降はContinue後の再assessmentで得た確定Move summaryを移動結果の正本とする。Focus / 表示復帰で必要な`destinationIndex`は確定Move summaryから接続境界で表現変換し、Announcementは確定Move summaryを直接利用する。candidate、入力値、cleanup済みLifecycleから位置を再計算しない。
   - Row / Column Table Integrationの既存確定後位置・診断ContractをAccessibility用に再計算しない。
 - Validation:
   - Jestで入力問題の対象、現在評価、一回性通知適格性、Apply結果の一回性、確定済み最終位置の保持を検証する。
@@ -195,7 +195,7 @@ Plan作成時点でArchitecture変更を必要とする事項は確認されて�
   - 確認開始時にDesignで定義した主要操作へfocusする。
   - 確認Cancel後は入力を保持したRFの並び替え操作へfocusを戻す。
   - Continue後は対象Tableの反映中状態を示す安定targetへfocusを移す。短時間反映では最終targetへ直接移れるLifecycleを許容する。
-  - Table表示再生成後、RF Apply Coordinationが保持する確定済み最終位置に対応する結果確認targetへfocusする。
+  - Table表示再生成後、確定Move summaryからWordPress接続境界で表現変換した`destinationIndex`に対応する結果確認targetへfocusする。
   - 最終位置を安全に適用できない場合はArchitectureで認めた対象Tableの安定位置だけへfallbackし、隣接位置から結果を推測しない。
   - targetが再生成中に一時的に存在しない場合はPhase 3のpending intentを利用する。
   - WordPress Reorder Apply IntegrationからRF Apply Coordinationへ返す表示復帰完了を、success側focus intentのsettle後に限定する。
@@ -321,7 +321,7 @@ Plan自体はdocumentation-only変更のため、アプリケーションbuild�
 - 通常反映 / 確認付き大規模反映の両方で、success結果が移動前位置と確定後位置を持つ確定Move summaryを含み、Lifecycle cleanup後もRF Interactionの一回性結果として利用できる。
 - failureはTable未変更を表す一回性結果として利用でき、確定Move summaryを要求しない。
 - blocked / no-op / success / failureをfocus移動なしで一度だけ通知できる。
-- success focusとsuccess announcementが確定済み最終位置 / 確定Move summaryだけを利用し、移動先入力、candidate、確認summary、隣接位置から結果を推測・再計算しない。
+- success focusは確定Move summaryから接続境界で表現変換した`destinationIndex`を、success announcementは確定Move summaryを利用し、移動先入力、candidate、確認summary、隣接位置から結果を推測・再計算しない。
 - 視覚Noticeの再mountやWide / Narrow切替だけで同じ結果を再通知しない。
 - Core Table / Flexible Table Block、iframe / non-iframeの代表経路で主要contractを確認できる。
 - Row / Column DnDへKeyboard DnDまたはAccessibility v1固有状態を追加していない。
