@@ -1,64 +1,57 @@
 /**
- * Chat Reorderの1回分のAI request組み立てとtransport境界を所有する。
+ * Chat ReorderからWordPress 7.0のserver-side Abilityを1回実行する境界を所有する。
  *
- * AI provider固有の認証やAPI key管理は所有せず、外部から注入されたtransportへ最小promptを1回だけ渡す。
+ * AI provider固有の通信や認証は所有せず、自然言語入力とcompact Table contextだけを正規化Abilityへ渡す。
  */
 
-import { applyFilters } from '@wordpress/hooks';
+import { executeAbility } from '@wordpress/abilities';
+import { ready as coreAbilitiesReady } from '@wordpress/core-abilities';
 
 import { serializeChatReorderContext, type ChatReorderContext } from './context';
 
-/** Chat ReorderがAI transportへ渡す1回分のrequest。 */
-export type ChatAiRequest = {
-	system: string;
-	input: string;
-	context: string;
-	maxOutputTokens: number;
+const NORMALIZE_REORDER_COMMAND_ABILITY = 'yamabiko-table-reorder/normalize-reorder-command';
+
+/** server-side Abilityが返す正規化結果。 */
+type NormalizeReorderCommandResult = {
+	command: string;
 };
 
-/** Chat Reorderが利用するprovider非依存AI transport。 */
-export type ChatAiTransport = ( request: ChatAiRequest ) => Promise< string >;
+/**
+ * Ability実行結果から未信頼のRF Command Textを取得する。
+ *
+ * @param result server-side Abilityの実行結果。
+ * @return AIが返した未信頼のRF Command Text。
+ * @throws Ability出力が契約に一致しない場合。
+ */
+const getCommandText = ( result: unknown ): string => {
+	if (
+		typeof result !== 'object' ||
+		result === null ||
+		!( 'command' in result ) ||
+		typeof ( result as NormalizeReorderCommandResult ).command !== 'string'
+	) {
+		throw new Error( 'Invalid normalize reorder command ability output.' );
+	}
 
-const SYSTEM_INSTRUCTION =
-	'Return exactly one line: row <n> <before|after> <n>, column <#n|"label"> <before|after> <#n|"label">, or ask "<short clarification>". Decide row/column, preserve column labels, use 1-based numbers, and return no explanation.';
+	return ( result as NormalizeReorderCommandResult ).command;
+};
 
 /**
- * 利用者入力と現在Table contextから1回分の最小AI requestを組み立てる。
+ * 分類とRF Command生成を分割せず、WordPressのserver-side Abilityを1回だけ実行する。
  *
  * @param input   今回の利用者入力。
  * @param context 現在Tableの最小context。
- * @return provider固有情報を含まないAI request。
- */
-export const buildChatAiRequest = (
-	input: string,
-	context: ChatReorderContext
-): ChatAiRequest => ( {
-	system: SYSTEM_INSTRUCTION,
-	input,
-	context: serializeChatReorderContext( context ),
-	maxOutputTokens: 48,
-} );
-
-/**
- * WordPress拡張境界から現在利用可能なAI transportを取得する。
- *
- * PoCではprovider/API key管理を製品コードへ埋め込まず、`yamabikoTableReorder.chatAiTransport` filterからtransportを注入する。
- *
- * @return 利用可能なtransport。未接続の場合はnull。
- */
-export const getChatAiTransport = (): ChatAiTransport | null =>
-	applyFilters( 'yamabikoTableReorder.chatAiTransport', null ) as ChatAiTransport | null;
-
-/**
- * 分類とRF Command生成を分割せず、AIを1回だけ呼び出す。
- *
- * @param input     今回の利用者入力。
- * @param context   現在Tableの最小context。
- * @param transport AI providerへ接続するtransport。
- * @return AIが返した未信頼の1行Command Text。
+ * @return AIが返した未信頼の1行RF Command Text。
  */
 export const requestChatReorderCommand = async (
 	input: string,
-	context: ChatReorderContext,
-	transport: ChatAiTransport
-): Promise< string > => transport( buildChatAiRequest( input, context ) );
+	context: ChatReorderContext
+): Promise< string > => {
+	await coreAbilitiesReady;
+	const result = await executeAbility( NORMALIZE_REORDER_COMMAND_ABILITY, {
+		input,
+		context: serializeChatReorderContext( context ),
+	} );
+
+	return getCommandText( result );
+};
