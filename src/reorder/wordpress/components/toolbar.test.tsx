@@ -5,17 +5,24 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import type { ReactNode } from 'react';
 
+import type { ReorderChatEntry } from './reorder-chat';
 import { ReorderModeToolbar } from './toolbar';
 
 let mockSelectedKind: 'row' | 'column' | null = null;
 let mockRfState: any = { status: 'closed' };
 let mockColumnDndLayoutAvailability: 'available' | 'unavailable' = 'available';
 let mockGuidance: { environment: 'pc' | 'touch' } | null = null;
+let mockChatActive = false;
 const mockSelectMode = jest.fn();
 const mockOpenRf = jest.fn();
 const mockCloseRf = jest.fn();
 const mockBeginRfPositionSession = jest.fn();
+const mockBeginRfCollapseSession = jest.fn();
 const mockBeginRfHeightSession = jest.fn();
+const mockChatOpen = jest.fn();
+const mockChatClose = jest.fn();
+const mockChatToggle = jest.fn();
+const mockSetChatAnchor = jest.fn();
 
 jest.mock( '@wordpress/block-editor', () => ( {
 	BlockControls: ( props: { children: ReactNode } ) => <div>{ props.children }</div>,
@@ -94,10 +101,6 @@ jest.mock( '@/messages', () => ( {
 	getRowReorderName: () => 'Reorder rows',
 } ) );
 
-jest.mock( '@/reorder/wordpress/components/reorder-chat', () => ( {
-	ReorderChatPopover: () => null,
-} ) );
-
 jest.mock( '@/reorder/wordpress/column-dnd-layout-availability-state', () => ( {
 	useColumnDndLayoutAvailabilitySnapshot: () => mockColumnDndLayoutAvailability,
 } ) );
@@ -125,7 +128,9 @@ jest.mock( '@/reorder/wordpress/components/reorder-form', () => ( {
 } ) );
 
 jest.mock( '@/reorder/wordpress/components/reorder-form-collapse', () => ( {
-	reorderFormCollapse: { beginSession: jest.fn() },
+	reorderFormCollapse: {
+		beginSession: ( tableIdentity: string ) => mockBeginRfCollapseSession( tableIdentity ),
+	},
 } ) );
 
 jest.mock( '@/reorder/wordpress/components/reorder-form-height', () => ( {
@@ -152,12 +157,24 @@ jest.mock( '@/reorder/wordpress/hooks/use-reorder-guidance', () => ( {
 	} ),
 } ) );
 
+const createChatEntry = (): ReorderChatEntry => ( {
+	active: mockChatActive,
+	setAnchor: mockSetChatAnchor,
+	open: mockChatOpen,
+	close: mockChatClose,
+	toggle: mockChatToggle,
+} );
+
+const renderToolbar = () =>
+	render( <ReorderModeToolbar chat={ createChatEntry() } tableIdentity="table-a" /> );
+
 describe( 'Reorder toolbar exclusivity', () => {
 	beforeEach( () => {
 		mockSelectedKind = null;
 		mockRfState = { status: 'closed' };
 		mockColumnDndLayoutAvailability = 'available';
 		mockGuidance = null;
+		mockChatActive = false;
 		jest.clearAllMocks();
 	} );
 
@@ -174,7 +191,7 @@ describe( 'Reorder toolbar exclusivity', () => {
 	 * - Row、Column、RF、Chatの順で入口が表示される。
 	 */
 	it( 'when the table toolbar is rendered, should show the four reorder entries', () => {
-		render( <ReorderModeToolbar tableIdentity="table-a" /> );
+		renderToolbar();
 
 		const buttons = screen.getAllByRole( 'button' );
 		expect( buttons.map( ( button ) => button.getAttribute( 'aria-label' ) ) ).toEqual( [
@@ -200,7 +217,7 @@ describe( 'Reorder toolbar exclusivity', () => {
 	 */
 	it( 'when guidance is visible, should highlight only the reorder entry group until guidance ends', () => {
 		mockGuidance = { environment: 'pc' };
-		const { rerender } = render( <ReorderModeToolbar tableIdentity="table-a" /> );
+		const { rerender } = renderToolbar();
 
 		const group = screen.getByRole( 'group' );
 		expect( group.classList.contains( 'yamabiko-table-reorder-guidance-target' ) ).toBe( true );
@@ -211,7 +228,7 @@ describe( 'Reorder toolbar exclusivity', () => {
 		).toBe( false );
 
 		mockGuidance = null;
-		rerender( <ReorderModeToolbar tableIdentity="table-a" /> );
+		rerender( <ReorderModeToolbar chat={ createChatEntry() } tableIdentity="table-a" /> );
 		expect( screen.getByRole( 'group' ).className ).toBe( '' );
 	} );
 
@@ -225,17 +242,30 @@ describe( 'Reorder toolbar exclusivity', () => {
 	 * - RF入口を選択する。
 	 *
 	 * 期待結果:
-	 * - Rowモードの再選択によるedit遷移がRF openより先に要求される。
+	 * - Rowモードの再選択、RF Presentation初期化、RF openの順で要求される。
 	 */
-	it( 'when RF starts from a DnD mode, should return to edit mode before opening RF', () => {
+	it( 'when RF starts from a DnD mode, should return to edit mode and reset presentation before opening RF', () => {
 		mockSelectedKind = 'row';
-		render( <ReorderModeToolbar tableIdentity="table-a" /> );
+		renderToolbar();
 		fireEvent.click( screen.getByRole( 'button', { name: 'Reorder with form' } ) );
 
 		expect( mockSelectMode ).toHaveBeenCalledWith( 'row' );
 		expect( mockBeginRfPositionSession ).toHaveBeenCalledWith( 'table-a' );
+		expect( mockBeginRfCollapseSession ).toHaveBeenCalledWith( 'table-a' );
 		expect( mockBeginRfHeightSession ).toHaveBeenCalledWith( 'table-a' );
 		expect( mockOpenRf ).toHaveBeenCalledWith( 'table-a' );
+		expect( mockSelectMode.mock.invocationCallOrder[ 0 ] ).toBeLessThan(
+			mockBeginRfPositionSession.mock.invocationCallOrder[ 0 ]
+		);
+		expect( mockBeginRfPositionSession.mock.invocationCallOrder[ 0 ] ).toBeLessThan(
+			mockBeginRfCollapseSession.mock.invocationCallOrder[ 0 ]
+		);
+		expect( mockBeginRfCollapseSession.mock.invocationCallOrder[ 0 ] ).toBeLessThan(
+			mockBeginRfHeightSession.mock.invocationCallOrder[ 0 ]
+		);
+		expect( mockBeginRfHeightSession.mock.invocationCallOrder[ 0 ] ).toBeLessThan(
+			mockOpenRf.mock.invocationCallOrder[ 0 ]
+		);
 	} );
 
 	/**
@@ -248,9 +278,9 @@ describe( 'Reorder toolbar exclusivity', () => {
 	 * - Column入口を選択する。
 	 *
 	 * 期待結果:
-	 * - RF closeがColumnモード選択より先に要求される。
+	 * - Chatを閉じ、RF closeがColumnモード選択より先に要求される。
 	 */
-	it( 'when a DnD entry is selected from RF, should close RF before selecting the DnD mode', () => {
+	it( 'when a DnD entry is selected from RF, should close other reorder inputs before selecting the DnD mode', () => {
 		mockRfState = {
 			status: 'open',
 			kind: 'row',
@@ -259,9 +289,10 @@ describe( 'Reorder toolbar exclusivity', () => {
 			result: { status: 'not-ready' },
 			canApply: false,
 		};
-		render( <ReorderModeToolbar tableIdentity="table-a" /> );
+		renderToolbar();
 		fireEvent.click( screen.getByRole( 'button', { name: 'Reorder columns' } ) );
 
+		expect( mockChatClose ).toHaveBeenCalled();
 		expect( mockCloseRf ).toHaveBeenCalledWith( 'table-a' );
 		expect( mockSelectMode ).toHaveBeenCalledWith( 'column' );
 		expect( mockCloseRf.mock.invocationCallOrder[ 0 ] ).toBeLessThan(
@@ -279,10 +310,9 @@ describe( 'Reorder toolbar exclusivity', () => {
 	 * - Chat入口を選択する。
 	 *
 	 * 期待結果:
-	 * - RF Sessionが閉じられる。
-	 * - Chat入口が選択状態になる。
+	 * - RF Sessionが閉じられ、Chat lifecycleへopenが要求される。
 	 */
-	it( 'when chat starts from RF, should close RF and select the chat entry', () => {
+	it( 'when chat starts from RF, should close RF before opening chat', () => {
 		mockRfState = {
 			status: 'open',
 			kind: 'row',
@@ -291,12 +321,14 @@ describe( 'Reorder toolbar exclusivity', () => {
 			result: { status: 'not-ready' },
 			canApply: false,
 		};
-		render( <ReorderModeToolbar tableIdentity="table-a" /> );
-		const chatButton = screen.getByRole( 'button', { name: 'Reorder with chat' } );
-		fireEvent.click( chatButton );
+		renderToolbar();
+		fireEvent.click( screen.getByRole( 'button', { name: 'Reorder with chat' } ) );
 
 		expect( mockCloseRf ).toHaveBeenCalledWith( 'table-a' );
-		expect( chatButton.getAttribute( 'aria-pressed' ) ).toBe( 'true' );
+		expect( mockChatOpen ).toHaveBeenCalled();
+		expect( mockCloseRf.mock.invocationCallOrder[ 0 ] ).toBeLessThan(
+			mockChatOpen.mock.invocationCallOrder[ 0 ]
+		);
 	} );
 
 	/**
@@ -313,7 +345,7 @@ describe( 'Reorder toolbar exclusivity', () => {
 	 */
 	it( 'when RF is applying, should disable every reorder entry', () => {
 		mockRfState = { status: 'applying', kind: 'row' };
-		render( <ReorderModeToolbar tableIdentity="table-a" /> );
+		renderToolbar();
 
 		for ( const name of [ 'Reorder rows', 'Reorder columns', 'Reorder with form', 'Reorder with chat' ] ) {
 			expect( ( screen.getByRole( 'button', { name } ) as HTMLButtonElement ).disabled ).toBe( true );
@@ -336,7 +368,7 @@ describe( 'Reorder toolbar exclusivity', () => {
 	 */
 	it( 'when column DnD layout is unavailable, should expose the reason without selecting column mode', () => {
 		mockColumnDndLayoutAvailability = 'unavailable';
-		render( <ReorderModeToolbar tableIdentity="table-a" /> );
+		renderToolbar();
 
 		const columnButton = screen.getByRole( 'button', {
 			name: 'Reorder columns',
