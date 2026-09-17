@@ -106,8 +106,9 @@ final class Plugin {
 				'permission_callback' => static fn (): bool => current_user_can( 'edit_posts' ),
 				'meta'                => array(
 					'annotations' => array(
-						'readOnlyHint'    => true,
-						'destructiveHint' => false,
+						'readonly'    => true,
+						'destructive' => false,
+						'idempotent'  => true,
 					),
 				),
 			)
@@ -145,9 +146,11 @@ final class Plugin {
 				'permission_callback' => static fn (): bool => current_user_can( 'edit_posts' ),
 				'meta'                => array(
 					'annotations' => array(
-						'readOnlyHint'    => true,
-						'destructiveHint' => false,
+						'readonly'    => false,
+						'destructive' => false,
+						'idempotent'  => false,
 					),
+					'show_in_rest' => true,
 				),
 			)
 		);
@@ -164,10 +167,10 @@ final class Plugin {
 	 */
 	public static function normalize_reorder_command( array $input ): array|\WP_Error {
 		$request_text = isset( $input['input'] ) && is_string( $input['input'] )
-			? sanitize_textarea_field( $input['input'] )
+			? trim( $input['input'] )
 			: '';
 		$context      = isset( $input['context'] ) && is_string( $input['context'] )
-			? sanitize_textarea_field( $input['context'] )
+			? trim( $input['context'] )
 			: '';
 
 		$prompt = "Request:\n{$request_text}\nTable context:\n{$context}";
