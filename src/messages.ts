@@ -182,7 +182,7 @@ export const getRowMergedRangeMessage = (
 		return sprintf( message, rowStart, rowEnd, columnStart );
 	}
 
-	/* translators: 1: 1-based row number, 2: first 1-based column number, 3: last 1-based column number */
+	/* translators: 1: first 1-based row number, 2: last 1-based row number, 3: first 1-based column number, 4: last 1-based column number */
 	const message = __(
 		'A merged cell spanning rows %1$d–%2$d and columns %3$d–%4$d prevents this move.',
 		'yamabiko-table-reorder'
