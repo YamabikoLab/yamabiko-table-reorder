@@ -430,11 +430,17 @@ describe( 'RF Interaction', () => {
 	 * - successではclosedになり、failure / cancelledではRow入力を保持したopenへ戻る。
 	 */
 	it.each( [
-		[ 'success', { status: 'closed' } ],
-		[ 'failure', { status: 'open', rowInput: ROW_INPUT } ],
-		[ 'cancelled', { status: 'open', rowInput: ROW_INPUT } ],
+		[
+			{
+				status: 'success',
+				moveSummary: { kind: 'row', sourcePosition: 1, destinationPosition: 3 },
+			} as const,
+			{ status: 'closed' },
+		],
+		[ { status: 'failure' } as const, { status: 'open', rowInput: ROW_INPUT } ],
+		[ { status: 'cancelled' } as const, { status: 'open', rowInput: ROW_INPUT } ],
 	] as const )(
-		'when apply resolves as %s, should transition to the expected session state',
+		'when apply resolves, should transition to the expected session state',
 		( result, expectedSession ) => {
 			let resolveApply: ( result: RfApplyResult ) => void = () => undefined;
 			mockedReceiveRfApplyRequest.mockImplementation( ( _request, resolve ) => {
