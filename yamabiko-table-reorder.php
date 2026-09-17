@@ -26,6 +26,8 @@ if ( ! defined( 'ABSPATH' ) ) {
  */
 final class Plugin {
 
+	private const MCP_CONTRACT_ABILITY = 'yamabiko-table-reorder/get-reorder-contract';
+
 	/**
 	 * Registers plugin hooks.
 	 */
@@ -37,6 +39,104 @@ final class Plugin {
 		add_action(
 			'enqueue_block_assets',
 			array( self::class, 'enqueue_editor_content_styles' )
+		);
+		add_action(
+			'wp_abilities_api_categories_init',
+			array( self::class, 'register_ability_category' )
+		);
+		add_action(
+			'wp_abilities_api_init',
+			array( self::class, 'register_reorder_contract_ability' )
+		);
+		add_action(
+			'mcp_adapter_init',
+			array( self::class, 'register_mcp_server' )
+		);
+	}
+
+	/**
+	 * Registers the YTR Abilities API category when that API is available.
+	 */
+	public static function register_ability_category(): void {
+		if ( ! function_exists( 'wp_register_ability_category' ) ) {
+			return;
+		}
+
+		wp_register_ability_category(
+			'yamabiko-table-reorder',
+			array(
+				'label'       => __( 'Yamabiko Table Reorder', 'yamabiko-table-reorder' ),
+				'description' => __( 'Read-only contracts for Yamabiko Table Reorder integrations.', 'yamabiko-table-reorder' ),
+			)
+		);
+	}
+
+	/**
+	 * Registers the read-only RF command contract used by the focused MCP server.
+	 */
+	public static function register_reorder_contract_ability(): void {
+		if ( ! function_exists( 'wp_register_ability' ) ) {
+			return;
+		}
+
+		wp_register_ability(
+			self::MCP_CONTRACT_ABILITY,
+			array(
+				'label'               => __( 'Get reorder contract', 'yamabiko-table-reorder' ),
+				'description'         => __( 'Returns the compact command contract accepted by the Yamabiko Table Reorder chat proof of concept.', 'yamabiko-table-reorder' ),
+				'category'            => 'yamabiko-table-reorder',
+				'input_schema'        => array(
+					'type'                 => 'object',
+					'properties'           => array(),
+					'additionalProperties' => false,
+				),
+				'output_schema'       => array(
+					'type'                 => 'object',
+					'properties'           => array(
+						'contract' => array( 'type' => 'string' ),
+					),
+					'required'             => array( 'contract' ),
+					'additionalProperties' => false,
+				),
+				'execute_callback'    => static fn (): array => array(
+					'contract' => 'v=1;row=number;column=number|label;position=before|after',
+				),
+				'permission_callback' => static fn (): bool => current_user_can( 'edit_posts' ),
+				'meta'                => array(
+					'annotations' => array(
+						'readOnlyHint'    => true,
+						'destructiveHint' => false,
+					),
+				),
+			)
+		);
+	}
+
+	/**
+	 * Registers a focused MCP server that exposes only the read-only YTR contract ability.
+	 *
+	 * @param object $adapter MCP Adapter instance supplied by the official adapter plugin.
+	 */
+	public static function register_mcp_server( object $adapter ): void {
+		$http_transport = '\\WP\\MCP\\Transport\\HttpTransport';
+		$error_handler   = '\\WP\\MCP\\Infrastructure\\ErrorHandling\\ErrorLogMcpErrorHandler';
+		if ( ! method_exists( $adapter, 'create_server' ) || ! class_exists( $http_transport ) || ! class_exists( $error_handler ) ) {
+			return;
+		}
+
+		$adapter->create_server(
+			'yamabiko-table-reorder',
+			'yamabiko-table-reorder',
+			'mcp',
+			'Yamabiko Table Reorder',
+			'Read-only Yamabiko Table Reorder integration contract',
+			'1.0.0',
+			array( $http_transport ),
+			$error_handler,
+			null,
+			array( self::MCP_CONTRACT_ABILITY ),
+			array(),
+			array()
 		);
 	}
 
