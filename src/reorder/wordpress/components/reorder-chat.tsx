@@ -10,7 +10,6 @@ import { useState } from '@wordpress/element';
 import type { FormEvent, ReactNode } from 'react';
 
 import {
-	getChatAiUnavailableMessage,
 	getChatInvalidOutputMessage,
 	getChatPromptLabel,
 	getChatSendLabel,
@@ -103,7 +102,7 @@ export const ReorderChat = ( props: ReorderChatProps ) => {
 			setInput( '' );
 			close();
 		} catch {
-			setMessage( getChatAiUnavailableMessage() );
+			setMessage( getChatInvalidOutputMessage() );
 		} finally {
 			setSubmitting( false );
 		}
