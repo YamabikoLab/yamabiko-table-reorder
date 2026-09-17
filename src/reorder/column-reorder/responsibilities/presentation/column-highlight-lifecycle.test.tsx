@@ -1,5 +1,5 @@
 /**
- * Column HighlightがTable解析を入力時まで遅延し、各対象を現在Tableから直接解決しながらDnD LifecycleをReact再描画から分離することを確認する。
+ * Column HighlightがTable解析を入力時まで遅延し、各対象を現在Tableから直接解決しながらHighlight LifecycleをReact再描画から分離することを確認する。
  */
 
 import { act, fireEvent, render } from '@testing-library/react';
@@ -48,8 +48,10 @@ const resolveColumnReorderTargetMock = resolveColumnReorderTarget as jest.Mocked
 
 /**
  * Column HighlightのLifecycleだけを確認するTableを描画する。
- * @param props
- * @param props.childrenRender
+ *
+ * @param props                描画条件。
+ * @param props.childrenRender children描画回数を観測する処理。
+ * @return Column Highlightへ接続されたTable。
  */
 const TestTable = ( props: { childrenRender?: () => void } ) => (
 	<ColumnHighlight tableIdentity="table-a">
@@ -124,7 +126,7 @@ describe( 'Column highlight resolution lifecycle', () => {
 	} );
 
 	/**
-	 * hover対象が変わるたびに要求時点のTableから直接解決することを確認する。
+	 * pointer対象が変わるたびに要求時点のTableから直接解決することを確認する。
 	 *
 	 * 事前条件:
 	 * - Column Reorder Modeが有効で、Column DnDはidleである。
@@ -150,6 +152,33 @@ describe( 'Column highlight resolution lifecycle', () => {
 			tableIdentity: 'table-a',
 			sourceColumnIndex: 1,
 		} );
+	} );
+
+	/**
+	 * scroll終了後の次のpointer入力では現在Tableからfreshに再解決することを確認する。
+	 *
+	 * 事前条件:
+	 * - 1列目にHighlightが成立している。
+	 *
+	 * 操作:
+	 * - Editor Documentでscrollを発生させた後、同じセルへ再びpointer入力する。
+	 *
+	 * 期待結果:
+	 * - scroll時点で既存Highlight Lifecycleは終了する。
+	 * - 次のpointer入力ではTarget Resolutionを再実行する。
+	 */
+	it( 'when scrolling ends a highlight lifecycle, should resolve the next pointer request fresh', () => {
+		activateColumnMode();
+		const { getByTestId } = render( <TestTable /> );
+		const currentCell = getByTestId( 'column-0' );
+
+		fireEvent.pointerOver( currentCell );
+		expect( resolveColumnReorderTargetMock ).toHaveBeenCalledTimes( 1 );
+
+		document.dispatchEvent( new Event( 'scroll' ) );
+		fireEvent.pointerOver( currentCell );
+
+		expect( resolveColumnReorderTargetMock ).toHaveBeenCalledTimes( 2 );
 	} );
 
 	/**
@@ -182,6 +211,31 @@ describe( 'Column highlight resolution lifecycle', () => {
 		mockColumnDndStateListener?.();
 		fireEvent.pointerOver( getByTestId( 'column-1' ) );
 		expect( resolveColumnReorderTargetMock ).toHaveBeenCalledTimes( 2 );
+	} );
+
+	/**
+	 * Highlight表示開始・対象切替・scroll cleanupがTable subtreeのReact再描画を発生させないことを確認する。
+	 *
+	 * 事前条件:
+	 * - Column Highlightが一時PresentationをReact stateで所有していない。
+	 *
+	 * 操作:
+	 * - 1列目、2列目へ順にpointer入力し、scrollでHighlightを終了する。
+	 *
+	 * 期待結果:
+	 * - children描画処理の実行回数は増えない。
+	 */
+	it( 'when highlight presentation changes, should not rerender the table subtree', () => {
+		activateColumnMode();
+		const childrenRender = jest.fn();
+		const { getByTestId } = render( <TestTable childrenRender={ childrenRender } /> );
+		const initialRenderCount = childrenRender.mock.calls.length;
+
+		fireEvent.pointerOver( getByTestId( 'column-0' ) );
+		fireEvent.pointerOver( getByTestId( 'column-1' ) );
+		document.dispatchEvent( new Event( 'scroll' ) );
+
+		expect( childrenRender.mock.calls.length ).toBe( initialRenderCount );
 	} );
 
 	/**
