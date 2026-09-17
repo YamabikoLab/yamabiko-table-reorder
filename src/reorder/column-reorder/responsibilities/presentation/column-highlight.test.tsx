@@ -160,14 +160,16 @@ describe( 'Column highlight', () => {
 
 		const highlight = document.querySelector( '.yamabiko-table-reorder-column-highlight' );
 		expect( currentCell.className ).toBe( '' );
-		expect( highlight ).toHaveClass( 'yamabiko-table-reorder-column-highlight-resolved' );
-		expect( highlight ).toHaveStyle( {
-			top: '20px',
-			left: '40px',
-			width: '120px',
-			height: '48px',
-		} );
-		expect( document.body ).toHaveClass( 'yamabiko-table-reorder-column-highlight-cursor-grab' );
+		expect(
+			highlight?.classList.contains( 'yamabiko-table-reorder-column-highlight-resolved' )
+		).toBe( true );
+		expect( ( highlight as HTMLElement | null )?.style.top ).toBe( '20px' );
+		expect( ( highlight as HTMLElement | null )?.style.left ).toBe( '40px' );
+		expect( ( highlight as HTMLElement | null )?.style.width ).toBe( '120px' );
+		expect( ( highlight as HTMLElement | null )?.style.height ).toBe( '48px' );
+		expect(
+			document.body.classList.contains( 'yamabiko-table-reorder-column-highlight-cursor-grab' )
+		).toBe( true );
 	} );
 
 	/**
@@ -195,8 +197,12 @@ describe( 'Column highlight', () => {
 
 		const highlight = document.querySelector( '.yamabiko-table-reorder-column-highlight' );
 		expect( currentCell.className ).toBe( '' );
-		expect( highlight ).toHaveClass( 'yamabiko-table-reorder-column-highlight-rejected' );
-		expect( document.body ).toHaveClass( 'yamabiko-table-reorder-column-highlight-cursor-default' );
+		expect(
+			highlight?.classList.contains( 'yamabiko-table-reorder-column-highlight-rejected' )
+		).toBe( true );
+		expect(
+			document.body.classList.contains( 'yamabiko-table-reorder-column-highlight-cursor-default' )
+		).toBe( true );
 	} );
 
 	/**
