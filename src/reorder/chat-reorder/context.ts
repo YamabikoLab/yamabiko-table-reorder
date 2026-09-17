@@ -1,11 +1,8 @@
 /**
- * Chat ReorderがAIへ渡す現在Tableの最小contextを所有する。
+ * Chat ReorderがAIへ渡す最小contextの表現とserializationを所有する。
  *
- * Table全体やCell本文は公開せず、Row番号解釈に必要な行数とColumn番号・label解釈に必要な列記述だけを要求時点で取得する。
+ * Table IntegrationやEditor live stateへ依存せず、AI requestが扱う最小データContractだけを提供する。
  */
-
-import { columnTableIntegration } from '@/reorder/column-reorder/responsibilities/table-integration';
-import { rowTableIntegration } from '@/reorder/row-reorder/responsibilities/table-integration';
 
 /** AIへ渡すChat Reorderの最小Table context。 */
 export type ChatReorderContext = {
@@ -14,27 +11,6 @@ export type ChatReorderContext = {
 		columnNumber: number;
 		label: string | null;
 	}[];
-};
-
-/**
- * 対象Tableの現在状態からAI入力に必要な最小contextだけを取得する。
- *
- * @param tableIdentity contextを取得するTable Identity。
- * @return 行数とcompactな列記述。取得不能な方向は推測せず空値で表す。
- */
-export const getChatReorderContext = ( tableIdentity: string ): ChatReorderContext => {
-	const rowConstraints = rowTableIntegration.getConstraints( tableIdentity );
-	const columnDescriptors = columnTableIntegration.getColumnInputDescriptors( tableIdentity );
-	const columns =
-		columnDescriptors?.map( ( descriptor ) => ( {
-			columnNumber: descriptor.columnNumber,
-			label: descriptor.heading,
-		} ) ) ?? [];
-
-	return {
-		rowCount: rowConstraints?.rowCount ?? null,
-		columns,
-	};
 };
 
 /**
