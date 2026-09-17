@@ -16,10 +16,7 @@ import {
 	getChatTransportUnavailableMessage,
 	getChatUnresolvedColumnMessage,
 } from '@/messages';
-import {
-	getChatAiTransport,
-	requestChatReorderCommand,
-} from '@/reorder/chat-reorder/ai-request';
+import { getChatAiTransport, requestChatReorderCommand } from '@/reorder/chat-reorder/ai-request';
 import { parseChatReorderCommand } from '@/reorder/chat-reorder/command';
 import { getChatReorderContext } from '@/reorder/chat-reorder/context';
 import { submitChatCommandToRf } from '@/reorder/chat-reorder/rf-input-adapter';
@@ -68,7 +65,10 @@ export const ReorderChat = ( props: ReorderChatProps ) => {
 		open();
 	};
 
-	/** 今回入力だけをAIへ送り、strict parse済みCommandだけをRFへ接続する。 */
+	/**
+	 * 今回入力だけをAIへ送り、strict parse済みCommandだけをRFへ接続する。
+	 * @param event
+	 */
 	const submit = async ( event: FormEvent< HTMLFormElement > ): Promise< void > => {
 		event.preventDefault();
 		const currentInput = input.trim();
@@ -130,11 +130,7 @@ export const ReorderChat = ( props: ReorderChatProps ) => {
 							value={ input }
 						/>
 						{ message !== null && <p role="status">{ message }</p> }
-						<Button
-							disabled={ submitting || input.trim() === '' }
-							type="submit"
-							variant="primary"
-						>
+						<Button disabled={ submitting || input.trim() === '' } type="submit" variant="primary">
 							{ getChatSendLabel() }
 						</Button>
 					</form>

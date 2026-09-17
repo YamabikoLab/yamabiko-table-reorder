@@ -347,8 +347,15 @@ describe( 'Reorder toolbar exclusivity', () => {
 		mockRfState = { status: 'applying', kind: 'row' };
 		renderToolbar();
 
-		for ( const name of [ 'Reorder rows', 'Reorder columns', 'Reorder with form', 'Reorder with chat' ] ) {
-			expect( ( screen.getByRole( 'button', { name } ) as HTMLButtonElement ).disabled ).toBe( true );
+		for ( const name of [
+			'Reorder rows',
+			'Reorder columns',
+			'Reorder with form',
+			'Reorder with chat',
+		] ) {
+			expect( ( screen.getByRole( 'button', { name } ) as HTMLButtonElement ).disabled ).toBe(
+				true
+			);
 		}
 	} );
 

@@ -29,7 +29,10 @@ const SYSTEM_INSTRUCTION =
  * @param context 現在Tableの最小context。
  * @return provider固有情報を含まないAI request。
  */
-export const buildChatAiRequest = ( input: string, context: ChatReorderContext ): ChatAiRequest => ( {
+export const buildChatAiRequest = (
+	input: string,
+	context: ChatReorderContext
+): ChatAiRequest => ( {
 	system: SYSTEM_INSTRUCTION,
 	input,
 	context: serializeChatReorderContext( context ),

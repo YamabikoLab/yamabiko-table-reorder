@@ -52,7 +52,10 @@ export const getChatInvalidOutputMessage = () =>
 
 /** Chat Reorderで列指定を現在Tableへ一意に照合できないことを知らせる文言を取得する。 */
 export const getChatUnresolvedColumnMessage = () =>
-	__( 'The specified column could not be identified uniquely in the current table.', 'yamabiko-table-reorder' );
+	__(
+		'The specified column could not be identified uniquely in the current table.',
+		'yamabiko-table-reorder'
+	);
 
 /** RFで並び替える対象を選ぶ入力の表示名を取得する。 */
 export const getRfKindLegend = () => __( 'Reorder', 'yamabiko-table-reorder' );

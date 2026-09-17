@@ -12,16 +12,16 @@ export type ChatColumnSelector =
 /** Strict parserが受理するChat Reorder Command。 */
 export type ChatReorderCommand =
 	| {
-		kind: 'row';
-		sourceRowNumber: number;
-		position: 'before' | 'after';
-		targetRowNumber: number;
+			kind: 'row';
+			sourceRowNumber: number;
+			position: 'before' | 'after';
+			targetRowNumber: number;
 	  }
 	| {
-		kind: 'column';
-		source: ChatColumnSelector;
-		position: 'before' | 'after';
-		target: ChatColumnSelector;
+			kind: 'column';
+			source: ChatColumnSelector;
+			position: 'before' | 'after';
+			target: ChatColumnSelector;
 	  }
 	| { kind: 'ask'; message: string };
 

@@ -9,8 +9,11 @@ const mockSelectKind = jest.fn();
 const mockUpdateRowInput = jest.fn();
 const mockUpdateColumnInput = jest.fn();
 const mockRequestApply = jest.fn();
-let mockColumns: Array< { columnIndex: number; columnNumber: number; heading: string | null } > | null =
-	null;
+let mockColumns: Array< {
+	columnIndex: number;
+	columnNumber: number;
+	heading: string | null;
+} > | null = null;
 
 jest.mock( '@/reorder/reorder-form/responsibilities/interaction', () => ( {
 	rfInteraction: {
