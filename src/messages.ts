@@ -33,6 +33,27 @@ export const getColumnDndLayoutUnavailableMessage = () =>
 /** RF入口と入力画面の表示名を取得する。 */
 export const getRfReorderName = () => __( 'Reorder with form', 'yamabiko-table-reorder' );
 
+/** Chat Reorder入口の表示名を取得する。 */
+export const getChatReorderName = () => __( 'Reorder with chat', 'yamabiko-table-reorder' );
+
+/** Chat Reorderの自然言語入力欄の表示名を取得する。 */
+export const getChatPromptLabel = () => __( 'Reorder request', 'yamabiko-table-reorder' );
+
+/** Chat Reorderの送信操作の表示名を取得する。 */
+export const getChatSendLabel = () => __( 'Send', 'yamabiko-table-reorder' );
+
+/** Chat ReorderのAI transportが未接続であることを知らせる文言を取得する。 */
+export const getChatTransportUnavailableMessage = () =>
+	__( 'AI transport is not connected for this proof of concept.', 'yamabiko-table-reorder' );
+
+/** Chat ReorderのAI出力が許可grammarに一致しないことを知らせる文言を取得する。 */
+export const getChatInvalidOutputMessage = () =>
+	__( 'The AI response could not be used. Try the request again.', 'yamabiko-table-reorder' );
+
+/** Chat Reorderで列指定を現在Tableへ一意に照合できないことを知らせる文言を取得する。 */
+export const getChatUnresolvedColumnMessage = () =>
+	__( 'The specified column could not be identified uniquely in the current table.', 'yamabiko-table-reorder' );
+
 /** RFで並び替える対象を選ぶ入力の表示名を取得する。 */
 export const getRfKindLegend = () => __( 'Reorder', 'yamabiko-table-reorder' );
 
@@ -162,7 +183,7 @@ export const getRowMergedRangeMessage = (
 		return sprintf( message, rowStart, rowEnd, columnStart );
 	}
 
-	/* translators: 1: first 1-based row number, 2: last 1-based row number, 3: first 1-based column number, 4: last 1-based column number */
+	/* translators: 1: 1-based row number, 2: first 1-based column number, 3: last 1-based column number */
 	const message = __(
 		'A merged cell spanning rows %1$d–%2$d and columns %3$d–%4$d prevents this move.',
 		'yamabiko-table-reorder'
@@ -258,69 +279,3 @@ export const getTouchReorderGuidanceMessage = () =>
 		'Long press a cell, then drag, or use the form to reorder rows and columns.',
 		'yamabiko-table-reorder'
 	);
-
-/**
- * 初回案内を閉じる入口の支援技術向け表示名を取得する。
- *
- * @return 現在の言語に対応した閉じる入口の表示名。
- */
-export const getCloseReorderGuidanceLabel = () =>
-	__( 'Close reorder guidance', 'yamabiko-table-reorder' );
-
-/** 大規模反映前の確認ダイアログタイトルを取得する。 */
-export const getLargeReorderApplyConfirmTitle = () =>
-	__( 'Apply the new order?', 'yamabiko-table-reorder' );
-
-/**
- * 大規模な行移動の確認対象を、利用者向けの1-based位置で示す。
- *
- * @param sourcePosition      移動元の行番号。
- * @param destinationPosition 反映後の移動先行番号。
- * @return 移動元と移動先を簡潔に示す文言。
- */
-export const getLargeRowReorderMoveSummary = (
-	sourcePosition: number,
-	destinationPosition: number
-) => {
-	/* translators: 1: 移動元の行番号, 2: 移動先の行番号 */
-	const message = __( 'Row %1$d → %2$d', 'yamabiko-table-reorder' );
-	return sprintf( message, sourcePosition, destinationPosition );
-};
-
-/**
- * 大規模な列移動の確認対象を、利用者向けの1-based位置で示す。
- *
- * @param sourcePosition      移動元の列番号。
- * @param destinationPosition 反映後の移動先列番号。
- * @return 移動元と移動先を簡潔に示す文言。
- */
-export const getLargeColumnReorderMoveSummary = (
-	sourcePosition: number,
-	destinationPosition: number
-) => {
-	/* translators: 1: 移動元の列番号, 2: 移動先の列番号 */
-	const message = __( 'Column %1$d → %2$d', 'yamabiko-table-reorder' );
-	return sprintf( message, sourcePosition, destinationPosition );
-};
-
-/** 大規模反映前の確認ダイアログ本文を取得する。 */
-export const getLargeReorderApplyConfirmBody = () =>
-	__( 'Applying this reorder may take some time.', 'yamabiko-table-reorder' );
-
-/** 大規模反映を続行するボタン表示名を取得する。 */
-export const getLargeReorderContinueLabel = () => __( 'Continue', 'yamabiko-table-reorder' );
-
-/** 大規模反映を中止するボタン表示名を取得する。 */
-export const getLargeReorderCancelLabel = () => __( 'Cancel', 'yamabiko-table-reorder' );
-
-/** 大規模反映中であることを知らせる文言を取得する。 */
-export const getLargeReorderApplyingMessage = () =>
-	__( 'Applying the new order…', 'yamabiko-table-reorder' );
-
-/** 大規模反映の完了を待つよう案内する補足文を取得する。 */
-export const getLargeReorderApplyingDetail = () =>
-	__( 'Please wait until the update is complete.', 'yamabiko-table-reorder' );
-
-/** 大規模反映が完了したことを知らせる文言を取得する。 */
-export const getLargeReorderCompletionMessage = () =>
-	__( 'Reordering complete.', 'yamabiko-table-reorder' );
