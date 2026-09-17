@@ -62,6 +62,14 @@ These instructions apply to the entire repository.
 - Do not commit secrets, credentials, personal paths, machine names, or other local-only environment details.
 - Preserve released identifiers and saved content unless the issue explicitly includes a compatibility decision.
 
+## Code review
+
+- Before raising a review finding, weigh at least the issue's occurrence frequency, user impact, and the complexity introduced by the proposed fix.
+- When an issue is low-frequency, limited to transient presentation, and has no material effect on data integrity, operation results, important accessibility information, or recoverability, do not treat it as an important finding or required fix by default.
+- Such issues may still be mentioned as non-blocking observations when useful, and a simple low-cost fix may justify addressing them.
+- Do not require additional state, IDs, queues, coordination layers, abstractions, or lifecycle management solely to eliminate such low-frequency, low-impact edge cases.
+- Low frequency does not reduce the importance of issues that can cause data loss or corruption, missing or inconsistent operation results, loss of important accessibility information, or unrecoverable user states.
+
 ## GitHub Actions
 
 - Keep existing CI, security, and release workflows limited to their intended purpose. Do not reuse them for unrelated ad-hoc or temporary processing.
