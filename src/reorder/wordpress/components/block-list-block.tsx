@@ -13,7 +13,7 @@ import {
 	useRef,
 	type ComponentType,
 } from '@wordpress/element';
-import type { DragEvent } from 'react';
+import type { DragEvent, MouseEvent } from 'react';
 
 import {
 	ColumnDnd,
@@ -140,6 +140,31 @@ const preserveBlockDragStartHandler = (
 
 		if ( reorderMode.getMode( tableIdentity ) !== 'edit' ) {
 			event.preventDefault();
+			event.stopPropagation();
+		}
+	};
+
+	return handler;
+};
+
+/**
+ * Gutenberg既存のclick処理を維持したまま、Reorder Mode中だけTable内容へのclick伝播を停止する。
+ *
+ * @param existingHandler Gutenberg本体または他のfilterが設定した既存handler。
+ * @param tableIdentity   Reorder Mode状態を確認するTable Identity。
+ * @return 既存処理の後に現在モードを参照してclick伝播可否を決めるhandler。
+ */
+const preserveClickHandler = (
+	existingHandler: unknown,
+	tableIdentity: string
+): ( ( event: MouseEvent< Element > ) => void ) => {
+	const handler = ( event: MouseEvent< Element > ) => {
+		if ( typeof existingHandler === 'function' ) {
+			( existingHandler as ( clickEvent: MouseEvent< Element > ) => void )( event );
+		}
+
+		/* Reorder Mode中はTable内容の通常編集へclickを渡さず、pointer入力の既定動作は変更しない。 */
+		if ( reorderMode.getMode( tableIdentity ) !== 'edit' ) {
 			event.stopPropagation();
 		}
 	};
@@ -373,6 +398,10 @@ export const ReorderModeBlockListBlock = ( props: {
 												{ ...blockProps }
 												wrapperProps={ {
 													...wrapperProps,
+													onClickCapture: preserveClickHandler(
+														wrapperProps?.onClickCapture,
+														clientId
+													),
 													onDoubleClickCapture: preserveEditingStartHandler(
 														wrapperProps?.onDoubleClickCapture,
 														shouldPreventEditingStart
