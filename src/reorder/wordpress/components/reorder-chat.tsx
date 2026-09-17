@@ -5,7 +5,8 @@
  */
 
 import { Button, Popover, TextControl } from '@wordpress/components';
-import { useState, type FormEvent } from '@wordpress/element';
+import { useState } from '@wordpress/element';
+import type { FormEvent } from 'react';
 
 import {
 	getChatInvalidOutputMessage,
@@ -94,10 +95,10 @@ export const ReorderChatPopover = ( props: ReorderChatPopoverProps ) => {
 		<Popover anchor={ anchor } focusOnMount="firstElement" onClose={ onClose } placement="bottom">
 			<form className="yamabiko-table-reorder-chat" onSubmit={ submit }>
 				<TextControl
-					label={ getChatPromptLabel() }
-					value={ input }
-					onChange={ setInput }
 					disabled={ submitting }
+					label={ getChatPromptLabel() }
+					onChange={ setInput }
+					value={ input }
 				/>
 				{ message !== null && <p role="status">{ message }</p> }
 				<Button disabled={ submitting || input.trim() === '' } type="submit" variant="primary">
