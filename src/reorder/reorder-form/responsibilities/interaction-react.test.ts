@@ -86,6 +86,15 @@ describe( 'RF Interaction React connection', () => {
 	/**
 	 * 概要:
 	 * - 対象TableのRF状態変更をHookが継続購読し、別Tableには現在Sessionを漏らさないことを確認する。
+	 *
+	 * 事前条件:
+	 * - Table A / BのHookはどちらもclosedを購読している。
+	 *
+	 * 操作:
+	 * - React外からTable AのRFを開始し、Row入力を更新する。
+	 *
+	 * 期待結果:
+	 * - Table AだけがRow open状態と現在結果を受け取り、Table Bはclosedのままとなる。
 	 */
 	it( 'when one table session changes outside React, should update only that table subscriber', () => {
 		const tableA = renderHook( () => useRfInteraction( 'table-a' ) );
@@ -109,7 +118,17 @@ describe( 'RF Interaction React connection', () => {
 
 	/**
 	 * 概要:
-	 * - Table変更通知による現在Table基準の再評価を、入力問題を含めて同じHook購読から描画状態へ反映できることを確認する。
+	 * - Table変更通知による現在Table基準の再評価を、同じHook購読から描画状態へ反映できることを確認する。
+	 *
+	 * 事前条件:
+	 * - Table AのRow入力は3行Tableに対してresolvedである。
+	 *
+	 * 操作:
+	 * - Tableを1行へ変更した状態としてnotifyTableChangedを通知する。
+	 *
+	 * 期待結果:
+	 * - Hookは入力を保持したままrowCount 1、not-ready、canApply falseへ更新される。
+	 * - Input Interpretationが返したtargetの入力問題と現在有効な行番号範囲も同じ結果から取得できる。
 	 */
 	it( 'when the active table change is notified, should publish the re-evaluated row state', () => {
 		const tableA = renderHook( () => useRfInteraction( 'table-a' ) );
@@ -147,6 +166,15 @@ describe( 'RF Interaction React connection', () => {
 	/**
 	 * 概要:
 	 * - Row指定がno-opまたは結合セル制約で拒否された場合にApply不可として公開することを確認する。
+	 *
+	 * 事前条件:
+	 * - Table AのRow入力はInput Interpretationを通過できる。
+	 *
+	 * 操作:
+	 * - Row Resolutionがno-opまたはrejectedを返す状態で入力を更新する。
+	 *
+	 * 期待結果:
+	 * - Reorder Kind固有結果がそのまま公開され、canApplyはfalseになる。
 	 */
 	it.each( [
 		[ 'no-op', { status: 'no-op' } as const, { status: 'no-op' } as const ],
@@ -194,6 +222,12 @@ describe( 'RF Interaction React connection', () => {
 	/**
 	 * 概要:
 	 * - 対象Tableの現在情報を取得できない場合に入力を推測せず利用不能として公開することを確認する。
+	 *
+	 * 操作:
+	 * - Table AのRow情報を取得できない状態でRFを開始する。
+	 *
+	 * 期待結果:
+	 * - rowCountはnull、resultはunavailable、canApplyはfalseになる。
 	 */
 	it( 'when the current row table is unavailable, should publish unavailable as not applicable', () => {
 		jest.spyOn( rowTableIntegration, 'getConstraints' ).mockReturnValue( null );
@@ -215,6 +249,12 @@ describe( 'RF Interaction React connection', () => {
 	/**
 	 * 概要:
 	 * - Column ReorderではColumn入力・現在列記述・Column結果だけを公開することを確認する。
+	 *
+	 * 操作:
+	 * - Table AをColumn Reorderへ切り替え、Column入力を更新する。
+	 *
+	 * 期待結果:
+	 * - Column Reorderのdiscriminated stateとして現在入力・列記述・resolved結果が公開される。
 	 */
 	it( 'when column kind is active, should publish only the current column state', () => {
 		const tableA = renderHook( () => useRfInteraction( 'table-a' ) );
@@ -238,6 +278,15 @@ describe( 'RF Interaction React connection', () => {
 	/**
 	 * 概要:
 	 * - Reactのunmount / remountを越えてRF Sessionが維持されることを確認する。
+	 *
+	 * 事前条件:
+	 * - Table AのRow入力がresolvedになっている。
+	 *
+	 * 操作:
+	 * - Table AのHookをunmountし、同じTable Identityで再度mountする。
+	 *
+	 * 期待結果:
+	 * - 再mount後も同じRow入力と現在結果を購読できる。
 	 */
 	it( 'when the React subscriber remounts, should preserve the RF session state', () => {
 		const firstMount = renderHook( () => useRfInteraction( 'table-a' ) );
@@ -262,6 +311,16 @@ describe( 'RF Interaction React connection', () => {
 	/**
 	 * 概要:
 	 * - 未消費のRF反映結果を対象Tableだけへ公開し、React再mountでは失わないことを確認する。
+	 *
+	 * 事前条件:
+	 * - Table Aのfailure OutcomeがRF Interactionに保持されている。
+	 *
+	 * 操作:
+	 * - Table A / BでOutcomeを購読し、Table Aの購読をunmountして再度mountする。
+	 *
+	 * 期待結果:
+	 * - Table Aだけがfailureを受け取り、Table Bはidleとなる。
+	 * - Table Aの再mount後も未消費failureを引き続き購読できる。
 	 */
 	it( 'when an RF apply outcome remains unconsumed, should expose it only to the owning table across remounts', () => {
 		act( () => {
