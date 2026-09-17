@@ -61,39 +61,13 @@ describe( 'WordPress Reorder Apply Integration adapter', () => {
 		jest.clearAllMocks();
 	} );
 
-	/**
-	 * RF反映がない場合は通常表示を維持することを確認する。
-	 *
-	 * 事前条件:
-	 * - Row / Column / RFのApply Lifecycleがすべて通常状態である。
-	 *
-	 * 操作:
-	 * - 対象TableのPresentation状態を取得する。
-	 *
-	 * 期待結果:
-	 * - idleが返される。
-	 */
+	/** Row / Column / RFのApply Lifecycleが通常状態ならidleを公開することを確認する。 */
 	it( 'when all apply lifecycles are idle, should expose the idle presentation', () => {
 		const { result } = renderHook( () => useReorderApplyPresentationState( 'table-a' ) );
-
 		expect( result.current ).toEqual( { phase: 'idle' } );
 	} );
 
-	/**
-	 * RFの行移動確認では、RFが公開する1-based位置を既存確認表示へ渡すことを確認する。
-	 *
-	 * 事前条件:
-	 * - 対象TableのRF行移動が確認待ちである。
-	 * - RF Apply Coordinationが移動元1000行目、移動先2行目を公開している。
-	 *
-	 * 操作:
-	 * - 対象TableのPresentation状態を取得し、ContinueとCancelを実行する。
-	 *
-	 * 期待結果:
-	 * - Reorder Kindはrowのまま渡される。
-	 * - 既存確認表示向けに「1000行目から2行目」の概要が生成される。
-	 * - ContinueとCancelはRF Apply Coordinationへ委譲される。
-	 */
+	/** RF確認では1-basedの確認用Move summaryと操作を既存Presentationへ渡すことを確認する。 */
 	it( 'when an RF row move awaits confirmation, should expose its kind, summary, continue, and cancel operations', () => {
 		mockRfSnapshot = { phase: 'confirming', tableIdentity: 'table-a', kind: 'row' };
 		mockRfSummary = { kind: 'row', sourcePosition: 1000, destinationPosition: 2 };
@@ -115,19 +89,7 @@ describe( 'WordPress Reorder Apply Integration adapter', () => {
 		expect( mockCancelRfApply ).toHaveBeenCalledTimes( 1 );
 	} );
 
-	/**
-	 * RF反映中は、既存Lifecycleが描画後に実行できる反映操作を提供することを確認する。
-	 *
-	 * 事前条件:
-	 * - 対象TableのRF列移動が反映中である。
-	 *
-	 * 操作:
-	 * - Presentation状態から反映操作を実行する。
-	 *
-	 * 期待結果:
-	 * - Reorder Kindはcolumnのまま渡される。
-	 * - 反映操作はRF Apply Coordinationへ委譲される。
-	 */
+	/** RF反映中は現在Reorder Kindと反映操作を既存Presentationへ渡すことを確認する。 */
 	it( 'when an RF column move is applying, should expose the RF apply operation with the column kind', () => {
 		mockRfSnapshot = { phase: 'applying', tableIdentity: 'table-a', kind: 'column' };
 		const { result } = renderHook( () => useReorderApplyPresentationState( 'table-a' ) );
@@ -146,27 +108,18 @@ describe( 'WordPress Reorder Apply Integration adapter', () => {
 	} );
 
 	/**
-	 * RF表示復帰では、Apply Coordinationが確定した0-based最終位置をそのまま利用することを確認する。
-	 *
-	 * 事前条件:
-	 * - 対象TableのRF列移動が正常反映後の表示復帰待ちである。
-	 * - RF Apply Coordinationが0-based最終位置4を公開している。
-	 * - 確認表示用summaryは存在しない。
-	 *
-	 * 操作:
-	 * - Presentation状態を取得し、表示復帰完了を通知する。
-	 *
-	 * 期待結果:
-	 * - restorationへ0-based位置4がそのまま渡される。
-	 * - 完了操作はRF Apply Coordinationへ委譲される。
+	 * RF成功表示復帰では確定Move summaryの1-based最終位置だけを既存0-based Presentation表現へ変換することを確認する。
 	 */
-	it( 'when an RF column move is restoring, should expose its stored destination without using the confirmation summary', () => {
+	it( 'when an RF column move is restoring successfully, should derive the presentation destination from the confirmed move summary', () => {
 		mockRfSnapshot = {
 			phase: 'restoring',
 			tableIdentity: 'table-a',
-			kind: 'column',
 			applied: true,
-			destinationIndex: 4,
+			moveSummary: {
+				kind: 'column',
+				sourcePosition: 2,
+				destinationPosition: 5,
+			},
 		};
 		mockRfSummary = null;
 		const { result } = renderHook( () => useReorderApplyPresentationState( 'table-a' ) );
@@ -186,26 +139,13 @@ describe( 'WordPress Reorder Apply Integration adapter', () => {
 		expect( mockCompleteRfApplyRestoration ).toHaveBeenCalledTimes( 1 );
 	} );
 
-	/**
-	 * RF反映失敗後の表示復帰では、移動先を推測せずLifecycleを完了できることを確認する。
-	 *
-	 * 事前条件:
-	 * - 対象TableのRF行移動が失敗後の表示復帰待ちである。
-	 * - Apply直前の再照合では復帰先を確定できなかった。
-	 *
-	 * 操作:
-	 * - Presentation状態を取得する。
-	 *
-	 * 期待結果:
-	 * - destinationIndexはnullのまま渡される。
-	 */
-	it( 'when an RF apply failed without a final destination, should expose restoration without inventing one', () => {
+	/** RF失敗表示復帰ではMove summaryを要求せずdestinationIndexをnullで既存Presentationへ渡すことを確認する。 */
+	it( 'when an RF apply fails, should expose restoration without inventing a destination', () => {
 		mockRfSnapshot = {
 			phase: 'restoring',
 			tableIdentity: 'table-a',
 			kind: 'row',
 			applied: false,
-			destinationIndex: null,
 		};
 		const { result } = renderHook( () => useReorderApplyPresentationState( 'table-a' ) );
 		const presentation = result.current;
@@ -214,41 +154,20 @@ describe( 'WordPress Reorder Apply Integration adapter', () => {
 		if ( presentation.phase !== 'restoring' ) {
 			throw new Error( 'Expected restoration presentation.' );
 		}
+		expect( presentation.kind ).toBe( 'row' );
+		expect( presentation.applied ).toBe( false );
 		expect( presentation.destinationIndex ).toBeNull();
 	} );
 
-	/**
-	 * 別TableのRF反映状態を現在Tableへ漏らさないことを確認する。
-	 *
-	 * 事前条件:
-	 * - table-bのRF行移動が確認待ちである。
-	 *
-	 * 操作:
-	 * - table-aのPresentation状態を取得する。
-	 *
-	 * 期待結果:
-	 * - table-aにはidleが返される。
-	 */
+	/** 別TableのRF反映状態を現在Tableへ漏らさないことを確認する。 */
 	it( 'when another table owns the RF apply lifecycle, should keep the current table idle', () => {
 		mockRfSnapshot = { phase: 'confirming', tableIdentity: 'table-b', kind: 'row' };
 		mockRfSummary = { kind: 'row', sourcePosition: 3, destinationPosition: 1 };
 		const { result } = renderHook( () => useReorderApplyPresentationState( 'table-a' ) );
-
 		expect( result.current ).toEqual( { phase: 'idle' } );
 	} );
 
-	/**
-	 * 複数Apply Lifecycleの同時成立を表示側の選択順で吸収しないことを確認する。
-	 *
-	 * 事前条件:
-	 * - Row ApplyとRF Applyが同時に非idleである。
-	 *
-	 * 操作:
-	 * - 対象TableのPresentation状態を取得する。
-	 *
-	 * 期待結果:
-	 * - 優先順位による表示選択を行わず、内部Invariant違反としてErrorになる。
-	 */
+	/** 複数Apply Lifecycleの同時成立を表示側の選択順で吸収しないことを確認する。 */
 	it( 'when multiple apply lifecycles are active, should throw instead of choosing one presentation', () => {
 		mockRowState = {
 			phase: 'applying',
@@ -263,19 +182,7 @@ describe( 'WordPress Reorder Apply Integration adapter', () => {
 		expect( console ).toHaveErrored();
 	} );
 
-	/**
-	 * RF確認中にsummaryが失われた場合を通常状態へ隠さないことを確認する。
-	 *
-	 * 事前条件:
-	 * - 対象TableのRF行移動が確認待ちである。
-	 * - RF Apply Coordinationがsummaryを提供していない。
-	 *
-	 * 操作:
-	 * - 対象TableのPresentation状態を取得する。
-	 *
-	 * 期待結果:
-	 * - idleへ変換せず、RF内部Contract違反としてErrorになる。
-	 */
+	/** RF確認中にsummaryが失われた場合を通常状態へ隠さないことを確認する。 */
 	it( 'when RF confirmation has no summary, should throw instead of hiding it as idle', () => {
 		mockRfSnapshot = { phase: 'confirming', tableIdentity: 'table-a', kind: 'row' };
 		mockRfSummary = null;
