@@ -1,7 +1,7 @@
 /**
- * 対応Tableの編集表示へReorder Mode / RFのLifecycle、Toolbar、確認付き大規模反映境界を接続するReact componentを所有する。
+ * 対応Tableの編集表示へReorder Mode / RF / ChatのLifecycle、Toolbar、確認付き大規模反映境界を接続するReact componentを所有する。
  *
- * Gutenberg本来のBlockEdit構造を維持し、選択中の対応Tableだけへ並び替えToolbarを追加する。
+ * Gutenberg本来のBlockEdit構造を維持し、選択中の対応Tableだけへ並び替えToolbarとChat Reorderを追加する。
  */
 
 import type { BlockEditProps } from '@wordpress/blocks';
@@ -9,6 +9,7 @@ import type { ComponentType } from '@wordpress/element';
 
 import { useRfInteractionStatus } from '@/reorder/reorder-form/responsibilities/interaction-react';
 import { ReorderApplyTableBoundary } from '@/reorder/wordpress/components/reorder-apply';
+import { ReorderChat } from '@/reorder/wordpress/components/reorder-chat';
 import { ReorderFormCompletion } from '@/reorder/wordpress/components/reorder-form-completion';
 import { ReorderModeToolbar } from '@/reorder/wordpress/components/toolbar';
 import { useRfTableLifecycle } from '@/reorder/wordpress/hooks/use-rf-table-lifecycle';
@@ -55,7 +56,7 @@ const RfTableLifecycleSync = ( componentProps: RfTableLifecycleSyncProps ) => {
 };
 
 /**
- * 対応Tableの編集表示へReorder Mode / RF Lifecycle、Toolbar、確認付き大規模反映を接続する。
+ * 対応Tableの編集表示へReorder Mode / RF / Chat Lifecycle、Toolbar、確認付き大規模反映を接続する。
  *
  * @param componentProps 元のBlockEdit component、現在選択Tableの解決境界、Gutenbergから渡されるprops。
  * @return Gutenberg本来のTable編集表示とReorder用UI。
@@ -70,8 +71,12 @@ export const ReorderModeEdit = ( componentProps: ReorderModeEditProps ) => {
 		<>
 			<ReorderApplyTableBoundary clientId={ clientId }>
 				<BlockEdit { ...props } />
-				{ /* Toolbar入口は現在選択中の対応Tableだけに表示する。 */ }
-				{ isSelected && <ReorderModeToolbar tableIdentity={ clientId } /> }
+				{ /* Toolbar入口とChat固有Lifecycleは現在選択中の対応Tableだけに接続する。 */ }
+				{ isSelected && (
+					<ReorderChat tableIdentity={ clientId }>
+						{ ( chat ) => <ReorderModeToolbar chat={ chat } tableIdentity={ clientId } /> }
+					</ReorderChat>
+				) }
 			</ReorderApplyTableBoundary>
 			<RfTableLifecycleSync
 				tableIdentity={ clientId }
