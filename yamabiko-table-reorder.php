@@ -252,6 +252,8 @@ final class Plugin {
 			true
 		);
 
+		wp_enqueue_script_module( '@wordpress/core-abilities' );
+
 		wp_set_script_translations(
 			$handle,
 			'yamabiko-table-reorder',
