@@ -18,7 +18,7 @@ import {
 } from '@/messages';
 import { getChatAiTransport, requestChatReorderCommand } from '@/reorder/chat-reorder/ai-request';
 import { parseChatReorderCommand } from '@/reorder/chat-reorder/command';
-import { getChatReorderContext } from '@/reorder/chat-reorder/context';
+import { getChatReorderContext } from '@/reorder/chat-reorder/context-reader';
 import { submitChatCommandToRf } from '@/reorder/chat-reorder/rf-input-adapter';
 
 import './reorder-chat.scss';
@@ -67,7 +67,8 @@ export const ReorderChat = ( props: ReorderChatProps ) => {
 
 	/**
 	 * 今回入力だけをAIへ送り、strict parse済みCommandだけをRFへ接続する。
-	 * @param event
+	 *
+	 * @param event Chat入力フォームのsubmit event。
 	 */
 	const submit = async ( event: FormEvent< HTMLFormElement > ): Promise< void > => {
 		event.preventDefault();
