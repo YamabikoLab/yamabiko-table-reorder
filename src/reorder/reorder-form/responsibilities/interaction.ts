@@ -292,12 +292,12 @@ const evaluateColumn = (
 	const candidate = resolution.status === 'resolved' ? resolution.candidate : null;
 	return {
 		evaluation: {
-				kind: 'column',
-				columns,
-				result: toColumnCurrentResult( resolution ),
-			},
-			candidate,
-		};
+			kind: 'column',
+			columns,
+			result: toColumnCurrentResult( resolution ),
+		},
+		candidate,
+	};
 };
 
 /**
@@ -527,9 +527,7 @@ export const rfInteractionStore = createStore< RfInteractionStore >()(
 					evaluation,
 				};
 				const applyOutcome: RfApplyOutcome =
-					result.status === 'failure'
-						? { status: 'failure', tableIdentity }
-						: IDLE_APPLY_OUTCOME;
+					result.status === 'failure' ? { status: 'failure', tableIdentity } : IDLE_APPLY_OUTCOME;
 				set(
 					{ session: openSession, applyOutcome },
 					undefined,
