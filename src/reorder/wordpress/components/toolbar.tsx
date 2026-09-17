@@ -2,6 +2,7 @@
  * WordPress EditorのTableツールバーへReorder Mode / RF / Chat入口と初回案内を表示するReactコンポーネントを所有する。
  *
  * 行・列DnD、RF、Chatを排他的に接続し、初回案内表示中は4つの入口を共通の並び替え入口として強調する。
+ * Chat固有stateやAI処理は所有せず、ReorderChatから渡された入口操作だけを利用する。
  */
 
 import { BlockControls } from '@wordpress/block-editor';
@@ -19,7 +20,7 @@ import { rfInteraction } from '@/reorder/reorder-form/responsibilities/interacti
 import { useRfInteraction } from '@/reorder/reorder-form/responsibilities/interaction-react';
 import type { ReorderKind } from '@/reorder/reorder-mode';
 import { useReorderMode } from '@/reorder/reorder-mode-react';
-import { ReorderChatPopover } from '@/reorder/wordpress/components/reorder-chat';
+import type { ReorderChatEntry } from '@/reorder/wordpress/components/reorder-chat';
 import { reorderFormCollapse } from '@/reorder/wordpress/components/reorder-form-collapse';
 import { ReorderFormPopover } from '@/reorder/wordpress/components/reorder-form';
 import {
@@ -31,9 +32,10 @@ import { ReorderGuidance } from '@/reorder/wordpress/components/guidance';
 import { useColumnDndLayoutAvailabilitySnapshot } from '@/reorder/wordpress/column-dnd-layout-availability-state';
 import { useReorderGuidance } from '@/reorder/wordpress/hooks/use-reorder-guidance';
 
-/** Reorder入口のツールバーへ接続する対象Tableを表す。 */
+/** Reorder入口のツールバーへ接続する対象TableとChat入口操作を表す。 */
 type ReorderModeToolbarProps = {
 	tableIdentity: string;
+	chat: ReorderChatEntry;
 };
 
 /** 行並び替えのツールバー入口に表示する専用アイコン。 */
@@ -134,11 +136,11 @@ const chatReorderIcon = (
 /**
  * 対応Tableの行・列DnD / RF / Chat入口を表示し、排他状態と初回案内へ接続する。
  *
- * @param props ツールバーを表示するTable Identity。
+ * @param props 対象Table IdentityとChat入口操作。
  * @return 現在の並び替え選択状態と初回案内状態を反映したツールバー入口。
  */
 export const ReorderModeToolbar = ( props: ReorderModeToolbarProps ) => {
-	const { tableIdentity } = props;
+	const { tableIdentity, chat } = props;
 	const { selectedKind, select: selectMode } = useReorderMode( tableIdentity );
 	const columnDndLayoutAvailability = useColumnDndLayoutAvailabilitySnapshot( tableIdentity );
 	const rfState = useRfInteraction( tableIdentity );
@@ -146,8 +148,6 @@ export const ReorderModeToolbar = ( props: ReorderModeToolbarProps ) => {
 	const [ columnDndAnchor, setColumnDndAnchor ] = useState< HTMLElement | null >( null );
 	const [ columnDndReasonVisible, setColumnDndReasonVisible ] = useState( false );
 	const [ rfAnchor, setRfAnchor ] = useState< HTMLElement | null >( null );
-	const [ chatAnchor, setChatAnchor ] = useState< HTMLElement | null >( null );
-	const [ chatActive, setChatActive ] = useState( false );
 	const rfActive = rfState.status !== 'closed';
 	const rfApplying = rfState.status === 'applying';
 	const columnDndUnavailable = columnDndLayoutAvailability === 'unavailable';
@@ -155,7 +155,7 @@ export const ReorderModeToolbar = ( props: ReorderModeToolbarProps ) => {
 	const { dismiss, guidance } = useReorderGuidance(
 		tableIdentity,
 		guidanceAnchor,
-		rfActive || chatActive
+		rfActive || chat.active
 	);
 	useReorderFormNarrowHeight( tableIdentity, rfAnchor, rfState.status === 'open' );
 
@@ -176,7 +176,7 @@ export const ReorderModeToolbar = ( props: ReorderModeToolbarProps ) => {
 			return;
 		}
 
-		setChatActive( false );
+		chat.close();
 		if ( rfState.status === 'open' ) {
 			rfInteraction.close( tableIdentity );
 		}
@@ -231,7 +231,7 @@ export const ReorderModeToolbar = ( props: ReorderModeToolbarProps ) => {
 			return;
 		}
 
-		setChatActive( false );
+		chat.close();
 		if ( rfState.status === 'open' ) {
 			rfInteraction.close( tableIdentity );
 			return;
@@ -253,8 +253,8 @@ export const ReorderModeToolbar = ( props: ReorderModeToolbarProps ) => {
 			return;
 		}
 
-		if ( chatActive ) {
-			setChatActive( false );
+		if ( chat.active ) {
+			chat.close();
 			return;
 		}
 
@@ -264,7 +264,7 @@ export const ReorderModeToolbar = ( props: ReorderModeToolbarProps ) => {
 		if ( selectedKind !== null ) {
 			selectMode( selectedKind );
 		}
-		setChatActive( true );
+		chat.open();
 	};
 
 	return (
@@ -288,10 +288,10 @@ export const ReorderModeToolbar = ( props: ReorderModeToolbarProps ) => {
 					onClick={ selectRf }
 				/>
 				<ToolbarButton
-					ref={ setChatAnchor }
+					ref={ chat.setAnchor }
 					disabled={ rfApplying }
 					icon={ chatReorderIcon }
-					isPressed={ chatActive }
+					isPressed={ chat.active }
 					label={ getChatReorderName() }
 					onClick={ selectChat }
 				/>
@@ -309,12 +309,6 @@ export const ReorderModeToolbar = ( props: ReorderModeToolbarProps ) => {
 				</Popover>
 			) }
 			<ReorderFormPopover anchor={ rfAnchor } state={ rfState } tableIdentity={ tableIdentity } />
-			<ReorderChatPopover
-				active={ chatActive }
-				anchor={ chatAnchor }
-				onClose={ () => setChatActive( false ) }
-				tableIdentity={ tableIdentity }
-			/>
 			{ guidance !== null && (
 				<ReorderGuidance
 					anchor={ guidanceAnchor }
