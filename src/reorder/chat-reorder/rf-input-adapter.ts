@@ -1,7 +1,7 @@
 /**
  * Strict parse済みChat Reorder Commandを既存RF Interaction入力へ接続する。
  *
- * Column label / number selectorは現在のColumn Input Descriptorへ一意に照合するが、no-op、結合セル制約、unavailable、Apply可否は既存RFへ委ねる。
+ * Column label / number selectorは同じ要求時点のColumn Input Descriptor集合へ一意に照合するが、no-op、結合セル制約、unavailable、Apply可否は既存RFへ委ねる。
  */
 
 import { columnTableIntegration } from '@/reorder/column-reorder/responsibilities/table-integration';
@@ -15,22 +15,24 @@ export type ChatRfInputResult =
 	| { status: 'clarification'; message: string }
 	| { status: 'unresolved-column' };
 
+/** Column selector照合に必要な現在列記述。 */
+type ChatColumnDescriptor = {
+	columnIndex: number;
+	columnNumber: number;
+	heading: string | null;
+};
+
 /**
- * Column selectorを要求時点の現在Column Input Descriptorへ一意に照合する。
+ * Column selectorを同じ要求時点のColumn Input Descriptor集合へ一意に照合する。
  *
- * @param selector      AI Commandに含まれる未信頼selector。
- * @param tableIdentity 対象Table Identity。
+ * @param selector AI Commandに含まれる未信頼selector。
+ * @param columns  対象Tableから取得済みの現在列記述。
  * @return 一意に解決できた0-based論理列Identity。解決不能または重複時はnull。
  */
 const resolveColumnSelector = (
 	selector: ChatColumnSelector,
-	tableIdentity: string
+	columns: readonly ChatColumnDescriptor[]
 ): number | null => {
-	const columns = columnTableIntegration.getColumnInputDescriptors( tableIdentity );
-	if ( columns === null ) {
-		return null;
-	}
-
 	if ( selector.kind === 'number' ) {
 		const match = columns.find( ( column ) => column.columnNumber === selector.columnNumber );
 		return match?.columnIndex ?? null;
@@ -71,8 +73,12 @@ export const submitChatCommandToRf = (
 		return { status: 'submitted' };
 	}
 
-	const sourceColumnIndex = resolveColumnSelector( command.source, tableIdentity );
-	const targetColumnIndex = resolveColumnSelector( command.target, tableIdentity );
+	const columns = columnTableIntegration.getColumnInputDescriptors( tableIdentity );
+	if ( columns === null ) {
+		return { status: 'unresolved-column' };
+	}
+	const sourceColumnIndex = resolveColumnSelector( command.source, columns );
+	const targetColumnIndex = resolveColumnSelector( command.target, columns );
 	if ( sourceColumnIndex === null || targetColumnIndex === null ) {
 		return { status: 'unresolved-column' };
 	}
