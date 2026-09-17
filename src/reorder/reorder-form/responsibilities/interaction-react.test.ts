@@ -128,6 +128,7 @@ describe( 'RF Interaction React connection', () => {
 	 *
 	 * 期待結果:
 	 * - Hookは入力を保持したままrowCount 1、not-ready、canApply falseへ更新される。
+	 * - Input Interpretationが返したtargetの入力問題と現在有効な行番号範囲も同じ結果から取得できる。
 	 */
 	it( 'when the active table change is notified, should publish the re-evaluated row state', () => {
 		const tableA = renderHook( () => useRfInteraction( 'table-a' ) );
@@ -149,7 +150,15 @@ describe( 'RF Interaction React connection', () => {
 			kind: 'row',
 			input: ROW_INPUT,
 			rowCount: 1,
-			result: { status: 'not-ready' },
+			result: {
+				status: 'not-ready',
+				inputProblems: [
+					{
+						target: 'target',
+						correction: { kind: 'row-number-range', min: 1, max: 1 },
+					},
+				],
+			},
 			canApply: false,
 		} );
 	} );

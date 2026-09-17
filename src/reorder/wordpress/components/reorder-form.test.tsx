@@ -103,7 +103,7 @@ const createRowState = (): RfInteractionReactState => ( {
 		position: 'above',
 	},
 	rowCount: 20,
-	result: { status: 'not-ready' },
+	result: { status: 'not-ready', inputProblems: [] },
 	canApply: false,
 } );
 
@@ -165,7 +165,7 @@ describe( 'Reorder Form presentation', () => {
 				position: null,
 			},
 			rowCount: 20,
-			result: { status: 'not-ready' },
+			result: { status: 'not-ready', inputProblems: [] },
 			canApply: false,
 		};
 		const anchor = document.createElement( 'button' );
@@ -210,7 +210,7 @@ describe( 'Reorder Form presentation', () => {
 				{ columnIndex: 0, columnNumber: 1, heading: '商品名' },
 				{ columnIndex: 1, columnNumber: 2, heading: null },
 			],
-			result: { status: 'not-ready' },
+			result: { status: 'not-ready', inputProblems: [] },
 			canApply: false,
 		};
 		const anchor = document.createElement( 'button' );
@@ -359,7 +359,7 @@ describe( 'Reorder Form presentation', () => {
 				position: null,
 			},
 			rowCount: 20,
-			result: { status: 'not-ready' },
+			result: { status: 'not-ready', inputProblems: [] },
 			canApply: false,
 		};
 		const anchor = document.createElement( 'button' );

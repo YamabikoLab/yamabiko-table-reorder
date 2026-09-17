@@ -24,7 +24,9 @@ import {
 	interpretColumnRfInput,
 	interpretRowRfInput,
 	type ColumnRfFormInput,
+	type ColumnRfInputProblem,
 	type RowRfFormInput,
+	type RowRfInputProblem,
 } from './input-interpretation';
 import {
 	columnRfResolution,
@@ -35,7 +37,7 @@ import { rowRfResolution, type RowRfMoveCandidate, type RowRfResolution } from '
 
 /** Row Reorderの現在表示結果。 */
 export type RfRowCurrentResult =
-	| { status: 'not-ready' }
+	| { status: 'not-ready'; inputProblems: readonly RowRfInputProblem[] }
 	| { status: 'no-op' }
 	| { status: 'rejected'; blockingMergedRange: RowBlockingMergedRange }
 	| { status: 'unavailable' }
@@ -43,7 +45,7 @@ export type RfRowCurrentResult =
 
 /** Column Reorderの現在表示結果。 */
 export type RfColumnCurrentResult =
-	| { status: 'not-ready' }
+	| { status: 'not-ready'; inputProblems: readonly ColumnRfInputProblem[] }
 	| { status: 'no-op' }
 	| { status: 'rejected'; blockingMergedRange: ColumnBlockingMergedRange }
 	| { status: 'unavailable' }
@@ -219,13 +221,13 @@ const evaluateRow = (
 	}
 
 	const interpretation = interpretRowRfInput( input, constraints.rowCount );
-	// 入力指定が現在行数に対して未成立なら、構造制約の解決へ進めず入力待ちとして扱う。
+	// 入力指定が現在行数に対して未成立なら、Input Interpretationが確定した入力問題を再判定せず公開する。
 	if ( interpretation.status === 'not-ready' ) {
 		return {
 			evaluation: {
 				kind: 'row',
 				rowCount: constraints.rowCount,
-				result: { status: 'not-ready' },
+				result: interpretation,
 			},
 			candidate: null,
 		};
@@ -269,13 +271,13 @@ const evaluateColumn = (
 	}
 
 	const interpretation = interpretColumnRfInput( input, columns );
-	// 入力指定が現在の列記述に対して未成立なら、構造制約の解決へ進めず入力待ちとして扱う。
+	// 入力指定が現在の列記述に対して未成立なら、Input Interpretationが確定した入力問題を再判定せず公開する。
 	if ( interpretation.status === 'not-ready' ) {
 		return {
 			evaluation: {
 				kind: 'column',
 				columns,
-				result: { status: 'not-ready' },
+				result: interpretation,
 			},
 			candidate: null,
 		};
