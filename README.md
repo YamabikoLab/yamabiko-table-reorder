@@ -1,7 +1,7 @@
 # Yamabiko Table Reorder
 
 [![Latest Release](https://img.shields.io/github/v/release/YamabikoLab/yamabiko-table-reorder?label=version)](https://github.com/YamabikoLab/yamabiko-table-reorder/releases)
-![WordPress](https://img.shields.io/badge/WordPress-6.8%2B-21759b)
+![WordPress](https://img.shields.io/badge/WordPress-7.0%2B-21759b)
 ![PHP](https://img.shields.io/badge/PHP-8.1%2B-777bb4)
 [![License](https://img.shields.io/badge/license-GPLv2%20or%20later-blue)](LICENSE)
 
@@ -74,7 +74,7 @@ Try Row Reorder, Column Reorder, Reorder Form, Touch interaction, and merged-cel
 
 ## Requirements
 
-- WordPress 6.8 or later
+- WordPress 7.0 or later
 - PHP 8.1 or later
 
 ## Installation
