@@ -30,10 +30,12 @@ describe( 'RF Input Interpretation', () => {
 		] )(
 			'when required Row input is missing, should return not-ready without input problems',
 			( sourceRowNumber, targetRowNumber, position ) => {
-				expect( interpretRowRfInput( { sourceRowNumber, targetRowNumber, position }, 10 ) ).toEqual( {
-					status: 'not-ready',
-					inputProblems: [],
-				} );
+				expect( interpretRowRfInput( { sourceRowNumber, targetRowNumber, position }, 10 ) ).toEqual(
+					{
+						status: 'not-ready',
+						inputProblems: [],
+					}
+				);
 			}
 		);
 
@@ -83,10 +85,7 @@ describe( 'RF Input Interpretation', () => {
 		 */
 		it( 'when both Row numbers are invalid, should expose both input problems', () => {
 			expect(
-				interpretRowRfInput(
-					{ sourceRowNumber: 'abc', targetRowNumber: '0', position: null },
-					10
-				)
+				interpretRowRfInput( { sourceRowNumber: 'abc', targetRowNumber: '0', position: null }, 10 )
 			).toEqual( {
 				status: 'not-ready',
 				inputProblems: [
@@ -174,9 +173,7 @@ describe( 'RF Input Interpretation', () => {
 					)
 				).toEqual( {
 					status: 'not-ready',
-					inputProblems: [
-						{ target, correction: { kind: 'select-current-column' } },
-					],
+					inputProblems: [ { target, correction: { kind: 'select-current-column' } } ],
 				} );
 			}
 		);
