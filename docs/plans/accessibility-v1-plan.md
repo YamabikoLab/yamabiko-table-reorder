@@ -130,7 +130,7 @@ Plan作成時点でArchitecture変更を必要とする事項は確認されて�
   - 通常反映 / 確認付き大規模反映の両方で、RF Apply Coordinationが確定した移動前位置と確定後位置を持つMove summaryをsuccess結果としてLifecycle完了時に引き渡せるContractへ拡張する。
   - successは確定Move summaryを含む一回性の未提示Apply結果として保持し、RF InteractionからPresentationとAnnouncementへ二重消費なしで安全にfan-outできる公開方法を整理する。
   - failureも一回性の未提示Apply結果として同じfan-out境界から公開するが、確定Move summaryは要求しない。
-  - 確認表示では確認時summaryをそのLifecycle内だけで利用し、success後は確定Move summaryを移動結果の正本とする。Focus / 表示復帰で必要な`destinationIndex`は確定Move summaryから接続境界で表現変換し、Announcementは確定Move summaryを直接利用する。candidate、入力値、cleanup済みLifecycleから位置を再計算しない。
+  - 確認時summaryは`confirming`中だけ利用し、Continue時に破棄する。以降はContinue後の再assessmentで得た確定Move summaryを移動結果の正本とする。Focus / 表示復帰で必要な`destinationIndex`は確定Move summaryから接続境界で表現変換し、Announcementは確定Move summaryを直接利用する。candidate、入力値、cleanup済みLifecycleから位置を再計算しない。
   - Row / Column Table Integrationの既存確定後位置・診断ContractをAccessibility用に再計算しない。
 - Validation:
   - Jestで入力問題の対象、現在評価、一回性通知適格性、Apply結果の一回性、確定済み最終位置の保持を検証する。
