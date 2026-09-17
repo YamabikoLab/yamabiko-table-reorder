@@ -75,11 +75,11 @@ QR-02 の Compatibility 保証対象は、Functional Requirements の `FR-13` �
 
 正式 v1 で対応する Editor 環境の正本は本書とする。
 
-QR-02 の Compatibility 保証対象は、WordPress 6.8 以上の Block Editor において、対応する Table Block を編集できる Editor 環境とする。
+QR-02 の Compatibility 保証対象は、WordPress 7.0 以上の Block Editor において、対応する Table Block を編集できる Editor 環境とする。
 
 WordPress version や Editor 環境の違いによって、編集領域が iframe / non-iframe のいずれになる場合も Compatibility 保証対象に含める。
 
-WordPress 6.8 未満、および Block Editor 以外の編集環境は正式 v1 の Compatibility 保証対象には含めない。
+WordPress 7.0 未満、および Block Editor 以外の編集環境は正式 v1 の Compatibility 保証対象には含めない。
 
 ### 4.3 設計との境界
 
