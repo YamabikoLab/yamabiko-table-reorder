@@ -1,9 +1,9 @@
 /**
  * Column Reorderモード中、現在操作しようとしているセルへ列の開始可否を予告表示する。
  *
- * 移動可能な列は現在セルだけを操作可能表示とし、結合範囲により移動できない列は現在セルだけを移動不可表示として区別する。
+ * 移動可能な列と結合範囲により移動できない列は、対象セルの現在位置を基準にYTR所有の表示として区別する。
  * Presentation自身では列構造制約を解釈せず、Reorder Target Resolutionが返す開始可否だけを表示へ反映する。
- * Reorder Mode離脱は非React購読で受け取り、React renderを要求せず表示を破棄する。
+ * Highlight表示はTable subtreeのReact renderへ伝播させず、表示開始時の位置を一時的なPresentation snapshotとして扱う。
  */
 
 import { useEffect, useRef } from '@wordpress/element';
@@ -15,13 +15,25 @@ import {
 	subscribeColumnDndState,
 } from '@/reorder/column-reorder/responsibilities/dnd-interaction';
 import { resolveColumnReorderTarget } from '@/reorder/column-reorder/responsibilities/target-resolution';
+import { resolveEditorDomContext } from '@/reorder/editor-dom-context';
 import { columnReorderMode } from '@/reorder/reorder-mode';
 import { subscribeReorderMode } from '@/reorder/reorder-mode-subscription';
 
 import './column-highlight.scss';
 
-const HIGHLIGHTABLE_CELL_CLASS = 'yamabiko-table-reorder-column-highlightable-cell';
-const UNAVAILABLE_CELL_CLASS = 'yamabiko-table-reorder-column-unavailable-cell';
+const HIGHLIGHT_CLASS = 'yamabiko-table-reorder-column-highlight';
+const HIGHLIGHT_RESOLVED_CLASS = 'yamabiko-table-reorder-column-highlight-resolved';
+const HIGHLIGHT_REJECTED_CLASS = 'yamabiko-table-reorder-column-highlight-rejected';
+const CURSOR_GRAB_CLASS = 'yamabiko-table-reorder-column-highlight-cursor-grab';
+const CURSOR_DEFAULT_CLASS = 'yamabiko-table-reorder-column-highlight-cursor-default';
+
+type ColumnHighlightStatus = 'resolved' | 'rejected';
+
+type ColumnHighlightPresentation = {
+	overlay: HTMLDivElement;
+	editorDocument: Document;
+	onScroll: EventListener;
+};
 
 /**
  * 列の操作可否表示が既存Block wrapperのポインター入力へ接続する処理。
@@ -38,20 +50,61 @@ export type ColumnHighlightPointerOverHandler = ( event: PointerEvent< Element >
 export type ColumnHighlightPointerOutHandler = ( event: PointerEvent< Element > ) => void;
 
 /**
- * 現在セルの操作可否表示を解除する。
+ * 現在セルの開始可否表示をYTR所有DOMへ生成する。
  *
- * @param cell 現在操作可否表示を持つセル。
+ * 表示開始時のセル位置だけを使用し、その後のBlock再描画やDOM再接続を追跡しない。
+ * cursorはEditor Documentのbodyが所有し、overlay自身は入力を受け取らない。
+ *
+ * @param cell      現在操作対象として確定したセル。
+ * @param status    Target Resolutionが確定した開始可否。
+ * @param onCleanup 実際のscroll発生時にHighlight全体を終了する処理。
+ * @return Highlightの一時Presentation。Editor DOM Contextを解決できない場合はnull。
  */
-const clearVisualState = ( cell: HTMLTableCellElement | null ): void => {
-	cell?.classList.remove( HIGHLIGHTABLE_CELL_CLASS, UNAVAILABLE_CELL_CLASS );
+const createHighlightPresentation = (
+	cell: HTMLTableCellElement,
+	status: ColumnHighlightStatus,
+	onCleanup: () => void
+): ColumnHighlightPresentation | null => {
+	const editorContext = resolveEditorDomContext( cell );
+
+	/* 現在セルと同じEditor DOM Contextを解決できない場合は、別documentへ表示を生成しない。 */
+	if ( editorContext === null ) {
+		return null;
+	}
+
+	const rectangle = cell.getBoundingClientRect();
+	const overlay = editorContext.document.createElement( 'div' );
+	overlay.classList.add( HIGHLIGHT_CLASS );
+	overlay.classList.add(
+		status === 'resolved' ? HIGHLIGHT_RESOLVED_CLASS : HIGHLIGHT_REJECTED_CLASS
+	);
+	overlay.style.top = `${ rectangle.top }px`;
+	overlay.style.left = `${ rectangle.left }px`;
+	overlay.style.width = `${ rectangle.width }px`;
+	overlay.style.height = `${ rectangle.height }px`;
+	editorContext.document.body.appendChild( overlay );
+
+	const cursorClass = status === 'resolved' ? CURSOR_GRAB_CLASS : CURSOR_DEFAULT_CLASS;
+	editorContext.document.body.classList.add( cursorClass );
+
+	const onScroll: EventListener = () => {
+		onCleanup();
+	};
+	editorContext.document.addEventListener( 'scroll', onScroll, true );
+
+	return {
+		overlay,
+		editorDocument: editorContext.document,
+		onScroll,
+	};
 };
 
 /**
- * 現在のTarget Resolution結果に応じて、DnD開始前のセルへ操作可能または移動不可を予告表示する。
+ * 現在のTarget Resolution結果に応じて、DnD開始前のセル位置へ操作可能または移動不可を予告表示する。
  *
- * hover対象が変わるたびに要求時点のTableから開始可否を解決する。
- * DnD開始時とColumn Reorder Mode離脱時は開始前表示を破棄する。
- * 開始可否は方向固有Reorder Mode APIから入力時に直接参照し、mode変更をReact props更新として要求しない。
+ * pointer入力時に要求時点のTableから開始可否と表示位置を解決し、成立したHighlightは次の入力またはcleanupまで固定する。
+ * DnD開始、Column Reorder Mode離脱、マウスの対象セル離脱、実際のscroll発生では開始前表示を破棄する。
+ * 表示変更はYTR所有DOMだけを命令的に更新し、配下のBlock subtreeをReact再描画しない。
  *
  * @param props               セル予告表示に必要な値。
  * @param props.tableIdentity 列並び替え対象のTable Identity。
@@ -67,13 +120,25 @@ export const ColumnHighlight = ( props: {
 } ) => {
 	const { tableIdentity, children } = props;
 	const currentCell = useRef< HTMLTableCellElement | null >( null );
+	const currentPresentation = useRef< ColumnHighlightPresentation | null >( null );
+
+	const clearHighlightState = (): void => {
+		const presentation = currentPresentation.current;
+
+		if ( presentation !== null ) {
+			presentation.editorDocument.removeEventListener( 'scroll', presentation.onScroll, true );
+			presentation.overlay.remove();
+			presentation.editorDocument.body.classList.remove(
+				CURSOR_GRAB_CLASS,
+				CURSOR_DEFAULT_CLASS
+			);
+		}
+
+		currentPresentation.current = null;
+		currentCell.current = null;
+	};
 
 	useEffect( () => {
-		const clearHighlightState = (): void => {
-			clearVisualState( currentCell.current );
-			currentCell.current = null;
-		};
-
 		const synchronizeDndLifecycle = (): void => {
 			if ( getColumnDndPhase() === 'active' ) {
 				clearHighlightState();
@@ -104,8 +169,7 @@ export const ColumnHighlight = ( props: {
 			return;
 		}
 
-		clearVisualState( currentCell.current );
-		currentCell.current = null;
+		clearHighlightState();
 		const table = event.currentTarget.querySelector( 'table' );
 
 		if (
@@ -128,17 +192,23 @@ export const ColumnHighlight = ( props: {
 			tableIdentity,
 			sourceColumnIndex,
 		} );
-		currentCell.current = cell;
 
-		if ( resolution.status === 'resolved' ) {
-			cell.classList.add( HIGHLIGHTABLE_CELL_CLASS );
+		if ( resolution.status !== 'resolved' && resolution.status !== 'rejected' ) {
 			return;
 		}
 
-		if ( resolution.status === 'rejected' ) {
-			cell.classList.add( UNAVAILABLE_CELL_CLASS );
-			currentCell.current = cell;
+		const presentation = createHighlightPresentation(
+			cell,
+			resolution.status,
+			clearHighlightState
+		);
+
+		if ( presentation === null ) {
+			return;
 		}
+
+		currentCell.current = cell;
+		currentPresentation.current = presentation;
 	};
 
 	const onPointerOutCapture: ColumnHighlightPointerOutHandler = ( event ) => {
@@ -158,8 +228,7 @@ export const ColumnHighlight = ( props: {
 			return;
 		}
 
-		clearVisualState( cell );
-		currentCell.current = null;
+		clearHighlightState();
 	};
 
 	return children( onPointerOverCapture, onPointerOutCapture );
