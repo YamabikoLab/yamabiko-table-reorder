@@ -42,10 +42,6 @@ export const getChatPromptLabel = () => __( 'Reorder request', 'yamabiko-table-r
 /** Chat Reorderの送信操作の表示名を取得する。 */
 export const getChatSendLabel = () => __( 'Send', 'yamabiko-table-reorder' );
 
-/** Chat ReorderのAI transportが未接続であることを知らせる文言を取得する。 */
-export const getChatTransportUnavailableMessage = () =>
-	__( 'AI transport is not connected for this proof of concept.', 'yamabiko-table-reorder' );
-
 /** Chat ReorderのAI出力が許可grammarに一致しないことを知らせる文言を取得する。 */
 export const getChatInvalidOutputMessage = () =>
 	__( 'The AI response could not be used. Try the request again.', 'yamabiko-table-reorder' );
@@ -186,7 +182,7 @@ export const getRowMergedRangeMessage = (
 		return sprintf( message, rowStart, rowEnd, columnStart );
 	}
 
-	/* translators: 1: first 1-based row number, 2: last 1-based row number, 3: first 1-based column number, 4: last 1-based column number */
+	/* translators: 1: 1-based row number, 2: first 1-based column number, 3: last 1-based column number */
 	const message = __(
 		'A merged cell spanning rows %1$d–%2$d and columns %3$d–%4$d prevents this move.',
 		'yamabiko-table-reorder'
