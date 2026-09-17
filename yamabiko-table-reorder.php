@@ -249,10 +249,14 @@ final class Plugin {
 			plugins_url( 'build/index.js', __FILE__ ),
 			$dependencies,
 			$version,
-			true
+			array(
+				'in_footer'           => true,
+				'module_dependencies' => array(
+					'@wordpress/core-abilities',
+					'@wordpress/abilities',
+				),
+			)
 		);
-
-		wp_enqueue_script_module( '@wordpress/core-abilities' );
 
 		wp_set_script_translations(
 			$handle,
