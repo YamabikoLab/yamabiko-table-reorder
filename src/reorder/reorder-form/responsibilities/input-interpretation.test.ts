@@ -78,6 +78,35 @@ describe( 'RF Input Interpretation', () => {
 		);
 
 		/**
+		 * positionが未選択でも入力済みRow番号の問題を独立して公開できることを確認する。
+		 *
+		 * 事前条件:
+		 * - 現在Tableには10行存在する。
+		 * - sourceは不正値、targetは有効値である。
+		 * - positionは未選択である。
+		 *
+		 * 操作:
+		 * - Row RF入力の解釈を要求する。
+		 *
+		 * 期待結果:
+		 * - sourceだけが1〜10の修正範囲を持つ入力問題として公開される。
+		 * - position未選択によってsourceの問題情報が失われない。
+		 */
+		it( 'when Row position is missing and only source is invalid, should expose only the source input problem', () => {
+			expect(
+				interpretRowRfInput( { sourceRowNumber: 'abc', targetRowNumber: '5', position: null }, 10 )
+			).toEqual( {
+				status: 'not-ready',
+				inputProblems: [
+					{
+						target: 'source',
+						correction: { kind: 'row-number-range', min: 1, max: 10 },
+					},
+				],
+			} );
+		} );
+
+		/**
 		 * source / targetの両方が不正な場合に両方の問題を同時に保持できることを確認する。
 		 *
 		 * 期待結果:
@@ -177,6 +206,34 @@ describe( 'RF Input Interpretation', () => {
 				} );
 			}
 		);
+
+		/**
+		 * sourceが未選択でも入力済みtargetの消失問題を独立して公開できることを確認する。
+		 *
+		 * 事前条件:
+		 * - sourceは未選択である。
+		 * - targetは選択済みだが現在の列選択肢から消失している。
+		 *
+		 * 操作:
+		 * - Column RF入力の解釈を要求する。
+		 *
+		 * 期待結果:
+		 * - targetだけが現在列からの再選択を要する入力問題として公開される。
+		 * - source未選択は入力問題として扱われず、targetの問題情報も失われない。
+		 */
+		it( 'when Column source is missing and target is absent, should expose only the target input problem', () => {
+			expect(
+				interpretColumnRfInput(
+					{ sourceColumnIndex: null, targetColumnIndex: 3, position: 'right' },
+					columns
+				)
+			).toEqual( {
+				status: 'not-ready',
+				inputProblems: [
+					{ target: 'target', correction: { kind: 'select-current-column' } },
+				],
+			} );
+		} );
 
 		/**
 		 * source / targetの両方が現在の列選択肢から消えた場合に両方の問題を保持できることを確認する。
