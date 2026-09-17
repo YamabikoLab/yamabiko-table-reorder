@@ -82,6 +82,13 @@ export const getRfTargetColumnLabel = () => __( 'Target column', 'yamabiko-table
 /** RFの列選択が未指定であることを示す選択肢を取得する。 */
 export const getRfSelectColumnLabel = () => __( 'Select a column', 'yamabiko-table-reorder' );
 
+/** 現在のTableから消失したRFの列選択を再選択するよう案内する文言を取得する。 */
+export const getRfColumnSelectionUnavailableMessage = () =>
+	__(
+		'The selected column is no longer available. Select a column again.',
+		'yamabiko-table-reorder'
+	);
+
 /** RFで移動先列の左を示す表示名を取得する。 */
 export const getRfLeftLabel = () => __( 'Left', 'yamabiko-table-reorder' );
 
