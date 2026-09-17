@@ -4,9 +4,6 @@
  * AI provider固有の通信や認証は所有せず、自然言語入力とcompact Table contextだけを正規化Abilityへ渡す。
  */
 
-import { executeAbility } from '@wordpress/abilities';
-import { ready as coreAbilitiesReady } from '@wordpress/core-abilities';
-
 import { serializeChatReorderContext, type ChatReorderContext } from './context';
 
 const NORMALIZE_REORDER_COMMAND_ABILITY = 'yamabiko-table-reorder/normalize-reorder-command';
@@ -47,8 +44,13 @@ export const requestChatReorderCommand = async (
 	input: string,
 	context: ChatReorderContext
 ): Promise< string > => {
-	await coreAbilitiesReady;
-	const result = await executeAbility( NORMALIZE_REORDER_COMMAND_ABILITY, {
+	const [ abilities, coreAbilities ] = await Promise.all( [
+		import( /* webpackIgnore: true */ '@wordpress/abilities' ),
+		import( /* webpackIgnore: true */ '@wordpress/core-abilities' ),
+	] );
+
+	await coreAbilities.ready;
+	const result = await abilities.executeAbility( NORMALIZE_REORDER_COMMAND_ABILITY, {
 		input,
 		context: serializeChatReorderContext( context ),
 	} );
