@@ -100,13 +100,13 @@ workspace "YTR Reorder v1 Architecture" {
 				element.setGroup("WordPress Reorder Integration")
 			}
 		}
-		RESP_ANNOUNCEMENT_DELIVERY = element "Announcement Delivery" "Responsibility" "既存責務が確定した一回性の結果意味をfocusから独立してBrowser Accessibility Platformへ伝える。" {
+		RESP_ANNOUNCEMENT_DELIVERY = element "Announcement Delivery" "Responsibility" "RF Interactionが公開する現在評価または一回性Apply結果をfocusから独立してBrowser Accessibility Platformへ伝える。" {
 			tags "Responsibility"
 			!script groovy {
 				element.setGroup("WordPress Reorder Integration")
 			}
 		}
-		RESP_RF_INTERACTION = element "RF Interaction" "Responsibility" "RF Session、対象Table、方向、利用者入力、現在評価、意味変化、Apply要求、および未提示Apply結果を所有する。" {
+		RESP_RF_INTERACTION = element "RF Interaction" "Responsibility" "RF Session、対象Table、方向、利用者入力、現在評価、Apply要求、および未提示Apply結果を所有する。" {
 			tags "Responsibility"
 			!script groovy {
 				element.setGroup("Reorder Form")
@@ -170,7 +170,7 @@ workspace "YTR Reorder v1 Architecture" {
 		DEP_007 = RESP_WORDPRESS_REORDER_INTEGRATION -> RESP_FOCUS_COORDINATION "RF open / close、failure、および表示変更時のfocus Contractに必要とする。" {
 			tags "Structural Dependency"
 		}
-		DEP_008 = RESP_WORDPRESS_REORDER_INTEGRATION -> RESP_ANNOUNCEMENT_DELIVERY "新しいblocked、no-op、success、failure意味を支援技術へ伝えるために必要とする。" {
+		DEP_008 = RESP_WORDPRESS_REORDER_INTEGRATION -> RESP_ANNOUNCEMENT_DELIVERY "blocked / no-opの現在評価と未提示success / failure結果を支援技術へ伝えるために必要とする。" {
 			tags "Structural Dependency"
 		}
 		DEP_009 = RESP_WORDPRESS_REORDER_APPLY_INTEGRATION -> EXT_WORDPRESS_EDITOR "確認、反映中表示、表示復帰をEditorへ接続するために必要とする。" {
@@ -221,7 +221,7 @@ workspace "YTR Reorder v1 Architecture" {
 		DEP_024 = RESP_FOCUS_COORDINATION -> EXT_BROWSER_ACCESSIBILITY "現在targetへのfocus適用と維持に必要とする。" {
 			tags "Structural Dependency"
 		}
-		DEP_025 = RESP_ANNOUNCEMENT_DELIVERY -> EXT_BROWSER_ACCESSIBILITY "一回性の意味通知を支援技術へ公開するために必要とする。" {
+		DEP_025 = RESP_ANNOUNCEMENT_DELIVERY -> EXT_BROWSER_ACCESSIBILITY "現在評価またはApply結果の通知を支援技術へ公開するために必要とする。" {
 			tags "Structural Dependency"
 		}
 		DEP_026 = RESP_RF_INTERACTION -> RESP_RF_INPUT_INTERPRETATION "現在入力を入力問題または内部指定へ解釈するために必要とする。" {
@@ -327,10 +327,10 @@ workspace "YTR Reorder v1 Architecture" {
 		PF_019 = RESP_RF_APPLY_COORDINATION -> RESP_RF_INTERACTION "表示復帰後に確定したsuccess / failureをRF Lifecycleへ返す。" {
 			tags "Process Flow,ProcessFlow_PV_RF_REORDER_END_TO_END,normal"
 		}
-		PF_020 = RESP_RF_INTERACTION -> RESP_WORDPRESS_REORDER_INTEGRATION "新しく成立した一回性の結果意味をWordPress接続へ公開する。" {
+		PF_020 = RESP_RF_INTERACTION -> RESP_WORDPRESS_REORDER_INTEGRATION "未提示のApply結果をWordPress接続へ公開する。" {
 			tags "Process Flow,ProcessFlow_PV_RF_REORDER_END_TO_END,normal"
 		}
-		PF_021 = RESP_WORDPRESS_REORDER_INTEGRATION -> RESP_ANNOUNCEMENT_DELIVERY "確定済み結果意味を通知境界へ渡す。" {
+		PF_021 = RESP_WORDPRESS_REORDER_INTEGRATION -> RESP_ANNOUNCEMENT_DELIVERY "WordPress接続が確保した確定済みApply結果を通知境界へ渡す。" {
 			tags "Process Flow,ProcessFlow_PV_RF_REORDER_END_TO_END,normal"
 		}
 		PF_022 = RESP_ANNOUNCEMENT_DELIVERY -> EXT_BROWSER_ACCESSIBILITY "結果意味をfocusから独立した状態変化として公開する。" {
@@ -514,18 +514,18 @@ workspace "YTR Reorder v1 Architecture" {
 				"runtime.RV_RF_COLUMN_INPUT_RESULT.step.5" "入力問題または指定全体の現在評価をPresentationへ渡す。"
 			}
 		}
-		RT_024 = RESP_RF_INTERACTION -> RESP_WORDPRESS_REORDER_INTEGRATION "blocked / no-op等が新しく成立した場合だけ一回性通知を提供する。" {
+		RT_024 = RESP_RF_INTERACTION -> RESP_WORDPRESS_REORDER_INTEGRATION "blocked / no-op等の現在評価をそのまま公開する。" {
 			tags "Runtime Interaction,Runtime_RV_RF_ROW_INPUT_RESULT,Runtime_RV_RF_COLUMN_INPUT_RESULT"
 			properties {
-				"runtime.RV_RF_ROW_INPUT_RESULT.step.6" "blocked / no-op等が新しく成立した場合だけ一回性通知を提供する。"
-				"runtime.RV_RF_COLUMN_INPUT_RESULT.step.6" "blocked / no-op等が新しく成立した場合だけ一回性通知を提供する。"
+				"runtime.RV_RF_ROW_INPUT_RESULT.step.6" "blocked / no-op等の現在評価をそのまま公開する。"
+				"runtime.RV_RF_COLUMN_INPUT_RESULT.step.6" "blocked / no-op等の現在評価をそのまま公開する。"
 			}
 		}
-		RT_025 = RESP_WORDPRESS_REORDER_INTEGRATION -> RESP_ANNOUNCEMENT_DELIVERY "新しい通知意味をfocus移動要求なしで渡す。" {
+		RT_025 = RESP_WORDPRESS_REORDER_INTEGRATION -> RESP_ANNOUNCEMENT_DELIVERY "現在評価をfocus移動要求なしで渡す。" {
 			tags "Runtime Interaction,Runtime_RV_RF_ROW_INPUT_RESULT,Runtime_RV_RF_COLUMN_INPUT_RESULT"
 			properties {
-				"runtime.RV_RF_ROW_INPUT_RESULT.step.7" "新しい通知意味をfocus移動要求なしで渡す。"
-				"runtime.RV_RF_COLUMN_INPUT_RESULT.step.7" "新しい通知意味をfocus移動要求なしで渡す。"
+				"runtime.RV_RF_ROW_INPUT_RESULT.step.7" "現在評価をfocus移動要求なしで渡す。"
+				"runtime.RV_RF_COLUMN_INPUT_RESULT.step.7" "現在評価をfocus移動要求なしで渡す。"
 			}
 		}
 		RT_026 = EXT_WORDPRESS_EDITOR -> RESP_WORDPRESS_REORDER_INTEGRATION "利用者がColumn方向または入力を変更する。" {
