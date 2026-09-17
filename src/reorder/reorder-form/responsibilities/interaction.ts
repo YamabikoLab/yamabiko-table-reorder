@@ -1,5 +1,5 @@
 /**
- * RF Interactionとして、一つの対象Tableに対するRF入力Session、粗いApply Lifecycle、未消費のApply結果を所有する。
+ * RF Interactionとして、一つの対象Tableに対するRF入力Session、粗いApply Lifecycle、未提示のApply結果を所有する。
  *
  * Zustandのvanilla storeを状態正本とし、React component lifecycleから独立してSessionとApply Outcomeを維持する。
  * 現在Tableに依存する表示結果は要求時点で既存Table Integration / Input Interpretation / Resolutionから再評価し、
@@ -19,7 +19,7 @@ import {
 	type RowBlockingMergedRange,
 } from '@/reorder/row-reorder/responsibilities/table-integration';
 
-import { receiveRfApplyRequest } from './apply-coordination';
+import { receiveRfApplyRequest, type RfApplySummary } from './apply-coordination';
 import {
 	interpretColumnRfInput,
 	interpretRowRfInput,
@@ -59,20 +59,24 @@ export type RfApplyRequest =
 /**
  * RF Apply CoordinationがRF Interactionへ返す反映結果。
  *
- * `success`は反映完了、`failure`は反映失敗、`cancelled`は利用者が確認を取り消した結果を表す。
+ * `success`は確定Move summaryを含む反映完了、`failure`は反映失敗、`cancelled`は利用者が確認を取り消した結果を表す。
  * 取消は失敗として通知せず、入力を保持したRF Sessionへ戻すために失敗と区別する。
  */
-export type RfApplyResult = 'success' | 'failure' | 'cancelled';
+export type RfApplyResult =
+	| { status: 'success'; moveSummary: RfApplySummary }
+	| { status: 'failure' }
+	| { status: 'cancelled' };
 
 /**
- * RF InteractionがPresentationへ公開する未消費の反映結果。
+ * RF InteractionがWordPress接続へ公開する未提示の反映結果。
  *
- * 成功または失敗だけを対象Tableと関連付けて保持し、利用者による取消は通知対象にしない。
- * Reactのmount状態に依存せず、対象TableのPresentationが消費するか、新しいRF Sessionまたは反映を開始するまで維持する。
+ * 成功または失敗だけを対象Tableと関連付けて一件保持し、利用者による取消は通知対象にしない。
+ * successではRF Apply Coordinationが確定したMove summaryを加工せず保持する。
+ * Reactのmount状態に依存せず、対象TableのWordPress接続が提示済みにするか、新しいRF Sessionまたは反映を開始するまで維持する。
  */
 export type RfApplyOutcome =
 	| { status: 'idle' }
-	| { status: 'success'; tableIdentity: string }
+	| { status: 'success'; tableIdentity: string; moveSummary: RfApplySummary }
 	| { status: 'failure'; tableIdentity: string };
 
 /** Row RFフォームの初期入力。 */
@@ -89,7 +93,7 @@ const INITIAL_COLUMN_INPUT: ColumnRfFormInput = {
 	position: null,
 };
 
-/** 未消費のApply結果が存在しない状態。 */
+/** 未提示のApply結果が存在しない状態。 */
 const IDLE_APPLY_OUTCOME: RfApplyOutcome = { status: 'idle' };
 
 /** RF Sessionが保持するReorder Kind別入力。 */
@@ -288,12 +292,12 @@ const evaluateColumn = (
 	const candidate = resolution.status === 'resolved' ? resolution.candidate : null;
 	return {
 		evaluation: {
-			kind: 'column',
-			columns,
-			result: toColumnCurrentResult( resolution ),
-		},
-		candidate,
-	};
+				kind: 'column',
+				columns,
+				result: toColumnCurrentResult( resolution ),
+			},
+			candidate,
+		};
 };
 
 /**
@@ -475,7 +479,7 @@ export const rfInteractionStore = createStore< RfInteractionStore >()(
 					rowInput: session.rowInput,
 					columnInput: session.columnInput,
 				};
-				/* 新しい反映開始時は前回の未消費結果を破棄し、今回の反映結果と混在させない。 */
+				/* 新しい反映開始時は前回の未提示結果を破棄し、今回の反映結果と混在させない。 */
 				set(
 					{ session: applyingSession, applyOutcome: IDLE_APPLY_OUTCOME },
 					undefined,
@@ -492,12 +496,16 @@ export const rfInteractionStore = createStore< RfInteractionStore >()(
 					return;
 				}
 
-				// 正常反映が完了したSessionは入力を残さず終了し、成功事実をPresentationが消費するまで保持する。
-				if ( result === 'success' ) {
+				// 正常反映が完了したSessionは入力を残さず終了し、確定Move summaryを含む結果をWordPress接続が提示済みにするまで保持する。
+				if ( result.status === 'success' ) {
 					set(
 						{
 							session: { status: 'closed' },
-							applyOutcome: { status: 'success', tableIdentity },
+							applyOutcome: {
+								status: 'success',
+								tableIdentity,
+								moveSummary: result.moveSummary,
+							},
 						},
 						undefined,
 						'rf-interaction/apply-success'
@@ -519,16 +527,18 @@ export const rfInteractionStore = createStore< RfInteractionStore >()(
 					evaluation,
 				};
 				const applyOutcome: RfApplyOutcome =
-					result === 'failure' ? { status: 'failure', tableIdentity } : IDLE_APPLY_OUTCOME;
+					result.status === 'failure'
+						? { status: 'failure', tableIdentity }
+						: IDLE_APPLY_OUTCOME;
 				set(
 					{ session: openSession, applyOutcome },
 					undefined,
-					`rf-interaction/apply-${ result }`
+					`rf-interaction/apply-${ result.status }`
 				);
 			},
 			consumeApplyOutcome: ( tableIdentity ) => {
 				const applyOutcome = get().applyOutcome;
-				// 対象Table以外からの消費要求では未消費結果を失わない。
+				// 対象Table以外からの提示済み化要求では未提示結果を失わない。
 				if ( applyOutcome.status === 'idle' || applyOutcome.tableIdentity !== tableIdentity ) {
 					return;
 				}
@@ -570,7 +580,10 @@ export const rfInteraction = {
 	/** @param tableIdentity Applyを要求する現在RF Sessionの対象Table Identity。 */
 	requestApply: ( tableIdentity: string ) =>
 		rfInteractionStore.getState().requestApply( tableIdentity ),
-	/** @param tableIdentity 反映結果通知を表示済みのTable Identity。 */
+	/**
+	 * WordPress接続が未提示Apply Outcome全体を確保した時点で、そのOutcomeを提示済みにする。
+	 * @param tableIdentity 結果を確保したTable Identity。
+	 */
 	consumeApplyOutcome: ( tableIdentity: string ) =>
 		rfInteractionStore.getState().consumeApplyOutcome( tableIdentity ),
 };
