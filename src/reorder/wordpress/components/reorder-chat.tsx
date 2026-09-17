@@ -10,13 +10,13 @@ import { useState } from '@wordpress/element';
 import type { FormEvent, ReactNode } from 'react';
 
 import {
+	getChatAiUnavailableMessage,
 	getChatInvalidOutputMessage,
 	getChatPromptLabel,
 	getChatSendLabel,
-	getChatTransportUnavailableMessage,
 	getChatUnresolvedColumnMessage,
 } from '@/messages';
-import { getChatAiTransport, requestChatReorderCommand } from '@/reorder/chat-reorder/ai-request';
+import { requestChatReorderCommand } from '@/reorder/chat-reorder/ai-request';
 import { parseChatReorderCommand } from '@/reorder/chat-reorder/command';
 import { getChatReorderContext } from '@/reorder/chat-reorder/context-reader';
 import { submitChatCommandToRf } from '@/reorder/chat-reorder/rf-input-adapter';
@@ -66,7 +66,7 @@ export const ReorderChat = ( props: ReorderChatProps ) => {
 	};
 
 	/**
-	 * 今回入力だけをAIへ送り、strict parse済みCommandだけをRFへ接続する。
+	 * 今回入力だけを正規化Abilityへ送り、strict parse済みCommandだけをRFへ接続する。
 	 *
 	 * @param event Chat入力フォームのsubmit event。
 	 */
@@ -77,19 +77,12 @@ export const ReorderChat = ( props: ReorderChatProps ) => {
 			return;
 		}
 
-		const transport = getChatAiTransport();
-		if ( transport === null ) {
-			setMessage( getChatTransportUnavailableMessage() );
-			return;
-		}
-
 		setSubmitting( true );
 		setMessage( null );
 		try {
 			const commandText = await requestChatReorderCommand(
 				currentInput,
-				getChatReorderContext( tableIdentity ),
-				transport
+				getChatReorderContext( tableIdentity )
 			);
 			const parsed = parseChatReorderCommand( commandText );
 			if ( parsed.status === 'invalid' ) {
@@ -110,7 +103,7 @@ export const ReorderChat = ( props: ReorderChatProps ) => {
 			setInput( '' );
 			close();
 		} catch {
-			setMessage( getChatInvalidOutputMessage() );
+			setMessage( getChatAiUnavailableMessage() );
 		} finally {
 			setSubmitting( false );
 		}
