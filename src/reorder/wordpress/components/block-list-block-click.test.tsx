@@ -103,19 +103,18 @@ describe( 'Reorder Mode Block wrapper click integration', () => {
 	it( 'when table cells are clicked across mode changes, should preserve the existing capture handler and suppress descendants only while reordering', () => {
 		const existingClickCapture = jest.fn();
 		const tableClick = jest.fn();
-		const { getByTestId } = render(
-			<div onClick={ tableClick }>
-				<ReorderModeBlockListBlock
-					BlockListBlock={ BlockListBlock }
-					blockProps={ {
-						clientId: 'table-a',
-						isSelected: true,
-						name: 'core/table',
-						wrapperProps: { onClickCapture: existingClickCapture },
-					} }
-				/>
-			</div>
+		const { container, getByTestId } = render(
+			<ReorderModeBlockListBlock
+				BlockListBlock={ BlockListBlock }
+				blockProps={ {
+					clientId: 'table-a',
+					isSelected: true,
+					name: 'core/table',
+					wrapperProps: { onClickCapture: existingClickCapture },
+				} }
+			/>
 		);
+		container.addEventListener( 'click', tableClick );
 		const tableCell = getByTestId( 'table-cell' );
 
 		fireEvent.click( tableCell );
