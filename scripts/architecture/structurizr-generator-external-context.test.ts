@@ -73,10 +73,7 @@ test( 'Architecture 要素の5分類を tag と視覚スタイルへ反映する
 	const generatedExternalTypes = [
 		...dsl.matchAll( /element "(External (?:System|Block|Capability|Environment|Library))" \{/gu ),
 	].map( ( match ) => match[ 1 ] );
-	assert.deepEqual(
-		new Set( generatedExternalTypes ),
-		new Set( allowedExternalContextTypes )
-	);
+	assert.deepEqual( new Set( generatedExternalTypes ), new Set( allowedExternalContextTypes ) );
 } );
 
 test( 'Process Flow View がなくても Architecture 要素のスタイルを生成する', () => {
