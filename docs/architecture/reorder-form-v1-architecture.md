@@ -178,13 +178,13 @@ Accessibility Presentation、Focus Coordination、Announcement Deliveryは`BOUND
 | RESP_WORDPRESS_REORDER_INTEGRATION | RESP_REORDER_MODE | RF開始時のDnDモード終了と入口排他に必要とする。 |
 | RESP_WORDPRESS_REORDER_INTEGRATION | RESP_RF_INTERACTION | RF Session、現在入力、評価、Apply結果をEditorへ接続するために必要とする。 |
 | RESP_WORDPRESS_REORDER_INTEGRATION | RESP_ACCESSIBILITY_PRESENTATION | RF状態を操作意味、状態、案内、入力問題との関係へ表現するために必要とする。 |
-| RESP_WORDPRESS_REORDER_INTEGRATION | RESP_FOCUS_COORDINATION | RF open / close、failure、および表示変更時のfocus Contractに必要とする。 |
+| RESP_WORDPRESS_REORDER_INTEGRATION | RESP_FOCUS_COORDINATION | RF open / explicit closeのfocus Contractに必要とする。 |
 | RESP_WORDPRESS_REORDER_INTEGRATION | RESP_ANNOUNCEMENT_DELIVERY | blocked / no-opの現在評価と未提示success / failure結果を支援技術へ伝えるために必要とする。 |
 | RESP_WORDPRESS_REORDER_APPLY_INTEGRATION | EXT_WORDPRESS_EDITOR | 確認、反映中表示、表示復帰をEditorへ接続するために必要とする。 |
 | RESP_WORDPRESS_REORDER_APPLY_INTEGRATION | EXT_WORDPRESS_COMPONENTS | 確認と反映中状態の標準操作・semantic Contractを利用するために必要とする。 |
 | RESP_WORDPRESS_REORDER_APPLY_INTEGRATION | RESP_RF_APPLY_COORDINATION | Apply状態、確認summary、確定結果、最終位置を利用するために必要とする。 |
 | RESP_WORDPRESS_REORDER_APPLY_INTEGRATION | RESP_ACCESSIBILITY_PRESENTATION | 確認と反映中状態をaccessible Presentationへ表現するために必要とする。 |
-| RESP_WORDPRESS_REORDER_APPLY_INTEGRATION | RESP_FOCUS_COORDINATION | 確認、反映中、Cancel、表示復帰時のfocus Contractに必要とする。 |
+| RESP_WORDPRESS_REORDER_APPLY_INTEGRATION | RESP_FOCUS_COORDINATION | Apply successでediting surface再成立後に結果確認focusを一回適用するために必要とする。 |
 | RESP_REORDER_GUIDANCE_INTEGRATION | EXT_WORDPRESS_EDITOR | 初回案内をEditorへ接続するために必要とする。 |
 | RESP_REORDER_GUIDANCE_INTEGRATION | EXT_WORDPRESS_PREFERENCES | 操作環境別の案内済み状態を永続化するために必要とする。 |
 | RESP_REORDER_GUIDANCE_INTEGRATION | RESP_EDITOR_DOM_CONTEXT | 現在の操作環境を解決するために必要とする。 |
@@ -194,7 +194,7 @@ Accessibility Presentation、Focus Coordination、Announcement Deliveryは`BOUND
 | RESP_ACCESSIBILITY_PRESENTATION | EXT_WORDPRESS_COMPONENTS | WordPressの標準操作部品のsemantic Contractを優先して利用するために必要とする。 |
 | RESP_ACCESSIBILITY_PRESENTATION | EXT_BROWSER_ACCESSIBILITY | native semanticsを補足する意味、状態、関係を公開するために必要とする。 |
 | RESP_FOCUS_COORDINATION | RESP_EDITOR_DOM_CONTEXT | focus targetと同じEditor表示環境を要求時点で解決するために必要とする。 |
-| RESP_FOCUS_COORDINATION | EXT_WORDPRESS_EDITOR | 現在のRF、確認、反映中表示、editing surfaceの存在を確認するために必要とする。 |
+| RESP_FOCUS_COORDINATION | EXT_WORDPRESS_EDITOR | 要求時点の現在Editor表示環境でfocus targetの存在を確認するために必要とする。 |
 | RESP_FOCUS_COORDINATION | EXT_BROWSER_ACCESSIBILITY | 現在targetへのfocus適用と維持に必要とする。 |
 | RESP_ANNOUNCEMENT_DELIVERY | EXT_BROWSER_ACCESSIBILITY | 現在評価またはApply結果の通知を支援技術へ公開するために必要とする。 |
 | RESP_RF_INTERACTION | RESP_RF_INPUT_INTERPRETATION | 現在入力を入力問題または内部指定へ解釈するために必要とする。 |
@@ -330,7 +330,7 @@ WordPress接続に必要な一時参照と、現在RF Sessionの折りたたみ 
 
 ##### Contract
 
-RF入口選択時は同一TableのReorder Modeを終了してRF Interactionを開始する。WordPress Editor / Componentsの標準操作をRF Interactionへ接続し、現在RF状態をAccessibility Presentationへ渡す。Designが要求するopen / close / failureのfocus intentをFocus Coordinationへ渡す。
+RF入口選択時は同一TableのReorder Modeを終了してRF Interactionを開始する。WordPress Editor / Componentsの標準操作をRF Interactionへ接続し、現在RF状態をAccessibility Presentationへ渡す。Designが要求するRF open / explicit closeのfocus要求だけをFocus Coordinationへ渡す。
 
 blocked / no-op等の現在評価はRF Interactionから受けた評価をそのままAnnouncement Deliveryへ渡し、差分判定や重複抑制を追加しない。未提示のsuccess / failure Apply結果はOutcome全体を一度確保した時点でRF Interaction側を提示済みにし、同じOutcomeをVisual PresentationとAnnouncement Deliveryへfan-outする。
 
@@ -362,7 +362,7 @@ RFを含むReorder Apply状態をWordPress Editorの確認、反映中表示、e
 
 ##### Contract
 
-RF Apply Coordinationが公開する確認summary、Apply状態、確定結果、最終位置を利用する。確認と反映中状態をAccessibility Presentationへ渡し、確認開始、反映準備、editing surface restorationの各Design境界でFocus Coordinationへ意味上のtargetを渡す。
+RF Apply Coordinationが公開する確認summary、Apply状態、確定結果、最終位置を利用する。確認と反映中状態はAccessibility Presentationへ渡し、confirmation / applying / Cancel / failureのfocusはWordPress Componentsの標準focus Contractを優先する。Focus CoordinationはApply successでediting surfaceが再成立した後の結果確認focusにだけ利用する。
 
 成功後はRF Apply Coordinationが確定した最終位置をそのままWordPress Reorder Apply Integrationへ渡す。既存Apply Lifecycleの描画待ちでediting surfaceが再成立した後、Focus Coordinationへ結果確認focusを一回要求する。最終位置を安全に適用できない場合は対象Tableの安定した操作位置だけをfallbackとして試し、その後RF Apply Coordinationへ表示復帰完了を返す。
 
