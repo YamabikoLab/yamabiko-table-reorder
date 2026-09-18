@@ -14,6 +14,8 @@ import {
 	getChatPromptLabel,
 	getChatSendLabel,
 	getChatUnresolvedColumnMessage,
+	getLargeReorderApplyingMessage,
+	getRfApplyFailureMessage,
 } from '@/messages';
 import { requestChatReorderCommand } from '@/reorder/chat-reorder/ai-request';
 import { parseChatReorderCommand } from '@/reorder/chat-reorder/command';
@@ -77,7 +79,7 @@ export const ReorderChat = ( props: ReorderChatProps ) => {
 		}
 
 		setSubmitting( true );
-		setMessage( null );
+		setMessage( getLargeReorderApplyingMessage() );
 		try {
 			const commandText = await requestChatReorderCommand(
 				currentInput,
@@ -102,7 +104,7 @@ export const ReorderChat = ( props: ReorderChatProps ) => {
 			setInput( '' );
 			close();
 		} catch {
-			setMessage( getChatInvalidOutputMessage() );
+			setMessage( getRfApplyFailureMessage() );
 		} finally {
 			setSubmitting( false );
 		}
