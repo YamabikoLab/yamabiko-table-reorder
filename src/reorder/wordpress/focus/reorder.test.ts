@@ -83,27 +83,21 @@ describe( 'WordPress Reorder Integration focus coordination', () => {
 	 * RF明示終了時に固定されたtoolbar入口へ即時focusすることを確認する。
 	 *
 	 * 事前条件:
-	 * - 現在Presentationに対象TableのRF toolbar入口が存在する。
+	 * - 呼び出し元が現在のRF toolbar入口をanchorとして保持している。
 	 *
 	 * 操作:
 	 * - rf-explicit-close focusを要求する。
 	 *
 	 * 期待結果:
-	 * - 対象TableのRF toolbar入口へfocusする。
+	 * - DOM再検索を行わず、渡された現在のRF toolbar入口へfocusする。
 	 */
-	it( 'when RF closes explicitly, should focus the fixed reorder form toolbar entry', () => {
-		const referenceElement = document.createElement( 'div' );
+	it( 'when RF closes explicitly, should focus the current reorder form toolbar anchor directly', () => {
 		const toolbarEntry = document.createElement( 'button' );
-		toolbarEntry.dataset.ytrFocusTarget = 'rf-toolbar';
-		toolbarEntry.dataset.ytrTableIdentity = TABLE_IDENTITY;
-		document.body.append( referenceElement, toolbarEntry );
+		document.body.append( toolbarEntry );
 
-		requestReorderFocus(
-			{ type: 'rf-explicit-close', tableIdentity: TABLE_IDENTITY },
-			referenceElement
-		);
+		requestReorderFocus( { type: 'rf-explicit-close' }, toolbarEntry );
 
-		expect( referenceElement.ownerDocument.activeElement ).toBe( toolbarEntry );
+		expect( toolbarEntry.ownerDocument.activeElement ).toBe( toolbarEntry );
 	} );
 
 	/**
