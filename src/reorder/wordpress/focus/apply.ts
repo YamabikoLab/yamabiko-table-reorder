@@ -216,7 +216,6 @@ export function requestApplyFocus(
 	};
 	const resultTarget = resolveFocusTarget( target, request.tableIdentity, referenceElement );
 	// 更新後の結果確認位置がすでに成立している場合は、表示復帰待ちを作らずsuccess要求を完了する。
-	// 更新後の現在表示で確定位置が成立した時点で、結果確認focusとしてsuccess要求を完了する。
 	if ( resultTarget !== null && applyFocusTarget( resultTarget ) ) {
 		return Promise.resolve( { type: 'focused', target: 'result' } );
 	}
@@ -255,6 +254,7 @@ export function reconcileApplyFocus(
 		tableIdentity,
 		referenceElement
 	);
+	// 更新後の現在表示で確定位置が成立した時点で、結果確認focusとしてsuccess要求を完了する。
 	if ( resultTarget !== null && applyFocusTarget( resultTarget ) ) {
 		const { resolve } = pendingApplyFocus;
 		pendingApplyFocus = null;
