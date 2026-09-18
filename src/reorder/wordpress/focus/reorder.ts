@@ -1,60 +1,131 @@
 /**
- * WordPress Reorder Integration向けFocus Coordination公開境界を所有する。
+ * WordPress Reorder IntegrationからFocus Coordinationを利用するための公開境界を担当する。
  *
- * RF Lifecycleで許可されたrequestをDesign上の意味targetへ変換し、現在Editor DOM Contextへ適用する。
- * RF Presentation再生成でtargetが一時的に存在しない場合だけpendingを保持する。
+ * RFの開始・終了・表示再生成・確認キャンセル後・反映失敗後に必要なフォーカス要求だけを受け付ける。
+ * 通常はその場で完了し、RF表示の再生成中に操作位置が一時的に存在しない場合だけ、
+ * 対象Tableに結び付いた最小の要求を保持する。
  */
 
 import { applyFocusTarget, resolveFocusTarget, type FocusSemanticTarget } from './coordination';
 
-/** WordPress Reorder IntegrationがRF内で指定できる意味上の操作。 */
+/**
+ * WordPress Reorder Integrationが、RF内の可変なフォーカス先として指定できる操作。
+ *
+ * 固定先が設計で決まっている遷移には使用せず、表示再生成や反映失敗後など、
+ * 現在状態から呼び出し側が操作役割を選ぶ必要がある場合だけ指定する。
+ */
 export type ReorderFocusControl =
+	/** RFで並び替える種類として「行 / 列」を選択する操作。 */
 	| 'direction'
+	/** 「移動する行」または「移動する列」を指定する操作。 */
 	| 'source'
+	/** 「移動先の行」または「移動先の列」を指定する操作。 */
 	| 'destination'
+	/** 行の「上 / 下」または列の「左 / 右」を指定する操作。 */
 	| 'relation'
+	/** 現在の指定で並び替えを開始する「並び替え」操作。 */
 	| 'submit'
+	/** Tableを変更せずRFを終了する「キャンセル」操作。 */
 	| 'cancel'
+	/** Narrow表示等でRFを折りたたむ、または展開する操作。 */
 	| 'disclosure';
 
-/** Apply failure後に復帰先として指定できるRF操作。 */
-export type ReorderFailureFocusControl = 'submit' | 'source' | 'destination' | 'relation';
+/**
+ * Apply failure後に復帰先として指定できるRF操作。
+ *
+ * failure時の設計で許可される「再実行」または「入力修正」だけに限定する。
+ */
+export type ReorderFailureFocusControl =
+	/** 現在の指定をそのまま再実行できる場合の「並び替え」操作。 */
+	| 'submit'
+	/** 移動元を修正する「移動する行 / 列」操作。 */
+	| 'source'
+	/** 移動先を修正する「移動先の行 / 列」操作。 */
+	| 'destination'
+	/** 移動先との位置関係を修正する「上 / 下」「左 / 右」操作。 */
+	| 'relation';
 
-/** WordPress Reorder Integrationから要求できるRF Lifecycle上のfocus request。 */
+/**
+ * WordPress Reorder Integrationから要求できるRF Lifecycle上のフォーカス要求。
+ *
+ * 固定されたフォーカス先はtype自体から決まり、任意のtargetは受け取らない。
+ * Apply専用の確認・反映中・成功後結果確認はこの境界には含めない。
+ */
 export type ReorderFocusRequest =
-	| { type: 'rf-open'; tableIdentity: string }
-	| { type: 'rf-explicit-close'; tableIdentity: string }
+	/** RFを開いた後、初期操作である「行 / 列」選択へフォーカスする。 */
+	| {
+			type: 'rf-open';
+			/** RFを開いた対象TableのIdentity。 */
+			tableIdentity: string;
+	  }
+	/** 利用者がRFを明示的に終了した後、対象TableのRF toolbar入口へ戻す。 */
+	| {
+			type: 'rf-explicit-close';
+			/** RFを終了した対象TableのIdentity。 */
+			tableIdentity: string;
+	  }
+	/** RF表示が再生成された後、利用者が操作していた役割を現在表示へ維持する。 */
 	| {
 			type: 'presentation-regeneration';
+			/** フォーカス要求が属する対象TableのIdentity。 */
 			tableIdentity: string;
+			/** 再生成前に利用者が操作していたRF内の操作役割。 */
 			control: ReorderFocusControl;
 	  }
-	| { type: 'confirmation-cancel-restoration'; tableIdentity: string }
+	/** 確認をキャンセルしてRFへ戻った後、「並び替え」操作へ戻す。 */
+	| {
+			type: 'confirmation-cancel-restoration';
+			/** 復帰対象TableのIdentity。 */
+			tableIdentity: string;
+	  }
+	/** Apply failure後にRFへ戻った後、現在評価に応じた再実行または修正位置へ戻す。 */
 	| {
 			type: 'apply-failure-restoration';
+			/** 復帰対象TableのIdentity。 */
 			tableIdentity: string;
+			/** 設計上許可された再実行位置または修正対象。 */
 			control: ReorderFailureFocusControl;
 	  };
 
-/** RF側pending requestを再評価するときのPresentation状態。 */
-export type ReorderFocusPresentationState = 'regenerating' | 'stable';
+/**
+ * RF側の保留中フォーカス要求を現在表示で再評価するときの状態。
+ */
+export type ReorderFocusPresentationState =
+	/** RF表示がまだ再生成途中で、操作位置の一時的不在を許容する。 */
+	| 'regenerating'
+	/** RF表示が成立済みで、現在の表示から操作位置を解決できる状態。 */
+	| 'stable';
 
-/** RF側pending requestをfocus適用せず終了する理由。 */
-export type ReorderFocusAbandonReason = 'table-removed' | 'user-moved' | 'lifecycle-replaced';
+/**
+ * RF側の保留中フォーカス要求を、フォーカスを適用せず終了させる理由。
+ */
+export type ReorderFocusAbandonReason =
+	/** 対象TableがEditorから消失し、復帰先が成立しなくなった。 */
+	| 'table-removed'
+	/** 利用者が別の操作位置へ移動し、古い要求を適用すべきでなくなった。 */
+	| 'user-moved'
+	/** RF Lifecycleが終了または置換され、保持中の要求が古くなった。 */
+	| 'lifecycle-replaced';
 
-/** RF Presentation再生成中だけ保持する意味上のpending intent。 */
+/**
+ * RF表示の再生成中だけ保持するフォーカス要求。
+ *
+ * DOM要素やEditor DOM Contextは保持せず、対象Tableと意味上の操作位置だけを保持する。
+ */
 type PendingReorderFocus = {
+	/** 保留中の要求が属する対象TableのIdentity。 */
 	tableIdentity: string;
+	/** 再生成後の現在表示で解決し直す意味上のフォーカス先。 */
 	target: FocusSemanticTarget;
 };
 
 let pendingReorderFocus: PendingReorderFocus | null = null;
 
 /**
- * RF Lifecycle requestをDesign上の意味targetへ変換する。
+ * RF Lifecycle上の要求を、設計で定めた意味上のフォーカス先へ変換する。
  *
- * @param request RF Lifecycleで許可されたfocus request。
- * @return requestに対応する意味上のfocus target。
+ * @param request WordPress Reorder Integrationから受けたフォーカス要求。
+ * @return requestの意味に対応するフォーカス先。
  */
 const getTarget = ( request: ReorderFocusRequest ): FocusSemanticTarget => {
 	if ( request.type === 'rf-open' ) {
@@ -73,12 +144,12 @@ const getTarget = ( request: ReorderFocusRequest ): FocusSemanticTarget => {
 };
 
 /**
- * WordPress Reorder IntegrationからRF系focusを要求する。
+ * WordPress Reorder IntegrationからRF系のフォーカスを要求する。
  *
- * 固定targetはrequest typeから決定し、可変targetはDesignで許可されたcontrolだけを利用する。
- * 即時適用できない通常requestは状態を残さず終了し、Presentation再生成requestだけをpendingにできる。
+ * 通常の要求は現在表示で即時に完了する。RF表示再生成中に操作位置が一時的に存在しない場合だけ、
+ * 同じ対象Tableに結び付けて保留できる。新しい要求を受けた場合は以前の保留要求を次の操作へ持ち越さない。
  *
- * @param request          RF Lifecycleで許可されたfocus request。
+ * @param request          RF Lifecycleで許可されたフォーカス要求。
  * @param referenceElement 現在Editor DOM Contextを特定する基準要素。
  */
 export function requestReorderFocus(
@@ -86,8 +157,8 @@ export function requestReorderFocus(
 	referenceElement: Element
 ): void {
 	/*
-	 * 新しいrequestは現在pending中のrequestを置換する。
-	 * Focus Coordination専用Lifecycle IDやqueueは追加せず、古いintentを次の操作へ持ち越さない。
+	 * Focus Coordination専用のLifecycle IDや待ち行列は持たず、
+	 * 新しい利用者操作を優先して以前の保留要求を終了する。
 	 */
 	pendingReorderFocus = null;
 
@@ -107,14 +178,14 @@ export function requestReorderFocus(
 }
 
 /**
- * RF側pending requestを現在Editor DOMで再評価する。
+ * RF側の保留中フォーカス要求を、現在のエディター表示で再評価する。
  *
- * regenerating中はtarget一時不在を許容し、stableで成立しなければpendingを終了する。
- * 呼び出しごとに現在のreferenceElementからEditor DOM Contextを解決し直す。
+ * 対象Tableが一致する要求だけを再評価する。表示再生成中は操作位置の一時的不在を許容し、
+ * 表示が安定した後も成立しない要求は終了する。再評価のたびに現在の基準要素から表示環境を解決し直す。
  *
- * @param tableIdentity     再評価対象Table Identity。
+ * @param tableIdentity     再評価対象TableのIdentity。
  * @param referenceElement  現在Editor DOM Contextを特定する基準要素。
- * @param presentationState RF Presentationの再生成状態。
+ * @param presentationState RF表示が再生成途中か、成立済みか。
  */
 export function reconcileReorderFocus(
 	tableIdentity: string,
@@ -141,10 +212,13 @@ export function reconcileReorderFocus(
 }
 
 /**
- * RF側pending requestをfocus適用せず終了する。
+ * RF側の保留中フォーカス要求を、フォーカスを適用せず終了する。
  *
- * @param tableIdentity 破棄対象Table Identity。
- * @param reason        focusを適用せず終了する理由。呼び出し側Lifecycleの記録用途。
+ * Table消失、利用者の別操作への移動、RF Lifecycle置換など、
+ * 後から適用すると現在の利用者操作を奪う場合に使用する。
+ *
+ * @param tableIdentity 破棄対象TableのIdentity。
+ * @param reason        フォーカスを適用せず終了する理由。
  */
 export function abandonReorderFocus(
 	tableIdentity: string,
