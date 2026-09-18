@@ -39,6 +39,8 @@ describe( 'WordPress Reorder Integration focus coordination', () => {
 		const referenceElement = document.createElement( 'div' );
 		const direction = document.createElement( 'input' );
 		direction.id = getRfControlId( 'kind-row' );
+		direction.setAttribute( 'type', 'radio' );
+		direction.checked = true;
 		document.body.append( referenceElement, direction );
 
 		requestReorderFocus( { type: 'rf-open', tableIdentity: TABLE_IDENTITY }, referenceElement );
