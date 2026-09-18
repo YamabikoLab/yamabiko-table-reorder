@@ -14,11 +14,7 @@ import { resolveEditorDomContext } from '@/reorder/editor-dom-context';
  */
 export type FocusSemanticTarget =
 	/** RF内の操作役割へフォーカスする。 */
-	| {
-			type: 'rf-control';
-			/** RF open後の初期操作である行 / 列選択。 */
-			control: 'direction';
-	  }
+	| { type: 'rf-control' }
 	/** 対象TableのRF toolbar入口へフォーカスする。 */
 	| { type: 'rf-toolbar' }
 	/** Apply責務が確定した移動後位置に対応する結果確認セルへフォーカスする。 */
@@ -78,11 +74,10 @@ const resolveReorderDirection = (
 	const columnDirection = editorDocument.getElementById(
 		`${ prefix }-kind-column`
 	) as HTMLInputElement | null;
-	// 現在選択されている方向を優先し、未選択の場合だけ表示中の方向操作を初期位置として採用する。
+	// RF open後の初期focusは、現在選択されている方向だけを対象とし、未選択時に別方向を推測しない。
 	const selectedDirection =
 		[ rowDirection, columnDirection ].find( ( element ) => element?.checked ) ?? null;
-	const directionTarget = selectedDirection ?? rowDirection ?? columnDirection;
-	return directionTarget;
+	return selectedDirection;
 };
 
 /**
@@ -198,33 +193,21 @@ export const resolveFocusTarget = (
  * 現在成立している要素へフォーカスを適用する。
  *
  * 結果確認セルやTable Blockが通常のKeyboard操作対象でない場合も結果確認位置としてフォーカスできるようにするが、
- * そのための一時的な属性変更を要素の通常状態として残さない。
+ * Focus Coordinationが追加した一時属性は要素の通常状態として残さない。
  *
  * @param target 現在の表示環境に存在するフォーカス先。
- * @return 指定した要素が現在のフォーカス位置になった場合はtrue。
  */
-export const applyFocusTarget = ( target: HTMLElement ): boolean => {
-	const previousTabIndex = target.getAttribute( 'tabindex' );
-	// 通常のTab移動対象でない結果確認位置には、今回のfocus適用中だけ一時的なtabindexを付与する。
-	const needsTemporaryTabIndex = target.tabIndex < 0;
-	// 通常のTab移動対象でない結果確認位置だけ、一回のfocus適用に必要な属性を一時的に補う。
+export const applyFocusTarget = ( target: HTMLElement ): void => {
+	// tabindexを持たない非Tab対象だけ、今回のfocus適用に必要な属性を一時的に補う。
+	const needsTemporaryTabIndex = target.tabIndex < 0 && ! target.hasAttribute( 'tabindex' );
 	if ( needsTemporaryTabIndex ) {
 		target.setAttribute( 'tabindex', '-1' );
 	}
 
 	target.focus( { preventScroll: true } );
 
-	// Focus Coordinationが追加した一時属性を持つ場合だけ、focus要求の適用後に通常状態へ戻す。
+	// Focus Coordination自身が追加した属性だけをfocus適用後に除去する。
 	if ( needsTemporaryTabIndex ) {
-		// 元のtabindexが存在しなかった要素には、追加した属性を残さない。
-		if ( previousTabIndex === null ) {
-			target.removeAttribute( 'tabindex' );
-		} else {
-			// 元からtabindexを持つ要素には、Focus Coordination適用前の値を復元する。
-			target.setAttribute( 'tabindex', previousTabIndex );
-		}
+		target.removeAttribute( 'tabindex' );
 	}
-
-	const focused = target.ownerDocument.activeElement === target;
-	return focused;
 };
