@@ -34,7 +34,11 @@ export const ReorderApplyConfirmation = ( props: {
 				<strong>{ moveSummary }</strong>
 			</p>
 			<p>{ getLargeReorderApplyConfirmBody() }</p>
-			<Button variant="primary" onClick={ onConfirm }>
+			<Button
+				data-ytr-focus-target="confirmation-continue"
+				variant="primary"
+				onClick={ onConfirm }
+			>
 				{ getLargeReorderContinueLabel() }
 			</Button>
 			<Button variant="tertiary" onClick={ onCancel }>
