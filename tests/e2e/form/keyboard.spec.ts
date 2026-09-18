@@ -3,7 +3,9 @@ import { expect, test } from '@wordpress/e2e-test-utils-playwright';
 
 import {
 	APPLY,
+	COLLAPSE,
 	COLUMNS,
+	EXPAND,
 	insertTable,
 	reorderForm,
 	RF_BUTTON,
@@ -89,6 +91,7 @@ test( 'when Reorder Form row input is used from the Block Toolbar, should comple
 	await expect( reorderForm( page ) ).toBeVisible();
 
 	const form = reorderForm( page );
+	await expect( form.getByRole( 'radio', { name: /^(Rows|行)$/ } ) ).toBeFocused();
 	const source = form.getByRole( 'spinbutton', { name: SOURCE_ROW } );
 	await tabTo( page, source );
 	await page.keyboard.type( '1' );
@@ -97,9 +100,10 @@ test( 'when Reorder Form row input is used from the Block Toolbar, should comple
 	await tabTo( page, target );
 	await page.keyboard.type( '3' );
 
-	const below = form.getByRole( 'radio', { name: /^(Below|下)$/ } );
-	await tabTo( page, below );
-	await page.keyboard.press( 'Space' );
+	const above = form.getByRole( 'radio', { name: /^(Above|上)$/ } );
+	await tabTo( page, above );
+	await page.keyboard.press( 'ArrowRight' );
+	await expect( form.getByRole( 'radio', { name: /^(Below|下)$/ } ) ).toBeChecked();
 
 	const apply = form.getByRole( 'button', { name: APPLY } );
 	await tabTo( page, apply );
@@ -135,6 +139,7 @@ test( 'when Reorder Form column input is selected, should complete the move with
 	await expect( form ).toBeVisible();
 
 	const rowsRadio = form.getByRole( 'radio', { name: /^(Rows|行)$/ } );
+	await expect( rowsRadio ).toBeFocused();
 	await tabTo( page, rowsRadio );
 	await page.keyboard.press( 'ArrowRight' );
 	await expect( form.getByRole( 'radio', { name: COLUMNS } ) ).toBeChecked();
@@ -148,9 +153,10 @@ test( 'when Reorder Form column input is selected, should complete the move with
 	await page.keyboard.press( 'ArrowDown' );
 	await page.keyboard.press( 'ArrowDown' );
 
-	const right = form.getByRole( 'radio', { name: /^(Right|右)$/ } );
-	await tabTo( page, right );
-	await page.keyboard.press( 'Space' );
+	const left = form.getByRole( 'radio', { name: /^(Left|左)$/ } );
+	await tabTo( page, left );
+	await page.keyboard.press( 'ArrowRight' );
+	await expect( form.getByRole( 'radio', { name: /^(Right|右)$/ } ) ).toBeChecked();
 
 	const before = await tableData( editor );
 	const apply = form.getByRole( 'button', { name: APPLY } );
@@ -192,9 +198,10 @@ test( 'when Cancel is reached from an open Reorder Form, should close without ch
 	const target = form.getByRole( 'spinbutton', { name: TARGET_ROW } );
 	await tabTo( page, target );
 	await page.keyboard.type( '3' );
-	const below = form.getByRole( 'radio', { name: /^(Below|下)$/ } );
-	await tabTo( page, below );
-	await page.keyboard.press( 'Space' );
+	const above = form.getByRole( 'radio', { name: /^(Above|上)$/ } );
+	await tabTo( page, above );
+	await page.keyboard.press( 'ArrowRight' );
+	await expect( form.getByRole( 'radio', { name: /^(Below|下)$/ } ) ).toBeChecked();
 
 	const apply = form.getByRole( 'button', { name: APPLY } );
 	await tabTo( page, apply );
@@ -206,4 +213,43 @@ test( 'when Cancel is reached from an open Reorder Form, should close without ch
 
 	await expect( form ).toBeHidden();
 	expect( await tableData( editor ) ).toEqual( before );
+} );
+
+test.describe( 'narrow Reorder Form keyboard presentation', () => {
+	test.use( { viewport: { width: 600, height: 720 } } );
+
+	/**
+	 * 狭い表示のRFをKeyboardから開き、折りたたみと展開を標準操作で完了できることを確認する。
+	 *
+	 * 事前条件:
+	 * - Core Tableが選択され、RF入口をBlock Toolbarから利用できる。
+	 *
+	 * 操作:
+	 * - KeyboardでRFを開く。
+	 * - 折りたたみ操作をEnterで実行し、展開操作をSpaceで実行する。
+	 *
+	 * 期待結果:
+	 * - 開いたRF内でKeyboard操作を継続できる。
+	 * - 折りたたみ中は入力が操作対象から外れ、展開後は再び操作できる。
+	 */
+	test( 'when the narrow Reorder Form is opened from the Block Toolbar, should collapse and expand with the keyboard', async ( {
+		page,
+		editor,
+	} ) => {
+		await insertTable( page, editor );
+		await focusReorderFormToolbarButton( page );
+		await page.keyboard.press( 'Enter' );
+		const form = reorderForm( page );
+		await expect( form ).toBeVisible();
+
+		const collapse = form.getByRole( 'button', { name: COLLAPSE } );
+		await expect( collapse ).toBeFocused();
+		await page.keyboard.press( 'Enter' );
+		const expand = form.getByRole( 'button', { name: EXPAND } );
+		await expect( expand ).toBeFocused();
+		await expect( form.getByRole( 'spinbutton', { name: SOURCE_ROW } ) ).toBeHidden();
+		await page.keyboard.press( 'Space' );
+		await expect( collapse ).toBeFocused();
+		await expect( form.getByRole( 'spinbutton', { name: SOURCE_ROW } ) ).toBeVisible();
+	} );
 } );

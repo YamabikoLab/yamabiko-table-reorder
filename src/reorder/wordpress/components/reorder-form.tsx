@@ -390,7 +390,6 @@ export const ReorderFormPopover = ( props: ReorderFormPopoverProps ) => {
 			anchor={ popoverAnchor }
 			className={ popoverClassName }
 			flip={ ! isNarrow && ! manuallyPositioned }
-			focusOnMount={ false }
 			noArrow={ isNarrow || manuallyPositioned }
 			offset={ isNarrow ? 0 : popoverOffset }
 			onClose={ ignorePopoverClose }
