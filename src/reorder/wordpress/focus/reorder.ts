@@ -85,6 +85,12 @@ export function requestReorderFocus(
 	request: ReorderFocusRequest,
 	referenceElement: Element
 ): void {
+	/*
+	 * 新しいrequestは現在pending中のrequestを置換する。
+	 * Focus Coordination専用Lifecycle IDやqueueは追加せず、古いintentを次の操作へ持ち越さない。
+	 */
+	pendingReorderFocus = null;
+
 	const target = getTarget( request );
 	const resolvedTarget = resolveFocusTarget( target, request.tableIdentity, referenceElement );
 	if ( resolvedTarget !== null && applyFocusTarget( resolvedTarget ) ) {
