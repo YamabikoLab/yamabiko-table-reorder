@@ -128,15 +128,19 @@ let pendingReorderFocus: PendingReorderFocus | null = null;
  * @return requestの意味に対応するフォーカス先。
  */
 const getTarget = ( request: ReorderFocusRequest ): FocusSemanticTarget => {
+	// RF openでは初期操作が設計で固定されているため、方向選択へ戻す。
 	if ( request.type === 'rf-open' ) {
 		return { type: 'rf-control', control: 'direction' };
 	}
+	// RF明示終了では、対象Tableを再び操作できるtoolbar入口へ戻す。
 	if ( request.type === 'rf-explicit-close' ) {
 		return { type: 'rf-toolbar' };
 	}
+	// 確認キャンセル後は入力を保持したRFから再実行できる「並び替え」操作へ戻す。
 	if ( request.type === 'confirmation-cancel-restoration' ) {
 		return { type: 'rf-control', control: 'submit' };
 	}
+	// Apply failure後は現在評価が選んだ再実行または修正操作だけを復帰先として採用する。
 	if ( request.type === 'apply-failure-restoration' ) {
 		return { type: 'rf-control', control: request.control };
 	}
@@ -164,11 +168,14 @@ export function requestReorderFocus(
 
 	const target = getTarget( request );
 	const resolvedTarget = resolveFocusTarget( target, request.tableIdentity, referenceElement );
+	// 現在Presentationで要求先が成立してfocusできた場合は、その場で要求を完了する。
+	// 再生成後の現在Presentationで要求先が成立した時点で、保留要求を完了する。
 	if ( resolvedTarget !== null && applyFocusTarget( resolvedTarget ) ) {
 		pendingReorderFocus = null;
 		return;
 	}
 
+	// 即時適用できない要求のうち、表示再生成だけは操作位置の一時的不在を許容して保留する。
 	if ( request.type === 'presentation-regeneration' ) {
 		pendingReorderFocus = {
 			tableIdentity: request.tableIdentity,
@@ -192,6 +199,7 @@ export function reconcileReorderFocus(
 	referenceElement: Element,
 	presentationState: ReorderFocusPresentationState
 ): void {
+	// 保留要求がない場合や対象Tableが異なる場合は、現在の操作位置へ干渉しない。
 	if ( pendingReorderFocus === null || pendingReorderFocus.tableIdentity !== tableIdentity ) {
 		return;
 	}
@@ -206,6 +214,7 @@ export function reconcileReorderFocus(
 		return;
 	}
 
+	// Presentation成立後も要求先が存在しない場合は、後から古いfocusを適用しないよう保留を終了する。
 	if ( presentationState === 'stable' ) {
 		pendingReorderFocus = null;
 	}
@@ -225,6 +234,7 @@ export function abandonReorderFocus(
 	reason: ReorderFocusAbandonReason
 ): void {
 	void reason;
+	// 破棄要求は同じ対象Tableに属する保留だけへ適用し、他TableのLifecycleには干渉しない。
 	if ( pendingReorderFocus?.tableIdentity === tableIdentity ) {
 		pendingReorderFocus = null;
 	}
