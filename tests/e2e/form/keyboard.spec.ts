@@ -187,7 +187,7 @@ test( 'when Cancel is reached from an open Reorder Form, should close without ch
 } ) => {
 	await insertTable( page, editor );
 	const before = await tableData( editor );
-	await focusReorderFormToolbarButton( page );
+	const toolbarButton = await focusReorderFormToolbarButton( page );
 	await page.keyboard.press( 'Enter' );
 	const form = reorderForm( page );
 	await expect( form ).toBeVisible();
@@ -212,6 +212,7 @@ test( 'when Cancel is reached from an open Reorder Form, should close without ch
 	await page.keyboard.press( 'Enter' );
 
 	await expect( form ).toBeHidden();
+	await expect( toolbarButton ).toBeFocused();
 	expect( await tableData( editor ) ).toEqual( before );
 } );
 
@@ -242,8 +243,10 @@ test.describe( 'narrow Reorder Form keyboard presentation', () => {
 		const form = reorderForm( page );
 		await expect( form ).toBeVisible();
 
+		const rowsRadio = form.getByRole( 'radio', { name: /^(Rows|行)$/ } );
+		await expect( rowsRadio ).toBeFocused();
 		const collapse = form.getByRole( 'button', { name: COLLAPSE } );
-		await expect( collapse ).toBeFocused();
+		await tabTo( page, collapse );
 		await page.keyboard.press( 'Enter' );
 		const expand = form.getByRole( 'button', { name: EXPAND } );
 		await expect( expand ).toBeFocused();
