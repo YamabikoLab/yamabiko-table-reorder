@@ -1,5 +1,13 @@
 import MarkdownIt, { type Token } from 'markdown-it';
 
+export const externalContextTypes = [
+	'External System',
+	'External Block',
+	'External Capability',
+	'External Environment',
+	'External Library',
+] as const;
+
 export type ExternalContext = {
 	id: string;
 	name: string;

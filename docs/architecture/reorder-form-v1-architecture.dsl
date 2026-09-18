@@ -9,20 +9,20 @@ workspace "YTR Reorder v1 Architecture" {
 				element.setGroup("WordPress External")
 			}
 		}
-		EXT_WORDPRESS_COMPONENTS = element "WordPress Components" "External UI Capability" "RFとApply Presentationで利用できる標準的な操作、Keyboard、focus、およびsemantic Contractを提供する。" {
-			tags "External Context,External UI Capability"
+		EXT_WORDPRESS_COMPONENTS = element "WordPress Components" "External Capability" "RFとApply Presentationで利用できる標準的な操作、Keyboard、focus、およびsemantic Contractを提供する。" {
+			tags "External Context,External Capability"
 			!script groovy {
 				element.setGroup("WordPress External")
 			}
 		}
-		EXT_BROWSER_ACCESSIBILITY = element "Browser Accessibility Platform" "External Platform" "native controlのKeyboard動作、focus、accessibility tree、および支援技術への状態変化伝達を提供する。" {
-			tags "External Context,External Platform"
+		EXT_BROWSER_ACCESSIBILITY = element "Browser Accessibility Platform" "External System" "native controlのKeyboard動作、focus、accessibility tree、および支援技術への状態変化伝達を提供する。" {
+			tags "External Context,External System"
 			!script groovy {
 				element.setGroup("Accessibility Platform")
 			}
 		}
-		EXT_ASSISTIVE_TECHNOLOGY = element "Assistive Technology" "External Consumer" "Browserが公開する操作部品、状態、入力問題、およびannouncementを利用者へ伝える。" {
-			tags "External Context,External Consumer"
+		EXT_ASSISTIVE_TECHNOLOGY = element "Assistive Technology" "External System" "Browserが公開する操作部品、状態、入力問題、およびannouncementを利用者へ伝える。" {
+			tags "External Context,External System"
 			!script groovy {
 				element.setGroup("Accessibility Platform")
 			}
