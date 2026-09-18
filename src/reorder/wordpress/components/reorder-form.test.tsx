@@ -151,6 +151,57 @@ describe( 'Reorder Form presentation', () => {
 	} );
 
 	/**
+	 * RFが開いた後に初期操作である方向選択へフォーカスすることを確認する。
+	 *
+	 * 事前条件:
+	 * - RF InteractionはRow RFをopenとして公開している。
+	 *
+	 * 操作:
+	 * - RF入力Popoverを表示する。
+	 *
+	 * 期待結果:
+	 * - 現在選択されている「行」方向へフォーカスする。
+	 */
+	it( 'when the Reorder Form opens, should focus the current direction control', () => {
+		const anchor = document.createElement( 'button' );
+
+		render(
+			<ReorderFormPopover anchor={ anchor } state={ createRowState() } tableIdentity="table-a" />
+		);
+
+		expect( screen.getByRole( 'radio', { name: '行' } ) ).toHaveFocus();
+	} );
+
+	/**
+	 * 明示的Cancel後に対象TableのRF toolbar入口へフォーカスを戻すことを確認する。
+	 *
+	 * 事前条件:
+	 * - RFがopenである。
+	 * - 現在Editor DOMに対象TableのRF toolbar入口が存在する。
+	 *
+	 * 操作:
+	 * - RFの「キャンセル」を実行する。
+	 *
+	 * 期待結果:
+	 * - RF Interactionへcloseを通知する。
+	 * - 現在のRF toolbar入口へフォーカスを戻す。
+	 */
+	it( 'when the Reorder Form is cancelled explicitly, should close and focus its toolbar entry', () => {
+		const anchor = document.createElement( 'button' );
+		anchor.dataset.ytrFocusTarget = 'rf-toolbar';
+		anchor.dataset.ytrTableIdentity = 'table-a';
+		document.body.appendChild( anchor );
+
+		render(
+			<ReorderFormPopover anchor={ anchor } state={ createRowState() } tableIdentity="table-a" />
+		);
+		fireEvent.click( screen.getByRole( 'button', { name: 'キャンセル' } ) );
+
+		expect( rfInteraction.close ).toHaveBeenCalledWith( 'table-a' );
+		expect( anchor ).toHaveFocus();
+	} );
+
+	/**
 	 * Row RFの行番号入力が現在Tableの有効範囲をHTML標準制約として公開することを確認する。
 	 *
 	 * 事前条件:
