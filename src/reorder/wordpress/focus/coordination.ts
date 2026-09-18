@@ -179,7 +179,6 @@ export const resolveFocusTarget = (
 		return null;
 	}
 
-
 	const tableBlock = resolveTableBlock( editorContext.document, tableIdentity );
 	// 結果確認またはTable fallbackは、対象Tableが現在表示に存在する場合だけ許可する。
 	if ( tableBlock === null ) {

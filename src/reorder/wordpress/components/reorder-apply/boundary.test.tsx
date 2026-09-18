@@ -31,11 +31,7 @@ jest.mock( '@wordpress/components', () => ( {
 		onRequestClose?: () => void;
 		focusOnMount?: string;
 	} ) => (
-		<div
-			role="dialog"
-			aria-label={ props.title }
-			data-focus-on-mount={ props.focusOnMount }
-		>
+		<div role="dialog" aria-label={ props.title } data-focus-on-mount={ props.focusOnMount }>
 			{ props.isDismissible !== false && (
 				<button type="button" aria-label="Close" onClick={ props.onRequestClose }>
 					Close

@@ -63,9 +63,7 @@ describe( 'WordPress Reorder Apply restoration', () => {
 		} );
 
 		restoreMovedRow( editorDocument, 'table-a', 0 );
-		cell.dispatchEvent(
-			new FocusEvent( 'focusout', { bubbles: true, relatedTarget: outside } )
-		);
+		cell.dispatchEvent( new FocusEvent( 'focusout', { bubbles: true, relatedTarget: outside } ) );
 
 		expect( cell.classList.contains( RESTORED_CELL_CLASS ) ).toBe( false );
 	} );
