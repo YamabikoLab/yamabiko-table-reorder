@@ -18,6 +18,7 @@ import {
 	getRfCancelLabel,
 	getColumnMergedRangeMessage,
 	getRfColumnOptionLabel,
+	getRfColumnSelectionUnavailableMessage,
 	getRfColumnTargetHelp,
 	getRfColumnsLabel,
 	getRfKindLegend,
@@ -235,10 +236,13 @@ export const ReorderFormPopover = ( props: ReorderFormPopoverProps ) => {
 	const columnKindId = `${ controlIdPrefix }-kind-column`;
 	const sourceRowId = `${ controlIdPrefix }-source-row`;
 	const targetRowId = `${ controlIdPrefix }-target-row`;
+	const rowRangeId = `${ controlIdPrefix }-row-range`;
 	const rowAboveId = `${ controlIdPrefix }-row-above`;
 	const rowBelowId = `${ controlIdPrefix }-row-below`;
 	const sourceColumnId = `${ controlIdPrefix }-source-column`;
 	const targetColumnId = `${ controlIdPrefix }-target-column`;
+	const sourceColumnProblemId = `${ controlIdPrefix }-source-column-problem`;
+	const targetColumnProblemId = `${ controlIdPrefix }-target-column-problem`;
 	const columnLeftId = `${ controlIdPrefix }-column-left`;
 	const columnRightId = `${ controlIdPrefix }-column-right`;
 	const manuallyPositioned = ! isNarrow && position !== null;
@@ -248,6 +252,22 @@ export const ReorderFormPopover = ( props: ReorderFormPopoverProps ) => {
 			: anchor;
 	const popoverOffset = manuallyPositioned ? 0 : RF_POPOVER_OFFSET_PX;
 	const narrowCollapsed = isNarrow && collapsed;
+	const rowInputProblems =
+		state.kind === 'row' && state.result.status === 'not-ready'
+			? state.result.inputProblems
+			: [];
+	const sourceRowInvalid = rowInputProblems.some( ( problem ) => problem.target === 'source' );
+	const targetRowInvalid = rowInputProblems.some( ( problem ) => problem.target === 'target' );
+	const columnInputProblems =
+		state.kind === 'column' && state.result.status === 'not-ready'
+			? state.result.inputProblems
+			: [];
+	const sourceColumnInvalid = columnInputProblems.some(
+		( problem ) => problem.target === 'source'
+	);
+	const targetColumnInvalid = columnInputProblems.some(
+		( problem ) => problem.target === 'target'
+	);
 	const popoverClassName = isNarrow
 		? 'yamabiko-table-reorder-rf-popover is-narrow'
 		: 'yamabiko-table-reorder-rf-popover';
@@ -436,6 +456,8 @@ export const ReorderFormPopover = ( props: ReorderFormPopoverProps ) => {
 								<label htmlFor={ sourceRowId }>
 									<span>{ getRfSourceRowLabel() }</span>
 									<input
+										aria-describedby={ state.rowCount !== null ? rowRangeId : undefined }
+										aria-invalid={ sourceRowInvalid || undefined }
 										id={ sourceRowId }
 										inputMode="numeric"
 										max={ state.rowCount ?? undefined }
@@ -454,6 +476,8 @@ export const ReorderFormPopover = ( props: ReorderFormPopoverProps ) => {
 								<label htmlFor={ targetRowId }>
 									<span>{ getRfTargetRowLabel() }</span>
 									<input
+										aria-describedby={ state.rowCount !== null ? rowRangeId : undefined }
+										aria-invalid={ targetRowInvalid || undefined }
 										id={ targetRowId }
 										inputMode="numeric"
 										max={ state.rowCount ?? undefined }
@@ -470,7 +494,14 @@ export const ReorderFormPopover = ( props: ReorderFormPopoverProps ) => {
 									/>
 								</label>
 								{ state.rowCount !== null && (
-									<p className="yamabiko-table-reorder-rf__help">
+									<p
+										className={
+											sourceRowInvalid || targetRowInvalid
+												? 'yamabiko-table-reorder-rf__notice'
+												: 'yamabiko-table-reorder-rf__help'
+										}
+										id={ rowRangeId }
+									>
 										{ getRfRowRangeMessage( state.rowCount ) }
 									</p>
 								) }
@@ -514,6 +545,10 @@ export const ReorderFormPopover = ( props: ReorderFormPopoverProps ) => {
 								<label htmlFor={ sourceColumnId }>
 									<span>{ getRfSourceColumnLabel() }</span>
 									<select
+										aria-describedby={
+											sourceColumnInvalid ? sourceColumnProblemId : undefined
+										}
+										aria-invalid={ sourceColumnInvalid || undefined }
 										id={ sourceColumnId }
 										onChange={ ( event ) =>
 											rfInteraction.updateColumnInput( tableIdentity, {
@@ -533,10 +568,22 @@ export const ReorderFormPopover = ( props: ReorderFormPopoverProps ) => {
 											</option>
 										) ) }
 									</select>
+									{ sourceColumnInvalid && (
+										<p
+											className="yamabiko-table-reorder-rf__notice"
+											id={ sourceColumnProblemId }
+										>
+											{ getRfColumnSelectionUnavailableMessage() }
+										</p>
+									) }
 								</label>
 								<label htmlFor={ targetColumnId }>
 									<span>{ getRfTargetColumnLabel() }</span>
 									<select
+										aria-describedby={
+											targetColumnInvalid ? targetColumnProblemId : undefined
+										}
+										aria-invalid={ targetColumnInvalid || undefined }
 										id={ targetColumnId }
 										onChange={ ( event ) =>
 											rfInteraction.updateColumnInput( tableIdentity, {
@@ -556,6 +603,14 @@ export const ReorderFormPopover = ( props: ReorderFormPopoverProps ) => {
 											</option>
 										) ) }
 									</select>
+									{ targetColumnInvalid && (
+										<p
+											className="yamabiko-table-reorder-rf__notice"
+											id={ targetColumnProblemId }
+										>
+											{ getRfColumnSelectionUnavailableMessage() }
+										</p>
+									) }
 								</label>
 								<fieldset className="yamabiko-table-reorder-rf__fieldset">
 									<legend>{ getRfPositionLegend() }</legend>
