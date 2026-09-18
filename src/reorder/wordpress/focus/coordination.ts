@@ -16,8 +16,8 @@ export type FocusSemanticTarget =
 	/** RF内の操作役割へフォーカスする。 */
 	| {
 			type: 'rf-control';
-			/** RF内でフォーカスする操作役割。 */
-			control: 'direction' | 'source' | 'destination' | 'relation' | 'submit';
+			/** RF open後の初期操作である行 / 列選択。 */
+			control: 'direction';
 	  }
 	/** 対象TableのRF toolbar入口へフォーカスする。 */
 	| { type: 'rf-toolbar' }
@@ -65,87 +65,26 @@ const resolveTableBlock = (
 };
 
 /**
- * RF内の意味上の操作役割を、現在の表示に存在する操作へ解決する。
- *
- * 行 / 列や位置関係のように同じ役割へ複数のradioが属する場合は、
- * 現在選択されている操作を優先し、要求時点の利用者の現在操作を維持する。
+ * RF open後の方向選択を、現在の表示に存在する操作へ解決する。
  *
  * @param editorDocument 現在Editor DOM Contextのdocument。
  * @param tableIdentity  対象TableのIdentity。
- * @param control        RF内でフォーカスする操作役割。
- * @return 現在の表示に存在する該当操作。成立しない場合はnull。
+ * @return 現在選択されている行 / 列操作。成立しない場合はnull。
  */
-const resolveReorderControl = (
+const resolveReorderDirection = (
 	editorDocument: Document,
-	tableIdentity: string,
-	control: Extract< FocusSemanticTarget, { type: 'rf-control' } >[ 'control' ]
+	tableIdentity: string
 ): HTMLElement | null => {
 	const prefix = `yamabiko-table-reorder-rf-${ tableIdentity }`;
-
-	// 方向選択の復帰では、行 / 列の現在選択を維持する。
-	if ( control === 'direction' ) {
-		const rowDirection = editorDocument.getElementById(
-			`${ prefix }-kind-row`
-		) as HTMLInputElement | null;
-		const columnDirection = editorDocument.getElementById(
-			`${ prefix }-kind-column`
-		) as HTMLInputElement | null;
-		// 行 / 列の両方が存在する場合は、利用者が現在選択している方向を優先する。
-		const selectedDirection =
-			[ rowDirection, columnDirection ].find( ( element ) => element?.checked ) ?? null;
-		// 選択状態を取得できない場合だけ、現在表示に存在する方向操作を復帰先とする。
-		const currentDirection = selectedDirection ?? rowDirection ?? columnDirection;
-		return currentDirection;
-	}
-
-	// 移動元の復帰では、現在表示中の方向に対応する移動元操作だけを対象とする。
-	if ( control === 'source' ) {
-		const currentSource =
-			editorDocument.getElementById( `${ prefix }-source-row` ) ??
-			editorDocument.getElementById( `${ prefix }-source-column` );
-		return currentSource;
-	}
-
-	// 移動先の復帰では、現在表示中の方向に対応する移動先操作だけを対象とする。
-	if ( control === 'destination' ) {
-		const currentDestination =
-			editorDocument.getElementById( `${ prefix }-target-row` ) ??
-			editorDocument.getElementById( `${ prefix }-target-column` );
-		return currentDestination;
-	}
-
-	// 位置関係の復帰では、現在選択中の「上 / 下」「左 / 右」を維持する。
-	if ( control === 'relation' ) {
-		const relations = [
-			editorDocument.getElementById( `${ prefix }-row-above` ),
-			editorDocument.getElementById( `${ prefix }-row-below` ),
-			editorDocument.getElementById( `${ prefix }-column-left` ),
-			editorDocument.getElementById( `${ prefix }-column-right` ),
-		] as Array< HTMLInputElement | null >;
-		// 複数候補が存在する場合は、利用者が現在選択している位置関係を優先する。
-		const selectedRelation = relations.find( ( element ) => element?.checked ) ?? null;
-		// 選択状態を取得できない場合だけ、現在表示に存在する位置関係操作を復帰先とする。
-		const currentRelation =
-			selectedRelation ?? relations.find( ( element ) => element !== null ) ?? null;
-		return currentRelation;
-	}
-
-	/*
-	 * action buttonはRFの表示形式によって配置が変わり得るため、
-	 * 対象Tableと操作役割の両方が一致する現在の要素だけを採用する。
-	 */
-	for ( const element of Array.from(
-		editorDocument.querySelectorAll< HTMLElement >( '[data-ytr-focus-control]' )
-	) ) {
-		// RF操作の復帰先は、対象Tableと意味上の操作役割の両方が一致する要素に限定する。
-		if (
-			element.getAttribute( 'data-ytr-table-identity' ) === tableIdentity &&
-			element.getAttribute( 'data-ytr-focus-control' ) === control
-		) {
-			return element;
-		}
-	}
-	return null;
+	const rowDirection = editorDocument.getElementById(
+		`${ prefix }-kind-row`
+	) as HTMLInputElement | null;
+	const columnDirection = editorDocument.getElementById(
+		`${ prefix }-kind-column`
+	) as HTMLInputElement | null;
+	const selectedDirection =
+		[ rowDirection, columnDirection ].find( ( element ) => element?.checked ) ?? null;
+	return selectedDirection ?? rowDirection ?? columnDirection;
 };
 
 /**
@@ -222,7 +161,7 @@ export const resolveFocusTarget = (
 
 	// RF内操作の要求は、対象Tableの現在Presentationに存在する同じ操作役割へ解決する。
 	if ( target.type === 'rf-control' ) {
-		return resolveReorderControl( editorContext.document, tableIdentity, target.control );
+		return resolveReorderDirection( editorContext.document, tableIdentity );
 	}
 
 	// RF明示終了後の要求は、対象Table自身のtoolbar入口だけへ戻す。
