@@ -261,7 +261,7 @@ jobs:
             --env WP_USERNAME \
             --env WP_PASSWORD \
             --env E2E_EDITOR_MODE \
-            mcr.microsoft.com/playwright:v1.62.1-noble \
+            mcr.microsoft.com/playwright:v1.63.0-noble \
             npx playwright test "${projects[@]}"
 
       - name: Capture Docker logs
