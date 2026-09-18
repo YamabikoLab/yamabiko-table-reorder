@@ -7,7 +7,7 @@
  */
 
 import { Button, Popover } from '@wordpress/components';
-import { useRef } from '@wordpress/element';
+import { useEffect, useRef } from '@wordpress/element';
 import { __ } from '@wordpress/i18n';
 import type { MouseEvent as ReactMouseEvent, PointerEvent as ReactPointerEvent } from 'react';
 
@@ -44,6 +44,7 @@ import type { RfInteractionReactState } from '@/reorder/reorder-form/responsibil
 import { RF_POPOVER_DRAG_THRESHOLD_PX, RF_POPOVER_OFFSET_PX } from '@/reorder/reorder-tuning';
 import { useReorderFormCollapse } from '@/reorder/wordpress/components/reorder-form-collapse';
 import { useReorderFormNarrowLayout } from '@/reorder/wordpress/components/reorder-form-layout';
+import { requestReorderFocus } from '@/reorder/wordpress/focus/reorder';
 import {
 	clampReorderFormPosition,
 	type ReorderFormPosition,
@@ -225,6 +226,17 @@ export const ReorderFormPopover = ( props: ReorderFormPopoverProps ) => {
 	const isNarrow = useReorderFormNarrowLayout( anchor );
 	const { collapsed, setCollapsed } = useReorderFormCollapse( tableIdentity );
 	const { position, setPosition } = useReorderFormPosition( tableIdentity );
+
+	/*
+	 * RFが利用可能になった時点で初期操作へ移動する。
+	 * targetが現在DOMに成立しない場合はFocus Coordinationがその場で終了する。
+	 */
+	useEffect( () => {
+		if ( anchor === null || state.status !== 'open' ) {
+			return;
+		}
+		requestReorderFocus( { type: 'rf-open', tableIdentity }, anchor );
+	}, [ anchor, state.status, tableIdentity ] );
 
 	if ( anchor === null || state.status !== 'open' ) {
 		return null;
@@ -411,8 +423,6 @@ export const ReorderFormPopover = ( props: ReorderFormPopoverProps ) => {
 					{ isNarrow && (
 						<Button
 							aria-controls={ formContentId }
-							data-ytr-focus-control="disclosure"
-							data-ytr-table-identity={ tableIdentity }
 							aria-expanded={ ! collapsed }
 							className="yamabiko-table-reorder-rf__collapse"
 							label={ collapsed ? getRfExpandLabel() : getRfCollapseLabel() }
@@ -648,9 +658,13 @@ export const ReorderFormPopover = ( props: ReorderFormPopoverProps ) => {
 
 					<div className="yamabiko-table-reorder-rf__actions">
 						<Button
-							data-ytr-focus-control="cancel"
-							data-ytr-table-identity={ tableIdentity }
-							onClick={ () => rfInteraction.close( tableIdentity ) }
+							onClick={ () => {
+								rfInteraction.close( tableIdentity );
+								requestReorderFocus(
+									{ type: 'rf-explicit-close', tableIdentity },
+									anchor
+								);
+							} }
 							variant="secondary"
 						>
 							{ getRfCancelLabel() }
