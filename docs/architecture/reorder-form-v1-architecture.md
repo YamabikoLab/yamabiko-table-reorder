@@ -39,7 +39,7 @@ Accessibility v1 Phase 1の対象はIssue #1047のKeyboard / Semantics、Focus M
 - RFの操作はnative semanticsおよびWordPress Componentの標準Keyboard Contractを優先し、YTR固有のKeyboard state machineを設けない。
 - Accessibility PresentationはRF / Apply状態を重複所有せず、入力成立性、no-op、構造可否、確定結果を再判定しない。
 - Focus CoordinationはDesignで定義された遷移を意味上のfocus intentとして調停し、RF / Apply Lifecycle、validation結果、Table構造、DOM nodeを別正本として保持しない。
-- focus targetが表示再生成中に一時的に存在しない場合だけ、Focus CoordinationはLifecycleに結び付いたpending intentを保持できる。古いTableまたは終了済みLifecycleのintentは適用しない。
+- RF側focusは要求時点の現在targetへ即時適用し、target不成立時はpendingを保持しない。Apply successでediting surface再成立を待つ場合だけ、Focus CoordinationはLifecycleに結び付いたpending intentを保持できる。古いTableまたは終了済みLifecycleのintentは適用しない。
 - 入力問題、no-op、構造拒否、結果通知を知らせることだけを理由にfocusを移動しない。
 - Announcement Deliveryは通知手段だけを所有する。blocked / no-op等はRF Interactionの現在評価をそのまま受け、success / failureの一回性は未提示Apply結果のContractに従う。Delivery自身は差分判定・重複抑制状態を持たない。
 - success announcementと成功後focusは、方向固有Table Integrationが確定更新後に返し、RF Apply Coordinationが保持した最終位置だけを利用する。
@@ -435,21 +435,22 @@ Designで定義されたRF / Apply Lifecycle上のfocus維持・移動・復帰i
 
 ##### State ownership
 
-targetが一時的に存在しない表示復帰期間だけ、Lifecycleに結び付いたpending focus intentを所有できる。RF open状態、Apply phase、入力問題、Table構造、最終位置、長寿命DOM参照は所有しない。
+RF側ではfocus状態を所有しない。Apply successでediting surface再成立を待つ期間だけ、Lifecycleに結び付いたpending focus intentを所有できる。RF open状態、Apply phase、入力問題、Table構造、最終位置、長寿命DOM参照は所有しない。
 
 ##### Contract
 
-WordPress Reorder IntegrationまたはWordPress Reorder Apply Integrationから、遷移理由、現在Lifecycle、対象Table、および意味上のfocus targetを受ける。Editor DOM Contextから現在contextを解決し、targetが現在存在しDesign上適用可能な場合だけfocusを移す。
+WordPress Reorder Integrationから受けるRF側intentは、要求時点の現在Editor contextでtargetを解決し、成立すれば即時focusし、成立しなければ無介入で終了する。
 
-表示復帰中のpending intentは同じLifecycleと対象Tableにだけ適用する。最終target、明示されたfallback、対象Table消失、または利用者による別位置への移動によってintentがsettleしたことを呼び出し元へ返す。
+WordPress Reorder Apply Integrationから受けるApply側intentは、success表示復帰でtargetが一時的に存在しない場合だけpendingを許容する。pending intentは同じLifecycleと対象Tableにだけ適用し、最終target、明示されたfallback、対象Table消失、または利用者による別位置への移動でsettleする。
 
 ##### Lifecycle
 
-通常はidleである。明示されたfocus遷移を即時適用できれば状態を保持しない。表示再生成によってtargetが一時的に存在しない場合だけpendingとなり、settle条件で完了・破棄する。
+RF側は常に即時適用または無介入で完了する。Apply success側だけ、表示再生成によってtargetが一時的に存在しない場合にpendingとなり、settle条件で完了・破棄する。
 
 ##### Invariants
 
 - Designで定義されない自動focus移動を追加しない。
+- RF側ではPresentation再生成、remount、Wide / Narrow切替のためだけのpending stateを持たない。
 - 通知を聞かせるためだけにfocusを移動しない。
 - 確定後位置または代替位置をTable構造から推測しない。
 - stale intentで利用者の新しい操作位置を奪わない。
@@ -952,7 +953,7 @@ Row / Column位置はcurrent logical positionとして扱う。入力後にTable
 
 RF / Accessibilityは一つの意味状態に一つの正本を維持する。RF open / closed、対象Table、方向、入力、現在評価、未提示Apply結果はRF Interaction、入力成立性はRF Input Interpretation、構造意味は方向固有Resolution / Table Integration、Apply phase・確認summary・成功時の確定Move summary・結果はRF Apply Coordinationを正本とする。
 
-Accessibility Presentationはこれらを保存用modelへ複製しない。Focus Coordinationが所有できるpending intentは、確定済み遷移を一時的なPresentation不在の後に完了するための最小状態である。
+Accessibility Presentationはこれらを保存用modelへ複製しない。Focus Coordinationが所有できるpending intentは、Apply successの確定済み遷移をediting surfaceの一時的不在後に完了するための最小状態であり、RF側ではpendingを所有しない。
 
 ### Validation and Accessibility Presentation boundary
 
@@ -1006,7 +1007,7 @@ Browserはnative controlの標準Keyboard操作とfocus動作を提供する。W
 
 focusはDOM位置ではなく、RF入口、方向選択、実行操作、確認の主要操作、反映中状態、修正対象入力、確定後セル、対象Tableの安定位置等の意味上のtargetとして責務間を渡す。
 
-Focus Coordinationは現在Editor contextだけを利用する。Presentation再生成前のDOM参照を復元の正本にせず、同じTableとLifecycleに属する現在targetを要求時点で解決する。Apply Lifecycle終了はsuccess側pending intentのsettle後にのみ成立する。
+Focus Coordinationは現在Editor contextだけを利用する。RF側は要求時点の現在targetだけを解決し、不成立時に後続Presentationを待たない。Apply success側はPresentation再生成前のDOM参照を復元の正本にせず、同じTableとLifecycleに属する現在targetを再評価する。Apply Lifecycle終了はsuccess側pending intentのsettle後にのみ成立する。
 
 ### Announcement source and delivery
 
@@ -1021,7 +1022,7 @@ Announcement Deliveryは視覚Noticeとは独立したdelivery境界である。
 - Keyboard inputは既存RF / Apply Contractへ合流し、pointerとは別の並び替え結果modelを作らない。
 - native semanticsとWordPress Componentの標準Contractを優先し、独自Keyboard state machineを導入しない。
 - focusはDesignで定義されたLifecycle境界でだけ移動し、通知または再描画だけでは移動しない。
-- pending focus intentは同じ対象TableとLifecycleにだけ適用し、利用者の新しい操作位置を奪わない。
+- Apply success側のpending focus intentは同じ対象TableとLifecycleにだけ適用し、利用者の新しい操作位置を奪わない。RF側はpending intentを持たない。
 - successはfocus intentがsettleした後にだけ確定する。
 - 成功後focusとannouncementは確定済み最終位置だけを利用し、指定した移動先や隣接位置から結果を推測しない。
 - 同じsuccess / failure Apply結果をPresentation再生成によって繰り返し通知しない。
@@ -1061,7 +1062,7 @@ RFのKeyboard操作はnative semanticsとWordPress Componentsの標準Contract�
 
 ### Focus Coordination is a Narrow Lifecycle Responsibility
 
-表示再生成をまたぐfocus復帰には一時的なintent所有が必要なため、Focus Coordinationを独立責務として明示する。ただしRF / Apply phaseやTable位置を複製せず、既存Lifecycleから確定した意味上のtargetだけを調停する。
+Apply successで表示再生成をまたぐfocus復帰には一時的なintent所有が必要なため、Focus Coordinationを独立責務として明示する。RF側は即時focusだけを扱い、RF / Apply phaseやTable位置を複製せず、既存Lifecycleから確定した意味上のtargetだけを調停する。
 
 ### Announcement Meaning Remains Source-owned
 
@@ -1080,7 +1081,7 @@ Apply preparation前のfailureと、反映準備または反映中Presentation�
 - **Focus continuity**: RF open / close、確認、反映中、表示復帰、success / failureでDesignが定めた操作位置を維持し、success確定前に最終focus intentをsettleさせる。
 - **Notification correctness**: success / failureは同じ未提示Apply結果から一度だけ通知し、構造拒否 / no-opは現在評価をそのまま利用して追加の差分判定・重複抑制を行わず、focus移動をdelivery手段にしない。
 - **Lifecycle correctness**: preparation前failureでは不要なrestorationを開始せず、prepared failureではediting surfaceの表示復帰後にfailureを確定してRF状態再成立後にfocusを復帰し、successではfocus settleを含む表示復帰完了後に結果を確定する。
-- **State minimality**: 新しい永続状態を追加せず、Focus Coordinationのpending intent以外は既存状態から導出する。
+- **State minimality**: 新しい永続状態を追加せず、Apply successで必要なFocus Coordinationのpending intent以外は既存状態から導出する。RF側はpending stateを持たない。
 - **Consistency**: Row / Column DnDとRFは方向固有Table Integrationの同じ構造ルールと更新意味を利用する。
 - **Maintainability**: RF domain責務、WordPress接続、Accessibility責務、方向固有構造を分離し、現在のsource tree形状へArchitectureを固定しない。
 - **Editor continuity**: 対象Tableの競合編集を防ぎつつ、対象Table以外の操作を不必要に妨げない。
@@ -1092,7 +1093,7 @@ Apply preparation前のfailureと、反映準備または反映中Presentation�
 - Row / Column / RFのApply Lifecycle排他は製品入口のInvariantに依存する。新しいReorder入口を追加する場合は、WordPress Reorder Apply Integrationへ仲裁責務を追加するのではなく、入口側で同Invariantを維持する必要がある。
 - current logical positionは永続Identityではないため、RF open中の外部変更後に以前選択した内容そのものを追跡するContractは持たない。
 - WordPress EditorまたはWordPress Componentsのversion差により、標準Keyboard / semantic / focus Contractの実際の挙動が異なる可能性がある。外部能力とYTR接続のどちらに原因があるかを分離して評価する必要がある。
-- Table更新時のediting surface再生成ではfocus target成立時点がEditor Lifecycleに依存する。Focus Coordinationのpending intentをRF / Apply状態の複製へ拡張するとstale focusや二重正本を生む危険がある。
+- Table更新時のediting surface再生成ではfocus target成立時点がEditor Lifecycleに依存する。Apply success用pending intentをRF側Presentation再生成やRF / Apply状態の複製へ拡張するとstale focusや二重正本を生む危険がある。
 - BrowserとAssistive Technologyの組み合わせによりannouncement伝達挙動が異なる可能性がある。Phase 1では特定製品向け分岐を設けない。
 - 成功後の正確なセルを現在Tableで特定できない場合がある。推測focusを禁止し、対象Tableの安定位置へのfallbackに限定する。
 
@@ -1109,7 +1110,7 @@ Apply preparation前のfailureと、反映準備または反映中Presentation�
 | RF Apply Coordination | RF候補の再照合、反映経路選択、確認、確定更新、表示復帰、結果確定を所有するLifecycle責務。 |
 | Accessibility Presentation | 既存RF / Apply状態を標準操作部品の意味、状態、案内、入力問題との関係として表現する責務。 |
 | Focus intent | Lifecycle上の遷移理由と意味上のfocus targetを表す一時的な要求。DOM nodeやRF / Apply phaseの複製ではない。 |
-| Pending focus intent | 表示再生成中にtargetが一時的に存在しない場合だけ、同じ対象TableとLifecycleへ限定して保持するfocus intent。 |
+| Pending focus intent | Apply successの表示再生成中にtargetが一時的に存在しない場合だけ、同じ対象TableとLifecycleへ限定して保持するfocus intent。RF側では保持しない。 |
 | Announcement | focusを移動せず、RF Interactionの現在評価または確定したApply結果を支援技術へ伝える通知。blocked / no-opは差分判定・重複抑制を持たず、success / failureは未提示Apply結果の一回性に従う。 |
 | Input problem | RF Input Interpretationが特定入力について修正を必要とすると解釈した結果。構造拒否またはno-opとは異なる。 |
 | Structural result | Row / Column RF ResolutionとTable Integrationが現在指定全体について返すno-op、構造拒否、または利用不能。 |
