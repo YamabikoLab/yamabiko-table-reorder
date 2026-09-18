@@ -429,246 +429,246 @@ export const ReorderFormPopover = ( props: ReorderFormPopoverProps ) => {
 					<p className="yamabiko-table-reorder-rf__summary">{ getCollapsedSummary( state ) }</p>
 				) }
 				<div hidden={ narrowCollapsed } id={ formContentId }>
-						<fieldset className="yamabiko-table-reorder-rf__fieldset">
-							<legend>{ getRfKindLegend() }</legend>
-							<label htmlFor={ rowKindId }>
-								<input
-									checked={ state.kind === 'row' }
-									id={ rowKindId }
-									name={ `yamabiko-table-reorder-rf-kind-${ tableIdentity }` }
-									onChange={ () => rfInteraction.selectKind( tableIdentity, 'row' ) }
-									type="radio"
-								/>
-								{ getRfRowsLabel() }
-							</label>
-							<label htmlFor={ columnKindId }>
-								<input
-									checked={ state.kind === 'column' }
-									id={ columnKindId }
-									name={ `yamabiko-table-reorder-rf-kind-${ tableIdentity }` }
-									onChange={ () => rfInteraction.selectKind( tableIdentity, 'column' ) }
-									type="radio"
-								/>
-								{ getRfColumnsLabel() }
-							</label>
-						</fieldset>
+					<fieldset className="yamabiko-table-reorder-rf__fieldset">
+						<legend>{ getRfKindLegend() }</legend>
+						<label htmlFor={ rowKindId }>
+							<input
+								checked={ state.kind === 'row' }
+								id={ rowKindId }
+								name={ `yamabiko-table-reorder-rf-kind-${ tableIdentity }` }
+								onChange={ () => rfInteraction.selectKind( tableIdentity, 'row' ) }
+								type="radio"
+							/>
+							{ getRfRowsLabel() }
+						</label>
+						<label htmlFor={ columnKindId }>
+							<input
+								checked={ state.kind === 'column' }
+								id={ columnKindId }
+								name={ `yamabiko-table-reorder-rf-kind-${ tableIdentity }` }
+								onChange={ () => rfInteraction.selectKind( tableIdentity, 'column' ) }
+								type="radio"
+							/>
+							{ getRfColumnsLabel() }
+						</label>
+					</fieldset>
 
-						{ state.kind === 'row' ? (
-							<div className="yamabiko-table-reorder-rf__fields">
-								<label htmlFor={ sourceRowId }>
-									<span>{ getRfSourceRowLabel() }</span>
+					{ state.kind === 'row' ? (
+						<div className="yamabiko-table-reorder-rf__fields">
+							<label htmlFor={ sourceRowId }>
+								<span>{ getRfSourceRowLabel() }</span>
+								<input
+									aria-describedby={ state.rowCount !== null ? rowRangeId : undefined }
+									aria-invalid={ sourceRowInvalid || undefined }
+									id={ sourceRowId }
+									inputMode="numeric"
+									max={ state.rowCount ?? undefined }
+									min={ 1 }
+									onChange={ ( event ) =>
+										rfInteraction.updateRowInput( tableIdentity, {
+											...state.input,
+											sourceRowNumber: event.currentTarget.value,
+										} )
+									}
+									step={ 1 }
+									type="number"
+									value={ state.input.sourceRowNumber }
+								/>
+							</label>
+							<label htmlFor={ targetRowId }>
+								<span>{ getRfTargetRowLabel() }</span>
+								<input
+									aria-describedby={ state.rowCount !== null ? rowRangeId : undefined }
+									aria-invalid={ targetRowInvalid || undefined }
+									id={ targetRowId }
+									inputMode="numeric"
+									max={ state.rowCount ?? undefined }
+									min={ 1 }
+									onChange={ ( event ) =>
+										rfInteraction.updateRowInput( tableIdentity, {
+											...state.input,
+											targetRowNumber: event.currentTarget.value,
+										} )
+									}
+									step={ 1 }
+									type="number"
+									value={ state.input.targetRowNumber }
+								/>
+							</label>
+							{ state.rowCount !== null && (
+								<p
+									className={
+										sourceRowInvalid || targetRowInvalid
+											? 'yamabiko-table-reorder-rf__notice'
+											: 'yamabiko-table-reorder-rf__help'
+									}
+									id={ rowRangeId }
+								>
+									{ getRfRowRangeMessage( state.rowCount ) }
+								</p>
+							) }
+							<fieldset className="yamabiko-table-reorder-rf__fieldset">
+								<legend>{ getRfPositionLegend() }</legend>
+								<label htmlFor={ rowAboveId }>
 									<input
-										aria-describedby={ state.rowCount !== null ? rowRangeId : undefined }
-										aria-invalid={ sourceRowInvalid || undefined }
-										id={ sourceRowId }
-										inputMode="numeric"
-										max={ state.rowCount ?? undefined }
-										min={ 1 }
-										onChange={ ( event ) =>
+										checked={ state.input.position === 'above' }
+										id={ rowAboveId }
+										name={ `yamabiko-table-reorder-rf-row-position-${ tableIdentity }` }
+										onChange={ () =>
 											rfInteraction.updateRowInput( tableIdentity, {
 												...state.input,
-												sourceRowNumber: event.currentTarget.value,
+												position: 'above',
 											} )
 										}
-										step={ 1 }
-										type="number"
-										value={ state.input.sourceRowNumber }
+										type="radio"
 									/>
+									{ getRfAboveLabel() }
 								</label>
-								<label htmlFor={ targetRowId }>
-									<span>{ getRfTargetRowLabel() }</span>
+								<label htmlFor={ rowBelowId }>
 									<input
-										aria-describedby={ state.rowCount !== null ? rowRangeId : undefined }
-										aria-invalid={ targetRowInvalid || undefined }
-										id={ targetRowId }
-										inputMode="numeric"
-										max={ state.rowCount ?? undefined }
-										min={ 1 }
-										onChange={ ( event ) =>
+										checked={ state.input.position === 'below' }
+										id={ rowBelowId }
+										name={ `yamabiko-table-reorder-rf-row-position-${ tableIdentity }` }
+										onChange={ () =>
 											rfInteraction.updateRowInput( tableIdentity, {
 												...state.input,
-												targetRowNumber: event.currentTarget.value,
+												position: 'below',
 											} )
 										}
-										step={ 1 }
-										type="number"
-										value={ state.input.targetRowNumber }
+										type="radio"
 									/>
+									{ getRfBelowLabel() }
 								</label>
-								{ state.rowCount !== null && (
+							</fieldset>
+							<p className="yamabiko-table-reorder-rf__help">{ getRfRowTargetHelp() }</p>
+						</div>
+					) : (
+						<div className="yamabiko-table-reorder-rf__fields">
+							<label htmlFor={ sourceColumnId }>
+								<span>{ getRfSourceColumnLabel() }</span>
+								<select
+									aria-describedby={
+										sourceColumnInvalid ? sourceColumnProblemId : undefined
+									}
+									aria-invalid={ sourceColumnInvalid || undefined }
+									id={ sourceColumnId }
+									onChange={ ( event ) =>
+										rfInteraction.updateColumnInput( tableIdentity, {
+											...state.input,
+											sourceColumnIndex:
+												event.currentTarget.value === ''
+													? null
+													: Number( event.currentTarget.value ),
+										} )
+									}
+									value={ state.input.sourceColumnIndex ?? '' }
+								>
+									<option value="">{ getRfSelectColumnLabel() }</option>
+									{ state.columns.map( ( descriptor ) => (
+										<option key={ descriptor.columnIndex } value={ descriptor.columnIndex }>
+											{ getColumnOptionLabel( descriptor ) }
+										</option>
+									) ) }
+								</select>
+								{ sourceColumnInvalid && (
 									<p
-										className={
-											sourceRowInvalid || targetRowInvalid
-												? 'yamabiko-table-reorder-rf__notice'
-												: 'yamabiko-table-reorder-rf__help'
-										}
-										id={ rowRangeId }
+										className="yamabiko-table-reorder-rf__notice"
+										id={ sourceColumnProblemId }
 									>
-										{ getRfRowRangeMessage( state.rowCount ) }
+										{ getRfColumnSelectionUnavailableMessage() }
 									</p>
 								) }
-								<fieldset className="yamabiko-table-reorder-rf__fieldset">
-									<legend>{ getRfPositionLegend() }</legend>
-									<label htmlFor={ rowAboveId }>
-										<input
-											checked={ state.input.position === 'above' }
-											id={ rowAboveId }
-											name={ `yamabiko-table-reorder-rf-row-position-${ tableIdentity }` }
-											onChange={ () =>
-												rfInteraction.updateRowInput( tableIdentity, {
-													...state.input,
-													position: 'above',
-												} )
-											}
-											type="radio"
-										/>
-										{ getRfAboveLabel() }
-									</label>
-									<label htmlFor={ rowBelowId }>
-										<input
-											checked={ state.input.position === 'below' }
-											id={ rowBelowId }
-											name={ `yamabiko-table-reorder-rf-row-position-${ tableIdentity }` }
-											onChange={ () =>
-												rfInteraction.updateRowInput( tableIdentity, {
-													...state.input,
-													position: 'below',
-												} )
-											}
-											type="radio"
-										/>
-										{ getRfBelowLabel() }
-									</label>
-								</fieldset>
-								<p className="yamabiko-table-reorder-rf__help">{ getRfRowTargetHelp() }</p>
-							</div>
-						) : (
-							<div className="yamabiko-table-reorder-rf__fields">
-								<label htmlFor={ sourceColumnId }>
-									<span>{ getRfSourceColumnLabel() }</span>
-									<select
-										aria-describedby={
-											sourceColumnInvalid ? sourceColumnProblemId : undefined
-										}
-										aria-invalid={ sourceColumnInvalid || undefined }
-										id={ sourceColumnId }
-										onChange={ ( event ) =>
+							</label>
+							<label htmlFor={ targetColumnId }>
+								<span>{ getRfTargetColumnLabel() }</span>
+								<select
+									aria-describedby={
+										targetColumnInvalid ? targetColumnProblemId : undefined
+									}
+									aria-invalid={ targetColumnInvalid || undefined }
+									id={ targetColumnId }
+									onChange={ ( event ) =>
+										rfInteraction.updateColumnInput( tableIdentity, {
+											...state.input,
+											targetColumnIndex:
+												event.currentTarget.value === ''
+													? null
+													: Number( event.currentTarget.value ),
+										} )
+									}
+									value={ state.input.targetColumnIndex ?? '' }
+								>
+									<option value="">{ getRfSelectColumnLabel() }</option>
+									{ state.columns.map( ( descriptor ) => (
+										<option key={ descriptor.columnIndex } value={ descriptor.columnIndex }>
+											{ getColumnOptionLabel( descriptor ) }
+										</option>
+									) ) }
+								</select>
+								{ targetColumnInvalid && (
+									<p
+										className="yamabiko-table-reorder-rf__notice"
+										id={ targetColumnProblemId }
+									>
+										{ getRfColumnSelectionUnavailableMessage() }
+									</p>
+								) }
+							</label>
+							<fieldset className="yamabiko-table-reorder-rf__fieldset">
+								<legend>{ getRfPositionLegend() }</legend>
+								<label htmlFor={ columnLeftId }>
+									<input
+										checked={ state.input.position === 'left' }
+										id={ columnLeftId }
+										name={ `yamabiko-table-reorder-rf-column-position-${ tableIdentity }` }
+										onChange={ () =>
 											rfInteraction.updateColumnInput( tableIdentity, {
 												...state.input,
-												sourceColumnIndex:
-													event.currentTarget.value === ''
-														? null
-														: Number( event.currentTarget.value ),
+												position: 'left',
 											} )
 										}
-										value={ state.input.sourceColumnIndex ?? '' }
-									>
-										<option value="">{ getRfSelectColumnLabel() }</option>
-										{ state.columns.map( ( descriptor ) => (
-											<option key={ descriptor.columnIndex } value={ descriptor.columnIndex }>
-												{ getColumnOptionLabel( descriptor ) }
-											</option>
-										) ) }
-									</select>
-									{ sourceColumnInvalid && (
-										<p
-											className="yamabiko-table-reorder-rf__notice"
-											id={ sourceColumnProblemId }
-										>
-											{ getRfColumnSelectionUnavailableMessage() }
-										</p>
-									) }
+										type="radio"
+									/>
+									{ getRfLeftLabel() }
 								</label>
-								<label htmlFor={ targetColumnId }>
-									<span>{ getRfTargetColumnLabel() }</span>
-									<select
-										aria-describedby={
-											targetColumnInvalid ? targetColumnProblemId : undefined
-										}
-										aria-invalid={ targetColumnInvalid || undefined }
-										id={ targetColumnId }
-										onChange={ ( event ) =>
+								<label htmlFor={ columnRightId }>
+									<input
+										checked={ state.input.position === 'right' }
+										id={ columnRightId }
+										name={ `yamabiko-table-reorder-rf-column-position-${ tableIdentity }` }
+										onChange={ () =>
 											rfInteraction.updateColumnInput( tableIdentity, {
 												...state.input,
-												targetColumnIndex:
-													event.currentTarget.value === ''
-														? null
-														: Number( event.currentTarget.value ),
+												position: 'right',
 											} )
 										}
-										value={ state.input.targetColumnIndex ?? '' }
-									>
-										<option value="">{ getRfSelectColumnLabel() }</option>
-										{ state.columns.map( ( descriptor ) => (
-											<option key={ descriptor.columnIndex } value={ descriptor.columnIndex }>
-												{ getColumnOptionLabel( descriptor ) }
-											</option>
-										) ) }
-									</select>
-									{ targetColumnInvalid && (
-										<p
-											className="yamabiko-table-reorder-rf__notice"
-											id={ targetColumnProblemId }
-										>
-											{ getRfColumnSelectionUnavailableMessage() }
-										</p>
-									) }
+										type="radio"
+									/>
+									{ getRfRightLabel() }
 								</label>
-								<fieldset className="yamabiko-table-reorder-rf__fieldset">
-									<legend>{ getRfPositionLegend() }</legend>
-									<label htmlFor={ columnLeftId }>
-										<input
-											checked={ state.input.position === 'left' }
-											id={ columnLeftId }
-											name={ `yamabiko-table-reorder-rf-column-position-${ tableIdentity }` }
-											onChange={ () =>
-												rfInteraction.updateColumnInput( tableIdentity, {
-													...state.input,
-													position: 'left',
-												} )
-											}
-											type="radio"
-										/>
-										{ getRfLeftLabel() }
-									</label>
-									<label htmlFor={ columnRightId }>
-										<input
-											checked={ state.input.position === 'right' }
-											id={ columnRightId }
-											name={ `yamabiko-table-reorder-rf-column-position-${ tableIdentity }` }
-											onChange={ () =>
-												rfInteraction.updateColumnInput( tableIdentity, {
-													...state.input,
-													position: 'right',
-												} )
-											}
-											type="radio"
-										/>
-										{ getRfRightLabel() }
-									</label>
-								</fieldset>
-								<p className="yamabiko-table-reorder-rf__help">{ getRfColumnTargetHelp() }</p>
-							</div>
-						) }
-
-						{ resultMessage !== null && (
-							<p className="yamabiko-table-reorder-rf__notice" role="status">
-								{ resultMessage }
-							</p>
-						) }
-
-						<div className="yamabiko-table-reorder-rf__actions">
-							<Button onClick={ () => rfInteraction.close( tableIdentity ) } variant="secondary">
-								{ getRfCancelLabel() }
-							</Button>
-							<Button
-								disabled={ ! state.canApply }
-								onClick={ () => rfInteraction.requestApply( tableIdentity ) }
-								variant="primary"
-							>
-								{ getRfApplyLabel() }
-							</Button>
+							</fieldset>
+							<p className="yamabiko-table-reorder-rf__help">{ getRfColumnTargetHelp() }</p>
 						</div>
+					) }
+
+					{ resultMessage !== null && (
+						<p className="yamabiko-table-reorder-rf__notice" role="status">
+							{ resultMessage }
+						</p>
+					) }
+
+					<div className="yamabiko-table-reorder-rf__actions">
+						<Button onClick={ () => rfInteraction.close( tableIdentity ) } variant="secondary">
+							{ getRfCancelLabel() }
+						</Button>
+						<Button
+							disabled={ ! state.canApply }
+							onClick={ () => rfInteraction.requestApply( tableIdentity ) }
+							variant="primary"
+						>
+							{ getRfApplyLabel() }
+						</Button>
+					</div>
 				</div>
 			</div>
 		</Popover>
