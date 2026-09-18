@@ -38,6 +38,7 @@ const runAfterVisualPaint = ( editorWindow: Window, callback: () => void ): ( ()
 	} );
 	const cleanup = (): void => {
 		editorWindow.cancelAnimationFrame( firstFrame );
+		// 2回目の描画待ちが予約済みの場合だけ、その未完了処理も破棄する。
 		if ( secondFrame !== 0 ) {
 			editorWindow.cancelAnimationFrame( secondFrame );
 		}
@@ -71,6 +72,7 @@ export const useReorderApplyLifecycle = (
 		}
 
 		const referenceElement = applyingReferenceElementRef.current;
+		// 現在の反映中表示が存在する場合だけ、その表示環境をEditor DOM Contextとして採用する。
 		const editorContext =
 			referenceElement === null ? null : resolveEditorDomContext( referenceElement );
 		// 現在のEditor DOM Contextを解決できない場合は別の表示環境を推測せず、描画待ちだけを省略する。
@@ -106,11 +108,13 @@ export const useReorderApplyLifecycle = (
 		}
 
 		const referenceElement = restorationReferenceElementRef.current;
+		// 現在の表示復帰Presentationが存在する場合だけ、その表示環境を復帰対象として採用する。
 		const editorContext =
 			referenceElement === null ? null : resolveEditorDomContext( referenceElement );
 
 		// success時だけ、現在Editor DOM Contextで表示位置と結果強調を復帰する。focusはここでは適用しない。
 		if ( applied && destinationIndex !== null && editorContext !== null ) {
+			// 確定したReorder Kindに対応する表示復帰だけを実行し、他方向の位置解釈を混在させない。
 			if ( kind === 'row' ) {
 				restoreMovedRow( editorContext.document, tableIdentity, destinationIndex );
 			} else {
@@ -130,6 +134,7 @@ export const useReorderApplyLifecycle = (
 			 * Focus Coordination自身には待機状態を持たせず、この一回適用後にLifecycleを完了する。
 			 */
 			const currentReferenceElement = restorationReferenceElementRef.current;
+			// successかつ現在Presentationが成立している場合だけ、結果確認focusを一回適用する。
 			if ( applied && destinationIndex !== null && currentReferenceElement !== null ) {
 				// 確定したReorder Kindだけをsuccess focus要求の方向へ対応付ける。
 				const focusRequestType = kind === 'row' ? 'row-success' : 'column-success';
