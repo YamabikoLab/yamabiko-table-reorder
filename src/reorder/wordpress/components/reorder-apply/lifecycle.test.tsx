@@ -5,6 +5,7 @@
 import { render } from '@testing-library/react';
 
 import { resolveEditorDomContext } from '@/reorder/editor-dom-context';
+import { requestApplyFocus } from '@/reorder/wordpress/focus/apply';
 
 import type { ReorderApplyPresentationState } from './adapter';
 import { useReorderApplyLifecycle } from './lifecycle';
@@ -14,12 +15,17 @@ jest.mock( '@/reorder/editor-dom-context', () => ( {
 	resolveEditorDomContext: jest.fn(),
 } ) );
 
+jest.mock( '@/reorder/wordpress/focus/apply', () => ( {
+	requestApplyFocus: jest.fn(),
+} ) );
+
 jest.mock( './restoration', () => ( {
 	restoreMovedColumn: jest.fn(),
 	restoreMovedRow: jest.fn(),
 } ) );
 
 const resolveEditorDomContextMock = resolveEditorDomContext as jest.Mock;
+const requestApplyFocusMock = requestApplyFocus as jest.Mock;
 const restoreMovedColumnMock = restoreMovedColumn as jest.Mock;
 const restoreMovedRowMock = restoreMovedRow as jest.Mock;
 
@@ -216,9 +222,18 @@ describe( 'WordPress Reorder Apply Integration lifecycle', () => {
 
 		expect( restoreMovedRowMock ).toHaveBeenCalledWith( restorationDocument, 'table-a', 4 );
 		expect( restoreMovedRowMock ).not.toHaveBeenCalledWith( applyingDocument, 'table-a', 4 );
+		expect( requestApplyFocusMock ).not.toHaveBeenCalled();
 		expect( complete ).not.toHaveBeenCalled();
 		restorationWindow.flushNextFrame();
 		restorationWindow.flushNextFrame();
+		expect( requestApplyFocusMock ).toHaveBeenCalledTimes( 1 );
+		expect( requestApplyFocusMock ).toHaveBeenCalledWith(
+			{ type: 'row-success', tableIdentity: 'table-a', destinationIndex: 4 },
+			expect.any( HTMLDivElement )
+		);
+		expect( requestApplyFocusMock.mock.invocationCallOrder[ 0 ] ).toBeLessThan(
+			complete.mock.invocationCallOrder[ 0 ]
+		);
 		expect( complete ).toHaveBeenCalledTimes( 1 );
 	} );
 
@@ -264,6 +279,7 @@ describe( 'WordPress Reorder Apply Integration lifecycle', () => {
 		expect( restoreMovedColumnMock ).not.toHaveBeenCalled();
 		editorWindow.flushNextFrame();
 		editorWindow.flushNextFrame();
+		expect( requestApplyFocusMock ).not.toHaveBeenCalled();
 		expect( complete ).toHaveBeenCalledTimes( 1 );
 	} );
 } );
