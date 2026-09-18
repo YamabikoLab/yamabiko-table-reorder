@@ -101,5 +101,4 @@ describe( 'WordPress Reorder Integration focus coordination', () => {
 
 		expect( referenceElement.ownerDocument.activeElement ).toBe( currentFocus );
 	} );
-
 } );
