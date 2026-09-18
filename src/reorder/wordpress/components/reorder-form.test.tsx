@@ -458,9 +458,9 @@ describe( 'Reorder Form presentation', () => {
 		expect(
 			screen.getByRole( 'spinbutton', { name: '移動先の行' } ).getAttribute( 'aria-invalid' )
 		).toBeNull();
-		expect(
-			screen.getByRole( 'button', { name: '並び替え' } ).hasAttribute( 'disabled' )
-		).toBe( true );
+		expect( screen.getByRole( 'button', { name: '並び替え' } ).hasAttribute( 'disabled' ) ).toBe(
+			true
+		);
 	} );
 
 	/**
@@ -555,9 +555,9 @@ describe( 'Reorder Form presentation', () => {
 			<ReorderFormPopover anchor={ anchor } state={ disabledState } tableIdentity="table-a" />
 		);
 
-		expect(
-			screen.getByRole( 'button', { name: '並び替え' } ).hasAttribute( 'disabled' )
-		).toBe( true );
+		expect( screen.getByRole( 'button', { name: '並び替え' } ).hasAttribute( 'disabled' ) ).toBe(
+			true
+		);
 
 		const enabledState: RfInteractionReactState = {
 			...disabledState,
@@ -567,9 +567,9 @@ describe( 'Reorder Form presentation', () => {
 			<ReorderFormPopover anchor={ anchor } state={ enabledState } tableIdentity="table-a" />
 		);
 
-		expect(
-			screen.getByRole( 'button', { name: '並び替え' } ).hasAttribute( 'disabled' )
-		).toBe( false );
+		expect( screen.getByRole( 'button', { name: '並び替え' } ).hasAttribute( 'disabled' ) ).toBe(
+			false
+		);
 	} );
 
 	/**
