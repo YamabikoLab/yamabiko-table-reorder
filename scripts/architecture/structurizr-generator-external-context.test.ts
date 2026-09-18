@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import type { ArchitectureModel } from './architecture-model';
+import { allowedExternalContextTypes } from './architecture-validation';
 import { generateStructurizrDsl } from './structurizr-generator';
 
 const model: ArchitectureModel = {
@@ -30,6 +31,12 @@ const model: ArchitectureModel = {
 			type: 'External Environment',
 			summary: 'スクロール領域。',
 		},
+		{
+			id: 'EXT_DND_ENGINE',
+			name: 'DnD Engine',
+			type: 'External Library',
+			summary: 'DnD実行環境。',
+		},
 	],
 	responsibilities: [
 		{
@@ -54,6 +61,7 @@ test( 'Architecture 要素の5分類を tag と視覚スタイルへ反映する
 	assert.match( dsl, /tags "External Context,External Block"/u );
 	assert.match( dsl, /tags "External Context,External Capability"/u );
 	assert.match( dsl, /tags "External Context,External Environment"/u );
+	assert.match( dsl, /tags "External Context,External Library"/u );
 	assert.match( dsl, /element "Responsibility" \{[^}]*shape Box/u );
 	assert.match( dsl, /element "External System" \{[^}]*shape RoundedBox/u );
 	assert.match( dsl, /element "External Block" \{[^}]*shape Component/u );
@@ -61,6 +69,14 @@ test( 'Architecture 要素の5分類を tag と視覚スタイルへ反映する
 	assert.match( dsl, /element "External Environment" \{[^}]*shape Box[^}]*border dashed/u );
 	assert.match( dsl, /element "External Library" \{[^}]*shape Box[^}]*border dashed/u );
 	assert.doesNotMatch( dsl, /element "External Context"/u );
+
+	const generatedExternalTypes = [
+		...dsl.matchAll( /element "(External (?:System|Block|Capability|Environment|Library))" \{/gu ),
+	].map( ( match ) => match[ 1 ] );
+	assert.deepEqual(
+		new Set( generatedExternalTypes ),
+		new Set( allowedExternalContextTypes )
+	);
 } );
 
 test( 'Process Flow View がなくても Architecture 要素のスタイルを生成する', () => {
