@@ -15,8 +15,6 @@ import { resolveEditorDomContext } from '@/reorder/editor-dom-context';
 export type FocusSemanticTarget =
 	/** RF内の操作役割へフォーカスする。 */
 	| { type: 'rf-control' }
-	/** 対象TableのRF toolbar入口へフォーカスする。 */
-	| { type: 'rf-toolbar' }
 	/** Apply責務が確定した移動後位置に対応する結果確認セルへフォーカスする。 */
 	| {
 			type: 'result-cell';
@@ -157,24 +155,6 @@ export const resolveFocusTarget = (
 		return resolveReorderDirection( editorContext.document, tableIdentity );
 	}
 
-	// RF明示終了後の要求は、対象Table自身のtoolbar入口だけへ戻す。
-	if ( target.type === 'rf-toolbar' ) {
-		/*
-		 * 複数Tableのtoolbarが同じEditor文書に存在できるため、
-		 * 対象Identityと一致するRF入口だけを復帰先として採用する。
-		 */
-		for ( const element of Array.from(
-			editorContext.document.querySelectorAll< HTMLElement >(
-				'[data-ytr-focus-target="rf-toolbar"]'
-			)
-		) ) {
-			// 複数Tableのtoolbarが存在しても、要求元Tableの入口だけを復帰先とする。
-			if ( element.getAttribute( 'data-ytr-table-identity' ) === tableIdentity ) {
-				return element;
-			}
-		}
-		return null;
-	}
 
 	const tableBlock = resolveTableBlock( editorContext.document, tableIdentity );
 	// 結果確認またはTable fallbackは、対象Tableが現在表示に存在する場合だけ許可する。
