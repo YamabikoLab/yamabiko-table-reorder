@@ -242,6 +242,8 @@ export const ReorderModeToolbar = ( props: ReorderModeToolbarProps ) => {
 				/>
 				{ columnDndEntry }
 				<ToolbarButton
+					data-ytr-focus-target="rf-toolbar"
+					data-ytr-table-identity={ tableIdentity }
 					ref={ setRfAnchor }
 					disabled={ rfApplying }
 					icon={ formReorderIcon }
