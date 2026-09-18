@@ -49,6 +49,37 @@ describe( 'WordPress Reorder Integration focus coordination', () => {
 	} );
 
 	/**
+	 * RF open時に方向操作が存在しても現在選択がない場合は、別方向を推測しないことを確認する。
+	 *
+	 * 事前条件:
+	 * - 行・列の方向操作は存在する。
+	 * - どちらも選択されていない。
+	 * - 利用者は別の操作位置にfocusしている。
+	 *
+	 * 操作:
+	 * - RF open後のfocusを要求する。
+	 *
+	 * 期待結果:
+	 * - 現在focusを維持し、行または列へ推測focusしない。
+	 */
+	it( 'when RF directions exist without a current selection, should not guess a direction target', () => {
+		const referenceElement = document.createElement( 'div' );
+		const currentFocus = document.createElement( 'button' );
+		const rowDirection = document.createElement( 'input' );
+		const columnDirection = document.createElement( 'input' );
+		rowDirection.id = getRfControlId( 'kind-row' );
+		columnDirection.id = getRfControlId( 'kind-column' );
+		rowDirection.setAttribute( 'type', 'radio' );
+		columnDirection.setAttribute( 'type', 'radio' );
+		document.body.append( referenceElement, currentFocus, rowDirection, columnDirection );
+		currentFocus.focus();
+
+		requestReorderFocus( { type: 'rf-open', tableIdentity: TABLE_IDENTITY }, referenceElement );
+
+		expect( referenceElement.ownerDocument.activeElement ).toBe( currentFocus );
+	} );
+
+	/**
 	 * RF明示終了時に固定されたtoolbar入口へ即時focusすることを確認する。
 	 *
 	 * 事前条件:
