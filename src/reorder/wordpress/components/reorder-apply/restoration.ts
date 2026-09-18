@@ -58,6 +58,7 @@ export const restoreMovedRow = (
 
 	const editable = row.querySelector< HTMLElement >( '[contenteditable="true"]' );
 	const firstCell = row.querySelector< HTMLElement >( 'th, td' );
+	// 表示位置は通常の編集位置を優先し、成立しない場合だけセル、行の順で安全な表示対象へfallbackする。
 	const displayTarget = editable ?? firstCell ?? ( row as HTMLElement );
 	displayTarget.scrollIntoView( { block: 'center', inline: 'start' } );
 	// 結果確認セルが成立する場合だけ強調し、行自体を代替focus targetとして扱わない。
@@ -108,6 +109,7 @@ export const restoreMovedColumn = (
 	}
 
 	const editable = targetCell.querySelector< HTMLElement >( '[contenteditable="true"]' );
+	// 列の表示位置は通常の編集位置を優先し、成立しない場合だけ確定論理列を占有するセルへfallbackする。
 	const displayTarget = editable ?? targetCell;
 	displayTarget.scrollIntoView( { block: 'center', inline: 'center' } );
 	markRestoredCell( targetCell );
