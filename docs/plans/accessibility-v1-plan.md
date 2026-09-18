@@ -39,9 +39,9 @@ Phase 1ではRFをKeyboardと支援技術から利用できる正式な並び替
 - 入力問題と対象入力・修正情報の関連付け
 - no-op、構造拒否、利用不能を特定入力のvalidationとは分離した指定全体の結果として提示する接続
 - Focus Coordinationとsemantic focus targetの実装
-- RF open / close、確認開始 / Cancel、反映準備、表示復帰、success / failureのfocus lifecycle
-- Apply successのTable表示再生成中だけ保持するLifecycle限定のpending focus intentとstale intent防止
-- RF Apply Coordinationの表示復帰完了をsuccess側focus intentのsettle後に確定する接続
+- RF open / explicit closeの即時focusと、Apply success時の結果確認focus接続
+- confirmation / applying / CancelではWordPress Componentsの標準focus Contractを優先する接続
+- Apply successでは既存Apply Lifecycleの描画待ち後に現在DOMへ一回focusする接続
 - Announcement Deliveryと一回性通知の接続
 - blocked / no-op / success / failureをfocusから独立して支援技術へ通知する実装
 - Row / Column両方向、Core Table / Flexible Table Block、iframe / non-iframe、Wide / Narrow、通常反映 / 確認付き大規模反映を含むvalidation
@@ -76,9 +76,9 @@ Phase 1ではRFをKeyboardと支援技術から利用できる正式な並び替
 - blocked / no-op等の現在評価をそのままAnnouncementへ渡し、RF Interactionへ差分判定・重複抑制・一回性通知状態を追加しない接続
 - 通常反映 / 確認付き大規模反映の両方で、success時の移動前位置と確定後位置をLifecycle完了時に引き渡す確定Move summary Contract
 - RF open / explicit closeでDesignどおりにfocusを移動し、方向切替やWide / Narrow切替では標準focus維持を優先する接続
-- 確認、反映中、Table表示再生成、success / failureをまたぐFocus Coordination
-- Apply successの表示再生成中だけ保持し、対象Table・Lifecycle・利用者の現在位置を検証して適用するpending focus intent
-- success時に確定済み最終位置へfocusをsettleしてからRF Apply Coordinationの表示復帰を完了するbarrier
+- RF open / explicit closeを即時適用するFocus Coordinationと、Apply success時の一回focus接続
+- confirmation / applying / CancelでWordPress標準focusを利用する接続
+- Apply successで既存Apply Lifecycleの描画待ちを再利用し、確定済み最終位置へ一回focusする接続
 - 視覚Noticeのmount / unmountとは独立したAnnouncement Delivery
 - success / failureの一回性結果とblocked / no-opの現在評価をfocus移動なしで通知する接続
 - Keyboard、semantic、focus、announcementを実ブラウザーとWordPress Editorで検証するE2E coverage
@@ -91,13 +91,13 @@ Phase 1ではRFをKeyboardと支援技術から利用できる正式な並び替
 
 次にAccessibility PresentationをWordPress Reorder Integration / WordPress Reorder Apply Integrationへ接続する。標準UI primitiveが提供するKeyboard / semantic Contractを優先し、YTRは操作名、選択状態、入力条件、実行可否、展開状態、入力問題との関係等の不足分だけを補う。この段階でRFの主要経路がKeyboardだけで操作可能であることと、focus対象として利用するsemantic targetが安定して識別できることを成立させる。
 
-その後、Focus Coordinationを独立した狭い責務として実装する。具体的DOM nodeを長寿命状態として保持せず、RF入口、方向選択、実行操作、確認主要操作、反映中状態、修正対象入力、確定後セル、対象Tableの安定位置等をsemantic targetとして扱う。Editor DOM Contextはfocus適用時点の現在context解決に利用する。
+その後、Focus Coordinationを独立した狭い責務として実装する。具体的DOM nodeやpending requestを保持せず、RF入口、方向選択、確定後セル、対象Tableの安定位置等、YTRが補完する必要のある最小semantic targetだけを扱う。confirmation / applying / CancelはWordPress Componentsの標準focus Contractへ委ね、Editor DOM Contextはfocus適用時点の現在context解決に利用する。
 
-Focus Coordinationの基盤成立後、まずRF open / explicit closeだけを即時focusとして通常RF lifecycleへ接続する。方向切替、Wide / Narrow切替、折りたたみ / 展開、入力問題では標準focus維持を優先し、専用pendingを追加しない。次に確認付き大規模反映と通常反映のApply lifecycleへ接続し、success側の表示再生成時だけpending intentとsuccess完了barrierを実装する。Apply結果のsuccess確定がfocus復帰より先行しないことをこの段階で保証する。
+Focus Coordinationの基盤成立後、まずRF open / explicit closeだけを即時focusとして通常RF lifecycleへ接続する。方向切替、Wide / Narrow切替、折りたたみ / 展開、入力問題では標準focus維持を優先し、専用pendingを追加しない。次に確認付き大規模反映と通常反映のApply lifecycleへ接続し、既存Apply Lifecycleの描画待ち後にsuccess結果確認focusを一回適用する。Focus Coordination自身にpending / retry / settlement barrierは追加しない。
 
 focus lifecycleが確定してからAnnouncement Deliveryを接続する。通知意味はRF Interaction / RF Apply Coordination / 方向固有Resolution・Table Integrationを正本とし、Announcement Deliveryはdeliveryだけを担当する。blocked / no-opはRF Interactionの現在評価が発生するたびに通知対象として扱い、差分判定・重複抑制は追加しない。success / failureは一回だけ取得する未提示結果から通知する。successの位置情報はPhase 1で引き渡された確定Move summaryだけを利用し、candidateや入力値から再計算しない。視覚Noticeの存在やfocus移動をdelivery条件にしない。
 
-各PhaseではJestで純粋な意味変換、状態遷移、一回性、stale防止等を検証し、WordPress / browser固有のKeyboard、focus、iframe、再mount、accessibility treeへの公開はPlaywright E2Eで検証する。最終PhaseではCore Table / Flexible Table Blockとiframe / non-iframeの代表環境を横断する。
+各PhaseではJestで純粋な意味変換、状態遷移、一回性等を検証し、WordPress / browser固有のKeyboard、focus、iframe、accessibility treeへの公開はPlaywright E2Eで検証する。実ユーザー操作で再現しないremount専用focus対策は追加しない。最終PhaseではCore Table / Flexible Table Blockとiframe / non-iframeの代表環境を横断する。
 
 実装中に新しい状態所有、責務境界、Lifecycle、Invariantが必要になった場合はPlan内でArchitectureを変更せず、`docs/architecture/reorder-form-v1-architecture.md`を先に更新してから本Planを追従させる。
 
