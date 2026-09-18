@@ -305,6 +305,7 @@ export const applyFocusTarget = ( target: HTMLElement ): boolean => {
 		if ( previousTabIndex === null ) {
 			target.removeAttribute( 'tabindex' );
 		} else {
+			// 元からtabindexを持つ要素には、Focus Coordination適用前の値を復元する。
 			target.setAttribute( 'tabindex', previousTabIndex );
 		}
 	}
