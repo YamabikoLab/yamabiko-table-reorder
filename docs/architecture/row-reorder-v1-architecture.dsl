@@ -121,7 +121,7 @@ workspace "YTR Reorder v1 Architecture" {
 				element.setGroup("Row Reorder")
 			}
 		}
-		RESP_ROW_PRESENTATION = element "Reorder Presentation" "Responsibility" "操作可否、開始不可、移動対象、水平挿入位置、周囲行移動、終了通知をRow Reorderの独立表示として表現する。" {
+		RESP_ROW_PRESENTATION = element "Reorder Presentation" "Responsibility" "操作可否、開始不可、移動対象、水平挿入位置、drop直後の一時的位置表示、終了通知をRow Reorderの独立表示として表現する。" {
 			tags "Responsibility"
 			!script groovy {
 				element.setGroup("Row Reorder")
@@ -522,10 +522,10 @@ workspace "YTR Reorder v1 Architecture" {
 				"runtime.RV_ROW_LARGE_REORDER_CONTINUE.step.11" "成立した行移動を一回のUndo単位として成立させる。"
 			}
 		}
-		RT_037 = RESP_ROW_DND_INTERACTION -> RESP_ROW_PRESENTATION "DnD Session終了を表示購読へ反映する。" {
+		RT_037 = RESP_ROW_DND_INTERACTION -> RESP_ROW_PRESENTATION "DnD Session終了を表示購読へ反映し、active DnD表示を終了する。drop後一時表示はPresentation固有Lifecycleとして独立して扱う。" {
 			tags "Runtime Interaction,Runtime_RV_ROW_DND_COMPLETE"
 			properties {
-				"runtime.RV_ROW_DND_COMPLETE.step.13" "DnD Session終了を表示購読へ反映する。"
+				"runtime.RV_ROW_DND_COMPLETE.step.13" "DnD Session終了を表示購読へ反映し、active DnD表示を終了する。drop後一時表示はPresentation固有Lifecycleとして独立して扱う。"
 			}
 		}
 		RT_038 = RESP_ROW_DND_INTERACTION -> RESP_ROW_TABLE_INTEGRATION "Session破棄後、対象Tableが次のrow並び替えを安全に受けられるか現在状態を取得し直す。" {
@@ -542,10 +542,10 @@ workspace "YTR Reorder v1 Architecture" {
 				"runtime.RV_ROW_DND_CANCEL.step.5" "対象Tableの継続可否だけを現在モードへ反映する。"
 			}
 		}
-		RT_040 = RESP_ROW_DND_INTERACTION -> RESP_ROW_PRESENTATION "DnD Session終了を表示購読へ反映し、物理DnD表示を終了する。" {
+		RT_040 = RESP_ROW_DND_INTERACTION -> RESP_ROW_PRESENTATION "DnD Session終了を表示購読へ反映し、active DnD表示を終了する。drop後一時表示は確認結果や確定結果とは独立したPresentation固有Lifecycleとして扱う。" {
 			tags "Runtime Interaction,Runtime_RV_ROW_LARGE_REORDER_CONFIRM"
 			properties {
-				"runtime.RV_ROW_LARGE_REORDER_CONFIRM.step.1" "DnD Session終了を表示購読へ反映し、物理DnD表示を終了する。"
+				"runtime.RV_ROW_LARGE_REORDER_CONFIRM.step.1" "DnD Session終了を表示購読へ反映し、active DnD表示を終了する。drop後一時表示は確認結果や確定結果とは独立したPresentation固有Lifecycleとして扱う。"
 			}
 		}
 		RT_041 = RESP_ROW_DND_INTERACTION -> RESP_ROW_TABLE_INTEGRATION "Session破棄後の対象Table利用可否を取得し直す。" {
