@@ -5,7 +5,7 @@
  * 要求時点の現在Editor DOMで対象を解決し、対象が成立しない場合はフォーカスを移動せず終了する。
  */
 
-import { applyFocusTarget, resolveFocusTarget, type FocusSemanticTarget } from './coordination';
+import { applyFocusTarget, resolveFocusTarget } from './coordination';
 
 /**
  * WordPress Reorder Integrationから要求できるRF Lifecycle上のフォーカス要求。
@@ -24,19 +24,6 @@ export type ReorderFocusRequest =
 	| { type: 'rf-explicit-close' };
 
 /**
- * RF Lifecycle上の要求を、設計で定めた意味上のフォーカス先へ変換する。
- *
- * @param request WordPress Reorder Integrationから受けたフォーカス要求。
- * @return requestの意味に対応するフォーカス先。
- */
-const getTarget = (
-	request: Extract< ReorderFocusRequest, { type: 'rf-open' } >
-): FocusSemanticTarget => {
-	const focusTarget: FocusSemanticTarget = { type: 'rf-control' };
-	return focusTarget;
-};
-
-/**
  * WordPress Reorder IntegrationからRF系のフォーカスを要求する。
  *
  * 要求時点の現在Editor DOMだけを利用する。対象が現在成立しない場合は保留せず終了し、
@@ -52,8 +39,11 @@ export function requestReorderFocus( request: ReorderFocusRequest, anchor: HTMLE
 		return;
 	}
 
-	const target = getTarget( request );
-	const resolvedTarget = resolveFocusTarget( target, request.tableIdentity, anchor );
+	const resolvedTarget = resolveFocusTarget(
+		{ type: 'rf-control' },
+		request.tableIdentity,
+		anchor
+	);
 	// RF open時は現在Presentationに方向選択が成立する場合だけfocusする。
 	if ( resolvedTarget !== null ) {
 		applyFocusTarget( resolvedTarget );
