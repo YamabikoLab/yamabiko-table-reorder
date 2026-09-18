@@ -43,6 +43,7 @@ export const requestApplyFocus = (
 	request: ApplySuccessFocusRequest,
 	referenceElement: Element
 ): void => {
+	// success要求の種別は、確定後位置を解釈する方向だけを決定し、位置自体は再計算しない。
 	const kind = request.type === 'row-success' ? 'row' : 'column';
 	const resultTarget: Extract< FocusSemanticTarget, { type: 'result-cell' } > = {
 		type: 'result-cell',
