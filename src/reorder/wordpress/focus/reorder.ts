@@ -78,7 +78,7 @@ const getTarget = ( request: ReorderFocusRequest ): FocusSemanticTarget => {
  * 固定targetはrequest typeから決定し、可変targetはDesignで許可されたcontrolだけを利用する。
  * 即時適用できない通常requestは状態を残さず終了し、Presentation再生成requestだけをpendingにできる。
  *
- * @param request RF Lifecycleで許可されたfocus request。
+ * @param request          RF Lifecycleで許可されたfocus request。
  * @param referenceElement 現在Editor DOM Contextを特定する基準要素。
  */
 export function requestReorderFocus(
@@ -112,8 +112,8 @@ export function requestReorderFocus(
  * regenerating中はtarget一時不在を許容し、stableで成立しなければpendingを終了する。
  * 呼び出しごとに現在のreferenceElementからEditor DOM Contextを解決し直す。
  *
- * @param tableIdentity 再評価対象Table Identity。
- * @param referenceElement 現在Editor DOM Contextを特定する基準要素。
+ * @param tableIdentity     再評価対象Table Identity。
+ * @param referenceElement  現在Editor DOM Contextを特定する基準要素。
  * @param presentationState RF Presentationの再生成状態。
  */
 export function reconcileReorderFocus(
@@ -144,7 +144,7 @@ export function reconcileReorderFocus(
  * RF側pending requestをfocus適用せず終了する。
  *
  * @param tableIdentity 破棄対象Table Identity。
- * @param reason focusを適用せず終了する理由。呼び出し側Lifecycleの記録用途。
+ * @param reason        focusを適用せず終了する理由。呼び出し側Lifecycleの記録用途。
  */
 export function abandonReorderFocus(
 	tableIdentity: string,

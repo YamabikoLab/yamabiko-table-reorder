@@ -28,11 +28,7 @@ export type ApplyFocusSettlement =
 	| { type: 'focused'; target: 'result' | 'table' }
 	| {
 			type: 'abandoned';
-			reason:
-				| 'target-unavailable'
-				| 'table-removed'
-				| 'user-moved'
-				| 'lifecycle-replaced';
+			reason: 'target-unavailable' | 'table-removed' | 'user-moved' | 'lifecycle-replaced';
 	  };
 
 /** Apply success側pending requestをfocus適用せず終了する理由。 */
@@ -82,7 +78,7 @@ const getImmediateTarget = ( request: ApplyImmediateFocusRequest ): FocusSemanti
  *
  * これらは表示復帰barrierではないため、targetが現在成立しなければpendingを作らず終了する。
  *
- * @param request confirmation-open / apply-start request。
+ * @param request          confirmation-open / apply-start request。
  * @param referenceElement 現在Editor DOM Contextを特定する基準要素。
  */
 export function requestApplyFocus(
@@ -96,7 +92,7 @@ export function requestApplyFocus(
  * 結果確認targetが現在存在すれば即時settleし、一時的に存在しなければediting surface restoration中の
  * pending intentとして保持する。
  *
- * @param request row-success / column-success request。
+ * @param request          row-success / column-success request。
  * @param referenceElement 現在Editor DOM Contextを特定する基準要素。
  * @return focus適用またはintent破棄による最終settlement。
  */
@@ -148,7 +144,7 @@ export function requestApplyFocus(
  * restoring中は結果確認targetの一時不在を許容する。stableでは結果確認targetを再解決し、
  * 成立しない場合にだけ対象Table自体の安定した位置へfallbackする。
  *
- * @param tableIdentity 再評価対象Table Identity。
+ * @param tableIdentity    再評価対象Table Identity。
  * @param referenceElement 現在Editor DOM Contextを特定する基準要素。
  * @param restorationState 更新後editing surfaceの再成立状態。
  */
@@ -192,12 +188,9 @@ export function reconcileApplyFocus(
  * Apply success側pending requestをfocus適用せずsettleさせる。
  *
  * @param tableIdentity 破棄対象Table Identity。
- * @param reason focusを適用せず終了する理由。
+ * @param reason        focusを適用せず終了する理由。
  */
-export function abandonApplyFocus(
-	tableIdentity: string,
-	reason: ApplyFocusAbandonReason
-): void {
+export function abandonApplyFocus( tableIdentity: string, reason: ApplyFocusAbandonReason ): void {
 	if ( pendingApplyFocus?.tableIdentity === tableIdentity ) {
 		settlePendingAsAbandoned( reason );
 	}

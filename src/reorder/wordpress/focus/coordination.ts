@@ -9,7 +9,17 @@ import { resolveEditorDomContext } from '@/reorder/editor-dom-context';
 
 /** Focus Coordination内部だけで利用する意味上のfocus target。 */
 export type FocusSemanticTarget =
-	| { type: 'rf-control'; control: 'direction' | 'source' | 'destination' | 'relation' | 'submit' | 'cancel' | 'disclosure' }
+	| {
+			type: 'rf-control';
+			control:
+				| 'direction'
+				| 'source'
+				| 'destination'
+				| 'relation'
+				| 'submit'
+				| 'cancel'
+				| 'disclosure';
+	  }
 	| { type: 'rf-toolbar' }
 	| { type: 'confirmation-continue' }
 	| { type: 'applying-status' }
@@ -20,14 +30,16 @@ export type FocusSemanticTarget =
  * 対象Tableの現在Block要素を取得する。
  *
  * @param editorDocument 現在Editor DOM Contextのdocument。
- * @param tableIdentity 対象Table Identity。
+ * @param tableIdentity  対象Table Identity。
  * @return 現在DOMに存在する対象Table Block。存在しなければnull。
  */
 const resolveTableBlock = (
 	editorDocument: Document,
 	tableIdentity: string
 ): HTMLElement | null => {
-	for ( const element of Array.from( editorDocument.querySelectorAll< HTMLElement >( '[data-block]' ) ) ) {
+	for ( const element of Array.from(
+		editorDocument.querySelectorAll< HTMLElement >( '[data-block]' )
+	) ) {
 		if ( element.getAttribute( 'data-block' ) === tableIdentity ) {
 			return element;
 		}
@@ -39,8 +51,8 @@ const resolveTableBlock = (
  * RF内の意味上の操作を現在PresentationのDOMへ解決する。
  *
  * @param editorDocument 現在Editor DOM Contextのdocument。
- * @param tableIdentity 対象Table Identity。
- * @param control RF内の意味上の操作。
+ * @param tableIdentity  対象Table Identity。
+ * @param control        RF内の意味上の操作。
  * @return 現在DOMに存在する操作要素。存在しなければnull。
  */
 const resolveReorderControl = (
@@ -92,8 +104,8 @@ const resolveReorderControl = (
 /**
  * Apply成功後の確定位置に対応する結果確認セルを現在Tableから解決する。
  *
- * @param tableBlock 対象Tableの現在Block要素。
- * @param kind RowまたはColumn。
+ * @param tableBlock       対象Tableの現在Block要素。
+ * @param kind             RowまたはColumn。
  * @param destinationIndex 既存Apply責務が確定した0-based最終位置。
  * @return 結果確認に利用するセル。成立しなければnull。
  */
@@ -131,8 +143,8 @@ const resolveResultCell = (
 /**
  * 現在Editor DOM Contextから意味上のfocus targetを解決する。
  *
- * @param target 解決する意味上のfocus target。
- * @param tableIdentity 対象Table Identity。
+ * @param target           解決する意味上のfocus target。
+ * @param tableIdentity    対象Table Identity。
  * @param referenceElement 現在Editor DOM Contextを特定する基準要素。
  * @return 現在DOMに存在するfocus対象。成立しなければnull。
  */
@@ -152,7 +164,9 @@ export const resolveFocusTarget = (
 
 	if ( target.type === 'rf-toolbar' ) {
 		for ( const element of Array.from(
-			editorContext.document.querySelectorAll< HTMLElement >( '[data-ytr-focus-target="rf-toolbar"]' )
+			editorContext.document.querySelectorAll< HTMLElement >(
+				'[data-ytr-focus-target="rf-toolbar"]'
+			)
 		) ) {
 			if ( element.getAttribute( 'data-ytr-table-identity' ) === tableIdentity ) {
 				return element;

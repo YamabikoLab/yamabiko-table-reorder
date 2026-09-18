@@ -5,15 +5,14 @@
  * stale intentの破棄を公開IFから確認する。
  */
 
-import {
-	abandonReorderFocus,
-	reconcileReorderFocus,
-	requestReorderFocus,
-} from './reorder';
+import { abandonReorderFocus, reconcileReorderFocus, requestReorderFocus } from './reorder';
 
 const TABLE_IDENTITY = 'table-a';
 
-/** RF control IDを生成する。 */
+/**
+ * RF control IDを生成する。
+ * @param suffix
+ */
 const getRfControlId = ( suffix: string ): string =>
 	`yamabiko-table-reorder-rf-${ TABLE_IDENTITY }-${ suffix }`;
 
@@ -41,10 +40,7 @@ describe( 'WordPress Reorder Integration focus coordination', () => {
 		direction.id = getRfControlId( 'kind-row' );
 		document.body.append( referenceElement, direction );
 
-		requestReorderFocus(
-			{ type: 'rf-open', tableIdentity: TABLE_IDENTITY },
-			referenceElement
-		);
+		requestReorderFocus( { type: 'rf-open', tableIdentity: TABLE_IDENTITY }, referenceElement );
 
 		expect( document.activeElement ).toBe( direction );
 	} );
@@ -83,7 +79,6 @@ describe( 'WordPress Reorder Integration focus coordination', () => {
 
 		expect( document.activeElement ).toBe( currentSource );
 	} );
-
 
 	/**
 	 * RF明示終了時に固定されたtoolbar入口へfocusを戻すことを確認する。
@@ -241,10 +236,7 @@ describe( 'WordPress Reorder Integration focus coordination', () => {
 		const direction = document.createElement( 'input' );
 		direction.id = getRfControlId( 'kind-row' );
 		document.body.append( direction );
-		requestReorderFocus(
-			{ type: 'rf-open', tableIdentity: TABLE_IDENTITY },
-			referenceElement
-		);
+		requestReorderFocus( { type: 'rf-open', tableIdentity: TABLE_IDENTITY }, referenceElement );
 
 		const oldSource = document.createElement( 'input' );
 		oldSource.id = getRfControlId( 'source-row' );

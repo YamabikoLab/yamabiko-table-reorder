@@ -5,11 +5,7 @@
  * Table fallback、stale破棄によるsettlementを公開IFから確認する。
  */
 
-import {
-	abandonApplyFocus,
-	reconcileApplyFocus,
-	requestApplyFocus,
-} from './apply';
+import { abandonApplyFocus, reconcileApplyFocus, requestApplyFocus } from './apply';
 
 const TABLE_IDENTITY = 'table-a';
 
@@ -17,7 +13,8 @@ const TABLE_IDENTITY = 'table-a';
 const createTable = (): HTMLDivElement => {
 	const block = document.createElement( 'div' );
 	block.setAttribute( 'data-block', TABLE_IDENTITY );
-	block.innerHTML = '<table><tbody><tr><td>A</td><td>B</td></tr><tr><td>C</td><td>D</td></tr></tbody></table>';
+	block.innerHTML =
+		'<table><tbody><tr><td>A</td><td>B</td></tr><tr><td>C</td><td>D</td></tr></tbody></table>';
 	document.body.append( block );
 	return block;
 };
@@ -73,10 +70,7 @@ describe( 'WordPress Reorder Apply Integration focus coordination', () => {
 		document.body.append( referenceElement );
 		const status = referenceElement.querySelector< HTMLElement >( '[role="status"]' );
 
-		requestApplyFocus(
-			{ type: 'apply-start', tableIdentity: TABLE_IDENTITY },
-			referenceElement
-		);
+		requestApplyFocus( { type: 'apply-start', tableIdentity: TABLE_IDENTITY }, referenceElement );
 
 		expect( document.activeElement ).toBe( status );
 	} );
@@ -97,7 +91,8 @@ describe( 'WordPress Reorder Apply Integration focus coordination', () => {
 		const referenceElement = document.createElement( 'div' );
 		const table = createTable();
 		document.body.append( referenceElement );
-		const expectedCell = table.querySelectorAll< HTMLTableRowElement >( 'tbody tr' )[ 1 ].cells[ 0 ];
+		const expectedCell =
+			table.querySelectorAll< HTMLTableRowElement >( 'tbody tr' )[ 1 ].cells[ 0 ];
 
 		const settlement = await requestApplyFocus(
 			{ type: 'row-success', tableIdentity: TABLE_IDENTITY, destinationIndex: 1 },
