@@ -215,13 +215,12 @@ Plan作成時点でArchitecture変更を必要とする事項は確認されて�
   - success / failureはPhase 1で成立させた未提示Apply結果を利用し、Apply結果をAnnouncement側で再判定しない。
   - success文言の移動前位置 / 移動後位置は、RF Apply CoordinationがLifecycle完了時に引き渡した確定Move summaryだけを利用し、candidate、入力値、確認summary、隣接位置から再計算・推測しない。
   - failureはTable未変更であることを既存結果意味から通知し、確定Move summaryを要求せず、入力修正位置をAnnouncement側で決定しない。
-  - 視覚的な`ReorderCompletionNotice`と意味情報を必要に応じて共有しても、Announcementの一回性をNoticeのmount / unmountへ結び付けない。
-  - Presentation再生成、Wide / Narrow切替、同じ評価の再計算で同一結果を再通知しない。
+  - 視覚的な`ReorderCompletionNotice`と意味情報を必要に応じて共有しても、Announcementの発行を視覚Noticeの表示状態に依存させない。
+  - 同じ現在状態の通常の再描画だけを理由に同一結果を再通知しない。
   - 通知を聞かせるためのfocus移動を追加しない。
 - Validation:
   - Jestでblocked / no-opの意味変化、一回性、同一状態再描画、確定Move summaryを含むsuccessの一回消費、およびsummaryを要求しないfailureの一回消費を検証する。
-  - React / browser testでAnnouncement surface再生成が新しい通知を発行しないことを確認する。
-  - Playwrightでfocusを維持したまま結果通知を観測できることを確認する。
+    - Playwrightでfocusを維持したまま結果通知を観測できることを確認する。
 
 ### Phase 7: End-to-end accessibility validation
 
@@ -322,7 +321,7 @@ Plan自体はdocumentation-only変更のため、アプリケーションbuild�
 - failureはTable未変更を表す一回性結果として利用でき、確定Move summaryを要求しない。
 - blocked / no-op / success / failureをfocus移動なしで一度だけ通知できる。
 - success focusは確定Move summaryから接続境界で表現変換した`destinationIndex`を、success announcementは確定Move summaryを利用し、移動先入力、candidate、確認summary、隣接位置から結果を推測・再計算しない。
-- 視覚Noticeの再mountやWide / Narrow切替だけで同じ結果を再通知しない。
+- 同じ現在状態の通常の再描画だけで同じ結果を再通知しない。
 - Core Table / Flexible Table Block、iframe / non-iframeの代表経路で主要contractを確認できる。
 - Row / Column DnDへKeyboard DnDまたはAccessibility v1固有状態を追加していない。
 - Accessibility専用のTable構造model、Apply結果model、永続Storeを追加していない。
