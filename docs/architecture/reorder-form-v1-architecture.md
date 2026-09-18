@@ -54,9 +54,9 @@ Accessibility v1 Phase 1の対象はIssue #1047のKeyboard / Semantics、Focus M
 | ID | Name | Type | Summary |
 | --- | --- | --- | --- |
 | EXT_WORDPRESS_EDITOR | WordPress Editor | External System | 対応Tableの入口、RF入力画面、確認、反映中表示、editing surface、通知、および通常編集環境を提供する。 |
-| EXT_WORDPRESS_COMPONENTS | WordPress Components | External UI Capability | RFとApply Presentationで利用できる標準的な操作、Keyboard、focus、およびsemantic Contractを提供する。 |
-| EXT_BROWSER_ACCESSIBILITY | Browser Accessibility Platform | External Platform | native controlのKeyboard動作、focus、accessibility tree、および支援技術への状態変化伝達を提供する。 |
-| EXT_ASSISTIVE_TECHNOLOGY | Assistive Technology | External Consumer | Browserが公開する操作部品、状態、入力問題、およびannouncementを利用者へ伝える。 |
+| EXT_WORDPRESS_COMPONENTS | WordPress Components | External Capability | RFとApply Presentationで利用できる標準的な操作、Keyboard、focus、およびsemantic Contractを提供する。 |
+| EXT_BROWSER_ACCESSIBILITY | Browser Accessibility Platform | External System | native controlのKeyboard動作、focus、accessibility tree、および支援技術への状態変化伝達を提供する。 |
+| EXT_ASSISTIVE_TECHNOLOGY | Assistive Technology | External System | Browserが公開する操作部品、状態、入力問題、およびannouncementを利用者へ伝える。 |
 | EXT_SUPPORTED_TABLE_BLOCK | Supported Table Block | External Block | Core TableまたはFlexible Table Blockとして、方向固有Table Integrationが構造解釈と確定更新を行う対象を提供する。 |
 | EXT_WORDPRESS_UNDO | WordPress Undo | External Capability | 成立した一回のRF並び替えを一回のUndoで戻せる更新単位を提供する。 |
 | EXT_WORDPRESS_PREFERENCES | WordPress Preferences | External Capability | PC / タッチごとの共通初回案内表示済み状態を永続化する。 |
