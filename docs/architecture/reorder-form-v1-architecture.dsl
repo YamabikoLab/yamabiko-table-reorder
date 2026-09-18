@@ -810,8 +810,8 @@ workspace "YTR Reorder v1 Architecture" {
 			properties {
 				"runtime.RV_RF_ROW_PREPARATION_FAILURE.step.4" "入力を保持したRF状態と一回性failureを提供する。"
 				"runtime.RV_RF_COLUMN_PREPARATION_FAILURE.step.4" "入力を保持したRF状態と一回性failureを提供する。"
-				"runtime.RV_RF_ROW_PREPARED_FAILURE.step.9" "入力を保持したRF状態と一回性failureを提供する。"
-				"runtime.RV_RF_COLUMN_PREPARED_FAILURE.step.9" "入力を保持したRF状態と一回性failureを提供する。"
+				"runtime.RV_RF_ROW_PREPARED_FAILURE.step.7" "入力を保持したRF状態、現在評価、一回性failureを提供する。"
+				"runtime.RV_RF_COLUMN_PREPARED_FAILURE.step.7" "入力を保持したRF状態、現在評価、一回性failureを提供する。"
 			}
 		}
 		RT_064 = RESP_COLUMN_TABLE_INTEGRATION -> RESP_RF_APPLY_COORDINATION "Column候補が現在Tableで成立しない、または更新不能であることをTable未変更で返す。" {
@@ -846,32 +846,32 @@ workspace "YTR Reorder v1 Architecture" {
 				"runtime.RV_RF_COLUMN_PREPARED_FAILURE.step.4" "対象Table editing surfaceを再成立させる。"
 			}
 		}
-		RT_069 = RESP_WORDPRESS_REORDER_APPLY_INTEGRATION -> RESP_FOCUS_COORDINATION "入力を修正または再実行できる意味上のtargetを渡す。" {
+		RT_069 = RESP_WORDPRESS_REORDER_INTEGRATION -> RESP_FOCUS_COORDINATION "現在評価からDesign上許可された修正または再実行targetを渡す。" {
 			tags "Runtime Interaction,Runtime_RV_RF_ROW_PREPARED_FAILURE,Runtime_RV_RF_COLUMN_PREPARED_FAILURE"
 			properties {
-				"runtime.RV_RF_ROW_PREPARED_FAILURE.step.5" "入力を修正または再実行できる意味上のtargetを渡す。"
-				"runtime.RV_RF_COLUMN_PREPARED_FAILURE.step.5" "入力を修正または再実行できる意味上のtargetを渡す。"
+				"runtime.RV_RF_ROW_PREPARED_FAILURE.step.8" "現在評価からDesign上許可された修正または再実行targetを渡す。"
+				"runtime.RV_RF_COLUMN_PREPARED_FAILURE.step.8" "現在評価からDesign上許可された修正または再実行targetを渡す。"
 			}
 		}
-		RT_070 = RESP_FOCUS_COORDINATION -> RESP_WORDPRESS_REORDER_APPLY_INTEGRATION "focus intentのsettleを返す。" {
+		RT_070 = RESP_FOCUS_COORDINATION -> RESP_WORDPRESS_REORDER_INTEGRATION "現在Editor contextでfocus intentを適用またはsettleする。" {
 			tags "Runtime Interaction,Runtime_RV_RF_ROW_PREPARED_FAILURE,Runtime_RV_RF_COLUMN_PREPARED_FAILURE"
 			properties {
-				"runtime.RV_RF_ROW_PREPARED_FAILURE.step.6" "focus intentのsettleを返す。"
-				"runtime.RV_RF_COLUMN_PREPARED_FAILURE.step.6" "focus intentのsettleを返す。"
+				"runtime.RV_RF_ROW_PREPARED_FAILURE.step.9" "現在Editor contextでfocus intentを適用またはsettleする。"
+				"runtime.RV_RF_COLUMN_PREPARED_FAILURE.step.9" "現在Editor contextでfocus intentを適用またはsettleする。"
 			}
 		}
 		RT_071 = RESP_WORDPRESS_REORDER_APPLY_INTEGRATION -> RESP_RF_APPLY_COORDINATION "必要な表示復帰完了を返す。" {
 			tags "Runtime Interaction,Runtime_RV_RF_ROW_PREPARED_FAILURE,Runtime_RV_RF_COLUMN_PREPARED_FAILURE"
 			properties {
-				"runtime.RV_RF_ROW_PREPARED_FAILURE.step.7" "必要な表示復帰完了を返す。"
-				"runtime.RV_RF_COLUMN_PREPARED_FAILURE.step.7" "必要な表示復帰完了を返す。"
+				"runtime.RV_RF_ROW_PREPARED_FAILURE.step.5" "必要な表示復帰完了を返す。"
+				"runtime.RV_RF_COLUMN_PREPARED_FAILURE.step.5" "必要な表示復帰完了を返す。"
 			}
 		}
 		RT_072 = RESP_RF_APPLY_COORDINATION -> RESP_RF_INTERACTION "failureを返して現在入力の再評価へ戻す。" {
 			tags "Runtime Interaction,Runtime_RV_RF_ROW_PREPARED_FAILURE,Runtime_RV_RF_COLUMN_PREPARED_FAILURE"
 			properties {
-				"runtime.RV_RF_ROW_PREPARED_FAILURE.step.8" "failureを返して現在入力の再評価へ戻す。"
-				"runtime.RV_RF_COLUMN_PREPARED_FAILURE.step.8" "failureを返して現在入力の再評価へ戻す。"
+				"runtime.RV_RF_ROW_PREPARED_FAILURE.step.6" "failureを返して現在入力の再評価へ戻す。"
+				"runtime.RV_RF_COLUMN_PREPARED_FAILURE.step.6" "failureを返して現在入力の再評価へ戻す。"
 			}
 		}
 		RT_073 = RESP_WORDPRESS_REORDER_INTEGRATION -> RESP_ANNOUNCEMENT_DELIVERY "Table未変更を含むfailure通知を渡す。" {
