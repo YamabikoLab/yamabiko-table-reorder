@@ -61,6 +61,7 @@ export const useReorderApplyLifecycle = (
 	const restorationReferenceElementRef = useRef< HTMLDivElement >( null );
 
 	const isApplying = presentation.phase === 'applying';
+	// Table更新操作は反映中Presentationだけが提供し、それ以外のphaseからは開始できない。
 	const apply = isApplying ? presentation.apply : null;
 
 	useEffect( () => {
@@ -83,6 +84,10 @@ export const useReorderApplyLifecycle = (
 	}, [ apply, isApplying ] );
 
 	const isRestoring = presentation.phase === 'restoring';
+	/*
+	 * 表示復帰に必要な情報はrestoring phaseだけから取り出し、
+	 * 他phaseの値を表示復帰Lifecycleへ持ち込まない。
+	 */
 	const kind = isRestoring ? presentation.kind : null;
 	const tableIdentity = isRestoring ? presentation.tableIdentity : null;
 	const applied = isRestoring ? presentation.applied : false;
@@ -126,9 +131,11 @@ export const useReorderApplyLifecycle = (
 			 */
 			const currentReferenceElement = restorationReferenceElementRef.current;
 			if ( applied && destinationIndex !== null && currentReferenceElement !== null ) {
+				// 確定したReorder Kindだけをsuccess focus要求の方向へ対応付ける。
+				const focusRequestType = kind === 'row' ? 'row-success' : 'column-success';
 				requestApplyFocus(
 					{
-						type: kind === 'row' ? 'row-success' : 'column-success',
+						type: focusRequestType,
 						tableIdentity,
 						destinationIndex,
 					},
