@@ -29,7 +29,9 @@ export type ReorderFocusRequest =
  * @param request WordPress Reorder Integrationから受けたフォーカス要求。
  * @return requestの意味に対応するフォーカス先。
  */
-const getTarget = ( request: Extract< ReorderFocusRequest, { type: 'rf-open' } > ): FocusSemanticTarget => {
+const getTarget = (
+	request: Extract< ReorderFocusRequest, { type: 'rf-open' } >
+): FocusSemanticTarget => {
 	const focusTarget: FocusSemanticTarget = { type: 'rf-control' };
 	return focusTarget;
 };
@@ -43,10 +45,7 @@ const getTarget = ( request: Extract< ReorderFocusRequest, { type: 'rf-open' } >
  * @param request Phase 4で許可されたRFフォーカス要求。
  * @param anchor  現在のRF toolbar入口。RF openではEditor DOM Contextの基準、明示終了では復帰先として利用する。
  */
-export function requestReorderFocus(
-	request: ReorderFocusRequest,
-	anchor: HTMLElement
-): void {
+export function requestReorderFocus( request: ReorderFocusRequest, anchor: HTMLElement ): void {
 	// 明示終了では呼び出し元が現在のRF入口を保持しているため、DOMから同じ入口を再探索しない。
 	if ( request.type === 'rf-explicit-close' ) {
 		applyFocusTarget( anchor );
