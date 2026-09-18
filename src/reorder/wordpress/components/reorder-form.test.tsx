@@ -98,7 +98,10 @@ jest.mock( '@/reorder/wordpress/components/reorder-form-position', () => ( {
 } ) );
 
 /** Row RFを表示する標準状態を作成する。 */
-const createRowState = (): RfInteractionReactState => ( {
+const createRowState = (): Extract<
+	RfInteractionReactState,
+	{ status: 'open'; kind: 'row' }
+> => ( {
 	status: 'open',
 	kind: 'row',
 	input: {
@@ -455,7 +458,9 @@ describe( 'Reorder Form presentation', () => {
 		expect(
 			screen.getByRole( 'spinbutton', { name: '移動先の行' } ).getAttribute( 'aria-invalid' )
 		).toBeNull();
-		expect( screen.getByRole( 'button', { name: '並び替え' } ) ).toBeDisabled();
+		expect(
+			screen.getByRole( 'button', { name: '並び替え' } ).hasAttribute( 'disabled' )
+		).toBe( true );
 	} );
 
 	/**
@@ -550,7 +555,9 @@ describe( 'Reorder Form presentation', () => {
 			<ReorderFormPopover anchor={ anchor } state={ disabledState } tableIdentity="table-a" />
 		);
 
-		expect( screen.getByRole( 'button', { name: '並び替え' } ) ).toBeDisabled();
+		expect(
+			screen.getByRole( 'button', { name: '並び替え' } ).hasAttribute( 'disabled' )
+		).toBe( true );
 
 		const enabledState: RfInteractionReactState = {
 			...disabledState,
@@ -560,7 +567,9 @@ describe( 'Reorder Form presentation', () => {
 			<ReorderFormPopover anchor={ anchor } state={ enabledState } tableIdentity="table-a" />
 		);
 
-		expect( screen.getByRole( 'button', { name: '並び替え' } ) ).toBeEnabled();
+		expect(
+			screen.getByRole( 'button', { name: '並び替え' } ).hasAttribute( 'disabled' )
+		).toBe( false );
 	} );
 
 	/**
