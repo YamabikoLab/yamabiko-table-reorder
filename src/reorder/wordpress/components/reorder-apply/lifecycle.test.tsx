@@ -194,11 +194,7 @@ describe( 'WordPress Reorder Apply Integration lifecycle', () => {
 			/>
 		);
 
-		expect( restoreMovedColumnMock ).toHaveBeenCalledWith(
-			restorationDocument,
-			'table-a',
-			2
-		);
+		expect( restoreMovedColumnMock ).toHaveBeenCalledWith( restorationDocument, 'table-a', 2 );
 		expect( restoreMovedRowMock ).not.toHaveBeenCalled();
 		expect( requestApplyFocusMock ).not.toHaveBeenCalled();
 
