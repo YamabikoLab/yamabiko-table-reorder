@@ -169,7 +169,8 @@ describe( 'Reorder Form presentation', () => {
 			<ReorderFormPopover anchor={ anchor } state={ createRowState() } tableIdentity="table-a" />
 		);
 
-		expect( screen.getByRole( 'radio', { name: '行' } ) ).toHaveFocus();
+		const direction = screen.getByRole( 'radio', { name: '行' } );
+		expect( direction.ownerDocument.activeElement ).toBe( direction );
 	} );
 
 	/**
@@ -198,7 +199,7 @@ describe( 'Reorder Form presentation', () => {
 		fireEvent.click( screen.getByRole( 'button', { name: 'キャンセル' } ) );
 
 		expect( rfInteraction.close ).toHaveBeenCalledWith( 'table-a' );
-		expect( anchor ).toHaveFocus();
+		expect( anchor.ownerDocument.activeElement ).toBe( anchor );
 	} );
 
 	/**
