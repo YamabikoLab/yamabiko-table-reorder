@@ -570,6 +570,7 @@ export const ReorderFormPopover = ( props: ReorderFormPopoverProps ) => {
 										</option>
 									) ) }
 								</select>
+							</label>
 								{ sourceColumnInvalid && (
 									<p
 										className="yamabiko-table-reorder-rf__notice"
@@ -578,7 +579,6 @@ export const ReorderFormPopover = ( props: ReorderFormPopoverProps ) => {
 										{ getRfColumnSelectionUnavailableMessage() }
 									</p>
 								) }
-							</label>
 							<label htmlFor={ targetColumnId }>
 								<span>{ getRfTargetColumnLabel() }</span>
 								<select
@@ -605,6 +605,7 @@ export const ReorderFormPopover = ( props: ReorderFormPopoverProps ) => {
 										</option>
 									) ) }
 								</select>
+							</label>
 								{ targetColumnInvalid && (
 									<p
 										className="yamabiko-table-reorder-rf__notice"
@@ -613,7 +614,6 @@ export const ReorderFormPopover = ( props: ReorderFormPopoverProps ) => {
 										{ getRfColumnSelectionUnavailableMessage() }
 									</p>
 								) }
-							</label>
 							<fieldset className="yamabiko-table-reorder-rf__fieldset">
 								<legend>{ getRfPositionLegend() }</legend>
 								<label htmlFor={ columnLeftId }>
