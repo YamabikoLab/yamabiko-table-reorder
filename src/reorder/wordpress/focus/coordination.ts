@@ -78,9 +78,11 @@ const resolveReorderDirection = (
 	const columnDirection = editorDocument.getElementById(
 		`${ prefix }-kind-column`
 	) as HTMLInputElement | null;
+	// 現在選択されている方向を優先し、未選択の場合だけ表示中の方向操作を初期位置として採用する。
 	const selectedDirection =
 		[ rowDirection, columnDirection ].find( ( element ) => element?.checked ) ?? null;
-	return selectedDirection ?? rowDirection ?? columnDirection;
+	const directionTarget = selectedDirection ?? rowDirection ?? columnDirection;
+	return directionTarget;
 };
 
 /**
@@ -205,13 +207,14 @@ export const applyFocusTarget = ( target: HTMLElement ): boolean => {
 	const previousTabIndex = target.getAttribute( 'tabindex' );
 	// 通常のTab移動対象でない結果確認位置には、今回のfocus適用中だけ一時的なtabindexを付与する。
 	const needsTemporaryTabIndex = target.tabIndex < 0;
+	// 通常のTab移動対象でない結果確認位置だけ、一回のfocus適用に必要な属性を一時的に補う。
 	if ( needsTemporaryTabIndex ) {
 		target.setAttribute( 'tabindex', '-1' );
 	}
 
 	target.focus( { preventScroll: true } );
 
-	// Focus Coordinationが追加した一時属性は、focus要求の適用後に通常状態へ戻す。
+	// Focus Coordinationが追加した一時属性を持つ場合だけ、focus要求の適用後に通常状態へ戻す。
 	if ( needsTemporaryTabIndex ) {
 		// 元のtabindexが存在しなかった要素には、追加した属性を残さない。
 		if ( previousTabIndex === null ) {
