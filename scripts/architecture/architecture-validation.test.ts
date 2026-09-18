@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import type { ArchitectureModel } from './architecture-model';
-import { allowedExternalContextTypes, validateArchitectureModel } from './architecture-validation';
+import { externalContextTypes, type ArchitectureModel } from './architecture-model';
+import { validateArchitectureModel } from './architecture-validation';
 
 const validModel = (): ArchitectureModel => ( {
 	externalContexts: [
@@ -75,7 +75,7 @@ test( '有効な Architecture Model を受理する', () => {
 } );
 
 test( '正式な External Context Type 5種類を受理する', () => {
-	for ( const type of allowedExternalContextTypes ) {
+	for ( const type of externalContextTypes ) {
 		const model = validModel();
 		model.externalContexts[ 0 ].type = type;
 		assert.doesNotThrow( () => validateArchitectureModel( model ) );
