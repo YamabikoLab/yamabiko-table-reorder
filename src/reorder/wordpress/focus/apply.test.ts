@@ -49,7 +49,7 @@ describe( 'WordPress Reorder Apply Integration focus coordination', () => {
 		);
 
 		expect( result ).toBeUndefined();
-		expect( document.activeElement ).toBe( continueButton );
+		expect( referenceElement.ownerDocument.activeElement ).toBe( continueButton );
 	} );
 
 	/**
@@ -72,7 +72,7 @@ describe( 'WordPress Reorder Apply Integration focus coordination', () => {
 
 		requestApplyFocus( { type: 'apply-start', tableIdentity: TABLE_IDENTITY }, referenceElement );
 
-		expect( document.activeElement ).toBe( status );
+		expect( referenceElement.ownerDocument.activeElement ).toBe( status );
 	} );
 
 	/**
@@ -99,7 +99,7 @@ describe( 'WordPress Reorder Apply Integration focus coordination', () => {
 			referenceElement
 		);
 
-		expect( document.activeElement ).toBe( expectedCell );
+		expect( referenceElement.ownerDocument.activeElement ).toBe( expectedCell );
 		expect( settlement ).toEqual( { type: 'focused', target: 'result' } );
 	} );
 
@@ -129,7 +129,7 @@ describe( 'WordPress Reorder Apply Integration focus coordination', () => {
 		reconcileApplyFocus( TABLE_IDENTITY, referenceElement, 'restoring' );
 
 		await expect( settlementPromise ).resolves.toEqual( { type: 'focused', target: 'result' } );
-		expect( document.activeElement ).toBe( expectedCell );
+		expect( referenceElement.ownerDocument.activeElement ).toBe( expectedCell );
 	} );
 
 	/**
@@ -156,7 +156,7 @@ describe( 'WordPress Reorder Apply Integration focus coordination', () => {
 		reconcileApplyFocus( TABLE_IDENTITY, referenceElement, 'stable' );
 
 		await expect( settlementPromise ).resolves.toEqual( { type: 'focused', target: 'table' } );
-		expect( document.activeElement ).toBe( table );
+		expect( referenceElement.ownerDocument.activeElement ).toBe( table );
 	} );
 
 	/**
@@ -216,7 +216,7 @@ describe( 'WordPress Reorder Apply Integration focus coordination', () => {
 			type: 'abandoned',
 			reason: 'user-moved',
 		} );
-		expect( document.activeElement ).toBe( userTarget );
+		expect( referenceElement.ownerDocument.activeElement ).toBe( userTarget );
 	} );
 
 	/**
