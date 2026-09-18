@@ -63,6 +63,7 @@ const resolveTableBlock = (
 	for ( const element of Array.from(
 		editorDocument.querySelectorAll< HTMLElement >( '[data-block]' )
 	) ) {
+		// 対象Tableとして扱えるのは、要求されたIdentityと一致するBlockだけとする。
 		if ( element.getAttribute( 'data-block' ) === tableIdentity ) {
 			return element;
 		}
@@ -88,6 +89,7 @@ const resolveReorderControl = (
 ): HTMLElement | null => {
 	const prefix = `yamabiko-table-reorder-rf-${ tableIdentity }`;
 
+	// 方向選択の復帰では、行 / 列の現在選択を維持する。
 	if ( control === 'direction' ) {
 		const rowDirection = editorDocument.getElementById(
 			`${ prefix }-kind-row`
@@ -95,12 +97,15 @@ const resolveReorderControl = (
 		const columnDirection = editorDocument.getElementById(
 			`${ prefix }-kind-column`
 		) as HTMLInputElement | null;
+		// 行 / 列の両方が存在する場合は、利用者が現在選択している方向を優先する。
 		const selectedDirection =
 			[ rowDirection, columnDirection ].find( ( element ) => element?.checked ) ?? null;
+		// 選択状態を取得できない場合だけ、現在表示に存在する方向操作を復帰先とする。
 		const currentDirection = selectedDirection ?? rowDirection ?? columnDirection;
 		return currentDirection;
 	}
 
+	// 移動元の復帰では、現在表示中の方向に対応する移動元操作だけを対象とする。
 	if ( control === 'source' ) {
 		const currentSource =
 			editorDocument.getElementById( `${ prefix }-source-row` ) ??
@@ -108,6 +113,7 @@ const resolveReorderControl = (
 		return currentSource;
 	}
 
+	// 移動先の復帰では、現在表示中の方向に対応する移動先操作だけを対象とする。
 	if ( control === 'destination' ) {
 		const currentDestination =
 			editorDocument.getElementById( `${ prefix }-target-row` ) ??
@@ -115,6 +121,7 @@ const resolveReorderControl = (
 		return currentDestination;
 	}
 
+	// 位置関係の復帰では、現在選択中の「上 / 下」「左 / 右」を維持する。
 	if ( control === 'relation' ) {
 		const relations = [
 			editorDocument.getElementById( `${ prefix }-row-above` ),
@@ -122,7 +129,9 @@ const resolveReorderControl = (
 			editorDocument.getElementById( `${ prefix }-column-left` ),
 			editorDocument.getElementById( `${ prefix }-column-right` ),
 		] as Array< HTMLInputElement | null >;
+		// 複数候補が存在する場合は、利用者が現在選択している位置関係を優先する。
 		const selectedRelation = relations.find( ( element ) => element?.checked ) ?? null;
+		// 選択状態を取得できない場合だけ、現在表示に存在する位置関係操作を復帰先とする。
 		const currentRelation =
 			selectedRelation ?? relations.find( ( element ) => element !== null ) ?? null;
 		return currentRelation;
@@ -135,6 +144,7 @@ const resolveReorderControl = (
 	for ( const element of Array.from(
 		editorDocument.querySelectorAll< HTMLElement >( '[data-ytr-focus-control]' )
 	) ) {
+		// RF操作の復帰先は、対象Tableと意味上の操作役割の両方が一致する要素に限定する。
 		if (
 			element.getAttribute( 'data-ytr-table-identity' ) === tableIdentity &&
 			element.getAttribute( 'data-ytr-focus-control' ) === control
@@ -162,10 +172,12 @@ const resolveResultCell = (
 	destinationIndex: number
 ): HTMLTableCellElement | null => {
 	const table = tableBlock.querySelector< HTMLTableElement >( 'table' );
+	// 現在Tableまたは確定後位置が成立しない場合は、結果確認セルを推測しない。
 	if ( table === null || destinationIndex < 0 ) {
 		return null;
 	}
 
+	// 行移動では、確定後行の先頭セルを結果確認位置とする。
 	if ( kind === 'row' ) {
 		const row = table.tBodies.item( 0 )?.rows.item( destinationIndex ) ?? null;
 		const resultCell = row?.cells.item( 0 ) ?? null;
@@ -173,6 +185,7 @@ const resolveResultCell = (
 	}
 
 	const firstRow = table.rows.item( 0 );
+	// 列移動では論理列を判定できる行が存在しないTableを結果確認対象にしない。
 	if ( firstRow === null ) {
 		return null;
 	}
@@ -184,6 +197,7 @@ const resolveResultCell = (
 	 */
 	for ( const cell of Array.from( firstRow.cells ) ) {
 		const logicalColumnEnd = logicalColumnStart + cell.colSpan;
+		// 確定後の論理列を占有するセルだけを結果確認位置として採用する。
 		if ( destinationIndex >= logicalColumnStart && destinationIndex < logicalColumnEnd ) {
 			return cell;
 		}
@@ -208,14 +222,17 @@ export const resolveFocusTarget = (
 	referenceElement: Element
 ): HTMLElement | null => {
 	const editorContext = resolveEditorDomContext( referenceElement );
+	// 現在のエディター表示環境を解決できない場合は、globalや過去の表示環境で代用しない。
 	if ( editorContext === null ) {
 		return null;
 	}
 
+	// RF内操作の要求は、対象Tableの現在Presentationに存在する同じ操作役割へ解決する。
 	if ( target.type === 'rf-control' ) {
 		return resolveReorderControl( editorContext.document, tableIdentity, target.control );
 	}
 
+	// RF明示終了後の要求は、対象Table自身のtoolbar入口だけへ戻す。
 	if ( target.type === 'rf-toolbar' ) {
 		/*
 		 * 複数Tableのtoolbarが同じEditor文書に存在できるため、
@@ -226,6 +243,7 @@ export const resolveFocusTarget = (
 				'[data-ytr-focus-target="rf-toolbar"]'
 			)
 		) ) {
+			// 複数Tableのtoolbarが存在しても、要求元Tableの入口だけを復帰先とする。
 			if ( element.getAttribute( 'data-ytr-table-identity' ) === tableIdentity ) {
 				return element;
 			}
@@ -233,6 +251,7 @@ export const resolveFocusTarget = (
 		return null;
 	}
 
+	// 確認開始後の要求は、設計で固定された「続行」操作へ解決する。
 	if ( target.type === 'confirmation-continue' ) {
 		const confirmationTarget = editorContext.document.querySelector< HTMLElement >(
 			'[data-ytr-focus-target="confirmation-continue"]'
@@ -240,6 +259,7 @@ export const resolveFocusTarget = (
 		return confirmationTarget;
 	}
 
+	// Apply開始後の要求は、対象Presentation内の反映中状態へ解決する。
 	if ( target.type === 'applying-status' ) {
 		const applyingTarget = referenceElement.querySelector< HTMLElement >(
 			'[role="status"][aria-busy="true"]'
@@ -248,9 +268,11 @@ export const resolveFocusTarget = (
 	}
 
 	const tableBlock = resolveTableBlock( editorContext.document, tableIdentity );
+	// 結果確認またはTable fallbackは、対象Tableが現在表示に存在する場合だけ許可する。
 	if ( tableBlock === null ) {
 		return null;
 	}
+	// fallback要求では、結果位置を推測せず対象Table自体を安定した復帰先とする。
 	if ( target.type === 'table' ) {
 		return tableBlock;
 	}
@@ -269,6 +291,7 @@ export const resolveFocusTarget = (
  */
 export const applyFocusTarget = ( target: HTMLElement ): boolean => {
 	const previousTabIndex = target.getAttribute( 'tabindex' );
+	// 通常のTab移動対象でない結果確認位置には、今回のfocus適用中だけ一時的なtabindexを付与する。
 	const needsTemporaryTabIndex = target.tabIndex < 0;
 	if ( needsTemporaryTabIndex ) {
 		target.setAttribute( 'tabindex', '-1' );
@@ -276,7 +299,9 @@ export const applyFocusTarget = ( target: HTMLElement ): boolean => {
 
 	target.focus( { preventScroll: true } );
 
+	// Focus Coordinationが追加した一時属性は、focus要求の適用後に通常状態へ戻す。
 	if ( needsTemporaryTabIndex ) {
+		// 元のtabindexが存在しなかった要素には、追加した属性を残さない。
 		if ( previousTabIndex === null ) {
 			target.removeAttribute( 'tabindex' );
 		} else {
