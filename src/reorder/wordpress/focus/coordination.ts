@@ -21,10 +21,6 @@ export type FocusSemanticTarget =
 	  }
 	/** 対象TableのRF toolbar入口へフォーカスする。 */
 	| { type: 'rf-toolbar' }
-	/** 大規模反映前の確認画面で「続行」操作へフォーカスする。 */
-	| { type: 'confirmation-continue' }
-	/** 対象Tableの反映中状態へフォーカスする。 */
-	| { type: 'applying-status' }
 	/** Apply責務が確定した移動後位置に対応する結果確認セルへフォーカスする。 */
 	| {
 			type: 'result-cell';
@@ -183,21 +179,6 @@ export const resolveFocusTarget = (
 		return null;
 	}
 
-	// 確認開始後の要求は、設計で固定された「続行」操作へ解決する。
-	if ( target.type === 'confirmation-continue' ) {
-		const confirmationTarget = editorContext.document.querySelector< HTMLElement >(
-			'[data-ytr-focus-target="confirmation-continue"]'
-		);
-		return confirmationTarget;
-	}
-
-	// Apply開始後の要求は、対象Presentation内の反映中状態へ解決する。
-	if ( target.type === 'applying-status' ) {
-		const applyingTarget = referenceElement.querySelector< HTMLElement >(
-			'[role="status"][aria-busy="true"]'
-		);
-		return applyingTarget;
-	}
 
 	const tableBlock = resolveTableBlock( editorContext.document, tableIdentity );
 	// 結果確認またはTable fallbackは、対象Tableが現在表示に存在する場合だけ許可する。
