@@ -97,7 +97,7 @@ describe( 'WordPress Reorder Apply Integration focus coordination', () => {
 		const referenceElement = document.createElement( 'div' );
 		const table = createTable();
 		document.body.append( referenceElement );
-		const expectedCell = table.querySelectorAll< HTMLTableCellElement >( 'tbody tr' )[ 1 ].cells[ 0 ];
+		const expectedCell = table.querySelectorAll< HTMLTableRowElement >( 'tbody tr' )[ 1 ].cells[ 0 ];
 
 		const settlement = await requestApplyFocus(
 			{ type: 'row-success', tableIdentity: TABLE_IDENTITY, destinationIndex: 1 },
