@@ -69,9 +69,9 @@ test( 'Architecture 要素の5分類を tag と視覚スタイルへ反映する
 	assert.match( dsl, /element "External Library" \{[^}]*shape Box[^}]*border dashed/u );
 	assert.doesNotMatch( dsl, /element "External Context"/u );
 
-	const generatedExternalTypes = [
-		...dsl.matchAll( /element "(External [^"]+)" \{/gu ),
-	].map( ( match ) => match[ 1 ] );
+	const generatedExternalTypes = [ ...dsl.matchAll( /element "(External [^"]+)" \{/gu ) ].map(
+		( match ) => match[ 1 ]
+	);
 	assert.deepEqual( new Set( generatedExternalTypes ), new Set( externalContextTypes ) );
 } );
 
