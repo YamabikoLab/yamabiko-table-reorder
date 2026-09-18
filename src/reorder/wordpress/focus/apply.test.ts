@@ -1,8 +1,8 @@
 /**
  * WordPress Reorder Apply Integration向けFocus CoordinationのLifecycle契約を検証する。
  *
- * 即時focusとsuccess表示復帰barrierを分離し、結果確認target、
- * Table fallback、stale破棄によるsettlementを公開IFから確認する。
+ * 即時フォーカスとsuccess表示復帰barrierを分離し、結果確認位置、
+ * Tableへのfallback、古くなった要求の破棄によるsettlementを公開境界から確認する。
  */
 
 import { abandonApplyFocus, reconcileApplyFocus, requestApplyFocus } from './apply';
@@ -103,6 +103,39 @@ describe( 'WordPress Reorder Apply Integration focus coordination', () => {
 		expect( settlement ).toEqual( { type: 'focused', target: 'result' } );
 	} );
 
+
+	/**
+	 * 列移動後の確定論理列が結合セル内にある場合、その結合セルを結果確認位置として扱うことを確認する。
+	 *
+	 * 事前条件:
+	 * - 更新後Tableの先頭行に複数列を占有する結合セルがある。
+	 * - 確定した移動後列位置はその結合セルの占有範囲内である。
+	 *
+	 * 操作:
+	 * - Column success後の結果確認focusを要求する。
+	 *
+	 * 期待結果:
+	 * - 隣接セルへずらさず、確定論理列を占有する結合セルへfocusする。
+	 * - success requestはfocused/resultでsettleする。
+	 */
+	it( 'when the moved logical column is covered by a merged cell, should focus the merged result cell', async () => {
+		const referenceElement = document.createElement( 'div' );
+		const block = document.createElement( 'div' );
+		block.setAttribute( 'data-block', TABLE_IDENTITY );
+		block.innerHTML =
+			'<table><tbody><tr><td colspan="2">Merged</td><td>C</td></tr></tbody></table>';
+		document.body.append( referenceElement, block );
+		const mergedCell = block.querySelector< HTMLTableCellElement >( 'td[colspan="2"]' );
+
+		const settlement = await requestApplyFocus(
+			{ type: 'column-success', tableIdentity: TABLE_IDENTITY, destinationIndex: 1 },
+			referenceElement
+		);
+
+		expect( referenceElement.ownerDocument.activeElement ).toBe( mergedCell );
+		expect( settlement ).toEqual( { type: 'focused', target: 'result' } );
+	} );
+
 	/**
 	 * editing surface再成立中はsuccess targetの一時不在をpendingとして維持できることを確認する。
 	 *
@@ -185,6 +218,39 @@ describe( 'WordPress Reorder Apply Integration focus coordination', () => {
 			type: 'abandoned',
 			reason: 'target-unavailable',
 		} );
+	} );
+
+
+	/**
+	 * 対象Table消失時に保留中のsuccess requestを完了できることを確認する。
+	 *
+	 * 事前条件:
+	 * - success結果確認focusが保留中である。
+	 * - 対象TableはEditorから消失している。
+	 *
+	 * 操作:
+	 * - table-removedとして保留要求を破棄する。
+	 *
+	 * 期待結果:
+	 * - Promiseはtable-removedでsettleし、存在しないTableへのfocusを試みない。
+	 */
+	it( 'when the target table is removed while success focus is pending, should settle as table removed', async () => {
+		const referenceElement = document.createElement( 'div' );
+		const retainedFocus = document.createElement( 'button' );
+		document.body.append( referenceElement, retainedFocus );
+		retainedFocus.focus();
+		const settlementPromise = requestApplyFocus(
+			{ type: 'row-success', tableIdentity: TABLE_IDENTITY, destinationIndex: 0 },
+			referenceElement
+		);
+
+		abandonApplyFocus( TABLE_IDENTITY, 'table-removed' );
+
+		await expect( settlementPromise ).resolves.toEqual( {
+			type: 'abandoned',
+			reason: 'table-removed',
+		} );
+		expect( referenceElement.ownerDocument.activeElement ).toBe( retainedFocus );
 	} );
 
 	/**
