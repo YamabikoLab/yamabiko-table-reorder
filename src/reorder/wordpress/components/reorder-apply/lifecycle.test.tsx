@@ -126,6 +126,136 @@ describe( 'WordPress Reorder Apply Integration lifecycle', () => {
 
 	/**
 	 * 概要:
+	 * - 反映開始時にEditor DOM Contextを解決できない場合も、別環境を推測せずTable更新を開始できることを確認する。
+	 *
+	 * 事前条件:
+	 * - 対象Tableは反映開始状態である。
+	 * - 現在の基準要素からEditor DOM Contextを解決できない。
+	 *
+	 * 操作:
+	 * - 反映中Presentationをmountする。
+	 *
+	 * 期待結果:
+	 * - 描画待ちを作らずTable更新を1回開始する。
+	 */
+	it( 'when applying has no editor context, should start the table update without inventing another context', () => {
+		const apply = jest.fn();
+		resolveEditorDomContextMock.mockReturnValue( null );
+
+		render(
+			<LifecycleHarness
+				presentation={ {
+					phase: 'applying',
+					kind: 'row',
+					tableIdentity: 'table-a',
+					apply,
+				} }
+			/>
+		);
+
+		expect( apply ).toHaveBeenCalledTimes( 1 );
+	} );
+
+	/**
+	 * 概要:
+	 * - Column successでも既存描画待ち後にColumn結果確認focusを一回適用してから完了することを確認する。
+	 *
+	 * 事前条件:
+	 * - 列並び替えが成功し、確定後列位置が存在する。
+	 * - 現在のEditor DOM Contextを解決できる。
+	 *
+	 * 操作:
+	 * - 表示復帰Presentationをmountし、描画待ちを完了する。
+	 *
+	 * 期待結果:
+	 * - Column表示復帰だけを実行する。
+	 * - column-success focusを一回要求した後にLifecycleを完了する。
+	 */
+	it( 'when a column reorder succeeds, should focus the confirmed column after paint before completing', () => {
+		const complete = jest.fn();
+		const editorWindow = createEditorWindow();
+		const restorationDocument = document.implementation.createHTMLDocument( 'restored-editor' );
+		resolveEditorDomContextMock.mockReturnValue( {
+			document: restorationDocument,
+			window: editorWindow.window,
+		} );
+
+		render(
+			<LifecycleHarness
+				presentation={ {
+					phase: 'restoring',
+					owner: 'column',
+					kind: 'column',
+					tableIdentity: 'table-a',
+					applied: true,
+					destinationIndex: 2,
+					complete,
+				} }
+			/>
+		);
+
+		expect( restoreMovedColumnMock ).toHaveBeenCalledWith(
+			restorationDocument,
+			'table-a',
+			2
+		);
+		expect( restoreMovedRowMock ).not.toHaveBeenCalled();
+		expect( requestApplyFocusMock ).not.toHaveBeenCalled();
+
+		editorWindow.flushNextFrame();
+		editorWindow.flushNextFrame();
+
+		expect( requestApplyFocusMock ).toHaveBeenCalledWith(
+			{ type: 'column-success', tableIdentity: 'table-a', destinationIndex: 2 },
+			expect.any( HTMLDivElement )
+		);
+		expect( requestApplyFocusMock.mock.invocationCallOrder[ 0 ] ).toBeLessThan(
+			complete.mock.invocationCallOrder[ 0 ]
+		);
+		expect( complete ).toHaveBeenCalledTimes( 1 );
+	} );
+
+	/**
+	 * 概要:
+	 * - 表示復帰時にEditor DOM Contextを解決できない場合は、誤った復帰先を推測せずLifecycleだけを完了することを確認する。
+	 *
+	 * 事前条件:
+	 * - 並び替えは成功して確定後位置が存在する。
+	 * - 現在の基準要素からEditor DOM Contextを解決できない。
+	 *
+	 * 操作:
+	 * - 表示復帰Presentationをmountする。
+	 *
+	 * 期待結果:
+	 * - 表示復帰と結果確認focusを行わない。
+	 * - Lifecycle完了だけを1回実行する。
+	 */
+	it( 'when restoration has no editor context, should complete without restoring or focusing another context', () => {
+		const complete = jest.fn();
+		resolveEditorDomContextMock.mockReturnValue( null );
+
+		render(
+			<LifecycleHarness
+				presentation={ {
+					phase: 'restoring',
+					owner: 'row',
+					kind: 'row',
+					tableIdentity: 'table-a',
+					applied: true,
+					destinationIndex: 1,
+					complete,
+				} }
+			/>
+		);
+
+		expect( restoreMovedRowMock ).not.toHaveBeenCalled();
+		expect( restoreMovedColumnMock ).not.toHaveBeenCalled();
+		expect( requestApplyFocusMock ).not.toHaveBeenCalled();
+		expect( complete ).toHaveBeenCalledTimes( 1 );
+	} );
+
+	/**
+	 * 概要:
 	 * - 反映中表示が終了した後に、以前予約したTable更新を実行しないことを確認する。
 	 *
 	 * 事前条件:
