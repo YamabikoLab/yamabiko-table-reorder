@@ -1,8 +1,8 @@
 /**
  * WordPress Reorder Integration向けFocus CoordinationのLifecycle契約を検証する。
  *
- * 現在Editor DOMだけを利用する即時focus、Presentation再生成中のpending、
- * stale intentの破棄を公開IFから確認する。
+ * 現在のエディター表示だけを利用した即時フォーカス、RF表示再生成中の保留、
+ * 古くなった要求の破棄を公開境界から確認する。
  */
 
 import { abandonReorderFocus, reconcileReorderFocus, requestReorderFocus } from './reorder';
@@ -10,8 +10,10 @@ import { abandonReorderFocus, reconcileReorderFocus, requestReorderFocus } from 
 const TABLE_IDENTITY = 'table-a';
 
 /**
- * RF control IDを生成する。
- * @param suffix
+ * 対象TableのRF操作に割り当てるIDを生成する。
+ *
+ * @param suffix RF内で対象操作を識別する末尾文字列。
+ * @return 対象Tableと操作を組み合わせたID。
  */
 const getRfControlId = ( suffix: string ): string =>
 	`yamabiko-table-reorder-rf-${ TABLE_IDENTITY }-${ suffix }`;
@@ -78,6 +80,80 @@ describe( 'WordPress Reorder Integration focus coordination', () => {
 		reconcileReorderFocus( TABLE_IDENTITY, referenceElement, 'regenerating' );
 
 		expect( referenceElement.ownerDocument.activeElement ).toBe( currentSource );
+	} );
+
+
+	/**
+	 * RF表示再生成後も、現在選択されている方向へ操作位置を維持することを確認する。
+	 *
+	 * 事前条件:
+	 * - RFは列方向を選択中である。
+	 * - 表示再生成後の現在Presentationに行 / 列の両方が存在する。
+	 *
+	 * 操作:
+	 * - 方向選択の維持を要求する。
+	 *
+	 * 期待結果:
+	 * - 先頭の行方向ではなく、現在選択中の列方向へfocusする。
+	 */
+	it( 'when RF direction controls regenerate with column selected, should preserve focus on the selected direction', () => {
+		const referenceElement = document.createElement( 'div' );
+		const rowDirection = document.createElement( 'input' );
+		rowDirection.type = 'radio';
+		rowDirection.id = getRfControlId( 'kind-row' );
+		const columnDirection = document.createElement( 'input' );
+		columnDirection.type = 'radio';
+		columnDirection.id = getRfControlId( 'kind-column' );
+		columnDirection.checked = true;
+		document.body.append( referenceElement, rowDirection, columnDirection );
+
+		requestReorderFocus(
+			{
+				type: 'presentation-regeneration',
+				tableIdentity: TABLE_IDENTITY,
+				control: 'direction',
+			},
+			referenceElement
+		);
+
+		expect( referenceElement.ownerDocument.activeElement ).toBe( columnDirection );
+	} );
+
+	/**
+	 * 別Tableの再評価によって保留中の操作位置を誤適用しないことを確認する。
+	 *
+	 * 事前条件:
+	 * - Table AのRF表示再生成要求が保留中である。
+	 * - Table B側から再評価が発生する。
+	 *
+	 * 操作:
+	 * - Table BのIdentityで保留要求を再評価する。
+	 *
+	 * 期待結果:
+	 * - Table Aの要求はTable Bへ適用されず、現在focusを変更しない。
+	 */
+	it( 'when another table reconciles while an RF request is pending, should not apply the pending request to that table', () => {
+		const referenceElement = document.createElement( 'div' );
+		const retainedFocus = document.createElement( 'button' );
+		document.body.append( referenceElement, retainedFocus );
+		retainedFocus.focus();
+
+		requestReorderFocus(
+			{
+				type: 'presentation-regeneration',
+				tableIdentity: TABLE_IDENTITY,
+				control: 'source',
+			},
+			referenceElement
+		);
+
+		const source = document.createElement( 'input' );
+		source.id = getRfControlId( 'source-row' );
+		document.body.append( source );
+
+		reconcileReorderFocus( 'table-b', referenceElement, 'stable' );
+
+		expect( referenceElement.ownerDocument.activeElement ).toBe( retainedFocus );
 	} );
 
 	/**
