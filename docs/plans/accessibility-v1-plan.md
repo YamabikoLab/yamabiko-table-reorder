@@ -110,7 +110,7 @@ focus lifecycleが確定してからAnnouncement Deliveryを接続する。通�
 - RF Input Interpretationは入力成立性と修正対象の正本を維持し、Accessibility Presentation用にvalidationを複製しない。
 - RF InteractionはRF Session、現在評価、未提示Apply結果の正本を維持する。blocked / no-opは現在評価をそのまま公開し、差分判定・重複抑制・一回性通知状態を所有しない。確定済みsuccess結果はPresentationとAnnouncementが競合して消費しない形で一回性結果として保持する。
 - Row / Column RF ResolutionとTable Integrationはno-op、構造拒否、利用不能、方向固有診断、確定後位置の正本を維持する。
-- RF Apply CoordinationはApply Lifecycle、確認summary、結果、確定後位置を維持し、通常反映 / 確認付き大規模反映の両方で、移動前位置と確定後位置を持つ確定Move summaryをLifecycle完了時のsuccess結果へ引き渡す。success側ではfocus intentのsettleを含む表示復帰後にのみ完了する。
+- RF Apply CoordinationはApply Lifecycle、確認summary、結果、確定後位置を維持し、通常反映 / 確認付き大規模反映の両方で、移動前位置と確定後位置を持つ確定Move summaryをLifecycle完了時のsuccess結果へ引き渡す。success側では既存Apply Lifecycleの描画待ち後に結果確認focusを一回適用してから完了する。
 - WordPress Reorder Integration / WordPress Reorder Apply IntegrationはAccessibility Presentation、Focus Coordination、Announcement Deliveryへの接続を追加するが、RF / Apply意味を別状態として所有しない。
 - Editor DOM Contextは現在のEditor context解決を再利用し、iframe / non-iframe別のfocus状態を保持しない。
 - 既存の視覚通知は利用者向けPresentationとして維持し、Announcement Deliveryの発行条件や履歴の正本にはしない。
