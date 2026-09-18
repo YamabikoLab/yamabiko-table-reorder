@@ -23,6 +23,7 @@ const markRestoredCell = ( cell: HTMLElement ): void => {
 	const handleFocusOut = ( event: FocusEvent ): void => {
 		const nextTarget = event.relatedTarget;
 		const editorNode = cell.ownerDocument.defaultView?.Node;
+		// 同じ結果確認セル内で操作を続ける間は、結果位置の強調を維持する。
 		if (
 			editorNode !== undefined &&
 			nextTarget instanceof editorNode &&
@@ -59,6 +60,7 @@ export const restoreMovedRow = (
 	const firstCell = row.querySelector< HTMLElement >( 'th, td' );
 	const displayTarget = editable ?? firstCell ?? ( row as HTMLElement );
 	displayTarget.scrollIntoView( { block: 'center', inline: 'start' } );
+	// 結果確認セルが成立する場合だけ強調し、行自体を代替focus targetとして扱わない。
 	if ( firstCell !== null ) {
 		markRestoredCell( firstCell );
 	}
@@ -93,6 +95,7 @@ export const restoreMovedColumn = (
 	 */
 	for ( const cell of Array.from( firstRow.cells ) ) {
 		const logicalColumnEnd = logicalColumnStart + cell.colSpan;
+		// 確定後の論理列を占有するセルだけを表示復帰先として採用する。
 		if ( columnIndex >= logicalColumnStart && columnIndex < logicalColumnEnd ) {
 			targetCell = cell;
 			break;
