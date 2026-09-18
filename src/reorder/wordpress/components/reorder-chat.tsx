@@ -14,13 +14,13 @@ import {
 	getChatPromptLabel,
 	getChatSendLabel,
 	getChatUnresolvedColumnMessage,
-	getLargeReorderApplyingMessage,
 	getRfApplyFailureMessage,
 } from '@/messages';
 import { requestChatReorderCommand } from '@/reorder/chat-reorder/ai-request';
 import { parseChatReorderCommand } from '@/reorder/chat-reorder/command';
 import { getChatReorderContext } from '@/reorder/chat-reorder/context-reader';
 import { submitChatCommandToRf } from '@/reorder/chat-reorder/rf-input-adapter';
+import { ReorderProgressModal } from '@/reorder/wordpress/components/reorder-progress-modal';
 
 import './reorder-chat.scss';
 
@@ -79,7 +79,7 @@ export const ReorderChat = ( props: ReorderChatProps ) => {
 		}
 
 		setSubmitting( true );
-		setMessage( getLargeReorderApplyingMessage() );
+		setMessage( null );
 		try {
 			const commandText = await requestChatReorderCommand(
 				currentInput,
@@ -115,6 +115,7 @@ export const ReorderChat = ( props: ReorderChatProps ) => {
 	return (
 		<>
 			{ children( entry ) }
+			{ submitting && active && <ReorderProgressModal /> }
 			{ anchor !== null && active && (
 				<Popover anchor={ anchor } focusOnMount="firstElement" onClose={ close } placement="bottom">
 					<form className="yamabiko-table-reorder-chat" onSubmit={ submit }>
