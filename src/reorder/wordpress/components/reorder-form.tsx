@@ -254,9 +254,7 @@ export const ReorderFormPopover = ( props: ReorderFormPopoverProps ) => {
 	const popoverOffset = manuallyPositioned ? 0 : RF_POPOVER_OFFSET_PX;
 	const narrowCollapsed = isNarrow && collapsed;
 	const rowInputProblems =
-		state.kind === 'row' && state.result.status === 'not-ready'
-			? state.result.inputProblems
-			: [];
+		state.kind === 'row' && state.result.status === 'not-ready' ? state.result.inputProblems : [];
 	const sourceRowInvalid = rowInputProblems.some( ( problem ) => problem.target === 'source' );
 	const targetRowInvalid = rowInputProblems.some( ( problem ) => problem.target === 'target' );
 	const columnInputProblems =
@@ -547,9 +545,7 @@ export const ReorderFormPopover = ( props: ReorderFormPopoverProps ) => {
 							<label htmlFor={ sourceColumnId }>
 								<span>{ getRfSourceColumnLabel() }</span>
 								<select
-									aria-describedby={
-										sourceColumnInvalid ? sourceColumnProblemId : undefined
-									}
+									aria-describedby={ sourceColumnInvalid ? sourceColumnProblemId : undefined }
 									aria-invalid={ sourceColumnInvalid || undefined }
 									id={ sourceColumnId }
 									onChange={ ( event ) =>
@@ -572,19 +568,14 @@ export const ReorderFormPopover = ( props: ReorderFormPopoverProps ) => {
 								</select>
 							</label>
 							{ sourceColumnInvalid && (
-								<p
-									className="yamabiko-table-reorder-rf__notice"
-									id={ sourceColumnProblemId }
-								>
+								<p className="yamabiko-table-reorder-rf__notice" id={ sourceColumnProblemId }>
 									{ getRfColumnSelectionUnavailableMessage() }
 								</p>
 							) }
 							<label htmlFor={ targetColumnId }>
 								<span>{ getRfTargetColumnLabel() }</span>
 								<select
-									aria-describedby={
-										targetColumnInvalid ? targetColumnProblemId : undefined
-									}
+									aria-describedby={ targetColumnInvalid ? targetColumnProblemId : undefined }
 									aria-invalid={ targetColumnInvalid || undefined }
 									id={ targetColumnId }
 									onChange={ ( event ) =>
@@ -607,10 +598,7 @@ export const ReorderFormPopover = ( props: ReorderFormPopoverProps ) => {
 								</select>
 							</label>
 							{ targetColumnInvalid && (
-								<p
-									className="yamabiko-table-reorder-rf__notice"
-									id={ targetColumnProblemId }
-								>
+								<p className="yamabiko-table-reorder-rf__notice" id={ targetColumnProblemId }>
 									{ getRfColumnSelectionUnavailableMessage() }
 								</p>
 							) }

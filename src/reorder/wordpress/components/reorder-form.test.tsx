@@ -312,9 +312,7 @@ describe( 'Reorder Form presentation', () => {
 			],
 			result: {
 				status: 'not-ready',
-				inputProblems: [
-					{ target: 'target', correction: { kind: 'select-current-column' } },
-				],
+				inputProblems: [ { target: 'target', correction: { kind: 'select-current-column' } } ],
 			},
 			canApply: false,
 		};
@@ -377,7 +375,6 @@ describe( 'Reorder Form presentation', () => {
 			screen.getByRole( 'spinbutton', { name: '移動先の行' } ).getAttribute( 'aria-invalid' )
 		).toBeNull();
 	} );
-
 
 	/**
 	 * 利用不能結果は現在指定全体の状態として提示し、個別入力のvalidationへ変換しないことを確認する。
@@ -506,7 +503,6 @@ describe( 'Reorder Form presentation', () => {
 		expect( screen.getByText( 'column:foot:2-3:4-5' ) ).toBeTruthy();
 	} );
 
-
 	/**
 	 * RFの方向選択をRF Interactionの現在Sessionへ通知することを確認する。
 	 *
@@ -551,11 +547,7 @@ describe( 'Reorder Form presentation', () => {
 			canApply: false,
 		};
 		const rendered = render(
-			<ReorderFormPopover
-				anchor={ anchor }
-				state={ disabledState }
-				tableIdentity="table-a"
-			/>
+			<ReorderFormPopover anchor={ anchor } state={ disabledState } tableIdentity="table-a" />
 		);
 
 		expect( screen.getByRole( 'button', { name: '並び替え' } ) ).toBeDisabled();
