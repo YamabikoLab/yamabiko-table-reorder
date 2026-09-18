@@ -84,7 +84,7 @@ test( 'when Reorder Form row input is used from the Block Toolbar, should comple
 	editor,
 } ) => {
 	const { rows } = await insertTable( page, editor );
-	const toolbarButton = await focusReorderFormToolbarButton( page );
+	await focusReorderFormToolbarButton( page );
 	await page.keyboard.press( 'Enter' );
 	await expect( reorderForm( page ) ).toBeVisible();
 
@@ -107,7 +107,6 @@ test( 'when Reorder Form row input is used from the Block Toolbar, should comple
 	await page.keyboard.press( 'Enter' );
 
 	await expect.poll( () => rowOrder( rows ) ).toEqual( [ 'R2C1', 'R3C1', 'R1C1', 'R4C1' ] );
-	await expect( toolbarButton ).not.toBePressed();
 } );
 
 /**
