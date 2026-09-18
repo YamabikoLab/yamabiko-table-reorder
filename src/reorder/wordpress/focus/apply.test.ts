@@ -9,7 +9,11 @@ import { abandonApplyFocus, reconcileApplyFocus, requestApplyFocus } from './app
 
 const TABLE_IDENTITY = 'table-a';
 
-/** 現在Editor DOMへ対象Tableを作成する。 */
+/**
+ * 現在のエディター表示に、結果確認対象となるTableを作成する。
+ *
+ * @return 対象TableのBlock要素。
+ */
 const createTable = (): HTMLDivElement => {
 	const block = document.createElement( 'div' );
 	block.setAttribute( 'data-block', TABLE_IDENTITY );
