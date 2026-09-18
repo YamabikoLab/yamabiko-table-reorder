@@ -668,8 +668,6 @@ export const ReorderFormPopover = ( props: ReorderFormPopoverProps ) => {
 							{ getRfCancelLabel() }
 						</Button>
 						<Button
-							data-ytr-focus-control="submit"
-							data-ytr-table-identity={ tableIdentity }
 							disabled={ ! state.canApply }
 							onClick={ () => rfInteraction.requestApply( tableIdentity ) }
 							variant="primary"
