@@ -5,6 +5,7 @@
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import type { ReactNode } from 'react';
 
+import { rfInteraction } from '@/reorder/reorder-form/responsibilities/interaction';
 import type { RfInteractionReactState } from '@/reorder/reorder-form/responsibilities/interaction-react';
 import { reorderFormCollapse } from '@/reorder/wordpress/components/reorder-form-collapse';
 
@@ -141,6 +142,7 @@ const notifyViewportResize = ( view: Window ): void => {
 
 describe( 'Reorder Form presentation', () => {
 	beforeEach( () => {
+		jest.clearAllMocks();
 		setViewportWidth( window, 1024 );
 		reorderFormCollapse.beginSession( 'table-a' );
 	} );
@@ -181,9 +183,11 @@ describe( 'Reorder Form presentation', () => {
 		expect( sourceInput.getAttribute( 'min' ) ).toBe( '1' );
 		expect( sourceInput.getAttribute( 'max' ) ).toBe( '20' );
 		expect( sourceInput.getAttribute( 'step' ) ).toBe( '1' );
+		expect( sourceInput.getAttribute( 'aria-invalid' ) ).toBeNull();
 		expect( targetInput.getAttribute( 'min' ) ).toBe( '1' );
 		expect( targetInput.getAttribute( 'max' ) ).toBe( '20' );
 		expect( targetInput.getAttribute( 'step' ) ).toBe( '1' );
+		expect( targetInput.getAttribute( 'aria-invalid' ) ).toBeNull();
 	} );
 
 	/**
@@ -271,6 +275,12 @@ describe( 'Reorder Form presentation', () => {
 
 		expect( screen.getAllByRole( 'option', { name: '商品名（1列目）' } ) ).toHaveLength( 2 );
 		expect( screen.getAllByRole( 'option', { name: '2列目' } ) ).toHaveLength( 2 );
+		expect(
+			screen.getByRole( 'combobox', { name: '移動する列' } ).getAttribute( 'aria-invalid' )
+		).toBeNull();
+		expect(
+			screen.getByRole( 'combobox', { name: '移動先の列' } ).getAttribute( 'aria-invalid' )
+		).toBeNull();
 	} );
 
 	/**
@@ -360,6 +370,53 @@ describe( 'Reorder Form presentation', () => {
 		render( <ReorderFormPopover anchor={ anchor } state={ state } tableIdentity="table-a" /> );
 
 		expect( screen.getByText( 'row:1-2:3-4' ) ).toBeTruthy();
+		expect(
+			screen.getByRole( 'spinbutton', { name: '移動する行' } ).getAttribute( 'aria-invalid' )
+		).toBeNull();
+		expect(
+			screen.getByRole( 'spinbutton', { name: '移動先の行' } ).getAttribute( 'aria-invalid' )
+		).toBeNull();
+	} );
+
+
+	/**
+	 * 利用不能結果は現在指定全体の状態として提示し、個別入力のvalidationへ変換しないことを確認する。
+	 *
+	 * 事前条件:
+	 * - Row RFの入力値は入力済みである。
+	 * - 現在Tableを安全に利用できず、RF Interactionが利用不能を公開している。
+	 *
+	 * 操作:
+	 * - RF入力Popoverを表示する。
+	 *
+	 * 期待結果:
+	 * - 利用不能メッセージが現在指定全体の状態として表示される。
+	 * - 移動元・移動先は入力問題ありとして公開されない。
+	 */
+	it( 'when the current row selection is unavailable, should keep input validation separate from the overall result', () => {
+		const state: RfInteractionReactState = {
+			status: 'open',
+			kind: 'row',
+			input: {
+				sourceRowNumber: '2',
+				targetRowNumber: '5',
+				position: 'above',
+			},
+			rowCount: null,
+			result: { status: 'unavailable' },
+			canApply: false,
+		};
+		const anchor = document.createElement( 'button' );
+
+		render( <ReorderFormPopover anchor={ anchor } state={ state } tableIdentity="table-a" /> );
+
+		expect( screen.getByText( '利用不可' ) ).toBeTruthy();
+		expect(
+			screen.getByRole( 'spinbutton', { name: '移動する行' } ).getAttribute( 'aria-invalid' )
+		).toBeNull();
+		expect(
+			screen.getByRole( 'spinbutton', { name: '移動先の行' } ).getAttribute( 'aria-invalid' )
+		).toBeNull();
 	} );
 
 	/**
@@ -447,6 +504,71 @@ describe( 'Reorder Form presentation', () => {
 		render( <ReorderFormPopover anchor={ anchor } state={ state } tableIdentity="table-a" /> );
 
 		expect( screen.getByText( 'column:foot:2-3:4-5' ) ).toBeTruthy();
+	} );
+
+
+	/**
+	 * RFの方向選択をRF Interactionの現在Sessionへ通知することを確認する。
+	 *
+	 * 事前条件:
+	 * - Row RFがopenである。
+	 *
+	 * 操作:
+	 * - Column方向を選択する。
+	 *
+	 * 期待結果:
+	 * - 現在TableのRF Sessionに対してColumn方向の選択が通知される。
+	 */
+	it( 'when the column direction is selected, should delegate the direction change to RF Interaction', () => {
+		const anchor = document.createElement( 'button' );
+
+		render(
+			<ReorderFormPopover anchor={ anchor } state={ createRowState() } tableIdentity="table-a" />
+		);
+		fireEvent.click( screen.getByRole( 'radio', { name: '列' } ) );
+
+		expect( rfInteraction.selectKind ).toHaveBeenCalledWith( 'table-a', 'column' );
+	} );
+
+	/**
+	 * 並び替え操作の実行可否をRF InteractionのcanApplyだけから提示することを確認する。
+	 *
+	 * 事前条件:
+	 * - RF Interactionは成立済み結果を公開している。
+	 *
+	 * 操作:
+	 * - canApplyがfalseの状態とtrueの状態を順に表示する。
+	 *
+	 * 期待結果:
+	 * - falseでは並び替え操作が無効になる。
+	 * - trueでは並び替え操作が有効になる。
+	 */
+	it( 'when canApply changes, should expose the apply state from the interaction contract', () => {
+		const anchor = document.createElement( 'button' );
+		const disabledState: RfInteractionReactState = {
+			...createRowState(),
+			result: { status: 'resolved' },
+			canApply: false,
+		};
+		const rendered = render(
+			<ReorderFormPopover
+				anchor={ anchor }
+				state={ disabledState }
+				tableIdentity="table-a"
+			/>
+		);
+
+		expect( screen.getByRole( 'button', { name: '並び替え' } ) ).toBeDisabled();
+
+		const enabledState: RfInteractionReactState = {
+			...disabledState,
+			canApply: true,
+		};
+		rendered.rerender(
+			<ReorderFormPopover anchor={ anchor } state={ enabledState } tableIdentity="table-a" />
+		);
+
+		expect( screen.getByRole( 'button', { name: '並び替え' } ) ).toBeEnabled();
 	} );
 
 	/**
