@@ -28,7 +28,7 @@ Accessibility v1 Phase 1の対象はIssue #1047のKeyboard / Semantics、Focus M
 - Table IntegrationはCore TableとFlexible Table Blockの保存表現差を吸収し、方向固有の構造解釈、診断、Apply再照合、確定更新、および確定後位置の最終権威を持つ。
 - RF Apply CoordinationはApply要求時に現在Tableへ候補を再照合し、Reorder Apply Policyにより通常反映または確認付き大規模反映を選択する。
 - Apply preparation前の再照合不成立または更新不能では、Tableを変更せず、表示復帰Lifecycleへ入らずにRFへ戻れる。
-- Apply preparationまたは反映中Presentation成立後にfailureとなった場合は、Table未変更を維持したままediting surfaceと必要なfocusを復帰してからfailureを確定する。
+- Apply preparationまたは反映中Presentation成立後にfailureとなった場合は、Table未変更を維持したままediting surfaceを復帰してからfailureを確定する。RF復帰後のfocusはWordPress / Reactの標準挙動を優先する。
 - 通常反映でも、確定更新に成功した場合はWordPress側のediting surfaceを再成立させ、確定済み最終位置への結果確認focusを一回適用してからApply Lifecycleを終了する。
 - 確認付き大規模反映では確認、反映中表示、確定更新、表示復帰を一つのLifecycleとして調停する。
 - WordPress Reorder Apply Integrationは確認、反映中表示、表示復帰、accessible Presentation、focusを接続するが、Move意味、Table構造、候補成立性、最終位置を再解釈しない。
@@ -75,7 +75,7 @@ RF Interactionは対象Tableと利用者入力を所有し、入力時および�
 
 通常反映では、Apply preparation前の評価または確定更新が成立しない場合は表示復帰Lifecycleへ入らずfailureを返せる。確定更新成功後はexisting Apply Lifecycleでediting surfaceを再成立させ、その時点の現在DOMへ結果確認focusを一回適用してからsuccessを確定する。
 
-確認付き大規模反映では、確認中はTableを変更しない。Continue後は反映中表示を成立させてから現在Tableを再照合し、成立する場合だけ確定更新する。反映中Presentation成立後にfailureとなった場合もediting surfaceと必要なfocusを復帰してから結果を確定する。CancelはTableを変更せず入力画面へ戻る。
+確認付き大規模反映では、確認中はTableを変更しない。Continue後は反映中表示を成立させてから現在Tableを再照合し、成立する場合だけ確定更新する。反映中Presentation成立後にfailureとなった場合もediting surfaceを復帰してから結果を確定し、RF復帰後のfocusはWordPress / Reactの標準挙動を優先する。CancelはTableを変更せず入力画面へ戻る。
 
 Accessibility Presentationは既存RF / Apply状態を標準UI primitiveの名前、意味、状態、入力問題との関係へ接続する。Focus CoordinationはRF open / explicit closeと、既存Apply Lifecycleの表示再成立後に要求されるsuccess結果確認focusを現在Editor contextへ一回適用する。confirmation / applying / CancelはWordPress Componentsの標準focus Contractを優先する。Announcement DeliveryはRF Interactionが公開する現在評価または未提示Apply結果をfocusから独立してBrowser Accessibility Platformへ渡す。
 
@@ -1061,7 +1061,7 @@ Announcement Deliveryはdeliveryだけを所有する。blocked / no-opはRF Int
 
 ### Apply Failure Recovery Depends on Lifecycle Stage
 
-Apply preparation前のfailureと、反映準備または反映中Presentation成立後のfailureを区別する。前者はrestoration不要、後者はediting surfaceと必要なfocusの復帰を完了してからfailureを確定する。
+Apply preparation前のfailureと、反映準備または反映中Presentation成立後のfailureを区別する。前者はrestoration不要、後者はTable未変更のediting surfaceを復帰してからfailureを確定する。failure後のRF内focusはWordPress / Reactの標準挙動を優先し、専用のFocus Coordination Lifecycleは設けない。
 
 ## 10. Quality Requirements
 
