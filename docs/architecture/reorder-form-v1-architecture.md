@@ -1101,9 +1101,8 @@ Apply preparation前のfailureと、反映準備または反映中Presentation�
 | RF Apply Coordination | RF候補の再照合、反映経路選択、確認、確定更新、表示復帰、結果確定を所有するLifecycle責務。 |
 | Accessibility Presentation | 既存RF / Apply状態を標準操作部品の意味、状態、案内、入力問題との関係として表現する責務。 |
 | Focus intent | Lifecycle上の遷移理由と意味上のfocus targetを表す一時的な要求。DOM nodeやRF / Apply phaseの複製ではない。 |
-
 | Announcement | focusを移動せず、RF Interactionの現在評価または確定したApply結果を支援技術へ伝える通知。blocked / no-opは差分判定・重複抑制を持たず、success / failureは未提示Apply結果の一回性に従う。 |
 | Input problem | RF Input Interpretationが特定入力について修正を必要とすると解釈した結果。構造拒否またはno-opとは異なる。 |
 | Structural result | Row / Column RF ResolutionとTable Integrationが現在指定全体について返すno-op、構造拒否、または利用不能。 |
-| Semantic target | RF入口、入力、確認操作、反映中状態、確定後セル等、具体的DOM構造から独立したfocus先の意味。 |
+| Semantic target | RF入口、方向選択、確定後セル、対象Tableの安定位置等、具体的DOM構造から独立したfocus先の意味。 |
 | Browser Accessibility Platform | native Keyboard動作、focus、accessibility tree、支援技術への状態変化伝達を提供するbrowser能力。 |
