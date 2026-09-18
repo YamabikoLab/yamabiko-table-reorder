@@ -1,14 +1,7 @@
-import type { ArchitectureModel } from './architecture-model';
+import { externalContextTypes, type ArchitectureModel } from './architecture-model';
 
 const stableIdPattern = /^[A-Za-z][A-Za-z0-9_]*$/u;
-export const allowedExternalContextTypes = [
-	'External System',
-	'External Block',
-	'External Capability',
-	'External Environment',
-	'External Library',
-] as const;
-const allowedExternalContextTypeSet = new Set< string >( allowedExternalContextTypes );
+const externalContextTypeSet = new Set< string >( externalContextTypes );
 const processFlowViewKinds = new Set( [ 'normal', 'failure-recovery' ] );
 const processFlowEdgeKinds = new Set( [ 'normal', 'failure', 'recovery' ] );
 
@@ -89,7 +82,7 @@ const validateElements = ( model: ArchitectureModel ): Set< string > => {
 		validateStableId( item.id, 'EXT_', 'External Context' );
 		requireValue( item.name, `External Context ${ item.id } Name` );
 		requireValue( item.type, `External Context ${ item.id } Type` );
-		if ( ! allowedExternalContextTypeSet.has( item.type ) ) {
+		if ( ! externalContextTypeSet.has( item.type ) ) {
 			throw new Error(
 				`Architecture validation failed: External Context ${ item.id } Type "${ item.type }" is unsupported.`
 			);
