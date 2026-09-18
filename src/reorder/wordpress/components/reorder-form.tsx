@@ -411,6 +411,8 @@ export const ReorderFormPopover = ( props: ReorderFormPopoverProps ) => {
 					{ isNarrow && (
 						<Button
 							aria-controls={ formContentId }
+							data-ytr-focus-control="disclosure"
+							data-ytr-table-identity={ tableIdentity }
 							aria-expanded={ ! collapsed }
 							className="yamabiko-table-reorder-rf__collapse"
 							label={ collapsed ? getRfExpandLabel() : getRfCollapseLabel() }
@@ -645,10 +647,17 @@ export const ReorderFormPopover = ( props: ReorderFormPopoverProps ) => {
 					) }
 
 					<div className="yamabiko-table-reorder-rf__actions">
-						<Button onClick={ () => rfInteraction.close( tableIdentity ) } variant="secondary">
+						<Button
+							data-ytr-focus-control="cancel"
+							data-ytr-table-identity={ tableIdentity }
+							onClick={ () => rfInteraction.close( tableIdentity ) }
+							variant="secondary"
+						>
 							{ getRfCancelLabel() }
 						</Button>
 						<Button
+							data-ytr-focus-control="submit"
+							data-ytr-table-identity={ tableIdentity }
 							disabled={ ! state.canApply }
 							onClick={ () => rfInteraction.requestApply( tableIdentity ) }
 							variant="primary"

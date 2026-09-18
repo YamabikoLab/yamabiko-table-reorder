@@ -362,11 +362,11 @@ RFを含むReorder Apply状態をWordPress Editorの確認、反映中表示、e
 
 ##### Contract
 
-RF Apply Coordinationが公開する確認summary、Apply状態、確定結果、最終位置を利用する。確認と反映中状態をAccessibility Presentationへ渡し、確認開始、Cancel、反映準備、editing surface restorationの各Design境界でFocus Coordinationへ意味上のtargetを渡す。
+RF Apply Coordinationが公開する確認summary、Apply状態、確定結果、最終位置を利用する。確認と反映中状態をAccessibility Presentationへ渡し、確認開始、反映準備、editing surface restorationの各Design境界でFocus Coordinationへ意味上のtargetを渡す。
 
 成功後はRF Apply Coordinationが確定した最終位置をそのままFocus Coordinationへ渡す。最終位置を安全に適用できない場合は、対象Tableの安定した操作位置へ限定してfallbackする。focus intentがsettleした後にだけRF Apply Coordinationへ表示復帰完了を返す。
 
-Apply preparationまたは反映中Presentation成立後にfailureとなった場合は、Table未変更のediting surfaceと必要なfocusを復帰し、その完了をRF Apply Coordinationへ返す。
+Apply preparationまたは反映中Presentation成立後にfailureとなった場合は、Table未変更のediting surfaceを再成立させ、その表示復帰完了をRF Apply Coordinationへ返す。failure確定後に入力を保持したRF状態と現在評価が再成立した時点で、WordPress Reorder IntegrationがDesign上許可された修正位置または再実行位置へのfocus intentをFocus Coordinationへ渡す。
 
 ##### Lifecycle
 
@@ -871,7 +871,7 @@ Column Apply preparation前に現在TableでのApply評価が成立しない、�
 
 ### RF Row prepared apply failure and recovery {#RV_RF_ROW_PREPARED_FAILURE}
 
-Row反映準備または反映中Presentation成立後に確定更新を完了できない場合、Table未変更のediting surfaceとfocusを復帰してからfailureを確定する。
+Row反映準備または反映中Presentation成立後に確定更新を完了できない場合、Table未変更のediting surfaceを復帰してfailureを確定し、RF状態再成立後に修正または再実行位置へfocusを戻す。
 
 | Step | Source | Target | Interaction |
 | ---: | --- | --- | --- |
@@ -879,16 +879,16 @@ Row反映準備または反映中Presentation成立後に確定更新を完了�
 | 2 | RESP_ROW_TABLE_INTEGRATION | RESP_RF_APPLY_COORDINATION | Row Applyの再照合不成立または更新不能をTable未変更で返す。 |
 | 3 | RESP_RF_APPLY_COORDINATION | RESP_WORDPRESS_REORDER_APPLY_INTEGRATION | Table未変更のediting surface restorationを要求する。 |
 | 4 | RESP_WORDPRESS_REORDER_APPLY_INTEGRATION | EXT_WORDPRESS_EDITOR | 対象Table editing surfaceを再成立させる。 |
-| 5 | RESP_WORDPRESS_REORDER_APPLY_INTEGRATION | RESP_FOCUS_COORDINATION | 入力を修正または再実行できる意味上のtargetを渡す。 |
-| 6 | RESP_FOCUS_COORDINATION | RESP_WORDPRESS_REORDER_APPLY_INTEGRATION | focus intentのsettleを返す。 |
-| 7 | RESP_WORDPRESS_REORDER_APPLY_INTEGRATION | RESP_RF_APPLY_COORDINATION | 必要な表示復帰完了を返す。 |
-| 8 | RESP_RF_APPLY_COORDINATION | RESP_RF_INTERACTION | failureを返して現在入力の再評価へ戻す。 |
-| 9 | RESP_RF_INTERACTION | RESP_WORDPRESS_REORDER_INTEGRATION | 入力を保持したRF状態と一回性failureを提供する。 |
+| 5 | RESP_WORDPRESS_REORDER_APPLY_INTEGRATION | RESP_RF_APPLY_COORDINATION | 必要な表示復帰完了を返す。 |
+| 6 | RESP_RF_APPLY_COORDINATION | RESP_RF_INTERACTION | failureを返して現在入力の再評価へ戻す。 |
+| 7 | RESP_RF_INTERACTION | RESP_WORDPRESS_REORDER_INTEGRATION | 入力を保持したRF状態、現在評価、一回性failureを提供する。 |
+| 8 | RESP_WORDPRESS_REORDER_INTEGRATION | RESP_FOCUS_COORDINATION | 現在評価からDesign上許可された修正または再実行targetを渡す。 |
+| 9 | RESP_FOCUS_COORDINATION | RESP_WORDPRESS_REORDER_INTEGRATION | 現在Editor contextでfocus intentを適用またはsettleする。 |
 | 10 | RESP_WORDPRESS_REORDER_INTEGRATION | RESP_ANNOUNCEMENT_DELIVERY | Table未変更を含むfailure通知を渡す。 |
 
 ### RF Column prepared apply failure and recovery {#RV_RF_COLUMN_PREPARED_FAILURE}
 
-Column反映準備または反映中Presentation成立後に確定更新を完了できない場合、Table未変更のediting surfaceとfocusを復帰してからfailureを確定する。
+Column反映準備または反映中Presentation成立後に確定更新を完了できない場合、Table未変更のediting surfaceを復帰してfailureを確定し、RF状態再成立後に修正または再実行位置へfocusを戻す。
 
 | Step | Source | Target | Interaction |
 | ---: | --- | --- | --- |
@@ -896,11 +896,11 @@ Column反映準備または反映中Presentation成立後に確定更新を完�
 | 2 | RESP_COLUMN_TABLE_INTEGRATION | RESP_RF_APPLY_COORDINATION | Column Applyの再照合不成立または更新不能をTable未変更で返す。 |
 | 3 | RESP_RF_APPLY_COORDINATION | RESP_WORDPRESS_REORDER_APPLY_INTEGRATION | Table未変更のediting surface restorationを要求する。 |
 | 4 | RESP_WORDPRESS_REORDER_APPLY_INTEGRATION | EXT_WORDPRESS_EDITOR | 対象Table editing surfaceを再成立させる。 |
-| 5 | RESP_WORDPRESS_REORDER_APPLY_INTEGRATION | RESP_FOCUS_COORDINATION | 入力を修正または再実行できる意味上のtargetを渡す。 |
-| 6 | RESP_FOCUS_COORDINATION | RESP_WORDPRESS_REORDER_APPLY_INTEGRATION | focus intentのsettleを返す。 |
-| 7 | RESP_WORDPRESS_REORDER_APPLY_INTEGRATION | RESP_RF_APPLY_COORDINATION | 必要な表示復帰完了を返す。 |
-| 8 | RESP_RF_APPLY_COORDINATION | RESP_RF_INTERACTION | failureを返して現在入力の再評価へ戻す。 |
-| 9 | RESP_RF_INTERACTION | RESP_WORDPRESS_REORDER_INTEGRATION | 入力を保持したRF状態と一回性failureを提供する。 |
+| 5 | RESP_WORDPRESS_REORDER_APPLY_INTEGRATION | RESP_RF_APPLY_COORDINATION | 必要な表示復帰完了を返す。 |
+| 6 | RESP_RF_APPLY_COORDINATION | RESP_RF_INTERACTION | failureを返して現在入力の再評価へ戻す。 |
+| 7 | RESP_RF_INTERACTION | RESP_WORDPRESS_REORDER_INTEGRATION | 入力を保持したRF状態、現在評価、一回性failureを提供する。 |
+| 8 | RESP_WORDPRESS_REORDER_INTEGRATION | RESP_FOCUS_COORDINATION | 現在評価からDesign上許可された修正または再実行targetを渡す。 |
+| 9 | RESP_FOCUS_COORDINATION | RESP_WORDPRESS_REORDER_INTEGRATION | 現在Editor contextでfocus intentを適用またはsettleする。 |
 | 10 | RESP_WORDPRESS_REORDER_INTEGRATION | RESP_ANNOUNCEMENT_DELIVERY | Table未変更を含むfailure通知を渡す。 |
 
 ### RF confirmation and cancel {#RV_RF_CONFIRMATION_CANCEL}
@@ -964,7 +964,7 @@ Accessibility Presentationは判定結果を受け取り、入力問題なら対
 
 Resolution結果はApply時の確定権威ではない。RF Apply CoordinationはApply要求時にTable Integrationへ現在候補の再評価を要求し、Table Integrationは確定更新直前にも現在Tableを最終確認する。
 
-Apply preparation前のfailureはrestorationを必要としない。一方、反映準備または反映中Presentation成立後のfailureは、Table未変更のediting surfaceと必要なfocusを復帰してからfailureを確定する。
+Apply preparation前のfailureはrestorationを必要としない。一方、反映準備または反映中Presentation成立後のfailureは、Table未変更のediting surfaceを復帰してからfailureを確定する。failure後のRF内focusは、入力を保持したRF状態と現在評価が再成立した後にWordPress Reorder Integrationから要求する。
 
 成功時は通常反映と確認付き大規模反映を共通の表示復帰契約へ合流させる。Table更新成功だけではsuccessを確定せず、editing surface再成立に加えて成功後focus intentのsettleを表示復帰完了のbarrierに含める。
 
@@ -1079,7 +1079,7 @@ Apply preparation前のfailureと、反映準備または反映中Presentation�
 - **Semantic consistency**: 視覚Presentationと支援技術向けPresentationが同じRF / Apply / Table意味状態を利用する。
 - **Focus continuity**: RF open / close、確認、反映中、表示復帰、success / failureでDesignが定めた操作位置を維持し、success確定前に最終focus intentをsettleさせる。
 - **Notification correctness**: success / failureは同じ未提示Apply結果から一度だけ通知し、構造拒否 / no-opは現在評価をそのまま利用して追加の差分判定・重複抑制を行わず、focus移動をdelivery手段にしない。
-- **Lifecycle correctness**: preparation前failureでは不要なrestorationを開始せず、prepared failureとsuccessでは必要な表示復帰完了後に結果を確定する。
+- **Lifecycle correctness**: preparation前failureでは不要なrestorationを開始せず、prepared failureではediting surfaceの表示復帰後にfailureを確定してRF状態再成立後にfocusを復帰し、successではfocus settleを含む表示復帰完了後に結果を確定する。
 - **State minimality**: 新しい永続状態を追加せず、Focus Coordinationのpending intent以外は既存状態から導出する。
 - **Consistency**: Row / Column DnDとRFは方向固有Table Integrationの同じ構造ルールと更新意味を利用する。
 - **Maintainability**: RF domain責務、WordPress接続、Accessibility責務、方向固有構造を分離し、現在のsource tree形状へArchitectureを固定しない。
