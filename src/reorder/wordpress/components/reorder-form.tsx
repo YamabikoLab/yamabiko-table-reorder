@@ -234,6 +234,7 @@ export const ReorderFormPopover = ( props: ReorderFormPopoverProps ) => {
 	const controlIdPrefix = `yamabiko-table-reorder-rf-${ tableIdentity }`;
 	const rowKindId = `${ controlIdPrefix }-kind-row`;
 	const columnKindId = `${ controlIdPrefix }-kind-column`;
+	const formContentId = `${ controlIdPrefix }-content`;
 	const sourceRowId = `${ controlIdPrefix }-source-row`;
 	const targetRowId = `${ controlIdPrefix }-target-row`;
 	const rowRangeId = `${ controlIdPrefix }-row-range`;
@@ -412,6 +413,7 @@ export const ReorderFormPopover = ( props: ReorderFormPopoverProps ) => {
 					<h2 className="yamabiko-table-reorder-rf__title">{ getRfReorderName() }</h2>
 					{ isNarrow && (
 						<Button
+							aria-controls={ formContentId }
 							aria-expanded={ ! collapsed }
 							className="yamabiko-table-reorder-rf__collapse"
 							label={ collapsed ? getRfExpandLabel() : getRfCollapseLabel() }
@@ -423,10 +425,10 @@ export const ReorderFormPopover = ( props: ReorderFormPopoverProps ) => {
 					) }
 				</div>
 
-				{ narrowCollapsed ? (
+				{ narrowCollapsed && (
 					<p className="yamabiko-table-reorder-rf__summary">{ getCollapsedSummary( state ) }</p>
-				) : (
-					<>
+				) }
+				<div hidden={ narrowCollapsed } id={ formContentId }>
 						<fieldset className="yamabiko-table-reorder-rf__fieldset">
 							<legend>{ getRfKindLegend() }</legend>
 							<label htmlFor={ rowKindId }>
@@ -667,8 +669,7 @@ export const ReorderFormPopover = ( props: ReorderFormPopoverProps ) => {
 								{ getRfApplyLabel() }
 							</Button>
 						</div>
-					</>
-				) }
+				</div>
 			</div>
 		</Popover>
 	);
