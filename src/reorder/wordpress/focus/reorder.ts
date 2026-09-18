@@ -169,7 +169,6 @@ export function requestReorderFocus(
 	const target = getTarget( request );
 	const resolvedTarget = resolveFocusTarget( target, request.tableIdentity, referenceElement );
 	// 現在Presentationで要求先が成立してfocusできた場合は、その場で要求を完了する。
-	// 再生成後の現在Presentationで要求先が成立した時点で、保留要求を完了する。
 	if ( resolvedTarget !== null && applyFocusTarget( resolvedTarget ) ) {
 		pendingReorderFocus = null;
 		return;
@@ -209,6 +208,7 @@ export function reconcileReorderFocus(
 		tableIdentity,
 		referenceElement
 	);
+	// 再生成後の現在Presentationで要求先が成立した時点で、保留要求を完了する。
 	if ( resolvedTarget !== null && applyFocusTarget( resolvedTarget ) ) {
 		pendingReorderFocus = null;
 		return;
