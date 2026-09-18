@@ -1,11 +1,10 @@
 /**
- * WordPress Reorder Integration向けFocus CoordinationのLifecycle契約を検証する。
+ * WordPress Reorder Integration向けFocus Coordinationの即時フォーカス契約を検証する。
  *
- * 現在のエディター表示だけを利用した即時フォーカス、RF表示再生成中の保留、
- * 古くなった要求の破棄を公開境界から確認する。
+ * RF Lifecycleの要求は現在のエディター表示だけで解決し、対象が存在しない場合は保留しないことを確認する。
  */
 
-import { abandonReorderFocus, reconcileReorderFocus, requestReorderFocus } from './reorder';
+import { requestReorderFocus } from './reorder';
 
 const TABLE_IDENTITY = 'table-a';
 
@@ -48,151 +47,7 @@ describe( 'WordPress Reorder Integration focus coordination', () => {
 	} );
 
 	/**
-	 * RF Presentation再生成中だけtarget不在をpendingとして維持できることを確認する。
-	 *
-	 * 事前条件:
-	 * - 再生成要求時には移動元controlが存在しない。
-	 * - 同じTableの再生成後Presentationには新しい移動元controlが存在する。
-	 *
-	 * 操作:
-	 * - Presentation再生成focusを要求し、再生成中として再評価する。
-	 *
-	 * 期待結果:
-	 * - 新しく成立した現在controlへfocusし、古いDOM参照を必要としない。
-	 */
-	it( 'when a regenerated RF control is temporarily absent, should focus the current control after it reappears', () => {
-		const referenceElement = document.createElement( 'div' );
-		document.body.append( referenceElement );
-
-		requestReorderFocus(
-			{
-				type: 'presentation-regeneration',
-				tableIdentity: TABLE_IDENTITY,
-				control: 'source',
-			},
-			referenceElement
-		);
-
-		const currentSource = document.createElement( 'input' );
-		currentSource.id = getRfControlId( 'source-row' );
-		document.body.append( currentSource );
-
-		reconcileReorderFocus( TABLE_IDENTITY, referenceElement, 'regenerating' );
-
-		expect( referenceElement.ownerDocument.activeElement ).toBe( currentSource );
-	} );
-
-	/**
-	 * RF表示再生成後も、現在選択されている方向へ操作位置を維持することを確認する。
-	 *
-	 * 事前条件:
-	 * - RFは列方向を選択中である。
-	 * - 表示再生成後の現在Presentationに行 / 列の両方が存在する。
-	 *
-	 * 操作:
-	 * - 方向選択の維持を要求する。
-	 *
-	 * 期待結果:
-	 * - 先頭の行方向ではなく、現在選択中の列方向へfocusする。
-	 */
-	it( 'when RF direction controls regenerate with column selected, should preserve focus on the selected direction', () => {
-		const referenceElement = document.createElement( 'div' );
-		const rowDirection = document.createElement( 'input' );
-		rowDirection.type = 'radio';
-		rowDirection.id = getRfControlId( 'kind-row' );
-		const columnDirection = document.createElement( 'input' );
-		columnDirection.type = 'radio';
-		columnDirection.id = getRfControlId( 'kind-column' );
-		columnDirection.checked = true;
-		document.body.append( referenceElement, rowDirection, columnDirection );
-
-		requestReorderFocus(
-			{
-				type: 'presentation-regeneration',
-				tableIdentity: TABLE_IDENTITY,
-				control: 'direction',
-			},
-			referenceElement
-		);
-
-		expect( referenceElement.ownerDocument.activeElement ).toBe( columnDirection );
-	} );
-
-	/**
-	 * RF表示再生成後も、現在選択されている位置関係へ操作位置を維持することを確認する。
-	 *
-	 * 事前条件:
-	 * - 行方向で「下」が選択されている。
-	 * - 表示再生成後の現在表示に「上 / 下」の両方が存在する。
-	 *
-	 * 操作:
-	 * - 位置関係のフォーカス維持を要求する。
-	 *
-	 * 期待結果:
-	 * - 先頭の「上」ではなく、現在選択中の「下」へフォーカスする。
-	 */
-	it( 'when RF relation controls regenerate with below selected, should preserve focus on the selected relation', () => {
-		const referenceElement = document.createElement( 'div' );
-		const above = document.createElement( 'input' );
-		above.type = 'radio';
-		above.id = getRfControlId( 'row-above' );
-		const below = document.createElement( 'input' );
-		below.type = 'radio';
-		below.id = getRfControlId( 'row-below' );
-		below.checked = true;
-		document.body.append( referenceElement, above, below );
-
-		requestReorderFocus(
-			{
-				type: 'presentation-regeneration',
-				tableIdentity: TABLE_IDENTITY,
-				control: 'relation',
-			},
-			referenceElement
-		);
-
-		expect( referenceElement.ownerDocument.activeElement ).toBe( below );
-	} );
-
-	/**
-	 * 別Tableの再評価によって保留中の操作位置を誤適用しないことを確認する。
-	 *
-	 * 事前条件:
-	 * - Table AのRF表示再生成要求が保留中である。
-	 * - Table B側から再評価が発生する。
-	 *
-	 * 操作:
-	 * - Table BのIdentityで保留要求を再評価する。
-	 *
-	 * 期待結果:
-	 * - Table Aの要求はTable Bへ適用されず、現在focusを変更しない。
-	 */
-	it( 'when another table reconciles while an RF request is pending, should not apply the pending request to that table', () => {
-		const referenceElement = document.createElement( 'div' );
-		const retainedFocus = document.createElement( 'button' );
-		document.body.append( referenceElement, retainedFocus );
-		retainedFocus.focus();
-
-		requestReorderFocus(
-			{
-				type: 'presentation-regeneration',
-				tableIdentity: TABLE_IDENTITY,
-				control: 'source',
-			},
-			referenceElement
-		);
-
-		const source = document.createElement( 'input' );
-		source.id = getRfControlId( 'source-row' );
-		document.body.append( source );
-
-		reconcileReorderFocus( 'table-b', referenceElement, 'stable' );
-
-		expect( referenceElement.ownerDocument.activeElement ).toBe( retainedFocus );
-	} );
-
-	/**
-	 * RF明示終了時に固定されたtoolbar入口へfocusを戻すことを確認する。
+	 * RF明示終了時に固定されたtoolbar入口へ即時focusすることを確認する。
 	 *
 	 * 事前条件:
 	 * - 現在Presentationに対象TableのRF toolbar入口が存在する。
@@ -219,10 +74,39 @@ describe( 'WordPress Reorder Integration focus coordination', () => {
 	} );
 
 	/**
+	 * 現在DOMに要求先が存在しない場合はfocus要求を保留しないことを確認する。
+	 *
+	 * 事前条件:
+	 * - rf-open要求時には方向選択が存在しない。
+	 * - 利用者は別の操作位置にfocusしている。
+	 *
+	 * 操作:
+	 * - rf-openを要求した後で方向選択を追加する。
+	 *
+	 * 期待結果:
+	 * - 要求時点のfocusを維持する。
+	 * - 後から成立した方向選択へ古い要求を適用しない。
+	 */
+	it( 'when an RF target is absent, should leave focus unchanged and not apply the request later', () => {
+		const referenceElement = document.createElement( 'div' );
+		const currentFocus = document.createElement( 'button' );
+		document.body.append( referenceElement, currentFocus );
+		currentFocus.focus();
+
+		requestReorderFocus( { type: 'rf-open', tableIdentity: TABLE_IDENTITY }, referenceElement );
+
+		const lateDirection = document.createElement( 'input' );
+		lateDirection.id = getRfControlId( 'kind-row' );
+		document.body.append( lateDirection );
+
+		expect( referenceElement.ownerDocument.activeElement ).toBe( currentFocus );
+	} );
+
+	/**
 	 * confirmation cancel後に固定された再実行操作へfocusを戻すことを確認する。
 	 *
 	 * 事前条件:
-	 * - 入力を保持したRFに「並び替え」操作が再成立している。
+	 * - 入力を保持したRFに「並び替え」操作が成立している。
 	 *
 	 * 操作:
 	 * - confirmation-cancel-restoration focusを要求する。
@@ -246,114 +130,32 @@ describe( 'WordPress Reorder Integration focus coordination', () => {
 	} );
 
 	/**
-	 * Presentationが安定した後もtargetが成立しないrequestを終了することを確認する。
+	 * Apply failure後はDesignで許可された入力修正位置へfocusできることを確認する。
 	 *
 	 * 事前条件:
-	 * - Presentation再生成requestがpendingである。
-	 * - stable時点にも対象controlが存在しない。
+	 * - RFに現在の移動先入力が成立している。
 	 *
 	 * 操作:
-	 * - stableとして再評価した後に対象controlを追加し、もう一度再評価する。
+	 * - 移動先を修正位置とするapply-failure-restorationを要求する。
 	 *
 	 * 期待結果:
-	 * - settle済みrequestは後から成立したcontrolへfocusしない。
+	 * - 現在の移動先入力へfocusする。
 	 */
-	it( 'when a pending RF target remains unavailable after presentation becomes stable, should not apply it later', () => {
+	it( 'when apply failure selects a correction control, should focus that current RF control', () => {
 		const referenceElement = document.createElement( 'div' );
-		const retainedFocus = document.createElement( 'button' );
-		document.body.append( referenceElement, retainedFocus );
-		retainedFocus.focus();
+		const destination = document.createElement( 'input' );
+		destination.id = getRfControlId( 'target-row' );
+		document.body.append( referenceElement, destination );
 
 		requestReorderFocus(
 			{
-				type: 'presentation-regeneration',
+				type: 'apply-failure-restoration',
 				tableIdentity: TABLE_IDENTITY,
 				control: 'destination',
 			},
 			referenceElement
 		);
-		reconcileReorderFocus( TABLE_IDENTITY, referenceElement, 'stable' );
 
-		const lateDestination = document.createElement( 'input' );
-		lateDestination.id = getRfControlId( 'target-row' );
-		document.body.append( lateDestination );
-		reconcileReorderFocus( TABLE_IDENTITY, referenceElement, 'stable' );
-
-		expect( referenceElement.ownerDocument.activeElement ).toBe( retainedFocus );
-	} );
-
-	/**
-	 * 利用者移動として破棄されたpending requestがfocusを奪わないことを確認する。
-	 *
-	 * 事前条件:
-	 * - Presentation再生成requestがpendingである。
-	 * - 利用者は別の操作位置へ移動している。
-	 *
-	 * 操作:
-	 * - user-movedでrequestを破棄し、その後targetを再成立させる。
-	 *
-	 * 期待結果:
-	 * - stale requestは新しい利用者focusを変更しない。
-	 */
-	it( 'when the user moves before a pending RF target returns, should abandon the stale focus request', () => {
-		const referenceElement = document.createElement( 'div' );
-		const userTarget = document.createElement( 'button' );
-		document.body.append( referenceElement, userTarget );
-
-		requestReorderFocus(
-			{
-				type: 'presentation-regeneration',
-				tableIdentity: TABLE_IDENTITY,
-				control: 'relation',
-			},
-			referenceElement
-		);
-		userTarget.focus();
-		abandonReorderFocus( TABLE_IDENTITY, 'user-moved' );
-
-		const relation = document.createElement( 'input' );
-		relation.id = getRfControlId( 'row-above' );
-		document.body.append( relation );
-		reconcileReorderFocus( TABLE_IDENTITY, referenceElement, 'stable' );
-
-		expect( referenceElement.ownerDocument.activeElement ).toBe( userTarget );
-	} );
-
-	/**
-	 * 新しいLifecycle requestが古いpending requestを置換することを確認する。
-	 *
-	 * 事前条件:
-	 * - 同じTableで以前のPresentation再生成requestがpendingである。
-	 * - 新しいRF open requestの方向選択が現在DOMに成立している。
-	 *
-	 * 操作:
-	 * - 新しいrequestを発行した後、古いtargetを再成立させる。
-	 *
-	 * 期待結果:
-	 * - 新しい方向選択へfocusし、古いrequestを再適用しない。
-	 */
-	it( 'when a new RF lifecycle request arrives, should replace an older pending request', () => {
-		const referenceElement = document.createElement( 'div' );
-		document.body.append( referenceElement );
-		requestReorderFocus(
-			{
-				type: 'presentation-regeneration',
-				tableIdentity: TABLE_IDENTITY,
-				control: 'source',
-			},
-			referenceElement
-		);
-
-		const direction = document.createElement( 'input' );
-		direction.id = getRfControlId( 'kind-row' );
-		document.body.append( direction );
-		requestReorderFocus( { type: 'rf-open', tableIdentity: TABLE_IDENTITY }, referenceElement );
-
-		const oldSource = document.createElement( 'input' );
-		oldSource.id = getRfControlId( 'source-row' );
-		document.body.append( oldSource );
-		reconcileReorderFocus( TABLE_IDENTITY, referenceElement, 'stable' );
-
-		expect( referenceElement.ownerDocument.activeElement ).toBe( direction );
+		expect( referenceElement.ownerDocument.activeElement ).toBe( destination );
 	} );
 } );
