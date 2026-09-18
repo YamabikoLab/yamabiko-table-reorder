@@ -33,10 +33,14 @@ export type ReorderFocusRequest =
  * @param request WordPress Reorder Integrationから受けたフォーカス要求。
  * @return requestの意味に対応するフォーカス先。
  */
-const getTarget = ( request: ReorderFocusRequest ): FocusSemanticTarget =>
-	request.type === 'rf-open'
-		? { type: 'rf-control', control: 'direction' }
-		: { type: 'rf-toolbar' };
+const getTarget = ( request: ReorderFocusRequest ): FocusSemanticTarget => {
+	const focusTarget: FocusSemanticTarget =
+		request.type === 'rf-open'
+			? { type: 'rf-control', control: 'direction' }
+			: { type: 'rf-toolbar' };
+
+	return focusTarget;
+};
 
 /**
  * WordPress Reorder IntegrationからRF系のフォーカスを要求する。
