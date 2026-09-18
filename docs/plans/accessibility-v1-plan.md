@@ -158,17 +158,15 @@ Plan作成時点でArchitecture変更を必要とする事項は確認されて�
 ### Phase 3: Focus Coordination foundation
 
 - Dependencies: Phase 2でfocus対象となるsemantic Presentationが成立していること。
-- Outcome: Designで定義されたfocus intentを現在Editor contextへ安全に適用し、RF側は即時適用、Apply success側だけ表示再成立を待てる共通調停責務が成立する。
+- Outcome: Designで定義されたfocus intentを、要求時点の現在Editor contextへ一回だけ安全に適用する共通調停責務が成立する。
 - Tasks:
   - semantic focus targetと遷移理由を受け取るFocus Coordinationの実装境界を追加する。
   - Editor DOM Contextを利用し、要求時点の現在Editor context内だけでtargetを解決する。
-  - RF側のintentは即時適用または無介入で完了し、pending stateを保持しない。
-  - Apply successでediting surfaceのtargetが一時的に存在しない場合だけ、対象TableとLifecycleに結び付いたpending intentを保持する。
-  - Apply success側は最終target、Architectureで許可されたfallback、対象Table消失、利用者による別位置への移動でintentをsettleする。
-  - 古いTable / Lifecycleのintentや、利用者が新しい操作位置へ移動した後のstale intentを適用しない。
+  - targetが成立すればfocusし、成立しなければ無介入で終了する。
+  - Focus Coordination自身はpending / retry / stale reason / Lifecycle世代を所有しない。
   - 長寿命DOM参照、RF open状態、Apply phase、Table構造、最終位置をFocus Coordinationへ複製しない。
 - Validation:
-  - JestでRF側の即時適用・target不成立時の無介入と、Apply success側のpending・target再成立・fallback・stale intent破棄を検証する。
+  - Jestで即時適用、target不成立時の無介入、許可されたfallbackだけを検証する。
   - iframe / non-iframe差をFocus Coordination内部の意味状態として保持しないことを確認する。
 
 ### Phase 4: RF lifecycle focus integration
@@ -190,23 +188,22 @@ Plan作成時点でArchitecture変更を必要とする事項は確認されて�
   - React / Jestでopen、explicit close、target不成立時の無介入と、RF側pending APIが存在しないことを検証する。
   - Playwrightでopen、explicit close、方向切替、Wide / Narrow、折りたたみ / 展開の実ユーザー操作Contractを確認する。
 
-### Phase 5: Apply lifecycle focus integration and restoration barrier
+### Phase 5: Apply lifecycle focus integration
 
 - Dependencies: Phase 1、Phase 3、Phase 4。確定済み最終位置とFocus Coordinationの両方が必要。
-- Outcome: 確認、反映中、Table表示再生成、success / failureをまたいでfocusが継続し、successは最終focus intentのsettle後だけ確定する。
+- Outcome: Apply success後、既存Apply Lifecycleの表示再成立待ちを利用して、確定済み最終位置へ一回だけ結果確認focusを適用できる。
 - Tasks:
-  - 確認開始時にDesignで定義した主要操作へfocusする。
-  - 確認Cancel後は入力を保持したRFの並び替え操作へfocusを戻す。
-  - Continue後は対象Tableの反映中状態を示す安定targetへfocusを移す。短時間反映では最終targetへ直接移れるLifecycleを許容する。
-  - Table表示再生成後、確定Move summaryからWordPress接続境界で表現変換した`destinationIndex`に対応する結果確認targetへfocusする。
-  - 最終位置を安全に適用できない場合はArchitectureで認めた対象Tableの安定位置だけへfallbackし、隣接位置から結果を推測しない。
-  - targetが再生成中に一時的に存在しない場合はPhase 3のpending intentを利用する。
-  - WordPress Reorder Apply IntegrationからRF Apply Coordinationへ返す表示復帰完了を、success側focus intentのsettle後に限定する。
-  - failureではTable未変更のediting surfaceと入力を復帰し、既存評価から定まる修正可能なsemantic targetへfocusする。
+  - confirmation開始時はWordPress Modalの標準focusを利用し、Focus Coordination専用requestを追加しない。
+  - confirmation Cancel後はWordPress Modalの標準focus returnを優先し、実ユーザー操作上の問題が確認されない限りRF側補完Contractを追加しない。
+  - applying中はWordPress Modalの標準focusを利用し、Focus Coordination専用requestを追加しない。
+  - Table更新後は既存Apply Lifecycleの描画待ちを利用し、editing surface成立後に確定Move summaryの`destinationIndex`へ`requestApplyFocus()`を一回適用する。
+  - 結果確認targetが成立しない場合は対象Table自体だけをfallbackとして試し、隣接位置や別セルを推測しない。
+  - Focus Coordination側にpending / retry / reconcile / abandon / Promise settlementを追加しない。
+  - Apply failure後の明示的なRF復帰focusは、実ユーザー操作上の必要性が確認された場合だけ、その具体的ケースに対する最小Contractを検討する。
   - confirmation Cancelをfailureとして扱わない。
 - Validation:
-  - Jestでconfirm → cancel、confirm → apply → restore、通常反映 → restore、failure restoration、pending focus barrierを検証する。
-  - Playwrightで通常Tableと大規模Tableのunmount / remount後にfocusが失われず、success確定前に最終focusがsettleすることを確認する。
+  - JestでRow / Column successの結果確認focus、Table fallback、target不成立時の無介入を検証する。
+  - Playwrightで通常Table / 大規模Table、Row / Column、iframe / non-iframeの代表経路において、既存描画待ち後の一回focusで実ユーザー操作上focusが成立することを確認する。
 
 ### Phase 6: Announcement Delivery and source-owned result events
 
