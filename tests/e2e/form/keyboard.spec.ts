@@ -186,8 +186,11 @@ test( 'when Cancel is reached from an open Reorder Form, should close without ch
 	const form = reorderForm( page );
 	await expect( form ).toBeVisible();
 
+	const apply = form.getByRole( 'button', { name: APPLY } );
+	await tabTo( page, apply );
 	const cancel = form.getByRole( 'button', { name: /^(Cancel|キャンセル)$/ } );
-	await tabTo( page, cancel );
+	await page.keyboard.press( 'Shift+Tab' );
+	await expect( cancel ).toBeFocused();
 	await page.keyboard.press( 'Enter' );
 
 	await expect( form ).toBeHidden();
