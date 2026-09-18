@@ -42,7 +42,7 @@ describe( 'WordPress Reorder Integration focus coordination', () => {
 
 		requestReorderFocus( { type: 'rf-open', tableIdentity: TABLE_IDENTITY }, referenceElement );
 
-		expect( document.activeElement ).toBe( direction );
+		expect( referenceElement.ownerDocument.activeElement ).toBe( direction );
 	} );
 
 	/**
@@ -77,7 +77,7 @@ describe( 'WordPress Reorder Integration focus coordination', () => {
 
 		reconcileReorderFocus( TABLE_IDENTITY, referenceElement, 'regenerating' );
 
-		expect( document.activeElement ).toBe( currentSource );
+		expect( referenceElement.ownerDocument.activeElement ).toBe( currentSource );
 	} );
 
 	/**
@@ -104,7 +104,7 @@ describe( 'WordPress Reorder Integration focus coordination', () => {
 			referenceElement
 		);
 
-		expect( document.activeElement ).toBe( toolbarEntry );
+		expect( referenceElement.ownerDocument.activeElement ).toBe( toolbarEntry );
 	} );
 
 	/**
@@ -131,7 +131,7 @@ describe( 'WordPress Reorder Integration focus coordination', () => {
 			referenceElement
 		);
 
-		expect( document.activeElement ).toBe( submit );
+		expect( referenceElement.ownerDocument.activeElement ).toBe( submit );
 	} );
 
 	/**
@@ -168,7 +168,7 @@ describe( 'WordPress Reorder Integration focus coordination', () => {
 		document.body.append( lateDestination );
 		reconcileReorderFocus( TABLE_IDENTITY, referenceElement, 'stable' );
 
-		expect( document.activeElement ).toBe( retainedFocus );
+		expect( referenceElement.ownerDocument.activeElement ).toBe( retainedFocus );
 	} );
 
 	/**
@@ -205,7 +205,7 @@ describe( 'WordPress Reorder Integration focus coordination', () => {
 		document.body.append( relation );
 		reconcileReorderFocus( TABLE_IDENTITY, referenceElement, 'stable' );
 
-		expect( document.activeElement ).toBe( userTarget );
+		expect( referenceElement.ownerDocument.activeElement ).toBe( userTarget );
 	} );
 
 	/**
@@ -243,6 +243,6 @@ describe( 'WordPress Reorder Integration focus coordination', () => {
 		document.body.append( oldSource );
 		reconcileReorderFocus( TABLE_IDENTITY, referenceElement, 'stable' );
 
-		expect( document.activeElement ).toBe( direction );
+		expect( referenceElement.ownerDocument.activeElement ).toBe( direction );
 	} );
 } );
