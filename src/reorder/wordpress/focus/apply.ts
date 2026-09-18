@@ -56,7 +56,8 @@ export const requestApplyFocus = (
 		referenceElement
 	);
 	// 確定後位置が現在DOMに成立する場合は、その位置だけを結果確認先として使用する。
-	if ( resolvedResult !== null && applyFocusTarget( resolvedResult ) ) {
+	if ( resolvedResult !== null ) {
+		applyFocusTarget( resolvedResult );
 		return;
 	}
 
