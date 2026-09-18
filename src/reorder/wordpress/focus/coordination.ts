@@ -17,14 +17,7 @@ export type FocusSemanticTarget =
 	| {
 			type: 'rf-control';
 			/** RF内でフォーカスする操作役割。 */
-			control:
-				| 'direction'
-				| 'source'
-				| 'destination'
-				| 'relation'
-				| 'submit'
-				| 'cancel'
-				| 'disclosure';
+			control: 'direction' | 'source' | 'destination' | 'relation' | 'submit';
 	  }
 	/** 対象TableのRF toolbar入口へフォーカスする。 */
 	| { type: 'rf-toolbar' }
@@ -75,7 +68,7 @@ const resolveTableBlock = (
  * RF内の意味上の操作役割を、現在の表示に存在する操作へ解決する。
  *
  * 行 / 列や位置関係のように同じ役割へ複数のradioが属する場合は、
- * 現在選択されている操作を優先し、表示再生成後も利用者の現在操作を維持する。
+ * 現在選択されている操作を優先し、要求時点の利用者の現在操作を維持する。
  *
  * @param editorDocument 現在Editor DOM Contextのdocument。
  * @param tableIdentity  対象TableのIdentity。
