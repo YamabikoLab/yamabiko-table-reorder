@@ -39,9 +39,9 @@ Phase 1ではRFをKeyboardと支援技術から利用できる正式な並び替
 - 入力問題と対象入力・修正情報の関連付け
 - no-op、構造拒否、利用不能を特定入力のvalidationとは分離した指定全体の結果として提示する接続
 - Focus Coordinationとsemantic focus targetの実装
-- RF open / close、確認開始 / Cancel、反映準備、表示復帰、success / failureのfocus lifecycle
-- Table表示再生成中だけ保持するLifecycle限定のpending focus intentとstale intent防止
-- RF Apply Coordinationの表示復帰完了をsuccess側focus intentのsettle後に確定する接続
+- RF open / explicit closeの即時focusと、Apply success時の結果確認focus接続
+- confirmation / applying / CancelではWordPress Componentsの標準focus Contractを優先する接続
+- Apply successでは既存Apply Lifecycleの描画待ち後に現在DOMへ一回focusする接続
 - Announcement Deliveryと一回性通知の接続
 - blocked / no-op / success / failureをfocusから独立して支援技術へ通知する実装
 - Row / Column両方向、Core Table / Flexible Table Block、iframe / non-iframe、Wide / Narrow、通常反映 / 確認付き大規模反映を含むvalidation
@@ -75,10 +75,10 @@ Phase 1ではRFをKeyboardと支援技術から利用できる正式な並び替
 - Accessibility Presentationが再validationせずに利用できる、対象入力と修正情報を含む入力問題の公開境界
 - blocked / no-op等の現在評価をそのままAnnouncementへ渡し、RF Interactionへ差分判定・重複抑制・一回性通知状態を追加しない接続
 - 通常反映 / 確認付き大規模反映の両方で、success時の移動前位置と確定後位置をLifecycle完了時に引き渡す確定Move summary Contract
-- RF open / closeや方向切替、Wide / Narrow切替でDesignどおりにfocusを維持・移動する接続
-- 確認、反映中、Table表示再生成、success / failureをまたぐFocus Coordination
-- 表示再生成中だけ保持し、対象Table・Lifecycle・利用者の現在位置を検証して適用するpending focus intent
-- success時に確定済み最終位置へfocusをsettleしてからRF Apply Coordinationの表示復帰を完了するbarrier
+- RF open / explicit closeでDesignどおりにfocusを移動し、方向切替やWide / Narrow切替では標準focus維持を優先する接続
+- RF open / explicit closeを即時適用するFocus Coordinationと、Apply success時の一回focus接続
+- confirmation / applying / CancelでWordPress標準focusを利用する接続
+- Apply successで既存Apply Lifecycleの描画待ちを再利用し、確定済み最終位置へ一回focusする接続
 - 視覚Noticeのmount / unmountとは独立したAnnouncement Delivery
 - success / failureの一回性結果とblocked / no-opの現在評価をfocus移動なしで通知する接続
 - Keyboard、semantic、focus、announcementを実ブラウザーとWordPress Editorで検証するE2E coverage
@@ -91,13 +91,13 @@ Phase 1ではRFをKeyboardと支援技術から利用できる正式な並び替
 
 次にAccessibility PresentationをWordPress Reorder Integration / WordPress Reorder Apply Integrationへ接続する。標準UI primitiveが提供するKeyboard / semantic Contractを優先し、YTRは操作名、選択状態、入力条件、実行可否、展開状態、入力問題との関係等の不足分だけを補う。この段階でRFの主要経路がKeyboardだけで操作可能であることと、focus対象として利用するsemantic targetが安定して識別できることを成立させる。
 
-その後、Focus Coordinationを独立した狭い責務として実装する。具体的DOM nodeを長寿命状態として保持せず、RF入口、方向選択、実行操作、確認主要操作、反映中状態、修正対象入力、確定後セル、対象Tableの安定位置等をsemantic targetとして扱う。Editor DOM Contextはfocus適用時点の現在context解決に利用する。
+その後、Focus Coordinationを独立した狭い責務として実装する。具体的DOM nodeやpending requestを保持せず、RF入口、方向選択、確定後セル、対象Tableの安定位置等、YTRが補完する必要のある最小semantic targetだけを扱う。confirmation / applying / CancelはWordPress Componentsの標準focus Contractへ委ね、Editor DOM Contextはfocus適用時点の現在context解決に利用する。
 
-Focus Coordinationの基盤成立後、まずRF open / close、方向切替、Wide / Narrow切替、入力問題という通常RF lifecycleを接続する。次に確認付き大規模反映と通常反映のApply lifecycleへ接続し、表示再生成時のpending intentとsuccess完了barrierを実装する。Apply結果のsuccess確定がfocus復帰より先行しないことをこの段階で保証する。
+Focus Coordinationの基盤成立後、まずRF open / explicit closeだけを即時focusとして通常RF lifecycleへ接続する。方向切替、Wide / Narrow切替、折りたたみ / 展開、入力問題では標準focus維持を優先し、専用pendingを追加しない。次に確認付き大規模反映と通常反映のApply lifecycleへ接続し、既存Apply Lifecycleの描画待ち後にsuccess結果確認focusを一回適用する。Focus Coordination自身にpending / retry / settlement barrierは追加しない。
 
 focus lifecycleが確定してからAnnouncement Deliveryを接続する。通知意味はRF Interaction / RF Apply Coordination / 方向固有Resolution・Table Integrationを正本とし、Announcement Deliveryはdeliveryだけを担当する。blocked / no-opはRF Interactionの現在評価が発生するたびに通知対象として扱い、差分判定・重複抑制は追加しない。success / failureは一回だけ取得する未提示結果から通知する。successの位置情報はPhase 1で引き渡された確定Move summaryだけを利用し、candidateや入力値から再計算しない。視覚Noticeの存在やfocus移動をdelivery条件にしない。
 
-各PhaseではJestで純粋な意味変換、状態遷移、一回性、stale防止等を検証し、WordPress / browser固有のKeyboard、focus、iframe、再mount、accessibility treeへの公開はPlaywright E2Eで検証する。最終PhaseではCore Table / Flexible Table Blockとiframe / non-iframeの代表環境を横断する。
+各PhaseではJestで純粋な意味変換、状態遷移、一回性等を検証し、WordPress / browser固有のKeyboard、focus、iframe、accessibility treeへの公開はPlaywright E2Eで検証する。実ユーザー操作で再現しないremount専用focus対策は追加しない。最終PhaseではCore Table / Flexible Table Blockとiframe / non-iframeの代表環境を横断する。
 
 実装中に新しい状態所有、責務境界、Lifecycle、Invariantが必要になった場合はPlan内でArchitectureを変更せず、`docs/architecture/reorder-form-v1-architecture.md`を先に更新してから本Planを追従させる。
 
@@ -110,7 +110,7 @@ focus lifecycleが確定してからAnnouncement Deliveryを接続する。通�
 - RF Input Interpretationは入力成立性と修正対象の正本を維持し、Accessibility Presentation用にvalidationを複製しない。
 - RF InteractionはRF Session、現在評価、未提示Apply結果の正本を維持する。blocked / no-opは現在評価をそのまま公開し、差分判定・重複抑制・一回性通知状態を所有しない。確定済みsuccess結果はPresentationとAnnouncementが競合して消費しない形で一回性結果として保持する。
 - Row / Column RF ResolutionとTable Integrationはno-op、構造拒否、利用不能、方向固有診断、確定後位置の正本を維持する。
-- RF Apply CoordinationはApply Lifecycle、確認summary、結果、確定後位置を維持し、通常反映 / 確認付き大規模反映の両方で、移動前位置と確定後位置を持つ確定Move summaryをLifecycle完了時のsuccess結果へ引き渡す。success側ではfocus intentのsettleを含む表示復帰後にのみ完了する。
+- RF Apply CoordinationはApply Lifecycle、確認summary、結果、確定後位置を維持し、通常反映 / 確認付き大規模反映の両方で、移動前位置と確定後位置を持つ確定Move summaryをLifecycle完了時のsuccess結果へ引き渡す。success側では既存Apply Lifecycleの描画待ち後に結果確認focusを一回適用してから完了する。
 - WordPress Reorder Integration / WordPress Reorder Apply IntegrationはAccessibility Presentation、Focus Coordination、Announcement Deliveryへの接続を追加するが、RF / Apply意味を別状態として所有しない。
 - Editor DOM Contextは現在のEditor context解決を再利用し、iframe / non-iframe別のfocus状態を保持しない。
 - 既存の視覚通知は利用者向けPresentationとして維持し、Announcement Deliveryの発行条件や履歴の正本にはしない。
@@ -158,52 +158,52 @@ Plan作成時点でArchitecture変更を必要とする事項は確認されて�
 ### Phase 3: Focus Coordination foundation
 
 - Dependencies: Phase 2でfocus対象となるsemantic Presentationが成立していること。
-- Outcome: Designで定義されたfocus intentを現在Editor contextへ安全に適用し、表示再生成時だけpendingできる共通調停責務が成立する。
+- Outcome: Designで定義されたfocus intentを、要求時点の現在Editor contextへ一回だけ安全に適用する共通調停責務が成立する。
 - Tasks:
   - semantic focus targetと遷移理由を受け取るFocus Coordinationの実装境界を追加する。
   - Editor DOM Contextを利用し、要求時点の現在Editor context内だけでtargetを解決する。
-  - 即時適用できるintentは状態を保持せず完了する。
-  - 表示再生成でtargetが一時的に存在しない場合だけ、対象TableとLifecycleに結び付いたpending intentを保持する。
-  - 最終target、Architectureで許可されたfallback、対象Table消失、利用者による別位置への移動でintentをsettleする。
-  - 古いTable / Lifecycleのintentや、利用者が新しい操作位置へ移動した後のstale intentを適用しない。
+  - targetが成立すればfocusし、成立しなければ無介入で終了する。
+  - Focus Coordination自身はpending / retry / stale reason / Lifecycle世代を所有しない。
   - 長寿命DOM参照、RF open状態、Apply phase、Table構造、最終位置をFocus Coordinationへ複製しない。
 - Validation:
-  - Jestで即時適用、pending、target再成立、fallback、対象消失、利用者移動、stale intent破棄を検証する。
+  - Jestで即時適用、target不成立時の無介入、許可されたfallbackだけを検証する。
   - iframe / non-iframe差をFocus Coordination内部の意味状態として保持しないことを確認する。
 
 ### Phase 4: RF lifecycle focus integration
 
 - Dependencies: Phase 2、Phase 3。
-- Outcome: Apply前の通常RF操作でDesignどおりにfocusを維持・復帰し、利用者の操作位置を奪わない。
+- Outcome: Apply前の通常RF操作では実ユーザー操作として必要なfocusだけを即時適用し、標準focus維持を不要な調停で上書きしない。
 - Tasks:
-  - RF open後に行 / 列選択へfocusする。
-  - RFの明示的Cancelでは対象Tableが操作可能な場合にtoolbar入口へfocusを戻す。
-  - toolbar入口の再操作によるcloseでは現在入口focusを維持する。
-  - 別Table / 別Editor操作へ移動したことによるRF終了では古い入口への復帰intentを生成しない。
-  - Row / Column切替では選択操作へfocusを残し、次のTab順序を標準操作へ委ねる。
-  - Wide / Narrow切替と折りたたみ / 展開では現在操作のfocusを維持する。
-  - 入力問題、no-op、構造拒否の通知だけを理由にfocusを移動しない。
+  - RF open後、現在DOMに成立した行 / 列選択へ即時focusする。
+  - RFの明示的Cancelでは`rf-explicit-close`を要求し、現在DOMに対象Tableのtoolbar入口が成立する場合だけfocusを戻す。
+  - toolbar入口の再操作によるcloseではfocus requestを生成せず、現在入口focusを維持する。
+  - 別Table / 別Editor操作へ移動したことによるexternal closeでは古い入口への復帰intentを生成しない。
+  - Row / Column切替ではnative radioのfocusを維持し、次のTab順序を標準操作へ委ねる。
+  - Wide / Narrow切替では専用focus requestを生成せず、React / browserの標準focus維持を優先する。
+  - 折りたたみ / 展開ではdisclosure button自身の標準focusを維持する。
+  - 入力問題、no-op、構造拒否、利用不能の提示だけを理由にfocusを移動しない。
+  - RF側の`presentation-regeneration`、pending state、`reconcileReorderFocus()`、`abandonReorderFocus()`を削除する。
+  - remount対策のためだけのSession世代、追加Store、一回性管理、Toolbar→Presentation専用橋渡し状態を追加しない。
 - Validation:
-  - React testでopen / explicit close / external close / direction switch / responsive regenerationのfocus intent生成条件を検証する。
-  - PlaywrightでKeyboard操作中にfocusが`body`や古いPresentationへ落ちないことを確認する。
+  - React / Jestでopen、explicit close、target不成立時の無介入と、RF側pending APIが存在しないことを検証する。
+  - Playwrightでopen、explicit close、方向切替、Wide / Narrow、折りたたみ / 展開の実ユーザー操作Contractを確認する。
 
-### Phase 5: Apply lifecycle focus integration and restoration barrier
+### Phase 5: Apply lifecycle focus integration
 
 - Dependencies: Phase 1、Phase 3、Phase 4。確定済み最終位置とFocus Coordinationの両方が必要。
-- Outcome: 確認、反映中、Table表示再生成、success / failureをまたいでfocusが継続し、successは最終focus intentのsettle後だけ確定する。
+- Outcome: Apply success後、既存Apply Lifecycleの表示再成立待ちを利用して、確定済み最終位置へ一回だけ結果確認focusを適用できる。
 - Tasks:
-  - 確認開始時にDesignで定義した主要操作へfocusする。
-  - 確認Cancel後は入力を保持したRFの並び替え操作へfocusを戻す。
-  - Continue後は対象Tableの反映中状態を示す安定targetへfocusを移す。短時間反映では最終targetへ直接移れるLifecycleを許容する。
-  - Table表示再生成後、確定Move summaryからWordPress接続境界で表現変換した`destinationIndex`に対応する結果確認targetへfocusする。
-  - 最終位置を安全に適用できない場合はArchitectureで認めた対象Tableの安定位置だけへfallbackし、隣接位置から結果を推測しない。
-  - targetが再生成中に一時的に存在しない場合はPhase 3のpending intentを利用する。
-  - WordPress Reorder Apply IntegrationからRF Apply Coordinationへ返す表示復帰完了を、success側focus intentのsettle後に限定する。
-  - failureではTable未変更のediting surfaceと入力を復帰し、既存評価から定まる修正可能なsemantic targetへfocusする。
+  - confirmation開始時はWordPress Modalの標準focusを利用し、Focus Coordination専用requestを追加しない。
+  - confirmation Cancel後はWordPress Modalの標準focus returnを優先し、実ユーザー操作上の問題が確認されない限りRF側補完Contractを追加しない。
+  - applying中はWordPress Modalの標準focusを利用し、Focus Coordination専用requestを追加しない。
+  - Table更新後は既存Apply Lifecycleの描画待ちを利用し、editing surface成立後に確定Move summaryの`destinationIndex`へ`requestApplyFocus()`を一回適用する。
+  - 結果確認targetが成立しない場合は対象Table自体だけをfallbackとして試し、隣接位置や別セルを推測しない。
+  - Focus Coordination側にpending / retry / reconcile / abandon / Promise settlementを追加しない。
+  - Apply failure後の明示的なRF復帰focusは、実ユーザー操作上の必要性が確認された場合だけ、その具体的ケースに対する最小Contractを検討する。
   - confirmation Cancelをfailureとして扱わない。
 - Validation:
-  - Jestでconfirm → cancel、confirm → apply → restore、通常反映 → restore、failure restoration、pending focus barrierを検証する。
-  - Playwrightで通常Tableと大規模Tableのunmount / remount後にfocusが失われず、success確定前に最終focusがsettleすることを確認する。
+  - JestでRow / Column successの結果確認focus、Table fallback、target不成立時の無介入を検証する。
+  - Playwrightで通常Table / 大規模Table、Row / Column、iframe / non-iframeの代表経路において、既存描画待ち後の一回focusで実ユーザー操作上focusが成立することを確認する。
 
 ### Phase 6: Announcement Delivery and source-owned result events
 
