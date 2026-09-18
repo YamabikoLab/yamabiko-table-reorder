@@ -13,6 +13,21 @@ type NormalizeReorderCommandResult = {
 	command: string;
 };
 
+
+/**
+ * Chat Reorder PoCのAbility入出力をブラウザConsoleへ記録する。
+ *
+ * 利用者入力とcompact Table contextを含むため、PoCの調査用途に限定し、外部送信や永続化は行わない。
+ *
+ * @param phase API境界で記録するrequest / response / error種別。
+ * @param value 記録対象の未加工値。
+ */
+const logChatAiExchange = ( phase: 'request' | 'response' | 'error', value: unknown ): void => {
+	// Chat Reorder PoCのAPI境界をブラウザ上で追跡できるよう、意図した診断ログだけを許可する。
+	// eslint-disable-next-line no-console
+	console.info( `[YTR Chat Reorder API] ${ phase }`, value );
+};
+
 /**
  * Ability実行結果から未信頼のRF Command Textを取得する。
  *
@@ -50,10 +65,18 @@ export const requestChatReorderCommand = async (
 	] );
 
 	await coreAbilities.ready;
-	const result = await abilities.executeAbility( NORMALIZE_REORDER_COMMAND_ABILITY, {
+	const request = {
 		input,
 		context: serializeChatReorderContext( context ),
-	} );
+	};
+	logChatAiExchange( 'request', request );
 
-	return getCommandText( result );
+	try {
+		const result = await abilities.executeAbility( NORMALIZE_REORDER_COMMAND_ABILITY, request );
+		logChatAiExchange( 'response', result );
+		return getCommandText( result );
+	} catch ( error ) {
+		logChatAiExchange( 'error', error );
+		throw error;
+	}
 };
