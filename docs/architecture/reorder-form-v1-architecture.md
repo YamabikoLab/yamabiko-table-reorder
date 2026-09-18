@@ -783,7 +783,7 @@ Column通常反映でApply評価、Policy選択、確定更新直前の最終再
 
 ### RF Row large apply continue {#RV_RF_ROW_LARGE_APPLY_CONTINUE}
 
-Rowの確認付き大規模反映で、Apply評価とPolicy選択から確認、Continue、反映準備、最終再照合と確定更新、表示復帰、success focus settle、結果通知までを一つの成功経路として成立させる。
+Rowの確認付き大規模反映で、Apply評価とPolicy選択から確認、Continue、反映準備、最終再照合と確定更新、表示復帰、success結果確認focus、結果通知までを一つの成功経路として成立させる。
 
 | Step | Source | Target | Interaction |
 | ---: | --- | --- | --- |
@@ -814,7 +814,7 @@ Rowの確認付き大規模反映で、Apply評価とPolicy選択から確認、
 
 ### RF Column large apply continue {#RV_RF_COLUMN_LARGE_APPLY_CONTINUE}
 
-Columnの確認付き大規模反映で、Apply評価とPolicy選択から確認、Continue、反映準備、最終再照合と確定更新、表示復帰、success focus settle、結果通知までを一つの成功経路として成立させる。
+Columnの確認付き大規模反映で、Apply評価とPolicy選択から確認、Continue、反映準備、最終再照合と確定更新、表示復帰、success結果確認focus、結果通知までを一つの成功経路として成立させる。
 
 | Step | Source | Target | Interaction |
 | ---: | --- | --- | --- |
