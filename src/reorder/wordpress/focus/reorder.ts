@@ -35,9 +35,7 @@ export type ReorderFocusRequest =
  */
 const getTarget = ( request: ReorderFocusRequest ): FocusSemanticTarget => {
 	const focusTarget: FocusSemanticTarget =
-		request.type === 'rf-open'
-			? { type: 'rf-control', control: 'direction' }
-			: { type: 'rf-toolbar' };
+		request.type === 'rf-open' ? { type: 'rf-control' } : { type: 'rf-toolbar' };
 
 	return focusTarget;
 };
