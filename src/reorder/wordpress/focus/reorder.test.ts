@@ -84,6 +84,61 @@ describe( 'WordPress Reorder Integration focus coordination', () => {
 		expect( document.activeElement ).toBe( currentSource );
 	} );
 
+
+	/**
+	 * RF明示終了時に固定されたtoolbar入口へfocusを戻すことを確認する。
+	 *
+	 * 事前条件:
+	 * - 現在Presentationに対象TableのRF toolbar入口が存在する。
+	 *
+	 * 操作:
+	 * - rf-explicit-close focusを要求する。
+	 *
+	 * 期待結果:
+	 * - 対象TableのRF toolbar入口へfocusする。
+	 */
+	it( 'when RF closes explicitly, should focus the fixed reorder form toolbar entry', () => {
+		const referenceElement = document.createElement( 'div' );
+		const toolbarEntry = document.createElement( 'button' );
+		toolbarEntry.dataset.ytrFocusTarget = 'rf-toolbar';
+		toolbarEntry.dataset.ytrTableIdentity = TABLE_IDENTITY;
+		document.body.append( referenceElement, toolbarEntry );
+
+		requestReorderFocus(
+			{ type: 'rf-explicit-close', tableIdentity: TABLE_IDENTITY },
+			referenceElement
+		);
+
+		expect( document.activeElement ).toBe( toolbarEntry );
+	} );
+
+	/**
+	 * confirmation cancel後に固定された再実行操作へfocusを戻すことを確認する。
+	 *
+	 * 事前条件:
+	 * - 入力を保持したRFに「並び替え」操作が再成立している。
+	 *
+	 * 操作:
+	 * - confirmation-cancel-restoration focusを要求する。
+	 *
+	 * 期待結果:
+	 * - 「並び替え」操作へfocusする。
+	 */
+	it( 'when confirmation cancellation restores RF, should focus the fixed submit control', () => {
+		const referenceElement = document.createElement( 'div' );
+		const submit = document.createElement( 'button' );
+		submit.dataset.ytrFocusControl = 'submit';
+		submit.dataset.ytrTableIdentity = TABLE_IDENTITY;
+		document.body.append( referenceElement, submit );
+
+		requestReorderFocus(
+			{ type: 'confirmation-cancel-restoration', tableIdentity: TABLE_IDENTITY },
+			referenceElement
+		);
+
+		expect( document.activeElement ).toBe( submit );
+	} );
+
 	/**
 	 * Presentationが安定した後もtargetが成立しないrequestを終了することを確認する。
 	 *
