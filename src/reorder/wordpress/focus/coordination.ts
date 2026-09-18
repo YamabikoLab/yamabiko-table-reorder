@@ -122,8 +122,7 @@ const resolveReorderControl = (
 			editorDocument.getElementById( `${ prefix }-column-left` ),
 			editorDocument.getElementById( `${ prefix }-column-right` ),
 		] as Array< HTMLInputElement | null >;
-		const selectedRelation =
-			relations.find( ( element ) => element?.checked ) ?? null;
+		const selectedRelation = relations.find( ( element ) => element?.checked ) ?? null;
 		const currentRelation =
 			selectedRelation ?? relations.find( ( element ) => element !== null ) ?? null;
 		return currentRelation;

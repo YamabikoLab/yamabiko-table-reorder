@@ -82,7 +82,6 @@ describe( 'WordPress Reorder Integration focus coordination', () => {
 		expect( referenceElement.ownerDocument.activeElement ).toBe( currentSource );
 	} );
 
-
 	/**
 	 * RF表示再生成後も、現在選択されている方向へ操作位置を維持することを確認する。
 	 *
@@ -118,7 +117,6 @@ describe( 'WordPress Reorder Integration focus coordination', () => {
 
 		expect( referenceElement.ownerDocument.activeElement ).toBe( columnDirection );
 	} );
-
 
 	/**
 	 * RF表示再生成後も、現在選択されている位置関係へ操作位置を維持することを確認する。

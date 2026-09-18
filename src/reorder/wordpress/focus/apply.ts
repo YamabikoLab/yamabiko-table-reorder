@@ -77,9 +77,8 @@ export type ApplyFocusSettlement =
 	| {
 			type: 'focused';
 			/** 実際にフォーカスした位置。 */
-			target:
-				/** 確定後位置に対応する結果確認セル。 */
-				| 'result'
+			target: /** 確定後位置に対応する結果確認セル。 */
+			| 'result'
 				/** 結果確認セルが成立しない場合の対象Table自体。 */
 				| 'table';
 	  }
@@ -87,9 +86,8 @@ export type ApplyFocusSettlement =
 	| {
 			type: 'abandoned';
 			/** フォーカスを適用しなかった理由。 */
-			reason:
-				/** 表示安定後も結果確認先と許可されたfallbackが成立しなかった。 */
-				| 'target-unavailable'
+			reason: /** 表示安定後も結果確認先と許可されたfallbackが成立しなかった。 */
+			| 'target-unavailable'
 				/** 対象TableがEditorから消失した。 */
 				| 'table-removed'
 				/** 利用者が別の操作位置へ移動した。 */
@@ -280,10 +278,7 @@ export function reconcileApplyFocus(
  * @param tableIdentity 破棄対象TableのIdentity。
  * @param reason        フォーカスを適用せず終了する理由。
  */
-export function abandonApplyFocus(
-	tableIdentity: string,
-	reason: ApplyFocusAbandonReason
-): void {
+export function abandonApplyFocus( tableIdentity: string, reason: ApplyFocusAbandonReason ): void {
 	if ( pendingApplyFocus?.tableIdentity === tableIdentity ) {
 		settlePendingAsAbandoned( reason );
 	}

@@ -107,7 +107,6 @@ describe( 'WordPress Reorder Apply Integration focus coordination', () => {
 		expect( settlement ).toEqual( { type: 'focused', target: 'result' } );
 	} );
 
-
 	/**
 	 * 列移動後の確定論理列が結合セル内にある場合、その結合セルを結果確認位置として扱うことを確認する。
 	 *
@@ -223,7 +222,6 @@ describe( 'WordPress Reorder Apply Integration focus coordination', () => {
 			reason: 'target-unavailable',
 		} );
 	} );
-
 
 	/**
 	 * 対象Table消失時に保留中のsuccess requestを完了できることを確認する。
