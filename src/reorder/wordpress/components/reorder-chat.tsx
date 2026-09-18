@@ -115,8 +115,8 @@ export const ReorderChat = ( props: ReorderChatProps ) => {
 	return (
 		<>
 			{ children( entry ) }
-			{ submitting && active && <ReorderProgressModal /> }
-			{ anchor !== null && active && (
+			{ submitting && <ReorderProgressModal /> }
+			{ anchor !== null && active && ! submitting && (
 				<Popover anchor={ anchor } focusOnMount="firstElement" onClose={ close } placement="bottom">
 					<form className="yamabiko-table-reorder-chat" onSubmit={ submit }>
 						<TextControl
