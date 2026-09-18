@@ -68,7 +68,7 @@ Input InteractionはWordPress Reorder IntegrationからRow DnD Engine Integratio
 
 Row DnD Engine IntegrationはDnD Engineのactive DnD成立直前にReorder Target Resolutionの第二段階を要求する。第二段階が成立した場合だけ解決済みReorder Targetと開始時制約をDnD Interactionへ渡してSessionを開始する。Destination Resolutionの解決境界は同じDnDに属する一時状態として接続するが、その成立をSession開始条件にはしない。
 
-Destination ResolutionはDnD Engineの物理入力位置をDnD開始時のTable配置に対する論理行間境界へ変換する。スクロールによる対象Table全体の現在位置変化には追従する一方、Presentationによる行の見かけ上の移動を論理移動先判定へ混入させない。`rowspan`等による移動可否は判断しない。
+Destination ResolutionはDnD Engineの物理入力位置をDnD開始時のTable配置に対する論理行間境界へ変換する。スクロールによる対象Table全体の現在位置変化には追従する一方、Presentationの一時的な表示位置や表示geometryを論理移動先判定の正本へ混入させない。`rowspan`等による移動可否は判断しない。
 
 DnD InteractionはDestination Resolutionで解決済みの論理行間境界をSession開始時制約へ照合し、有効な移動先だけを意味状態として保持する。`complete`では現在構造へ再照合し、成立する場合はTable Integrationから更新対象セル数を取得してReorder Apply Policyへ反映経路の選択を要求する。通常反映ではTable Integrationへ確定済み行移動を要求し、確認付き大規模反映ではDnD Sessionを終了してからRow Reorder Applyへ確定済み移動意図を引き渡す。
 
@@ -144,7 +144,7 @@ DnD complete後に更新対象セル数から確認付き大規模反映へ分�
 | RESP_ROW_TARGET_RESOLUTION | Reorder Target Resolution | active DnD成立前に現在行制約から移動行の開始可否を二段階で解決し、開始可能時は開始時制約を返す。 |
 | RESP_ROW_DND_INTERACTION | DnD Interaction | 解決済みReorder Targetから始まる行DnD Session、論理移動先の有効性、確定、cancel、終了後モード解決を所有する。 |
 | RESP_ROW_REORDER_APPLY | Reorder Apply | DnD Session終了後の確認付き大規模反映について、確定済み行移動意図、確認、反映開始、現在構造再照合、表示復帰完了までの方向固有Lifecycleを所有する。 |
-| RESP_ROW_PRESENTATION | Reorder Presentation | 操作可否、開始不可、移動対象、水平挿入位置、周囲行移動、終了通知をRow Reorderの独立表示として表現する。 |
+| RESP_ROW_PRESENTATION | Reorder Presentation | 操作可否、開始不可、移動対象、水平挿入位置、drop直後の一時的位置表示、終了通知をRow Reorderの独立表示として表現する。 |
 
 ### Ownership Boundaries
 
@@ -584,25 +584,26 @@ DnD Session終了後に確認付き大規模反映の移動意図を一つだけ
 
 ##### Responsibility
 
-Row Reorderの開始可否、active DnD意味状態、および必要なDnD Engine物理情報から、操作可能・移動不可状態、移動対象行、水平挿入位置、周囲行移動、開始拒否、終了通知を独立した表示として表現する。
+Row Reorderの開始可否、active DnD意味状態、および必要なDnD Engine物理情報から、操作可能・移動不可状態、移動対象行、水平挿入位置、drop直後の一時的位置表示、開始拒否、終了通知を独立した表示として表現する。
 
 ##### State ownership
 
-表示と一回性通知に必要な一時状態だけを所有する。Tableデータ、DnD Session、Target Resolution結果の正本、DnD Engine物理状態を所有しない。
+表示と一回性通知に必要な一時状態だけを所有する。active DnD中の表示状態と、DnD Session終了後も短時間だけ成立するdrop後一時表示を区別する。Tableデータ、DnD Session、Target Resolution結果の正本、DnD Engine物理状態を所有しない。
 
 ##### Contract
 
-Input Interactionから原因となる結合セル位置と操作位置を一回性通知として受ける。開始拒否通知の一時状態はReorder Presentationが所有し、DnD SessionやTable本体の意味状態から分離する。行並び替えモード中の操作可能・移動不可表示ではReorder Target Resolutionを利用し、`rowspan`等の構造制約を重複判定しない。DnD Interactionのactive状態と現在有効移動先を購読し、DnD Engineの物理情報は表示に必要な時点だけ利用する。
+Input Interactionから原因となる結合セル位置と操作位置を一回性通知として受ける。開始拒否通知の一時状態はReorder Presentationが所有し、DnD SessionやTable本体の意味状態から分離する。行並び替えモード中の操作可能・移動不可表示ではReorder Target Resolutionを利用し、`rowspan`等の構造制約を重複判定しない。DnD Interactionのactive状態と現在有効移動先を購読し、DnD Engineの物理情報は表示に必要な時点だけ利用する。cancelされず、drop直前に有効な挿入位置を表示できていた場合だけ、その最後のdestinationと移動元行の表示geometryからdrop後一時表示を成立させる。
 
 操作可否表示の判定はDnD開始可否を確定しない。実際の開始試行ではInput InteractionとDnD Engine Integrationが現在制約による第一段階・第二段階解決を要求する。
 
 ##### Lifecycle
 
-操作可否表示は行並び替えモード中の対象行に対して一時的に成立する。開始拒否通知はDesignで定義された期間だけ表示する。active DnD表示はDnD InteractionのSession開始と終了に追従する。cancelまたは成立しないdropでは異常終了通知を表示しない。安全に確定できない終了でDesignが通知を要求する場合だけ短い終了通知を表示する。
+操作可否表示は行並び替えモード中の対象行に対して一時的に成立する。開始拒否通知はDesignで定義された期間だけ表示する。active DnD表示はDnD InteractionのSession開始と終了に追従する。正常なphysical drop後の一時表示はSession終了後もDesignで定義された短時間だけ独立して成立し、新しいDnD開始または表示期間終了で破棄する。cancelまたは表示対象が成立しない終了ではdrop後一時表示を開始しない。cancelまたは成立しないdropでは異常終了通知を表示しない。安全に確定できない終了でDesignが通知を要求する場合だけ短い終了通知を表示する。
 
 ##### Invariants
 
 - 表示状態をTableデータまたはDnD Sessionの正本にしない。
+- drop後一時表示をTable更新成功または確定後の結果位置の権威にしない。
 - 開始可否や構造上の移動可否をPresentation独自に再実装しない。
 - 操作可否表示の解決結果をDnD開始可否の権威にしない。
 - DnD中の表示のために実Tableの行順を変更しない。
@@ -670,7 +671,7 @@ DnD Engineの物理位置をDestination Resolutionで論理行間境界へ変換
 | 10 | RESP_ROW_DND_INTERACTION | RESP_ROW_TABLE_INTEGRATION | 通常反映の場合だけ確定済み行移動を要求する。 |
 | 11 | RESP_ROW_TABLE_INTEGRATION | EXT_SUPPORTED_TABLE_BLOCK | 行順を一回の更新として反映する。 |
 | 12 | RESP_ROW_TABLE_INTEGRATION | EXT_WORDPRESS_UNDO | 成立した行移動を一回のUndo単位として成立させる。 |
-| 13 | RESP_ROW_DND_INTERACTION | RESP_ROW_PRESENTATION | DnD Session終了を表示購読へ反映する。 |
+| 13 | RESP_ROW_DND_INTERACTION | RESP_ROW_PRESENTATION | DnD Session終了を表示購読へ反映し、active DnD表示を終了する。drop後一時表示はPresentation固有Lifecycleとして独立して扱う。 |
 | 14 | RESP_ROW_DND_INTERACTION | RESP_ROW_TABLE_INTEGRATION | Session破棄後、対象Tableが次のrow並び替えを安全に受けられるか現在状態を取得し直す。 |
 | 15 | RESP_ROW_DND_INTERACTION | RESP_REORDER_MODE | 対象Tableの継続可否だけを現在モードへ反映する。 |
 
@@ -682,7 +683,7 @@ Reorder Apply Policyが確認付き大規模反映を選択した場合、物理
 
 | Step | Source | Target | Interaction |
 | ---: | --- | --- | --- |
-| 1 | RESP_ROW_DND_INTERACTION | RESP_ROW_PRESENTATION | DnD Session終了を表示購読へ反映し、物理DnD表示を終了する。 |
+| 1 | RESP_ROW_DND_INTERACTION | RESP_ROW_PRESENTATION | DnD Session終了を表示購読へ反映し、active DnD表示を終了する。drop後一時表示は確認結果や確定結果とは独立したPresentation固有Lifecycleとして扱う。 |
 | 2 | RESP_ROW_DND_INTERACTION | RESP_ROW_TABLE_INTEGRATION | Session破棄後の対象Table利用可否を取得し直す。 |
 | 3 | RESP_ROW_DND_INTERACTION | RESP_REORDER_MODE | 対象Tableの継続可否だけを現在モードへ反映する。 |
 | 4 | RESP_ROW_DND_INTERACTION | RESP_ROW_REORDER_APPLY | DnD Session終了後に確定済み行移動意図を確認付き大規模反映として引き渡す。 |
@@ -772,7 +773,7 @@ Table IdentityはReorder Modeと行DnD Sessionが対象Tableを照合するた�
 
 ### Physical-to-logical destination separation
 
-Destination Resolutionは物理入力位置を論理行間境界へ変換するだけとし、DnD Interactionはその論理境界をSession開始時制約へ照合する。この分離により、DnD Engineや物理配置情報をDnD Sessionへ持ち込まず、Presentationによる見かけ上の行移動を論理移動先へ混入させない。
+Destination Resolutionは物理入力位置を論理行間境界へ変換するだけとし、DnD Interactionはその論理境界をSession開始時制約へ照合する。この分離により、DnD Engineや物理配置情報をDnD Sessionへ持ち込まず、Presentationの一時的な表示位置や表示geometryを論理移動先の正本へ混入させない。
 
 Destination Resolution境界の成立はSession開始条件ではない。開始時に対象配置を確定できない場合は、Sessionを開始した後の最初のmoveで再び成立を試みる。
 
@@ -843,7 +844,7 @@ Core TableとFlexible Table Blockの保存表現差はTable Integrationが吸収
 
 - DnD InteractionはDnD Engine固有の物理イベント、表示参照、計測結果をSession状態へ保持しない。
 - 大規模Tableでも`progress`ごとにSupported Table Blockの現在構造を再取得せず、Destination Resolutionの論理境界とSession開始時制約で移動先を判断する。
-- Destination Resolutionは開始時の論理行配置を利用し、Presentationによる行の表示変位を移動先判定へ混入させない。
+- Destination Resolutionは開始時の論理行配置を利用し、Presentationの一時的な表示位置や表示geometryを移動先判定へ混入させない。
 - DnD中は実Tableの行順を変更せず、表示更新と確定更新を分離する。
 - 1回の成立した行移動は1回の更新境界を通り、部分確定や複数Undo単位を作らない。
 - WordPress固有UI、WordPress Preferences、Supported Table Block固有表現、DnD Engine固有物理状態を、それぞれを所有する統合境界の外へ漏らさない。
