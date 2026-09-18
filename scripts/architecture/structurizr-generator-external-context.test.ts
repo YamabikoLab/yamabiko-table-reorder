@@ -1,8 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import type { ArchitectureModel } from './architecture-model';
-import { allowedExternalContextTypes } from './architecture-validation';
+import { externalContextTypes, type ArchitectureModel } from './architecture-model';
 import { generateStructurizrDsl } from './structurizr-generator';
 
 const model: ArchitectureModel = {
@@ -71,9 +70,9 @@ test( 'Architecture 要素の5分類を tag と視覚スタイルへ反映する
 	assert.doesNotMatch( dsl, /element "External Context"/u );
 
 	const generatedExternalTypes = [
-		...dsl.matchAll( /element "(External (?:System|Block|Capability|Environment|Library))" \{/gu ),
+		...dsl.matchAll( /element "(External [^"]+)" \{/gu ),
 	].map( ( match ) => match[ 1 ] );
-	assert.deepEqual( new Set( generatedExternalTypes ), new Set( allowedExternalContextTypes ) );
+	assert.deepEqual( new Set( generatedExternalTypes ), new Set( externalContextTypes ) );
 } );
 
 test( 'Process Flow View がなくても Architecture 要素のスタイルを生成する', () => {
