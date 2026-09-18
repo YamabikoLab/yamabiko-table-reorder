@@ -131,6 +131,7 @@ let pendingApplyFocus: PendingApplyFocus | null = null;
 const settlePendingAsAbandoned = (
 	reason: ApplyFocusAbandonReason | 'target-unavailable'
 ): void => {
+	// 保留中のsuccess要求がない場合は、別Lifecycleのsettlementを生成しない。
 	if ( pendingApplyFocus === null ) {
 		return;
 	}
@@ -146,6 +147,7 @@ const settlePendingAsAbandoned = (
  * @return requestの意味に対応する固定フォーカス先。
  */
 const getImmediateTarget = ( request: ApplyImmediateFocusRequest ): FocusSemanticTarget => {
+	// 確認開始とApply開始は、それぞれ設計で固定された単一のfocus先へ対応付ける。
 	const target: FocusSemanticTarget =
 		request.type === 'confirmation-open'
 			? { type: 'confirmation-continue' }
@@ -185,12 +187,14 @@ export function requestApplyFocus(
 	request: ApplyFocusRequest,
 	referenceElement: Element
 ): void | Promise< ApplyFocusSettlement > {
+	// 確認開始とApply開始は表示復帰barrierではないため、即時要求として処理する。
 	if ( request.type === 'confirmation-open' || request.type === 'apply-start' ) {
 		const target = resolveFocusTarget(
 			getImmediateTarget( request ),
 			request.tableIdentity,
 			referenceElement
 		);
+		// 即時要求は現在Presentationに固定先が存在する場合だけfocusし、不在でも保留しない。
 		if ( target !== null ) {
 			applyFocusTarget( target );
 		}
@@ -203,6 +207,7 @@ export function requestApplyFocus(
 	 */
 	settlePendingAsAbandoned( 'lifecycle-replaced' );
 
+	// success要求の種別に対応する移動方向を、そのまま結果確認位置の意味へ引き継ぐ。
 	const kind = request.type === 'row-success' ? 'row' : 'column';
 	const target: Extract< FocusSemanticTarget, { type: 'result-cell' } > = {
 		type: 'result-cell',
@@ -210,6 +215,8 @@ export function requestApplyFocus(
 		destinationIndex: request.destinationIndex,
 	};
 	const resultTarget = resolveFocusTarget( target, request.tableIdentity, referenceElement );
+	// 更新後の結果確認位置がすでに成立している場合は、表示復帰待ちを作らずsuccess要求を完了する。
+	// 更新後の現在表示で確定位置が成立した時点で、結果確認focusとしてsuccess要求を完了する。
 	if ( resultTarget !== null && applyFocusTarget( resultTarget ) ) {
 		return Promise.resolve( { type: 'focused', target: 'result' } );
 	}
@@ -238,6 +245,7 @@ export function reconcileApplyFocus(
 	referenceElement: Element,
 	restorationState: ApplyFocusRestorationState
 ): void {
+	// 保留要求がない場合や対象Tableが異なる場合は、現在の表示復帰へ干渉しない。
 	if ( pendingApplyFocus === null || pendingApplyFocus.tableIdentity !== tableIdentity ) {
 		return;
 	}
@@ -254,11 +262,13 @@ export function reconcileApplyFocus(
 		return;
 	}
 
+	// editing surface再成立中は結果確認位置の一時的不在を許容し、fallbackを確定しない。
 	if ( restorationState === 'restoring' ) {
 		return;
 	}
 
 	const tableTarget = resolveFocusTarget( { type: 'table' }, tableIdentity, referenceElement );
+	// 表示安定後に結果確認位置が成立しない場合だけ、対象Table自体への限定fallbackを許可する。
 	if ( tableTarget !== null && applyFocusTarget( tableTarget ) ) {
 		const { resolve } = pendingApplyFocus;
 		pendingApplyFocus = null;
@@ -279,6 +289,7 @@ export function reconcileApplyFocus(
  * @param reason        フォーカスを適用せず終了する理由。
  */
 export function abandonApplyFocus( tableIdentity: string, reason: ApplyFocusAbandonReason ): void {
+	// 破棄要求は同じ対象Tableに属するsuccess要求だけをsettleし、他Tableの表示復帰には干渉しない。
 	if ( pendingApplyFocus?.tableIdentity === tableIdentity ) {
 		settlePendingAsAbandoned( reason );
 	}
