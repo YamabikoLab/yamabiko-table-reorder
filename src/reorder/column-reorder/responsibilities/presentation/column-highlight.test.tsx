@@ -1,5 +1,5 @@
 /**
- * Column Reorderの開始前予告表示が、Reorder ModeとReorder Target Resolutionの開始可否に従って現在セルだけへ反映されることを確認する。
+ * Column Reorderの開始前予告表示が、Reorder ModeとReorder Target Resolutionの開始可否に従ってYTR所有DOMへ反映されることを確認する。
  */
 
 import { act, createEvent, fireEvent, render } from '@testing-library/react';
@@ -44,9 +44,10 @@ const resolveColumnReorderTargetMock = resolveColumnReorderTarget as jest.Mocked
 
 /**
  * ポインター終了入力を明示して通知する。
- * @param target
- * @param pointerType
- * @param relatedTarget
+ *
+ * @param target        終了入力を通知する要素。
+ * @param pointerType   入力種別。
+ * @param relatedTarget 移動先要素。
  */
 const firePointerOut = (
 	target: Element,
@@ -59,7 +60,27 @@ const firePointerOut = (
 	fireEvent( target, event );
 };
 
-const resetReorderMode = () => {
+/**
+ * Highlightの配置確認に使用するDOM矩形を作成する。
+ *
+ * @param values テスト条件として上書きする位置と寸法。
+ * @return 指定値以外を0としたDOM矩形。
+ */
+const rectangle = ( values: Partial< DOMRect > ): DOMRect =>
+	( {
+		top: 0,
+		right: 0,
+		bottom: 0,
+		left: 0,
+		width: 0,
+		height: 0,
+		x: 0,
+		y: 0,
+		toJSON: () => ( {} ),
+		...values,
+	} ) as DOMRect;
+
+const resetReorderMode = (): void => {
 	act( () => {
 		reorderMode.observeTable( '__column-highlight-test-reset__' );
 	} );
@@ -67,8 +88,10 @@ const resetReorderMode = () => {
 
 /**
  * 開始前のセル予告表示を確認するためのTableを描画する。
- * @param props
- * @param props.tableIdentity
+ *
+ * @param props               描画条件。
+ * @param props.tableIdentity 対象Table Identity。
+ * @return Column Highlightへ接続されたTable。
  */
 const TestTable = ( props: { tableIdentity?: string } ) => (
 	<ColumnHighlight tableIdentity={ props.tableIdentity ?? 'table-a' }>
@@ -116,36 +139,48 @@ describe( 'Column highlight', () => {
 	} );
 
 	/**
-	 * 概要:
-	 * - 開始可能な列では現在セルだけを操作可能として予告することを確認する。
+	 * 開始可能な列では現在セル位置だけを操作可能として予告することを確認する。
 	 *
 	 * 操作:
 	 * - 2列目のセルへポインターを移動する。
 	 *
 	 * 期待結果:
-	 * - 現在セルだけに操作可能表示が付く。
-	 * - 列全体を表すOverlayは生成されない。
+	 * - 対象セル自身のclassは変更されない。
+	 * - 対象セルの現在位置と寸法を持つYTR所有Highlightが生成される。
+	 * - Editor Documentは掴めるcursor状態になる。
 	 */
-	it( 'when target resolution resolves the current column, should preview only the current cell as highlightable', () => {
+	it( 'when target resolution resolves the current column, should show a YTR-owned resolved highlight without changing the cell class', () => {
 		const { getByTestId } = render( <TestTable /> );
-		fireEvent.pointerOver( getByTestId( 'column-1' ), { pointerType: 'mouse' } );
+		const currentCell = getByTestId( 'column-1' );
+		jest
+			.spyOn( currentCell, 'getBoundingClientRect' )
+			.mockReturnValue( rectangle( { top: 20, left: 40, width: 120, height: 48 } ) );
 
-		expect( getByTestId( 'column-1' ).className ).toBe(
-			'yamabiko-table-reorder-column-highlightable-cell'
-		);
-		expect( getByTestId( 'column-0' ).className ).toBe( '' );
-		expect( getByTestId( 'column-2' ).className ).toBe( '' );
-		expect( document.querySelector( '.yamabiko-table-reorder-column-highlight' ) ).toBeNull();
+		fireEvent.pointerOver( currentCell, { pointerType: 'mouse' } );
+
+		const highlight = document.querySelector( '.yamabiko-table-reorder-column-highlight' );
+		expect( currentCell.className ).toBe( '' );
+		expect(
+			highlight?.classList.contains( 'yamabiko-table-reorder-column-highlight-resolved' )
+		).toBe( true );
+		expect( ( highlight as HTMLElement | null )?.style.top ).toBe( '20px' );
+		expect( ( highlight as HTMLElement | null )?.style.left ).toBe( '40px' );
+		expect( ( highlight as HTMLElement | null )?.style.width ).toBe( '120px' );
+		expect( ( highlight as HTMLElement | null )?.style.height ).toBe( '48px' );
+		expect(
+			document.body.classList.contains( 'yamabiko-table-reorder-column-highlight-cursor-grab' )
+		).toBe( true );
 	} );
 
 	/**
-	 * 概要:
-	 * - 開始拒否となる列では現在セルだけを移動不可として予告することを確認する。
+	 * 開始拒否となる列では現在セル位置を移動不可として予告することを確認する。
 	 *
 	 * 期待結果:
-	 * - 現在セルだけに移動不可表示が付き、他セルには表示が付かない。
+	 * - 対象セル自身のclassは変更されない。
+	 * - YTR所有Highlightは移動不可状態になる。
+	 * - Editor Documentは通常cursor状態になる。
 	 */
-	it( 'when target resolution rejects the current column, should preview only the current cell as unavailable', () => {
+	it( 'when target resolution rejects the current column, should show a YTR-owned rejected highlight without changing the cell class', () => {
 		resolveColumnReorderTargetMock.mockReturnValue( {
 			status: 'rejected',
 			blockingMergedRange: {
@@ -157,32 +192,65 @@ describe( 'Column highlight', () => {
 			},
 		} );
 		const { getByTestId } = render( <TestTable /> );
-		fireEvent.pointerOver( getByTestId( 'column-1' ), { pointerType: 'mouse' } );
+		const currentCell = getByTestId( 'column-1' );
+		fireEvent.pointerOver( currentCell, { pointerType: 'mouse' } );
 
-		expect( getByTestId( 'column-1' ).className ).toBe(
-			'yamabiko-table-reorder-column-unavailable-cell'
-		);
-		expect( getByTestId( 'column-0' ).className ).toBe( '' );
-		expect( getByTestId( 'column-2' ).className ).toBe( '' );
+		const highlight = document.querySelector( '.yamabiko-table-reorder-column-highlight' );
+		expect( currentCell.className ).toBe( '' );
+		expect(
+			highlight?.classList.contains( 'yamabiko-table-reorder-column-highlight-rejected' )
+		).toBe( true );
+		expect(
+			document.body.classList.contains( 'yamabiko-table-reorder-column-highlight-cursor-default' )
+		).toBe( true );
 	} );
 
 	/**
-	 * 概要:
-	 * - 利用不能な列では操作可否を推測して表示しないことを確認する。
+	 * 利用不能な列では操作可否を推測して表示しないことを確認する。
 	 *
 	 * 期待結果:
-	 * - 現在セルに操作可能または移動不可の表示を付けない。
+	 * - YTR所有Highlightも開始前cursor状態も生成されない。
 	 */
-	it( 'when target resolution returns unavailable, should not preview an availability state', () => {
+	it( 'when target resolution returns unavailable, should not show a highlight or cursor state', () => {
 		resolveColumnReorderTargetMock.mockReturnValue( { status: 'unavailable' } );
 		const { getByTestId } = render( <TestTable /> );
 		fireEvent.pointerOver( getByTestId( 'column-1' ), { pointerType: 'mouse' } );
-		expect( getByTestId( 'column-1' ).className ).toBe( '' );
+
+		expect( document.querySelector( '.yamabiko-table-reorder-column-highlight' ) ).toBeNull();
+		expect( document.body.className ).not.toContain(
+			'yamabiko-table-reorder-column-highlight-cursor-'
+		);
 	} );
 
 	/**
-	 * 概要:
-	 * - 同一セル内部の移動では同じ開始可否判定を繰り返さないことを確認する。
+	 * 外部Blockが対象セルのclassを書き戻してもHighlightが失われないことを確認する。
+	 *
+	 * 事前条件:
+	 * - 開始可能なセルへHighlightが成立している。
+	 *
+	 * 操作:
+	 * - 外部Blockの再描画相当として対象セルのclassNameを書き換える。
+	 *
+	 * 期待結果:
+	 * - 対象セルは外部Blockのclassだけを持つ。
+	 * - YTR所有Highlightは維持される。
+	 */
+	it( 'when the block rewrites the highlighted cell class, should keep the independent highlight', () => {
+		const { getByTestId } = render( <TestTable /> );
+		const currentCell = getByTestId( 'column-1' );
+		fireEvent.pointerOver( currentCell, { pointerType: 'touch' } );
+		const highlight = document.querySelector( '.yamabiko-table-reorder-column-highlight' );
+
+		currentCell.className = 'is-selected';
+
+		expect( currentCell.className ).toBe( 'is-selected' );
+		expect( document.querySelector( '.yamabiko-table-reorder-column-highlight' ) ).toBe(
+			highlight
+		);
+	} );
+
+	/**
+	 * 同一セル内部の移動では同じ開始可否判定を繰り返さないことを確認する。
 	 *
 	 * 操作:
 	 * - セルから同じセル内の子要素へポインターを移動する。
@@ -199,91 +267,123 @@ describe( 'Column highlight', () => {
 	} );
 
 	/**
-	 * 概要:
-	 * - マウスが現在セルを離れた場合は予告表示を終了することを確認する。
+	 * マウスが現在セルを離れた場合は予告表示を終了することを確認する。
 	 *
 	 * 操作:
 	 * - 2列目から3列目へマウスポインターを移動する。
 	 *
 	 * 期待結果:
-	 * - 2列目の開始前表示が解除される。
+	 * - Highlightと開始前cursor状態が解除される。
 	 */
-	it( 'when the mouse leaves the current cell, should clear the cell preview', () => {
+	it( 'when the mouse leaves the current cell, should clear the highlight and cursor state', () => {
 		const { getByTestId } = render( <TestTable /> );
 		const currentCell = getByTestId( 'column-1' );
 		const nextCell = getByTestId( 'column-2' );
 		fireEvent.pointerOver( currentCell, { pointerType: 'mouse' } );
 		firePointerOut( currentCell, 'mouse', nextCell );
-		expect( currentCell.className ).toBe( '' );
+
+		expect( document.querySelector( '.yamabiko-table-reorder-column-highlight' ) ).toBeNull();
+		expect( document.body.className ).not.toContain(
+			'yamabiko-table-reorder-column-highlight-cursor-'
+		);
 	} );
 
 	/**
-	 * 概要:
-	 * - タッチではpointeroutだけで予告表示を終了しないことを確認する。
+	 * タッチではpointeroutだけで予告表示を終了しないことを確認する。
 	 *
 	 * 期待結果:
-	 * - 現在セルの操作可能表示を維持する。
+	 * - 現在セル位置のHighlightを維持する。
 	 */
-	it( 'when touch input ends on the current cell, should keep the cell preview', () => {
+	it( 'when touch input ends on the current cell, should keep the highlight', () => {
 		const { getByTestId } = render( <TestTable /> );
 		const currentCell = getByTestId( 'column-1' );
 		fireEvent.pointerOver( currentCell, { pointerType: 'touch' } );
 		firePointerOut( currentCell, 'touch' );
-		expect( currentCell.className ).toBe( 'yamabiko-table-reorder-column-highlightable-cell' );
+
+		expect( document.querySelector( '.yamabiko-table-reorder-column-highlight' ) ).not.toBeNull();
 	} );
 
 	/**
-	 * 概要:
-	 * - 別セルが操作対象になった場合は予告表示を新しいセルへ移すことを確認する。
+	 * 実際のscroll発生時に開始前予告を終了することを確認する。
+	 *
+	 * 事前条件:
+	 * - タッチ入力でHighlightが成立している。
+	 *
+	 * 操作:
+	 * - 現在のEditor Documentでscrollを発生させる。
 	 *
 	 * 期待結果:
-	 * - 以前の表示が解除され、新しいセルへ操作可能表示が付く。
+	 * - Highlightと開始前cursor状態が解除される。
+	 * - scroll後にHighlightは自動復元されない。
 	 */
-	it( 'when touch input recognizes another cell, should move the preview to the new cell', () => {
+	it( 'when scrolling occurs in the editor document, should clear the highlight without restoring it', () => {
 		const { getByTestId } = render( <TestTable /> );
-		const previousCell = getByTestId( 'column-1' );
-		const nextCell = getByTestId( 'column-2' );
-		fireEvent.pointerOver( previousCell, { pointerType: 'touch' } );
-		fireEvent.pointerOver( nextCell, { pointerType: 'touch' } );
-		expect( previousCell.className ).toBe( '' );
-		expect( nextCell.className ).toBe( 'yamabiko-table-reorder-column-highlightable-cell' );
+		fireEvent.pointerOver( getByTestId( 'column-1' ), { pointerType: 'touch' } );
+
+		document.dispatchEvent( new Event( 'scroll' ) );
+
+		expect( document.querySelector( '.yamabiko-table-reorder-column-highlight' ) ).toBeNull();
+		expect( document.body.className ).not.toContain(
+			'yamabiko-table-reorder-column-highlight-cursor-'
+		);
 	} );
 
 	/**
-	 * 概要:
-	 * - Column DnD開始時に開始前予告を破棄することを確認する。
+	 * 別セルが操作対象になった場合は予告表示を新しいセル位置へ移すことを確認する。
+	 *
+	 * 期待結果:
+	 * - 以前のHighlightが解除され、新しいセル位置へ1つだけHighlightが生成される。
+	 */
+	it( 'when touch input recognizes another cell, should replace the highlight with the new cell snapshot', () => {
+		const { getByTestId } = render( <TestTable /> );
+		fireEvent.pointerOver( getByTestId( 'column-1' ), { pointerType: 'touch' } );
+		const previousHighlight = document.querySelector( '.yamabiko-table-reorder-column-highlight' );
+		fireEvent.pointerOver( getByTestId( 'column-2' ), { pointerType: 'touch' } );
+		const nextHighlight = document.querySelector( '.yamabiko-table-reorder-column-highlight' );
+
+		expect( previousHighlight?.isConnected ).toBe( false );
+		expect( nextHighlight ).not.toBe( previousHighlight );
+		expect( document.querySelectorAll( '.yamabiko-table-reorder-column-highlight' ) ).toHaveLength(
+			1
+		);
+	} );
+
+	/**
+	 * Column DnD開始時に開始前予告を破棄することを確認する。
 	 *
 	 * 操作:
 	 * - Column DnD Lifecycleをactiveへ移行する。
 	 *
 	 * 期待結果:
-	 * - 開始前のセル予告表示が解除される。
+	 * - Highlightと開始前cursor状態が解除される。
 	 */
-	it( 'when column DnD starts, should clear the pre-drag cell preview', () => {
+	it( 'when column DnD starts, should clear the pre-drag highlight and cursor state', () => {
 		const { getByTestId } = render( <TestTable /> );
-		const currentCell = getByTestId( 'column-1' );
-		fireEvent.pointerOver( currentCell, { pointerType: 'mouse' } );
+		fireEvent.pointerOver( getByTestId( 'column-1' ), { pointerType: 'mouse' } );
 		mockColumnDndPhase = 'active';
 		mockColumnDndStateListener?.();
-		expect( currentCell.className ).toBe( '' );
+
+		expect( document.querySelector( '.yamabiko-table-reorder-column-highlight' ) ).toBeNull();
+		expect( document.body.className ).not.toContain(
+			'yamabiko-table-reorder-column-highlight-cursor-'
+		);
 		expect( getColumnDndPhase() ).toBe( 'active' );
 		expect( subscribeColumnDndState ).toHaveBeenCalled();
 	} );
 
 	/**
-	 * 概要:
-	 * - Table Identity変更時に前Tableの予告表示を持ち越さないことを確認する。
+	 * Table Identity変更時に前Tableの予告表示を持ち越さないことを確認する。
 	 *
 	 * 事前条件:
-	 * - Table Aのセルに操作可能表示が付いている。
+	 * - Table Aのセル位置にHighlightが成立している。
 	 *
 	 * 操作:
 	 * - Table IdentityをTable Bへ変更し、Table Bのセルへ再びポインターを移動する。
 	 *
 	 * 期待結果:
-	 * - Table Aの表示が解除され、Table Bの現在対象がTarget Resolutionへ渡される。
+	 * - Table AのHighlightが解除され、Table Bの現在対象がTarget Resolutionへ渡される。
 	 */
-	it( 'when the target table changes, should clear the previous preview and resolve the new table target', () => {
+	it( 'when the target table changes, should clear the previous highlight and resolve the new table target', () => {
 		const { getByTestId, rerender } = render( <TestTable tableIdentity="table-a" /> );
 		const currentCell = getByTestId( 'column-1' );
 		fireEvent.pointerOver( currentCell, { pointerType: 'mouse' } );
@@ -293,7 +393,7 @@ describe( 'Column highlight', () => {
 			reorderMode.select( 'column', 'table-b' );
 		} );
 		rerender( <TestTable tableIdentity="table-b" /> );
-		expect( currentCell.className ).toBe( '' );
+		expect( document.querySelector( '.yamabiko-table-reorder-column-highlight' ) ).toBeNull();
 
 		fireEvent.pointerOver( currentCell, { pointerType: 'mouse' } );
 		expect( resolveColumnReorderTargetMock ).toHaveBeenLastCalledWith( {
@@ -303,46 +403,46 @@ describe( 'Column highlight', () => {
 	} );
 
 	/**
-	 * 概要:
-	 * - Column Reorder Mode離脱時に表示を即時破棄し、通常編集では再表示しないことを確認する。
+	 * Column Reorder Mode離脱時に表示を即時破棄し、通常編集では再表示しないことを確認する。
 	 *
 	 * 操作:
 	 * - 表示成立後に同じToolbar入口を再選択して通常編集へ戻し、別セルへポインターを移動する。
 	 *
 	 * 期待結果:
-	 * - 既存表示が解除され、通常編集では新しい表示も付かない。
+	 * - 既存Highlightが解除され、通常編集では新しいHighlightも生成されない。
 	 */
-	it( 'when column reorder mode ends, should clear the current cell preview and stop marking cells', () => {
+	it( 'when column reorder mode ends, should clear the highlight and stop showing new highlights', () => {
 		const { getByTestId } = render( <TestTable /> );
-		const currentCell = getByTestId( 'column-1' );
-		fireEvent.pointerOver( currentCell, { pointerType: 'mouse' } );
-		expect( currentCell.className ).toBe( 'yamabiko-table-reorder-column-highlightable-cell' );
+		fireEvent.pointerOver( getByTestId( 'column-1' ), { pointerType: 'mouse' } );
 		act( () => {
 			reorderMode.select( 'column', 'table-a' );
 		} );
-		expect( currentCell.className ).toBe( '' );
+		expect( document.querySelector( '.yamabiko-table-reorder-column-highlight' ) ).toBeNull();
+
 		fireEvent.pointerOver( getByTestId( 'column-2' ), { pointerType: 'mouse' } );
-		expect( getByTestId( 'column-2' ).className ).toBe( '' );
+		expect( document.querySelector( '.yamabiko-table-reorder-column-highlight' ) ).toBeNull();
 	} );
 
 	/**
-	 * 概要:
-	 * - Presentation境界終了時に開始前表示を実Tableへ残さないことを確認する。
+	 * Presentation境界終了時に開始前表示をEditor Documentへ残さないことを確認する。
 	 *
 	 * 事前条件:
-	 * - セルに操作可能表示が付いている。
+	 * - Highlightと開始前cursor状態が成立している。
 	 *
 	 * 操作:
 	 * - Column Highlightをunmountする。
 	 *
 	 * 期待結果:
-	 * - 対象セルの開始前表示が解除される。
+	 * - YTR所有Highlightと開始前cursor状態が解除される。
 	 */
-	it( 'when the presentation boundary unmounts, should remove the temporary cell preview', () => {
+	it( 'when the presentation boundary unmounts, should remove the temporary highlight and cursor state', () => {
 		const { getByTestId, unmount } = render( <TestTable /> );
-		const currentCell = getByTestId( 'column-1' );
-		fireEvent.pointerOver( currentCell, { pointerType: 'mouse' } );
+		fireEvent.pointerOver( getByTestId( 'column-1' ), { pointerType: 'mouse' } );
 		unmount();
-		expect( currentCell.className ).toBe( '' );
+
+		expect( document.querySelector( '.yamabiko-table-reorder-column-highlight' ) ).toBeNull();
+		expect( document.body.className ).not.toContain(
+			'yamabiko-table-reorder-column-highlight-cursor-'
+		);
 	} );
 } );
