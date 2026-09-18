@@ -119,6 +119,43 @@ describe( 'WordPress Reorder Integration focus coordination', () => {
 		expect( referenceElement.ownerDocument.activeElement ).toBe( columnDirection );
 	} );
 
+
+	/**
+	 * RF表示再生成後も、現在選択されている位置関係へ操作位置を維持することを確認する。
+	 *
+	 * 事前条件:
+	 * - 行方向で「下」が選択されている。
+	 * - 表示再生成後の現在表示に「上 / 下」の両方が存在する。
+	 *
+	 * 操作:
+	 * - 位置関係のフォーカス維持を要求する。
+	 *
+	 * 期待結果:
+	 * - 先頭の「上」ではなく、現在選択中の「下」へフォーカスする。
+	 */
+	it( 'when RF relation controls regenerate with below selected, should preserve focus on the selected relation', () => {
+		const referenceElement = document.createElement( 'div' );
+		const above = document.createElement( 'input' );
+		above.type = 'radio';
+		above.id = getRfControlId( 'row-above' );
+		const below = document.createElement( 'input' );
+		below.type = 'radio';
+		below.id = getRfControlId( 'row-below' );
+		below.checked = true;
+		document.body.append( referenceElement, above, below );
+
+		requestReorderFocus(
+			{
+				type: 'presentation-regeneration',
+				tableIdentity: TABLE_IDENTITY,
+				control: 'relation',
+			},
+			referenceElement
+		);
+
+		expect( referenceElement.ownerDocument.activeElement ).toBe( below );
+	} );
+
 	/**
 	 * 別Tableの再評価によって保留中の操作位置を誤適用しないことを確認する。
 	 *
