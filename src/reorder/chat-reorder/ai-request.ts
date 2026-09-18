@@ -13,7 +13,6 @@ type NormalizeReorderCommandResult = {
 	command: string;
 };
 
-
 /**
  * Chat Reorder PoCのAbility入出力をブラウザConsoleへ記録する。
  *
