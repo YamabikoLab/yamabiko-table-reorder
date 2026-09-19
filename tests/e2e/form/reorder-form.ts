@@ -22,7 +22,6 @@ export const NO_OP =
 	/^(This selection won't change the order\.|この指定では並び順は変わりません。)$/;
 export const COMPLETION = /^(Reordering complete\.|並び替えが完了しました。)$/;
 export const LARGE_CONFIRMATION = /^(Apply the new order\?|並び替えを反映しますか？)$/;
-export const APPLYING = /^(Applying the new order…|並び替えを反映しています…)$/;
 export const CONTINUE = /^(Continue|続行)$/;
 export const COLLAPSE = /^(Collapse reorder form|並び替えフォームを折りたたむ)$/;
 export const EXPAND = /^(Expand reorder form|並び替えフォームを展開する)$/;
