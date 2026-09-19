@@ -127,7 +127,7 @@ workspace "YTR Reorder v1 Architecture" {
 				element.setGroup("Column Reorder")
 			}
 		}
-		RESP_COLUMN_PRESENTATION = element "Reorder Presentation" "Responsibility" "開始不可、移動対象、垂直挿入位置、Editor表示方式に応じた周囲列移動、終了通知をColumn Reorderの独立表示として表現する。" {
+		RESP_COLUMN_PRESENTATION = element "Reorder Presentation" "Responsibility" "DnD開始前の操作可否、開始拒否、移動元位置、Moving Column、垂直Insertion Line、post-drop outlineをColumn Reorderの独立表示として表現する。" {
 			tags "Responsibility"
 			!script groovy {
 				element.setGroup("Column Reorder")
@@ -230,7 +230,7 @@ workspace "YTR Reorder v1 Architecture" {
 		DEP_032 = RESP_COLUMN_DND_INTERACTION -> RESP_REORDER_MODE "Session終了後に対象Tableで列並び替えを安全に継続できるかだけを現在モードへ反映するために必要とする。" {
 			tags "Structural Dependency"
 		}
-		DEP_033 = RESP_COLUMN_PRESENTATION -> RESP_EDITOR_DOM_CONTEXT "現在のEditor DOM contextで一時表示を配置し、Editor表示方式に応じた周囲列移動方針を選択するために必要とする。" {
+		DEP_033 = RESP_COLUMN_PRESENTATION -> RESP_EDITOR_DOM_CONTEXT "iframe / non-iframeに共通する一時表示を現在のEditor DOM contextへ配置するために必要とする。" {
 			tags "Structural Dependency"
 		}
 		DEP_034 = RESP_COLUMN_PRESENTATION -> EXT_DND_ENGINE "移動対象表示等に必要な物理DnD情報をSessionへ複製せず利用するために必要とする。" {
@@ -239,7 +239,7 @@ workspace "YTR Reorder v1 Architecture" {
 		DEP_035 = RESP_COLUMN_PRESENTATION -> RESP_COLUMN_TARGET_RESOLUTION "操作可能列の事前表示等で開始可否の意味を重複判定せず利用するために必要とする。" {
 			tags "Structural Dependency"
 		}
-		DEP_036 = RESP_COLUMN_PRESENTATION -> RESP_COLUMN_DND_INTERACTION "active状態と現在の有効移動先を購読し、終了通知を受け取るために必要とする。" {
+		DEP_036 = RESP_COLUMN_PRESENTATION -> RESP_COLUMN_DND_INTERACTION "active状態と現在の有効移動先を購読し、DnD中表示のLifecycleへ反映するために必要とする。" {
 			tags "Structural Dependency"
 		}
 
@@ -312,7 +312,7 @@ workspace "YTR Reorder v1 Architecture" {
 		PF_023 = RESP_COLUMN_TABLE_INTEGRATION -> RESP_COLUMN_DND_INTERACTION "[failure] complete時の現在Table利用不能または更新不能を安全な確定不能結果として返す。" {
 			tags "Process Flow,ProcessFlow_PV_COLUMN_EXTERNAL_CHANGE_RECOVERY,failure"
 		}
-		PF_024 = RESP_COLUMN_DND_INTERACTION -> RESP_COLUMN_PRESENTATION "[recovery] DnD中表示を終了し、Designで通知対象となる確定不能だけを一回性通知へ反映する。" {
+		PF_024 = RESP_COLUMN_DND_INTERACTION -> RESP_COLUMN_PRESENTATION "[recovery] Session終了を表示購読へ反映し、DnD中表示を終了する。" {
 			tags "Process Flow,ProcessFlow_PV_COLUMN_EXTERNAL_CHANGE_RECOVERY,recovery"
 		}
 		PF_025 = RESP_COLUMN_DND_INTERACTION -> RESP_REORDER_MODE "[recovery] Session終了後に対象Tableで列並び替えを継続できるかだけを共通モード状態へ反映する。" {
@@ -814,10 +814,10 @@ workspace "YTR Reorder v1 Architecture" {
 				"runtime.RV_COLUMN_CURRENT_STATE_RECOVERY.step.2" "現在Table利用不能または更新不能を安全な確定不能結果として返す。"
 			}
 		}
-		RT_082 = RESP_COLUMN_DND_INTERACTION -> RESP_COLUMN_PRESENTATION "Sessionを終了し、Designで通知対象となる場合だけ一回性終了通知を発行する。" {
+		RT_082 = RESP_COLUMN_DND_INTERACTION -> RESP_COLUMN_PRESENTATION "Session終了を表示購読へ反映し、DnD中表示を終了する。" {
 			tags "Runtime Interaction,Runtime_RV_COLUMN_CURRENT_STATE_RECOVERY"
 			properties {
-				"runtime.RV_COLUMN_CURRENT_STATE_RECOVERY.step.3" "Sessionを終了し、Designで通知対象となる場合だけ一回性終了通知を発行する。"
+				"runtime.RV_COLUMN_CURRENT_STATE_RECOVERY.step.3" "Session終了を表示購読へ反映し、DnD中表示を終了する。"
 			}
 		}
 		RT_083 = RESP_COLUMN_DND_INTERACTION -> RESP_REORDER_MODE "対象Tableで次の列並び替えを安全に受けられるかだけを現在モードへ反映する。" {
