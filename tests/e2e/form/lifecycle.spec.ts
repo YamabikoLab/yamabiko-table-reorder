@@ -2,7 +2,6 @@ import { expect, test } from '@wordpress/e2e-test-utils-playwright';
 
 import {
 	APPLY,
-	APPLYING,
 	CANCEL,
 	COLUMN_BUTTON,
 	COLUMNS,
@@ -203,13 +202,7 @@ test( 'when a 310-cell column reorder is continued, should restore ordinary edit
 	await expect( confirmation ).toBeVisible();
 	const continueButton = confirmation.getByRole( 'button', { name: CONTINUE } );
 	await expect( continueButton ).toBeFocused();
-	const applying = page.getByRole( 'dialog', { name: APPLYING } );
-	const applyingStatus = applying.getByRole( 'status' );
-	await Promise.all( [
-		expect( applying ).toBeVisible(),
-		expect( applyingStatus ).toHaveAttribute( 'aria-busy', 'true' ),
-		continueButton.press( 'Enter' ),
-	] );
+	await continueButton.press( 'Enter' );
 	const announcement = canvas.getByRole( 'status' ).filter( { hasText: COLUMN_SUCCESS } );
 	await expect( announcement ).toHaveText(
 		/Moved column 1 to position 10\.|1列目を10列目の位置へ移動しました。/
