@@ -13,7 +13,7 @@ jest.mock( '@wordpress/components', () => ( {
 		onRemove?: () => void;
 		spokenMessage?: string;
 	} ) => (
-		<div data-spoken-message={ props.spokenMessage }>
+		<div data-snackbar="true" data-spoken-message={ props.spokenMessage }>
 			{ props.children }
 			<button type="button" onClick={ props.onRemove }>
 				Dismiss
@@ -58,7 +58,9 @@ describe( 'Reorder completion notice presentation', () => {
 
 		const message = screen.getByText( 'Reordering complete.' );
 		expect( message ).not.toBeNull();
-		expect( message.closest( '[data-spoken-message]' )?.getAttribute( 'data-spoken-message' ) ).toBeNull();
+		expect(
+			message.closest( '[data-snackbar]' )?.getAttribute( 'data-spoken-message' )
+		).toBeNull();
 		expect( screen.getByText( 'Reordering complete.' ).previousElementSibling ).not.toBeNull();
 	} );
 
@@ -119,7 +121,7 @@ describe( 'Reorder completion notice presentation', () => {
 		const message = screen.getByText( 'Reordering complete.' );
 		expect( message ).not.toBeNull();
 		expect(
-			message.closest( '[data-spoken-message]' )?.getAttribute( 'data-spoken-message' )
+			message.closest( '[data-snackbar]' )?.getAttribute( 'data-spoken-message' )
 		).toBe( '' );
 	} );
 
