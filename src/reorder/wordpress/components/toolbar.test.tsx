@@ -286,7 +286,7 @@ describe( 'Reorder toolbar exclusivity', () => {
 			kind: 'row',
 			input: { sourceRowNumber: '', targetRowNumber: '', position: null },
 			rowCount: 3,
-			result: { status: 'not-ready' },
+			result: { status: 'not-ready', inputProblems: [] },
 			canApply: false,
 		};
 		renderToolbar();

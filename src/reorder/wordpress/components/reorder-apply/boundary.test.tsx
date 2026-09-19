@@ -29,8 +29,9 @@ jest.mock( '@wordpress/components', () => ( {
 		title: string;
 		isDismissible?: boolean;
 		onRequestClose?: () => void;
+		focusOnMount?: string;
 	} ) => (
-		<div role="dialog" aria-label={ props.title }>
+		<div role="dialog" aria-label={ props.title } data-focus-on-mount={ props.focusOnMount }>
 			{ props.isDismissible !== false && (
 				<button type="button" aria-label="Close" onClick={ props.onRequestClose }>
 					Close
@@ -134,7 +135,9 @@ describe( 'WordPress Reorder Apply Integration boundary', () => {
 
 		expect( screen.getByText( 'Table content' ) ).not.toBeNull();
 		expect( screen.getByText( 'Row 1000 → 2' ) ).not.toBeNull();
-		expect( screen.getByRole( 'dialog', { name: 'Apply the new order?' } ) ).not.toBeNull();
+		const dialog = screen.getByRole( 'dialog', { name: 'Apply the new order?' } );
+		expect( dialog ).not.toBeNull();
+		expect( dialog.getAttribute( 'data-focus-on-mount' ) ).toBe( 'firstContentElement' );
 	} );
 
 	/**

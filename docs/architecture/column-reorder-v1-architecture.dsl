@@ -127,7 +127,7 @@ workspace "YTR Reorder v1 Architecture" {
 				element.setGroup("Column Reorder")
 			}
 		}
-		RESP_COLUMN_PRESENTATION = element "Reorder Presentation" "Responsibility" "開始不可、移動対象、垂直挿入位置、Editor表示方式に応じた周囲列移動、終了通知をColumn Reorderの独立表示として表現する。" {
+		RESP_COLUMN_PRESENTATION = element "Reorder Presentation" "Responsibility" "DnD開始前の操作可否、開始拒否、移動元位置、Moving Column、垂直Insertion Line、post-drop outline、終了通知をColumn Reorderの独立表示として表現する。" {
 			tags "Responsibility"
 			!script groovy {
 				element.setGroup("Column Reorder")
@@ -230,7 +230,7 @@ workspace "YTR Reorder v1 Architecture" {
 		DEP_032 = RESP_COLUMN_DND_INTERACTION -> RESP_REORDER_MODE "Session終了後に対象Tableで列並び替えを安全に継続できるかだけを現在モードへ反映するために必要とする。" {
 			tags "Structural Dependency"
 		}
-		DEP_033 = RESP_COLUMN_PRESENTATION -> RESP_EDITOR_DOM_CONTEXT "現在のEditor DOM contextで一時表示を配置し、Editor表示方式に応じた周囲列移動方針を選択するために必要とする。" {
+		DEP_033 = RESP_COLUMN_PRESENTATION -> RESP_EDITOR_DOM_CONTEXT "iframe / non-iframeに共通する一時表示を現在のEditor DOM contextへ配置するために必要とする。" {
 			tags "Structural Dependency"
 		}
 		DEP_034 = RESP_COLUMN_PRESENTATION -> EXT_DND_ENGINE "移動対象表示等に必要な物理DnD情報をSessionへ複製せず利用するために必要とする。" {

@@ -1,5 +1,5 @@
 /**
- * RF Interactionが反映結果をReact描画履歴から独立した未消費Outcomeとして保持・消費することを確認する。
+ * RF Interactionが反映結果をReact描画履歴から独立した未提示Outcomeとして保持・提示済み化することを確認する。
  */
 
 import { rowTableIntegration } from '@/reorder/row-reorder/responsibilities/table-integration';
@@ -28,6 +28,12 @@ const ROW_INPUT = {
 	sourceRowNumber: '1',
 	targetRowNumber: '3',
 	position: 'below' as const,
+};
+
+const ROW_MOVE_SUMMARY = {
+	kind: 'row' as const,
+	sourcePosition: 1,
+	destinationPosition: 3,
 };
 
 const resetInteraction = () => {
@@ -69,21 +75,20 @@ describe( 'RF Interaction apply outcome', () => {
 	} );
 
 	/**
-	 * 概要:
-	 * - 通常RF反映が同期的に完了しても成功結果を未消費Outcomeとして保持できることを確認する。
+	 * 通常RF反映が同期的に完了しても確定Move summaryを含む成功結果を未提示Outcomeとして保持できることを確認する。
 	 *
 	 * 事前条件:
 	 * - Table AのRow指定はApply可能である。
 	 *
 	 * 操作:
-	 * - RF Apply CoordinationがApply要求中に同期的にsuccessを返す。
+	 * - RF Apply CoordinationがApply要求中にsuccessと確定Move summaryを返す。
 	 *
 	 * 期待結果:
 	 * - Sessionはclosedになる。
-	 * - Table Aのsuccess OutcomeがReact描画とは独立して保持される。
+	 * - Table Aのsuccess Outcomeが同じMove summaryを保持する。
 	 */
-	it( 'when apply succeeds synchronously, should retain a successful outcome after closing the session', () => {
-		arrangeResolvedRowApply( 'success' );
+	it( 'when apply succeeds synchronously, should retain the confirmed move summary in the outcome', () => {
+		arrangeResolvedRowApply( { status: 'success', moveSummary: ROW_MOVE_SUMMARY } );
 		rfInteraction.open( 'table-a' );
 		rfInteraction.updateRowInput( 'table-a', ROW_INPUT );
 
@@ -93,25 +98,13 @@ describe( 'RF Interaction apply outcome', () => {
 		expect( rfInteractionStore.getState().applyOutcome ).toEqual( {
 			status: 'success',
 			tableIdentity: 'table-a',
+			moveSummary: ROW_MOVE_SUMMARY,
 		} );
 	} );
 
-	/**
-	 * 概要:
-	 * - RF反映失敗を成功と区別したOutcomeとして保持することを確認する。
-	 *
-	 * 事前条件:
-	 * - Table AのRow指定はApply可能である。
-	 *
-	 * 操作:
-	 * - RF Apply Coordinationがfailureを返す。
-	 *
-	 * 期待結果:
-	 * - 入力を保持したopen Sessionへ戻る。
-	 * - Table Aのfailure Outcomeが保持される。
-	 */
+	/** RF反映失敗はMove summaryを持たないOutcomeとして保持することを確認する。 */
 	it( 'when apply fails, should retain a failure outcome while reopening the session', () => {
-		arrangeResolvedRowApply( 'failure' );
+		arrangeResolvedRowApply( { status: 'failure' } );
 		rfInteraction.open( 'table-a' );
 		rfInteraction.updateRowInput( 'table-a', ROW_INPUT );
 
@@ -128,22 +121,9 @@ describe( 'RF Interaction apply outcome', () => {
 		} );
 	} );
 
-	/**
-	 * 概要:
-	 * - 利用者による確認取消を結果通知対象として残さないことを確認する。
-	 *
-	 * 事前条件:
-	 * - Table AのRow指定はApply可能である。
-	 *
-	 * 操作:
-	 * - RF Apply Coordinationがcancelledを返す。
-	 *
-	 * 期待結果:
-	 * - 入力を保持したopen Sessionへ戻る。
-	 * - Apply Outcomeはidleのままである。
-	 */
+	/** 利用者による確認取消を結果通知対象として残さないことを確認する。 */
 	it( 'when apply is cancelled, should reopen the session without an apply outcome', () => {
-		arrangeResolvedRowApply( 'cancelled' );
+		arrangeResolvedRowApply( { status: 'cancelled' } );
 		rfInteraction.open( 'table-a' );
 		rfInteraction.updateRowInput( 'table-a', ROW_INPUT );
 
@@ -157,22 +137,9 @@ describe( 'RF Interaction apply outcome', () => {
 		expect( rfInteractionStore.getState().applyOutcome ).toEqual( { status: 'idle' } );
 	} );
 
-	/**
-	 * 概要:
-	 * - 失敗後に再度反映を開始した場合、前回の未消費失敗結果を今回の反映へ持ち越さないことを確認する。
-	 *
-	 * 事前条件:
-	 * - Table Aの前回反映はfailureで終了し、同じ入力を保持したRF Sessionがopenへ戻っている。
-	 *
-	 * 操作:
-	 * - 前回のfailure Outcomeを消費しないまま、同じTableで再度Applyを要求する。
-	 *
-	 * 期待結果:
-	 * - Sessionは新しいapplyingへ進む。
-	 * - 前回のfailure Outcomeはidleへ戻り、今回の結果待ち状態と混在しない。
-	 */
+	/** 新しい反映開始時は前回の未提示失敗結果を今回の反映へ持ち越さないことを確認する。 */
 	it( 'when retry starts after a failure, should clear the previous failure outcome', () => {
-		arrangeResolvedRowApply( 'failure' );
+		arrangeResolvedRowApply( { status: 'failure' } );
 		rfInteraction.open( 'table-a' );
 		rfInteraction.updateRowInput( 'table-a', ROW_INPUT );
 		rfInteraction.requestApply( 'table-a' );
@@ -191,27 +158,18 @@ describe( 'RF Interaction apply outcome', () => {
 		expect( rfInteractionStore.getState().applyOutcome ).toEqual( { status: 'idle' } );
 	} );
 
-	/**
-	 * 概要:
-	 * - 新しいRF Session開始時に前回の未消費結果を引き継がないことを確認する。
-	 *
-	 * 事前条件:
-	 * - Table Aの成功Outcomeが残っている。
-	 *
-	 * 操作:
-	 * - Table Bで新しいRF Sessionを開始する。
-	 *
-	 * 期待結果:
-	 * - 新SessionはTable Bを対象として開始する。
-	 * - 前回の成功Outcomeはidleへ戻る。
-	 */
+	/** 新しいRF Session開始時に前回の未提示結果を引き継がないことを確認する。 */
 	it( 'when a new RF session starts, should clear an older apply outcome', () => {
 		jest.spyOn( rowTableIntegration, 'getConstraints' ).mockReturnValue( {
 			rowCount: 3,
 			blockedBoundaries: [],
 		} );
 		rfInteractionStore.setState( {
-			applyOutcome: { status: 'success', tableIdentity: 'table-a' },
+			applyOutcome: {
+				status: 'success',
+				tableIdentity: 'table-a',
+				moveSummary: ROW_MOVE_SUMMARY,
+			},
 		} );
 
 		rfInteraction.open( 'table-b' );
@@ -223,29 +181,21 @@ describe( 'RF Interaction apply outcome', () => {
 		expect( rfInteractionStore.getState().applyOutcome ).toEqual( { status: 'idle' } );
 	} );
 
-	/**
-	 * 概要:
-	 * - 未消費の反映結果は対象Tableからだけ消費できることを確認する。
-	 *
-	 * 事前条件:
-	 * - Table Aの成功Outcomeが未消費である。
-	 *
-	 * 操作:
-	 * - Table Bから消費を要求した後、Table Aから消費を要求する。
-	 *
-	 * 期待結果:
-	 * - Table Bからの要求では成功Outcomeを保持する。
-	 * - Table Aからの要求でidleへ戻る。
-	 */
-	it( 'when apply outcome is consumed, should clear it only for the owning table', () => {
+	/** 未提示の反映結果は対象TableのWordPress接続からだけ提示済みにできることを確認する。 */
+	it( 'when apply outcome is marked presented, should clear it only for the owning table', () => {
 		rfInteractionStore.setState( {
-			applyOutcome: { status: 'success', tableIdentity: 'table-a' },
+			applyOutcome: {
+				status: 'success',
+				tableIdentity: 'table-a',
+				moveSummary: ROW_MOVE_SUMMARY,
+			},
 		} );
 
 		rfInteraction.consumeApplyOutcome( 'table-b' );
 		expect( rfInteractionStore.getState().applyOutcome ).toEqual( {
 			status: 'success',
 			tableIdentity: 'table-a',
+			moveSummary: ROW_MOVE_SUMMARY,
 		} );
 
 		rfInteraction.consumeApplyOutcome( 'table-a' );

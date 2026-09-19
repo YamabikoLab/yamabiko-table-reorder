@@ -2,8 +2,8 @@
 /**
  * Plugin Name: Yamabiko Table Reorder
  * Description: Table reordering for supported blocks in the WordPress block editor.
- * Version: 0.9.7
- * Requires at least: 7.0
+ * Version: 1.0.0
+ * Requires at least: 6.8
  * Requires PHP: 8.1
  * Author: YamabikoLab
  * License: GPL-2.0-or-later

@@ -15,6 +15,7 @@ import {
 	openReorderForm,
 	reorderForm,
 	ROWS,
+	RIGHT,
 	rowOrder,
 	setPreferences,
 	SOURCE_COLUMN,
@@ -22,6 +23,7 @@ import {
 	tableAttributes,
 	tableData,
 	TARGET_ROW,
+	TARGET_COLUMN,
 	columnOrder,
 } from './reorder-form';
 
@@ -71,7 +73,8 @@ test( 'when a Table is stacked, should keep column form reorder available as an 
  * 期待結果:
  * - RF入口と入力画面を利用でき、行が初期選択される。
  * - 現在行範囲と整数条件が常に表示される。
- * - 未入力または範囲外の指定ではエラーを追加表示せず、並び替えを実行できない。
+ * - 範囲外の移動元だけが修正対象として公開され、入力条件との関係を認識できる。
+ * - 入力中のfocusを維持したまま、並び替えを実行できない。
  */
 test( 'when Reorder Form opens for a Core Table, should start with rows and disable apply until a valid selection is complete', async ( {
 	page,
@@ -87,9 +90,17 @@ test( 'when Reorder Form opens for a Core Table, should start with rows and disa
 	).toBeVisible();
 	await expect( form.getByRole( 'button', { name: APPLY } ) ).toBeDisabled();
 
-	await form.getByRole( 'spinbutton', { name: SOURCE_ROW } ).fill( '5' );
 	await form.getByRole( 'spinbutton', { name: TARGET_ROW } ).fill( '2' );
 	await form.getByRole( 'radio', { name: ABOVE } ).click();
+	const source = form.getByRole( 'spinbutton', { name: SOURCE_ROW } );
+	const target = form.getByRole( 'spinbutton', { name: TARGET_ROW } );
+	await source.fill( '5' );
+	await expect( source ).toBeFocused();
+	await expect( source ).toHaveAttribute( 'aria-invalid', 'true' );
+	await expect( source ).toHaveAccessibleDescription(
+		/Enter an integer from 1 to 4\.|1〜4の整数を入力してください。/
+	);
+	await expect( target ).not.toHaveAttribute( 'aria-invalid', 'true' );
 	await expect( form.getByRole( 'button', { name: APPLY } ) ).toBeDisabled();
 	await expect( form.getByRole( 'status' ) ).toHaveCount( 0 );
 } );
@@ -212,6 +223,7 @@ test( 'when a Core Table column is reordered with the form, should identify head
  *
  * 期待結果:
  * - no-opではTableを変更できない。
+ * - no-opは特定入力の問題にせず、focusを移動しない支援技術向け通知として認識できる。
  * - 列へ切り替えると行のno-op案内を引き継がず、列入力を独立して受け付ける。
  * - 行へ戻ると以前の行入力を保持し、現在Tableに対するno-op案内を表示する。
  * - no-opが編集履歴を作らないため、一回のUndoは直前のTable挿入を戻す。
@@ -223,19 +235,33 @@ test( 'when direction changes in one form session, should preserve independent i
 	await insertTable( page, editor );
 	const before = await tableData( editor );
 	const form = await openReorderForm( page );
+	const noOpNotice = form.getByRole( 'paragraph' ).filter( { hasText: NO_OP } );
 	await fillRowReorder( form, 1, 2, 'above' );
-	await expect( form.getByText( NO_OP ) ).toBeVisible();
+	const above = form.getByRole( 'radio', { name: ABOVE } );
+	const noOpAnnouncement = form.getByRole( 'status' ).filter( { hasText: NO_OP } );
+	await expect( noOpNotice ).toBeVisible();
+	await expect( noOpAnnouncement ).toHaveCount( 1 );
+	await expect( noOpAnnouncement ).toHaveText( NO_OP );
+	await expect( form.getByRole( 'spinbutton', { name: SOURCE_ROW } ) ).not.toHaveAttribute(
+		'aria-invalid',
+		'true'
+	);
+	await expect( form.getByRole( 'spinbutton', { name: TARGET_ROW } ) ).not.toHaveAttribute(
+		'aria-invalid',
+		'true'
+	);
+	await expect( above ).toBeFocused();
 	await expect( form.getByRole( 'button', { name: APPLY } ) ).toBeDisabled();
 
 	await form.getByRole( 'radio', { name: COLUMNS } ).click();
-	await expect( form.getByText( NO_OP ) ).toBeHidden();
+	await expect( noOpNotice ).toBeHidden();
 	await fillColumnReorder( form, 1, 3, 'right' );
 	await expect( form.getByRole( 'button', { name: APPLY } ) ).toBeEnabled();
 
 	await form.getByRole( 'radio', { name: ROWS } ).click();
 	await expect( form.getByRole( 'spinbutton', { name: SOURCE_ROW } ) ).toHaveValue( '1' );
 	await expect( form.getByRole( 'spinbutton', { name: TARGET_ROW } ) ).toHaveValue( '2' );
-	await expect( form.getByText( NO_OP ) ).toBeVisible();
+	await expect( noOpNotice ).toBeVisible();
 	expect( await tableData( editor ) ).toEqual( before );
 	await page.getByRole( 'button', { name: /^(Undo|元に戻す)$/ } ).click();
 	await expect.poll( () => tableData( editor ) ).toEqual( [] );
@@ -253,6 +279,7 @@ test( 'when direction changes in one form session, should preserve independent i
  *
  * 期待結果:
  * - 各方向で原因となる行・列rangeを含むメッセージを表示する。
+ * - Columnの構造拒否は特定入力の問題にせず、focusを移動しない支援技術向け通知として認識できる。
  * - 並び替えを実行できず、Tableデータを変更しない。
  */
 test( 'when row or column input would split merged cells, should identify the blocking range and preserve the Table', async ( {
@@ -289,9 +316,20 @@ test( 'when row or column input would split merged cells, should identify the bl
 	await form.getByRole( 'radio', { name: COLUMNS } ).click();
 	await expect( form.getByRole( 'status' ) ).toHaveCount( 0 );
 	await fillColumnReorder( form, 1, 2, 'right' );
-	await expect( form.getByRole( 'status' ) ).toContainText(
+	const blockedAnnouncement = form.getByRole( 'status' );
+	await expect( blockedAnnouncement ).toHaveCount( 1 );
+	await expect( blockedAnnouncement ).toContainText(
 		/merged cell in row 1 spanning columns 2–3|1行目の2〜3列目に結合セル/
 	);
+	await expect( form.getByRole( 'combobox', { name: SOURCE_COLUMN } ) ).not.toHaveAttribute(
+		'aria-invalid',
+		'true'
+	);
+	await expect( form.getByRole( 'combobox', { name: TARGET_COLUMN } ) ).not.toHaveAttribute(
+		'aria-invalid',
+		'true'
+	);
+	await expect( form.getByRole( 'radio', { name: RIGHT } ) ).toBeFocused();
 	await expect( form.getByRole( 'button', { name: APPLY } ) ).toBeDisabled();
 	expect( await tableData( editor ) ).toEqual( before );
 } );

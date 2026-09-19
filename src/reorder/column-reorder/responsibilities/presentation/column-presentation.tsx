@@ -13,6 +13,7 @@ import {
 	ColumnStartRejectionNotice,
 	type ColumnStartRejectionNoticeHandle,
 } from './start-rejection-notice';
+import { ColumnTerminationNotice } from './termination-notice';
 import type { Ref } from 'react';
 
 /**
@@ -31,5 +32,6 @@ export const ColumnPresentation = ( props: {
 		<ColumnInsertionLine />
 		<ColumnMovingDisplay />
 		<ColumnStartRejectionNotice ref={ props.startRejectionNoticeRef } />
+		<ColumnTerminationNotice />
 	</>
 );

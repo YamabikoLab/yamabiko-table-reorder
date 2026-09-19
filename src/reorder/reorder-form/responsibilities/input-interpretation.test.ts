@@ -1,5 +1,5 @@
 /**
- * RF Input InterpretationがRow / Columnフォーム入力の成立性だけを判定し、成立した入力を方向固有Resolution向け内部指定へ変換するContractを確認する。
+ * RF Input InterpretationがRow / Columnフォーム入力の成立性と修正対象を判定し、成立した入力を方向固有Resolution向け内部指定へ変換するContractを確認する。
  */
 
 import { interpretColumnRfInput, interpretRowRfInput } from './input-interpretation';
@@ -9,7 +9,7 @@ const columns = [ { columnIndex: 0 }, { columnIndex: 1 }, { columnIndex: 2 } ] a
 describe( 'RF Input Interpretation', () => {
 	describe( 'Row', () => {
 		/**
-		 * 必要入力が不足しているRowフォームをResolutionへ進めないことを確認する。
+		 * 必要入力が不足しているRowフォームを問題扱いせずResolutionへ進めないことを確認する。
 		 *
 		 * 事前条件:
 		 * - 現在Tableには10行存在する。
@@ -19,7 +19,8 @@ describe( 'RF Input Interpretation', () => {
 		 * - Row RF入力の解釈を要求する。
 		 *
 		 * 期待結果:
-		 * - 公開結果は一律に`not-ready`となる。
+		 * - 公開結果は`not-ready`となる。
+		 * - 未入力は`inputProblems`へ含まれない。
 		 */
 		it.each( [
 			[ '', '5', 'below' as const ],
@@ -27,16 +28,19 @@ describe( 'RF Input Interpretation', () => {
 			[ '2', '5', null ],
 			[ '', '', null ],
 		] )(
-			'when required Row input is missing, should return not-ready',
+			'when required Row input is missing, should return not-ready without input problems',
 			( sourceRowNumber, targetRowNumber, position ) => {
 				expect( interpretRowRfInput( { sourceRowNumber, targetRowNumber, position }, 10 ) ).toEqual(
-					{ status: 'not-ready' }
+					{
+						status: 'not-ready',
+						inputProblems: [],
+					}
 				);
 			}
 		);
 
 		/**
-		 * 現在の行範囲へ安全に変換できないRow入力を内部指定として公開しないことを確認する。
+		 * 現在の行範囲へ安全に変換できないRow入力を対象入力と修正範囲付きで公開することを確認する。
 		 *
 		 * 事前条件:
 		 * - 現在Tableには10行存在する。
@@ -46,37 +50,88 @@ describe( 'RF Input Interpretation', () => {
 		 * - Row RF入力の解釈を要求する。
 		 *
 		 * 期待結果:
-		 * - 公開結果は`not-ready`となり、入力エラー種別は公開されない。
+		 * - `not-ready`となり、不正な入力だけが1〜10の修正範囲とともに公開される。
 		 */
 		it.each( [
-			[ 'abc', '5' ],
-			[ '1.5', '5' ],
-			[ '0', '5' ],
-			[ '-1', '5' ],
-			[ '11', '5' ],
-			[ '2', 'abc' ],
-			[ '2', '11' ],
+			[ 'abc', '5', 'source' as const ],
+			[ '1.5', '5', 'source' as const ],
+			[ '0', '5', 'source' as const ],
+			[ '-1', '5', 'source' as const ],
+			[ '11', '5', 'source' as const ],
+			[ '2', 'abc', 'target' as const ],
+			[ '2', '11', 'target' as const ],
 		] )(
-			'when a Row number cannot be interpreted inside the current range, should return not-ready',
-			( sourceRowNumber, targetRowNumber ) => {
+			'when a Row number is invalid, should expose the affected input and current range',
+			( sourceRowNumber, targetRowNumber, target ) => {
 				expect(
 					interpretRowRfInput( { sourceRowNumber, targetRowNumber, position: 'below' }, 10 )
-				).toEqual( { status: 'not-ready' } );
+				).toEqual( {
+					status: 'not-ready',
+					inputProblems: [
+						{
+							target,
+							correction: { kind: 'row-number-range', min: 1, max: 10 },
+						},
+					],
+				} );
 			}
 		);
 
 		/**
-		 * Row入力範囲の下限と上限を有効な内部指定へ変換できることを確認する。
+		 * positionが未選択でも入力済みRow番号の問題を独立して公開できることを確認する。
 		 *
 		 * 事前条件:
 		 * - 現在Tableには10行存在する。
-		 * - sourceに1、targetに10を指定する。
+		 * - sourceは不正値、targetは有効値である。
+		 * - positionは未選択である。
 		 *
 		 * 操作:
 		 * - Row RF入力の解釈を要求する。
 		 *
 		 * 期待結果:
-		 * - 1-based行番号が0-based indexへ変換された`ready`結果が返る。
+		 * - sourceだけが1〜10の修正範囲を持つ入力問題として公開される。
+		 * - position未選択によってsourceの問題情報が失われない。
+		 */
+		it( 'when Row position is missing and only source is invalid, should expose only the source input problem', () => {
+			expect(
+				interpretRowRfInput( { sourceRowNumber: 'abc', targetRowNumber: '5', position: null }, 10 )
+			).toEqual( {
+				status: 'not-ready',
+				inputProblems: [
+					{
+						target: 'source',
+						correction: { kind: 'row-number-range', min: 1, max: 10 },
+					},
+				],
+			} );
+		} );
+
+		/**
+		 * source / targetの両方が不正な場合に両方の問題を同時に保持できることを確認する。
+		 *
+		 * 期待結果:
+		 * - source / targetそれぞれについて最大1件の入力問題が返る。
+		 */
+		it( 'when both Row numbers are invalid, should expose both input problems', () => {
+			expect(
+				interpretRowRfInput( { sourceRowNumber: 'abc', targetRowNumber: '0', position: null }, 10 )
+			).toEqual( {
+				status: 'not-ready',
+				inputProblems: [
+					{
+						target: 'source',
+						correction: { kind: 'row-number-range', min: 1, max: 10 },
+					},
+					{
+						target: 'target',
+						correction: { kind: 'row-number-range', min: 1, max: 10 },
+					},
+				],
+			} );
+		} );
+
+		/**
+		 * Row入力範囲の下限と上限を有効な内部指定へ変換できることを確認する。
 		 */
 		it( 'when Row numbers are at the valid range boundaries, should return their zero-based indexes', () => {
 			expect(
@@ -100,15 +155,6 @@ describe( 'RF Input Interpretation', () => {
 
 		/**
 		 * 入力段階ではsource / targetの位置関係からno-opを判定しないことを確認する。
-		 *
-		 * 事前条件:
-		 * - sourceとtargetに同じ行、または移動しても並び順が変わらない隣接指定を与える。
-		 *
-		 * 操作:
-		 * - Row RF入力の解釈を要求する。
-		 *
-		 * 期待結果:
-		 * - 入力自体が成立していれば`ready`となる。
 		 */
 		it.each( [
 			[ '3', '3', 'above' as const ],
@@ -125,71 +171,88 @@ describe( 'RF Input Interpretation', () => {
 
 	describe( 'Column', () => {
 		/**
-		 * 必要なColumn選択が不足している場合はResolutionへ進めないことを確認する。
-		 *
-		 * 事前条件:
-		 * - 現在の列選択肢が存在する。
-		 * - source、target、positionのいずれかが未選択である。
-		 *
-		 * 操作:
-		 * - Column RF入力の解釈を要求する。
-		 *
-		 * 期待結果:
-		 * - 公開結果は`not-ready`となる。
+		 * 必要なColumn選択が不足している場合は問題扱いせずResolutionへ進めないことを確認する。
 		 */
 		it.each( [
 			[ null, 1, 'right' as const ],
 			[ 0, null, 'right' as const ],
 			[ 0, 1, null ],
 		] )(
-			'when required Column input is not selected, should return not-ready',
+			'when required Column input is not selected, should return not-ready without input problems',
 			( sourceColumnIndex, targetColumnIndex, position ) => {
 				expect(
 					interpretColumnRfInput( { sourceColumnIndex, targetColumnIndex, position }, columns )
-				).toEqual( { status: 'not-ready' } );
+				).toEqual( { status: 'not-ready', inputProblems: [] } );
 			}
 		);
 
 		/**
-		 * 現在の列選択肢から消えた論理列Identityを内部指定として公開しないことを確認する。
-		 *
-		 * 事前条件:
-		 * - 現在の列選択肢には0〜2のIdentityだけが存在する。
-		 * - sourceまたはtargetに存在しないIdentityを指定する。
-		 *
-		 * 操作:
-		 * - Column RF入力の解釈を要求する。
-		 *
-		 * 期待結果:
-		 * - 公開結果は`not-ready`となる。
+		 * 現在の列選択肢から消えた論理列Identityを対象入力と再選択条件付きで公開することを確認する。
 		 */
 		it.each( [
-			[ 3, 1 ],
-			[ 0, 3 ],
+			[ 3, 1, 'source' as const ],
+			[ 0, 3, 'target' as const ],
 		] )(
-			'when a selected Column identity is absent from current choices, should return not-ready',
-			( sourceColumnIndex, targetColumnIndex ) => {
+			'when a selected Column identity is absent, should expose the affected input',
+			( sourceColumnIndex, targetColumnIndex, target ) => {
 				expect(
 					interpretColumnRfInput(
 						{ sourceColumnIndex, targetColumnIndex, position: 'right' },
 						columns
 					)
-				).toEqual( { status: 'not-ready' } );
+				).toEqual( {
+					status: 'not-ready',
+					inputProblems: [ { target, correction: { kind: 'select-current-column' } } ],
+				} );
 			}
 		);
 
 		/**
-		 * 現在の列選択肢に存在するIdentityをそのまま内部指定として渡すことを確認する。
+		 * sourceが未選択でも入力済みtargetの消失問題を独立して公開できることを確認する。
 		 *
 		 * 事前条件:
-		 * - source / targetのIdentityが現在の列選択肢に存在する。
-		 * - positionが選択済みである。
+		 * - sourceは未選択である。
+		 * - targetは選択済みだが現在の列選択肢から消失している。
 		 *
 		 * 操作:
 		 * - Column RF入力の解釈を要求する。
 		 *
 		 * 期待結果:
-		 * - 選択されたIdentityと位置を保持する`ready`結果が返る。
+		 * - targetだけが現在列からの再選択を要する入力問題として公開される。
+		 * - source未選択は入力問題として扱われず、targetの問題情報も失われない。
+		 */
+		it( 'when Column source is missing and target is absent, should expose only the target input problem', () => {
+			expect(
+				interpretColumnRfInput(
+					{ sourceColumnIndex: null, targetColumnIndex: 3, position: 'right' },
+					columns
+				)
+			).toEqual( {
+				status: 'not-ready',
+				inputProblems: [ { target: 'target', correction: { kind: 'select-current-column' } } ],
+			} );
+		} );
+
+		/**
+		 * source / targetの両方が現在の列選択肢から消えた場合に両方の問題を保持できることを確認する。
+		 */
+		it( 'when both selected Columns are absent, should expose both input problems', () => {
+			expect(
+				interpretColumnRfInput(
+					{ sourceColumnIndex: 3, targetColumnIndex: 4, position: null },
+					columns
+				)
+			).toEqual( {
+				status: 'not-ready',
+				inputProblems: [
+					{ target: 'source', correction: { kind: 'select-current-column' } },
+					{ target: 'target', correction: { kind: 'select-current-column' } },
+				],
+			} );
+		} );
+
+		/**
+		 * 現在の列選択肢に存在するIdentityをそのまま内部指定として渡すことを確認する。
 		 */
 		it( 'when current Column identities and position are selected, should return them as the specification', () => {
 			expect(
@@ -213,15 +276,6 @@ describe( 'RF Input Interpretation', () => {
 
 		/**
 		 * Column入力段階では同一source / targetをno-opとして拒否しないことを確認する。
-		 *
-		 * 事前条件:
-		 * - sourceとtargetに同じ現在Identityを指定する。
-		 *
-		 * 操作:
-		 * - Column RF入力の解釈を要求する。
-		 *
-		 * 期待結果:
-		 * - 入力成立性は満たすため`ready`となる。
 		 */
 		it( 'when source and target use the same current Column identity, should still return ready', () => {
 			expect(

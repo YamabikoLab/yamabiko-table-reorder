@@ -159,9 +159,11 @@ PR Validation uses the CI-only environment defined in `tests/e2e/compose.ci.yaml
 
 CI checks the smoke test and selected major Row / Column / Reorder Form suites against these representative supported environments:
 
-- WordPress 7.0.4: non-iframe editor, Flexible Table Block 3.9.0
-- WordPress 7.0.4: iframe editor, Flexible Table Block 3.9.0
-- WordPress 7.1.0: iframe editor, Flexible Table Block 3.9.0
+- WordPress 6.8.0 + PHP 8.1: non-iframe editor, Flexible Table Block 3.6.0
+- WordPress 7.0.4 + PHP 8.3: iframe editor, Flexible Table Block 3.9.0
+- WordPress 7.1.1 + PHP 8.3: iframe editor, Flexible Table Block 3.9.0
+
+The PHP quality job runs in parallel against PHP 8.1, 8.2, and 8.3. The E2E matrix keeps representative WordPress/PHP combinations instead of testing every cross-product.
 
 The CI-only `tests/e2e/fixtures/non-iframe.php` registers the same E2E-only Block API v2 block on both the server and editor client when `E2E_EDITOR_MODE=non-iframe`; this makes the WordPress 7.0 compatibility scenario exercise the non-iframe editing surface. The fixture block is hidden from the inserter and exists only to select the legacy editor context. Authentication setup verifies the expected editor mode before the suite runs. This representative matrix covers both editor contexts without duplicating every version/context combination. The fixture is not installed in local WordPress or included in the plugin distribution.
 

@@ -102,6 +102,13 @@ export const getRfTargetColumnLabel = () => __( 'Target column', 'yamabiko-table
 /** RFの列選択が未指定であることを示す選択肢を取得する。 */
 export const getRfSelectColumnLabel = () => __( 'Select a column', 'yamabiko-table-reorder' );
 
+/** 現在のTableから消失したRFの列選択を再選択するよう案内する文言を取得する。 */
+export const getRfColumnSelectionUnavailableMessage = () =>
+	__(
+		'The selected column is no longer available. Select a column again.',
+		'yamabiko-table-reorder'
+	);
+
 /** RFで移動先列の左を示す表示名を取得する。 */
 export const getRfLeftLabel = () => __( 'Left', 'yamabiko-table-reorder' );
 
@@ -250,14 +257,46 @@ export const getRfApplyLabel = () => __( 'Reorder', 'yamabiko-table-reorder' );
  * @return 現在の言語に対応したRF反映失敗メッセージ。
  */
 export const getRfApplyFailureMessage = () =>
-	__( 'Reordering failed. The table has not been changed.', 'yamabiko-table-reorder' );
+	__( 'The reorder could not be completed. The table was not changed.', 'yamabiko-table-reorder' );
 
 /**
- * 行DnDを安全に継続できず終了したことを知らせる文言を取得する。
+ * RFの行並び替え成功を、確定した移動前位置と反映後位置で支援技術へ知らせる文言を取得する。
  *
- * @return 現在の言語に対応した行DnD異常終了メッセージ。
+ * @param sourcePosition      並び替え前の1-based行位置。
+ * @param destinationPosition 並び替え完了後の1-based行位置。
+ * @return 確定した行移動結果を示すannouncement文言。
  */
-export const getRowDndTerminationMessage = () =>
+export const getRfRowReorderSuccessAnnouncement = (
+	sourcePosition: number,
+	destinationPosition: number
+) => {
+	/* translators: 1: 1-based source row position, 2: 1-based final row position */
+	const message = __( 'Moved row %1$d to position %2$d.', 'yamabiko-table-reorder' );
+	return sprintf( message, sourcePosition, destinationPosition );
+};
+
+/**
+ * RFの列並び替え成功を、確定した移動前位置と反映後位置で支援技術へ知らせる文言を取得する。
+ *
+ * @param sourcePosition      並び替え前の1-based列位置。
+ * @param destinationPosition 並び替え完了後の1-based列位置。
+ * @return 確定した列移動結果を示すannouncement文言。
+ */
+export const getRfColumnReorderSuccessAnnouncement = (
+	sourcePosition: number,
+	destinationPosition: number
+) => {
+	/* translators: 1: 1-based source column position, 2: 1-based final column position */
+	const message = __( 'Moved column %1$d to position %2$d.', 'yamabiko-table-reorder' );
+	return sprintf( message, sourcePosition, destinationPosition );
+};
+
+/**
+ * DnDを安全に継続できず終了したことを知らせる行・列共通文言を取得する。
+ *
+ * @return 現在の言語に対応したDnD終了メッセージ。
+ */
+export const getDndTerminationMessage = () =>
 	__( 'Reordering could not continue, so the operation was ended.', 'yamabiko-table-reorder' );
 
 /**

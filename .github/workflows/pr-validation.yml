@@ -93,9 +93,16 @@ jobs:
         run: npm run build
 
   php:
-    name: PHP
+    name: PHP ${{ matrix.php_version }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        php_version:
+          - '8.1'
+          - '8.2'
+          - '8.3'
 
     steps:
       - name: Check out repository
@@ -112,7 +119,7 @@ jobs:
       - name: Set up PHP
         uses: shivammathur/setup-php@v2
         with:
-          php-version: '8.3'
+          php-version: ${{ matrix.php_version }}
           tools: composer:v2
           coverage: none
 
@@ -136,23 +143,25 @@ jobs:
 
   e2e:
     if: ${{ inputs.run_e2e && (inputs.run_common_e2e || inputs.run_row_e2e || inputs.run_column_e2e || inputs.run_form_e2e) }}
-    name: E2E (WordPress ${{ matrix.wordpress_version }}, ${{ matrix.editor_mode }})
+    name: E2E (WordPress ${{ matrix.wordpress_version }})
     runs-on: ubuntu-latest
     timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
         include:
-          - wordpress_version: '7.1.0'
-            wordpress_image: 'wordpress:7.1.0-php8.3-apache'
+          - wordpress_version: '7.1.1'
+            php_version: '8.3'
+            wordpress_image: 'wordpress:7.1.1-php8.3-apache'
             editor_mode: iframe
             flexible_table_block_version: '3.9.0'
           - wordpress_version: '7.0.4'
+            php_version: '8.3'
             wordpress_image: 'wordpress:7.0.4-php8.3-apache'
             editor_mode: iframe
             flexible_table_block_version: '3.9.0'
-          - wordpress_version: '7.0.4'
-            wordpress_image: 'wordpress:7.0.4-php8.3-apache'
+          - wordpress_version: '6.8.3'
+            wordpress_image: 'wordpress:6.8.3-php8.3-apache'
             editor_mode: non-iframe
             flexible_table_block_version: '3.9.0'
     env:
@@ -261,7 +270,7 @@ jobs:
             --env WP_USERNAME \
             --env WP_PASSWORD \
             --env E2E_EDITOR_MODE \
-            mcr.microsoft.com/playwright:v1.62.1-noble \
+            mcr.microsoft.com/playwright:v1.63.0-noble \
             npx playwright test "${projects[@]}"
 
       - name: Capture Docker logs

@@ -138,7 +138,8 @@ Rules:
 
 - `ID` is the stable external-context ID.
 - `Name` is the human-readable architecture name.
-- `Type` classifies the external element without introducing implementation detail.
+- `Type` classifies the external element without introducing implementation detail. Use only `External System`, `External Block`, `External Capability`, `External Environment`, or `External Library`.
+- New External Context Types may be introduced only by extending the parser / validator / generator / visual style / tests together; do not add free-form Type values only in Markdown.
 - `Summary` briefly states why the element is relevant to the YTR boundary.
 - Structural Dependencies involving external elements are not inferred from this table. Define them explicitly in the Dependencies table.
 

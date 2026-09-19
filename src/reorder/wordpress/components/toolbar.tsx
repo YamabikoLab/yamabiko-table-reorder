@@ -98,21 +98,29 @@ const formReorderIcon = (
 		height="24"
 		fill="none"
 		stroke="currentColor"
-		strokeWidth="1.8"
+		strokeWidth="1.7"
 		strokeLinecap="round"
 		strokeLinejoin="round"
 	>
-		<rect x="1" y="2" width="13.8" height="12.8" rx="2.1" fill="none" />
-		<rect x="3.3" y="4.6" width="2.5" height="2.5" rx="0.4" fill="none" />
-		<rect x="7.3" y="4.6" width="5.2" height="2.5" rx="0.5" fill="none" />
-		<rect x="3.3" y="9" width="2.5" height="2.5" rx="0.4" fill="none" />
-		<rect x="7.3" y="9" width="5.2" height="2.5" rx="0.5" fill="none" />
-		<path d="M19.3 2.8v11.4" fill="none" />
-		<path d="m17.5 4.6 1.8-1.8 1.8 1.8" fill="none" />
-		<path d="m17.5 12.4 1.8 1.8 1.8-1.8" fill="none" />
-		<path d="M2.3 19.8h11.4" fill="none" />
-		<path d="m4.1 18-1.8 1.8 1.8 1.8" fill="none" />
-		<path d="m11.9 18 1.8 1.8-1.8 1.8" fill="none" />
+		{ /* Form */ }
+		<rect x="1.5" y="2" width="13" height="12.5" rx="2" fill="none" />
+
+		{ /* Form rows */ }
+		<circle cx="4.5" cy="6" r="1" fill="none" />
+		<path d="M7 6h4.5" fill="none" />
+
+		<circle cx="4.5" cy="10.5" r="1" fill="none" />
+		<path d="M7 10.5h4.5" fill="none" />
+
+		{ /* Vertical reorder */ }
+		<path d="M19 3v11" fill="none" />
+		<path d="m17.2 4.8 1.8-1.8 1.8 1.8" fill="none" />
+		<path d="m17.2 12.2 1.8 1.8 1.8-1.8" fill="none" />
+
+		{ /* Horizontal reorder */ }
+		<path d="M2.5 19.5h11" fill="none" />
+		<path d="m4.3 17.7-1.8 1.8 1.8 1.8" fill="none" />
+		<path d="m11.7 17.7 1.8 1.8-1.8 1.8" fill="none" />
 	</svg>
 );
 

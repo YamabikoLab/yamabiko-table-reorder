@@ -229,8 +229,8 @@ const adaptColumnReorderApply = (
 /**
  * RF反映を、対象Table向けPresentation状態へ変換する。
  *
- * 確認表示ではRF Apply Coordinationの1-based summaryだけを利用し、表示復帰ではsnapshotが保持する
- * 0-based destinationIndexを直接利用する。WordPress表示責務では復帰先を再構成しない。
+ * 確認表示ではRF Apply Coordinationの1-based summaryだけを利用する。成功した表示復帰では同じ確定Move summaryの
+ * `destinationPosition`だけを既存Presentationの0-based indexへ変換し、Tableや候補を再評価しない。
  *
  * @param clientId 対象Table個体のclientId。
  * @param snapshot RF Apply Coordinationが所有する現在snapshot。
@@ -285,9 +285,16 @@ const adaptRfApply = (
 		};
 	}
 
-	/* 成功した表示復帰では、RF Apply Coordinationが確定した復帰先が必須となる。 */
-	if ( snapshot.applied && snapshot.destinationIndex === null ) {
-		throw new Error( 'RF restoration destination is required after a successful apply.' );
+	if ( snapshot.applied ) {
+		return {
+			phase: 'restoring',
+			owner: 'rf',
+			kind: snapshot.moveSummary.kind,
+			tableIdentity: snapshot.tableIdentity,
+			applied: true,
+			destinationIndex: snapshot.moveSummary.destinationPosition - 1,
+			complete: completeRfApplyRestoration,
+		};
 	}
 
 	return {
@@ -295,8 +302,8 @@ const adaptRfApply = (
 		owner: 'rf',
 		kind: snapshot.kind,
 		tableIdentity: snapshot.tableIdentity,
-		applied: snapshot.applied,
-		destinationIndex: snapshot.destinationIndex,
+		applied: false,
+		destinationIndex: null,
 		complete: completeRfApplyRestoration,
 	};
 };

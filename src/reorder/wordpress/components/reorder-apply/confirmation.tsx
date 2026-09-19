@@ -29,7 +29,11 @@ export const ReorderApplyConfirmation = ( props: {
 } ) => {
 	const { moveSummary, onConfirm, onCancel } = props;
 	return (
-		<Modal title={ getLargeReorderApplyConfirmTitle() } onRequestClose={ onCancel }>
+		<Modal
+			title={ getLargeReorderApplyConfirmTitle() }
+			onRequestClose={ onCancel }
+			focusOnMount="firstContentElement"
+		>
 			<p>
 				<strong>{ moveSummary }</strong>
 			</p>
