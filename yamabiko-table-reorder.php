@@ -136,7 +136,6 @@ final class Plugin {
 				'category'            => 'yamabiko-table-reorder',
 				'input_schema'        => array(
 					'type'                 => 'object',
-					'properties'           => array(),
 					'additionalProperties' => false,
 				),
 				'output_schema'       => array(
