@@ -160,7 +160,7 @@ PR Validation uses the CI-only environment defined in `tests/e2e/compose.ci.yaml
 CI checks the smoke test and selected major Row / Column / Reorder Form suites against these representative supported environments:
 
 - WordPress 6.8.0 + PHP 8.1: non-iframe editor, Flexible Table Block 3.6.0
-- WordPress 7.0.5 + PHP 8.3: iframe editor, Flexible Table Block 3.9.0
+- WordPress 7.0.4 + PHP 8.3: iframe editor, Flexible Table Block 3.9.0
 - WordPress 7.1.1 + PHP 8.3: iframe editor, Flexible Table Block 3.9.0
 
 The PHP quality job runs in parallel against PHP 8.1, 8.2, and 8.3. The E2E matrix keeps representative WordPress/PHP combinations instead of testing every cross-product.
