@@ -274,3 +274,23 @@ msgstr "並び替えコマンドを正規化"
 #: yamabiko-table-reorder.php:126
 msgid "Normalizes a natural-language reorder request into the strict RF command text accepted by Yamabiko Table Reorder."
 msgstr "自然言語の並び替え依頼を、Yamabiko Table Reorderが受け付ける厳密なRFコマンド文字列へ正規化します。"
+
+#: src/messages.ts:388
+msgid "AI model"
+msgstr "AIモデル"
+
+#: src/messages.ts:391
+msgid "Automatic"
+msgstr "自動選択"
+
+#: yamabiko-table-reorder.php:134
+msgid "Get chat models"
+msgstr "チャット用モデルを取得"
+
+#: yamabiko-table-reorder.php:135
+msgid "Returns the configured AI models available to Chat Reorder."
+msgstr "Chat Reorderで利用できる設定済みAIモデルを返します。"
+
+#: yamabiko-table-reorder.php:296
+msgid "The selected AI model is unavailable."
+msgstr "選択したAIモデルは現在利用できません。"

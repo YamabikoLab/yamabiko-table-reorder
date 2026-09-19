@@ -274,3 +274,23 @@ msgstr ""
 #: yamabiko-table-reorder.php:126
 msgid "Normalizes a natural-language reorder request into the strict RF command text accepted by Yamabiko Table Reorder."
 msgstr ""
+
+#: src/messages.ts:388
+msgid "AI model"
+msgstr ""
+
+#: src/messages.ts:391
+msgid "Automatic"
+msgstr ""
+
+#: yamabiko-table-reorder.php:134
+msgid "Get chat models"
+msgstr ""
+
+#: yamabiko-table-reorder.php:135
+msgid "Returns the configured AI models available to Chat Reorder."
+msgstr ""
+
+#: yamabiko-table-reorder.php:296
+msgid "The selected AI model is unavailable."
+msgstr ""

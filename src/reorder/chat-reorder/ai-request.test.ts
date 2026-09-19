@@ -4,7 +4,7 @@
 
 import { executeAbility } from '@wordpress/abilities';
 
-import { requestChatReorderCommand } from './ai-request';
+import { requestChatModels, requestChatReorderCommand } from './ai-request';
 
 jest.mock( '@wordpress/abilities', () => ( {
 	executeAbility: jest.fn(),
@@ -54,6 +54,68 @@ describe( 'Chat Reorder Ability request', () => {
 				input: '価格を1列目の前に移動して',
 				context: 'R=12\nC=1:商品名,2:価格',
 			}
+		);
+	} );
+
+	/**
+	 * 利用者がモデルを明示した場合に、そのidentityを正規化Abilityへ渡すことを確認する。
+	 *
+	 * 事前条件:
+	 * - Chat Reorderで利用可能なproviderとmodelが選択されている。
+	 *
+	 * 操作:
+	 * - 選択モデルを指定して自然言語の並び替え依頼を送信する。
+	 *
+	 * 期待結果:
+	 * - 正規化Abilityへproviderとmodel IDが渡される。
+	 * - 自動選択ではなく、利用者が明示したモデルを実行対象として指定できる。
+	 */
+	it( 'when a chat model is selected, should pass the model identity to the normalization ability', async () => {
+		executeAbilityMock.mockResolvedValue( { command: 'row 2 before 1' } );
+
+		await requestChatReorderCommand(
+			'2行目を1行目の前へ',
+			{
+				rowCount: 12,
+				columns: [],
+			},
+			{ provider: 'provider-a', id: 'model-a' }
+		);
+
+		expect( executeAbilityMock ).toHaveBeenCalledWith(
+			'yamabiko-table-reorder/normalize-reorder-command',
+			{
+				input: '2行目を1行目の前へ',
+				context: 'R=12\nC=',
+				model: { provider: 'provider-a', id: 'model-a' },
+			}
+		);
+	} );
+
+	/**
+	 * Chat Reorderで利用可能なモデル一覧をserver-side Abilityから取得できることを確認する。
+	 *
+	 * 事前条件:
+	 * - WordPress側が複数providerの利用可能モデルを返す。
+	 *
+	 * 操作:
+	 * - Chat Reorderのモデル一覧を要求する。
+	 *
+	 * 期待結果:
+	 * - モデル一覧用Abilityが実行される。
+	 * - provider identityと表示名、model identityと表示名を保持した一覧が返る。
+	 */
+	it( 'when chat models are requested, should return the available model options', async () => {
+		const models = [
+			{ provider: 'provider-a', providerName: 'Provider A', id: 'model-a', name: 'Model A' },
+			{ provider: 'provider-b', providerName: 'Provider B', id: 'model-b', name: 'Model B' },
+		];
+		executeAbilityMock.mockResolvedValue( { models } );
+
+		await expect( requestChatModels() ).resolves.toEqual( models );
+		expect( executeAbilityMock ).toHaveBeenCalledWith(
+			'yamabiko-table-reorder/get-chat-models',
+			{}
 		);
 	} );
 

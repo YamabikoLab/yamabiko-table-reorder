@@ -17,6 +17,12 @@ declare(strict_types=1);
 
 namespace YamabikoLab\TableReorder;
 
+use WordPress\AiClient\AiClient;
+use WordPress\AiClient\Providers\Models\DTO\ModelRequirements;
+use WordPress\AiClient\Providers\Models\DTO\RequiredOption;
+use WordPress\AiClient\Providers\Models\Enums\CapabilityEnum;
+use WordPress\AiClient\Providers\Models\Enums\OptionEnum;
+
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
@@ -27,7 +33,9 @@ if ( ! defined( 'ABSPATH' ) ) {
 final class Plugin {
 
 	private const MCP_CONTRACT_ABILITY = 'yamabiko-table-reorder/get-reorder-contract';
+	private const CHAT_MODELS_ABILITY = 'yamabiko-table-reorder/get-chat-models';
 	private const NORMALIZE_REORDER_COMMAND_ABILITY = 'yamabiko-table-reorder/normalize-reorder-command';
+	private const CHAT_MAX_TOKENS = 48;
 	private const CHAT_SYSTEM_INSTRUCTION = 'Return exactly one line: row <n> <before|after> <n>, column <#n|"label"> <before|after> <#n|"label">, or ask "<short clarification>". Decide row/column, preserve column labels, use 1-based numbers, and return no explanation. Do not decide whether the move is valid for the current table; only normalize the user request.';
 
 	/**
@@ -74,6 +82,7 @@ final class Plugin {
 	 */
 	public static function register_abilities(): void {
 		self::register_reorder_contract_ability();
+		self::register_chat_models_ability();
 		self::register_normalize_reorder_command_ability();
 	}
 
@@ -116,6 +125,89 @@ final class Plugin {
 	}
 
 	/**
+	 * Registers the read-only model discovery boundary used by Chat Reorder.
+	 */
+	private static function register_chat_models_ability(): void {
+		wp_register_ability(
+			self::CHAT_MODELS_ABILITY,
+			array(
+				'label'               => __( 'Get chat models', 'yamabiko-table-reorder' ),
+				'description'         => __( 'Returns the configured AI models available to Chat Reorder.', 'yamabiko-table-reorder' ),
+				'category'            => 'yamabiko-table-reorder',
+				'input_schema'        => array(
+					'type'                 => 'object',
+					'properties'           => array(),
+					'additionalProperties' => false,
+				),
+				'output_schema'       => array(
+					'type'                 => 'object',
+					'properties'           => array(
+						'models' => array(
+							'type'  => 'array',
+							'items' => array(
+								'type'                 => 'object',
+								'properties'           => array(
+									'provider'     => array( 'type' => 'string' ),
+									'providerName' => array( 'type' => 'string' ),
+									'id'           => array( 'type' => 'string' ),
+									'name'         => array( 'type' => 'string' ),
+								),
+								'required'             => array( 'provider', 'providerName', 'id', 'name' ),
+								'additionalProperties' => false,
+							),
+						),
+					),
+					'required'             => array( 'models' ),
+					'additionalProperties' => false,
+				),
+				'execute_callback'    => array( self::class, 'get_chat_models' ),
+				'permission_callback' => static fn (): bool => current_user_can( 'edit_posts' ),
+				'meta'                => array(
+					'annotations' => array(
+						'readonly'    => true,
+						'destructive' => false,
+						'idempotent'  => true,
+					),
+					'show_in_rest' => true,
+				),
+			)
+		);
+	}
+
+	/**
+	 * Returns configured AI models that can execute the Chat Reorder prompt contract.
+	 *
+	 * Provider configuration and model capability discovery remain owned by the WordPress AI Client.
+	 *
+	 * @return array{models:list<array{provider:string,providerName:string,id:string,name:string}>} Chat model options.
+	 */
+	public static function get_chat_models(): array {
+		$requirements = new ModelRequirements(
+			array( CapabilityEnum::textGeneration() ),
+			array(
+				new RequiredOption( OptionEnum::systemInstruction(), self::CHAT_SYSTEM_INSTRUCTION ),
+				new RequiredOption( OptionEnum::maxTokens(), self::CHAT_MAX_TOKENS ),
+			)
+		);
+		$provider_models = AiClient::defaultRegistry()->findModelsMetadataForSupport( $requirements );
+		$models          = array();
+
+		foreach ( $provider_models as $provider_models_metadata ) {
+			$provider = $provider_models_metadata->getProvider();
+			foreach ( $provider_models_metadata->getModels() as $model ) {
+				$models[] = array(
+					'provider'     => $provider->getId(),
+					'providerName' => $provider->getName(),
+					'id'           => $model->getId(),
+					'name'         => $model->getName(),
+				);
+			}
+		}
+
+		return array( 'models' => $models );
+	}
+
+	/**
 	 * Registers the server-side AI normalization boundary used by Chat Reorder.
 	 */
 	private static function register_normalize_reorder_command_ability(): void {
@@ -130,6 +222,15 @@ final class Plugin {
 					'properties'           => array(
 						'input'   => array( 'type' => 'string' ),
 						'context' => array( 'type' => 'string' ),
+						'model'   => array(
+							'type'                 => 'object',
+							'properties'           => array(
+								'provider' => array( 'type' => 'string' ),
+								'id'       => array( 'type' => 'string' ),
+							),
+							'required'             => array( 'provider', 'id' ),
+							'additionalProperties' => false,
+						),
 					),
 					'required'             => array( 'input', 'context' ),
 					'additionalProperties' => false,
@@ -173,11 +274,33 @@ final class Plugin {
 			? trim( $input['context'] )
 			: '';
 
-		$prompt = "Request:\n{$request_text}\nTable context:\n{$context}";
-		$result = wp_ai_client_prompt( $prompt )
+		$prompt  = "Request:\n{$request_text}\nTable context:\n{$context}";
+		$builder = wp_ai_client_prompt( $prompt )
 			->using_system_instruction( self::CHAT_SYSTEM_INSTRUCTION )
-			->using_max_tokens( 48 )
-			->generate_text();
+			->using_max_tokens( self::CHAT_MAX_TOKENS );
+
+		if ( isset( $input['model'] ) && is_array( $input['model'] ) ) {
+			$provider_id = isset( $input['model']['provider'] ) && is_string( $input['model']['provider'] )
+				? trim( $input['model']['provider'] )
+				: '';
+			$model_id    = isset( $input['model']['id'] ) && is_string( $input['model']['id'] )
+				? trim( $input['model']['id'] )
+				: '';
+
+			if ( '' !== $provider_id && '' !== $model_id ) {
+				try {
+					$model = AiClient::defaultRegistry()->getProviderModel( $provider_id, $model_id );
+				} catch ( \Throwable ) {
+					return new \WP_Error(
+						'yamabiko_table_reorder_chat_model_unavailable',
+						__( 'The selected AI model is unavailable.', 'yamabiko-table-reorder' )
+					);
+				}
+				$builder->using_model( $model );
+			}
+		}
+
+		$result = $builder->generate_text();
 
 		if ( is_wp_error( $result ) ) {
 			return $result;

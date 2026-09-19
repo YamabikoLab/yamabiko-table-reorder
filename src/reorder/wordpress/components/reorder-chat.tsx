@@ -5,18 +5,24 @@
  * AI出力はstrict parserを通した後だけRF入力へ接続し、Table更新状態やRF validation結果は所有しない。
  */
 
-import { Button, Popover, TextControl } from '@wordpress/components';
+import { Button, Popover, SelectControl, TextControl } from '@wordpress/components';
 import { useState } from '@wordpress/element';
 import type { FormEvent, ReactNode } from 'react';
 
 import {
+	getChatAutomaticModelLabel,
 	getChatInvalidOutputMessage,
+	getChatModelLabel,
 	getChatPromptLabel,
 	getChatSendLabel,
 	getChatUnresolvedColumnMessage,
 	getRfApplyFailureMessage,
 } from '@/messages';
-import { requestChatReorderCommand } from '@/reorder/chat-reorder/ai-request';
+import {
+	requestChatModels,
+	requestChatReorderCommand,
+	type ChatModelOption,
+} from '@/reorder/chat-reorder/ai-request';
 import { parseChatReorderCommand } from '@/reorder/chat-reorder/command';
 import { getChatReorderContext } from '@/reorder/chat-reorder/context-reader';
 import { submitChatCommandToRf } from '@/reorder/chat-reorder/rf-input-adapter';
@@ -32,6 +38,15 @@ export type ReorderChatEntry = {
 	close: () => void;
 	toggle: () => void;
 };
+
+/**
+ * providerとmodel IDの組み合わせをSelectControl内の一意な値へ変換する。
+ *
+ * @param model Chat Reorderで利用できるmodel。
+ * @return Chat内の選択状態で使用する値。
+ */
+const getChatModelValue = ( model: ChatModelOption ): string =>
+	`${ encodeURIComponent( model.provider ) }/${ encodeURIComponent( model.id ) }`;
 
 /** Chat Reorder接続境界へ渡すprops。 */
 type ReorderChatProps = {
@@ -51,12 +66,39 @@ export const ReorderChat = ( props: ReorderChatProps ) => {
 	const [ active, setActive ] = useState( false );
 	const [ input, setInput ] = useState( '' );
 	const [ message, setMessage ] = useState< string | null >( null );
+	const [ models, setModels ] = useState< ChatModelOption[] >( [] );
+	const [ selectedModelValue, setSelectedModelValue ] = useState( '' );
 	const [ submitting, setSubmitting ] = useState( false );
 
 	const close = (): void => setActive( false );
+
+	/** 現在利用可能なモデルを取得し、消失した選択は自動選択へ戻す。 */
+	const loadModels = async (): Promise< void > => {
+		try {
+			const availableModels = await requestChatModels();
+			setModels( availableModels );
+			setSelectedModelValue( ( currentValue ) => {
+				if ( currentValue === '' ) {
+					return currentValue;
+				}
+				const remainsAvailable = availableModels.some(
+					( model ) => getChatModelValue( model ) === currentValue
+				);
+				if ( remainsAvailable ) {
+					return currentValue;
+				}
+				return '';
+			} );
+		} catch {
+			setModels( [] );
+			setSelectedModelValue( '' );
+		}
+	};
+
 	const open = (): void => {
 		setMessage( null );
 		setActive( true );
+		void loadModels();
 	};
 	const toggle = (): void => {
 		if ( active ) {
@@ -81,9 +123,12 @@ export const ReorderChat = ( props: ReorderChatProps ) => {
 		setSubmitting( true );
 		setMessage( null );
 		try {
+			const selectedModel =
+				models.find( ( model ) => getChatModelValue( model ) === selectedModelValue ) ?? null;
 			const commandText = await requestChatReorderCommand(
 				currentInput,
-				getChatReorderContext( tableIdentity )
+				getChatReorderContext( tableIdentity ),
+				selectedModel
 			);
 			const parsed = parseChatReorderCommand( commandText );
 			if ( parsed.status === 'invalid' ) {
@@ -111,6 +156,13 @@ export const ReorderChat = ( props: ReorderChatProps ) => {
 	};
 
 	const entry: ReorderChatEntry = { active, setAnchor, open, close, toggle };
+	const modelOptions = [
+		{ label: getChatAutomaticModelLabel(), value: '' },
+		...models.map( ( model ) => ( {
+			label: `${ model.providerName }: ${ model.name }`,
+			value: getChatModelValue( model ),
+		} ) ),
+	];
 
 	return (
 		<>
@@ -119,6 +171,13 @@ export const ReorderChat = ( props: ReorderChatProps ) => {
 			{ anchor !== null && active && ! submitting && (
 				<Popover anchor={ anchor } focusOnMount="firstElement" onClose={ close } placement="bottom">
 					<form className="yamabiko-table-reorder-chat" onSubmit={ submit }>
+						<SelectControl
+							disabled={ submitting }
+							label={ getChatModelLabel() }
+							onChange={ setSelectedModelValue }
+							options={ modelOptions }
+							value={ selectedModelValue }
+						/>
 						<TextControl
 							disabled={ submitting }
 							label={ getChatPromptLabel() }

@@ -1,16 +1,40 @@
 /**
- * Chat ReorderからWordPress 7.0のserver-side Abilityを1回実行する境界を所有する。
+ * Chat ReorderからWordPress 7.0のserver-side Abilityを実行する境界を所有する。
  *
- * AI provider固有の通信や認証は所有せず、自然言語入力とcompact Table contextだけを正規化Abilityへ渡す。
+ * AI provider固有の通信や認証は所有せず、利用可能モデルの発見と自然言語入力の正規化をWordPress側へ委ねる。
  */
 
 import { serializeChatReorderContext, type ChatReorderContext } from './context';
 
+const CHAT_MODELS_ABILITY = 'yamabiko-table-reorder/get-chat-models';
 const NORMALIZE_REORDER_COMMAND_ABILITY = 'yamabiko-table-reorder/normalize-reorder-command';
+
+/** Chat Reorderで利用できるproviderとmodelの組み合わせ。 */
+export type ChatModelOption = {
+	provider: string;
+	providerName: string;
+	id: string;
+	name: string;
+};
+
+/** Chat Reorderの1回の送信で明示するmodel identity。 */
+export type ChatModelSelection = Pick< ChatModelOption, 'provider' | 'id' >;
+
+/** server-side Abilityが返すモデル一覧。 */
+type ChatModelsResult = {
+	models: ChatModelOption[];
+};
 
 /** server-side Abilityが返す正規化結果。 */
 type NormalizeReorderCommandResult = {
 	command: string;
+};
+
+/** 正規化Abilityへ渡す入力。 */
+type NormalizeReorderCommandRequest = {
+	input: string;
+	context: string;
+	model?: ChatModelSelection;
 };
 
 /**
@@ -25,6 +49,59 @@ const logChatAiExchange = ( phase: 'request' | 'response' | 'error', value: unkn
 	// Chat Reorder PoCのAPI境界をブラウザ上で追跡できるよう、意図した診断ログだけを許可する。
 	// eslint-disable-next-line no-console
 	console.info( `[YTR Chat Reorder API] ${ phase }`, value );
+};
+
+/**
+ * WordPressのAbilities APIをChat Reorderから利用可能な状態で返す。
+ *
+ * @return 初期化済みのAbilities API module。
+ */
+const loadAbilities = async () => {
+	const [ abilities, coreAbilities ] = await Promise.all( [
+		import( /* webpackIgnore: true */ '@wordpress/abilities' ),
+		import( /* webpackIgnore: true */ '@wordpress/core-abilities' ),
+	] );
+	await coreAbilities.ready;
+	return abilities;
+};
+
+/**
+ * Ability出力がChat Reorderのモデル選択肢契約を満たすか確認する。
+ *
+ * @param value 確認対象の未信頼値。
+ * @return モデル選択肢として利用できる場合はtrue。
+ */
+const isChatModelOption = ( value: unknown ): value is ChatModelOption =>
+	typeof value === 'object' &&
+	value !== null &&
+	'provider' in value &&
+	typeof value.provider === 'string' &&
+	'providerName' in value &&
+	typeof value.providerName === 'string' &&
+	'id' in value &&
+	typeof value.id === 'string' &&
+	'name' in value &&
+	typeof value.name === 'string';
+
+/**
+ * Ability実行結果からChat Reorderで利用できるモデル一覧を取得する。
+ *
+ * @param result server-side Abilityの実行結果。
+ * @return 現在のWordPress環境で利用できるモデル一覧。
+ * @throws Ability出力が契約に一致しない場合。
+ */
+const getChatModels = ( result: unknown ): ChatModelOption[] => {
+	if (
+		typeof result !== 'object' ||
+		result === null ||
+		! ( 'models' in result ) ||
+		! Array.isArray( ( result as ChatModelsResult ).models ) ||
+		! ( result as ChatModelsResult ).models.every( isChatModelOption )
+	) {
+		throw new Error( 'Invalid chat models ability output.' );
+	}
+
+	return ( result as ChatModelsResult ).models;
 };
 
 /**
@@ -48,26 +125,37 @@ const getCommandText = ( result: unknown ): string => {
 };
 
 /**
+ * 現在のWordPress環境でChat Reorderに利用できるAIモデルを取得する。
+ *
+ * @return WordPress AI Clientが利用可能と判定したモデル一覧。
+ */
+export const requestChatModels = async (): Promise< ChatModelOption[] > => {
+	const abilities = await loadAbilities();
+	const result = await abilities.executeAbility( CHAT_MODELS_ABILITY, {} );
+	return getChatModels( result );
+};
+
+/**
  * 分類とRF Command生成を分割せず、WordPressのserver-side Abilityを1回だけ実行する。
  *
  * @param input   今回の利用者入力。
  * @param context 現在Tableの最小context。
+ * @param model   利用者が明示したmodel。nullの場合はWordPress AI Clientの自動選択へ委ねる。
  * @return AIが返した未信頼の1行RF Command Text。
  */
 export const requestChatReorderCommand = async (
 	input: string,
-	context: ChatReorderContext
+	context: ChatReorderContext,
+	model: ChatModelSelection | null = null
 ): Promise< string > => {
-	const [ abilities, coreAbilities ] = await Promise.all( [
-		import( /* webpackIgnore: true */ '@wordpress/abilities' ),
-		import( /* webpackIgnore: true */ '@wordpress/core-abilities' ),
-	] );
-
-	await coreAbilities.ready;
-	const request = {
+	const abilities = await loadAbilities();
+	const request: NormalizeReorderCommandRequest = {
 		input,
 		context: serializeChatReorderContext( context ),
 	};
+	if ( model !== null ) {
+		request.model = model;
+	}
 	logChatAiExchange( 'request', request );
 
 	try {

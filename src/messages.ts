@@ -383,3 +383,9 @@ export const getLargeReorderApplyingDetail = () =>
 /** 大規模反映が完了したことを知らせる文言を取得する。 */
 export const getLargeReorderCompletionMessage = () =>
 	__( 'Reordering complete.', 'yamabiko-table-reorder' );
+
+/** Chat ReorderのAIモデル選択欄の表示名を取得する。 */
+export const getChatModelLabel = () => __( 'AI model', 'yamabiko-table-reorder' );
+
+/** Chat Reorderでモデル選択をWordPress AI Clientへ委ねる選択肢を取得する。 */
+export const getChatAutomaticModelLabel = () => __( 'Automatic', 'yamabiko-table-reorder' );
