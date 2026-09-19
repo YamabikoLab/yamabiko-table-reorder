@@ -124,7 +124,7 @@ active DnDの物理Lifecycleがcancelとなる場合、またはcomplete時の�
 | EXT_DND_ENGINE | RESP_COLUMN_DND_ENGINE_INTEGRATION | failure | 物理DnDがcancelまたは継続不能として終了する。 |
 | RESP_COLUMN_DND_ENGINE_INTEGRATION | RESP_COLUMN_DND_INTERACTION | recovery | 物理DnDの終了種別を列DnD Sessionのcancelへ接続する。 |
 | RESP_COLUMN_TABLE_INTEGRATION | RESP_COLUMN_DND_INTERACTION | failure | complete時の現在Table利用不能または更新不能を安全な確定不能結果として返す。 |
-| RESP_COLUMN_DND_INTERACTION | RESP_COLUMN_PRESENTATION | recovery | Session終了を表示購読へ反映し、DnD中表示を終了する。 |
+| RESP_COLUMN_DND_INTERACTION | RESP_COLUMN_PRESENTATION | recovery | DnD中表示を終了し、Designで通知対象となる確定不能だけを一回性通知へ反映する。 |
 | RESP_COLUMN_DND_INTERACTION | RESP_REORDER_MODE | recovery | Session終了後に対象Tableで列並び替えを継続できるかだけを共通モード状態へ反映する。 |
 
 ## 5. Building Block View
@@ -148,7 +148,7 @@ active DnDの物理Lifecycleがcancelとなる場合、またはcomplete時の�
 | RESP_COLUMN_TARGET_RESOLUTION | Reorder Target Resolution | active DnD成立前に現在列制約から論理列の開始可否を二段階で解決し、開始可能時は開始時制約を返す。 |
 | RESP_COLUMN_DND_INTERACTION | DnD Interaction | 解決済みReorder Targetから始まる列DnD Session、論理移動先の有効性、確定、cancel、終了後モード解決を所有する。 |
 | RESP_COLUMN_REORDER_APPLY | Reorder Apply | DnD Session終了後の確認付き大規模反映について、確定済み列移動意図、確認、反映開始、現在構造再照合、表示復帰完了までの方向固有Lifecycleを所有する。 |
-| RESP_COLUMN_PRESENTATION | Reorder Presentation | DnD開始前の操作可否、開始拒否、移動元位置、Moving Column、垂直Insertion Line、post-drop outlineをColumn Reorderの独立表示として表現する。 |
+| RESP_COLUMN_PRESENTATION | Reorder Presentation | DnD開始前の操作可否、開始拒否、移動元位置、Moving Column、垂直Insertion Line、post-drop outline、終了通知をColumn Reorderの独立表示として表現する。 |
 
 ### Ownership Boundaries
 
@@ -199,7 +199,7 @@ active DnDの物理Lifecycleがcancelとなる場合、またはcomplete時の�
 | RESP_COLUMN_PRESENTATION | RESP_EDITOR_DOM_CONTEXT | iframe / non-iframeに共通する一時表示を現在のEditor DOM contextへ配置するために必要とする。 |
 | RESP_COLUMN_PRESENTATION | EXT_DND_ENGINE | 移動対象表示等に必要な物理DnD情報をSessionへ複製せず利用するために必要とする。 |
 | RESP_COLUMN_PRESENTATION | RESP_COLUMN_TARGET_RESOLUTION | 操作可能列の事前表示等で開始可否の意味を重複判定せず利用するために必要とする。 |
-| RESP_COLUMN_PRESENTATION | RESP_COLUMN_DND_INTERACTION | active状態と現在の有効移動先を購読し、DnD中表示のLifecycleへ反映するために必要とする。 |
+| RESP_COLUMN_PRESENTATION | RESP_COLUMN_DND_INTERACTION | active状態と現在の有効移動先を購読し、終了通知を受け取るために必要とする。 |
 
 ### Dependency Views
 
@@ -628,21 +628,21 @@ DnD Session終了後に確認付き大規模反映の移動意図を一つだけ
 
 ##### Responsibility
 
-Column Reorderの開始可否、active DnD意味状態、および必要なDnD Engine物理情報から、DnD開始前の操作可否、開始拒否、移動元位置、Moving Column、垂直Insertion Line、post-drop outlineを独立した表示として表現する。
+Column Reorderの開始可否、active DnD意味状態、および必要なDnD Engine物理情報から、DnD開始前の操作可否、開始拒否、移動元位置、Moving Column、垂直Insertion Line、post-drop outline、終了通知を独立した表示として表現する。
 
 ##### State ownership
 
-表示と開始拒否通知に必要な一時状態だけを所有する。post-drop outlineはactive DnDとは独立した短命なPresentation状態として所有できる。Tableデータ、DnD Session、Target Resolution結果の正本、DnD Engine物理状態、Editor表示方式の永続状態を所有しない。
+表示と一回性通知に必要な一時状態だけを所有する。post-drop outlineはactive DnDとは独立した短命なPresentation状態として所有できる。Tableデータ、DnD Session、Target Resolution結果の正本、DnD Engine物理状態、Editor表示方式の永続状態を所有しない。
 
 ##### Contract
 
-Input Interactionから原因となる結合セル位置と操作位置を一回性通知として受ける。開始拒否通知の一時状態はReorder Presentationが所有し、DnD SessionやTable本体の意味状態から分離する。操作可能列の事前表示等ではReorder Target Resolutionを利用し、構造制約を重複判定しない。DnD Interactionのactive状態と現在有効移動先を購読し、DnD Engineの物理情報は表示に必要な時点だけ利用する。
+Input Interactionから原因となる結合セル位置と操作位置を一回性通知として受ける。開始拒否通知の一時状態はReorder Presentationが所有し、DnD SessionやTable本体の意味状態から分離する。操作可能列の事前表示等ではReorder Target Resolutionを利用し、構造制約を重複判定しない。DnD Interactionのactive状態と現在有効移動先を購読し、DnD Engineの物理情報は表示に必要な時点だけ利用する。DnD Interactionが通知対象と判断した安全に確定できない終了の一回性通知を受け取り、終了理由をPresentationで再判定しない。
 
 active DnDでは実Tableの列配置を変更せず、移動元位置を一時frameで示す。Moving Columnは元の列幅と表示対象セルの配置関係を不自然に崩さず、Table全体の全行を複製せず現在表示中の移動対象を識別するために必要な内容へ限定する。Table内容ではないEditor専用操作表示はMoving Columnへ含めず、背景越しにdestination周辺の実Table内容を確認できる状態を維持する。現在の有効移動先はTable全体の列間に垂直Insertion Lineで示す。周囲列displacement、Insertion Gap、Drop Animationは所有しない。iframe / non-iframeでこの基本方針を分岐しない。validなphysical drop直後は最後のdestinationの列領域を短時間outlineで示すが、このoutlineをTable更新成功や確定後結果位置の権威にしない。
 
 ##### Lifecycle
 
-開始拒否通知はDesignで定義された期間だけ表示する。active DnD表示はDnD InteractionのSession開始と終了に追従する。validなphysical drop後のoutlineはactive Session終了後も短時間だけ存在できるが、新しいDnD開始またはPresentation終了時に前回状態を持ち越さない。cancelまたは有効なdestinationがない終了ではpost-drop outlineを表示しない。安全に確定できない終了の利用者向け通知は現在のColumn Presentationには未接続であり、#1135で扱う。
+開始拒否通知はDesignで定義された期間だけ表示する。active DnD表示はDnD InteractionのSession開始と終了に追従する。validなphysical drop後のoutlineはactive Session終了後も短時間だけ存在できるが、新しいDnD開始またはPresentation終了時に前回状態を持ち越さない。cancelまたは有効なdestinationがない終了ではpost-drop outlineと終了通知を表示しない。安全に確定できない終了でDesignが通知を要求する場合だけ短い終了通知を表示する。
 
 ##### Invariants
 
@@ -815,7 +815,7 @@ complete時に現在Tableを安全に再照合または更新できない場合�
 | ---: | --- | --- | --- |
 | 1 | RESP_COLUMN_DND_INTERACTION | RESP_COLUMN_TABLE_INTEGRATION | complete時の現在列制約または確定済み列移動の反映を要求する。 |
 | 2 | RESP_COLUMN_TABLE_INTEGRATION | RESP_COLUMN_DND_INTERACTION | 現在Table利用不能または更新不能を安全な確定不能結果として返す。 |
-| 3 | RESP_COLUMN_DND_INTERACTION | RESP_COLUMN_PRESENTATION | Session終了を表示購読へ反映し、DnD中表示を終了する。 |
+| 3 | RESP_COLUMN_DND_INTERACTION | RESP_COLUMN_PRESENTATION | Sessionを終了し、Designで通知対象となる場合だけ一回性終了通知を発行する。 |
 | 4 | RESP_COLUMN_DND_INTERACTION | RESP_COLUMN_TABLE_INTEGRATION | Session破棄後の対象Table利用可否を取得し直す。 |
 | 5 | RESP_COLUMN_DND_INTERACTION | RESP_REORDER_MODE | 対象Tableで次の列並び替えを安全に受けられるかだけを現在モードへ反映する。 |
 
