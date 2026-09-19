@@ -56,11 +56,11 @@ describe( 'WordPress Reorder Apply Integration focus coordination', () => {
 
 		expect( result ).toBeUndefined();
 		expect( referenceElement.ownerDocument.activeElement ).toBe( expectedCell );
-		expect( expectedCell ).toHaveAttribute( 'tabindex', '-1' );
+		expect( expectedCell.getAttribute( 'tabindex' ) ).toBe( '-1' );
 
 		nextControl.focus();
 
-		expect( expectedCell ).not.toHaveAttribute( 'tabindex' );
+		expect( expectedCell.getAttribute( 'tabindex' ) ).toBeNull();
 	} );
 
 	it( 'when the moved logical column is covered by a merged cell, should focus the merged result cell', () => {
