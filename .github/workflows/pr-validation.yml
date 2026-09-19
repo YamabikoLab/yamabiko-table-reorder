@@ -155,9 +155,9 @@ jobs:
             wordpress_image: 'wordpress:7.1.1-php8.3-apache'
             editor_mode: iframe
             flexible_table_block_version: '3.9.0'
-          - wordpress_version: '7.0.5'
+          - wordpress_version: '7.0.4'
             php_version: '8.3'
-            wordpress_image: 'wordpress:7.0.5-php8.3-apache'
+            wordpress_image: 'wordpress:7.0.4-php8.3-apache'
             editor_mode: iframe
             flexible_table_block_version: '3.9.0'
           - wordpress_version: '6.8.0'
