@@ -34,6 +34,7 @@ jest.mock( '@wordpress/components', () => ( {
 		</button>
 	),
 	Popover: ( props: { children: ReactNode } ) => <div>{ props.children }</div>,
+	VisuallyHidden: ( props: { children: ReactNode } ) => <span>{ props.children }</span>,
 } ) );
 
 jest.mock( '@/messages', () => ( {
@@ -503,7 +504,10 @@ describe( 'Reorder Form presentation', () => {
 
 		render( <ReorderFormPopover anchor={ anchor } state={ state } tableIdentity="table-a" /> );
 
-		expect( screen.getByText( '変更なし' ) ).toBeTruthy();
+		const noOpMessage = screen.getByText( '変更なし' );
+		expect( noOpMessage ).toBeTruthy();
+		expect( noOpMessage.getAttribute( 'role' ) ).toBeNull();
+		expect( screen.getByRole( 'status' ) ).toBeTruthy();
 		expect(
 			screen.getByRole( 'spinbutton', { name: '移動する行' } ).getAttribute( 'aria-invalid' )
 		).toBeNull();
@@ -665,6 +669,53 @@ describe( 'Reorder Form presentation', () => {
 		const expandButton = screen.getByRole( 'button', { name: 'Expand reorder form' } );
 		expect( expandButton.getAttribute( 'aria-controls' ) ).toBe( controlledId );
 		expect( expandButton.getAttribute( 'aria-expanded' ) ).toBe( 'false' );
+	} );
+
+	/**
+	 * narrow表示でRFを折りたたんでも結果announcementが折りたたみ領域の外に残ることを確認する。
+	 *
+	 * 事前条件:
+	 * - narrow表示のRow RFでno-op結果が成立している。
+	 *
+	 * 操作:
+	 * - RFを折りたたむ。
+	 *
+	 * 期待結果:
+	 * - 入力画面はhiddenになる。
+	 * - no-opのAnnouncement live regionはhidden領域の外に残る。
+	 */
+	it( 'when a narrow form with a result is collapsed, should keep its announcement outside the hidden form content', () => {
+		setViewportWidth( window, 640 );
+		const state: RfInteractionReactState = {
+			status: 'open',
+			kind: 'row',
+			input: {
+				sourceRowNumber: '1',
+				targetRowNumber: '2',
+				position: 'above',
+			},
+			rowCount: 20,
+			result: { status: 'no-op' },
+			canApply: false,
+		};
+		const anchor = document.createElement( 'button' );
+
+		render( <ReorderFormPopover anchor={ anchor } state={ state } tableIdentity="table-a" /> );
+
+		const collapseButton = screen.getByRole( 'button', { name: 'Collapse reorder form' } );
+		const controlledId = collapseButton.getAttribute( 'aria-controls' );
+		expect( controlledId ).not.toBeNull();
+		if ( controlledId === null ) {
+			return;
+		}
+		const controlledContent = document.getElementById( controlledId );
+		expect( controlledContent ).not.toBeNull();
+
+		fireEvent.click( collapseButton );
+
+		const announcement = screen.getByRole( 'status' );
+		expect( controlledContent?.hasAttribute( 'hidden' ) ).toBe( true );
+		expect( controlledContent?.contains( announcement ) ).toBe( false );
 	} );
 
 	/**

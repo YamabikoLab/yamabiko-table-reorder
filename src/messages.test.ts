@@ -6,12 +6,50 @@ import {
 	getColumnDndLayoutUnavailableMessage,
 	getLargeColumnReorderMoveSummary,
 	getLargeRowReorderMoveSummary,
+	getRfApplyFailureMessage,
+	getRfColumnReorderSuccessAnnouncement,
+	getRfRowReorderSuccessAnnouncement,
 	getColumnMergedRangeMessage,
 	getRowMergedRangeMessage,
 	PLUGIN_NAME,
 } from './messages';
 
 describe( 'User-facing messages', () => {
+	/**
+	 * RFの確定した行・列移動結果を支援技術向け文言へ変換できることを確認する。
+	 *
+	 * 事前条件:
+	 * - RF Applyが行または列の移動前位置と反映後位置を確定している。
+	 *
+	 * 操作:
+	 * - 確定済みの移動前位置と反映後位置から行・列の成功文言を取得する。
+	 *
+	 * 期待結果:
+	 * - Target指定ではなく確定した移動前位置と反映後位置が文言へ反映される。
+	 */
+	it( 'when final RF positions are provided, should format row and column success announcements', () => {
+		expect( getRfRowReorderSuccessAnnouncement( 3, 5 ) ).toBe( 'Moved row 3 to position 5.' );
+		expect( getRfColumnReorderSuccessAnnouncement( 2, 4 ) ).toBe( 'Moved column 2 to position 4.' );
+	} );
+
+	/**
+	 * RF反映失敗時にTable未変更まで判断できる文言を提供することを確認する。
+	 *
+	 * 事前条件:
+	 * - RF Applyが失敗として確定している。
+	 *
+	 * 操作:
+	 * - RF反映失敗メッセージを取得する。
+	 *
+	 * 期待結果:
+	 * - 並び替えを完了できなかったこととTable未変更を一つの文言で確認できる。
+	 */
+	it( 'when RF apply fails, should explain that the reorder could not complete and the table stayed unchanged', () => {
+		expect( getRfApplyFailureMessage() ).toBe(
+			'The reorder could not be completed. The table was not changed.'
+		);
+	} );
+
 	/**
 	 * プラグイン名が翻訳境界から利用できることを確認する。
 	 *

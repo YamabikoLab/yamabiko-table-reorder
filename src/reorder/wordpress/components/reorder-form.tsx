@@ -41,6 +41,7 @@ import {
 import type { ColumnInputDescriptor } from '@/reorder/column-reorder/responsibilities/table-integration';
 import { rfInteraction } from '@/reorder/reorder-form/responsibilities/interaction';
 import type { RfInteractionReactState } from '@/reorder/reorder-form/responsibilities/interaction-react';
+import { AnnouncementDelivery } from '@/reorder/wordpress/announcement/delivery';
 import { RF_POPOVER_DRAG_THRESHOLD_PX, RF_POPOVER_OFFSET_PX } from '@/reorder/reorder-tuning';
 import { useReorderFormCollapse } from '@/reorder/wordpress/components/reorder-form-collapse';
 import { useReorderFormNarrowLayout } from '@/reorder/wordpress/components/reorder-form-layout';
@@ -652,9 +653,7 @@ export const ReorderFormPopover = ( props: ReorderFormPopoverProps ) => {
 					) }
 
 					{ resultMessage !== null && (
-						<p className="yamabiko-table-reorder-rf__notice" role="status">
-							{ resultMessage }
-						</p>
+						<p className="yamabiko-table-reorder-rf__notice">{ resultMessage }</p>
 					) }
 
 					<div className="yamabiko-table-reorder-rf__actions">
@@ -676,6 +675,9 @@ export const ReorderFormPopover = ( props: ReorderFormPopoverProps ) => {
 						</Button>
 					</div>
 				</div>
+				{ resultMessage !== null && (
+					<AnnouncementDelivery message={ resultMessage } source={ state.result } />
+				) }
 			</div>
 		</Popover>
 	);

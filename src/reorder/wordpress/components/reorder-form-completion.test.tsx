@@ -11,12 +11,22 @@ import { useRfApplyOutcome } from '@/reorder/reorder-form/responsibilities/inter
 import { ReorderFormCompletion } from './reorder-form-completion';
 
 jest.mock( '@wordpress/components', () => ( {
-	Snackbar: ( props: { children: ReactNode } ) => <div role="status">{ props.children }</div>,
+	Snackbar: ( props: { children: ReactNode } ) => <div>{ props.children }</div>,
+} ) );
+
+jest.mock( '@/reorder/wordpress/announcement/delivery', () => ( {
+	AnnouncementDelivery: ( props: { message: string } ) => (
+		<div data-testid="announcement">{ props.message }</div>
+	),
 } ) );
 
 jest.mock( '@/messages', () => ( {
 	getLargeReorderCompletionMessage: () => 'Reordering complete.',
-	getRfApplyFailureMessage: () => 'Reordering failed. The table has not been changed.',
+	getRfApplyFailureMessage: () => 'The reorder could not be completed. The table was not changed.',
+	getRfColumnReorderSuccessAnnouncement: ( source: number, destination: number ) =>
+		`Moved column ${ source } to position ${ destination }.`,
+	getRfRowReorderSuccessAnnouncement: ( source: number, destination: number ) =>
+		`Moved row ${ source } to position ${ destination }.`,
 } ) );
 
 jest.mock( '@/reorder/reorder-form/responsibilities/interaction', () => ( {
@@ -55,13 +65,14 @@ describe( 'Reorder Form completion entry', () => {
 
 		const view = render( <ReorderFormCompletion tableIdentity="table-a" /> );
 		expect( screen.getByText( 'Reordering complete.' ) ).not.toBeNull();
+		expect( screen.getByTestId( 'announcement' ).textContent ).toBe( 'Moved row 2 to position 5.' );
 		expect( mockedConsumeApplyOutcome ).toHaveBeenCalledTimes( 1 );
 		expect( mockedConsumeApplyOutcome ).toHaveBeenCalledWith( 'table-a' );
 
 		view.unmount();
 		mockedUseRfApplyOutcome.mockReturnValue( { status: 'idle' } );
 		render( <ReorderFormCompletion tableIdentity="table-a" /> );
-		expect( screen.queryByRole( 'status' ) ).toBeNull();
+		expect( screen.queryByText( 'Reordering complete.' ) ).toBeNull();
 	} );
 
 	/** 対象Tableに未提示RF結果がなければ通知も提示済み化も行わないことを確認する。 */
@@ -80,9 +91,9 @@ describe( 'Reorder Form completion entry', () => {
 
 		render( <ReorderFormCompletion tableIdentity="table-a" /> );
 
-		expect(
-			screen.getByText( 'Reordering failed. The table has not been changed.' )
-		).not.toBeNull();
+		const failureMessage = 'The reorder could not be completed. The table was not changed.';
+		expect( screen.getAllByText( failureMessage ) ).toHaveLength( 2 );
+		expect( screen.getByTestId( 'announcement' ).textContent ).toBe( failureMessage );
 		expect( mockedConsumeApplyOutcome ).toHaveBeenCalledTimes( 1 );
 	} );
 

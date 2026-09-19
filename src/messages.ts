@@ -237,7 +237,39 @@ export const getRfApplyLabel = () => __( 'Reorder', 'yamabiko-table-reorder' );
  * @return 現在の言語に対応したRF反映失敗メッセージ。
  */
 export const getRfApplyFailureMessage = () =>
-	__( 'Reordering failed. The table has not been changed.', 'yamabiko-table-reorder' );
+	__( 'The reorder could not be completed. The table was not changed.', 'yamabiko-table-reorder' );
+
+/**
+ * RFの行並び替え成功を、確定した移動前位置と反映後位置で支援技術へ知らせる文言を取得する。
+ *
+ * @param sourcePosition      並び替え前の1-based行位置。
+ * @param destinationPosition 並び替え完了後の1-based行位置。
+ * @return 確定した行移動結果を示すannouncement文言。
+ */
+export const getRfRowReorderSuccessAnnouncement = (
+	sourcePosition: number,
+	destinationPosition: number
+) => {
+	/* translators: 1: 1-based source row position, 2: 1-based final row position */
+	const message = __( 'Moved row %1$d to position %2$d.', 'yamabiko-table-reorder' );
+	return sprintf( message, sourcePosition, destinationPosition );
+};
+
+/**
+ * RFの列並び替え成功を、確定した移動前位置と反映後位置で支援技術へ知らせる文言を取得する。
+ *
+ * @param sourcePosition      並び替え前の1-based列位置。
+ * @param destinationPosition 並び替え完了後の1-based列位置。
+ * @return 確定した列移動結果を示すannouncement文言。
+ */
+export const getRfColumnReorderSuccessAnnouncement = (
+	sourcePosition: number,
+	destinationPosition: number
+) => {
+	/* translators: 1: 1-based source column position, 2: 1-based final column position */
+	const message = __( 'Moved column %1$d to position %2$d.', 'yamabiko-table-reorder' );
+	return sprintf( message, sourcePosition, destinationPosition );
+};
 
 /**
  * DnDを安全に継続できず終了したことを知らせる行・列共通文言を取得する。
