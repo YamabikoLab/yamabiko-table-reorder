@@ -34,9 +34,7 @@ export const ColumnTerminationNotice = () => {
 
 	return (
 		<div className="yamabiko-table-reorder-column-termination-notice">
-			<Snackbar onRemove={ () => setIsVisible( false ) }>
-				{ getDndTerminationMessage() }
-			</Snackbar>
+			<Snackbar onRemove={ () => setIsVisible( false ) }>{ getDndTerminationMessage() }</Snackbar>
 		</div>
 	);
 };
