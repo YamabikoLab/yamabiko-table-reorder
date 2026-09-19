@@ -12,7 +12,7 @@ let terminationListener: ( () => void ) | null = null;
 let snackbarRemove: ( () => void ) | undefined;
 
 jest.mock( '@/messages', () => ( {
-	getRowDndTerminationMessage: () => 'termination message',
+	getDndTerminationMessage: () => 'termination message',
 } ) );
 
 jest.mock( '@/reorder/row-reorder/responsibilities/dnd-interaction', () => ( {

@@ -8,7 +8,7 @@
 import { Snackbar } from '@wordpress/components';
 import { useEffect, useState } from '@wordpress/element';
 
-import { getRowDndTerminationMessage } from '@/messages';
+import { getDndTerminationMessage } from '@/messages';
 import { subscribeRowDndTerminationNotice } from '@/reorder/row-reorder/responsibilities/dnd-interaction';
 
 import './termination-notice.scss';
@@ -50,7 +50,7 @@ export const RowTerminationNotice = () => {
 	return (
 		<div className="yamabiko-table-reorder-termination-notice">
 			<Snackbar key={ noticeSequence } onRemove={ removeNotice }>
-				{ getRowDndTerminationMessage() }
+				{ getDndTerminationMessage() }
 			</Snackbar>
 		</div>
 	);
