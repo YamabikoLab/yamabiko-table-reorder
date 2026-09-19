@@ -113,9 +113,7 @@ describe( 'Chat Reorder Ability request', () => {
 		executeAbilityMock.mockResolvedValue( { models } );
 
 		await expect( requestChatModels() ).resolves.toEqual( models );
-		expect( executeAbilityMock ).toHaveBeenCalledWith(
-			'yamabiko-table-reorder/get-chat-models'
-		);
+		expect( executeAbilityMock ).toHaveBeenCalledWith( 'yamabiko-table-reorder/get-chat-models' );
 	} );
 
 	/**
