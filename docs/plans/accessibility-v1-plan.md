@@ -199,7 +199,7 @@ Plan作成時点でArchitecture変更を必要とする事項は確認されて�
   - Table更新後は既存Apply Lifecycleの描画待ちを利用し、editing surface成立後に確定Move summaryの`destinationIndex`へ`requestApplyFocus()`を一回適用する。
   - 結果確認targetが成立しない場合は対象Table自体だけをfallbackとして試し、隣接位置や別セルを推測しない。
   - Focus Coordination側にpending / retry / reconcile / abandon / Promise settlementを追加しない。
-  - Apply failure後の明示的なRF復帰focusは、実ユーザー操作上の必要性が確認された場合だけ、その具体的ケースに対する最小Contractを検討する。
+  - Apply failure後は入力を保持したRFと既存の一時通知へ戻し、focusはWordPress / Reactの標準挙動を優先する。failure専用Contractは追加せず、実ユーザー操作上の問題が確認された場合だけ最小補完を検討する。
   - confirmation Cancelをfailureとして扱わない。
 - Validation:
   - JestでRow / Column successの結果確認focus、Table fallback、target不成立時の無介入を検証する。

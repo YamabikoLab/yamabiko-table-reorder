@@ -29,12 +29,16 @@ export const ReorderApplyConfirmation = ( props: {
 } ) => {
 	const { moveSummary, onConfirm, onCancel } = props;
 	return (
-		<Modal title={ getLargeReorderApplyConfirmTitle() } onRequestClose={ onCancel }>
+		<Modal
+			title={ getLargeReorderApplyConfirmTitle() }
+			onRequestClose={ onCancel }
+			focusOnMount="firstContentElement"
+		>
 			<p>
 				<strong>{ moveSummary }</strong>
 			</p>
 			<p>{ getLargeReorderApplyConfirmBody() }</p>
-			<Button data-ytr-focus-target="confirmation-continue" variant="primary" onClick={ onConfirm }>
+			<Button variant="primary" onClick={ onConfirm }>
 				{ getLargeReorderContinueLabel() }
 			</Button>
 			<Button variant="tertiary" onClick={ onCancel }>

@@ -39,6 +39,8 @@ describe( 'WordPress Reorder Integration focus coordination', () => {
 		const referenceElement = document.createElement( 'div' );
 		const direction = document.createElement( 'input' );
 		direction.id = getRfControlId( 'kind-row' );
+		direction.setAttribute( 'type', 'radio' );
+		direction.checked = true;
 		document.body.append( referenceElement, direction );
 
 		requestReorderFocus( { type: 'rf-open', tableIdentity: TABLE_IDENTITY }, referenceElement );
@@ -47,30 +49,55 @@ describe( 'WordPress Reorder Integration focus coordination', () => {
 	} );
 
 	/**
+	 * RF open時に方向操作が存在しても現在選択がない場合は、別方向を推測しないことを確認する。
+	 *
+	 * 事前条件:
+	 * - 行・列の方向操作は存在する。
+	 * - どちらも選択されていない。
+	 * - 利用者は別の操作位置にfocusしている。
+	 *
+	 * 操作:
+	 * - RF open後のfocusを要求する。
+	 *
+	 * 期待結果:
+	 * - 現在focusを維持し、行または列へ推測focusしない。
+	 */
+	it( 'when RF directions exist without a current selection, should not guess a direction target', () => {
+		const referenceElement = document.createElement( 'div' );
+		const currentFocus = document.createElement( 'button' );
+		const rowDirection = document.createElement( 'input' );
+		const columnDirection = document.createElement( 'input' );
+		rowDirection.id = getRfControlId( 'kind-row' );
+		columnDirection.id = getRfControlId( 'kind-column' );
+		rowDirection.setAttribute( 'type', 'radio' );
+		columnDirection.setAttribute( 'type', 'radio' );
+		document.body.append( referenceElement, currentFocus, rowDirection, columnDirection );
+		currentFocus.focus();
+
+		requestReorderFocus( { type: 'rf-open', tableIdentity: TABLE_IDENTITY }, referenceElement );
+
+		expect( referenceElement.ownerDocument.activeElement ).toBe( currentFocus );
+	} );
+
+	/**
 	 * RF明示終了時に固定されたtoolbar入口へ即時focusすることを確認する。
 	 *
 	 * 事前条件:
-	 * - 現在Presentationに対象TableのRF toolbar入口が存在する。
+	 * - 呼び出し元が現在のRF toolbar入口をanchorとして保持している。
 	 *
 	 * 操作:
 	 * - rf-explicit-close focusを要求する。
 	 *
 	 * 期待結果:
-	 * - 対象TableのRF toolbar入口へfocusする。
+	 * - DOM再検索を行わず、渡された現在のRF toolbar入口へfocusする。
 	 */
-	it( 'when RF closes explicitly, should focus the fixed reorder form toolbar entry', () => {
-		const referenceElement = document.createElement( 'div' );
+	it( 'when RF closes explicitly, should focus the current reorder form toolbar anchor directly', () => {
 		const toolbarEntry = document.createElement( 'button' );
-		toolbarEntry.dataset.ytrFocusTarget = 'rf-toolbar';
-		toolbarEntry.dataset.ytrTableIdentity = TABLE_IDENTITY;
-		document.body.append( referenceElement, toolbarEntry );
+		document.body.append( toolbarEntry );
 
-		requestReorderFocus(
-			{ type: 'rf-explicit-close', tableIdentity: TABLE_IDENTITY },
-			referenceElement
-		);
+		requestReorderFocus( { type: 'rf-explicit-close' }, toolbarEntry );
 
-		expect( referenceElement.ownerDocument.activeElement ).toBe( toolbarEntry );
+		expect( toolbarEntry.ownerDocument.activeElement ).toBe( toolbarEntry );
 	} );
 
 	/**

@@ -661,7 +661,7 @@ export const ReorderFormPopover = ( props: ReorderFormPopoverProps ) => {
 						<Button
 							onClick={ () => {
 								rfInteraction.close( tableIdentity );
-								requestReorderFocus( { type: 'rf-explicit-close', tableIdentity }, anchor );
+								requestReorderFocus( { type: 'rf-explicit-close' }, anchor );
 							} }
 							variant="secondary"
 						>
