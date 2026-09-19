@@ -124,7 +124,7 @@ active DnDの物理Lifecycleがcancelとなる場合、またはcomplete時の�
 | EXT_DND_ENGINE | RESP_COLUMN_DND_ENGINE_INTEGRATION | failure | 物理DnDがcancelまたは継続不能として終了する。 |
 | RESP_COLUMN_DND_ENGINE_INTEGRATION | RESP_COLUMN_DND_INTERACTION | recovery | 物理DnDの終了種別を列DnD Sessionのcancelへ接続する。 |
 | RESP_COLUMN_TABLE_INTEGRATION | RESP_COLUMN_DND_INTERACTION | failure | complete時の現在Table利用不能または更新不能を安全な確定不能結果として返す。 |
-| RESP_COLUMN_DND_INTERACTION | RESP_COLUMN_PRESENTATION | recovery | DnD中表示を終了し、Designで通知対象となる確定不能だけを一回性通知へ反映する。 |
+| RESP_COLUMN_DND_INTERACTION | RESP_COLUMN_PRESENTATION | recovery | Session終了を表示購読へ反映し、DnD中表示を終了する。 |
 | RESP_COLUMN_DND_INTERACTION | RESP_REORDER_MODE | recovery | Session終了後に対象Tableで列並び替えを継続できるかだけを共通モード状態へ反映する。 |
 
 ## 5. Building Block View
