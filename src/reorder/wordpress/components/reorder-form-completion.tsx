@@ -1,58 +1,93 @@
 /**
  * Reorder Form（RF）の反映結果を、操作を妨げない一時通知として表示する。
  *
- * RF Interactionが保持する未消費のApply Outcomeを正本とし、Reactの描画履歴やTableの再mount有無に依存せず
- * 通常反映と確認付き大規模反映の成功・失敗を同じ経路から一度だけ通知する。
+ * RF Interactionが保持する未提示Apply Outcomeを単一のWordPress接続地点で一度だけ確保し、
+ * Visual Presentationと後続Announcement Deliveryが同じ確定結果を利用できる状態を成立させる。
+ * Visual Noticeの表示寿命はApply Outcomeの一回性とは独立して管理する。
  */
 
 import { useEffect, useState } from '@wordpress/element';
 
-import { getLargeReorderCompletionMessage, getRfApplyFailureMessage } from '@/messages';
-import { rfInteraction } from '@/reorder/reorder-form/responsibilities/interaction';
-import { useRfApplyOutcome } from '@/reorder/reorder-form/responsibilities/interaction-react';
-
 import {
-	ReorderCompletionNotice,
-	type ReorderCompletionNoticeStatus,
-} from './reorder-completion-notice';
+	getLargeReorderCompletionMessage,
+	getRfApplyFailureMessage,
+	getRfColumnReorderSuccessAnnouncement,
+	getRfRowReorderSuccessAnnouncement,
+} from '@/messages';
+import {
+	rfInteraction,
+	type RfApplyOutcome,
+} from '@/reorder/reorder-form/responsibilities/interaction';
+import { useRfApplyOutcome } from '@/reorder/reorder-form/responsibilities/interaction-react';
+import { AnnouncementDelivery } from '@/reorder/wordpress/announcement/delivery';
+
+import { ReorderCompletionNotice } from './reorder-completion-notice';
+
+/** WordPress接続がRF Interactionから一度だけ確保した提示対象Apply Outcome。 */
+type RfPresentedApplyOutcome = Exclude< RfApplyOutcome, { status: 'idle' } >;
 
 /**
  * RF Interactionが反映結果を確定した直後だけ結果通知を表示する。
  *
- * RF固有のOutcome購読とconsumeだけを所有し、表示時間、dismiss、アイコン、配置、スタイルは
- * 共通の結果通知Presentationへ委譲する。
+ * 未提示Outcome全体を一度だけローカルへ確保した時点でRF Interaction側を提示済みにする。
+ * 保持中Outcomeの存在やVisual Noticeのmount / dismissは新しいAnnouncement契機を表さず、
+ * 後続Announcement Deliveryは新しいOutcomeを確保した遷移だけを一回性の発行契機として利用する。
  *
  * @param props               通知対象Table。
  * @param props.tableIdentity RF反映結果を購読するTable Identity。
- * @return 未消費の成功・失敗結果を受け取った直後だけ表示する一時通知。それ以外はnull。
+ * @return 確保済みの成功・失敗結果を表示する一時通知。それ以外はnull。
  */
 export const ReorderFormCompletion = ( props: { tableIdentity: string } ) => {
 	const { tableIdentity } = props;
 	const applyOutcome = useRfApplyOutcome( tableIdentity );
-	const [ notice, setNotice ] = useState< ReorderCompletionNoticeStatus | null >( null );
+	const [ presentedOutcome, setPresentedOutcome ] = useState< RfPresentedApplyOutcome | null >(
+		null
+	);
 
 	useEffect( () => {
 		if ( applyOutcome.status === 'idle' ) {
 			return;
 		}
 
-		/* 未消費結果はStoreで一度だけ消費し、表示中の結果種別だけをRF入口で保持する。 */
-		setNotice( applyOutcome.status );
+		/* 同じ確定OutcomeをVisual Presentationと後続Announcementへ渡せるよう、提示済み化より先に全体を確保する。 */
+		setPresentedOutcome( applyOutcome );
 		rfInteraction.consumeApplyOutcome( tableIdentity );
 	}, [ applyOutcome, tableIdentity ] );
 
-	if ( notice === null ) {
+	if ( presentedOutcome === null ) {
 		return null;
 	}
 
-	const message =
-		notice === 'failure' ? getRfApplyFailureMessage() : getLargeReorderCompletionMessage();
+	let visualMessage: string;
+	let announcementMessage: string;
+	if ( presentedOutcome.status === 'failure' ) {
+		visualMessage = getRfApplyFailureMessage();
+		announcementMessage = visualMessage;
+	} else {
+		visualMessage = getLargeReorderCompletionMessage();
+		const { moveSummary } = presentedOutcome;
+		if ( moveSummary.kind === 'row' ) {
+			announcementMessage = getRfRowReorderSuccessAnnouncement(
+				moveSummary.sourcePosition,
+				moveSummary.destinationPosition
+			);
+		} else {
+			announcementMessage = getRfColumnReorderSuccessAnnouncement(
+				moveSummary.sourcePosition,
+				moveSummary.destinationPosition
+			);
+		}
+	}
 
 	return (
-		<ReorderCompletionNotice
-			status={ notice }
-			message={ message }
-			onRemove={ () => setNotice( null ) }
-		/>
+		<>
+			<AnnouncementDelivery message={ announcementMessage } source={ presentedOutcome } />
+			<ReorderCompletionNotice
+				status={ presentedOutcome.status }
+				message={ visualMessage }
+				onRemove={ () => setPresentedOutcome( null ) }
+				suppressSpokenMessage
+			/>
+		</>
 	);
 };

@@ -5,6 +5,7 @@
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import type { ReactNode } from 'react';
 
+import { rfInteraction } from '@/reorder/reorder-form/responsibilities/interaction';
 import type { RfInteractionReactState } from '@/reorder/reorder-form/responsibilities/interaction-react';
 import { reorderFormCollapse } from '@/reorder/wordpress/components/reorder-form-collapse';
 
@@ -15,12 +16,14 @@ type MockButtonProps = {
 	disabled?: boolean;
 	onClick?: () => void;
 	label?: string;
+	'aria-controls'?: string;
 	'aria-expanded'?: boolean;
 };
 
 jest.mock( '@wordpress/components', () => ( {
 	Button: ( props: MockButtonProps ) => (
 		<button
+			aria-controls={ props[ 'aria-controls' ] }
 			aria-expanded={ props[ 'aria-expanded' ] }
 			aria-label={ props.label }
 			disabled={ props.disabled }
@@ -31,6 +34,7 @@ jest.mock( '@wordpress/components', () => ( {
 		</button>
 	),
 	Popover: ( props: { children: ReactNode } ) => <div>{ props.children }</div>,
+	VisuallyHidden: ( props: { children: ReactNode } ) => <span>{ props.children }</span>,
 } ) );
 
 jest.mock( '@/messages', () => ( {
@@ -45,6 +49,7 @@ jest.mock( '@/messages', () => ( {
 		columnStart: number,
 		columnEnd: number
 	) => `column:${ section }:${ rowStart }-${ rowEnd }:${ columnStart }-${ columnEnd }`,
+	getRfColumnSelectionUnavailableMessage: () => '現在の列から選び直してください',
 	getRfColumnOptionLabel: ( columnNumber: number, heading: string | null ) => {
 		const label =
 			heading === null ? `${ columnNumber }列目` : `${ heading }（${ columnNumber }列目）`;
@@ -94,7 +99,10 @@ jest.mock( '@/reorder/wordpress/components/reorder-form-position', () => ( {
 } ) );
 
 /** Row RFを表示する標準状態を作成する。 */
-const createRowState = (): RfInteractionReactState => ( {
+const createRowState = (): Extract<
+	RfInteractionReactState,
+	{ status: 'open'; kind: 'row' }
+> => ( {
 	status: 'open',
 	kind: 'row',
 	input: {
@@ -103,7 +111,7 @@ const createRowState = (): RfInteractionReactState => ( {
 		position: 'above',
 	},
 	rowCount: 20,
-	result: { status: 'not-ready' },
+	result: { status: 'not-ready', inputProblems: [] },
 	canApply: false,
 } );
 
@@ -138,8 +146,61 @@ const notifyViewportResize = ( view: Window ): void => {
 
 describe( 'Reorder Form presentation', () => {
 	beforeEach( () => {
+		jest.clearAllMocks();
 		setViewportWidth( window, 1024 );
 		reorderFormCollapse.beginSession( 'table-a' );
+	} );
+
+	/**
+	 * RFが開いた後に初期操作である方向選択へフォーカスすることを確認する。
+	 *
+	 * 事前条件:
+	 * - RF InteractionはRow RFをopenとして公開している。
+	 *
+	 * 操作:
+	 * - RF入力Popoverを表示する。
+	 *
+	 * 期待結果:
+	 * - 現在選択されている「行」方向へフォーカスする。
+	 */
+	it( 'when the Reorder Form opens, should focus the current direction control', () => {
+		const anchor = document.createElement( 'button' );
+
+		render(
+			<ReorderFormPopover anchor={ anchor } state={ createRowState() } tableIdentity="table-a" />
+		);
+
+		const direction = screen.getByRole( 'radio', { name: '行' } );
+		expect( direction.ownerDocument.activeElement ).toBe( direction );
+	} );
+
+	/**
+	 * 明示的Cancel後に対象TableのRF toolbar入口へフォーカスを戻すことを確認する。
+	 *
+	 * 事前条件:
+	 * - RFがopenである。
+	 * - 現在Editor DOMに対象TableのRF toolbar入口が存在する。
+	 *
+	 * 操作:
+	 * - RFの「キャンセル」を実行する。
+	 *
+	 * 期待結果:
+	 * - RF Interactionへcloseを通知する。
+	 * - 現在のRF toolbar入口へフォーカスを戻す。
+	 */
+	it( 'when the Reorder Form is cancelled explicitly, should close and focus its toolbar entry', () => {
+		const anchor = document.createElement( 'button' );
+		anchor.dataset.ytrFocusTarget = 'rf-toolbar';
+		anchor.dataset.ytrTableIdentity = 'table-a';
+		document.body.appendChild( anchor );
+
+		render(
+			<ReorderFormPopover anchor={ anchor } state={ createRowState() } tableIdentity="table-a" />
+		);
+		fireEvent.click( screen.getByRole( 'button', { name: 'キャンセル' } ) );
+
+		expect( rfInteraction.close ).toHaveBeenCalledWith( 'table-a' );
+		expect( anchor.ownerDocument.activeElement ).toBe( anchor );
 	} );
 
 	/**
@@ -165,7 +226,7 @@ describe( 'Reorder Form presentation', () => {
 				position: null,
 			},
 			rowCount: 20,
-			result: { status: 'not-ready' },
+			result: { status: 'not-ready', inputProblems: [] },
 			canApply: false,
 		};
 		const anchor = document.createElement( 'button' );
@@ -178,9 +239,60 @@ describe( 'Reorder Form presentation', () => {
 		expect( sourceInput.getAttribute( 'min' ) ).toBe( '1' );
 		expect( sourceInput.getAttribute( 'max' ) ).toBe( '20' );
 		expect( sourceInput.getAttribute( 'step' ) ).toBe( '1' );
+		expect( sourceInput.getAttribute( 'aria-invalid' ) ).toBeNull();
 		expect( targetInput.getAttribute( 'min' ) ).toBe( '1' );
 		expect( targetInput.getAttribute( 'max' ) ).toBe( '20' );
 		expect( targetInput.getAttribute( 'step' ) ).toBe( '1' );
+		expect( targetInput.getAttribute( 'aria-invalid' ) ).toBeNull();
+	} );
+
+	/**
+	 * Row RFの入力問題がある入力だけを無効状態として公開し、既存の入力範囲を修正情報として関連付けることを確認する。
+	 *
+	 * 事前条件:
+	 * - RFはRow入力を表示している。
+	 * - 移動元だけが現在Tableの行番号範囲外である。
+	 *
+	 * 操作:
+	 * - RF入力Popoverを表示する。
+	 *
+	 * 期待結果:
+	 * - 移動元だけが入力問題ありとして公開される。
+	 * - 移動元・移動先の両方から現在の入力範囲を確認できる。
+	 */
+	it( 'when only the source row has an input problem, should mark only that input invalid and associate the row range', () => {
+		const state: RfInteractionReactState = {
+			status: 'open',
+			kind: 'row',
+			input: {
+				sourceRowNumber: '21',
+				targetRowNumber: '5',
+				position: 'above',
+			},
+			rowCount: 20,
+			result: {
+				status: 'not-ready',
+				inputProblems: [
+					{
+						target: 'source',
+						correction: { kind: 'row-number-range', min: 1, max: 20 },
+					},
+				],
+			},
+			canApply: false,
+		};
+		const anchor = document.createElement( 'button' );
+
+		render( <ReorderFormPopover anchor={ anchor } state={ state } tableIdentity="table-a" /> );
+
+		const sourceInput = screen.getByRole( 'spinbutton', { name: '移動する行' } );
+		const targetInput = screen.getByRole( 'spinbutton', { name: '移動先の行' } );
+		const range = screen.getByText( '行範囲' );
+
+		expect( sourceInput.getAttribute( 'aria-invalid' ) ).toBe( 'true' );
+		expect( targetInput.getAttribute( 'aria-invalid' ) ).toBeNull();
+		expect( sourceInput.getAttribute( 'aria-describedby' ) ).toBe( range.id );
+		expect( targetInput.getAttribute( 'aria-describedby' ) ).toBe( range.id );
 	} );
 
 	/**
@@ -210,7 +322,7 @@ describe( 'Reorder Form presentation', () => {
 				{ columnIndex: 0, columnNumber: 1, heading: '商品名' },
 				{ columnIndex: 1, columnNumber: 2, heading: null },
 			],
-			result: { status: 'not-ready' },
+			result: { status: 'not-ready', inputProblems: [] },
 			canApply: false,
 		};
 		const anchor = document.createElement( 'button' );
@@ -219,6 +331,59 @@ describe( 'Reorder Form presentation', () => {
 
 		expect( screen.getAllByRole( 'option', { name: '商品名（1列目）' } ) ).toHaveLength( 2 );
 		expect( screen.getAllByRole( 'option', { name: '2列目' } ) ).toHaveLength( 2 );
+		expect(
+			screen.getByRole( 'combobox', { name: '移動する列' } ).getAttribute( 'aria-invalid' )
+		).toBeNull();
+		expect(
+			screen.getByRole( 'combobox', { name: '移動先の列' } ).getAttribute( 'aria-invalid' )
+		).toBeNull();
+	} );
+
+	/**
+	 * Column RFで現在の列選択肢から消えた入力だけに再選択情報を関連付けることを確認する。
+	 *
+	 * 事前条件:
+	 * - RFはColumn入力を表示している。
+	 * - 移動先だけが現在の列選択肢から消えている。
+	 *
+	 * 操作:
+	 * - RF入力Popoverを表示する。
+	 *
+	 * 期待結果:
+	 * - 移動先だけが入力問題ありとして公開される。
+	 * - 移動先から既存の再選択メッセージを確認できる。
+	 */
+	it( 'when only the target column is no longer available, should associate the reselection message only with that select', () => {
+		const state: RfInteractionReactState = {
+			status: 'open',
+			kind: 'column',
+			input: {
+				sourceColumnIndex: 0,
+				targetColumnIndex: 9,
+				position: 'right',
+			},
+			columns: [
+				{ columnIndex: 0, columnNumber: 1, heading: '商品名' },
+				{ columnIndex: 1, columnNumber: 2, heading: null },
+			],
+			result: {
+				status: 'not-ready',
+				inputProblems: [ { target: 'target', correction: { kind: 'select-current-column' } } ],
+			},
+			canApply: false,
+		};
+		const anchor = document.createElement( 'button' );
+
+		render( <ReorderFormPopover anchor={ anchor } state={ state } tableIdentity="table-a" /> );
+
+		const sourceSelect = screen.getByRole( 'combobox', { name: '移動する列' } );
+		const targetSelect = screen.getByRole( 'combobox', { name: '移動先の列' } );
+		const problem = screen.getByText( '現在の列から選び直してください' );
+
+		expect( sourceSelect.getAttribute( 'aria-invalid' ) ).toBeNull();
+		expect( sourceSelect.getAttribute( 'aria-describedby' ) ).toBeNull();
+		expect( targetSelect.getAttribute( 'aria-invalid' ) ).toBe( 'true' );
+		expect( targetSelect.getAttribute( 'aria-describedby' ) ).toBe( problem.id );
 	} );
 
 	/**
@@ -259,6 +424,99 @@ describe( 'Reorder Form presentation', () => {
 		render( <ReorderFormPopover anchor={ anchor } state={ state } tableIdentity="table-a" /> );
 
 		expect( screen.getByText( 'row:1-2:3-4' ) ).toBeTruthy();
+		expect(
+			screen.getByRole( 'spinbutton', { name: '移動する行' } ).getAttribute( 'aria-invalid' )
+		).toBeNull();
+		expect(
+			screen.getByRole( 'spinbutton', { name: '移動先の行' } ).getAttribute( 'aria-invalid' )
+		).toBeNull();
+	} );
+
+	/**
+	 * 利用不能結果は現在指定全体の状態として提示し、個別入力のvalidationへ変換しないことを確認する。
+	 *
+	 * 事前条件:
+	 * - Row RFの入力値は入力済みである。
+	 * - 現在Tableを安全に利用できず、RF Interactionが利用不能を公開している。
+	 *
+	 * 操作:
+	 * - RF入力Popoverを表示する。
+	 *
+	 * 期待結果:
+	 * - 利用不能メッセージが現在指定全体の状態として表示される。
+	 * - 移動元・移動先は入力問題ありとして公開されない。
+	 */
+	it( 'when the current row selection is unavailable, should keep input validation separate from the overall result', () => {
+		const state: RfInteractionReactState = {
+			status: 'open',
+			kind: 'row',
+			input: {
+				sourceRowNumber: '2',
+				targetRowNumber: '5',
+				position: 'above',
+			},
+			rowCount: null,
+			result: { status: 'unavailable' },
+			canApply: false,
+		};
+		const anchor = document.createElement( 'button' );
+
+		render( <ReorderFormPopover anchor={ anchor } state={ state } tableIdentity="table-a" /> );
+
+		expect( screen.getByText( '利用不可' ) ).toBeTruthy();
+		expect(
+			screen.getByRole( 'spinbutton', { name: '移動する行' } ).getAttribute( 'aria-invalid' )
+		).toBeNull();
+		expect(
+			screen.getByRole( 'spinbutton', { name: '移動先の行' } ).getAttribute( 'aria-invalid' )
+		).toBeNull();
+	} );
+
+	/**
+	 * no-opは現在指定全体の状態として提示し、個別入力のvalidationへ変換しないことを確認する。
+	 *
+	 * 事前条件:
+	 * - Row RFの入力自体は成立している。
+	 * - 現在指定は並び順を変更しないno-opである。
+	 *
+	 * 操作:
+	 * - RF入力Popoverを表示する。
+	 *
+	 * 期待結果:
+	 * - no-opメッセージが現在指定全体の状態として表示される。
+	 * - 移動元・移動先は入力問題ありとして公開されない。
+	 * - 並び替え操作は実行できない。
+	 */
+	it( 'when the current row selection is a no-op, should keep input validation valid and disable apply from the interaction contract', () => {
+		const state: RfInteractionReactState = {
+			status: 'open',
+			kind: 'row',
+			input: {
+				sourceRowNumber: '2',
+				targetRowNumber: '2',
+				position: 'above',
+			},
+			rowCount: 20,
+			result: { status: 'no-op' },
+			canApply: false,
+		};
+		const anchor = document.createElement( 'button' );
+
+		render( <ReorderFormPopover anchor={ anchor } state={ state } tableIdentity="table-a" /> );
+
+		const noOpMessage = screen.getByText( '変更なし' );
+		expect( noOpMessage ).toBeTruthy();
+		expect( noOpMessage.getAttribute( 'role' ) ).toBeNull();
+		expect( screen.getByRole( 'status' ) ).toBeTruthy();
+		expect(
+			screen.getByRole( 'spinbutton', { name: '移動する行' } ).getAttribute( 'aria-invalid' )
+		).toBeNull();
+		expect(
+			screen.getByRole( 'spinbutton', { name: '移動先の行' } ).getAttribute( 'aria-invalid' )
+		).toBeNull();
+		expect( screen.getByRole( 'button', { name: '並び替え' } ).hasAttribute( 'disabled' ) ).toBe(
+			true
+		);
 	} );
 
 	/**
@@ -307,6 +565,70 @@ describe( 'Reorder Form presentation', () => {
 	} );
 
 	/**
+	 * RFの方向選択をRF Interactionの現在Sessionへ通知することを確認する。
+	 *
+	 * 事前条件:
+	 * - Row RFがopenである。
+	 *
+	 * 操作:
+	 * - Column方向を選択する。
+	 *
+	 * 期待結果:
+	 * - 現在TableのRF Sessionに対してColumn方向の選択が通知される。
+	 */
+	it( 'when the column direction is selected, should delegate the direction change to RF Interaction', () => {
+		const anchor = document.createElement( 'button' );
+
+		render(
+			<ReorderFormPopover anchor={ anchor } state={ createRowState() } tableIdentity="table-a" />
+		);
+		fireEvent.click( screen.getByRole( 'radio', { name: '列' } ) );
+
+		expect( rfInteraction.selectKind ).toHaveBeenCalledWith( 'table-a', 'column' );
+	} );
+
+	/**
+	 * 並び替え操作の実行可否をRF InteractionのcanApplyだけから提示することを確認する。
+	 *
+	 * 事前条件:
+	 * - RF Interactionは成立済み結果を公開している。
+	 *
+	 * 操作:
+	 * - canApplyがfalseの状態とtrueの状態を順に表示する。
+	 *
+	 * 期待結果:
+	 * - falseでは並び替え操作が無効になる。
+	 * - trueでは並び替え操作が有効になる。
+	 */
+	it( 'when canApply changes, should expose the apply state from the interaction contract', () => {
+		const anchor = document.createElement( 'button' );
+		const disabledState: RfInteractionReactState = {
+			...createRowState(),
+			result: { status: 'resolved' },
+			canApply: false,
+		};
+		const rendered = render(
+			<ReorderFormPopover anchor={ anchor } state={ disabledState } tableIdentity="table-a" />
+		);
+
+		expect( screen.getByRole( 'button', { name: '並び替え' } ).hasAttribute( 'disabled' ) ).toBe(
+			true
+		);
+
+		const enabledState: RfInteractionReactState = {
+			...disabledState,
+			canApply: true,
+		};
+		rendered.rerender(
+			<ReorderFormPopover anchor={ anchor } state={ enabledState } tableIdentity="table-a" />
+		);
+
+		expect( screen.getByRole( 'button', { name: '並び替え' } ).hasAttribute( 'disabled' ) ).toBe(
+			false
+		);
+	} );
+
+	/**
 	 * 狭い表示領域ではRFを折りたたんでTable確認へ退避できることを確認する。
 	 *
 	 * 事前条件:
@@ -329,11 +651,71 @@ describe( 'Reorder Form presentation', () => {
 			<ReorderFormPopover anchor={ anchor } state={ createRowState() } tableIdentity="table-a" />
 		);
 
-		fireEvent.click( screen.getByRole( 'button', { name: 'Collapse reorder form' } ) );
+		const collapseButton = screen.getByRole( 'button', { name: 'Collapse reorder form' } );
+		const controlledId = collapseButton.getAttribute( 'aria-controls' );
+		expect( collapseButton.getAttribute( 'aria-expanded' ) ).toBe( 'true' );
+		expect( controlledId ).not.toBeNull();
+		if ( controlledId === null ) {
+			return;
+		}
+		const controlledContent = document.getElementById( controlledId );
+		expect( controlledContent ).not.toBeNull();
+
+		fireEvent.click( collapseButton );
 
 		expect( screen.queryByRole( 'spinbutton', { name: '移動する行' } ) ).toBeNull();
+		expect( controlledContent?.hasAttribute( 'hidden' ) ).toBe( true );
 		expect( screen.getByText( '2 → 5 · 上' ) ).toBeTruthy();
-		expect( screen.getByRole( 'button', { name: 'Expand reorder form' } ) ).toBeTruthy();
+		const expandButton = screen.getByRole( 'button', { name: 'Expand reorder form' } );
+		expect( expandButton.getAttribute( 'aria-controls' ) ).toBe( controlledId );
+		expect( expandButton.getAttribute( 'aria-expanded' ) ).toBe( 'false' );
+	} );
+
+	/**
+	 * narrow表示でRFを折りたたんでも結果announcementが折りたたみ領域の外に残ることを確認する。
+	 *
+	 * 事前条件:
+	 * - narrow表示のRow RFでno-op結果が成立している。
+	 *
+	 * 操作:
+	 * - RFを折りたたむ。
+	 *
+	 * 期待結果:
+	 * - 入力画面はhiddenになる。
+	 * - no-opのAnnouncement live regionはhidden領域の外に残る。
+	 */
+	it( 'when a narrow form with a result is collapsed, should keep its announcement outside the hidden form content', () => {
+		setViewportWidth( window, 640 );
+		const state: RfInteractionReactState = {
+			status: 'open',
+			kind: 'row',
+			input: {
+				sourceRowNumber: '1',
+				targetRowNumber: '2',
+				position: 'above',
+			},
+			rowCount: 20,
+			result: { status: 'no-op' },
+			canApply: false,
+		};
+		const anchor = document.createElement( 'button' );
+
+		render( <ReorderFormPopover anchor={ anchor } state={ state } tableIdentity="table-a" /> );
+
+		const collapseButton = screen.getByRole( 'button', { name: 'Collapse reorder form' } );
+		const controlledId = collapseButton.getAttribute( 'aria-controls' );
+		expect( controlledId ).not.toBeNull();
+		if ( controlledId === null ) {
+			return;
+		}
+		const controlledContent = document.getElementById( controlledId );
+		expect( controlledContent ).not.toBeNull();
+
+		fireEvent.click( collapseButton );
+
+		const announcement = screen.getByRole( 'status' );
+		expect( controlledContent?.hasAttribute( 'hidden' ) ).toBe( true );
+		expect( controlledContent?.contains( announcement ) ).toBe( false );
 	} );
 
 	/**
@@ -359,7 +741,7 @@ describe( 'Reorder Form presentation', () => {
 				position: null,
 			},
 			rowCount: 20,
-			result: { status: 'not-ready' },
+			result: { status: 'not-ready', inputProblems: [] },
 			canApply: false,
 		};
 		const anchor = document.createElement( 'button' );

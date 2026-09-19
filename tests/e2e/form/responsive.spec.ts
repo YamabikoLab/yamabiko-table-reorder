@@ -114,10 +114,14 @@ test.describe( 'narrow Reorder Form presentation', () => {
 		await expect( popover ).toHaveCSS( 'bottom', '0px' );
 		await fillRowReorder( form, 2, 4, 'below' );
 
-		await form.getByRole( 'button', { name: COLLAPSE } ).click();
+		const collapseButton = form.getByRole( 'button', { name: COLLAPSE } );
+		await expect( collapseButton ).toHaveAttribute( 'aria-expanded', 'true' );
+		await collapseButton.press( 'Enter' );
 		await expect( form ).toContainText( /2 → 4 · (Below|下)/ );
 		await expect( form.getByRole( 'spinbutton', { name: SOURCE_ROW } ) ).toBeHidden();
-		await form.getByRole( 'button', { name: EXPAND } ).click();
+		const expandButton = form.getByRole( 'button', { name: EXPAND } );
+		await expect( expandButton ).toHaveAttribute( 'aria-expanded', 'false' );
+		await expandButton.press( 'Space' );
 
 		await expect( form.getByRole( 'spinbutton', { name: SOURCE_ROW } ) ).toHaveValue( '2' );
 		await expect( form.getByRole( 'spinbutton', { name: TARGET_ROW } ) ).toHaveValue( '4' );

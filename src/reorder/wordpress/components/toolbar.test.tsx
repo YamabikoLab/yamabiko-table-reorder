@@ -262,7 +262,7 @@ describe( 'Reorder toolbar RF exclusivity', () => {
 			kind: 'row',
 			input: { sourceRowNumber: '', targetRowNumber: '', position: null },
 			rowCount: 3,
-			result: { status: 'not-ready' },
+			result: { status: 'not-ready', inputProblems: [] },
 			canApply: false,
 		};
 		render( <ReorderModeToolbar tableIdentity="table-a" /> );

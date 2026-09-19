@@ -222,6 +222,7 @@ describe( 'RF Interaction', () => {
 	 *
 	 * 期待結果:
 	 * - Row入力値は保持され、現在結果はnot-readyへ更新される。
+	 * - Input Interpretationが確定したtargetの入力問題と現在有効な行番号範囲がそのまま保持される。
 	 */
 	it( 'when the active table changes, should re-evaluate the preserved input against the current table', () => {
 		rfInteraction.open( 'table-a' );
@@ -240,7 +241,15 @@ describe( 'RF Interaction', () => {
 			evaluation: {
 				kind: 'row',
 				rowCount: 1,
-				result: { status: 'not-ready' },
+				result: {
+					status: 'not-ready',
+					inputProblems: [
+						{
+							target: 'target',
+							correction: { kind: 'row-number-range', min: 1, max: 1 },
+						},
+					],
+				},
 			},
 		} );
 	} );
@@ -421,11 +430,17 @@ describe( 'RF Interaction', () => {
 	 * - successではclosedになり、failure / cancelledではRow入力を保持したopenへ戻る。
 	 */
 	it.each( [
-		[ 'success', { status: 'closed' } ],
-		[ 'failure', { status: 'open', rowInput: ROW_INPUT } ],
-		[ 'cancelled', { status: 'open', rowInput: ROW_INPUT } ],
+		[
+			{
+				status: 'success',
+				moveSummary: { kind: 'row', sourcePosition: 1, destinationPosition: 3 },
+			} as const,
+			{ status: 'closed' },
+		],
+		[ { status: 'failure' } as const, { status: 'open', rowInput: ROW_INPUT } ],
+		[ { status: 'cancelled' } as const, { status: 'open', rowInput: ROW_INPUT } ],
 	] as const )(
-		'when apply resolves as %s, should transition to the expected session state',
+		'when apply resolves, should transition to the expected session state',
 		( result, expectedSession ) => {
 			let resolveApply: ( result: RfApplyResult ) => void = () => undefined;
 			mockedReceiveRfApplyRequest.mockImplementation( ( _request, resolve ) => {

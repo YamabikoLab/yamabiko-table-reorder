@@ -1,5 +1,7 @@
 /**
  * 確認付き大規模反映後の表示復帰が、現在のEditor DOM Contextと反映後最終位置に従うことを確認する。
+ *
+ * 表示位置と結果強調だけを担当し、focus適用はFocus Coordinationへ委ねることを検証する。
  */
 
 import { restoreMovedColumn, restoreMovedRow } from './restoration';
@@ -7,25 +9,8 @@ import { restoreMovedColumn, restoreMovedRow } from './restoration';
 const RESTORED_CELL_CLASS = 'yamabiko-table-reorder-restored-cell';
 
 describe( 'WordPress Reorder Apply restoration', () => {
-	/**
-	 * 概要:
-	 * - 行反映後に最終行を表示し、先頭セルへ結果確認用フォーカスを戻して復帰先セルを強調することを確認する。
-	 *
-	 * 事前条件:
-	 * - 再mount後のTableに反映後最終行が存在する。
-	 * - その行には編集可能なセル内容がある。
-	 *
-	 * 操作:
-	 * - 反映後最終行への表示復帰を要求する。
-	 * - その後、フォーカスを復帰先セルの外へ移す。
-	 *
-	 * 期待結果:
-	 * - 最終行の編集位置が利用者から確認できる位置へ表示される。
-	 * - contenteditableではなくセル自体へスクロールを発生させずにフォーカスが戻る。
-	 * - フォーカス中は復帰先セルが強調され、セル外へ移ると強調が終了する。
-	 * - 復帰のために追加したtabindexはセル外へ移ると削除される。
-	 */
-	it( 'when the moved row exists after remounting, should reveal and focus its first cell without focusing editable content', () => {
+	/** 行反映後は最終行を表示して結果セルを強調対象にするが、focus自体は適用しない。 */
+	it( 'when the moved row exists after remounting, should reveal and mark its first cell without focusing it', () => {
 		const editorDocument = document.implementation.createHTMLDocument( 'editor' );
 		editorDocument.body.innerHTML = `
 			<div data-block="table-a">
@@ -34,51 +19,56 @@ describe( 'WordPress Reorder Apply restoration', () => {
 					<tr><td><span contenteditable="true">B</span></td></tr>
 				</tbody></table>
 			</div>
-			<button type="button">Outside</button>
 		`;
 		const editable = editorDocument.querySelector< HTMLElement >(
 			'tbody tr:nth-child(2) [contenteditable="true"]'
 		);
 		const cell = editable?.closest< HTMLElement >( 'td' ) ?? null;
-		const outside = editorDocument.querySelector< HTMLButtonElement >( 'button' );
-		if ( editable === null || cell === null || outside === null ) {
-			throw new Error( 'Expected editable row cell and outside focus target.' );
+		if ( editable === null || cell === null ) {
+			throw new Error( 'Expected editable row cell.' );
 		}
 		const scrollIntoView = jest.fn();
 		Object.defineProperty( editable, 'scrollIntoView', {
 			configurable: true,
 			value: scrollIntoView,
 		} );
-		const editableFocus = jest.spyOn( editable, 'focus' );
 		const cellFocus = jest.spyOn( cell, 'focus' );
 
 		restoreMovedRow( editorDocument, 'table-a', 1 );
 
 		expect( scrollIntoView ).toHaveBeenCalledWith( { block: 'center', inline: 'start' } );
-		expect( editableFocus ).not.toHaveBeenCalled();
-		expect( cellFocus ).toHaveBeenCalledWith( { preventScroll: true } );
-		expect( cell.getAttribute( 'tabindex' ) ).toBe( '-1' );
+		expect( cellFocus ).not.toHaveBeenCalled();
 		expect( cell.classList.contains( RESTORED_CELL_CLASS ) ).toBe( true );
-
-		cell.dispatchEvent( new FocusEvent( 'focusout', { bubbles: true, relatedTarget: outside } ) );
-		expect( cell.classList.contains( RESTORED_CELL_CLASS ) ).toBe( false );
 		expect( cell.hasAttribute( 'tabindex' ) ).toBe( false );
 	} );
 
-	/**
-	 * 概要:
-	 * - iframe editor内の復帰先セルでフォーカス位置が変わっても、同じセルを反映結果として強調し続けることを確認する。
-	 *
-	 * 事前条件:
-	 * - iframe editor内の反映後最終行に複数のフォーカス可能位置がある。
-	 * - 復帰先と移動先はglobalとは異なるDOM環境に属している。
-	 *
-	 * 操作:
-	 * - 最終行へ表示復帰した後、同じセル内の別の位置へフォーカスを移す。
-	 *
-	 * 期待結果:
-	 * - iframe / non-iframeのDOM環境差に影響されず、復帰先セルの強調と一時tabindexは維持される。
-	 */
+	/** 結果確認セルから外へfocusが移った場合は、一時的な結果強調を終了する。 */
+	it( 'when focus later leaves the restored cell, should remove its result highlight', () => {
+		const editorDocument = document.implementation.createHTMLDocument( 'editor' );
+		editorDocument.body.innerHTML = `
+			<div data-block="table-a">
+				<table><tbody><tr><td><span contenteditable="true">A</span></td></tr></tbody></table>
+			</div>
+			<button type="button">Outside</button>
+		`;
+		const editable = editorDocument.querySelector< HTMLElement >( '[contenteditable="true"]' );
+		const cell = editable?.closest< HTMLElement >( 'td' ) ?? null;
+		const outside = editorDocument.querySelector< HTMLButtonElement >( 'button' );
+		if ( editable === null || cell === null || outside === null ) {
+			throw new Error( 'Expected restored cell and outside target.' );
+		}
+		Object.defineProperty( editable, 'scrollIntoView', {
+			configurable: true,
+			value: jest.fn(),
+		} );
+
+		restoreMovedRow( editorDocument, 'table-a', 0 );
+		cell.dispatchEvent( new FocusEvent( 'focusout', { bubbles: true, relatedTarget: outside } ) );
+
+		expect( cell.classList.contains( RESTORED_CELL_CLASS ) ).toBe( false );
+	} );
+
+	/** iframe editor内で同じセル内部へfocusが移る場合は、結果強調を維持する。 */
 	it( 'when focus moves within the restored cell in an editor iframe, should keep the restored cell highlighted', () => {
 		const iframe = document.createElement( 'iframe' );
 		document.body.append( iframe );
@@ -112,36 +102,17 @@ describe( 'WordPress Reorder Apply restoration', () => {
 			value: jest.fn(),
 		} );
 
-		expect( inside ).toBeInstanceOf( editorWindow.Node );
-		expect( inside ).not.toBeInstanceOf( Node );
-
 		restoreMovedRow( editorDocument, 'table-a', 0 );
 		cell.dispatchEvent(
 			new editorWindow.FocusEvent( 'focusout', { bubbles: true, relatedTarget: inside } )
 		);
 
 		expect( cell.classList.contains( RESTORED_CELL_CLASS ) ).toBe( true );
-		expect( cell.getAttribute( 'tabindex' ) ).toBe( '-1' );
 		iframe.remove();
 	} );
 
-	/**
-	 * 概要:
-	 * - 列反映後の最終論理列が結合セル内にある場合、その結合セル自体を結果確認用フォーカス先として扱うことを確認する。
-	 *
-	 * 事前条件:
-	 * - 再mount後のTable先頭行で、1つのセルが複数の論理列を占有している。
-	 * - 反映後最終論理列はその結合セルの占有範囲内にある。
-	 *
-	 * 操作:
-	 * - 反映後最終論理列への表示復帰を要求する。
-	 *
-	 * 期待結果:
-	 * - 最終論理列を占有する結合セルの編集位置が表示される。
-	 * - contenteditableではなく結合セル自体へスクロールを発生させずにフォーカスが戻る。
-	 * - フォーカスを戻した結合セルが反映結果として強調される。
-	 */
-	it( 'when the moved logical column is covered by a merged cell, should restore and focus the merged cell that owns it', () => {
+	/** 列反映後の確定論理列が結合セル内なら、その結合セルを表示・強調対象にする。 */
+	it( 'when the moved logical column is covered by a merged cell, should reveal and mark the merged cell', () => {
 		const editorDocument = document.implementation.createHTMLDocument( 'editor' );
 		editorDocument.body.innerHTML = `
 			<div data-block="table-a">
@@ -163,57 +134,12 @@ describe( 'WordPress Reorder Apply restoration', () => {
 			configurable: true,
 			value: scrollIntoView,
 		} );
-		const editableFocus = jest.spyOn( editable, 'focus' );
 		const cellFocus = jest.spyOn( cell, 'focus' );
 
 		restoreMovedColumn( editorDocument, 'table-a', 1 );
 
 		expect( scrollIntoView ).toHaveBeenCalledWith( { block: 'center', inline: 'center' } );
-		expect( editableFocus ).not.toHaveBeenCalled();
-		expect( cellFocus ).toHaveBeenCalledWith( { preventScroll: true } );
-		expect( cell.getAttribute( 'tabindex' ) ).toBe( '-1' );
+		expect( cellFocus ).not.toHaveBeenCalled();
 		expect( cell.classList.contains( RESTORED_CELL_CLASS ) ).toBe( true );
-	} );
-
-	/**
-	 * 概要:
-	 * - 復帰先セルが元からtabindexを持つ場合、一時的な結果確認用フォーカスによって元の値を失わないことを確認する。
-	 *
-	 * 事前条件:
-	 * - 反映後の復帰先セルに既存のtabindexが設定されている。
-	 *
-	 * 操作:
-	 * - 行反映後の表示復帰を要求する。
-	 * - その後、フォーカスを復帰先セルの外へ移す。
-	 *
-	 * 期待結果:
-	 * - 復帰中はプログラムからフォーカスできる一時tabindexが設定される。
-	 * - セル外へフォーカスが移ると、元のtabindex値が復元される。
-	 */
-	it( 'when the restored cell already has tabindex, should restore its original value after focus leaves', () => {
-		const editorDocument = document.implementation.createHTMLDocument( 'editor' );
-		editorDocument.body.innerHTML = `
-			<div data-block="table-a">
-				<table><tbody><tr><td tabindex="3"><span contenteditable="true">A</span></td></tr></tbody></table>
-			</div>
-			<button type="button">Outside</button>
-		`;
-		const editable = editorDocument.querySelector< HTMLElement >( '[contenteditable="true"]' );
-		const cell = editable?.closest< HTMLElement >( 'td' ) ?? null;
-		const outside = editorDocument.querySelector< HTMLButtonElement >( 'button' );
-		if ( editable === null || cell === null || outside === null ) {
-			throw new Error( 'Expected restored cell with existing tabindex.' );
-		}
-		Object.defineProperty( editable, 'scrollIntoView', {
-			configurable: true,
-			value: jest.fn(),
-		} );
-
-		restoreMovedRow( editorDocument, 'table-a', 0 );
-		expect( cell.getAttribute( 'tabindex' ) ).toBe( '-1' );
-
-		cell.dispatchEvent( new FocusEvent( 'focusout', { bubbles: true, relatedTarget: outside } ) );
-
-		expect( cell.getAttribute( 'tabindex' ) ).toBe( '3' );
 	} );
 } );

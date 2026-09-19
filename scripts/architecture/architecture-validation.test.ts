@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import type { ArchitectureModel } from './architecture-model';
+import { externalContextTypes, type ArchitectureModel } from './architecture-model';
 import { validateArchitectureModel } from './architecture-validation';
 
 const validModel = (): ArchitectureModel => ( {
@@ -72,6 +72,24 @@ const validModel = (): ArchitectureModel => ( {
 
 test( '有効な Architecture Model を受理する', () => {
 	assert.doesNotThrow( () => validateArchitectureModel( validModel() ) );
+} );
+
+test( '正式な External Context Type 5種類を受理する', () => {
+	for ( const type of externalContextTypes ) {
+		const model = validModel();
+		model.externalContexts[ 0 ].type = type;
+		assert.doesNotThrow( () => validateArchitectureModel( model ) );
+	}
+} );
+
+test( '未対応の External Context Type を拒否する', () => {
+	const model = validModel();
+	model.externalContexts[ 0 ].type = 'External Platform';
+
+	assert.throws(
+		() => validateArchitectureModel( model ),
+		/External Context EXT_EDITOR Type "External Platform" is unsupported/u
+	);
 } );
 
 test( 'ID の重複を ID が分かるエラーとして拒否する', () => {

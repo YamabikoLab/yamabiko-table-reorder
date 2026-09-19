@@ -20,7 +20,7 @@ import type { RfApplyRequest, RfApplyResult } from './interaction';
  *
  * `idle`は保持中の反映がない状態、`confirming`は利用者の確認待ち、`applying`はWordPress側が
  * 反映中表示を成立させる段階、`restoring`は確定更新後の表示復帰待ちを表す。
- * `destinationIndex`は表示復帰が利用する反映後の0-based最終位置を正本として保持する。
+ * 成功した表示復帰では確定Move summaryを正本とし、失敗時だけReorder Kindを保持する。
  */
 export type RfApplyCoordinationSnapshot =
 	| { phase: 'idle' }
@@ -29,16 +29,21 @@ export type RfApplyCoordinationSnapshot =
 	| {
 			phase: 'restoring';
 			tableIdentity: string;
+			applied: true;
+			moveSummary: RfApplySummary;
+	  }
+	| {
+			phase: 'restoring';
+			tableIdentity: string;
 			kind: 'row' | 'column';
-			applied: boolean;
-			destinationIndex: number | null;
+			applied: false;
 	  };
 
 /**
- * 確認ダイアログへ渡す利用者向けのRF移動概要。
+ * RF Apply Coordinationが確定した移動概要。
  *
  * `sourcePosition`と`destinationPosition`は1-basedで表し、`destinationPosition`は移動元を除去した後の
- * 最終配置位置とする。表示復帰位置の正本には使用しない。
+ * 最終配置位置とする。確認表示、表示復帰、成功結果で共有する確定移動意味情報である。
  */
 export type RfApplySummary =
 	| { kind: 'row'; sourcePosition: number; destinationPosition: number }
@@ -56,7 +61,6 @@ type RfApplyAssessment = {
 	tableIdentity: string;
 	kind: 'row' | 'column';
 	affectedCellCount: number;
-	destinationIndex: number;
 	summary: RfApplySummary;
 };
 
@@ -70,7 +74,7 @@ type RfApplyCoordinationActions = {
 	requestRestoration: (
 		request: RfApplyRequest,
 		resolve: ( result: RfApplyResult ) => void,
-		destinationIndex: number
+		moveSummary: RfApplySummary
 	) => boolean;
 	continueApply: () => void;
 	cancel: () => void;
@@ -85,7 +89,7 @@ type RfApplyCoordinationStore = {
 } & RfApplyCoordinationActions;
 
 /**
- * RF候補を現在Tableへ再照合し、経路選択と表示復帰に必要な最終位置を取得する。
+ * RF候補を現在Tableへ再照合し、経路選択と確定移動概要を取得する。
  *
  * @param request RF InteractionがApply要求時点で解決したReorder Kind固有候補。
  * @return 現在Tableでも成立する候補の評価。成立しない場合はnull。
@@ -103,7 +107,6 @@ const assessRequest = ( request: RfApplyRequest ): RfApplyAssessment | null => {
 			tableIdentity: request.candidate.clientId,
 			kind: 'row',
 			affectedCellCount: assessment.affectedCellCount,
-			destinationIndex: assessment.destinationRowIndex,
 			summary: {
 				kind: 'row',
 				sourcePosition: request.candidate.sourceRowIndex + 1,
@@ -122,7 +125,6 @@ const assessRequest = ( request: RfApplyRequest ): RfApplyAssessment | null => {
 		tableIdentity: request.candidate.clientId,
 		kind: 'column',
 		affectedCellCount: assessment.affectedCellCount,
-		destinationIndex: assessment.destinationColumnIndex,
 		summary: {
 			kind: 'column',
 			sourcePosition: request.candidate.sourceColumnIndex + 1,
@@ -179,7 +181,7 @@ const rfApplyCoordinationStore = createStore< RfApplyCoordinationStore >()(
 				);
 				return true;
 			},
-			requestRestoration: ( request, resolve, destinationIndex ) => {
+			requestRestoration: ( request, resolve, moveSummary ) => {
 				/* 通常反映成功後も表示復帰が完了するまで別候補を重ねて保持しない。 */
 				if ( get().snapshot.phase !== 'idle' ) {
 					return false;
@@ -191,9 +193,8 @@ const rfApplyCoordinationStore = createStore< RfApplyCoordinationStore >()(
 						snapshot: {
 							phase: 'restoring',
 							tableIdentity,
-							kind: request.kind,
 							applied: true,
-							destinationIndex,
+							moveSummary,
 						},
 						pending: { request, resolve, summary: null },
 					},
@@ -216,6 +217,7 @@ const rfApplyCoordinationStore = createStore< RfApplyCoordinationStore >()(
 							tableIdentity: state.snapshot.tableIdentity,
 							kind: state.snapshot.kind,
 						},
+						pending: { ...state.pending, summary: null },
 					},
 					undefined,
 					'rf-apply/continue'
@@ -231,7 +233,7 @@ const rfApplyCoordinationStore = createStore< RfApplyCoordinationStore >()(
 				const resolve = state.pending.resolve;
 				/* callbackの同期的な再入で古いライフサイクルを観測させないため、外部通知より先に内部状態を破棄する。 */
 				set( { snapshot: IDLE_SNAPSHOT, pending: null }, undefined, 'rf-apply/cancel' );
-				resolve( 'cancelled' );
+				resolve( { status: 'cancelled' } );
 			},
 			apply: () => {
 				const state = get();
@@ -243,14 +245,29 @@ const rfApplyCoordinationStore = createStore< RfApplyCoordinationStore >()(
 				/* Continue待ちの間にTableが変わり得るため、現在Tableで候補が成立する場合だけ確定更新へ進む。 */
 				const assessment = assessRequest( state.pending.request );
 				const applied = assessment === null ? false : applyRequest( state.pending.request );
+				if ( applied && assessment !== null ) {
+					set(
+						{
+							snapshot: {
+								phase: 'restoring',
+								tableIdentity: state.snapshot.tableIdentity,
+								applied: true,
+								moveSummary: assessment.summary,
+							},
+						},
+						undefined,
+						'rf-apply/restoring'
+					);
+					return;
+				}
+
 				set(
 					{
 						snapshot: {
 							phase: 'restoring',
 							tableIdentity: state.snapshot.tableIdentity,
 							kind: state.snapshot.kind,
-							applied,
-							destinationIndex: assessment?.destinationIndex ?? null,
+							applied: false,
 						},
 					},
 					undefined,
@@ -265,7 +282,9 @@ const rfApplyCoordinationStore = createStore< RfApplyCoordinationStore >()(
 				}
 
 				const resolve = state.pending.resolve;
-				const result: RfApplyResult = state.snapshot.applied ? 'success' : 'failure';
+				const result: RfApplyResult = state.snapshot.applied
+					? { status: 'success', moveSummary: state.snapshot.moveSummary }
+					: { status: 'failure' };
 				/* callbackの同期的な再入で完了済み候補を再利用させないため、外部通知より先にcleanupする。 */
 				set( { snapshot: IDLE_SNAPSHOT, pending: null }, undefined, 'rf-apply/complete' );
 				resolve( result );
@@ -290,14 +309,14 @@ export const receiveRfApplyRequest = (
 ): void => {
 	/* 進行中ライフサイクルと競合する要求は黙って破棄せず、呼び出し元Interactionをfailureで解放する。 */
 	if ( rfApplyCoordinationStore.getState().snapshot.phase !== 'idle' ) {
-		resolve( 'failure' );
+		resolve( { status: 'failure' } );
 		return;
 	}
 
 	const assessment = assessRequest( request );
 	/* 受付時点の現在Tableで候補が成立しない場合は、Tableを変更せず要求を失敗として完了する。 */
 	if ( assessment === null ) {
-		resolve( 'failure' );
+		resolve( { status: 'failure' } );
 		return;
 	}
 
@@ -305,16 +324,16 @@ export const receiveRfApplyRequest = (
 	if ( ! requiresLargeReorderApply( assessment.affectedCellCount ) ) {
 		const applied = applyRequest( request );
 		if ( ! applied ) {
-			resolve( 'failure' );
+			resolve( { status: 'failure' } );
 			return;
 		}
 
 		const accepted = rfApplyCoordinationStore
 			.getState()
-			.requestRestoration( request, resolve, assessment.destinationIndex );
+			.requestRestoration( request, resolve, assessment.summary );
 		/* 同期的な競合で保持できなかった場合もcallbackを未完了にしない。 */
 		if ( ! accepted ) {
-			resolve( 'failure' );
+			resolve( { status: 'failure' } );
 		}
 		return;
 	}
@@ -324,7 +343,7 @@ export const receiveRfApplyRequest = (
 		.requestLarge( request, resolve, assessment.summary );
 	/* 同期的な競合で保持できなかった場合もcallbackを未完了にしない。 */
 	if ( ! accepted ) {
-		resolve( 'failure' );
+		resolve( { status: 'failure' } );
 	}
 };
 
@@ -357,8 +376,14 @@ export const getRfApplyCoordinationSnapshot = (): RfApplyCoordinationSnapshot =>
  *
  * @return 確認表示用summary。確認表示を所有しない状態ではnull。
  */
-export const getRfApplySummary = (): RfApplySummary | null =>
-	rfApplyCoordinationStore.getState().pending?.summary ?? null;
+export const getRfApplySummary = (): RfApplySummary | null => {
+	const state = rfApplyCoordinationStore.getState();
+	if ( state.snapshot.phase !== 'confirming' ) {
+		return null;
+	}
+
+	return state.pending?.summary ?? null;
+};
 
 /** 確認待ちRF反映をContinueし、WordPress側が反映中表示を成立させる段階へ進める。 */
 export const continueRfApply = (): void => rfApplyCoordinationStore.getState().continueApply();

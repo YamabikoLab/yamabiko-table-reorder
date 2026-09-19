@@ -8,8 +8,8 @@ import type { ReactNode } from 'react';
 import { ReorderCompletionNotice } from './reorder-completion-notice';
 
 jest.mock( '@wordpress/components', () => ( {
-	Snackbar: ( props: { children: ReactNode; onRemove?: () => void } ) => (
-		<div role="status">
+	Snackbar: ( props: { children: ReactNode; onRemove?: () => void; spokenMessage?: string } ) => (
+		<div data-snackbar="true" data-spoken-message={ props.spokenMessage }>
 			{ props.children }
 			<button type="button" onClick={ props.onRemove }>
 				Dismiss
@@ -52,8 +52,11 @@ describe( 'Reorder completion notice presentation', () => {
 			/>
 		);
 
-		expect( screen.getByRole( 'status' ) ).not.toBeNull();
-		expect( screen.getByText( 'Reordering complete.' ) ).not.toBeNull();
+		const message = screen.getByText( 'Reordering complete.' );
+		expect( message ).not.toBeNull();
+		expect(
+			message.closest( '[data-snackbar]' )?.getAttribute( 'data-spoken-message' )
+		).toBeNull();
 		expect( screen.getByText( 'Reordering complete.' ).previousElementSibling ).not.toBeNull();
 	} );
 
@@ -86,6 +89,36 @@ describe( 'Reorder completion notice presentation', () => {
 			screen.getByText( 'Reordering failed. The table has not been changed.' )
 				.previousElementSibling
 		).not.toBeNull();
+	} );
+
+	/**
+	 * 別のAnnouncement経路を持つ呼び出し元だけSnackbar既定読み上げを抑制できることを確認する。
+	 *
+	 * 事前条件:
+	 * - RF側が独立したAnnouncement Deliveryを所有している。
+	 *
+	 * 操作:
+	 * - 共通結果通知へ既定読み上げの抑制を指定する。
+	 *
+	 * 期待結果:
+	 * - 視覚通知は通常どおり表示される。
+	 * - Snackbarへ空のspoken messageを渡し、同じ結果の二重読み上げを発生させない。
+	 */
+	it( 'when a caller owns a separate announcement path, should suppress only the Snackbar spoken message', () => {
+		render(
+			<ReorderCompletionNotice
+				status="success"
+				message="Reordering complete."
+				onRemove={ jest.fn() }
+				suppressSpokenMessage
+			/>
+		);
+
+		const message = screen.getByText( 'Reordering complete.' );
+		expect( message ).not.toBeNull();
+		expect( message.closest( '[data-snackbar]' )?.getAttribute( 'data-spoken-message' ) ).toBe(
+			''
+		);
 	} );
 
 	/**
