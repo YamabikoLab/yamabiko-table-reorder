@@ -134,10 +134,6 @@ final class Plugin {
 				'label'               => __( 'Get chat models', 'yamabiko-table-reorder' ),
 				'description'         => __( 'Returns the configured AI models available to Chat Reorder.', 'yamabiko-table-reorder' ),
 				'category'            => 'yamabiko-table-reorder',
-				'input_schema'        => array(
-					'type'                 => 'object',
-					'additionalProperties' => false,
-				),
 				'output_schema'       => array(
 					'type'                 => 'object',
 					'properties'           => array(
