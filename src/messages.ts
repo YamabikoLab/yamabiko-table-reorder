@@ -233,11 +233,11 @@ export const getRfApplyFailureMessage = () =>
 	__( 'Reordering failed. The table has not been changed.', 'yamabiko-table-reorder' );
 
 /**
- * 行DnDを安全に継続できず終了したことを知らせる文言を取得する。
+ * DnDを安全に継続できず終了したことを知らせる行・列共通文言を取得する。
  *
- * @return 現在の言語に対応した行DnD異常終了メッセージ。
+ * @return 現在の言語に対応したDnD終了メッセージ。
  */
-export const getRowDndTerminationMessage = () =>
+export const getDndTerminationMessage = () =>
 	__( 'Reordering could not continue, so the operation was ended.', 'yamabiko-table-reorder' );
 
 /**
