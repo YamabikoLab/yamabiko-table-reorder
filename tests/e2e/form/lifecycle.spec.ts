@@ -2,6 +2,7 @@ import { expect, test } from '@wordpress/e2e-test-utils-playwright';
 
 import {
 	APPLY,
+	APPLYING,
 	CANCEL,
 	COLUMN_BUTTON,
 	COLUMNS,
@@ -177,6 +178,7 @@ test( 'when a 310-cell row reorder is cancelled at confirmation, should preserve
  *
  * 期待結果:
  * - 確認の主要操作へfocusし、KeyboardでContinueできる。
+ * - 反映中であることを支援技術から状態として認識できる。
  * - Table全体の列順が変更され、RFが終了して完了通知を確認できる。
  * - 確定した移動元と移動後位置を一つの支援技術向け通知から認識できる。
  * - 結果確認用フォーカスは移動後セル自体に置かれ、セル内の編集領域を自動選択しない。
@@ -201,7 +203,13 @@ test( 'when a 310-cell column reorder is continued, should restore ordinary edit
 	await expect( confirmation ).toBeVisible();
 	const continueButton = confirmation.getByRole( 'button', { name: CONTINUE } );
 	await expect( continueButton ).toBeFocused();
-	await continueButton.press( 'Enter' );
+	const applying = page.getByRole( 'dialog', { name: APPLYING } );
+	const applyingStatus = applying.getByRole( 'status' );
+	await Promise.all( [
+		expect( applying ).toBeVisible(),
+		expect( applyingStatus ).toHaveAttribute( 'aria-busy', 'true' ),
+		continueButton.press( 'Enter' ),
+	] );
 	const announcement = canvas.getByRole( 'status' ).filter( { hasText: COLUMN_SUCCESS } );
 	await expect( announcement ).toHaveText(
 		/Moved column 1 to position 10\.|1列目を10列目の位置へ移動しました。/
