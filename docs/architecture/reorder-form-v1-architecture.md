@@ -126,7 +126,7 @@ RF開始から入力解釈、現在Table上の指定解決、Apply、accessible 
 | RESP_WORDPRESS_REORDER_APPLY_INTEGRATION | RESP_RF_APPLY_COORDINATION | recovery | Cancelまたは必要な表示復帰完了を返す。 |
 | RESP_RF_APPLY_COORDINATION | RESP_RF_INTERACTION | recovery | Tableを不完全に変更しないfailureまたはCancelをRFへ返す。 |
 | RESP_RF_INTERACTION | RESP_ACCESSIBILITY_PRESENTATION | recovery | 現在の入力問題または指定全体の結果をaccessible Presentationへ渡す。 |
-| RESP_WORDPRESS_REORDER_INTEGRATION | RESP_FOCUS_COORDINATION | recovery | Designでfocus移動が必要なfailureまたは明示的終了の復帰intentを渡す。 |
+| RESP_WORDPRESS_REORDER_INTEGRATION | RESP_FOCUS_COORDINATION | recovery | 明示的終了の場合だけ、RF入口への復帰intentを渡す。 |
 | RESP_WORDPRESS_REORDER_INTEGRATION | RESP_ANNOUNCEMENT_DELIVERY | recovery | 確定済みの一回性failure / recovery意味を通知境界へ渡す。 |
 
 ## 5. Building Block View
