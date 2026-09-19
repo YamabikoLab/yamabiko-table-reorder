@@ -18,13 +18,13 @@ Use Row Reorder or Column Reorder mode from the Table toolbar, then drag body ro
 
 Column drag-and-drop is available only when the current editor view provides a reliable horizontal column layout. If the current view stacks or reflows cells so that horizontal column positions cannot be resolved safely, Column Reorder drag-and-drop does not start. The toolbar explains the limitation, and columns can still be reordered with Reorder Form. Row Reorder remains independent from this Column DnD availability check.
 
-Use Reorder with form from the same Table toolbar to move a row or column without drag-and-drop. Choose the source and destination, select the destination side, and apply the move when it is valid and changes the order. RF shows current row limits and available logical columns, including column headings when available.
+Use Reorder with form from the same Table toolbar to move a row or column without drag-and-drop. Choose the source and destination, select the destination side, and apply the move when it is valid and changes the order. Reorder Form shows current row limits and available logical columns, including column headings when available.
 
-Row Reorder, Column Reorder, and RF preserve supported Table structure, including merged-cell constraints, and update the order only when the requested move is valid. RF reports structural rejection using the location of the merged cell that prevents the move.
+Row Reorder, Column Reorder, and Reorder Form preserve supported Table structure, including merged-cell constraints, and update the order only when the requested move is valid. Reorder Form reports structural rejection using the location of the merged cell that prevents the move.
 
 When a reorder affects enough cells that applying it may take some time, the plugin shows a confirmation before applying the change. If continued, only the target Table enters a temporary applying state, and editing resumes after the update is complete. Reorder operations also provide shared success and failure feedback after the result is known.
 
-RF uses a movable Popover when enough editor space is available. In a narrow editor area it switches to a bottom dock that can be collapsed, resized vertically, and scrolled internally so the target Table and required form controls remain easier to inspect and reach.
+Reorder Form uses a movable Popover when enough editor space is available. In a narrow editor area it switches to a bottom dock that can be collapsed, resized vertically, and scrolled internally so the target Table and required form controls remain easier to inspect and reach.
 
 A WordPress Playground demo is available from the GitHub repository and uses the current latest stable release.
 
