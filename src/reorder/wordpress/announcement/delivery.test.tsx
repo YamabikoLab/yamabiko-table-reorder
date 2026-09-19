@@ -53,7 +53,7 @@ describe( 'Announcement Delivery', () => {
 		expect( screen.getByRole( 'status' ).textContent ).toBe(
 			"This selection won't change the order."
 		);
-		expect( document.activeElement ).toBe( focused );
+		expect( focused.ownerDocument.activeElement ).toBe( focused );
 
 		focused.remove();
 	} );

@@ -52,9 +52,9 @@ const ReorderCompletionNoticeIcon = ( props: { status: ReorderCompletionNoticeSt
 /**
  * 確定済みの並び替え結果を、成功・失敗で共通の一時通知として表示する。
  *
- * @param props          表示する結果通知。
- * @param props.status   成功または失敗の結果種別。
- * @param props.message  利用者へ表示する結果文言。
+ * @param props                       表示する結果通知。
+ * @param props.status                成功または失敗の結果種別。
+ * @param props.message               利用者へ表示する結果文言。
  * @param props.onRemove              表示時間満了または利用者dismiss時に通知所有者へ終了を伝える処理。
  * @param props.suppressSpokenMessage 呼び出し元が別のAnnouncement経路を所有する場合にSnackbar既定読み上げを抑制する。
  * @return 共通デザインの一時通知。
