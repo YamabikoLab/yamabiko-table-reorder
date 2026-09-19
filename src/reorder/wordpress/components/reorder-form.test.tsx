@@ -34,6 +34,7 @@ jest.mock( '@wordpress/components', () => ( {
 		</button>
 	),
 	Popover: ( props: { children: ReactNode } ) => <div>{ props.children }</div>,
+	VisuallyHidden: ( props: { children: ReactNode } ) => <span>{ props.children }</span>,
 } ) );
 
 jest.mock( '@/messages', () => ( {
@@ -503,7 +504,10 @@ describe( 'Reorder Form presentation', () => {
 
 		render( <ReorderFormPopover anchor={ anchor } state={ state } tableIdentity="table-a" /> );
 
-		expect( screen.getByText( '変更なし' ) ).toBeTruthy();
+		const noOpMessage = screen.getByText( '変更なし' );
+		expect( noOpMessage ).toBeTruthy();
+		expect( noOpMessage.getAttribute( 'role' ) ).toBeNull();
+		expect( screen.getByRole( 'status' ) ).toBeTruthy();
 		expect(
 			screen.getByRole( 'spinbutton', { name: '移動する行' } ).getAttribute( 'aria-invalid' )
 		).toBeNull();

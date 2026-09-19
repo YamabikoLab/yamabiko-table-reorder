@@ -8,12 +8,18 @@
 
 import { useEffect, useState } from '@wordpress/element';
 
-import { getLargeReorderCompletionMessage, getRfApplyFailureMessage } from '@/messages';
+import {
+	getLargeReorderCompletionMessage,
+	getRfApplyFailureMessage,
+	getRfColumnReorderSuccessAnnouncement,
+	getRfRowReorderSuccessAnnouncement,
+} from '@/messages';
 import {
 	rfInteraction,
 	type RfApplyOutcome,
 } from '@/reorder/reorder-form/responsibilities/interaction';
 import { useRfApplyOutcome } from '@/reorder/reorder-form/responsibilities/interaction-react';
+import { AnnouncementDelivery } from '@/reorder/wordpress/announcement/delivery';
 
 import { ReorderCompletionNotice } from './reorder-completion-notice';
 
@@ -52,16 +58,36 @@ export const ReorderFormCompletion = ( props: { tableIdentity: string } ) => {
 		return null;
 	}
 
-	const message =
-		presentedOutcome.status === 'failure'
-			? getRfApplyFailureMessage()
-			: getLargeReorderCompletionMessage();
+	let visualMessage: string;
+	let announcementMessage: string;
+	if ( presentedOutcome.status === 'failure' ) {
+		visualMessage = getRfApplyFailureMessage();
+		announcementMessage = visualMessage;
+	} else {
+		visualMessage = getLargeReorderCompletionMessage();
+		const { moveSummary } = presentedOutcome;
+		if ( moveSummary.kind === 'row' ) {
+			announcementMessage = getRfRowReorderSuccessAnnouncement(
+				moveSummary.sourcePosition,
+				moveSummary.destinationPosition
+			);
+		} else {
+			announcementMessage = getRfColumnReorderSuccessAnnouncement(
+				moveSummary.sourcePosition,
+				moveSummary.destinationPosition
+			);
+		}
+	}
 
 	return (
-		<ReorderCompletionNotice
-			status={ presentedOutcome.status }
-			message={ message }
-			onRemove={ () => setPresentedOutcome( null ) }
-		/>
+		<>
+			<AnnouncementDelivery message={ announcementMessage } source={ presentedOutcome } />
+			<ReorderCompletionNotice
+				status={ presentedOutcome.status }
+				message={ visualMessage }
+				onRemove={ () => setPresentedOutcome( null ) }
+				suppressSpokenMessage
+			/>
+		</>
 	);
 };

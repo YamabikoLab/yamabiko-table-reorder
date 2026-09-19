@@ -55,15 +55,17 @@ const ReorderCompletionNoticeIcon = ( props: { status: ReorderCompletionNoticeSt
  * @param props          表示する結果通知。
  * @param props.status   成功または失敗の結果種別。
  * @param props.message  利用者へ表示する結果文言。
- * @param props.onRemove 表示時間満了または利用者dismiss時に通知所有者へ終了を伝える処理。
+ * @param props.onRemove              表示時間満了または利用者dismiss時に通知所有者へ終了を伝える処理。
+ * @param props.suppressSpokenMessage 呼び出し元が別のAnnouncement経路を所有する場合にSnackbar既定読み上げを抑制する。
  * @return 共通デザインの一時通知。
  */
 export const ReorderCompletionNotice = ( props: {
 	status: ReorderCompletionNoticeStatus;
 	message: string;
 	onRemove: () => void;
+	suppressSpokenMessage?: boolean;
 } ) => {
-	const { status, message, onRemove } = props;
+	const { status, message, onRemove, suppressSpokenMessage = false } = props;
 	const onRemoveRef = useRef( onRemove );
 	onRemoveRef.current = onRemove;
 
@@ -81,10 +83,11 @@ export const ReorderCompletionNotice = ( props: {
 		status === 'failure'
 			? 'yamabiko-table-reorder-completion__content yamabiko-table-reorder-completion__content--failure'
 			: 'yamabiko-table-reorder-completion__content';
+	const spokenMessage = suppressSpokenMessage ? '' : undefined;
 
 	return (
 		<div className="yamabiko-table-reorder-completion">
-			<Snackbar onRemove={ onRemove }>
+			<Snackbar onRemove={ onRemove } spokenMessage={ spokenMessage }>
 				<strong className={ contentClassName }>
 					<ReorderCompletionNoticeIcon status={ status } />
 					<span className="yamabiko-table-reorder-completion__message">{ message }</span>
