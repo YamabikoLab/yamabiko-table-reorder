@@ -28,10 +28,24 @@ beforeEach( () => {
 } );
 
 describe( 'WordPress Reorder Apply Integration focus coordination', () => {
-	it( 'when a row success result cell exists, should focus it immediately without settlement', () => {
+	/**
+	 * Apply成功後の結果セルが通常のTab移動対象でなくても、結果確認focusを維持できることを確認する。
+	 *
+	 * 事前条件:
+	 * - 確定後の行位置に通常はfocus対象でない結果セルが存在する。
+	 *
+	 * 操作:
+	 * - 結果セルへのfocusを要求した後、利用者が別の操作位置へ移動する。
+	 *
+	 * 期待結果:
+	 * - 結果セルへfocusしている間だけ一時的にfocus可能な状態を維持する。
+	 * - 別の操作位置へ移動した後は、一時的なfocus属性を残さない。
+	 */
+	it( 'when a row success cell is not normally focusable, should keep focusability only while the result cell is focused', () => {
 		const referenceElement = document.createElement( 'div' );
+		const nextControl = document.createElement( 'button' );
 		const table = createTable();
-		document.body.append( referenceElement );
+		document.body.append( referenceElement, nextControl );
 		const expectedCell =
 			table.querySelectorAll< HTMLTableRowElement >( 'tbody tr' )[ 1 ].cells[ 0 ];
 
@@ -42,6 +56,11 @@ describe( 'WordPress Reorder Apply Integration focus coordination', () => {
 
 		expect( result ).toBeUndefined();
 		expect( referenceElement.ownerDocument.activeElement ).toBe( expectedCell );
+		expect( expectedCell ).toHaveAttribute( 'tabindex', '-1' );
+
+		nextControl.focus();
+
+		expect( expectedCell ).not.toHaveAttribute( 'tabindex' );
 	} );
 
 	it( 'when the moved logical column is covered by a merged cell, should focus the merged result cell', () => {

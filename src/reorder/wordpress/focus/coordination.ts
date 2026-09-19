@@ -171,22 +171,33 @@ export const resolveFocusTarget = (
 /**
  * 現在成立している要素へフォーカスを適用する。
  *
- * 結果確認セルやTable Blockが通常のKeyboard操作対象でない場合も結果確認位置としてフォーカスできるようにするが、
- * Focus Coordinationが追加した一時属性は要素の通常状態として残さない。
+ * 結果確認セルやTable Blockが通常のKeyboard操作対象でない場合も結果確認位置としてフォーカスできるようにする。
+ * Focus Coordinationが追加した一時tabindexはfocus保持中だけ維持し、利用者が別位置へ移動した時点で除去する。
  *
  * @param target 現在の表示環境に存在するフォーカス先。
  */
 export const applyFocusTarget = ( target: HTMLElement ): void => {
-	// tabindexを持たない非Tab対象だけ、今回のfocus適用に必要な属性を一時的に補う。
+	// tabindexを持たない非Tab対象だけ、結果確認focusを保持できる間だけ一時的な操作位置として扱う。
 	const needsTemporaryTabIndex = target.tabIndex < 0 && ! target.hasAttribute( 'tabindex' );
 	if ( needsTemporaryTabIndex ) {
 		target.setAttribute( 'tabindex', '-1' );
+		const removeTemporaryTabIndex = (): void => {
+			// Focus Coordinationが追加した値が残っている場合だけ通常状態へ戻す。
+			if ( target.getAttribute( 'tabindex' ) === '-1' ) {
+				target.removeAttribute( 'tabindex' );
+			}
+		};
+		target.addEventListener( 'blur', removeTemporaryTabIndex, { once: true } );
+
+		target.focus( { preventScroll: true } );
+
+		// focus自体が成立しなかった場合は、一時属性を通常状態へ残さない。
+		if ( target.ownerDocument.activeElement !== target ) {
+			target.removeEventListener( 'blur', removeTemporaryTabIndex );
+			removeTemporaryTabIndex();
+		}
+		return;
 	}
 
 	target.focus( { preventScroll: true } );
-
-	// Focus Coordination自身が追加した属性だけをfocus適用後に除去する。
-	if ( needsTemporaryTabIndex ) {
-		target.removeAttribute( 'tabindex' );
-	}
 };
