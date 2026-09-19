@@ -1,9 +1,10 @@
 === Yamabiko Table Reorder ===
+Contributors: yamabiko
 Tags: block editor, gutenberg, table
 Requires at least: 6.8
 Tested up to: 7.1
 Requires PHP: 8.1
-Stable tag: 0.9.8
+Stable tag: 1.0.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -11,7 +12,7 @@ Reorder table rows and columns in supported blocks in the WordPress block editor
 
 == Description ==
 
-Yamabiko Table Reorder 0.9.8 provides Row Reorder, Column Reorder, and Reorder Form for WordPress Core Table and Flexible Table Block.
+Yamabiko Table Reorder 1.0.0 provides Row Reorder, Column Reorder, and Reorder Form for WordPress Core Table and Flexible Table Block.
 
 Use Row Reorder or Column Reorder mode from the Table toolbar, then drag body rows or Table columns with Mouse or Touch. During DnD, the moving row or column and insertion line show the active move and destination while the surrounding Table remains in place. After a valid drop, the destination row or column area is outlined briefly so the selected position remains visible after the drag ends.
 
@@ -39,12 +40,21 @@ The generated archive is `yamabiko-table-reorder.zip`.
 
 == Installation ==
 
-1. Download a released `yamabiko-table-reorder.zip` from the GitHub Releases page.
-2. In WordPress, go to Plugins > Add New Plugin > Upload Plugin.
-3. Upload the ZIP file and install it.
+1. In WordPress, go to Plugins > Add New Plugin.
+2. Search for `Yamabiko Table Reorder`.
+3. Select Install Now.
 4. Activate Yamabiko Table Reorder.
 
+For manual installation, upload a released `yamabiko-table-reorder.zip` from GitHub Releases using Plugins > Add New Plugin > Upload Plugin.
+
 == Changelog ==
+
+= 1.0.0 =
+
+* Added: Completed the WordPress.org registration baseline accessibility work for Reorder Form, including keyboard operation, validation semantics, responsive collapsed-state semantics, focus handling, and accessible result announcements.
+* Changed: Improved Reorder Form focus behavior across open, cancel, confirmation, applying, and successful completion so keyboard operation resumes at the relevant control or reordered result.
+* Changed: Added accessible blocked, no-op, success, and failure announcements for Reorder Form and aligned Row / Column reorder completion feedback with the shared accessibility presentation.
+* Fixed: Added the missing Column Reorder safe-termination notice presentation so interrupted or invalid drag endings are reported consistently with Row Reorder.
 
 = 0.9.8 =
 
