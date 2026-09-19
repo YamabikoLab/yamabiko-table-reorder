@@ -92,7 +92,7 @@ describe( 'Reorder Form completion entry', () => {
 		render( <ReorderFormCompletion tableIdentity="table-a" /> );
 
 		const failureMessage = 'The reorder could not be completed. The table was not changed.';
-		expect( screen.getByText( failureMessage ) ).not.toBeNull();
+		expect( screen.getAllByText( failureMessage ) ).toHaveLength( 2 );
 		expect( screen.getByTestId( 'announcement' ).textContent ).toBe( failureMessage );
 		expect( mockedConsumeApplyOutcome ).toHaveBeenCalledTimes( 1 );
 	} );
