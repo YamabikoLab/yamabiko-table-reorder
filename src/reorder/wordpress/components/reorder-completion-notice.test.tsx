@@ -8,11 +8,7 @@ import type { ReactNode } from 'react';
 import { ReorderCompletionNotice } from './reorder-completion-notice';
 
 jest.mock( '@wordpress/components', () => ( {
-	Snackbar: ( props: {
-		children: ReactNode;
-		onRemove?: () => void;
-		spokenMessage?: string;
-	} ) => (
+	Snackbar: ( props: { children: ReactNode; onRemove?: () => void; spokenMessage?: string } ) => (
 		<div data-snackbar="true" data-spoken-message={ props.spokenMessage }>
 			{ props.children }
 			<button type="button" onClick={ props.onRemove }>
@@ -120,9 +116,9 @@ describe( 'Reorder completion notice presentation', () => {
 
 		const message = screen.getByText( 'Reordering complete.' );
 		expect( message ).not.toBeNull();
-		expect(
-			message.closest( '[data-snackbar]' )?.getAttribute( 'data-spoken-message' )
-		).toBe( '' );
+		expect( message.closest( '[data-snackbar]' )?.getAttribute( 'data-spoken-message' ) ).toBe(
+			''
+		);
 	} );
 
 	/**

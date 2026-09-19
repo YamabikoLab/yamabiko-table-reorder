@@ -43,10 +43,7 @@ describe( 'Announcement Delivery', () => {
 		focused.focus();
 
 		render(
-			<AnnouncementDelivery
-				message="This selection won't change the order."
-				source={ {} }
-			/>
+			<AnnouncementDelivery message="This selection won't change the order." source={ {} } />
 		);
 
 		act( () => {

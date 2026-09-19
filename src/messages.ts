@@ -237,10 +237,7 @@ export const getRfApplyLabel = () => __( 'Reorder', 'yamabiko-table-reorder' );
  * @return 現在の言語に対応したRF反映失敗メッセージ。
  */
 export const getRfApplyFailureMessage = () =>
-	__(
-		'The reorder could not be completed. The table was not changed.',
-		'yamabiko-table-reorder'
-	);
+	__( 'The reorder could not be completed. The table was not changed.', 'yamabiko-table-reorder' );
 
 /**
  * RFの行並び替え成功を、確定した移動前位置と反映後位置で支援技術へ知らせる文言を取得する。

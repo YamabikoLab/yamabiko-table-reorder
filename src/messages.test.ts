@@ -28,12 +28,8 @@ describe( 'User-facing messages', () => {
 	 * - Target指定ではなく確定した移動前位置と反映後位置が文言へ反映される。
 	 */
 	it( 'when final RF positions are provided, should format row and column success announcements', () => {
-		expect( getRfRowReorderSuccessAnnouncement( 3, 5 ) ).toBe(
-			'Moved row 3 to position 5.'
-		);
-		expect( getRfColumnReorderSuccessAnnouncement( 2, 4 ) ).toBe(
-			'Moved column 2 to position 4.'
-		);
+		expect( getRfRowReorderSuccessAnnouncement( 3, 5 ) ).toBe( 'Moved row 3 to position 5.' );
+		expect( getRfColumnReorderSuccessAnnouncement( 2, 4 ) ).toBe( 'Moved column 2 to position 4.' );
 	} );
 
 	/**

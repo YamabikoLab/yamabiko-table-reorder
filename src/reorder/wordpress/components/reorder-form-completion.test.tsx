@@ -65,9 +65,7 @@ describe( 'Reorder Form completion entry', () => {
 
 		const view = render( <ReorderFormCompletion tableIdentity="table-a" /> );
 		expect( screen.getByText( 'Reordering complete.' ) ).not.toBeNull();
-		expect( screen.getByTestId( 'announcement' ).textContent ).toBe(
-			'Moved row 2 to position 5.'
-		);
+		expect( screen.getByTestId( 'announcement' ).textContent ).toBe( 'Moved row 2 to position 5.' );
 		expect( mockedConsumeApplyOutcome ).toHaveBeenCalledTimes( 1 );
 		expect( mockedConsumeApplyOutcome ).toHaveBeenCalledWith( 'table-a' );
 
