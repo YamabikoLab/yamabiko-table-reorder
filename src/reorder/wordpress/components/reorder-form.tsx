@@ -653,10 +653,7 @@ export const ReorderFormPopover = ( props: ReorderFormPopoverProps ) => {
 					) }
 
 					{ resultMessage !== null && (
-						<>
-							<p className="yamabiko-table-reorder-rf__notice">{ resultMessage }</p>
-							<AnnouncementDelivery message={ resultMessage } source={ state.result } />
-						</>
+						<p className="yamabiko-table-reorder-rf__notice">{ resultMessage }</p>
 					) }
 
 					<div className="yamabiko-table-reorder-rf__actions">
@@ -678,6 +675,9 @@ export const ReorderFormPopover = ( props: ReorderFormPopoverProps ) => {
 						</Button>
 					</div>
 				</div>
+				{ resultMessage !== null && (
+					<AnnouncementDelivery message={ resultMessage } source={ state.result } />
+				) }
 			</div>
 		</Popover>
 	);

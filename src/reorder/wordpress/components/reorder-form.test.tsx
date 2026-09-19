@@ -672,6 +672,53 @@ describe( 'Reorder Form presentation', () => {
 	} );
 
 	/**
+	 * narrow表示でRFを折りたたんでも結果announcementが折りたたみ領域の外に残ることを確認する。
+	 *
+	 * 事前条件:
+	 * - narrow表示のRow RFでno-op結果が成立している。
+	 *
+	 * 操作:
+	 * - RFを折りたたむ。
+	 *
+	 * 期待結果:
+	 * - 入力画面はhiddenになる。
+	 * - no-opのAnnouncement live regionはhidden領域の外に残る。
+	 */
+	it( 'when a narrow form with a result is collapsed, should keep its announcement outside the hidden form content', () => {
+		setViewportWidth( window, 640 );
+		const state: RfInteractionReactState = {
+			status: 'open',
+			kind: 'row',
+			input: {
+				sourceRowNumber: '1',
+				targetRowNumber: '2',
+				position: 'above',
+			},
+			rowCount: 20,
+			result: { status: 'no-op' },
+			canApply: false,
+		};
+		const anchor = document.createElement( 'button' );
+
+		render( <ReorderFormPopover anchor={ anchor } state={ state } tableIdentity="table-a" /> );
+
+		const collapseButton = screen.getByRole( 'button', { name: 'Collapse reorder form' } );
+		const controlledId = collapseButton.getAttribute( 'aria-controls' );
+		expect( controlledId ).not.toBeNull();
+		if ( controlledId === null ) {
+			return;
+		}
+		const controlledContent = document.getElementById( controlledId );
+		expect( controlledContent ).not.toBeNull();
+
+		fireEvent.click( collapseButton );
+
+		const announcement = screen.getByRole( 'status' );
+		expect( controlledContent?.hasAttribute( 'hidden' ) ).toBe( true );
+		expect( controlledContent?.contains( announcement ) ).toBe( false );
+	} );
+
+	/**
 	 * 折りたたみ時に未指定の位置関係を選択済みとして表示しないことを確認する。
 	 *
 	 * 事前条件:

@@ -223,19 +223,20 @@ test( 'when direction changes in one form session, should preserve independent i
 	await insertTable( page, editor );
 	const before = await tableData( editor );
 	const form = await openReorderForm( page );
+	const noOpNotice = form.getByRole( 'paragraph' ).filter( { hasText: NO_OP } );
 	await fillRowReorder( form, 1, 2, 'above' );
-	await expect( form.getByText( NO_OP ) ).toBeVisible();
+	await expect( noOpNotice ).toBeVisible();
 	await expect( form.getByRole( 'button', { name: APPLY } ) ).toBeDisabled();
 
 	await form.getByRole( 'radio', { name: COLUMNS } ).click();
-	await expect( form.getByText( NO_OP ) ).toBeHidden();
+	await expect( noOpNotice ).toBeHidden();
 	await fillColumnReorder( form, 1, 3, 'right' );
 	await expect( form.getByRole( 'button', { name: APPLY } ) ).toBeEnabled();
 
 	await form.getByRole( 'radio', { name: ROWS } ).click();
 	await expect( form.getByRole( 'spinbutton', { name: SOURCE_ROW } ) ).toHaveValue( '1' );
 	await expect( form.getByRole( 'spinbutton', { name: TARGET_ROW } ) ).toHaveValue( '2' );
-	await expect( form.getByText( NO_OP ) ).toBeVisible();
+	await expect( noOpNotice ).toBeVisible();
 	expect( await tableData( editor ) ).toEqual( before );
 	await page.getByRole( 'button', { name: /^(Undo|元に戻す)$/ } ).click();
 	await expect.poll( () => tableData( editor ) ).toEqual( [] );
