@@ -11,11 +11,11 @@ export const COLUMNS = /^(Columns|列)$/;
 export const SOURCE_ROW = /^(Row to move|移動する行)$/;
 export const TARGET_ROW = /^(Target row|移動先の行)$/;
 export const SOURCE_COLUMN = /^(Column to move|移動する列)$/;
-const TARGET_COLUMN = /^(Target column|移動先の列)$/;
+export const TARGET_COLUMN = /^(Target column|移動先の列)$/;
 export const ABOVE = /^(Above|上)$/;
 export const BELOW = /^(Below|下)$/;
 const LEFT = /^(Left|左)$/;
-const RIGHT = /^(Right|右)$/;
+export const RIGHT = /^(Right|右)$/;
 export const APPLY = /^(Reorder|並び替え)$/;
 export const CANCEL = /^(Cancel|キャンセル)$/;
 export const NO_OP =
@@ -25,6 +25,10 @@ export const LARGE_CONFIRMATION = /^(Apply the new order\?|並び替えを反映
 export const CONTINUE = /^(Continue|続行)$/;
 export const COLLAPSE = /^(Collapse reorder form|並び替えフォームを折りたたむ)$/;
 export const EXPAND = /^(Expand reorder form|並び替えフォームを展開する)$/;
+export const ROW_SUCCESS =
+	/^(Moved row \d+ to position \d+\.|\d+行目を\d+行目の位置へ移動しました。)$/;
+export const COLUMN_SUCCESS =
+	/^(Moved column \d+ to position \d+\.|\d+列目を\d+列目の位置へ移動しました。)$/;
 
 export type TableName = 'core/table' | 'flexible-table-block/table';
 

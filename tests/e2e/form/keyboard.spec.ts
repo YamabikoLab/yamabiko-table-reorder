@@ -4,11 +4,14 @@ import { expect, test } from '@wordpress/e2e-test-utils-playwright';
 import {
 	APPLY,
 	COLLAPSE,
+	COLUMN_SUCCESS,
 	COLUMNS,
+	columnOrder,
 	EXPAND,
 	insertTable,
 	reorderForm,
 	RF_BUTTON,
+	ROW_SUCCESS,
 	rowOrder,
 	setPreferences,
 	SOURCE_COLUMN,
@@ -79,13 +82,14 @@ test.beforeEach( async ( { admin, page } ) => {
  * 期待結果:
  * - RF入口をKeyboardだけで起動できる。
  * - 行並び替えをKeyboardだけで完了できる。
- * - 指定した行順がTableへ反映される。
+ * - 指定した行順がTableへ反映され、移動後の結果セルへfocusする。
+ * - 確定した移動元と移動後位置を支援技術向け通知から認識できる。
  */
 test( 'when Reorder Form row input is used from the Block Toolbar, should complete the move with standard keyboard interaction', async ( {
 	page,
 	editor,
 } ) => {
-	const { rows } = await insertTable( page, editor );
+	const { canvas, rows } = await insertTable( page, editor );
 	await focusReorderFormToolbarButton( page );
 	await page.keyboard.press( 'Enter' );
 	await expect( reorderForm( page ) ).toBeVisible();
@@ -110,14 +114,20 @@ test( 'when Reorder Form row input is used from the Block Toolbar, should comple
 	await expect( apply ).toBeEnabled();
 	await page.keyboard.press( 'Enter' );
 
+	const announcement = canvas.getByRole( 'status' ).filter( { hasText: ROW_SUCCESS } );
+	await expect( announcement ).toHaveText(
+		/Moved row 1 to position 3\.|1行目を3行目の位置へ移動しました。/
+	);
+	await expect( announcement ).toHaveCount( 1 );
 	await expect.poll( () => rowOrder( rows ) ).toEqual( [ 'R2C1', 'R3C1', 'R1C1', 'R4C1' ] );
+	await expect( rows.nth( 2 ).locator( ':scope > td' ).first() ).toBeFocused();
 } );
 
 /**
- * Core TableのRFでColumnへ切り替え、列並び替えの反映までを標準Keyboard操作だけで完了できることを確認する。
+ * Flexible Table BlockのRFでColumnへ切り替え、列並び替えの反映までを標準Keyboard操作だけで完了できることを確認する。
  *
  * 事前条件:
- * - Core Tableが選択され、RF入口をBlock Toolbarから利用できる。
+ * - Flexible Table Blockが選択され、RF入口をBlock Toolbarから利用できる。
  *
  * 操作:
  * - KeyboardでRFを開く。
@@ -126,13 +136,14 @@ test( 'when Reorder Form row input is used from the Block Toolbar, should comple
  *
  * 期待結果:
  * - Columnの主要入力をKeyboardだけで操作できる。
- * - 列並び替えをKeyboardだけで完了できる。
+ * - 列並び替えをKeyboardだけで完了し、移動後の結果セルへfocusする。
+ * - 確定した移動元と移動後位置を支援技術向け通知から認識できる。
  */
 test( 'when Reorder Form column input is selected, should complete the move with standard keyboard interaction', async ( {
 	page,
 	editor,
 } ) => {
-	await insertTable( page, editor );
+	const { canvas, rows } = await insertTable( page, editor, 'flexible-table-block/table' );
 	await focusReorderFormToolbarButton( page );
 	await page.keyboard.press( 'Space' );
 	const form = reorderForm( page );
@@ -158,13 +169,20 @@ test( 'when Reorder Form column input is selected, should complete the move with
 	await page.keyboard.press( 'ArrowRight' );
 	await expect( form.getByRole( 'radio', { name: /^(Right|右)$/ } ) ).toBeChecked();
 
-	const before = await tableData( editor );
 	const apply = form.getByRole( 'button', { name: APPLY } );
 	await tabTo( page, apply );
 	await expect( apply ).toBeEnabled();
 	await page.keyboard.press( 'Enter' );
 
-	await expect.poll( () => tableData( editor ) ).not.toEqual( before );
+	const announcement = canvas.getByRole( 'status' ).filter( { hasText: COLUMN_SUCCESS } );
+	await expect( announcement ).toHaveText(
+		/Moved column 1 to position 2\.|1列目を2列目の位置へ移動しました。/
+	);
+	await expect( announcement ).toHaveCount( 1 );
+	await expect
+		.poll( () => columnOrder( rows.first() ) )
+		.toEqual( [ 'R1C2', 'R1C1', 'R1C3', 'R1C4' ] );
+	await expect( rows.first().locator( ':scope > td' ).nth( 1 ) ).toBeFocused();
 	await expect( form ).toBeHidden();
 } );
 
@@ -179,6 +197,7 @@ test( 'when Reorder Form column input is selected, should complete the move with
  *
  * 期待結果:
  * - RFが閉じる。
+ * - RF入口へfocusが戻り、そのままKeyboardでRFを再開できる。
  * - Tableデータは変更されない。
  */
 test( 'when Cancel is reached from an open Reorder Form, should close without changing the Table', async ( {
@@ -214,6 +233,10 @@ test( 'when Cancel is reached from an open Reorder Form, should close without ch
 	await expect( form ).toBeHidden();
 	await expect( toolbarButton ).toBeFocused();
 	expect( await tableData( editor ) ).toEqual( before );
+
+	await page.keyboard.press( 'Enter' );
+	await expect( form ).toBeVisible();
+	await expect( form.getByRole( 'radio', { name: /^(Rows|行)$/ } ) ).toBeFocused();
 } );
 
 test.describe( 'narrow Reorder Form keyboard presentation', () => {

@@ -231,13 +231,13 @@ Plan作成時点でArchitecture変更を必要とする事項は確認されて�
   - `tests/e2e/form/`へKeyboard / semantics / focus / announcementの主要契約を追加または整理する。
   - Row / Column両方向について、RF開始 → 入力 → 実行 → 結果確認 → 継続または終了をKeyboardだけで完了する経路を検証する。
   - validation input problem、no-op、構造拒否、success、failureを代表ケースとして検証する。
-  - 通常反映と確認付き大規模反映について、confirmation、Cancel、applying、restoring、success focusを検証する。
+  - 通常反映と確認付き大規模反映について、confirmation、Cancel、success focusをE2Eで検証する。短時間だけ存在するapplying PresentationのARIA semanticsはPhase 2〜6のfocused React testを正本とし、PlaywrightではconfirmationからContinueを経てsuccessまで完走できる横断経路を検証する。
   - Core Table / Flexible Table Blockの代表経路を検証する。
   - iframe / non-iframeでEditor DOM Contextとfocus復帰が同じ意味Contractを満たすことを検証する。
   - Wide / Narrow切替でRF Session、semantic意味、focus、announcement一回性が維持されることを検証する。
   - 手動確認ではbrowser accessibility treeと代表的な支援技術でName / Role / State、入力問題、blocked / success / failure通知を確認する。
 - Validation:
-  - focused Jestを実行する。
+  - focused Jest / React testを実行し、Applying Presentationのdialog / status / `aria-busy` semanticsを確認する。
   - `npm run test:e2e:form`でRF browser contractを確認する。
   - 最終的なコード変更時は`docs/development/testing.md`に従って適用可能なNode.js quality gateとproduction buildを確認する。
   - 代表環境の手動Accessibility確認結果を実装IssueまたはPRへ記録する。
@@ -304,8 +304,8 @@ Planレビュー後、境界が安定したら次の順序で子Issueへ分割�
 Plan自体はdocumentation-only変更のため、アプリケーションbuildやlintを必須としない。実装Phaseでは`docs/development/testing.md`を正本として、変更範囲に応じて次を使い分ける。
 
 - Jest: 入力意味、semantic derivation、focus intent状態遷移、一回性、stale防止、Apply barrier等の決定的なロジック
-- React / WordPress integration tests: Component state、semantic接続、focus intent生成条件、Announcement接続
-- Playwright `form` project: 実WordPress EditorでのKeyboard操作、iframe / non-iframe、focus、表示再生成、end-to-end結果
+- React / WordPress integration tests: Component state、semantic接続、focus intent生成条件、Announcement接続、短時間だけ存在するApplying PresentationのARIA semantics
+- Playwright `form` project: 実WordPress EditorでのKeyboard操作、iframe / non-iframe、confirmationからContinueを経たsuccessまでのfocus・announcement・end-to-end結果
 - 手動Accessibility確認: browser accessibility treeと代表的な支援技術によるName / Role / State、入力問題、blocked / success / failureの認識
 - 最終コード変更: repository-wide quality gateとproduction buildのうち適用されるもの
 
