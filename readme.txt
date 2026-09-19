@@ -1,7 +1,7 @@
 === Yamabiko Table Reorder ===
 Contributors: yamabiko
 Tags: block editor, gutenberg, table
-Requires at least: 6.8
+Requires at least: 7.0
 Tested up to: 7.1
 Requires PHP: 8.1
 Stable tag: 1.0.0
@@ -166,6 +166,7 @@ For manual installation, upload a released `yamabiko-table-reorder.zip` from Git
 * Changed: Renamed the standalone plugin identity to Yamabiko Table Reorder and aligned its release artifact, text domain, and development tooling with the new identity.
 * Fixed: Improved row reordering in non-iframe editors by resolving the actual scroll container for keyboard, mouse drag, and Touch interactions instead of assuming the browser window scrolls.
 * Changed: Kept Touch operation guidance within the browser viewport while preserving swipe-direction-based top and bottom placement.
+* Changed: Hide operation guidance when the target table moves outside the viewport and show it again when the table returns.
 * Changed: Expanded automated E2E coverage across representative iframe and non-iframe WordPress environments, including Flexible Table Block, merged-cell constraints, data preservation, Undo, and persistence.
 
 = 0.3.3 =

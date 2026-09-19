@@ -33,6 +33,26 @@ export const getColumnDndLayoutUnavailableMessage = () =>
 /** RF入口と入力画面の表示名を取得する。 */
 export const getRfReorderName = () => __( 'Reorder with form', 'yamabiko-table-reorder' );
 
+/** Chat Reorder入口の表示名を取得する。 */
+export const getChatReorderName = () => __( 'Reorder with chat', 'yamabiko-table-reorder' );
+
+/** Chat Reorderの自然言語入力欄の表示名を取得する。 */
+export const getChatPromptLabel = () => __( 'Reorder request', 'yamabiko-table-reorder' );
+
+/** Chat Reorderの送信操作の表示名を取得する。 */
+export const getChatSendLabel = () => __( 'Send', 'yamabiko-table-reorder' );
+
+/** Chat ReorderのAI出力が許可grammarに一致しないことを知らせる文言を取得する。 */
+export const getChatInvalidOutputMessage = () =>
+	__( 'The AI response could not be used. Try the request again.', 'yamabiko-table-reorder' );
+
+/** Chat Reorderで列指定を現在Tableへ一意に照合できないことを知らせる文言を取得する。 */
+export const getChatUnresolvedColumnMessage = () =>
+	__(
+		'The specified column could not be identified uniquely in the current table.',
+		'yamabiko-table-reorder'
+	);
+
 /** RFで並び替える対象を選ぶ入力の表示名を取得する。 */
 export const getRfKindLegend = () => __( 'Reorder', 'yamabiko-table-reorder' );
 
@@ -363,3 +383,9 @@ export const getLargeReorderApplyingDetail = () =>
 /** 大規模反映が完了したことを知らせる文言を取得する。 */
 export const getLargeReorderCompletionMessage = () =>
 	__( 'Reordering complete.', 'yamabiko-table-reorder' );
+
+/** Chat ReorderのAIモデル選択欄の表示名を取得する。 */
+export const getChatModelLabel = () => __( 'AI model', 'yamabiko-table-reorder' );
+
+/** Chat Reorderでモデル選択をWordPress AI Clientへ委ねる選択肢を取得する。 */
+export const getChatAutomaticModelLabel = () => __( 'Automatic', 'yamabiko-table-reorder' );

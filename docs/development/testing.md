@@ -165,7 +165,7 @@ CI checks the smoke test and selected major Row / Column / Reorder Form suites a
 
 The PHP quality job runs in parallel against PHP 8.1, 8.2, and 8.3. The E2E matrix keeps representative WordPress/PHP combinations instead of testing every cross-product.
 
-The CI-only `tests/e2e/fixtures/non-iframe.php` registers the same E2E-only Block API v2 block on both the server and editor client when `E2E_EDITOR_MODE=non-iframe`; this makes the WordPress 6.8 compatibility scenario exercise the non-iframe editing surface. The fixture block is hidden from the inserter and exists only to select the legacy editor context. Authentication setup verifies the expected editor mode before the suite runs. This representative matrix covers both editor contexts without duplicating every version/context combination. The fixture is not installed in local WordPress or included in the plugin distribution.
+The CI-only `tests/e2e/fixtures/non-iframe.php` registers the same E2E-only Block API v2 block on both the server and editor client when `E2E_EDITOR_MODE=non-iframe`; this makes the WordPress 7.0 compatibility scenario exercise the non-iframe editing surface. The fixture block is hidden from the inserter and exists only to select the legacy editor context. Authentication setup verifies the expected editor mode before the suite runs. This representative matrix covers both editor contexts without duplicating every version/context combination. The fixture is not installed in local WordPress or included in the plugin distribution.
 
 The CI E2E job uses the pinned Playwright Docker image matching `@playwright/test`. Failed runs upload `playwright-report/`, `test-results/`, and `docker-compose.log` when available.
 
