@@ -3,11 +3,13 @@ import { expect, test } from '@wordpress/e2e-test-utils-playwright';
 
 import {
 	APPLY,
+	ABOVE,
 	BELOW,
 	COLLAPSE,
 	EXPAND,
 	fillRowReorder,
 	insertTable,
+	NO_OP,
 	openReorderForm,
 	setPreferences,
 	SOURCE_ROW,
@@ -101,6 +103,7 @@ test.describe( 'narrow Reorder Form presentation', () => {
 	 * - RFは画面下部へ固定される。
 	 * - 折りたたみ中は入力の要約を確認できる。
 	 * - 再展開後も入力内容と選択状態を保持する。
+	 * - 折りたたみ中も指定全体の結果を支援技術向け通知から認識できる。
 	 */
 	test( 'when the narrow form is collapsed and expanded, should remain docked and preserve the selection', async ( {
 		page,
@@ -127,6 +130,15 @@ test.describe( 'narrow Reorder Form presentation', () => {
 		await expect( form.getByRole( 'spinbutton', { name: TARGET_ROW } ) ).toHaveValue( '4' );
 		await expect( form.getByRole( 'radio', { name: BELOW } ) ).toBeChecked();
 		await expect( form.getByRole( 'button', { name: APPLY } ) ).toBeEnabled();
+
+		await fillRowReorder( form, 1, 2, 'above' );
+		const announcement = form.getByRole( 'status' ).filter( { hasText: NO_OP } );
+		await expect( announcement ).toHaveText( NO_OP );
+		await expect( form.getByRole( 'radio', { name: ABOVE } ) ).toBeFocused();
+		await collapseButton.press( 'Enter' );
+		await expect( form.getByRole( 'spinbutton', { name: SOURCE_ROW } ) ).toBeHidden();
+		await expect( announcement ).toBeVisible();
+		await expect( announcement ).toHaveCount( 1 );
 	} );
 
 	/**

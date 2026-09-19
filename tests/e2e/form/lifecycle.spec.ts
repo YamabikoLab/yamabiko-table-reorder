@@ -7,6 +7,7 @@ import {
 	COLUMNS,
 	COMPLETION,
 	CONTINUE,
+	COLUMN_SUCCESS,
 	fillColumnReorder,
 	fillRowReorder,
 	insertTable,
@@ -130,7 +131,8 @@ test( 'when switching between DnD and Reorder Form, should keep only the selecte
  *
  * 期待結果:
  * - 反映前に確認が表示される。
- * - CancelではTableを変更せず、入力内容を保持したRFへ戻る。
+ * - 確認の主要操作へfocusし、KeyboardでCancelできる。
+ * - CancelではTableを変更せず、入力内容を保持したRFへfocusが戻り、Keyboard操作を継続できる。
  */
 test( 'when a 310-cell row reorder is cancelled at confirmation, should preserve the Table and return to the populated form', async ( {
 	page,
@@ -144,13 +146,22 @@ test( 'when a 310-cell row reorder is cancelled at confirmation, should preserve
 
 	const confirmation = page.getByRole( 'dialog', { name: LARGE_CONFIRMATION } );
 	await expect( confirmation ).toBeVisible();
+	const continueButton = confirmation.getByRole( 'button', { name: CONTINUE } );
+	const cancelButton = confirmation.getByRole( 'button', { name: CANCEL } );
+	await expect( continueButton ).toBeFocused();
 	expect( await tableData( editor ) ).toEqual( before );
-	await confirmation.getByRole( 'button', { name: CANCEL } ).click();
+	await page.keyboard.press( 'Tab' );
+	await expect( cancelButton ).toBeFocused();
+	await page.keyboard.press( 'Enter' );
 	await expect( confirmation ).toBeHidden();
 	await expect( form ).toBeVisible();
 	await expect( form.getByRole( 'spinbutton', { name: SOURCE_ROW } ) ).toHaveValue( '1' );
 	await expect( form.getByRole( 'spinbutton', { name: TARGET_ROW } ) ).toHaveValue( '31' );
-	await expect( form.getByRole( 'button', { name: APPLY } ) ).toBeEnabled();
+	const applyButton = form.getByRole( 'button', { name: APPLY } );
+	await expect( applyButton ).toBeEnabled();
+	await expect( form.getByRole( 'radio', { name: /^(Rows|行)$/ } ) ).toBeFocused();
+	await page.keyboard.press( 'Tab' );
+	await expect( form.getByRole( 'spinbutton', { name: SOURCE_ROW } ) ).toBeFocused();
 	expect( await tableData( editor ) ).toEqual( before );
 } );
 
@@ -165,7 +176,9 @@ test( 'when a 310-cell row reorder is cancelled at confirmation, should preserve
  * - 大規模反映の確認でContinueする。
  *
  * 期待結果:
+ * - 確認の主要操作へfocusし、KeyboardでContinueできる。
  * - Table全体の列順が変更され、RFが終了して完了通知を確認できる。
+ * - 確定した移動元と移動後位置を一つの支援技術向け通知から認識できる。
  * - 結果確認用フォーカスは移動後セル自体に置かれ、セル内の編集領域を自動選択しない。
  */
 test( 'when a 310-cell column reorder is continued, should restore ordinary editing, focus the result cell, and show completion', async ( {
@@ -186,7 +199,14 @@ test( 'when a 310-cell column reorder is continued, should restore ordinary edit
 
 	const confirmation = page.getByRole( 'dialog', { name: LARGE_CONFIRMATION } );
 	await expect( confirmation ).toBeVisible();
-	await confirmation.getByRole( 'button', { name: CONTINUE } ).click();
+	const continueButton = confirmation.getByRole( 'button', { name: CONTINUE } );
+	await expect( continueButton ).toBeFocused();
+	await continueButton.press( 'Enter' );
+	const announcement = canvas.getByRole( 'status' ).filter( { hasText: COLUMN_SUCCESS } );
+	await expect( announcement ).toHaveText(
+		/Moved column 1 to position 10\.|1列目を10列目の位置へ移動しました。/
+	);
+	await expect( announcement ).toHaveCount( 1 );
 	await expect( canvas.getByText( COMPLETION ) ).toBeVisible();
 	await expect( confirmation ).toBeHidden();
 	await expect( reorderForm( page ) ).toBeHidden();
