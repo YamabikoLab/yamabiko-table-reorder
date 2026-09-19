@@ -8,23 +8,33 @@ Stable tag: 1.0.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
-Reorder table rows and columns in supported blocks in the WordPress block editor.
+Reorder rows and columns without rebuilding your WordPress tables.
 
 == Description ==
 
-Yamabiko Table Reorder 1.0.0 provides Row Reorder, Column Reorder, and Reorder Form for WordPress Core Table and Flexible Table Block.
+Reordering an existing table should not mean rebuilding it. Yamabiko Table Reorder adds row and column reordering directly to supported Table blocks in the WordPress block editor.
 
-Use Row Reorder or Column Reorder mode from the Table toolbar, then drag body rows or Table columns with Mouse or Touch. During DnD, the moving row or column and insertion line show the active move and destination while the surrounding Table remains in place. After a valid drop, the destination row or column area is outlined briefly so the selected position remains visible after the drag ends.
+Use drag-and-drop when it is convenient, or use Reorder with form when you prefer not to drag. Both approaches work with WordPress Core Table and Flexible Table Block and apply a move only when it preserves the supported Table structure.
 
-Column drag-and-drop is available only when the current editor view provides a reliable horizontal column layout. If the current view stacks or reflows cells so that horizontal column positions cannot be resolved safely, Column Reorder drag-and-drop does not start. The toolbar explains the limitation, and columns can still be reordered with Reorder Form. Row Reorder remains independent from this Column DnD availability check.
+= Reorder rows and columns directly =
 
-Use Reorder with form from the same Table toolbar to move a row or column without drag-and-drop. Choose the source and destination, select the destination side, and apply the move when it is valid and changes the order. Reorder Form shows current row limits and available logical columns, including column headings when available.
+Choose Reorder rows or Reorder columns from the Table toolbar, then move body rows or Table columns with Mouse or Touch. The moving item and insertion line show the active move and destination while the surrounding Table remains in place.
 
-Row Reorder, Column Reorder, and Reorder Form preserve supported Table structure, including merged-cell constraints, and update the order only when the requested move is valid. Reorder Form reports structural rejection using the location of the merged cell that prevents the move.
+After a valid drop, the destination area is outlined briefly so the new position remains easy to find.
 
-When a reorder affects enough cells that applying it may take some time, the plugin shows a confirmation before applying the change. If continued, only the target Table enters a temporary applying state, and editing resumes after the update is complete. Reorder operations also provide shared success and failure feedback after the result is known.
+= Reorder without drag-and-drop =
 
-Reorder Form uses a movable Popover when enough editor space is available. In a narrow editor area it switches to a bottom dock that can be collapsed, resized vertically, and scrolled internally so the target Table and required form controls remain easier to inspect and reach.
+Choose Reorder with form from the same Table toolbar to move a row or column by selecting the source, destination, and destination side. The form shows the available row and logical-column choices, including column headings when available.
+
+= Built for real tables =
+
+Yamabiko Table Reorder takes merged cells into account and rejects moves that would break the supported Table structure. When a form-based move is blocked, it identifies the merged-cell location that prevents the move.
+
+Column drag-and-drop starts only when the current editor view provides a reliable horizontal column layout. If cells are stacked or reflowed, the toolbar explains the limitation and Reorder with form remains available for column moves.
+
+For larger changes that may take noticeable time to apply, the plugin asks for confirmation first. Only the target Table enters a temporary applying state, and editing resumes after the update is complete.
+
+Reorder with form adapts to the available editor space: it uses a movable Popover when space allows and a collapsible, vertically resizable bottom dock in narrow editor areas.
 
 A WordPress Playground demo is available from the GitHub repository and uses the current latest stable release.
 
