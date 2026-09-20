@@ -73,8 +73,7 @@ jest.mock( '@wordpress/block-editor', () => {
 		selectors: {
 			getBlock: ( state: MockBlockEditorState, clientId: string ) =>
 				state.blocks[ clientId ] ?? null,
-			getSelectedBlockClientId: ( state: MockBlockEditorState ) =>
-				state.selectedBlockClientId,
+			getSelectedBlockClientId: ( state: MockBlockEditorState ) => state.selectedBlockClientId,
 		},
 	} );
 	register( store );
@@ -113,11 +112,8 @@ jest.mock( '@wordpress/preferences', () => {
 			} ),
 		},
 		selectors: {
-			get: (
-				state: Record< string, Record< string, unknown > >,
-				scope: string,
-				key: string
-			) => state[ scope ]?.[ key ],
+			get: ( state: Record< string, Record< string, unknown > >, scope: string, key: string ) =>
+				state[ scope ]?.[ key ],
 		},
 	} );
 	register( store );

@@ -47,11 +47,8 @@ jest.mock( '@wordpress/preferences', () => {
 			} ),
 		},
 		selectors: {
-			get: (
-				state: Record< string, Record< string, unknown > >,
-				scope: string,
-				key: string
-			) => state[ scope ]?.[ key ],
+			get: ( state: Record< string, Record< string, unknown > >, scope: string, key: string ) =>
+				state[ scope ]?.[ key ],
 		},
 	} );
 	register( store );
@@ -207,7 +204,9 @@ describe( 'Reorder Guidance WordPress integration', () => {
 		} );
 
 		expect( select( preferencesStore ).get( PREFERENCE_SCOPE, PC_PREFERENCE_KEY ) ).toBe( true );
-		expect( select( preferencesStore ).get( PREFERENCE_SCOPE, TOUCH_PREFERENCE_KEY ) ).toBeUndefined();
+		expect(
+			select( preferencesStore ).get( PREFERENCE_SCOPE, TOUCH_PREFERENCE_KEY )
+		).toBeUndefined();
 		expect( result.current.guidance ).toBeNull();
 	} );
 

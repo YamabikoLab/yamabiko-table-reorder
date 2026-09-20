@@ -81,7 +81,11 @@ jest.mock( '@/reorder/column-reorder/responsibilities/presentation/column-highli
 			pointerOver: React.PointerEventHandler< Element >,
 			pointerOut: React.PointerEventHandler< Element >
 		) => React.ReactNode;
-	} ) => children( () => undefined, () => undefined ),
+	} ) =>
+		children(
+			() => undefined,
+			() => undefined
+		),
 } ) );
 
 type BlockListBlockProps = {
@@ -117,7 +121,11 @@ describe( 'Reorder Mode WordPress integration mount stability', () => {
 			}, [] );
 
 			return (
-				<div id={ `block-${ props.clientId }` } data-testid="block-wrapper" { ...props.wrapperProps }>
+				<div
+					id={ `block-${ props.clientId }` }
+					data-testid="block-wrapper"
+					{ ...props.wrapperProps }
+				>
 					Block
 				</div>
 			);

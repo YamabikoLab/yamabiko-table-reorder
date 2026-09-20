@@ -6,7 +6,10 @@ import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { dispatch } from '@wordpress/data';
 import { store as preferencesStore } from '@wordpress/preferences';
 
-import { rfInteraction, rfInteractionStore } from '@/reorder/reorder-form/responsibilities/interaction';
+import {
+	rfInteraction,
+	rfInteractionStore,
+} from '@/reorder/reorder-form/responsibilities/interaction';
 import { reorderMode } from '@/reorder/reorder-mode';
 import {
 	clearColumnDndLayoutAvailabilitySnapshot,
@@ -65,11 +68,8 @@ jest.mock( '@wordpress/preferences', () => {
 			} ),
 		},
 		selectors: {
-			get: (
-				state: Record< string, Record< string, unknown > >,
-				scope: string,
-				key: string
-			) => state[ scope ]?.[ key ],
+			get: ( state: Record< string, Record< string, unknown > >, scope: string, key: string ) =>
+				state[ scope ]?.[ key ],
 		},
 	} );
 	register( store );
@@ -149,9 +149,7 @@ describe( 'Reorder toolbar RF exclusivity', () => {
 		const { container } = render( <ReorderModeToolbar tableIdentity="table-a" /> );
 
 		await waitFor( () => {
-			expect(
-				container.querySelector( '.yamabiko-table-reorder-guidance-target' )
-			).not.toBeNull();
+			expect( container.querySelector( '.yamabiko-table-reorder-guidance-target' ) ).not.toBeNull();
 		} );
 		expect(
 			screen
