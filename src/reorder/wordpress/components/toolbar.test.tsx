@@ -2,154 +2,178 @@
  * WordPress Table ToolbarのRow / Column DnDとReorder Form（RF）入口が製品入口で排他的に切り替わることを確認する。
  */
 
-import { fireEvent, render, screen } from '@testing-library/react';
-import type { ReactNode } from 'react';
+import { act, fireEvent, render, renderHook, screen, waitFor } from '@testing-library/react';
+import { dispatch } from '@wordpress/data';
+import { store as preferencesStore } from '@wordpress/preferences';
 
+import {
+	rfInteraction,
+	rfInteractionStore,
+} from '@/reorder/reorder-form/responsibilities/interaction';
+import { reorderMode } from '@/reorder/reorder-mode';
+import {
+	reorderFormHeight,
+	useReorderFormNarrowHeight,
+} from '@/reorder/wordpress/components/reorder-form-height';
+import {
+	reorderFormPosition,
+	useReorderFormPosition,
+} from '@/reorder/wordpress/components/reorder-form-position';
+import {
+	clearColumnDndLayoutAvailabilitySnapshot,
+	updateColumnDndLayoutAvailabilitySnapshot,
+} from '@/reorder/wordpress/column-dnd-layout-availability-state';
 import { ReorderModeToolbar } from './toolbar';
 
-let mockSelectedKind: 'row' | 'column' | null = null;
-let mockRfState: any = { status: 'closed' };
-let mockColumnDndLayoutAvailability: 'available' | 'unavailable' = 'available';
-let mockGuidance: { environment: 'pc' | 'touch' } | null = null;
-const mockSelectMode = jest.fn();
-const mockOpenRf = jest.fn();
-const mockCloseRf = jest.fn();
-const mockBeginRfPositionSession = jest.fn();
-const mockBeginRfHeightSession = jest.fn();
-
-jest.mock( '@wordpress/block-editor', () => ( {
-	BlockControls: ( props: { children: ReactNode } ) => <div>{ props.children }</div>,
+/* @wordpress/componentsのuuid / theme ESM境界だけをJestで読める決定的な実装へ置き換える。 */
+jest.mock( 'uuid', () => ( { v4: () => 'reorder-toolbar-test-uuid' } ) );
+jest.mock( '@wordpress/theme', () => ( {
+	ThemeProvider: ( { children }: { children: React.ReactNode } ) => children,
 } ) );
 
-jest.mock( '@wordpress/components', () => {
-	const react = jest.requireActual( 'react' ) as typeof import('react');
+/*
+ * @wordpress/block-editorの公開入口はJest変換対象外のmarked ESMを経由するため、直接読み込めない。
+ * RFが参照するStore境界だけを実@wordpress/dataへ登録し、SlotFill配置境界をJest DOMへ接続する。
+ */
+jest.mock( '@wordpress/block-editor', () => {
+	const { createReduxStore, register } = jest.requireActual( '@wordpress/data' );
+	const store = createReduxStore( 'test/yamabiko-table-reorder-toolbar-block-editor', {
+		reducer: ( state = {} ) => state,
+		actions: {},
+		selectors: { getBlock: () => null },
+	} );
+	register( store );
+
 	return {
-		ToolbarGroup: ( props: { children: ReactNode; className?: string } ) => (
-			<div className={ props.className } role="group">
-				{ props.children }
-			</div>
-		),
-		ToolbarButton: react.forwardRef<
-			HTMLButtonElement,
-			{
-				'aria-disabled'?: boolean;
-				'aria-describedby'?: string;
-				className?: string;
-				disabled?: boolean;
-				isPressed: boolean;
-				label: string;
-				onBlur?: () => void;
-				onClick: () => void;
-				onFocus?: () => void;
-				onMouseEnter?: () => void;
-				onMouseLeave?: () => void;
-				onTouchStart?: () => void;
-			}
-		>(
-			(
-				{
-					'aria-disabled': ariaDisabled,
-					'aria-describedby': ariaDescribedBy,
-					className,
-					disabled,
-					isPressed,
-					label,
-					onBlur,
-					onClick,
-					onFocus,
-					onMouseEnter,
-					onMouseLeave,
-					onTouchStart,
-				},
-				ref
-			) => (
-				<button
-					ref={ ref }
-					aria-describedby={ ariaDescribedBy }
-					aria-disabled={ ariaDisabled }
-					aria-label={ label }
-					aria-pressed={ isPressed }
-					className={ className }
-					disabled={ disabled }
-					onBlur={ onBlur }
-					onClick={ onClick }
-					onFocus={ onFocus }
-					onMouseEnter={ onMouseEnter }
-					onMouseLeave={ onMouseLeave }
-					onTouchStart={ onTouchStart }
-					type="button"
-				/>
-			)
-		),
-		Popover: ( props: { children: ReactNode } ) => <div>{ props.children }</div>,
+		BlockControls: ( { children }: { children: React.ReactNode } ) => <div>{ children }</div>,
+		store,
 	};
 } );
 
-jest.mock( '@/messages', () => ( {
-	getColumnDndLayoutUnavailableMessage: () =>
-		'Column drag reordering is unavailable in the current view. You can reorder columns using the form.',
-	getColumnReorderName: () => 'Reorder columns',
-	getRfReorderName: () => 'Reorder with form',
-	getRowReorderName: () => 'Reorder rows',
-} ) );
+/* @wordpress/preferencesの公開入口もJest非対応のESMを経由するため、Store境界だけを最小化する。 */
+jest.mock( '@wordpress/preferences', () => {
+	const { createReduxStore, register } = jest.requireActual( '@wordpress/data' );
+	const store = createReduxStore( 'test/yamabiko-table-reorder-toolbar-preferences', {
+		reducer: (
+			state: Record< string, Record< string, unknown > > = {},
+			action: { type: string; scope?: string; key?: string; value?: unknown }
+		) => {
+			if ( action.type !== 'SET_PREFERENCE_VALUE' || ! action.scope || ! action.key ) {
+				return state;
+			}
 
-jest.mock( '@/reorder/wordpress/column-dnd-layout-availability-state', () => ( {
-	useColumnDndLayoutAvailabilitySnapshot: () => mockColumnDndLayoutAvailability,
-} ) );
+			return {
+				...state,
+				[ action.scope ]: { ...state[ action.scope ], [ action.key ]: action.value },
+			};
+		},
+		actions: {
+			set: ( scope: string, key: string, value: unknown ) => ( {
+				type: 'SET_PREFERENCE_VALUE',
+				scope,
+				key,
+				value,
+			} ),
+		},
+		selectors: {
+			get: ( state: Record< string, Record< string, unknown > >, scope: string, key: string ) =>
+				state[ scope ]?.[ key ],
+		},
+	} );
+	register( store );
 
-jest.mock( '@/reorder/reorder-mode-react', () => ( {
-	useReorderMode: () => ( {
-		selectedKind: mockSelectedKind,
-		select: mockSelectMode,
-	} ),
-} ) );
+	return { store };
+} );
 
-jest.mock( '@/reorder/reorder-form/responsibilities/interaction-react', () => ( {
-	useRfInteraction: () => mockRfState,
-} ) );
+const narrowHeightProperty = '--yamabiko-table-reorder-rf-narrow-height';
 
-jest.mock( '@/reorder/reorder-form/responsibilities/interaction', () => ( {
-	rfInteraction: {
-		open: ( tableIdentity: string ) => mockOpenRf( tableIdentity ),
-		close: ( tableIdentity: string ) => mockCloseRf( tableIdentity ),
-	},
-} ) );
+/**
+ * 前回RF Sessionの狭い表示高さを利用者操作で作るための最小DOM境界を用意する。
+ *
+ * JSDOMには実layoutとPointer Captureがないため、geometryとPointer Captureだけを決定値へ置き換える。
+ * RF高さ責務と状態遷移はProduction実装をそのまま使用する。
+ *
+ * @return RF Toolbar入口、高さ変更用header、fixture root。
+ */
+const createNarrowHeightFixture = () => {
+	const fixture = document.createElement( 'div' );
+	const anchor = document.createElement( 'button' );
+	const popover = document.createElement( 'div' );
+	const content = document.createElement( 'div' );
+	const header = document.createElement( 'div' );
+	const collapse = document.createElement( 'button' );
+	fixture.dataset.reorderToolbarHeightFixture = 'true';
+	popover.className = 'yamabiko-table-reorder-rf-popover is-narrow';
+	content.className = 'components-popover__content';
+	header.className = 'yamabiko-table-reorder-rf__header';
+	collapse.className = 'yamabiko-table-reorder-rf__collapse';
+	collapse.setAttribute( 'aria-expanded', 'true' );
+	fixture.append( anchor, popover );
+	popover.append( content );
+	content.append( header );
+	header.append( collapse );
+	document.body.append( fixture );
 
-jest.mock( '@/reorder/wordpress/components/reorder-form', () => ( {
-	ReorderFormPopover: () => null,
-} ) );
+	header.getBoundingClientRect = () => ( { top: 100 } ) as DOMRect;
+	content.getBoundingClientRect = () => ( { height: 300 } ) as DOMRect;
+	Object.assign( header, {
+		hasPointerCapture: () => false,
+		releasePointerCapture: jest.fn(),
+		setPointerCapture: jest.fn(),
+	} );
 
-jest.mock( '@/reorder/wordpress/components/reorder-form-height', () => ( {
-	reorderFormHeight: {
-		beginSession: ( tableIdentity: string ) => mockBeginRfHeightSession( tableIdentity ),
-	},
-	useReorderFormNarrowHeight: jest.fn(),
-} ) );
+	return { anchor, fixture, header };
+};
 
-jest.mock( '@/reorder/wordpress/components/reorder-form-position', () => ( {
-	reorderFormPosition: {
-		beginSession: ( tableIdentity: string ) => mockBeginRfPositionSession( tableIdentity ),
-	},
-} ) );
-
-jest.mock( '@/reorder/wordpress/components/guidance', () => ( {
-	ReorderGuidance: () => null,
-} ) );
-
-jest.mock( '@/reorder/wordpress/hooks/use-reorder-guidance', () => ( {
-	useReorderGuidance: () => ( {
-		dismiss: jest.fn(),
-		guidance: mockGuidance,
-	} ),
-} ) );
+/**
+ * JSDOMに存在しないPointerEvent入力だけを決定値で再現し、Productionの高さ変更処理へ通知する。
+ *
+ * @param type    Pointer Event種別。
+ * @param target  Event対象要素。
+ * @param clientY viewport上の縦位置。
+ */
+const dispatchHeightPointer = (
+	type: 'pointerdown' | 'pointermove' | 'pointerup',
+	target: Element,
+	clientY: number
+): void => {
+	const event = new Event( type, { bubbles: true, cancelable: true } );
+	Object.defineProperties( event, {
+		button: { value: 0 },
+		clientY: { value: clientY },
+		isPrimary: { value: true },
+		pointerId: { value: 1 },
+	} );
+	target.dispatchEvent( event );
+};
 
 describe( 'Reorder toolbar RF exclusivity', () => {
 	beforeEach( () => {
-		mockSelectedKind = null;
-		mockRfState = { status: 'closed' };
-		mockColumnDndLayoutAvailability = 'available';
-		mockGuidance = null;
-		jest.clearAllMocks();
+		reorderMode.observeTable( '__reorder-toolbar-test-reset__' );
+		rfInteractionStore.setState( rfInteractionStore.getInitialState(), true );
+		updateColumnDndLayoutAvailabilitySnapshot( 'table-a', 'available' );
+		dispatch( preferencesStore ).set(
+			'yamabiko-table-reorder',
+			'initialGuidanceAcknowledgedPc',
+			true
+		);
+		dispatch( preferencesStore ).set(
+			'yamabiko-table-reorder',
+			'initialGuidanceAcknowledgedTouch',
+			true
+		);
+	} );
+
+	afterEach( () => {
+		act( () => {
+			reorderMode.observeTable( '__reorder-toolbar-test-reset__' );
+			rfInteractionStore.setState( rfInteractionStore.getInitialState(), true );
+			clearColumnDndLayoutAvailabilitySnapshot( 'table-a' );
+		} );
+		document.documentElement.style.removeProperty( narrowHeightProperty );
+		document
+			.querySelectorAll( '[data-reorder-toolbar-height-fixture="true"]' )
+			.forEach( ( fixture ) => fixture.remove() );
 	} );
 
 	/**
@@ -190,22 +214,28 @@ describe( 'Reorder toolbar RF exclusivity', () => {
 	 * - 案内中はToolbarGroupだけに強調classが付与され、各入口には付与されない。
 	 * - 案内終了後はToolbarGroupから強調classが外れる。
 	 */
-	it( 'when guidance is visible, should highlight only the reorder entry group until guidance ends', () => {
-		mockGuidance = { environment: 'pc' };
-		const { rerender } = render( <ReorderModeToolbar tableIdentity="table-a" /> );
+	it( 'when guidance is visible, should highlight only the reorder entry group until guidance ends', async () => {
+		dispatch( preferencesStore ).set(
+			'yamabiko-table-reorder',
+			'initialGuidanceAcknowledgedPc',
+			undefined
+		);
+		const { container } = render( <ReorderModeToolbar tableIdentity="table-a" /> );
 
-		const group = screen.getByRole( 'group' );
-		expect( group.classList.contains( 'yamabiko-table-reorder-guidance-target' ) ).toBe( true );
+		await waitFor( () => {
+			expect( container.querySelector( '.yamabiko-table-reorder-guidance-target' ) ).not.toBeNull();
+		} );
 		expect(
 			screen
 				.getAllByRole( 'button' )
 				.some( ( button ) => button.classList.contains( 'yamabiko-table-reorder-guidance-target' ) )
 		).toBe( false );
 
-		mockGuidance = null;
-		rerender( <ReorderModeToolbar tableIdentity="table-a" /> );
+		fireEvent.click( screen.getByRole( 'button', { name: 'Close reorder guidance' } ) );
 
-		expect( screen.getByRole( 'group' ).className ).toBe( '' );
+		await waitFor( () => {
+			expect( container.querySelector( '.yamabiko-table-reorder-guidance-target' ) ).toBeNull();
+		} );
 	} );
 
 	/**
@@ -223,24 +253,54 @@ describe( 'Reorder toolbar RF exclusivity', () => {
 	 * - 新しいRF SessionのPopover位置とnarrow表示高さが初期化されてからRFが開く。
 	 */
 	it( 'when RF starts from a DnD mode, should return to edit mode and reset presentation state before opening RF', () => {
-		mockSelectedKind = 'row';
+		reorderMode.select( 'row', 'table-a' );
+		reorderFormPosition.beginSession( 'table-a' );
+		const positionHook = renderHook( () => useReorderFormPosition( 'table-a' ) );
+		act( () => {
+			positionHook.result.current.setPosition( { x: 80, y: 120 } );
+		} );
+
+		reorderFormHeight.beginSession( 'table-a' );
+		const { anchor, fixture, header } = createNarrowHeightFixture();
+		const heightHook = renderHook( () => useReorderFormNarrowHeight( 'table-a', anchor, true ) );
+		act( () => {
+			dispatchHeightPointer( 'pointerdown', header, 108 );
+			dispatchHeightPointer( 'pointermove', header, 68 );
+			dispatchHeightPointer( 'pointerup', header, 68 );
+		} );
+		expect( positionHook.result.current.position ).toEqual( { x: 80, y: 120 } );
+		expect( document.documentElement.style.getPropertyValue( narrowHeightProperty ) ).toBe(
+			'340px'
+		);
+
+		let modeWhenRfOpened: ReturnType< typeof reorderMode.getMode > | null = null;
+		const unsubscribe = rfInteractionStore.subscribe( ( state ) => {
+			if ( state.session.status === 'open' && state.session.tableIdentity === 'table-a' ) {
+				modeWhenRfOpened = reorderMode.getMode( 'table-a' );
+			}
+		} );
 		render( <ReorderModeToolbar tableIdentity="table-a" /> );
 
 		fireEvent.click( screen.getByRole( 'button', { name: 'Reorder with form' } ) );
 
-		expect( mockSelectMode ).toHaveBeenCalledWith( 'row' );
-		expect( mockBeginRfPositionSession ).toHaveBeenCalledWith( 'table-a' );
-		expect( mockBeginRfHeightSession ).toHaveBeenCalledWith( 'table-a' );
-		expect( mockOpenRf ).toHaveBeenCalledWith( 'table-a' );
-		expect( mockSelectMode.mock.invocationCallOrder[ 0 ] ).toBeLessThan(
-			mockBeginRfPositionSession.mock.invocationCallOrder[ 0 ]
-		);
-		expect( mockBeginRfPositionSession.mock.invocationCallOrder[ 0 ] ).toBeLessThan(
-			mockBeginRfHeightSession.mock.invocationCallOrder[ 0 ]
-		);
-		expect( mockBeginRfHeightSession.mock.invocationCallOrder[ 0 ] ).toBeLessThan(
-			mockOpenRf.mock.invocationCallOrder[ 0 ]
-		);
+		expect( modeWhenRfOpened ).toBe( 'edit' );
+		expect( positionHook.result.current.position ).toBeNull();
+		expect( document.documentElement.style.getPropertyValue( narrowHeightProperty ) ).toBe( '' );
+		expect(
+			screen.getByRole( 'button', { name: 'Reorder rows' } ).getAttribute( 'aria-pressed' )
+		).toBe( 'false' );
+		expect(
+			screen.getByRole( 'button', { name: 'Reorder with form' } ).getAttribute( 'aria-pressed' )
+		).toBe( 'true' );
+		expect( rfInteractionStore.getState().session ).toMatchObject( {
+			status: 'open',
+			tableIdentity: 'table-a',
+		} );
+
+		unsubscribe();
+		heightHook.unmount();
+		positionHook.unmount();
+		fixture.remove();
 	} );
 
 	/**
@@ -257,23 +317,23 @@ describe( 'Reorder toolbar RF exclusivity', () => {
 	 * - RF closeがColumnモード選択より先に要求される。
 	 */
 	it( 'when a DnD entry is selected from RF, should close RF before selecting the DnD mode', () => {
-		mockRfState = {
-			status: 'open',
-			kind: 'row',
-			input: { sourceRowNumber: '', targetRowNumber: '', position: null },
-			rowCount: 3,
-			result: { status: 'not-ready', inputProblems: [] },
-			canApply: false,
-		};
+		rfInteraction.open( 'table-a' );
+		let modeWhenRfClosed: ReturnType< typeof reorderMode.getMode > | null = null;
+		const unsubscribe = rfInteractionStore.subscribe( ( state ) => {
+			if ( state.session.status === 'closed' ) {
+				modeWhenRfClosed = reorderMode.getMode( 'table-a' );
+			}
+		} );
 		render( <ReorderModeToolbar tableIdentity="table-a" /> );
 
 		fireEvent.click( screen.getByRole( 'button', { name: 'Reorder columns' } ) );
 
-		expect( mockCloseRf ).toHaveBeenCalledWith( 'table-a' );
-		expect( mockSelectMode ).toHaveBeenCalledWith( 'column' );
-		expect( mockCloseRf.mock.invocationCallOrder[ 0 ] ).toBeLessThan(
-			mockSelectMode.mock.invocationCallOrder[ 0 ]
-		);
+		expect( modeWhenRfClosed ).toBe( 'edit' );
+		expect(
+			screen.getByRole( 'button', { name: 'Reorder columns' } ).getAttribute( 'aria-pressed' )
+		).toBe( 'true' );
+		expect( rfInteractionStore.getState().session.status ).toBe( 'closed' );
+		unsubscribe();
 	} );
 
 	/**
@@ -287,10 +347,18 @@ describe( 'Reorder toolbar RF exclusivity', () => {
 	 * - Toolbarを表示する。
 	 *
 	 * 期待結果:
-	 * - Row / Column / RFの3入口がすべてdisabledになる。
+	 * - Row / Column / RFの3入口がWordPress ToolbarButtonの無効状態として公開される。
 	 */
 	it( 'when RF is applying, should disable every reorder entry', () => {
-		mockRfState = { status: 'applying', kind: 'row' };
+		rfInteractionStore.setState( {
+			session: {
+				status: 'applying',
+				tableIdentity: 'table-a',
+				kind: 'row',
+				rowInput: { sourceRowNumber: '', targetRowNumber: '', position: null },
+				columnInput: { sourceColumnIndex: null, targetColumnIndex: null, position: null },
+			},
+		} );
 		render( <ReorderModeToolbar tableIdentity="table-a" /> );
 
 		const rowButton = screen.getByRole( 'button', { name: 'Reorder rows' } ) as HTMLButtonElement;
@@ -301,9 +369,16 @@ describe( 'Reorder toolbar RF exclusivity', () => {
 			name: 'Reorder with form',
 		} ) as HTMLButtonElement;
 
-		expect( rowButton.disabled ).toBe( true );
-		expect( columnButton.disabled ).toBe( true );
-		expect( rfButton.disabled ).toBe( true );
+		expect( rowButton.getAttribute( 'aria-disabled' ) ).toBe( 'true' );
+		expect( columnButton.getAttribute( 'aria-disabled' ) ).toBe( 'true' );
+		expect( rfButton.getAttribute( 'aria-disabled' ) ).toBe( 'true' );
+
+		fireEvent.click( rowButton );
+		fireEvent.click( columnButton );
+		fireEvent.click( rfButton );
+
+		expect( reorderMode.getMode( 'table-a' ) ).toBe( 'edit' );
+		expect( rfInteractionStore.getState().session.status ).toBe( 'applying' );
 	} );
 
 	/**
@@ -321,8 +396,8 @@ describe( 'Reorder toolbar RF exclusivity', () => {
 	 * - 現在表示で利用できないこととRFによる代替操作を示すPopoverが接続される。
 	 * - Column Reorder Modeは開始されない。
 	 */
-	it( 'when column DnD layout is unavailable, should expose the reason without selecting column mode', () => {
-		mockColumnDndLayoutAvailability = 'unavailable';
+	it( 'when column DnD layout is unavailable, should expose the reason without selecting column mode', async () => {
+		updateColumnDndLayoutAvailabilitySnapshot( 'table-a', 'unavailable' );
 		render( <ReorderModeToolbar tableIdentity="table-a" /> );
 
 		const columnButton = screen.getByRole( 'button', {
@@ -332,12 +407,14 @@ describe( 'Reorder toolbar RF exclusivity', () => {
 		expect( columnButton.disabled ).toBe( false );
 		expect( columnButton.getAttribute( 'aria-disabled' ) ).toBe( 'true' );
 		fireEvent.focus( columnButton );
-		expect( screen.getByRole( 'tooltip' ).textContent ).toBe(
-			'Column drag reordering is unavailable in the current view. You can reorder columns using the form.'
-		);
+		await waitFor( () => {
+			expect( screen.getByRole( 'tooltip' ).textContent ).toBe(
+				'Column drag reordering is unavailable in the current view. You can reorder columns using the form.'
+			);
+		} );
 
 		fireEvent.click( columnButton );
 
-		expect( mockSelectMode ).not.toHaveBeenCalled();
+		expect( reorderMode.getMode( 'table-a' ) ).toBe( 'edit' );
 	} );
 } );
