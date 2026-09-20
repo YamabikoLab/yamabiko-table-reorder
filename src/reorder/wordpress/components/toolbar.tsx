@@ -139,6 +139,7 @@ export const ReorderModeToolbar = ( props: ReorderModeToolbarProps ) => {
 	const rfApplying = rfState.status === 'applying';
 	const columnDndUnavailable = columnDndLayoutAvailability === 'unavailable';
 	const columnDndUnavailableReasonId = `yamabiko-table-reorder-column-dnd-unavailable-${ tableIdentity }`;
+	const columnDndUnavailableProps = columnDndUnavailable ? { 'aria-disabled': true } : {};
 	const { dismiss, guidance } = useReorderGuidance( tableIdentity, guidanceAnchor, rfActive );
 	useReorderFormNarrowHeight( tableIdentity, rfAnchor, rfState.status === 'open' );
 
@@ -170,7 +171,7 @@ export const ReorderModeToolbar = ( props: ReorderModeToolbarProps ) => {
 
 	const columnDndEntry = (
 		<ToolbarButton
-			aria-disabled={ columnDndUnavailable || undefined }
+			{ ...columnDndUnavailableProps }
 			aria-describedby={
 				columnDndUnavailable && columnDndReasonVisible ? columnDndUnavailableReasonId : undefined
 			}
