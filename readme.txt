@@ -14,27 +14,27 @@ Reorder rows and columns without rebuilding your WordPress tables.
 
 Reordering an existing table should not mean rebuilding it. Yamabiko Table Reorder adds row and column reordering directly to supported Table blocks in the WordPress block editor.
 
-Use drag-and-drop when it is convenient, or use Reorder with form when you prefer not to drag. Both approaches work with WordPress Core Table and [Flexible Table Block](https://wordpress.org/plugins/flexible-table-block/) and apply a move only when it preserves the supported Table structure.
+= Row Reordering =
 
-= Reorder rows and columns directly =
+Choose Reorder rows from the Table toolbar, then drag body rows with Mouse or Touch. Valid moves change the row order while preserving the supported Table structure.
 
-Choose Reorder rows or Reorder columns from the Table toolbar, then move body rows or Table columns with Mouse or Touch. The moving item and insertion line show the active move and destination while the surrounding Table remains in place.
+= Column Reordering =
 
-After a valid drop, the destination area is outlined briefly so the new position remains easy to find.
+Choose Reorder columns from the Table toolbar, then drag Table columns with Mouse or Touch.
 
-= Reorder without drag-and-drop =
+When the current editor layout does not provide reliable horizontal column positions, column drag-and-drop stays unavailable and Reorder with form remains available instead.
 
-Choose Reorder with form from the same Table toolbar to move a row or column by selecting the source, destination, and destination side. The form shows the available row and logical-column choices, including column headings when available.
+= Reorder Without Drag-and-Drop =
 
-= Built for real tables =
+Choose Reorder with form from the Table toolbar to move a row or column by selecting the source, destination, and destination side.
 
-Yamabiko Table Reorder takes merged cells into account and rejects moves that would break the supported Table structure. When a form-based move is blocked, it identifies the merged-cell location that prevents the move.
+= Supported Table Blocks =
 
-Column drag-and-drop starts only when the current editor view provides a reliable horizontal column layout. If cells are stacked or reflowed, the toolbar explains the limitation and Reorder with form remains available for column moves.
+Yamabiko Table Reorder supports the WordPress Core Table block and [Flexible Table Block](https://wordpress.org/plugins/flexible-table-block/).
 
-For larger changes that may take noticeable time to apply, the plugin asks for confirmation first. Only the target Table enters a temporary applying state, and editing resumes after the update is complete.
+= Built for Real Tables =
 
-Reorder with form adapts to the available editor space: it uses a movable Popover when space allows and a collapsible, vertically resizable bottom dock in narrow editor areas.
+Merged cells are taken into account, and moves that would break the supported Table structure are rejected. For larger changes that may take noticeable time to apply, the plugin asks for confirmation before updating the Table.
 
 A WordPress Playground demo is available from the GitHub repository and uses the current latest stable release.
 
@@ -50,9 +50,9 @@ The generated archive is `yamabiko-table-reorder.zip`.
 
 == Screenshots ==
 
-1. Row Reorder changes the order of table body rows directly in the WordPress block editor.
-2. Column Reorder changes the order of table columns directly in the WordPress block editor.
-3. Reorder with form moves a row or column without drag-and-drop by selecting the source, destination, and destination side.
+1. Row Reordering changes the order of table body rows directly in the WordPress block editor.
+2. Column Reordering changes the order of table columns directly in the WordPress block editor.
+3. Reorder Without Drag-and-Drop moves a row or column with Reorder with form by selecting the source, destination, and destination side.
 
 == Installation ==
 
