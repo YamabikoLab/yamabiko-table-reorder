@@ -14,7 +14,7 @@ Reorder rows and columns without rebuilding your WordPress tables.
 
 Reordering an existing table should not mean rebuilding it. Yamabiko Table Reorder adds row and column reordering directly to supported Table blocks in the WordPress block editor.
 
-Use drag-and-drop when it is convenient, or use Reorder with form when you prefer not to drag. Both approaches work with WordPress Core Table and Flexible Table Block and apply a move only when it preserves the supported Table structure.
+Use drag-and-drop when it is convenient, or use Reorder with form when you prefer not to drag. Both approaches work with WordPress Core Table and [Flexible Table Block](https://wordpress.org/plugins/flexible-table-block/) and apply a move only when it preserves the supported Table structure.
 
 = Reorder rows and columns directly =
 
