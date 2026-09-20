@@ -1,46 +1,36 @@
 /**
- * WordPress Reorder Apply Integrationの表示Lifecycleが、各段階の現在のEditor DOM Contextと描画完了に従って進むことを確認する。
+ * WordPress Reorder Apply Integrationの表示Lifecycleが、Production DOM Context・表示復帰・focusと描画完了に従って進むことを確認する。
  */
 
 import { render } from '@testing-library/react';
-
-import { resolveEditorDomContext } from '@/reorder/editor-dom-context';
-import { requestApplyFocus } from '@/reorder/wordpress/focus/apply';
+import { createPortal } from 'react-dom';
 
 import type { ReorderApplyPresentationState } from './adapter';
 import { useReorderApplyLifecycle } from './lifecycle';
-import { restoreMovedColumn, restoreMovedRow } from './restoration';
 
-jest.mock( '@/reorder/editor-dom-context', () => ( {
-	resolveEditorDomContext: jest.fn(),
-} ) );
+const RESTORED_CELL_CLASS = 'yamabiko-table-reorder-restored-cell';
 
-jest.mock( '@/reorder/wordpress/focus/apply', () => ( {
-	requestApplyFocus: jest.fn(),
-} ) );
-
-jest.mock( './restoration', () => ( {
-	restoreMovedColumn: jest.fn(),
-	restoreMovedRow: jest.fn(),
-} ) );
-
-const resolveEditorDomContextMock = resolveEditorDomContext as jest.Mock;
-const requestApplyFocusMock = requestApplyFocus as jest.Mock;
-const restoreMovedColumnMock = restoreMovedColumn as jest.Mock;
-const restoreMovedRowMock = restoreMovedRow as jest.Mock;
-
-/** 描画待ちをテスト側から1段階ずつ進められるEditor Windowを作成する。 */
-const createEditorWindow = () => {
+/**
+ * JSDOMにないpaintを、実Editor Window上のAnimation Frame境界だけで決定的に進められるようにする。
+ *
+ * @param editorWindow 基準要素が属するEditor Window。
+ * @return 次のFrameを進める操作と解除処理。
+ */
+const controlAnimationFrames = ( editorWindow: Window ) => {
 	let nextFrameId = 1;
 	const callbacks = new Map< number, FrameRequestCallback >();
-	const requestAnimationFrame = jest.fn( ( callback: FrameRequestCallback ) => {
-		const frameId = nextFrameId++;
-		callbacks.set( frameId, callback );
-		return frameId;
-	} );
-	const cancelAnimationFrame = jest.fn( ( frameId: number ) => {
-		callbacks.delete( frameId );
-	} );
+	const requestAnimationFrame = jest
+		.spyOn( editorWindow, 'requestAnimationFrame' )
+		.mockImplementation( ( callback: FrameRequestCallback ) => {
+			const frameId = nextFrameId++;
+			callbacks.set( frameId, callback );
+			return frameId;
+		} );
+	const cancelAnimationFrame = jest
+		.spyOn( editorWindow, 'cancelAnimationFrame' )
+		.mockImplementation( ( frameId: number ) => {
+			callbacks.delete( frameId );
+		} );
 	const flushNextFrame = (): void => {
 		const nextFrame = callbacks.entries().next();
 		/* 待機中の描画更新がない場合は、Lifecycleを進める処理も実行しない。 */
@@ -51,48 +41,126 @@ const createEditorWindow = () => {
 		callbacks.delete( frameId );
 		callback( 0 );
 	};
-	return {
-		window: { requestAnimationFrame, cancelAnimationFrame } as unknown as Window,
-		flushNextFrame,
+	const restore = (): void => {
+		requestAnimationFrame.mockRestore();
+		cancelAnimationFrame.mockRestore();
 	};
+	return { flushNextFrame, restore };
+};
+
+/**
+ * 実browsing contextを持つEditor iframeとLifecycle基準要素の描画先を作成する。
+ *
+ * @param title fixtureを識別するiframe title。
+ * @return Editor document、window、描画先、Frame制御、破棄操作。
+ */
+const createEditorFixture = ( title: string ) => {
+	const iframe = document.createElement( 'iframe' );
+	iframe.title = title;
+	document.body.append( iframe );
+	const editorDocument = iframe.contentDocument;
+	const editorWindow = iframe.contentWindow;
+	if ( editorDocument === null || editorWindow === null ) {
+		iframe.remove();
+		throw new Error( 'Expected editor iframe browsing context.' );
+	}
+	const referenceContainer = editorDocument.createElement( 'div' );
+	editorDocument.body.append( referenceContainer );
+	const frames = controlAnimationFrames( editorWindow );
+	const cleanup = (): void => {
+		frames.restore();
+		iframe.remove();
+	};
+	return { editorDocument, editorWindow, referenceContainer, frames, cleanup };
 };
 
 /**
  * 表示状態に対応する現在要素へLifecycleの基準要素参照を接続する。
- * @param props
- * @param props.presentation
+ *
+ * @param props                    Lifecycleへ渡す状態と現在Editor DOM。
+ * @param props.presentation       現在のPresentation状態。
+ * @param props.referenceContainer 現在Editor DOM内の描画先。
+ * @return 現在phaseの基準要素。
  */
-const LifecycleHarness = ( props: { presentation: ReorderApplyPresentationState } ) => {
-	const { presentation } = props;
+const LifecycleHarness = ( props: {
+	presentation: ReorderApplyPresentationState;
+	referenceContainer: Element;
+} ) => {
+	const { presentation, referenceContainer } = props;
 	const { applyingReferenceElementRef, restorationReferenceElementRef } =
 		useReorderApplyLifecycle( presentation );
 
+	let referenceElement: React.ReactNode = null;
 	/* 反映開始段階では、反映中表示そのものを現在のEditor DOM Contextの基準要素とする。 */
 	if ( presentation.phase === 'applying' ) {
-		return <div ref={ applyingReferenceElementRef }>Applying</div>;
+		referenceElement = <div ref={ applyingReferenceElementRef }>Applying</div>;
 	}
 	/* 表示復帰時は、現在Tableと同じEditor DOM Contextに属する基準要素を接続する。 */
 	if ( presentation.phase === 'restoring' ) {
-		return <div ref={ restorationReferenceElementRef }>Restoring</div>;
+		referenceElement = <div ref={ restorationReferenceElementRef }>Restoring</div>;
 	}
-	return null;
+	return createPortal( referenceElement, referenceContainer );
+};
+
+/**
+ * Production表示復帰とFocus Coordinationが参照できるTable DOMを作成する。
+ *
+ * @param editorDocument 表示復帰先のEditor document。
+ * @param tableIdentity  対象TableのIdentity。
+ * @param rowCount       Tableの行数。
+ * @param columnCount    Tableの列数。
+ */
+const createTableDom = (
+	editorDocument: Document,
+	tableIdentity: string,
+	rowCount: number,
+	columnCount: number
+) => {
+	const tableBlock = editorDocument.createElement( 'div' );
+	tableBlock.dataset.block = tableIdentity;
+	const table = editorDocument.createElement( 'table' );
+	const body = editorDocument.createElement( 'tbody' );
+	for ( let rowIndex = 0; rowIndex < rowCount; rowIndex++ ) {
+		const row = editorDocument.createElement( 'tr' );
+		for ( let columnIndex = 0; columnIndex < columnCount; columnIndex++ ) {
+			const cell = editorDocument.createElement( 'td' );
+			const editable = editorDocument.createElement( 'span' );
+			editable.setAttribute( 'contenteditable', 'true' );
+			editable.textContent = `${ rowIndex + 1 }-${ columnIndex + 1 }`;
+			Object.defineProperty( editable, 'scrollIntoView', {
+				configurable: true,
+				value: jest.fn(),
+			} );
+			/* JSDOMにないscroll境界は、Productionが選択したfallback要素でも呼び出せるよう補完する。 */
+			Object.defineProperty( cell, 'scrollIntoView', {
+				configurable: true,
+				value: jest.fn(),
+			} );
+			cell.append( editable );
+			row.append( cell );
+		}
+		Object.defineProperty( row, 'scrollIntoView', {
+			configurable: true,
+			value: jest.fn(),
+		} );
+		body.append( row );
+	}
+	table.append( body );
+	tableBlock.append( table );
+	editorDocument.body.prepend( tableBlock );
+	return tableBlock;
 };
 
 describe( 'WordPress Reorder Apply Integration lifecycle', () => {
-	beforeEach( () => {
-		jest.clearAllMocks();
-	} );
-
 	/**
-	 * 概要:
-	 * - 反映中表示が利用者へ描画される前に重いTable更新を開始しないことを確認する。
+	 * 反映中表示が利用者へ描画される前に重いTable更新を開始しないことを確認する。
 	 *
 	 * 事前条件:
 	 * - 対象Tableは反映開始状態である。
-	 * - 現在の基準要素からEditor DOM Contextを解決できる。
+	 * - 基準要素は実Editor iframeに属している。
 	 *
 	 * 操作:
-	 * - 反映中表示をmountし、描画待ちを順に完了する。
+	 * - 反映中表示をmountし、JSDOMにない描画待ちを順に完了する。
 	 *
 	 * 期待結果:
 	 * - 1回目の描画待ちだけでは反映を開始しない。
@@ -100,14 +168,10 @@ describe( 'WordPress Reorder Apply Integration lifecycle', () => {
 	 */
 	it( 'when applying presentation is mounted, should start the table update only after the applying view is painted', () => {
 		const apply = jest.fn();
-		const editorWindow = createEditorWindow();
-		resolveEditorDomContextMock.mockReturnValue( {
-			document,
-			window: editorWindow.window,
-		} );
-
+		const editor = createEditorFixture( 'applying-editor' );
 		render(
 			<LifecycleHarness
+				referenceContainer={ editor.referenceContainer }
 				presentation={ {
 					phase: 'applying',
 					kind: 'row',
@@ -118,19 +182,19 @@ describe( 'WordPress Reorder Apply Integration lifecycle', () => {
 		);
 
 		expect( apply ).not.toHaveBeenCalled();
-		editorWindow.flushNextFrame();
+		editor.frames.flushNextFrame();
 		expect( apply ).not.toHaveBeenCalled();
-		editorWindow.flushNextFrame();
+		editor.frames.flushNextFrame();
 		expect( apply ).toHaveBeenCalledTimes( 1 );
+		editor.cleanup();
 	} );
 
 	/**
-	 * 概要:
-	 * - 反映開始時にEditor DOM Contextを解決できない場合も、別環境を推測せずTable更新を開始できることを確認する。
+	 * 反映開始時にEditor DOM Contextを解決できない場合も、別環境を推測せずTable更新を開始できることを確認する。
 	 *
 	 * 事前条件:
 	 * - 対象Tableは反映開始状態である。
-	 * - 現在の基準要素からEditor DOM Contextを解決できない。
+	 * - 基準要素のdocumentには対応するwindowがない。
 	 *
 	 * 操作:
 	 * - 反映中Presentationをmountする。
@@ -140,10 +204,13 @@ describe( 'WordPress Reorder Apply Integration lifecycle', () => {
 	 */
 	it( 'when applying has no editor context, should start the table update without inventing another context', () => {
 		const apply = jest.fn();
-		resolveEditorDomContextMock.mockReturnValue( null );
+		const detachedDocument = document.implementation.createHTMLDocument( 'detached-editor' );
+		const referenceContainer = detachedDocument.createElement( 'div' );
+		detachedDocument.body.append( referenceContainer );
 
 		render(
 			<LifecycleHarness
+				referenceContainer={ referenceContainer }
 				presentation={ {
 					phase: 'applying',
 					kind: 'row',
@@ -157,31 +224,29 @@ describe( 'WordPress Reorder Apply Integration lifecycle', () => {
 	} );
 
 	/**
-	 * 概要:
-	 * - Column successでも既存描画待ち後にColumn結果確認focusを一回適用してから完了することを確認する。
+	 * Column successでも既存描画待ち後にProductionのColumn結果確認focusを一回適用してから完了することを確認する。
 	 *
 	 * 事前条件:
-	 * - 列並び替えが成功し、確定後列位置が存在する。
-	 * - 現在のEditor DOM Contextを解決できる。
+	 * - 列並び替えが成功し、確定後列位置が実Editor DOMに存在する。
 	 *
 	 * 操作:
 	 * - 表示復帰Presentationをmountし、描画待ちを完了する。
 	 *
 	 * 期待結果:
-	 * - Column表示復帰だけを実行する。
-	 * - column-success focusを一回要求した後にLifecycleを完了する。
+	 * - 確定列は表示・強調される。
+	 * - 描画後に同じ列へfocusしてからLifecycleを完了する。
 	 */
 	it( 'when a column reorder succeeds, should focus the confirmed column after paint before completing', () => {
-		const complete = jest.fn();
-		const editorWindow = createEditorWindow();
-		const restorationDocument = document.implementation.createHTMLDocument( 'restored-editor' );
-		resolveEditorDomContextMock.mockReturnValue( {
-			document: restorationDocument,
-			window: editorWindow.window,
+		const editor = createEditorFixture( 'column-restoration-editor' );
+		const tableBlock = createTableDom( editor.editorDocument, 'table-a', 1, 4 );
+		const destinationCell = tableBlock.querySelectorAll( 'td' ).item( 2 );
+		const complete = jest.fn( () => {
+			expect( editor.editorDocument.activeElement ).toBe( destinationCell );
 		} );
 
 		render(
 			<LifecycleHarness
+				referenceContainer={ editor.referenceContainer }
 				presentation={ {
 					phase: 'restoring',
 					owner: 'column',
@@ -194,44 +259,40 @@ describe( 'WordPress Reorder Apply Integration lifecycle', () => {
 			/>
 		);
 
-		expect( restoreMovedColumnMock ).toHaveBeenCalledWith( restorationDocument, 'table-a', 2 );
-		expect( restoreMovedRowMock ).not.toHaveBeenCalled();
-		expect( requestApplyFocusMock ).not.toHaveBeenCalled();
-
-		editorWindow.flushNextFrame();
-		editorWindow.flushNextFrame();
-
-		expect( requestApplyFocusMock ).toHaveBeenCalledWith(
-			{ type: 'column-success', tableIdentity: 'table-a', destinationIndex: 2 },
-			expect.any( HTMLDivElement )
-		);
-		expect( requestApplyFocusMock.mock.invocationCallOrder[ 0 ] ).toBeLessThan(
-			complete.mock.invocationCallOrder[ 0 ]
-		);
+		expect( destinationCell.classList.contains( RESTORED_CELL_CLASS ) ).toBe( true );
+		expect( editor.editorDocument.activeElement ).not.toBe( destinationCell );
+		expect( complete ).not.toHaveBeenCalled();
+		editor.frames.flushNextFrame();
+		editor.frames.flushNextFrame();
+		expect( editor.editorDocument.activeElement ).toBe( destinationCell );
 		expect( complete ).toHaveBeenCalledTimes( 1 );
+		editor.cleanup();
 	} );
 
 	/**
-	 * 概要:
-	 * - 表示復帰時にEditor DOM Contextを解決できない場合は、誤った復帰先を推測せずLifecycleだけを完了することを確認する。
+	 * 表示復帰時にEditor DOM Contextを解決できない場合は、誤った復帰先を推測せずLifecycleだけを完了することを確認する。
 	 *
 	 * 事前条件:
 	 * - 並び替えは成功して確定後位置が存在する。
-	 * - 現在の基準要素からEditor DOM Contextを解決できない。
+	 * - 基準要素のdocumentには対応するwindowがない。
 	 *
 	 * 操作:
 	 * - 表示復帰Presentationをmountする。
 	 *
 	 * 期待結果:
-	 * - 表示復帰と結果確認focusを行わない。
+	 * - Tableの結果位置は強調されない。
 	 * - Lifecycle完了だけを1回実行する。
 	 */
 	it( 'when restoration has no editor context, should complete without restoring or focusing another context', () => {
 		const complete = jest.fn();
-		resolveEditorDomContextMock.mockReturnValue( null );
+		const detachedDocument = document.implementation.createHTMLDocument( 'detached-editor' );
+		const tableBlock = createTableDom( detachedDocument, 'table-a', 2, 1 );
+		const referenceContainer = detachedDocument.createElement( 'div' );
+		detachedDocument.body.append( referenceContainer );
 
 		render(
 			<LifecycleHarness
+				referenceContainer={ referenceContainer }
 				presentation={ {
 					phase: 'restoring',
 					owner: 'row',
@@ -244,15 +305,12 @@ describe( 'WordPress Reorder Apply Integration lifecycle', () => {
 			/>
 		);
 
-		expect( restoreMovedRowMock ).not.toHaveBeenCalled();
-		expect( restoreMovedColumnMock ).not.toHaveBeenCalled();
-		expect( requestApplyFocusMock ).not.toHaveBeenCalled();
+		expect( tableBlock.querySelector( `.${ RESTORED_CELL_CLASS }` ) ).toBeNull();
 		expect( complete ).toHaveBeenCalledTimes( 1 );
 	} );
 
 	/**
-	 * 概要:
-	 * - 反映中表示が終了した後に、以前予約したTable更新を実行しないことを確認する。
+	 * 反映中表示が終了した後に、以前予約したTable更新を実行しないことを確認する。
 	 *
 	 * 事前条件:
 	 * - 反映中表示の描画待ちが未完了である。
@@ -265,13 +323,10 @@ describe( 'WordPress Reorder Apply Integration lifecycle', () => {
 	 */
 	it( 'when applying presentation ends before paint completes, should cancel the pending table update', () => {
 		const apply = jest.fn();
-		const editorWindow = createEditorWindow();
-		resolveEditorDomContextMock.mockReturnValue( {
-			document,
-			window: editorWindow.window,
-		} );
+		const editor = createEditorFixture( 'cancelled-applying-editor' );
 		const view = render(
 			<LifecycleHarness
+				referenceContainer={ editor.referenceContainer }
 				presentation={ {
 					phase: 'applying',
 					kind: 'row',
@@ -281,16 +336,21 @@ describe( 'WordPress Reorder Apply Integration lifecycle', () => {
 			/>
 		);
 
-		view.rerender( <LifecycleHarness presentation={ { phase: 'idle' } } /> );
-		editorWindow.flushNextFrame();
-		editorWindow.flushNextFrame();
+		view.rerender(
+			<LifecycleHarness
+				referenceContainer={ editor.referenceContainer }
+				presentation={ { phase: 'idle' } }
+			/>
+		);
+		editor.frames.flushNextFrame();
+		editor.frames.flushNextFrame();
 
 		expect( apply ).not.toHaveBeenCalled();
+		editor.cleanup();
 	} );
 
 	/**
-	 * 概要:
-	 * - 反映中から表示復帰へ移る際に以前のEditor DOM Contextを再利用せず、現在の表示環境で復帰することを確認する。
+	 * 反映中から表示復帰へ移る際に以前のEditor DOM Contextを再利用せず、現在の表示環境で復帰することを確認する。
 	 *
 	 * 事前条件:
 	 * - 反映中表示はEditor DOM Context Aに属している。
@@ -300,22 +360,25 @@ describe( 'WordPress Reorder Apply Integration lifecycle', () => {
 	 * - Context Aで反映開始まで進めた後、Context Bで表示復帰段階へ進める。
 	 *
 	 * 期待結果:
-	 * - 表示復帰にはContext Bのdocumentと反映後最終行位置だけを利用する。
-	 * - 復帰表示の描画後にLifecycleを完了する。
+	 * - 結果強調とfocusはContext Bの確定行だけへ適用される。
+	 * - Context Bの描画後にLifecycleを完了する。
 	 */
 	it( 'when restoration occurs in a new editor context, should restore only in the current context before completing', () => {
 		const apply = jest.fn();
-		const complete = jest.fn();
-		const applyingWindow = createEditorWindow();
-		const restorationWindow = createEditorWindow();
-		const applyingDocument = document.implementation.createHTMLDocument( 'applying-editor' );
-		const restorationDocument = document.implementation.createHTMLDocument( 'restored-editor' );
-		resolveEditorDomContextMock.mockReturnValueOnce( {
-			document: applyingDocument,
-			window: applyingWindow.window,
+		const applyingEditor = createEditorFixture( 'applying-editor' );
+		const restorationEditor = createEditorFixture( 'restoration-editor' );
+		const applyingTable = createTableDom( applyingEditor.editorDocument, 'table-a', 5, 1 );
+		const restorationTable = createTableDom( restorationEditor.editorDocument, 'table-a', 5, 1 );
+		const restorationCell = restorationTable
+			.querySelectorAll( 'tbody tr' )
+			.item( 4 )
+			.querySelector( 'td' );
+		const complete = jest.fn( () => {
+			expect( restorationEditor.editorDocument.activeElement ).toBe( restorationCell );
 		} );
 		const view = render(
 			<LifecycleHarness
+				referenceContainer={ applyingEditor.referenceContainer }
 				presentation={ {
 					phase: 'applying',
 					kind: 'row',
@@ -324,16 +387,13 @@ describe( 'WordPress Reorder Apply Integration lifecycle', () => {
 				} }
 			/>
 		);
-		applyingWindow.flushNextFrame();
-		applyingWindow.flushNextFrame();
+		applyingEditor.frames.flushNextFrame();
+		applyingEditor.frames.flushNextFrame();
 		expect( apply ).toHaveBeenCalledTimes( 1 );
 
-		resolveEditorDomContextMock.mockReturnValueOnce( {
-			document: restorationDocument,
-			window: restorationWindow.window,
-		} );
 		view.rerender(
 			<LifecycleHarness
+				referenceContainer={ restorationEditor.referenceContainer }
 				presentation={ {
 					phase: 'restoring',
 					owner: 'row',
@@ -346,49 +406,39 @@ describe( 'WordPress Reorder Apply Integration lifecycle', () => {
 			/>
 		);
 
-		expect( restoreMovedRowMock ).toHaveBeenCalledWith( restorationDocument, 'table-a', 4 );
-		expect( restoreMovedRowMock ).not.toHaveBeenCalledWith( applyingDocument, 'table-a', 4 );
-		expect( requestApplyFocusMock ).not.toHaveBeenCalled();
+		expect( applyingTable.querySelector( `.${ RESTORED_CELL_CLASS }` ) ).toBeNull();
+		expect( restorationCell?.classList.contains( RESTORED_CELL_CLASS ) ).toBe( true );
 		expect( complete ).not.toHaveBeenCalled();
-		restorationWindow.flushNextFrame();
-		restorationWindow.flushNextFrame();
-		expect( requestApplyFocusMock ).toHaveBeenCalledTimes( 1 );
-		expect( requestApplyFocusMock ).toHaveBeenCalledWith(
-			{ type: 'row-success', tableIdentity: 'table-a', destinationIndex: 4 },
-			expect.any( HTMLDivElement )
-		);
-		expect( requestApplyFocusMock.mock.invocationCallOrder[ 0 ] ).toBeLessThan(
-			complete.mock.invocationCallOrder[ 0 ]
-		);
+		restorationEditor.frames.flushNextFrame();
+		restorationEditor.frames.flushNextFrame();
+		expect( restorationEditor.editorDocument.activeElement ).toBe( restorationCell );
 		expect( complete ).toHaveBeenCalledTimes( 1 );
+		applyingEditor.cleanup();
+		restorationEditor.cleanup();
 	} );
 
 	/**
-	 * 概要:
-	 * - Table更新が成立せず復帰先を確定できない場合も、誤った表示復帰を行わずLifecycleだけを完了することを確認する。
+	 * Table更新が成立せず復帰先を確定できない場合も、誤った表示復帰を行わずLifecycleだけを完了することを確認する。
 	 *
 	 * 事前条件:
 	 * - 列の並び替えは反映されていない。
 	 * - 表示復帰先は確定していない。
-	 * - 現在のEditor DOM Contextを解決できる。
 	 *
 	 * 操作:
 	 * - 表示復帰段階をmountし、描画待ちを完了する。
 	 *
 	 * 期待結果:
-	 * - 行・列どちらの表示復帰も行わない。
+	 * - Table内のどのセルも結果位置として強調・focusされない。
 	 * - 現在表示を描画した後にLifecycleを完了する。
 	 */
 	it( 'when an update was not applied and has no destination, should complete restoration without restoring a destination', () => {
+		const editor = createEditorFixture( 'failed-restoration-editor' );
+		const tableBlock = createTableDom( editor.editorDocument, 'table-a', 1, 3 );
 		const complete = jest.fn();
-		const editorWindow = createEditorWindow();
-		resolveEditorDomContextMock.mockReturnValue( {
-			document,
-			window: editorWindow.window,
-		} );
 
 		render(
 			<LifecycleHarness
+				referenceContainer={ editor.referenceContainer }
 				presentation={ {
 					phase: 'restoring',
 					owner: 'rf',
@@ -401,11 +451,11 @@ describe( 'WordPress Reorder Apply Integration lifecycle', () => {
 			/>
 		);
 
-		expect( restoreMovedRowMock ).not.toHaveBeenCalled();
-		expect( restoreMovedColumnMock ).not.toHaveBeenCalled();
-		editorWindow.flushNextFrame();
-		editorWindow.flushNextFrame();
-		expect( requestApplyFocusMock ).not.toHaveBeenCalled();
+		expect( tableBlock.querySelector( `.${ RESTORED_CELL_CLASS }` ) ).toBeNull();
+		editor.frames.flushNextFrame();
+		editor.frames.flushNextFrame();
+		expect( tableBlock.contains( editor.editorDocument.activeElement ) ).toBe( false );
 		expect( complete ).toHaveBeenCalledTimes( 1 );
+		editor.cleanup();
 	} );
 } );

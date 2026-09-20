@@ -3,17 +3,13 @@
  */
 
 import { render, screen } from '@testing-library/react';
-import type { ReactNode } from 'react';
 
 import { ReorderApplyCompletion } from './completion';
 
-jest.mock( '@wordpress/components', () => ( {
-	Snackbar: ( props: { children: ReactNode } ) => <div role="status">{ props.children }</div>,
-} ) );
-
-jest.mock( '@/messages', () => ( {
-	getLargeReorderCompletionMessage: () => 'Reordering complete.',
-	getRfApplyFailureMessage: () => 'Reordering failed. The table has not been changed.',
+/* @wordpress/componentsのuuid / theme ESM境界だけをJestで読める決定的な実装へ置き換える。 */
+jest.mock( 'uuid', () => ( { v4: () => 'reorder-apply-completion-test-uuid' } ) );
+jest.mock( '@wordpress/theme', () => ( {
+	ThemeProvider: ( { children }: { children: React.ReactNode } ) => children,
 } ) );
 
 describe( 'WordPress Reorder Apply completion entry', () => {
@@ -34,7 +30,11 @@ describe( 'WordPress Reorder Apply completion entry', () => {
 
 		rerender( <ReorderApplyCompletion restorationStatus={ null } /> );
 
-		expect( screen.getByText( 'Reordering complete.' ) ).not.toBeNull();
+		expect(
+			screen.getByText( 'Reordering complete.', {
+				selector: '.yamabiko-table-reorder-completion__message',
+			} )
+		).not.toBeNull();
 	} );
 
 	/**
@@ -55,7 +55,9 @@ describe( 'WordPress Reorder Apply completion entry', () => {
 		rerender( <ReorderApplyCompletion restorationStatus={ null } /> );
 
 		expect(
-			screen.getByText( 'Reordering failed. The table has not been changed.' )
+			screen.getByText( 'The reorder could not be completed. The table was not changed.', {
+				selector: '.yamabiko-table-reorder-completion__message',
+			} )
 		).not.toBeNull();
 	} );
 
