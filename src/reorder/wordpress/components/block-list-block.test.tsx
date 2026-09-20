@@ -402,26 +402,32 @@ describe( 'Reorder Mode Block wrapper integration', () => {
 	 * - 選択中Tableに対する再評価がdebounce待機中である。
 	 *
 	 * 操作:
-	 * - 対象BlockListBlockをunmountし、その後debounce待機時間を経過させる。
+	 * - 対象BlockListBlockをunmountし、同じTable Identityを利用可能な状態で再接続する。
+	 * - 再接続後に元のdebounce待機時間を経過させる。
 	 *
 	 * 期待結果:
-	 * - unmount後にLayout Availabilityを再評価しない。
+	 * - 再接続したTableのavailable snapshotが維持され、終了済み接続の再評価で上書きされない。
 	 */
 	it( 'when BlockListBlock unmounts during the debounce period, should cancel the pending toolbar reevaluation', () => {
 		jest.useFakeTimers();
-		const { unmount } = render( renderBlockListBlock() );
+		const firstRender = render( renderBlockListBlock() );
 
 		expect( getColumnDndLayoutAvailabilitySnapshot( 'table-a' ) ).toBe( 'available' );
 		act( () => {
 			window.dispatchEvent( new Event( 'resize' ) );
 		} );
-		unmount();
+		firstRender.unmount();
 		expect( getColumnDndLayoutAvailabilitySnapshot( 'table-a' ) ).toBe( 'unavailable' );
+
+		const secondRender = render( renderBlockListBlock() );
+		expect( getColumnDndLayoutAvailabilitySnapshot( 'table-a' ) ).toBe( 'available' );
 
 		act( () => {
 			jest.advanceTimersByTime( COLUMN_DND_LAYOUT_AVAILABILITY_DEBOUNCE_MS );
 		} );
-		expect( getColumnDndLayoutAvailabilitySnapshot( 'table-a' ) ).toBe( 'unavailable' );
+		expect( getColumnDndLayoutAvailabilitySnapshot( 'table-a' ) ).toBe( 'available' );
+
+		secondRender.unmount();
 		jest.useRealTimers();
 	} );
 
