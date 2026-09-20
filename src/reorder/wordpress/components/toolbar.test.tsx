@@ -2,7 +2,7 @@
  * WordPress Table ToolbarのRow / Column DnDとReorder Form（RF）入口が製品入口で排他的に切り替わることを確認する。
  */
 
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, renderHook, screen, waitFor } from '@testing-library/react';
 import { dispatch } from '@wordpress/data';
 import { store as preferencesStore } from '@wordpress/preferences';
 
@@ -11,6 +11,14 @@ import {
 	rfInteractionStore,
 } from '@/reorder/reorder-form/responsibilities/interaction';
 import { reorderMode } from '@/reorder/reorder-mode';
+import {
+	reorderFormHeight,
+	useReorderFormNarrowHeight,
+} from '@/reorder/wordpress/components/reorder-form-height';
+import {
+	reorderFormPosition,
+	useReorderFormPosition,
+} from '@/reorder/wordpress/components/reorder-form-position';
 import {
 	clearColumnDndLayoutAvailabilitySnapshot,
 	updateColumnDndLayoutAvailabilitySnapshot,
@@ -77,6 +85,68 @@ jest.mock( '@wordpress/preferences', () => {
 	return { store };
 } );
 
+const narrowHeightProperty = '--yamabiko-table-reorder-rf-narrow-height';
+
+/**
+ * 前回RF Sessionの狭い表示高さを利用者操作で作るための最小DOM境界を用意する。
+ *
+ * JSDOMには実layoutとPointer Captureがないため、geometryとPointer Captureだけを決定値へ置き換える。
+ * RF高さ責務と状態遷移はProduction実装をそのまま使用する。
+ *
+ * @return RF Toolbar入口、高さ変更用header、fixture root。
+ */
+const createNarrowHeightFixture = () => {
+	const fixture = document.createElement( 'div' );
+	const anchor = document.createElement( 'button' );
+	const popover = document.createElement( 'div' );
+	const content = document.createElement( 'div' );
+	const header = document.createElement( 'div' );
+	const collapse = document.createElement( 'button' );
+	fixture.dataset.reorderToolbarHeightFixture = 'true';
+	popover.className = 'yamabiko-table-reorder-rf-popover is-narrow';
+	content.className = 'components-popover__content';
+	header.className = 'yamabiko-table-reorder-rf__header';
+	collapse.className = 'yamabiko-table-reorder-rf__collapse';
+	collapse.setAttribute( 'aria-expanded', 'true' );
+	fixture.append( anchor, popover );
+	popover.append( content );
+	content.append( header );
+	header.append( collapse );
+	document.body.append( fixture );
+
+	header.getBoundingClientRect = () => ( { top: 100 } ) as DOMRect;
+	content.getBoundingClientRect = () => ( { height: 300 } ) as DOMRect;
+	Object.assign( header, {
+		hasPointerCapture: () => false,
+		releasePointerCapture: jest.fn(),
+		setPointerCapture: jest.fn(),
+	} );
+
+	return { anchor, fixture, header };
+};
+
+/**
+ * JSDOMに存在しないPointerEvent入力だけを決定値で再現し、Productionの高さ変更処理へ通知する。
+ *
+ * @param type    Pointer Event種別。
+ * @param target  Event対象要素。
+ * @param clientY viewport上の縦位置。
+ */
+const dispatchHeightPointer = (
+	type: 'pointerdown' | 'pointermove' | 'pointerup',
+	target: Element,
+	clientY: number
+): void => {
+	const event = new Event( type, { bubbles: true, cancelable: true } );
+	Object.defineProperties( event, {
+		button: { value: 0 },
+		clientY: { value: clientY },
+		isPrimary: { value: true },
+		pointerId: { value: 1 },
+	} );
+	target.dispatchEvent( event );
+};
+
 describe( 'Reorder toolbar RF exclusivity', () => {
 	beforeEach( () => {
 		reorderMode.observeTable( '__reorder-toolbar-test-reset__' );
@@ -100,6 +170,10 @@ describe( 'Reorder toolbar RF exclusivity', () => {
 			rfInteractionStore.setState( rfInteractionStore.getInitialState(), true );
 			clearColumnDndLayoutAvailabilitySnapshot( 'table-a' );
 		} );
+		document.documentElement.style.removeProperty( narrowHeightProperty );
+		document
+			.querySelectorAll( '[data-reorder-toolbar-height-fixture="true"]' )
+			.forEach( ( fixture ) => fixture.remove() );
 	} );
 
 	/**
@@ -180,10 +254,38 @@ describe( 'Reorder toolbar RF exclusivity', () => {
 	 */
 	it( 'when RF starts from a DnD mode, should return to edit mode and reset presentation state before opening RF', () => {
 		reorderMode.select( 'row', 'table-a' );
+		reorderFormPosition.beginSession( 'table-a' );
+		const positionHook = renderHook( () => useReorderFormPosition( 'table-a' ) );
+		act( () => {
+			positionHook.result.current.setPosition( { x: 80, y: 120 } );
+		} );
+
+		reorderFormHeight.beginSession( 'table-a' );
+		const { anchor, fixture, header } = createNarrowHeightFixture();
+		const heightHook = renderHook( () => useReorderFormNarrowHeight( 'table-a', anchor, true ) );
+		act( () => {
+			dispatchHeightPointer( 'pointerdown', header, 108 );
+			dispatchHeightPointer( 'pointermove', header, 68 );
+			dispatchHeightPointer( 'pointerup', header, 68 );
+		} );
+		expect( positionHook.result.current.position ).toEqual( { x: 80, y: 120 } );
+		expect( document.documentElement.style.getPropertyValue( narrowHeightProperty ) ).toBe(
+			'340px'
+		);
+
+		let modeWhenRfOpened: ReturnType< typeof reorderMode.getMode > | null = null;
+		const unsubscribe = rfInteractionStore.subscribe( ( state ) => {
+			if ( state.session.status === 'open' && state.session.tableIdentity === 'table-a' ) {
+				modeWhenRfOpened = reorderMode.getMode( 'table-a' );
+			}
+		} );
 		render( <ReorderModeToolbar tableIdentity="table-a" /> );
 
 		fireEvent.click( screen.getByRole( 'button', { name: 'Reorder with form' } ) );
 
+		expect( modeWhenRfOpened ).toBe( 'edit' );
+		expect( positionHook.result.current.position ).toBeNull();
+		expect( document.documentElement.style.getPropertyValue( narrowHeightProperty ) ).toBe( '' );
 		expect(
 			screen.getByRole( 'button', { name: 'Reorder rows' } ).getAttribute( 'aria-pressed' )
 		).toBe( 'false' );
@@ -194,6 +296,11 @@ describe( 'Reorder toolbar RF exclusivity', () => {
 			status: 'open',
 			tableIdentity: 'table-a',
 		} );
+
+		unsubscribe();
+		heightHook.unmount();
+		positionHook.unmount();
+		fixture.remove();
 	} );
 
 	/**
@@ -211,14 +318,22 @@ describe( 'Reorder toolbar RF exclusivity', () => {
 	 */
 	it( 'when a DnD entry is selected from RF, should close RF before selecting the DnD mode', () => {
 		rfInteraction.open( 'table-a' );
+		let modeWhenRfClosed: ReturnType< typeof reorderMode.getMode > | null = null;
+		const unsubscribe = rfInteractionStore.subscribe( ( state ) => {
+			if ( state.session.status === 'closed' ) {
+				modeWhenRfClosed = reorderMode.getMode( 'table-a' );
+			}
+		} );
 		render( <ReorderModeToolbar tableIdentity="table-a" /> );
 
 		fireEvent.click( screen.getByRole( 'button', { name: 'Reorder columns' } ) );
 
+		expect( modeWhenRfClosed ).toBe( 'edit' );
 		expect(
 			screen.getByRole( 'button', { name: 'Reorder columns' } ).getAttribute( 'aria-pressed' )
 		).toBe( 'true' );
 		expect( rfInteractionStore.getState().session.status ).toBe( 'closed' );
+		unsubscribe();
 	} );
 
 	/**
@@ -253,6 +368,10 @@ describe( 'Reorder toolbar RF exclusivity', () => {
 		const rfButton = screen.getByRole( 'button', {
 			name: 'Reorder with form',
 		} ) as HTMLButtonElement;
+
+		expect( rowButton.disabled ).toBe( true );
+		expect( columnButton.disabled ).toBe( true );
+		expect( rfButton.disabled ).toBe( true );
 
 		fireEvent.click( rowButton );
 		fireEvent.click( columnButton );
