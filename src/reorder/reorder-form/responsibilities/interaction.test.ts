@@ -17,24 +17,15 @@ import {
 	createTestTableBlock,
 	createTestTableRow,
 	getTestTableBlock,
-	installTestTableStore,
 	resetRfInteractionTestState,
 	setTestTableBlocks,
 	updateTestTableAttributes,
 } from './interaction.test-utils';
 
-/* Jestで読み込めないBlock Editor Storeの環境境界だけをTest Doubleとし、YTRのProduction責務は実接続する。 */
+/* Jestで読み込めないBlock Editor Storeの環境境界だけを代替し、WordPress Dataは実Storeへ接続する。 */
 jest.mock( '@wordpress/block-editor', () => ( {
-	store: Symbol( 'block-editor-store' ),
+	store: jest.requireActual( './block-editor-store.test-utils' ).testBlockEditorStore,
 } ) );
-
-jest.mock( '@wordpress/data', () => {
-	const actualData = jest.requireActual( '@wordpress/data' );
-	return Object.defineProperties( Object.create( actualData ), {
-		dispatch: { enumerable: true, value: jest.fn() },
-		select: { enumerable: true, value: jest.fn() },
-	} );
-} );
 
 const ROW_INPUT = {
 	sourceRowNumber: '1',
@@ -67,7 +58,6 @@ const createLargeTable = () =>
 
 describe( 'RF Interaction', () => {
 	beforeEach( () => {
-		installTestTableStore();
 		resetRfInteractionTestState();
 		setTestTableBlocks( [ createDefaultTable( 'table-a' ), createDefaultTable( 'table-b' ) ] );
 	} );
@@ -450,8 +440,6 @@ describe( 'RF Interaction', () => {
 	/**
 	 * 更新直前にだけ生じる反映失敗をProduction Apply Coordinationから受け取り、入力保持状態へ復帰することを確認する。
 	 *
-	 * 更新評価と属性更新は同期しており公開境界から決定的に失敗を差し込めないため、確定更新結果だけをTest Doubleで失敗にする。
-	 *
 	 * 事前条件:
 	 * - Table AのRow指定は反映前評価まで成立する。
 	 *
@@ -462,6 +450,7 @@ describe( 'RF Interaction', () => {
 	 * - RF SessionがRow入力を保持したopenへ戻る。
 	 */
 	it( 'when apply fails, should reopen the session with its row input', () => {
+		// 更新評価と属性更新は同期しているため、公開境界から作れない確定更新失敗だけを注入する。
 		jest.spyOn( rowTableIntegration, 'applyRowMove' ).mockReturnValueOnce( false );
 		rfInteraction.open( 'table-a' );
 		rfInteraction.updateRowInput( 'table-a', ROW_INPUT );

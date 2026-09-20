@@ -12,24 +12,15 @@ import { rfInteraction, rfInteractionStore } from './interaction';
 import {
 	createTestTableBlock,
 	createTestTableRow,
-	installTestTableStore,
 	resetRfInteractionTestState,
 	setTestTableBlocks,
 	updateTestTableAttributes,
 } from './interaction.test-utils';
 
-/* Jestで読み込めないBlock Editor Storeの環境境界だけをTest Doubleとし、YTRのProduction責務は実接続する。 */
+/* Jestで読み込めないBlock Editor Storeの環境境界だけを代替し、WordPress Dataは実Storeへ接続する。 */
 jest.mock( '@wordpress/block-editor', () => ( {
-	store: Symbol( 'block-editor-store' ),
+	store: jest.requireActual( './block-editor-store.test-utils' ).testBlockEditorStore,
 } ) );
-
-jest.mock( '@wordpress/data', () => {
-	const actualData = jest.requireActual( '@wordpress/data' );
-	return Object.defineProperties( Object.create( actualData ), {
-		dispatch: { enumerable: true, value: jest.fn() },
-		select: { enumerable: true, value: jest.fn() },
-	} );
-} );
 
 const ROW_INPUT = {
 	sourceRowNumber: '1',
@@ -60,7 +51,6 @@ const createDefaultTable = ( clientId: string ) =>
 
 describe( 'RF Interaction React connection', () => {
 	beforeEach( () => {
-		installTestTableStore();
 		resetRfInteractionTestState();
 		setTestTableBlocks( [ createDefaultTable( 'table-a' ), createDefaultTable( 'table-b' ) ] );
 	} );

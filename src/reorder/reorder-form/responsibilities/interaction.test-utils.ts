@@ -4,7 +4,7 @@
 
 import { store as blockEditorStore } from '@wordpress/block-editor';
 import type { Block } from '@wordpress/blocks';
-import * as wpData from '@wordpress/data';
+import { dispatch, select } from '@wordpress/data';
 
 import {
 	applyRfReorder,
@@ -13,51 +13,11 @@ import {
 	getRfApplyCoordinationSnapshot,
 } from './apply-coordination';
 import { rfInteractionStore } from './interaction';
+import { testBlockEditorStore } from './block-editor-store.test-utils';
 
 /** テストで扱うCore Tableの一行。 */
 export type TestTableRow = {
 	cells: Array< Record< string, unknown > >;
-};
-
-const testTableBlocks = new Map< string, Block >();
-const mockedData = wpData as unknown as { dispatch: jest.Mock; select: jest.Mock };
-const actualData = jest.requireActual( '@wordpress/data' ) as {
-	dispatch: ( storeNameOrDescriptor: unknown ) => unknown;
-	select: ( storeNameOrDescriptor: unknown ) => unknown;
-};
-const testBlockEditorStore: unknown = blockEditorStore;
-
-/**
- * Jestで読み込めないBlock Editor Storeの環境境界だけを代替し、Production Table Integrationから利用できる現在Block参照と属性更新を提供する。
- *
- * `@wordpress/block-editor`は現在のJest変換対象外である依存ESMを経由するため、対象テストではWordPress Dataの
- * その他のStoreを実装のまま維持し、Block Editor Storeとの入出力だけを決定的なTest Doubleへ置き換える。
- */
-export const installTestTableStore = (): void => {
-	mockedData.select.mockImplementation( ( storeNameOrDescriptor ) => {
-		if ( storeNameOrDescriptor === testBlockEditorStore ) {
-			return {
-				getBlock: ( clientId: string ) => testTableBlocks.get( clientId ) ?? null,
-			} as never;
-		}
-		return actualData.select( storeNameOrDescriptor );
-	} );
-	mockedData.dispatch.mockImplementation( ( storeNameOrDescriptor ) => {
-		if ( storeNameOrDescriptor === testBlockEditorStore ) {
-			return {
-				updateBlockAttributes: ( clientId: string, attributes: Record< string, unknown > ) => {
-					const currentBlock = testTableBlocks.get( clientId );
-					if ( currentBlock !== undefined ) {
-						testTableBlocks.set( clientId, {
-							...currentBlock,
-							attributes: { ...currentBlock.attributes, ...attributes },
-						} );
-					}
-				},
-			} as never;
-		}
-		return actualData.dispatch( storeNameOrDescriptor );
-	} );
 };
 
 /**
@@ -102,10 +62,7 @@ export const createTestTableRow = ( rowLabel: string, columnCount = 3 ): TestTab
  * @param blocks 現在Blockとして利用するTable集合。
  */
 export const setTestTableBlocks = ( blocks: Block[] ): void => {
-	testTableBlocks.clear();
-	for ( const block of blocks ) {
-		testTableBlocks.set( block.clientId, block );
-	}
+	dispatch( testBlockEditorStore ).setBlocks( blocks );
 };
 
 /**
@@ -115,7 +72,7 @@ export const setTestTableBlocks = ( blocks: Block[] ): void => {
  * @return 現在のBlock。存在しない場合はnull。
  */
 export const getTestTableBlock = ( clientId: string ): Block | null =>
-	testTableBlocks.get( clientId ) ?? null;
+	select( testBlockEditorStore ).getBlock( clientId );
 
 /**
  * 現在Tableの外部変更をBlock Editor Store環境境界へ反映する。
@@ -127,14 +84,7 @@ export const updateTestTableAttributes = (
 	clientId: string,
 	attributes: Record< string, unknown >
 ): void => {
-	const currentBlock = testTableBlocks.get( clientId );
-	if ( currentBlock === undefined ) {
-		return;
-	}
-	testTableBlocks.set( clientId, {
-		...currentBlock,
-		attributes: { ...currentBlock.attributes, ...attributes },
-	} );
+	dispatch( blockEditorStore ).updateBlockAttributes( clientId, attributes );
 };
 
 /**

@@ -9,23 +9,14 @@ import { rfInteraction, rfInteractionStore } from './interaction';
 import {
 	createTestTableBlock,
 	createTestTableRow,
-	installTestTableStore,
 	resetRfInteractionTestState,
 	setTestTableBlocks,
 } from './interaction.test-utils';
 
-/* Jestで読み込めないBlock Editor Storeの環境境界だけをTest Doubleとし、YTRのProduction責務は実接続する。 */
+/* Jestで読み込めないBlock Editor Storeの環境境界だけを代替し、WordPress Dataは実Storeへ接続する。 */
 jest.mock( '@wordpress/block-editor', () => ( {
-	store: Symbol( 'block-editor-store' ),
+	store: jest.requireActual( './block-editor-store.test-utils' ).testBlockEditorStore,
 } ) );
-
-jest.mock( '@wordpress/data', () => {
-	const actualData = jest.requireActual( '@wordpress/data' );
-	return Object.defineProperties( Object.create( actualData ), {
-		dispatch: { enumerable: true, value: jest.fn() },
-		select: { enumerable: true, value: jest.fn() },
-	} );
-} );
 
 const ROW_INPUT = {
 	sourceRowNumber: '1',
@@ -62,7 +53,6 @@ const requestRowApply = () => {
 
 describe( 'RF Interaction apply outcome', () => {
 	beforeEach( () => {
-		installTestTableStore();
 		resetRfInteractionTestState();
 		setTestTableBlocks( [ createDefaultTable( 'table-a' ), createDefaultTable( 'table-b' ) ] );
 	} );
@@ -103,7 +93,6 @@ describe( 'RF Interaction apply outcome', () => {
 	 *
 	 * 事前条件:
 	 * - Row指定は反映前評価まで成立するが、確定更新が失敗する。
-	 * - 更新評価と属性更新の間に公開境界から決定的な失敗を作れないため、確定更新結果だけをTest Doubleで失敗にする。
 	 *
 	 * 操作:
 	 * - Applyを要求する。
@@ -113,6 +102,7 @@ describe( 'RF Interaction apply outcome', () => {
 	 * - Table Aのfailure OutcomeがMove summaryなしで保持される。
 	 */
 	it( 'when apply fails, should retain a failure outcome while reopening the session', () => {
+		// 更新評価と属性更新は同期しているため、公開境界から作れない確定更新失敗だけを注入する。
 		jest.spyOn( rowTableIntegration, 'applyRowMove' ).mockReturnValueOnce( false );
 
 		requestRowApply();
@@ -160,7 +150,6 @@ describe( 'RF Interaction apply outcome', () => {
 	 *
 	 * 事前条件:
 	 * - 最初の確定更新失敗によりTable Aのfailure Outcomeが保持されている。
-	 * - 同期的な更新失敗は公開境界から再現できないため、最初の確定更新結果だけをTest Doubleで失敗にする。
 	 *
 	 * 操作:
 	 * - 同じ入力で再度Applyを要求する。
@@ -170,6 +159,7 @@ describe( 'RF Interaction apply outcome', () => {
 	 * - 前回のfailure Outcomeがidleへ戻る。
 	 */
 	it( 'when retry starts after a failure, should clear the previous failure outcome', () => {
+		// 更新評価と属性更新は同期しているため、公開境界から作れない最初の確定更新失敗だけを注入する。
 		const applyRowMove = jest
 			.spyOn( rowTableIntegration, 'applyRowMove' )
 			.mockReturnValueOnce( false );
