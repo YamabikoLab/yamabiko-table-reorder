@@ -2,39 +2,33 @@
  * Column RF Resolutionが解釈済み指定を要求時点の現在論理列構造へ照合し、移動候補、no-op、構造拒否、利用不能を方向固有結果として解決するContractを確認する。
  */
 
-import { columnTableIntegration } from '@/reorder/column-reorder/responsibilities/table-integration';
-
 import { columnRfResolution } from './column-resolution';
+import {
+	createTestTableBlock,
+	createTestTableRow,
+	setTestTableBlocks,
+} from './interaction.test-utils';
 
-jest.mock( '@/reorder/column-reorder/responsibilities/table-integration', () => ( {
-	columnTableIntegration: {
-		getConstraints: jest.fn(),
-		getBlockingMergedRange: jest.fn(),
-	},
+/* Jestで読み込めないBlock Editor Storeの環境境界だけを代替し、WordPress Dataは実Storeへ接続する。 */
+jest.mock( '@wordpress/block-editor', () => ( {
+	store: jest.requireActual( './block-editor-store.test-utils' ).testBlockEditorStore,
 } ) );
 
-const getConstraintsMock = columnTableIntegration.getConstraints as jest.MockedFunction<
-	typeof columnTableIntegration.getConstraints
->;
-const getBlockingMergedRangeMock =
-	columnTableIntegration.getBlockingMergedRange as jest.MockedFunction<
-		typeof columnTableIntegration.getBlockingMergedRange
-	>;
-
-const currentConstraints = {
-	columnCount: 6,
-	blockedBoundaries: [],
-} as const;
+const createDefaultTable = () =>
+	createTestTableBlock( 'table-a', [ createTestTableRow( 'row-1', 6 ) ] );
 
 describe( 'Column RF Resolution', () => {
 	beforeEach( () => {
-		jest.clearAllMocks();
-		getConstraintsMock.mockReturnValue( currentConstraints );
-		getBlockingMergedRangeMock.mockReturnValue( null );
+		setTestTableBlocks( [ createDefaultTable() ] );
+	} );
+
+	afterEach( () => {
+		setTestTableBlocks( [] );
 	} );
 
 	/**
-	 * 移動前Table上のtargetと左右指定を、現在論理列基準の移動先境界へ変換できることを確認する。
+	 * 概要:
+	 * - 移動前Table上のtargetと左右指定を、現在論理列基準の移動先境界へ変換できることを確認する。
 	 *
 	 * 事前条件:
 	 * - 現在Tableには6論理列存在し、結合セル制約はない。
@@ -70,17 +64,18 @@ describe( 'Column RF Resolution', () => {
 	);
 
 	/**
-	 * 並び順が変わらないColumn指定では結合セル制約よりno-opを優先することを確認する。
+	 * 概要:
+	 * - 並び順が変わらないColumn指定では結合セル制約よりno-opを優先することを確認する。
 	 *
 	 * 事前条件:
 	 * - sourceの直前または直後を移動先境界とする指定が成立している。
+	 * - source列は横結合セルの影響範囲にある。
 	 *
 	 * 操作:
 	 * - Column RF指定を解決する。
 	 *
 	 * 期待結果:
 	 * - `no-op`が返る。
-	 * - 結合セル診断は要求されない。
 	 */
 	it.each( [
 		[ 2, 'left' as const ],
@@ -88,6 +83,10 @@ describe( 'Column RF Resolution', () => {
 	] )(
 		'when a Column move would keep the current order, should return no-op before structural rejection',
 		( targetColumnIndex, position ) => {
+			setTestTableBlocks( [
+				createTestTableBlock( 'table-a', [ { cells: [ {}, { colspan: 2 }, {}, {}, {} ] } ] ),
+			] );
+
 			expect(
 				columnRfResolution.resolve( 'table-a', {
 					sourceColumnIndex: 2,
@@ -95,12 +94,15 @@ describe( 'Column RF Resolution', () => {
 					position,
 				} )
 			).toEqual( { status: 'no-op' } );
-			expect( getBlockingMergedRangeMock ).not.toHaveBeenCalled();
 		}
 	);
 
 	/**
-	 * 現在Tableを利用できない場合や、入力成立後にsource / targetが現在範囲外になった場合を候補成立と区別することを確認する。
+	 * 概要:
+	 * - 現在Tableを利用できない場合や、入力成立後にsource / targetが現在範囲外になった場合を候補成立と区別することを確認する。
+	 *
+	 * 事前条件:
+	 * - 対象Tableが存在しないか、現在Tableが3列まで減少している。
 	 *
 	 * 操作:
 	 * - 利用不能なTable、または現在範囲へ照合できないColumn指定を解決する。
@@ -109,7 +111,7 @@ describe( 'Column RF Resolution', () => {
 	 * - `unavailable`が返り、候補は推測されない。
 	 */
 	it( 'when the current Column table or selected positions cannot be resolved, should return unavailable', () => {
-		getConstraintsMock.mockReturnValueOnce( null );
+		setTestTableBlocks( [] );
 		expect(
 			columnRfResolution.resolve( 'table-a', {
 				sourceColumnIndex: 1,
@@ -118,7 +120,9 @@ describe( 'Column RF Resolution', () => {
 			} )
 		).toEqual( { status: 'unavailable' } );
 
-		getConstraintsMock.mockReturnValueOnce( { columnCount: 3, blockedBoundaries: [] } );
+		setTestTableBlocks( [
+			createTestTableBlock( 'table-a', [ createTestTableRow( 'row-1', 3 ) ] ),
+		] );
 		expect(
 			columnRfResolution.resolve( 'table-a', {
 				sourceColumnIndex: 1,
@@ -129,7 +133,8 @@ describe( 'Column RF Resolution', () => {
 	} );
 
 	/**
-	 * 実際に並び順が変わる候補が横結合制約に抵触した場合、Table Integrationの方向固有診断をそのまま公開することを確認する。
+	 * 概要:
+	 * - 実際に並び順が変わる候補が横結合制約に抵触した場合、Table Integrationの方向固有診断をそのまま公開することを確認する。
 	 *
 	 * 事前条件:
 	 * - source / target / destinationは現在Tableに存在する。
@@ -142,18 +147,18 @@ describe( 'Column RF Resolution', () => {
 	 * - `rejected`と最初の`ColumnBlockingMergedRange`がsection・行・列位置を含めて返る。
 	 */
 	it( 'when a changing Column move is blocked by a merged range, should return rejected with the blocking range', () => {
-		getBlockingMergedRangeMock.mockReturnValue( {
-			section: 'head',
-			rowStart: 0,
-			rowEnd: 1,
-			columnStart: 2,
-			columnEnd: 4,
-		} );
+		setTestTableBlocks( [
+			createTestTableBlock(
+				'table-a',
+				[ createTestTableRow( 'body-row', 6 ) ],
+				[ { cells: [ {}, {}, { rowspan: 2, colspan: 3 }, {} ] }, { cells: [ {}, {}, {} ] } ]
+			),
+		] );
 
 		expect(
 			columnRfResolution.resolve( 'table-a', {
 				sourceColumnIndex: 0,
-				targetColumnIndex: 4,
+				targetColumnIndex: 3,
 				position: 'right',
 			} )
 		).toEqual( {
