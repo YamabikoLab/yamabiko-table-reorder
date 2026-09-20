@@ -69,6 +69,7 @@ describe( 'Column RF Resolution', () => {
 	 *
 	 * 事前条件:
 	 * - sourceの直前または直後を移動先境界とする指定が成立している。
+	 * - source列は横結合セルの影響範囲にある。
 	 *
 	 * 操作:
 	 * - Column RF指定を解決する。
@@ -82,6 +83,10 @@ describe( 'Column RF Resolution', () => {
 	] )(
 		'when a Column move would keep the current order, should return no-op before structural rejection',
 		( targetColumnIndex, position ) => {
+			setTestTableBlocks( [
+				createTestTableBlock( 'table-a', [ { cells: [ {}, { colspan: 2 }, {}, {}, {} ] } ] ),
+			] );
+
 			expect(
 				columnRfResolution.resolve( 'table-a', {
 					sourceColumnIndex: 2,

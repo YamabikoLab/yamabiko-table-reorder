@@ -74,6 +74,7 @@ describe( 'Row RF Resolution', () => {
 	 *
 	 * 事前条件:
 	 * - sourceの直前または直後を移動先境界とする指定が成立している。
+	 * - source行は縦結合セルの影響範囲にある。
 	 *
 	 * 操作:
 	 * - Row RF指定を解決する。
@@ -87,6 +88,17 @@ describe( 'Row RF Resolution', () => {
 	] )(
 		'when a Row move would keep the current order, should return no-op before structural rejection',
 		( targetRowIndex, position ) => {
+			setTestTableBlocks( [
+				createTestTableBlock( 'table-a', [
+					createTestTableRow( 'row-1' ),
+					{ cells: [ { rowspan: 3 }, {}, {} ] },
+					{ cells: [ {}, {} ] },
+					{ cells: [ {}, {} ] },
+					createTestTableRow( 'row-5' ),
+					createTestTableRow( 'row-6' ),
+				] ),
+			] );
+
 			expect(
 				rowRfResolution.resolve( 'table-a', {
 					sourceRowIndex: 2,
