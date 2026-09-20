@@ -48,6 +48,12 @@ To install dependencies and build a release ZIP from source:
 
 The generated archive is `yamabiko-table-reorder.zip`.
 
+== Screenshots ==
+
+1. Row Reorder changes the order of table body rows directly in the WordPress block editor.
+2. Column Reorder changes the order of table columns directly in the WordPress block editor.
+3. Reorder with form moves a row or column without drag-and-drop by selecting the source, destination, and destination side.
+
 == Installation ==
 
 1. In WordPress, go to Plugins > Add New Plugin.
