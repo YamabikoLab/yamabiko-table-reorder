@@ -229,9 +229,11 @@ const startPhysicalDrag = (
 		operation: { source: { data: target } },
 		preventDefault: jest.fn(),
 	} as unknown as BeforeDragStartEvent );
-	providerProps.onDragStart( {
-		operation: { source: { element: sourceRow } },
-	} as unknown as DragStartEvent );
+	act( () => {
+		providerProps.onDragStart( {
+			operation: { source: { element: sourceRow } },
+		} as unknown as DragStartEvent );
+	} );
 };
 
 /**
@@ -541,9 +543,11 @@ describe( 'Row DnD engine connection', () => {
 			operation: { source: { data: target } },
 			preventDefault: jest.fn(),
 		} as unknown as BeforeDragStartEvent );
-		providerProps.onDragStart( {
-			operation: { source: { element: undefined } },
-		} as unknown as DragStartEvent );
+		act( () => {
+			providerProps.onDragStart( {
+				operation: { source: { element: undefined } },
+			} as unknown as DragStartEvent );
+		} );
 
 		act( () => {
 			providerProps.onDragMove( createMoveEvent( rows[ 0 ], 10, 70 ) );
@@ -648,7 +652,9 @@ describe( 'Row DnD engine connection', () => {
 			providerProps.onDragMove( createMoveEvent( rows[ 0 ], 10, 110 ) );
 		} );
 
-		providerProps.onDragEnd( { canceled: false } as DragEndEvent );
+		act( () => {
+			providerProps.onDragEnd( { canceled: false } as DragEndEvent );
+		} );
 
 		expect( getRowDndPhase() ).toBe( 'idle' );
 		expect( getCurrentRowLabels() ).toEqual( [ 'row-2-1', 'row-3-1', 'row-1-1' ] );
@@ -675,7 +681,9 @@ describe( 'Row DnD engine connection', () => {
 		const { providerProps, rows } = renderRowDnd();
 		startPhysicalDrag( providerProps, rows[ 0 ] );
 
-		providerProps.onDragEnd( { canceled: true } as DragEndEvent );
+		act( () => {
+			providerProps.onDragEnd( { canceled: true } as DragEndEvent );
+		} );
 
 		expect( getRowDndPhase() ).toBe( 'idle' );
 		expect( getCurrentRowLabels() ).toEqual( before );
@@ -706,7 +714,9 @@ describe( 'Row DnD engine connection', () => {
 			reorderMode.select( 'row', 'table-1' );
 		} );
 
-		providerProps.onDragEnd( { canceled: false } as DragEndEvent );
+		act( () => {
+			providerProps.onDragEnd( { canceled: false } as DragEndEvent );
+		} );
 
 		expect( getRowDndPhase() ).toBe( 'idle' );
 		expect( getCurrentRowLabels() ).toEqual( [ 'row-2-1', 'row-3-1', 'row-1-1' ] );
@@ -733,7 +743,9 @@ describe( 'Row DnD engine connection', () => {
 		} );
 		const { providerProps, rows } = renderRowDnd();
 		startPhysicalDrag( providerProps, rows[ 0 ] );
-		providerProps.onDragEnd( { canceled: false } as DragEndEvent );
+		act( () => {
+			providerProps.onDragEnd( { canceled: false } as DragEndEvent );
+		} );
 
 		providerProps.onBeforeDragStart( {
 			operation: {

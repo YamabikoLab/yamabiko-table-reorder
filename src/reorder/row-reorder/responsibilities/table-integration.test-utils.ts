@@ -102,6 +102,8 @@ const getBlock = ( state: TestBlockEditorState, clientId: string ): Block | null
 
 /**
  * Jestで直接読み込めないBlock Editor Storeだけを代替し、実@wordpress/dataの公開Store APIへ登録する。
+ *
+ * @public
  */
 export const rowReorderTestBlockEditorStore = createReduxStore(
 	'yamabiko-table-reorder/test-row-block-editor',
