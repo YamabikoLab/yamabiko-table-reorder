@@ -1,68 +1,71 @@
 /**
- * 行専用DnD InteractionのReact購読境界が、Reorder Presentation向け公開状態をReact描画へ正しく接続することを確認する。
- *
- * DnD Interaction本体のLifecycleや状態遷移は重複して検証せず、各公開Hookが現在状態を取得し、
- * 共有状態の変更通知へ追従し、React利用者の終了時に購読を解除する責務だけを検証する。
+ * 行専用DnD InteractionのReact購読境界が、Production共有状態をReact描画へ正しく接続することを確認する。
  */
 
-import { act, renderHook } from '@testing-library/react';
+import { act, render, renderHook } from '@testing-library/react';
 
 import {
 	getRowDndDestinationBoundaryIndex,
 	getRowDndPhase,
-	subscribeRowDndState,
+	rowDndInteraction,
 } from '@/reorder/row-reorder/responsibilities/dnd-interaction';
+import {
+	createRowReorderTestRow,
+	createRowReorderTestTable,
+	setRowReorderTestTables,
+} from '@/reorder/row-reorder/responsibilities/table-integration.test-utils';
+import { resolveRowReorderTarget } from '@/reorder/row-reorder/responsibilities/target-resolution';
 import {
 	useRowDndDestinationBoundaryIndex,
 	useRowDndPhase,
 } from '@/reorder/row-reorder/integration/dnd-interaction-react';
 
-jest.mock( '@/reorder/row-reorder/responsibilities/dnd-interaction', () => ( {
-	getRowDndDestinationBoundaryIndex: jest.fn(),
-	getRowDndPhase: jest.fn(),
-	subscribeRowDndState: jest.fn(),
+/* Jestで読み込めないBlock Editor Store境界だけを代替し、WordPress DataとDnD Interactionは実経路へ接続する。 */
+jest.mock( '@wordpress/block-editor', () => ( {
+	store: jest.requireActual(
+		'@/reorder/row-reorder/responsibilities/table-integration.test-utils'
+	).rowReorderTestBlockEditorStore,
 } ) );
 
-const getRowDndPhaseMock = getRowDndPhase as jest.MockedFunction< typeof getRowDndPhase >;
-const getRowDndDestinationBoundaryIndexMock =
-	getRowDndDestinationBoundaryIndex as jest.MockedFunction<
-		typeof getRowDndDestinationBoundaryIndex
-	>;
-const subscribeRowDndStateMock = subscribeRowDndState as jest.MockedFunction<
-	typeof subscribeRowDndState
->;
-
-type RowDndStateListener = Parameters< typeof subscribeRowDndState >[ 0 ];
-
-const rowDndStateListeners = new Set< RowDndStateListener >();
-
-/** 現在のReact購読者へ行DnD共有状態の変更を通知する。 */
-const notifyRowDndStateChange = (): void => {
-	rowDndStateListeners.forEach( ( listener ) => {
-		listener();
+/** Production Target Resolutionで解決した対象から行DnD Sessionを開始する。 */
+const startSession = (): void => {
+	const resolution = resolveRowReorderTarget( {
+		tableIdentity: 'table-a',
+		sourceRowIndex: 1,
 	} );
+	if ( resolution.status !== 'resolved' ) {
+		throw new Error( 'Row DnD React test target must be resolved.' );
+	}
+	rowDndInteraction.start( resolution.target, resolution.initialConstraints );
 };
 
 describe( 'Row DnD React state interface', () => {
 	beforeEach( () => {
-		jest.clearAllMocks();
-		rowDndStateListeners.clear();
-		getRowDndPhaseMock.mockReturnValue( 'idle' );
-		getRowDndDestinationBoundaryIndexMock.mockReturnValue( null );
-		subscribeRowDndStateMock.mockImplementation( ( listener ) => {
-			rowDndStateListeners.add( listener );
-
-			return () => {
-				rowDndStateListeners.delete( listener );
-			};
+		act( () => {
+			rowDndInteraction.cancel();
 		} );
+		setRowReorderTestTables( [
+			createRowReorderTestTable(
+				'table-a',
+				Array.from( { length: 5 }, ( _value, rowIndex ) =>
+					createRowReorderTestRow( `row-${ rowIndex + 1 }` )
+				)
+			),
+		] );
+	} );
+
+	afterEach( () => {
+		act( () => {
+			rowDndInteraction.cancel();
+		} );
+		setRowReorderTestTables( [] );
 	} );
 
 	/**
-	 * 各公開Hookが、Reorder Presentationに必要な現在の行DnD共有状態を返すことを確認する。
+	 * 各公開Hookが、mount時点のProduction行DnD共有状態を返すことを確認する。
 	 *
 	 * 事前条件:
-	 * - 行DnDはactiveで、現在の有効移動先境界は4である。
+	 * - 行DnDはactiveで、現在の有効な移動先境界は4である。
 	 *
 	 * 操作:
 	 * - phaseと移動先境界を公開する各Hookをmountする。
@@ -71,8 +74,10 @@ describe( 'Row DnD React state interface', () => {
 	 * - 各Hookは対応する現在状態としてactiveと4を返す。
 	 */
 	it( 'when hooks mount with existing row DnD state, should expose each current public value', () => {
-		getRowDndPhaseMock.mockReturnValue( 'active' );
-		getRowDndDestinationBoundaryIndexMock.mockReturnValue( 4 );
+		act( () => {
+			startSession();
+			rowDndInteraction.updateDestination( 4 );
+		} );
 
 		const phase = renderHook( useRowDndPhase );
 		const destination = renderHook( useRowDndDestinationBoundaryIndex );
@@ -82,13 +87,13 @@ describe( 'Row DnD React state interface', () => {
 	} );
 
 	/**
-	 * 行DnD共有状態の変更通知を受けたとき、各公開Hookが最新状態へ追従することを確認する。
+	 * Production行DnD共有状態が変化したとき、各公開Hookが最新状態へ追従することを確認する。
 	 *
 	 * 事前条件:
-	 * - 各Hookはidle、移動先なしの状態を購読している。
+	 * - 各Hookはidleかつ移動先なしの状態を購読している。
 	 *
 	 * 操作:
-	 * - 共有状態をactive、移動先境界4へ変更し、購読者へ状態変更を通知する。
+	 * - Production操作でSessionを開始し、移動先境界4へ更新する。
 	 *
 	 * 期待結果:
 	 * - 各HookのReact描画結果がactiveと4へ更新される。
@@ -97,11 +102,9 @@ describe( 'Row DnD React state interface', () => {
 		const phase = renderHook( useRowDndPhase );
 		const destination = renderHook( useRowDndDestinationBoundaryIndex );
 
-		getRowDndPhaseMock.mockReturnValue( 'active' );
-		getRowDndDestinationBoundaryIndexMock.mockReturnValue( 4 );
-
 		act( () => {
-			notifyRowDndStateChange();
+			startSession();
+			rowDndInteraction.updateDestination( 4 );
 		} );
 
 		expect( phase.result.current ).toBe( 'active' );
@@ -109,26 +112,37 @@ describe( 'Row DnD React state interface', () => {
 	} );
 
 	/**
-	 * React利用者が終了したとき、行DnD共有状態への購読を残さないことを確認する。
+	 * React利用者が終了した後は、Production共有状態の変更で描画されないことを確認する。
 	 *
 	 * 事前条件:
-	 * - phaseと移動先境界の各Hookが共有状態を購読している。
+	 * - phaseと移動先境界を読むReact利用者がmountされている。
 	 *
 	 * 操作:
-	 * - すべてのHookをunmountする。
+	 * - 利用者をunmountした後、Production操作で行DnD状態を変更する。
 	 *
 	 * 期待結果:
-	 * - React利用者に対応する行DnD共有状態の購読がすべて解除される。
+	 * - 終了した利用者は再描画されない。
+	 * - Production共有状態自体は通常どおり更新される。
 	 */
 	it( 'when React consumers unmount, should release their row DnD state subscriptions', () => {
-		const phase = renderHook( useRowDndPhase );
-		const destination = renderHook( useRowDndDestinationBoundaryIndex );
+		const renderObserver = jest.fn();
+		const Consumer = () => {
+			const phase = useRowDndPhase();
+			const destination = useRowDndDestinationBoundaryIndex();
+			renderObserver( phase, destination );
+			return null;
+		};
+		const consumer = render( <Consumer /> );
+		const renderCountBeforeUnmount = renderObserver.mock.calls.length;
 
-		expect( rowDndStateListeners.size ).toBeGreaterThan( 0 );
+		consumer.unmount();
+		act( () => {
+			startSession();
+			rowDndInteraction.updateDestination( 4 );
+		} );
 
-		phase.unmount();
-		destination.unmount();
-
-		expect( rowDndStateListeners.size ).toBe( 0 );
+		expect( renderObserver ).toHaveBeenCalledTimes( renderCountBeforeUnmount );
+		expect( getRowDndPhase() ).toBe( 'active' );
+		expect( getRowDndDestinationBoundaryIndex() ).toBe( 4 );
 	} );
 } );

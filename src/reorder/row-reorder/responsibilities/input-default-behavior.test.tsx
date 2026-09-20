@@ -11,6 +11,16 @@ import { render } from '@testing-library/react';
 import type { PointerEvent as ReactPointerEvent } from 'react';
 
 import { RowInput, type RowDndPointerDownHandler } from './input';
+import {
+	createRowReorderTestRow,
+	createRowReorderTestTable,
+	setRowReorderTestTables,
+} from './table-integration.test-utils';
+
+/* Jestで読み込めないBlock Editor Store境界だけを代替し、WordPress DataとTarget Resolutionは実経路へ接続する。 */
+jest.mock( '@wordpress/block-editor', () => ( {
+	store: jest.requireActual( './table-integration.test-utils' ).rowReorderTestBlockEditorStore,
+} ) );
 
 jest.mock( '@dnd-kit/dom', () => ( {
 	Draggable: jest.fn(),
@@ -21,17 +31,6 @@ jest.mock( '@dnd-kit/dom', () => ( {
 
 jest.mock( '@dnd-kit/react', () => ( {
 	useDragDropManager: jest.fn(),
-} ) );
-
-jest.mock( './target-resolution', () => ( {
-	resolveRowReorderTarget: jest.fn( ( target ) => ( {
-		status: 'resolved',
-		target,
-		initialConstraints: {
-			rowCount: 1,
-			blockedBoundaries: [],
-		},
-	} ) ),
 } ) );
 
 const draggableConstructorMock = Draggable as unknown as jest.Mock;
@@ -112,6 +111,13 @@ describe( 'Row DnD input browser defaults', () => {
 				},
 			},
 		} as ReturnType< typeof useDragDropManager > );
+		setRowReorderTestTables( [
+			createRowReorderTestTable( 'table-1', [ createRowReorderTestRow( 'row-1', 1 ) ] ),
+		] );
+	} );
+
+	afterEach( () => {
+		setRowReorderTestTables( [] );
 	} );
 
 	/**

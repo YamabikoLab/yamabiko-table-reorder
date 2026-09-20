@@ -12,7 +12,16 @@ import { render } from '@testing-library/react';
 import type { PointerEvent as ReactPointerEvent } from 'react';
 
 import { RowInput, type RowDndPointerDownHandler } from './input';
-import { resolveRowReorderTarget } from './target-resolution';
+import {
+	createRowReorderTestRow,
+	createRowReorderTestTable,
+	setRowReorderTestTables,
+} from './table-integration.test-utils';
+
+/* Jestで読み込めないBlock Editor Store境界だけを代替し、WordPress DataとTarget Resolutionは実経路へ接続する。 */
+jest.mock( '@wordpress/block-editor', () => ( {
+	store: jest.requireActual( './table-integration.test-utils' ).rowReorderTestBlockEditorStore,
+} ) );
 
 jest.mock( '@dnd-kit/dom', () => ( {
 	Draggable: jest.fn(),
@@ -25,10 +34,6 @@ jest.mock( '@dnd-kit/react', () => ( {
 	useDragDropManager: jest.fn(),
 } ) );
 
-jest.mock( './target-resolution', () => ( {
-	resolveRowReorderTarget: jest.fn(),
-} ) );
-
 const draggableConstructorMock = Draggable as unknown as jest.Mock;
 const pointerSensorConfigureMock = PointerSensor.configure as jest.MockedFunction<
 	typeof PointerSensor.configure
@@ -36,10 +41,6 @@ const pointerSensorConfigureMock = PointerSensor.configure as jest.MockedFunctio
 const useDragDropManagerMock = useDragDropManager as jest.MockedFunction<
 	typeof useDragDropManager
 >;
-const resolveRowReorderTargetMock = resolveRowReorderTarget as jest.MockedFunction<
-	typeof resolveRowReorderTarget
->;
-
 /**
  * DnD Engineの開始可否状態を生成する。
  * @param idle
@@ -144,11 +145,16 @@ describe( 'Row DnD input boundary', () => {
 		jest.clearAllMocks();
 		draggableConstructorMock.mockImplementation( () => ( { destroy: jest.fn() } ) );
 		useDragDropManagerMock.mockReturnValue( createManager() );
-		resolveRowReorderTargetMock.mockImplementation( ( currentTarget ) => ( {
-			status: 'resolved',
-			target: currentTarget,
-			initialConstraints: { rowCount: 2, blockedBoundaries: [] },
-		} ) );
+		setRowReorderTestTables( [
+			createRowReorderTestTable( 'table-1', [
+				createRowReorderTestRow( 'row-1', 1 ),
+				createRowReorderTestRow( 'row-2', 1 ),
+			] ),
+		] );
+	} );
+
+	afterEach( () => {
+		setRowReorderTestTables( [] );
 	} );
 
 	/**
@@ -220,10 +226,12 @@ describe( 'Row DnD input boundary', () => {
 			columnStart: 0,
 			columnEnd: 0,
 		};
-		resolveRowReorderTargetMock.mockReturnValue( {
-			status: 'rejected',
-			blockingMergedRange,
-		} );
+		setRowReorderTestTables( [
+			createRowReorderTestTable( 'table-1', [
+				{ cells: [ { content: 'merged', rowspan: 2 } ] },
+				{ cells: [] },
+			] ),
+		] );
 		const { currentTarget, cells } = createDirectRowTarget();
 		const { pointerDownHandler, onStartRejection } = renderRowInput();
 
@@ -231,10 +239,6 @@ describe( 'Row DnD input boundary', () => {
 			createPointerEvent( { target: cells[ 0 ], currentTarget, clientX: 120, clientY: 240 } )
 		);
 
-		expect( resolveRowReorderTargetMock ).toHaveBeenCalledWith( {
-			tableIdentity: 'table-1',
-			sourceRowIndex: 0,
-		} );
 		expect( onStartRejection ).toHaveBeenCalledWith( {
 			blockingMergedRange,
 			clientX: 120,
@@ -257,7 +261,7 @@ describe( 'Row DnD input boundary', () => {
 	 * - 開始拒否通知もDraggable登録も発生しない。
 	 */
 	it( 'when target resolution is unavailable, should not notify or register a draggable', () => {
-		resolveRowReorderTargetMock.mockReturnValue( { status: 'unavailable' } );
+		setRowReorderTestTables( [] );
 		const { currentTarget, cells } = createDirectRowTarget();
 		const { pointerDownHandler, onStartRejection } = renderRowInput();
 		pointerDownHandler( createPointerEvent( { target: cells[ 0 ], currentTarget } ) );
