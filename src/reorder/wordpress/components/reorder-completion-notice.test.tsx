@@ -3,19 +3,13 @@
  */
 
 import { act, fireEvent, render, screen } from '@testing-library/react';
-import type { ReactNode } from 'react';
 
 import { ReorderCompletionNotice } from './reorder-completion-notice';
 
-jest.mock( '@wordpress/components', () => ( {
-	Snackbar: ( props: { children: ReactNode; onRemove?: () => void; spokenMessage?: string } ) => (
-		<div data-snackbar="true" data-spoken-message={ props.spokenMessage }>
-			{ props.children }
-			<button type="button" onClick={ props.onRemove }>
-				Dismiss
-			</button>
-		</div>
-	),
+/* @wordpress/componentsのuuid / theme ESM境界だけをJestで読める決定的な実装へ置き換える。 */
+jest.mock( 'uuid', () => ( { v4: () => 'reorder-completion-notice-test-uuid' } ) );
+jest.mock( '@wordpress/theme', () => ( {
+	ThemeProvider: ( { children }: { children: React.ReactNode } ) => children,
 } ) );
 
 describe( 'Reorder completion notice presentation', () => {
@@ -52,12 +46,12 @@ describe( 'Reorder completion notice presentation', () => {
 			/>
 		);
 
-		const message = screen.getByText( 'Reordering complete.' );
+		const message = screen.getByText( 'Reordering complete.', {
+			selector: '.yamabiko-table-reorder-completion__message',
+		} );
 		expect( message ).not.toBeNull();
-		expect(
-			message.closest( '[data-snackbar]' )?.getAttribute( 'data-spoken-message' )
-		).toBeNull();
-		expect( screen.getByText( 'Reordering complete.' ).previousElementSibling ).not.toBeNull();
+		expect( message.closest( '.components-snackbar' ) ).not.toBeNull();
+		expect( message.previousElementSibling ).not.toBeNull();
 	} );
 
 	/**
@@ -82,13 +76,11 @@ describe( 'Reorder completion notice presentation', () => {
 			/>
 		);
 
-		expect(
-			screen.getByText( 'Reordering failed. The table has not been changed.' )
-		).not.toBeNull();
-		expect(
-			screen.getByText( 'Reordering failed. The table has not been changed.' )
-				.previousElementSibling
-		).not.toBeNull();
+		const message = screen.getByText( 'Reordering failed. The table has not been changed.', {
+			selector: '.yamabiko-table-reorder-completion__message',
+		} );
+		expect( message ).not.toBeNull();
+		expect( message.previousElementSibling ).not.toBeNull();
 	} );
 
 	/**
@@ -114,11 +106,13 @@ describe( 'Reorder completion notice presentation', () => {
 			/>
 		);
 
-		const message = screen.getByText( 'Reordering complete.' );
+		const message = screen.getByText( 'Reordering complete.', {
+			selector: '.yamabiko-table-reorder-completion__message',
+		} );
 		expect( message ).not.toBeNull();
-		expect( message.closest( '[data-snackbar]' )?.getAttribute( 'data-spoken-message' ) ).toBe(
-			''
-		);
+		expect(
+			screen.queryByText( 'Reordering complete.', { selector: '.a11y-speak-region' } )
+		).toBeNull();
 	} );
 
 	/**
@@ -177,7 +171,7 @@ describe( 'Reorder completion notice presentation', () => {
 			/>
 		);
 
-		fireEvent.click( screen.getByRole( 'button', { name: 'Dismiss' } ) );
+		fireEvent.click( screen.getByRole( 'button', { name: 'Dismiss this notice' } ) );
 
 		expect( onRemove ).toHaveBeenCalledTimes( 1 );
 	} );
