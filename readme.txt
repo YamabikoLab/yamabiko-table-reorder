@@ -63,6 +63,28 @@ The generated archive is `yamabiko-table-reorder.zip`.
 
 For manual installation, upload a released `yamabiko-table-reorder.zip` from GitHub Releases using Plugins > Add New Plugin > Upload Plugin.
 
+== Frequently Asked Questions ==
+
+= Which Table blocks are supported? =
+
+Yamabiko Table Reorder supports the WordPress Core Table block and [Flexible Table Block](https://wordpress.org/plugins/flexible-table-block/).
+
+= Can I reorder a Table that contains merged cells? =
+
+Yes, when the requested move preserves the supported Table structure. Moves that would break merged-cell constraints are rejected and the Table is left unchanged.
+
+= Does it support Touch? =
+
+Yes. Row and Column Reorder support drag-and-drop with both Mouse and Touch.
+
+= Can I reorder without drag-and-drop? =
+
+Yes. Reorder with form lets you choose the source, destination, and destination side without dragging.
+
+= How does it behave with larger Tables? =
+
+For reorders that affect enough cells to take noticeable time, Yamabiko Table Reorder asks for confirmation before applying the change. Only the target Table enters a temporary applying state, and editing resumes when the update is complete.
+
 == Changelog ==
 
 = 1.0.0 =
