@@ -347,7 +347,7 @@ describe( 'Reorder toolbar RF exclusivity', () => {
 	 * - Toolbarを表示する。
 	 *
 	 * 期待結果:
-	 * - Row / Column / RFの3入口がすべてdisabledになる。
+	 * - Row / Column / RFの3入口がWordPress ToolbarButtonの無効状態として公開される。
 	 */
 	it( 'when RF is applying, should disable every reorder entry', () => {
 		rfInteractionStore.setState( {
@@ -369,9 +369,9 @@ describe( 'Reorder toolbar RF exclusivity', () => {
 			name: 'Reorder with form',
 		} ) as HTMLButtonElement;
 
-		expect( rowButton.disabled ).toBe( true );
-		expect( columnButton.disabled ).toBe( true );
-		expect( rfButton.disabled ).toBe( true );
+		expect( rowButton.getAttribute( 'aria-disabled' ) ).toBe( 'true' );
+		expect( columnButton.getAttribute( 'aria-disabled' ) ).toBe( 'true' );
+		expect( rfButton.getAttribute( 'aria-disabled' ) ).toBe( 'true' );
 
 		fireEvent.click( rowButton );
 		fireEvent.click( columnButton );
