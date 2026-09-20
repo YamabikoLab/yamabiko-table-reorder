@@ -5,34 +5,36 @@
  * Table Identity guard、Reorder Kind別入力保持、Apply結果復帰をRF Interactionの公開操作から検証する。
  */
 
-import { columnTableIntegration } from '@/reorder/column-reorder/responsibilities/table-integration';
 import { rowTableIntegration } from '@/reorder/row-reorder/responsibilities/table-integration';
 
-import { receiveRfApplyRequest } from './apply-coordination';
-import { columnRfResolution } from './column-resolution';
 import {
-	rfInteraction,
-	rfInteractionStore,
-	type RfApplyRequest,
-	type RfApplyResult,
-} from './interaction';
-import { rowRfResolution } from './row-resolution';
+	cancelRfApply,
+	completeRfApplyRestoration,
+	getRfApplyCoordinationSnapshot,
+} from './apply-coordination';
+import { rfInteraction, rfInteractionStore } from './interaction';
+import {
+	createTestTableBlock,
+	createTestTableRow,
+	getTestTableBlock,
+	installTestTableStore,
+	resetRfInteractionTestState,
+	setTestTableBlocks,
+	updateTestTableAttributes,
+} from './interaction.test-utils';
 
-jest.mock( './apply-coordination', () => ( {
-	receiveRfApplyRequest: jest.fn(),
+/* Jestで読み込めないBlock Editor Storeの環境境界だけをTest Doubleとし、YTRのProduction責務は実接続する。 */
+jest.mock( '@wordpress/block-editor', () => ( {
+	store: Symbol( 'block-editor-store' ),
 } ) );
 
-jest.mock( '@/reorder/row-reorder/responsibilities/table-integration', () => ( {
-	rowTableIntegration: {
-		getConstraints: jest.fn(),
-	},
-} ) );
-
-jest.mock( '@/reorder/column-reorder/responsibilities/table-integration', () => ( {
-	columnTableIntegration: {
-		getColumnInputDescriptors: jest.fn(),
-	},
-} ) );
+jest.mock( '@wordpress/data', () => {
+	const actualData = jest.requireActual( '@wordpress/data' );
+	return Object.defineProperties( Object.create( actualData ), {
+		dispatch: { enumerable: true, value: jest.fn() },
+		select: { enumerable: true, value: jest.fn() },
+	} );
+} );
 
 const ROW_INPUT = {
 	sourceRowNumber: '1',
@@ -44,51 +46,35 @@ const COLUMN_INPUT = {
 	targetColumnIndex: 2,
 	position: 'right' as const,
 };
-const COLUMNS = [
-	{ columnIndex: 0, columnNumber: 1, heading: 'A' },
-	{ columnIndex: 1, columnNumber: 2, heading: 'B' },
-	{ columnIndex: 2, columnNumber: 3, heading: 'C' },
-];
+const createDefaultTable = ( clientId: string ) =>
+	createTestTableBlock(
+		clientId,
+		[
+			createTestTableRow( `${ clientId }-row-a` ),
+			createTestTableRow( `${ clientId }-row-b` ),
+			createTestTableRow( `${ clientId }-row-c` ),
+		],
+		[ { cells: [ { content: 'A' }, { content: 'B' }, { content: 'C' } ] } ]
+	);
 
-const resetInteraction = () => {
-	rfInteractionStore.setState( {
-		session: { status: 'closed' },
-		applyOutcome: { status: 'idle' },
-	} );
-};
-
-const mockedReceiveRfApplyRequest = jest.mocked( receiveRfApplyRequest );
+const createLargeTable = () =>
+	createTestTableBlock(
+		'table-a',
+		Array.from( { length: 3 }, ( _value, rowIndex ) =>
+			createTestTableRow( `row-${ rowIndex + 1 }`, 167 )
+		)
+	);
 
 describe( 'RF Interaction', () => {
 	beforeEach( () => {
-		resetInteraction();
-		mockedReceiveRfApplyRequest.mockReset();
-		jest.spyOn( rowTableIntegration, 'getConstraints' ).mockReturnValue( {
-			rowCount: 3,
-			blockedBoundaries: [],
-		} );
-		jest.spyOn( columnTableIntegration, 'getColumnInputDescriptors' ).mockReturnValue( COLUMNS );
-		jest.spyOn( rowRfResolution, 'resolve' ).mockReturnValue( {
-			status: 'resolved',
-			candidate: {
-				clientId: 'table-a',
-				sourceRowIndex: 0,
-				destinationBoundaryIndex: 3,
-			},
-		} );
-		jest.spyOn( columnRfResolution, 'resolve' ).mockReturnValue( {
-			status: 'resolved',
-			candidate: {
-				clientId: 'table-a',
-				sourceColumnIndex: 0,
-				destinationBoundaryIndex: 3,
-			},
-		} );
+		installTestTableStore();
+		resetRfInteractionTestState();
+		setTestTableBlocks( [ createDefaultTable( 'table-a' ), createDefaultTable( 'table-b' ) ] );
 	} );
 
 	afterEach( () => {
 		jest.restoreAllMocks();
-		resetInteraction();
+		resetRfInteractionTestState();
 	} );
 
 	/**
@@ -227,9 +213,8 @@ describe( 'RF Interaction', () => {
 	it( 'when the active table changes, should re-evaluate the preserved input against the current table', () => {
 		rfInteraction.open( 'table-a' );
 		rfInteraction.updateRowInput( 'table-a', ROW_INPUT );
-		jest.spyOn( rowTableIntegration, 'getConstraints' ).mockReturnValue( {
-			rowCount: 1,
-			blockedBoundaries: [],
+		updateTestTableAttributes( 'table-a', {
+			body: [ createTestTableRow( 'current-row' ) ],
 		} );
 
 		rfInteraction.notifyTableChanged( 'table-a' );
@@ -262,37 +247,46 @@ describe( 'RF Interaction', () => {
 	 * - Table AのRow入力はresolvedとして表示されている。
 	 *
 	 * 操作:
-	 * - Resolutionが返すcandidateを変更してからApplyを要求する。
+	 * - Applyを要求する。
 	 *
 	 * 期待結果:
-	 * - 変更後のfresh candidateがApply要求として渡され、Sessionはapplyingになる。
+	 * - 要求時点の現在Tableから解決した移動がProduction Apply経路で反映され、Sessionはapplyingになる。
 	 */
 	it( 'when apply is requested, should send a freshly resolved candidate and enter applying', () => {
 		rfInteraction.open( 'table-a' );
 		rfInteraction.updateRowInput( 'table-a', ROW_INPUT );
-		jest.spyOn( rowRfResolution, 'resolve' ).mockReturnValue( {
-			status: 'resolved',
-			candidate: {
-				clientId: 'table-a',
-				sourceRowIndex: 1,
-				destinationBoundaryIndex: 0,
-			},
-		} );
-		let received: RfApplyRequest | null = null;
-		mockedReceiveRfApplyRequest.mockImplementation( ( request ) => {
-			received = request;
-		} );
 
 		rfInteraction.requestApply( 'table-a' );
 
-		expect( received ).toEqual( {
-			kind: 'row',
-			candidate: {
-				clientId: 'table-a',
-				sourceRowIndex: 1,
-				destinationBoundaryIndex: 0,
-			},
+		expect( getRfApplyCoordinationSnapshot() ).toEqual( {
+			phase: 'restoring',
+			tableIdentity: 'table-a',
+			applied: true,
+			moveSummary: { kind: 'row', sourcePosition: 1, destinationPosition: 3 },
 		} );
+		expect( getTestTableBlock( 'table-a' )?.attributes.body ).toMatchObject( [
+			{
+				cells: [
+					{ content: 'table-a-row-b-1' },
+					{ content: 'table-a-row-b-2' },
+					{ content: 'table-a-row-b-3' },
+				],
+			},
+			{
+				cells: [
+					{ content: 'table-a-row-c-1' },
+					{ content: 'table-a-row-c-2' },
+					{ content: 'table-a-row-c-3' },
+				],
+			},
+			{
+				cells: [
+					{ content: 'table-a-row-a-1' },
+					{ content: 'table-a-row-a-2' },
+					{ content: 'table-a-row-a-3' },
+				],
+			},
+		] );
 		expect( rfInteractionStore.getState().session ).toMatchObject( {
 			status: 'applying',
 			tableIdentity: 'table-a',
@@ -308,37 +302,49 @@ describe( 'RF Interaction', () => {
 	 * - Table AのColumn入力はresolvedとして表示されている。
 	 *
 	 * 操作:
-	 * - Column Resolutionが返すcandidateを変更してからApplyを要求する。
+	 * - Column ReorderのApplyを要求する。
 	 *
 	 * 期待結果:
-	 * - Column Reorderのfresh candidateが渡され、Column applying状態へ遷移する。
+	 * - 要求時点の現在Tableから解決した列移動がProduction Apply経路で全sectionへ反映され、Column applying状態へ遷移する。
 	 */
 	it( 'when column apply is requested, should send the fresh column candidate and enter applying', () => {
 		rfInteraction.open( 'table-a' );
 		rfInteraction.selectKind( 'table-a', 'column' );
 		rfInteraction.updateColumnInput( 'table-a', COLUMN_INPUT );
-		jest.spyOn( columnRfResolution, 'resolve' ).mockReturnValue( {
-			status: 'resolved',
-			candidate: {
-				clientId: 'table-a',
-				sourceColumnIndex: 1,
-				destinationBoundaryIndex: 0,
-			},
-		} );
-		let received: RfApplyRequest | null = null;
-		mockedReceiveRfApplyRequest.mockImplementation( ( request ) => {
-			received = request;
-		} );
 
 		rfInteraction.requestApply( 'table-a' );
 
-		expect( received ).toEqual( {
-			kind: 'column',
-			candidate: {
-				clientId: 'table-a',
-				sourceColumnIndex: 1,
-				destinationBoundaryIndex: 0,
-			},
+		expect( getRfApplyCoordinationSnapshot() ).toEqual( {
+			phase: 'restoring',
+			tableIdentity: 'table-a',
+			applied: true,
+			moveSummary: { kind: 'column', sourcePosition: 1, destinationPosition: 3 },
+		} );
+		expect( getTestTableBlock( 'table-a' )?.attributes ).toMatchObject( {
+			head: [ { cells: [ { content: 'B' }, { content: 'C' }, { content: 'A' } ] } ],
+			body: [
+				{
+					cells: [
+						{ content: 'table-a-row-a-2' },
+						{ content: 'table-a-row-a-3' },
+						{ content: 'table-a-row-a-1' },
+					],
+				},
+				{
+					cells: [
+						{ content: 'table-a-row-b-2' },
+						{ content: 'table-a-row-b-3' },
+						{ content: 'table-a-row-b-1' },
+					],
+				},
+				{
+					cells: [
+						{ content: 'table-a-row-c-2' },
+						{ content: 'table-a-row-c-3' },
+						{ content: 'table-a-row-c-1' },
+					],
+				},
+			],
 		} );
 		expect( rfInteractionStore.getState().session ).toMatchObject( {
 			status: 'applying',
@@ -355,26 +361,28 @@ describe( 'RF Interaction', () => {
 	 * - Table AのRow入力は一度resolvedとして表示されている。
 	 *
 	 * 操作:
-	 * - Apply要求時の再評価だけをno-opへ変化させる。
+	 * - Tableを1行へ変更し、変更通知を行わずApplyを要求する。
 	 *
 	 * 期待結果:
-	 * - Apply要求は引き渡されず、Sessionはopenのまま最新no-op結果を表示する。
+	 * - Apply Lifecycleは開始されず、Sessionはopenのまま最新not-ready結果を表示する。
 	 */
 	it( 'when fresh apply evaluation is not resolved, should stay open with the fresh result', () => {
 		rfInteraction.open( 'table-a' );
 		rfInteraction.updateRowInput( 'table-a', ROW_INPUT );
-		jest.spyOn( rowRfResolution, 'resolve' ).mockReturnValue( { status: 'no-op' } );
+		updateTestTableAttributes( 'table-a', {
+			body: [ createTestTableRow( 'current-row' ) ],
+		} );
 
 		rfInteraction.requestApply( 'table-a' );
 
-		expect( mockedReceiveRfApplyRequest ).not.toHaveBeenCalled();
+		expect( getRfApplyCoordinationSnapshot() ).toEqual( { phase: 'idle' } );
 		expect( rfInteractionStore.getState().session ).toMatchObject( {
 			status: 'open',
 			tableIdentity: 'table-a',
 			kind: 'row',
 			evaluation: {
 				kind: 'row',
-				result: { status: 'no-op' },
+				result: { status: 'not-ready' },
 			},
 		} );
 	} );
@@ -396,6 +404,7 @@ describe( 'RF Interaction', () => {
 		rfInteraction.open( 'table-a' );
 		rfInteraction.updateRowInput( 'table-a', ROW_INPUT );
 		rfInteraction.requestApply( 'table-a' );
+		const applySnapshot = getRfApplyCoordinationSnapshot();
 
 		rfInteraction.open( 'table-b' );
 		rfInteraction.close( 'table-a' );
@@ -407,7 +416,7 @@ describe( 'RF Interaction', () => {
 		rfInteraction.notifyTableChanged( 'table-a' );
 		rfInteraction.requestApply( 'table-a' );
 
-		expect( mockedReceiveRfApplyRequest ).toHaveBeenCalledTimes( 1 );
+		expect( getRfApplyCoordinationSnapshot() ).toBe( applySnapshot );
 		expect( rfInteractionStore.getState().session ).toMatchObject( {
 			status: 'applying',
 			tableIdentity: 'table-a',
@@ -417,43 +426,77 @@ describe( 'RF Interaction', () => {
 	} );
 
 	/**
-	 * 概要:
-	 * - Apply結果に応じてSessionを終了または入力保持状態へ復帰できることを確認する。
+	 * Production Applyの表示復帰完了後にsuccessを受け取り、Sessionを終了することを確認する。
 	 *
 	 * 事前条件:
-	 * - Table AのRow入力からApply Lifecycleが開始できる。
+	 * - Table AのRow入力から通常反映を開始できる。
 	 *
 	 * 操作:
-	 * - success、failure、cancelledをそれぞれRF Interactionへ返す。
+	 * - Applyを要求し、表示復帰を完了する。
 	 *
 	 * 期待結果:
-	 * - successではclosedになり、failure / cancelledではRow入力を保持したopenへ戻る。
+	 * - RF Sessionがclosedになる。
 	 */
-	it.each( [
-		[
-			{
-				status: 'success',
-				moveSummary: { kind: 'row', sourcePosition: 1, destinationPosition: 3 },
-			} as const,
-			{ status: 'closed' },
-		],
-		[ { status: 'failure' } as const, { status: 'open', rowInput: ROW_INPUT } ],
-		[ { status: 'cancelled' } as const, { status: 'open', rowInput: ROW_INPUT } ],
-	] as const )(
-		'when apply resolves, should transition to the expected session state',
-		( result, expectedSession ) => {
-			let resolveApply: ( result: RfApplyResult ) => void = () => undefined;
-			mockedReceiveRfApplyRequest.mockImplementation( ( _request, resolve ) => {
-				resolveApply = resolve;
-			} );
-			rfInteraction.open( 'table-a' );
-			rfInteraction.updateRowInput( 'table-a', ROW_INPUT );
-			rfInteraction.requestApply( 'table-a' );
+	it( 'when apply succeeds, should close the session', () => {
+		rfInteraction.open( 'table-a' );
+		rfInteraction.updateRowInput( 'table-a', ROW_INPUT );
+		rfInteraction.requestApply( 'table-a' );
 
-			resolveApply( result );
+		completeRfApplyRestoration();
 
-			const session = rfInteractionStore.getState().session;
-			expect( session ).toMatchObject( expectedSession );
-		}
-	);
+		expect( rfInteractionStore.getState().session ).toEqual( { status: 'closed' } );
+	} );
+
+	/**
+	 * 更新直前にだけ生じる反映失敗をProduction Apply Coordinationから受け取り、入力保持状態へ復帰することを確認する。
+	 *
+	 * 更新評価と属性更新は同期しており公開境界から決定的に失敗を差し込めないため、確定更新結果だけをTest Doubleで失敗にする。
+	 *
+	 * 事前条件:
+	 * - Table AのRow指定は反映前評価まで成立する。
+	 *
+	 * 操作:
+	 * - 確定更新が失敗する状態でApplyを要求する。
+	 *
+	 * 期待結果:
+	 * - RF SessionがRow入力を保持したopenへ戻る。
+	 */
+	it( 'when apply fails, should reopen the session with its row input', () => {
+		jest.spyOn( rowTableIntegration, 'applyRowMove' ).mockReturnValueOnce( false );
+		rfInteraction.open( 'table-a' );
+		rfInteraction.updateRowInput( 'table-a', ROW_INPUT );
+
+		rfInteraction.requestApply( 'table-a' );
+
+		expect( rfInteractionStore.getState().session ).toMatchObject( {
+			status: 'open',
+			rowInput: ROW_INPUT,
+		} );
+	} );
+
+	/**
+	 * 大規模反映のProduction確認Lifecycleを取り消した場合に入力保持状態へ復帰することを確認する。
+	 *
+	 * 事前条件:
+	 * - Table AのRow指定は大規模反映の確認対象になる。
+	 *
+	 * 操作:
+	 * - Applyを要求し、確認待ちの反映を取り消す。
+	 *
+	 * 期待結果:
+	 * - RF SessionがRow入力を保持したopenへ戻る。
+	 */
+	it( 'when apply is cancelled, should reopen the session with its row input', () => {
+		setTestTableBlocks( [ createLargeTable() ] );
+		rfInteraction.open( 'table-a' );
+		rfInteraction.updateRowInput( 'table-a', ROW_INPUT );
+		rfInteraction.requestApply( 'table-a' );
+
+		cancelRfApply();
+
+		expect( rfInteractionStore.getState().session ).toMatchObject( {
+			status: 'open',
+			rowInput: ROW_INPUT,
+		} );
+	} );
 } );

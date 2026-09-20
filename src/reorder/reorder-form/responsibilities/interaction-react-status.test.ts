@@ -7,19 +7,27 @@
 import { act, renderHook } from '@testing-library/react';
 
 import { useRfInteractionStatus } from './interaction-react';
-import { rfInteractionStore } from './interaction';
+import { rfInteraction } from './interaction';
+import {
+	createTestTableBlock,
+	createTestTableRow,
+	installTestTableStore,
+	resetRfInteractionTestState,
+	setTestTableBlocks,
+} from './interaction.test-utils';
 
-jest.mock( '@/reorder/row-reorder/responsibilities/table-integration', () => ( {
-	rowTableIntegration: {
-		getConstraints: jest.fn(),
-	},
+/* Jestで読み込めないBlock Editor Storeの環境境界だけをTest Doubleとし、YTRのProduction責務は実接続する。 */
+jest.mock( '@wordpress/block-editor', () => ( {
+	store: Symbol( 'block-editor-store' ),
 } ) );
 
-jest.mock( '@/reorder/column-reorder/responsibilities/table-integration', () => ( {
-	columnTableIntegration: {
-		getColumnInputDescriptors: jest.fn(),
-	},
-} ) );
+jest.mock( '@wordpress/data', () => {
+	const actualData = jest.requireActual( '@wordpress/data' );
+	return Object.defineProperties( Object.create( actualData ), {
+		dispatch: { enumerable: true, value: jest.fn() },
+		select: { enumerable: true, value: jest.fn() },
+	} );
+} );
 
 const ROW_INPUT = {
 	sourceRowNumber: '1',
@@ -30,31 +38,26 @@ const ROW_INPUT = {
 const UPDATED_ROW_INPUT = {
 	sourceRowNumber: '2',
 	targetRowNumber: '3',
-	position: 'below' as const,
-};
-
-const COLUMN_INPUT = {
-	sourceColumnIndex: null,
-	targetColumnIndex: null,
-	position: null,
-};
-
-const resetInteraction = () => {
-	act( () => {
-		rfInteractionStore.setState( {
-			session: { status: 'closed' },
-			applyOutcome: { status: 'idle' },
-		} );
-	} );
+	position: 'above' as const,
 };
 
 describe( 'RF Interaction session status React connection', () => {
 	beforeEach( () => {
-		resetInteraction();
+		installTestTableStore();
+		resetRfInteractionTestState();
+		setTestTableBlocks( [
+			createTestTableBlock( 'table-a', [
+				createTestTableRow( 'row-a' ),
+				createTestTableRow( 'row-b' ),
+				createTestTableRow( 'row-c' ),
+			] ),
+		] );
 	} );
 
 	afterEach( () => {
-		resetInteraction();
+		act( () => {
+			resetRfInteractionTestState();
+		} );
 	} );
 
 	/**
@@ -73,20 +76,8 @@ describe( 'RF Interaction session status React connection', () => {
 	 */
 	it( 'when RF input changes within the open session, should not rerender the status subscriber', () => {
 		act( () => {
-			rfInteractionStore.setState( {
-				session: {
-					status: 'open',
-					tableIdentity: 'table-a',
-					kind: 'row',
-					rowInput: ROW_INPUT,
-					columnInput: COLUMN_INPUT,
-					evaluation: {
-						kind: 'row',
-						rowCount: 3,
-						result: { status: 'resolved' },
-					},
-				},
-			} );
+			rfInteraction.open( 'table-a' );
+			rfInteraction.updateRowInput( 'table-a', ROW_INPUT );
 		} );
 
 		let renderCount = 0;
@@ -97,18 +88,7 @@ describe( 'RF Interaction session status React connection', () => {
 		const initialRenderCount = renderCount;
 
 		act( () => {
-			rfInteractionStore.setState( ( store ) => {
-				if ( store.session.status !== 'open' ) {
-					return store;
-				}
-
-				return {
-					session: {
-						...store.session,
-						rowInput: UPDATED_ROW_INPUT,
-					},
-				};
-			} );
+			rfInteraction.updateRowInput( 'table-a', UPDATED_ROW_INPUT );
 		} );
 
 		expect( status.result.current ).toBe( 'open' );
@@ -130,33 +110,13 @@ describe( 'RF Interaction session status React connection', () => {
 		expect( status.result.current ).toBe( 'closed' );
 
 		act( () => {
-			rfInteractionStore.setState( {
-				session: {
-					status: 'open',
-					tableIdentity: 'table-a',
-					kind: 'row',
-					rowInput: ROW_INPUT,
-					columnInput: COLUMN_INPUT,
-					evaluation: {
-						kind: 'row',
-						rowCount: 3,
-						result: { status: 'resolved' },
-					},
-				},
-			} );
+			rfInteraction.open( 'table-a' );
 		} );
 		expect( status.result.current ).toBe( 'open' );
 
 		act( () => {
-			rfInteractionStore.setState( {
-				session: {
-					status: 'applying',
-					tableIdentity: 'table-a',
-					kind: 'row',
-					rowInput: ROW_INPUT,
-					columnInput: COLUMN_INPUT,
-				},
-			} );
+			rfInteraction.updateRowInput( 'table-a', ROW_INPUT );
+			rfInteraction.requestApply( 'table-a' );
 		} );
 		expect( status.result.current ).toBe( 'applying' );
 	} );
