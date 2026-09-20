@@ -1,8 +1,8 @@
 /**
- * 行並び替えのDnD境界が、Reorder Modeと物理DnD Lifecycleを各責務へ正しく接続することを確認する。
+ * 行並び替えのDnD境界が、Production責務と物理DnD Lifecycleを正しく接続することを確認する。
  *
- * Reorder Target Resolutionと移動先解決は独立責務としてmockし、この境界ではevent-timeのmode判定、
- * mode離脱cleanup、開始前解決、開始成立、移動先解決結果の接続、終了種別、およびAuto Scroll方向を検証する。
+ * Reorder Mode、Target Resolution、Destination Resolution、Input、DnD Interactionは実経路へ接続し、
+ * Jestでは実行できない物理DnD EngineとDOM layoutだけを環境境界として代替する。
  */
 
 import {
@@ -10,18 +10,40 @@ import {
 	type BeforeDragStartEvent,
 	type DragEndEvent,
 	type DragMoveEvent,
-	type Draggable,
+	type DragStartEvent,
+	Draggable,
 } from '@dnd-kit/dom';
 import { DragDropProvider } from '@dnd-kit/react';
-import { act, render } from '@testing-library/react';
+import { act, fireEvent, render } from '@testing-library/react';
 import type { ReactNode } from 'react';
 
 import { reorderMode } from '@/reorder/reorder-mode';
-import { createRowDestinationResolver } from '@/reorder/row-reorder/integration/destination-resolution';
-import { rowDndInteraction } from '@/reorder/row-reorder/responsibilities/dnd-interaction';
-import { resolveRowReorderTarget } from '@/reorder/row-reorder/responsibilities/target-resolution';
+import {
+	getRowDndDestinationBoundaryIndex,
+	getRowDndPhase,
+	rowDndInteraction,
+} from '@/reorder/row-reorder/responsibilities/dnd-interaction';
+import {
+	createRowReorderTestRow,
+	createRowReorderTestTable,
+	getRowReorderTestTable,
+	setRowReorderTestTables,
+} from '@/reorder/row-reorder/responsibilities/table-integration.test-utils';
 import { RowDnd } from './dnd';
 
+/* @wordpress/componentsが経由するJest非対応のuuid / theme ESM境界だけを決定的な実装へ置き換える。 */
+jest.mock( 'uuid', () => ( { v4: () => 'row-dnd-test-uuid' } ) );
+jest.mock( '@wordpress/theme', () => ( {
+	ThemeProvider: ( { children }: { children: ReactNode } ) => children,
+} ) );
+
+/* Jestで直接読み込めないBlock Editor Store境界だけを代替し、WordPress DataとRow Reorder責務は実経路へ接続する。 */
+jest.mock( '@wordpress/block-editor', () => ( {
+	store: jest.requireActual( '@/reorder/row-reorder/responsibilities/table-integration.test-utils' )
+		.rowReorderTestBlockEditorStore,
+} ) );
+
+/* 物理DnDを実行できないJSDOMでは、dnd-kitのEngine境界だけを決定的なTest Doubleにする。 */
 jest.mock( '@dnd-kit/dom', () => ( {
 	AutoScroller: {
 		configure: jest.fn( () => ( { configured: true } ) ),
@@ -30,55 +52,26 @@ jest.mock( '@dnd-kit/dom', () => ( {
 	PreventSelection: {},
 	Feedback: {},
 	Draggable: jest.fn(),
-} ) );
-
-jest.mock( '@/reorder/row-reorder/responsibilities/dnd-interaction', () => ( {
-	rowDndInteraction: {
-		start: jest.fn(),
-		updateDestination: jest.fn(),
-		complete: jest.fn(),
-		cancel: jest.fn(),
-	},
-} ) );
-
-jest.mock( '@/reorder/row-reorder/responsibilities/target-resolution', () => ( {
-	resolveRowReorderTarget: jest.fn(),
-} ) );
-
-jest.mock( '@/reorder/row-reorder/integration/destination-resolution', () => ( {
-	createRowDestinationResolver: jest.fn(),
-} ) );
-
-jest.mock( '@/reorder/row-reorder/responsibilities/presentation/row-presentation', () => ( {
-	RowPresentation: () => null,
-} ) );
-
-let mockActiveDraggableRef: { current: Draggable | null } | null = null;
-const mockRowInputPointerDown = jest.fn();
-
-jest.mock( '@/reorder/row-reorder/responsibilities/input', () => ( {
-	RowInput: ( props: {
-		activeDraggable: { current: Draggable | null };
-		children: ( handler: ( event: unknown ) => void ) => ReactNode;
-	} ) => {
-		mockActiveDraggableRef = props.activeDraggable;
-		return props.children( mockRowInputPointerDown );
+	PointerSensor: { configure: jest.fn() },
+	PointerActivationConstraints: {
+		Distance: jest.fn(),
+		Delay: jest.fn(),
 	},
 } ) );
 
 jest.mock( '@dnd-kit/react', () => ( {
 	DragDropProvider: jest.fn( ( props: { children: ReactNode } ) => props.children ),
+	useDragDropManager: () => ( {
+		dragOperation: { status: { idle: true } },
+	} ),
+	useDragDropMonitor: () => undefined,
 } ) );
 
 const dragDropProviderMock = DragDropProvider as unknown as jest.Mock;
 const autoScrollerConfigureMock = AutoScroller.configure as jest.Mock;
-const interactionMock = rowDndInteraction as jest.Mocked< typeof rowDndInteraction >;
-const resolveRowReorderTargetMock = resolveRowReorderTarget as jest.MockedFunction<
-	typeof resolveRowReorderTarget
->;
-const destinationResolverFactoryMock = createRowDestinationResolver as jest.MockedFunction<
-	typeof createRowDestinationResolver
->;
+const draggableConstructorMock = Draggable as unknown as jest.Mock;
+
+let activeDraggableDestroy: jest.Mock;
 
 /** DnD Engine境界へ渡された最新のcallback群を取得する。 */
 const getProviderProps = () => {
@@ -89,49 +82,205 @@ const getProviderProps = () => {
 	return props;
 };
 
-/**
- * 開始可能なTarget Resolution結果を設定する。
- * @param sourceRowIndex
- */
-const mockResolvedTarget = ( sourceRowIndex = 0 ) => {
-	const target = { tableIdentity: 'table-1', sourceRowIndex };
-	const initialConstraints = { rowCount: 3, blockedBoundaries: [] as number[] };
-	resolveRowReorderTargetMock.mockReturnValue( {
-		status: 'resolved',
-		target,
-		initialConstraints,
-	} );
-	return { target, initialConstraints };
-};
-
 /** Reorder Modeを通常編集へ戻す。 */
-const resetReorderMode = () => {
+const resetReorderMode = (): void => {
 	act( () => {
 		reorderMode.observeTable( '__row-dnd-test-reset__' );
 	} );
 };
 
+/** 3行の通常TableをProduction Table Integrationから利用できる状態にする。 */
+const setDefaultTable = (): void => {
+	setRowReorderTestTables( [
+		createRowReorderTestTable( 'table-1', [
+			createRowReorderTestRow( 'row-1', 1 ),
+			createRowReorderTestRow( 'row-2', 1 ),
+			createRowReorderTestRow( 'row-3', 1 ),
+		] ),
+	] );
+};
+
+/** 現在Tableの行識別値を表示順で取得する。 */
+const getCurrentRowLabels = (): unknown[] => {
+	const table = getRowReorderTestTable( 'table-1' );
+	if ( table === null ) {
+		throw new Error( 'Row DnD test table must be available.' );
+	}
+
+	const body = table.attributes.body as Array< { cells: Array< { content?: unknown } > } >;
+	return body.map( ( row ) => row.cells[ 0 ]?.content );
+};
+
+/** Row DnD境界と対応する最小Table DOMを描画する。 */
+const renderRowDnd = () => {
+	const view = render(
+		<RowDnd tableIdentity="table-1">
+			{ ( onPointerDownCapture ) => (
+				<div onPointerDownCapture={ onPointerDownCapture }>
+					<table aria-label="Row DnD test table">
+						<tbody>
+							<tr>
+								<td>row-1</td>
+							</tr>
+							<tr>
+								<td>row-2</td>
+							</tr>
+							<tr>
+								<td>row-3</td>
+							</tr>
+						</tbody>
+					</table>
+				</div>
+			) }
+		</RowDnd>
+	);
+	const table = view.getByRole( 'table', {
+		name: 'Row DnD test table',
+	} ) as HTMLTableElement;
+	const tableBody = table.tBodies.item( 0 );
+
+	if ( tableBody === null ) {
+		throw new Error( 'Row DnD test table body must be available.' );
+	}
+
+	return {
+		...view,
+		tableBody,
+		rows: Array.from( tableBody.rows ),
+		providerProps: getProviderProps(),
+	};
+};
+
+/**
+ * JSDOMに存在しない行配置を、Destination Resolutionが利用する物理layout境界へ与える。
+ *
+ * @param tableBody 対象Tableのtbody。
+ * @param rows      tbody直下の行。
+ */
+const provideRowGeometry = (
+	tableBody: HTMLTableSectionElement,
+	rows: HTMLTableRowElement[]
+): void => {
+	jest.spyOn( tableBody, 'getBoundingClientRect' ).mockReturnValue( {
+		top: 0,
+		bottom: rows.length * 40,
+		left: 0,
+		right: 100,
+		width: 100,
+		height: rows.length * 40,
+		x: 0,
+		y: 0,
+		toJSON: () => ( {} ),
+	} );
+
+	rows.forEach( ( row, index ) => {
+		jest.spyOn( row, 'getBoundingClientRect' ).mockReturnValue( {
+			top: index * 40,
+			bottom: ( index + 1 ) * 40,
+			left: 0,
+			right: 100,
+			width: 100,
+			height: 40,
+			x: 0,
+			y: index * 40,
+			toJSON: () => ( {} ),
+		} );
+	} );
+};
+
+/**
+ * Row Inputへ主マウス入力を送る。
+ *
+ * @param element 入力対象のTable要素。
+ */
+const firePrimaryMousePointerDown = ( element: Element ): void => {
+	const pointerDown = new Event( 'pointerdown', {
+		bubbles: true,
+		cancelable: true,
+	} );
+	Object.defineProperties( pointerDown, {
+		button: { value: 0 },
+		isPrimary: { value: true },
+		pointerType: { value: 'mouse' },
+		clientX: { value: 10 },
+		clientY: { value: 10 },
+	} );
+	fireEvent( element, pointerDown );
+};
+
+/**
+ * Production Target Resolutionを通して物理DnD開始を成立させる。
+ *
+ * @param providerProps  DnD Engine境界のcallback群。
+ * @param sourceRow      DnD開始元の行DOM。
+ * @param sourceRowIndex tbody内の移動元行位置。
+ */
+const startPhysicalDrag = (
+	providerProps: ReturnType< typeof getProviderProps >,
+	sourceRow: HTMLTableRowElement,
+	sourceRowIndex = 0
+): void => {
+	const target = {
+		tableIdentity: 'table-1',
+		sourceRowIndex,
+	};
+
+	providerProps.onBeforeDragStart( {
+		operation: { source: { data: target } },
+		preventDefault: jest.fn(),
+	} as unknown as BeforeDragStartEvent );
+	act( () => {
+		providerProps.onDragStart( {
+			operation: { source: { element: sourceRow } },
+		} as unknown as DragStartEvent );
+	} );
+};
+
+/**
+ * 現在のポインター位置を持つ物理DnD移動通知を作成する。
+ *
+ * @param sourceRow DnD開始元の行DOM。
+ * @param clientX   現在の横位置。
+ * @param clientY   現在の縦位置。
+ * @return DnD Engineから通知される移動イベント。
+ */
+const createMoveEvent = (
+	sourceRow: HTMLTableRowElement,
+	clientX: number,
+	clientY: number
+): DragMoveEvent =>
+	( {
+		operation: { source: { element: sourceRow } },
+		nativeEvent: { clientX, clientY },
+	} ) as unknown as DragMoveEvent;
+
 describe( 'Row DnD engine connection', () => {
 	beforeEach( () => {
-		jest.clearAllMocks();
-		mockActiveDraggableRef = null;
-		destinationResolverFactoryMock.mockReturnValue( null );
+		rowDndInteraction.cancel();
 		resetReorderMode();
+		setDefaultTable();
+		jest.clearAllMocks();
+		activeDraggableDestroy = jest.fn();
+		draggableConstructorMock.mockImplementation( () => ( {
+			destroy: activeDraggableDestroy,
+		} ) );
 	} );
 
 	afterEach( () => {
+		rowDndInteraction.cancel();
 		resetReorderMode();
+		setRowReorderTestTables( [] );
+		jest.restoreAllMocks();
 	} );
 
 	/**
-	 * 概要:
-	 * - 行DnDでは縦方向だけAuto Scrollを許可することを確認する。
+	 * 行DnDでは縦方向だけAuto Scrollを許可することを確認する。
 	 *
 	 * 事前条件:
 	 * - DnD Engineの既定plugin群にAutoScrollerが含まれる。
 	 *
 	 * 操作:
-	 * - Row DnD境界を描画し、plugin構成を解決する。
+	 * - Row DnD境界のplugin構成を解決する。
 	 *
 	 * 期待結果:
 	 * - 横方向のAuto Scrollは無効化される。
@@ -139,10 +288,9 @@ describe( 'Row DnD engine connection', () => {
 	 * - 既定AutoScrollerは重複して残らない。
 	 */
 	it( 'when row DnD plugins are resolved, should enable auto scroll only on the vertical axis', () => {
-		render( <RowDnd tableIdentity="table-1">{ () => <div /> }</RowDnd> );
-		const props = getProviderProps();
+		const { providerProps } = renderRowDnd();
 		const unrelatedPlugin = {};
-		const plugins = props.plugins( [ unrelatedPlugin, AutoScroller ] );
+		const plugins = providerProps.plugins( [ unrelatedPlugin, AutoScroller ] );
 
 		expect( autoScrollerConfigureMock ).toHaveBeenCalledWith( {
 			threshold: { x: 0, y: 0.2 },
@@ -154,455 +302,466 @@ describe( 'Row DnD engine connection', () => {
 	} );
 
 	/**
-	 * 概要:
-	 * - Reorder Modeをevent-timeで確認し、行modeの入力だけをRow Inputへ渡すことを確認する。
+	 * 行Reorder ModeでだけRow Inputが現在Tableの開始入力を受け付けることを確認する。
 	 *
 	 * 事前条件:
 	 * - DnD境界は通常編集状態から同じReact identityで存在している。
 	 *
 	 * 操作:
-	 * - 通常編集状態と行mode状態で同じpointer handlerへ入力する。
+	 * - 通常編集状態と行Reorder Mode状態で同じ行へ主マウス入力を行う。
 	 *
 	 * 期待結果:
-	 * - 通常編集の入力はRow Inputへ渡らず、行modeの入力だけが渡る。
+	 * - 通常編集の入力では物理DnD開始候補を登録しない。
+	 * - 行Reorder Modeの入力では現在行を開始候補として登録する。
 	 */
 	it( 'when pointer input occurs, should forward it to Row Input only while row reorder mode is active', () => {
-		let pointerDown: ( event: unknown ) => void = () => {};
-		render(
-			<RowDnd tableIdentity="table-1">
-				{ ( handler ) => {
-					pointerDown = handler as unknown as ( event: unknown ) => void;
-					return <div />;
-				} }
-			</RowDnd>
-		);
-		const event = {};
+		const { getByText } = renderRowDnd();
+		const sourceCell = getByText( 'row-1' );
 
-		pointerDown( event );
-		expect( mockRowInputPointerDown ).not.toHaveBeenCalled();
+		firePrimaryMousePointerDown( sourceCell );
+		expect( draggableConstructorMock ).not.toHaveBeenCalled();
 
 		act( () => {
 			reorderMode.select( 'row', 'table-1' );
 		} );
-		pointerDown( event );
-		expect( mockRowInputPointerDown ).toHaveBeenCalledWith( event );
+		firePrimaryMousePointerDown( sourceCell );
+
+		expect( draggableConstructorMock ).toHaveBeenCalledTimes( 1 );
 	} );
 
 	/**
-	 * 概要:
-	 * - Target Resolutionで開始不能となった物理DnDを成立させないことを確認する。
+	 * 開始入力後に現在Tableで移動元が成立しなくなった場合、物理DnDを開始しないことを確認する。
 	 *
 	 * 事前条件:
-	 * - Reorder Target Resolutionが現在のTable構造では利用不能と解決する。
+	 * - 行Reorder ModeでDnD境界が存在する。
+	 * - DnD開始前には対象Tableを利用できなくなっている。
 	 *
 	 * 操作:
-	 * - DnD Engineから開始前通知を受ける。
+	 * - DnD Engineから開始前通知と開始通知を受ける。
 	 *
 	 * 期待結果:
-	 * - 対象Targetが現在制約で再解決される。
-	 * - 物理DnD開始が取消され、DnD Interactionのstartは呼ばれない。
+	 * - 物理DnD開始が取り消される。
+	 * - 行DnD Sessionは開始されない。
 	 */
 	it( 'when target resolution rejects the source, should prevent the physical drag from starting', () => {
-		resolveRowReorderTargetMock.mockReturnValue( { status: 'unavailable' } );
-		render( <RowDnd tableIdentity="table-1">{ () => <div /> }</RowDnd> );
-		const props = getProviderProps();
+		act( () => {
+			reorderMode.select( 'row', 'table-1' );
+		} );
+		const { providerProps } = renderRowDnd();
+		setRowReorderTestTables( [] );
 		const preventDefault = jest.fn();
-		const target = { tableIdentity: 'table-1', sourceRowIndex: 1 };
 
-		props.onBeforeDragStart( {
-			operation: { source: { data: target } },
+		providerProps.onBeforeDragStart( {
+			operation: {
+				source: {
+					data: {
+						tableIdentity: 'table-1',
+						sourceRowIndex: 1,
+					},
+				},
+			},
 			preventDefault,
 		} as unknown as BeforeDragStartEvent );
-		props.onDragStart();
+		providerProps.onDragStart();
 
-		expect( resolveRowReorderTargetMock ).toHaveBeenCalledWith( target );
 		expect( preventDefault ).toHaveBeenCalledTimes( 1 );
-		expect( interactionMock.start ).not.toHaveBeenCalled();
+		expect( getRowDndPhase() ).toBe( 'idle' );
 	} );
 
 	/**
-	 * 概要:
-	 * - 解決済みTargetと開始時制約を物理DnD開始成立後のSession開始へ引き継ぐことを確認する。
+	 * 現在Tableで解決された移動元と開始時制約から行DnD Sessionを開始できることを確認する。
 	 *
 	 * 事前条件:
-	 * - Reorder Target Resolutionが開始可能な解決結果を返す。
+	 * - 3行Tableの2行目が開始可能である。
 	 *
 	 * 操作:
 	 * - 開始前通知の後に物理DnD開始通知を受ける。
 	 *
 	 * 期待結果:
-	 * - 解決結果のTargetと開始時制約でstartが1回呼ばれる。
+	 * - 行DnD Sessionがactiveになる。
+	 * - 開始時制約で有効な境界3を移動先として保持できる。
 	 */
 	it( 'when physical drag starts after target resolution, should start the row DnD session with the resolved target and constraints', () => {
-		const { target, initialConstraints } = mockResolvedTarget( 1 );
-		render( <RowDnd tableIdentity="table-1">{ () => <div /> }</RowDnd> );
-		const props = getProviderProps();
+		act( () => {
+			reorderMode.select( 'row', 'table-1' );
+		} );
+		const { providerProps, rows } = renderRowDnd();
+		startPhysicalDrag( providerProps, rows[ 1 ], 1 );
 
-		props.onBeforeDragStart( {
-			operation: { source: { data: target } },
-			preventDefault: jest.fn(),
-		} as unknown as BeforeDragStartEvent );
-		props.onDragStart();
+		expect( getRowDndPhase() ).toBe( 'active' );
 
-		expect( interactionMock.start ).toHaveBeenCalledWith( target, initialConstraints );
+		act( () => {
+			rowDndInteraction.updateDestination( 3 );
+		} );
+		expect( getRowDndDestinationBoundaryIndex() ).toBe( 3 );
 	} );
 
 	/**
-	 * 概要:
-	 * - Row Reorder Mode離脱時に未使用の解決結果とDraggable登録を即時破棄することを確認する。
+	 * 行Reorder Mode離脱時に未使用の開始解決結果とDraggable登録を即時破棄することを確認する。
 	 *
 	 * 事前条件:
-	 * - 行modeで解決済みの開始対象とDraggable登録が存在する。
+	 * - 行Reorder Modeで開始候補と開始前解決結果が存在する。
 	 *
 	 * 操作:
-	 * - React再描画を行わずRow Reorder Modeから離脱する。
+	 * - React再描画を待たず行Reorder Modeから離脱し、その後に物理DnD開始通知を受ける。
 	 *
 	 * 期待結果:
-	 * - Draggableが破棄され、離脱前の解決結果ではstartが呼ばれない。
+	 * - 現在のDraggable登録が破棄される。
+	 * - 離脱前の解決結果から行DnD Sessionを開始しない。
 	 */
 	it( 'when row reorder mode ends, should discard the resolved start and active draggable without a React rerender', () => {
 		act( () => {
 			reorderMode.select( 'row', 'table-1' );
 		} );
-		const { target } = mockResolvedTarget( 1 );
-		render( <RowDnd tableIdentity="table-1">{ () => <div /> }</RowDnd> );
-		const props = getProviderProps();
-		props.onBeforeDragStart( {
-			operation: { source: { data: target } },
+		const { providerProps, getByText, rows } = renderRowDnd();
+		firePrimaryMousePointerDown( getByText( 'row-1' ) );
+		providerProps.onBeforeDragStart( {
+			operation: {
+				source: {
+					data: {
+						tableIdentity: 'table-1',
+						sourceRowIndex: 0,
+					},
+				},
+			},
 			preventDefault: jest.fn(),
 		} as unknown as BeforeDragStartEvent );
-
-		if ( mockActiveDraggableRef === null ) {
-			throw new Error( 'RowInput activeDraggable ref was not captured.' );
-		}
-		const destroy = jest.fn();
-		mockActiveDraggableRef.current = { destroy } as unknown as Draggable;
 
 		act( () => {
 			reorderMode.select( 'row', 'table-1' );
 		} );
-		props.onDragStart();
+		providerProps.onDragStart( {
+			operation: { source: { element: rows[ 0 ] } },
+		} as unknown as DragStartEvent );
 
-		expect( destroy ).toHaveBeenCalledTimes( 1 );
-		expect( interactionMock.start ).not.toHaveBeenCalled();
+		expect( activeDraggableDestroy ).toHaveBeenCalledTimes( 1 );
+		expect( getRowDndPhase() ).toBe( 'idle' );
 	} );
 
 	/**
-	 * 概要:
-	 * - DnD接続境界終了時にDraggable登録を破棄することを確認する。
+	 * DnD接続境界終了時に現在のDraggable登録を破棄することを確認する。
 	 *
 	 * 事前条件:
-	 * - DnD境界に一時Draggableが登録されている。
+	 * - 行Reorder Modeで開始候補が登録されている。
 	 *
 	 * 操作:
-	 * - RowDndをunmountする。
+	 * - Row DnD境界をunmountする。
 	 *
 	 * 期待結果:
-	 * - Draggableが破棄され、境界終了後へ一時登録を持ち越さない。
+	 * - Draggable登録が破棄され、境界終了後へ持ち越されない。
 	 */
 	it( 'when the row DnD connection unmounts, should destroy the active draggable', () => {
-		const { unmount } = render( <RowDnd tableIdentity="table-1">{ () => <div /> }</RowDnd> );
-		if ( mockActiveDraggableRef === null ) {
-			throw new Error( 'RowInput activeDraggable ref was not captured.' );
-		}
-		const destroy = jest.fn();
-		mockActiveDraggableRef.current = { destroy } as unknown as Draggable;
+		act( () => {
+			reorderMode.select( 'row', 'table-1' );
+		} );
+		const { getByText, unmount } = renderRowDnd();
+		firePrimaryMousePointerDown( getByText( 'row-1' ) );
 
 		unmount();
-		expect( destroy ).toHaveBeenCalledTimes( 1 );
+
+		expect( activeDraggableDestroy ).toHaveBeenCalledTimes( 1 );
 	} );
 
 	/**
-	 * 概要:
-	 * - 移動先解決境界が返した論理境界をDnD Interactionへ接続することを確認する。
+	 * 現在の物理入力位置から解決した論理境界をDnD Interactionへ接続することを確認する。
 	 *
 	 * 事前条件:
-	 * - DnD開始時に移動先解決境界が成立し、現在位置から境界1を返す。
+	 * - 行DnD Sessionが先頭行から開始され、Tableの物理配置を取得できる。
 	 *
 	 * 操作:
-	 * - 物理DnD開始後に移動通知を受ける。
+	 * - 2行目の下半分へ物理DnDを移動する。
 	 *
 	 * 期待結果:
-	 * - 開始元要素でDestination Resolverが生成される。
-	 * - 解決済みの境界1がDnD Interactionへ通知される。
+	 * - 行順を変更できる境界2が現在の移動先として公開される。
 	 */
 	it( 'when destination resolution returns a boundary, should update the DnD interaction with that boundary', () => {
-		const sourceElement = document.createElement( 'tr' );
-		const resolve = jest.fn().mockReturnValue( 1 );
-		destinationResolverFactoryMock.mockReturnValue( { resolve } );
-		const { target } = mockResolvedTarget();
-		render( <RowDnd tableIdentity="table-1">{ () => <div /> }</RowDnd> );
-		const props = getProviderProps();
-		props.onBeforeDragStart( {
-			operation: { source: { data: target } },
-			preventDefault: jest.fn(),
-		} as unknown as BeforeDragStartEvent );
-		props.onDragStart( { operation: { source: { element: sourceElement } } } );
-		const moveEvent = {
-			operation: { source: { element: sourceElement } },
-			nativeEvent: { clientX: 10, clientY: 50 },
-		} as unknown as DragMoveEvent;
-		props.onDragMove( moveEvent );
+		act( () => {
+			reorderMode.select( 'row', 'table-1' );
+		} );
+		const { providerProps, tableBody, rows } = renderRowDnd();
+		provideRowGeometry( tableBody, rows );
+		startPhysicalDrag( providerProps, rows[ 0 ] );
 
-		expect( destinationResolverFactoryMock ).toHaveBeenCalledWith( sourceElement );
-		expect( resolve ).toHaveBeenCalledWith( moveEvent );
-		expect( interactionMock.updateDestination ).toHaveBeenCalledWith( 1 );
+		act( () => {
+			providerProps.onDragMove( createMoveEvent( rows[ 0 ], 10, 70 ) );
+		} );
+
+		expect( getRowDndDestinationBoundaryIndex() ).toBe( 2 );
 	} );
 
 	/**
-	 * 概要:
-	 * - 現在位置から有効な移動先を解決できない場合にDnD Interactionの移動先をnullへ更新することを確認する。
+	 * 現在位置から有効な移動先を解決できない場合、DnD Interactionの移動先を空にすることを確認する。
 	 *
 	 * 事前条件:
-	 * - DnD開始時に移動先解決境界が成立している。
+	 * - 行DnD Sessionが開始され、対象Tableの物理配置を取得できる。
 	 *
 	 * 操作:
-	 * - 有効な移動先がない物理入力位置へ移動する。
+	 * - Tableの横方向外側へ物理DnDを移動する。
 	 *
 	 * 期待結果:
-	 * - DnD Interactionへnullが通知される。
+	 * - 現在の有効な移動先は存在しない。
 	 */
 	it( 'when destination resolution returns no destination, should clear the DnD interaction destination', () => {
-		const sourceElement = document.createElement( 'tr' );
-		const resolve = jest.fn().mockReturnValue( null );
-		destinationResolverFactoryMock.mockReturnValue( { resolve } );
-		const { target } = mockResolvedTarget();
-		render( <RowDnd tableIdentity="table-1">{ () => <div /> }</RowDnd> );
-		const props = getProviderProps();
-		props.onBeforeDragStart( {
-			operation: { source: { data: target } },
-			preventDefault: jest.fn(),
-		} as unknown as BeforeDragStartEvent );
-		props.onDragStart( { operation: { source: { element: sourceElement } } } );
-		const moveEvent = {
-			operation: { source: { element: sourceElement } },
-			nativeEvent: { clientX: 10, clientY: 50 },
-		} as unknown as DragMoveEvent;
-		props.onDragMove( moveEvent );
+		act( () => {
+			reorderMode.select( 'row', 'table-1' );
+		} );
+		const { providerProps, tableBody, rows } = renderRowDnd();
+		provideRowGeometry( tableBody, rows );
+		startPhysicalDrag( providerProps, rows[ 0 ] );
 
-		expect( resolve ).toHaveBeenCalledWith( moveEvent );
-		expect( interactionMock.updateDestination ).toHaveBeenCalledWith( null );
+		act( () => {
+			providerProps.onDragMove( createMoveEvent( rows[ 0 ], 120, 70 ) );
+		} );
+
+		expect( getRowDndDestinationBoundaryIndex() ).toBeNull();
 	} );
 
 	/**
-	 * 概要:
-	 * - DnD開始時にDestination Resolverを生成できない場合も、最初の移動通知で生成を再試行できることを確認する。
+	 * DnD開始時に移動先解決用の行DOMがなくても、最初の移動通知から解決を開始できることを確認する。
 	 *
 	 * 事前条件:
-	 * - DnD開始時はDestination Resolverを生成できない。
-	 * - 最初のmove時には開始元要素からResolverを生成できる。
+	 * - 開始前のTarget Resolutionは成立している。
+	 * - DnD開始通知には移動元DOMが含まれない。
 	 *
 	 * 操作:
-	 * - 物理DnD開始後に最初の移動通知を受ける。
+	 * - 最初の移動通知で移動元行DOMと現在位置を受け取る。
 	 *
 	 * 期待結果:
-	 * - move時にResolver生成が再試行される。
-	 * - 解決された論理境界がDnD Interactionへ通知される。
+	 * - 現在位置から解決された境界2が移動先として公開される。
 	 */
 	it( 'when destination resolution was unavailable at drag start, should create it from the first drag move', () => {
-		const sourceElement = document.createElement( 'tr' );
-		const resolve = jest.fn().mockReturnValue( 2 );
-		destinationResolverFactoryMock.mockReturnValueOnce( null ).mockReturnValueOnce( { resolve } );
-		const { target } = mockResolvedTarget();
-		render( <RowDnd tableIdentity="table-1">{ () => <div /> }</RowDnd> );
-		const props = getProviderProps();
-		props.onBeforeDragStart( {
+		act( () => {
+			reorderMode.select( 'row', 'table-1' );
+		} );
+		const { providerProps, tableBody, rows } = renderRowDnd();
+		provideRowGeometry( tableBody, rows );
+		const target = {
+			tableIdentity: 'table-1',
+			sourceRowIndex: 0,
+		};
+		providerProps.onBeforeDragStart( {
 			operation: { source: { data: target } },
 			preventDefault: jest.fn(),
 		} as unknown as BeforeDragStartEvent );
-		props.onDragStart( { operation: { source: { element: undefined } } } );
-		const moveEvent = {
-			operation: { source: { element: sourceElement } },
-			nativeEvent: { clientX: 10, clientY: 50 },
-		} as unknown as DragMoveEvent;
-		props.onDragMove( moveEvent );
+		act( () => {
+			providerProps.onDragStart( {
+				operation: { source: { element: undefined } },
+			} as unknown as DragStartEvent );
+		} );
 
-		expect( destinationResolverFactoryMock ).toHaveBeenCalledTimes( 2 );
-		expect( destinationResolverFactoryMock ).toHaveBeenLastCalledWith( sourceElement );
-		expect( resolve ).toHaveBeenCalledWith( moveEvent );
-		expect( interactionMock.updateDestination ).toHaveBeenCalledWith( 2 );
+		act( () => {
+			providerProps.onDragMove( createMoveEvent( rows[ 0 ], 10, 70 ) );
+		} );
+
+		expect( getRowDndDestinationBoundaryIndex() ).toBe( 2 );
 	} );
 
 	/**
-	 * 概要:
-	 * - Session開始前に正常終了した物理DnD試行を意味的な終了処理へ接続しないことを確認する。
+	 * Session開始前に正常終了した物理DnD試行を意味的な終了処理へ接続しないことを確認する。
 	 *
 	 * 事前条件:
-	 * - 開始前解決は成立しているが、物理DnD開始通知はまだ行われていない。
+	 * - 開始前のTarget Resolutionは成立しているが、行DnD Sessionはまだ開始されていない。
 	 *
 	 * 操作:
-	 * - canceledではない終了通知を行う。
+	 * - canceledではない物理DnD終了通知を受ける。
 	 *
 	 * 期待結果:
-	 * - Sessionのcompleteとcancelはどちらも要求されない。
+	 * - 行DnDはidleのままで、Table行順は変化しない。
 	 */
 	it( 'when a physical drag ends normally before the row session starts, should not complete or cancel a session', () => {
-		const { target } = mockResolvedTarget();
-		render( <RowDnd tableIdentity="table-1">{ () => <div /> }</RowDnd> );
-		const props = getProviderProps();
-		props.onBeforeDragStart( {
-			operation: { source: { data: target } },
+		act( () => {
+			reorderMode.select( 'row', 'table-1' );
+		} );
+		const before = getCurrentRowLabels();
+		const { providerProps } = renderRowDnd();
+		providerProps.onBeforeDragStart( {
+			operation: {
+				source: {
+					data: {
+						tableIdentity: 'table-1',
+						sourceRowIndex: 0,
+					},
+				},
+			},
 			preventDefault: jest.fn(),
 		} as unknown as BeforeDragStartEvent );
 
-		props.onDragEnd( { canceled: false } as DragEndEvent );
+		providerProps.onDragEnd( { canceled: false } as DragEndEvent );
 
-		expect( interactionMock.complete ).not.toHaveBeenCalled();
-		expect( interactionMock.cancel ).not.toHaveBeenCalled();
+		expect( getRowDndPhase() ).toBe( 'idle' );
+		expect( getCurrentRowLabels() ).toEqual( before );
 	} );
 
 	/**
-	 * 概要:
-	 * - Session開始前に取消終了した物理DnD試行を意味的な終了処理へ接続しないことを確認する。
+	 * Session開始前に取消終了した物理DnD試行を意味的な終了処理へ接続しないことを確認する。
 	 *
 	 * 事前条件:
-	 * - 開始前解決は成立しているが、物理DnD開始通知はまだ行われていない。
+	 * - 開始前のTarget Resolutionは成立しているが、行DnD Sessionはまだ開始されていない。
 	 *
 	 * 操作:
-	 * - canceledな終了通知を行う。
+	 * - canceledな物理DnD終了通知を受ける。
 	 *
 	 * 期待結果:
-	 * - Sessionのcompleteとcancelはどちらも要求されない。
+	 * - 行DnDはidleのままで、Table行順は変化しない。
 	 */
 	it( 'when a physical drag is canceled before the row session starts, should not complete or cancel a session', () => {
-		const { target } = mockResolvedTarget();
-		render( <RowDnd tableIdentity="table-1">{ () => <div /> }</RowDnd> );
-		const props = getProviderProps();
-		props.onBeforeDragStart( {
-			operation: { source: { data: target } },
+		act( () => {
+			reorderMode.select( 'row', 'table-1' );
+		} );
+		const before = getCurrentRowLabels();
+		const { providerProps } = renderRowDnd();
+		providerProps.onBeforeDragStart( {
+			operation: {
+				source: {
+					data: {
+						tableIdentity: 'table-1',
+						sourceRowIndex: 0,
+					},
+				},
+			},
 			preventDefault: jest.fn(),
 		} as unknown as BeforeDragStartEvent );
 
-		props.onDragEnd( { canceled: true } as DragEndEvent );
+		providerProps.onDragEnd( { canceled: true } as DragEndEvent );
 
-		expect( interactionMock.complete ).not.toHaveBeenCalled();
-		expect( interactionMock.cancel ).not.toHaveBeenCalled();
+		expect( getRowDndPhase() ).toBe( 'idle' );
+		expect( getCurrentRowLabels() ).toEqual( before );
 	} );
 
 	/**
-	 * 概要:
-	 * - Session開始済みの物理DnD正常終了を確定へ接続することを確認する。
+	 * Session開始済みの物理DnD正常終了をProductionの行移動確定へ接続することを確認する。
 	 *
 	 * 事前条件:
-	 * - 物理DnD開始通知によって行DnD Sessionが開始されている。
+	 * - 先頭行から行DnD Sessionが開始され、末尾直後が有効な移動先である。
 	 *
 	 * 操作:
-	 * - canceledではない終了通知を行う。
+	 * - canceledではない物理DnD終了通知を一度受ける。
 	 *
 	 * 期待結果:
-	 * - completeだけが1回要求される。
+	 * - Sessionはidleへ戻る。
+	 * - 先頭行が末尾へ一度だけ移動する。
 	 */
 	it( 'when a started physical row drag ends normally, should complete the session exactly once', () => {
-		const { target } = mockResolvedTarget();
-		render( <RowDnd tableIdentity="table-1">{ () => <div /> }</RowDnd> );
-		const props = getProviderProps();
-		props.onBeforeDragStart( {
-			operation: { source: { data: target } },
-			preventDefault: jest.fn(),
-		} as unknown as BeforeDragStartEvent );
-		props.onDragStart();
+		act( () => {
+			reorderMode.select( 'row', 'table-1' );
+		} );
+		const { providerProps, tableBody, rows } = renderRowDnd();
+		provideRowGeometry( tableBody, rows );
+		startPhysicalDrag( providerProps, rows[ 0 ] );
+		act( () => {
+			providerProps.onDragMove( createMoveEvent( rows[ 0 ], 10, 110 ) );
+		} );
 
-		props.onDragEnd( { canceled: false } as DragEndEvent );
+		act( () => {
+			providerProps.onDragEnd( { canceled: false } as DragEndEvent );
+		} );
 
-		expect( interactionMock.complete ).toHaveBeenCalledTimes( 1 );
-		expect( interactionMock.cancel ).not.toHaveBeenCalled();
+		expect( getRowDndPhase() ).toBe( 'idle' );
+		expect( getCurrentRowLabels() ).toEqual( [ 'row-2-1', 'row-3-1', 'row-1-1' ] );
 	} );
 
 	/**
-	 * 概要:
-	 * - Session開始済みの物理DnD取消終了をSession取消へ接続することを確認する。
+	 * Session開始済みの物理DnD取消終了をProductionのSession取消へ接続することを確認する。
 	 *
 	 * 事前条件:
-	 * - 物理DnD開始通知によって行DnD Sessionが開始されている。
+	 * - 行DnD Sessionが開始されている。
 	 *
 	 * 操作:
-	 * - canceledな終了通知を行う。
+	 * - canceledな物理DnD終了通知を一度受ける。
 	 *
 	 * 期待結果:
-	 * - cancelだけが1回要求される。
+	 * - Sessionはidleへ戻る。
+	 * - Table行順は変更されない。
 	 */
 	it( 'when a started physical row drag is canceled, should cancel the session exactly once', () => {
-		const { target } = mockResolvedTarget();
-		render( <RowDnd tableIdentity="table-1">{ () => <div /> }</RowDnd> );
-		const props = getProviderProps();
-		props.onBeforeDragStart( {
-			operation: { source: { data: target } },
-			preventDefault: jest.fn(),
-		} as unknown as BeforeDragStartEvent );
-		props.onDragStart();
+		act( () => {
+			reorderMode.select( 'row', 'table-1' );
+		} );
+		const before = getCurrentRowLabels();
+		const { providerProps, rows } = renderRowDnd();
+		startPhysicalDrag( providerProps, rows[ 0 ] );
 
-		props.onDragEnd( { canceled: true } as DragEndEvent );
-		expect( interactionMock.cancel ).toHaveBeenCalledTimes( 1 );
-		expect( interactionMock.complete ).not.toHaveBeenCalled();
+		act( () => {
+			providerProps.onDragEnd( { canceled: true } as DragEndEvent );
+		} );
+
+		expect( getRowDndPhase() ).toBe( 'idle' );
+		expect( getCurrentRowLabels() ).toEqual( before );
 	} );
 
 	/**
-	 * 概要:
-	 * - Session開始後の一時状態cleanupが、後続の意味的な終了処理を妨げないことを確認する。
+	 * Session開始後に行Reorder Modeを離脱して一時接続状態が破棄されても、開始済みSessionを正常終了できることを確認する。
 	 *
 	 * 事前条件:
-	 * - 行Reorder Modeで行DnD Sessionが開始されている。
+	 * - 行Reorder Modeで先頭行のSessionが開始され、末尾直後が有効な移動先である。
 	 *
 	 * 操作:
-	 * - mode離脱によるcleanup後に物理DnDを正常終了する。
+	 * - 行Reorder Modeを離脱した後に物理DnDを正常終了する。
 	 *
 	 * 期待結果:
-	 * - 開始済みSessionのcompleteが1回要求される。
+	 * - 開始済みSessionは確定してidleへ戻る。
+	 * - 行移動結果は保持される。
 	 */
 	it( 'when transient state is cleared after the row session starts, should still complete the session on drag end', () => {
 		act( () => {
 			reorderMode.select( 'row', 'table-1' );
 		} );
-		const { target } = mockResolvedTarget();
-		render( <RowDnd tableIdentity="table-1">{ () => <div /> }</RowDnd> );
-		const props = getProviderProps();
-		props.onBeforeDragStart( {
-			operation: { source: { data: target } },
-			preventDefault: jest.fn(),
-		} as unknown as BeforeDragStartEvent );
-		props.onDragStart();
+		const { providerProps, tableBody, rows } = renderRowDnd();
+		provideRowGeometry( tableBody, rows );
+		startPhysicalDrag( providerProps, rows[ 0 ] );
 		act( () => {
+			providerProps.onDragMove( createMoveEvent( rows[ 0 ], 10, 110 ) );
 			reorderMode.select( 'row', 'table-1' );
 		} );
 
-		props.onDragEnd( { canceled: false } as DragEndEvent );
+		act( () => {
+			providerProps.onDragEnd( { canceled: false } as DragEndEvent );
+		} );
 
-		expect( interactionMock.complete ).toHaveBeenCalledTimes( 1 );
+		expect( getRowDndPhase() ).toBe( 'idle' );
+		expect( getCurrentRowLabels() ).toEqual( [ 'row-2-1', 'row-3-1', 'row-1-1' ] );
+		expect( reorderMode.getMode( 'table-1' ) ).toBe( 'edit' );
 	} );
 
 	/**
-	 * 概要:
-	 * - 終了済みの物理DnD試行情報を次の試行へ持ち越さないことを確認する。
+	 * 終了済みの物理DnD試行情報を次の試行へ持ち越さないことを確認する。
 	 *
 	 * 事前条件:
 	 * - 一回目の物理DnDはSessionを開始して正常終了している。
-	 * - 二回目は開始前解決後、Session開始前に終了する。
+	 * - 二回目は開始前解決まで成立し、Sessionはまだ開始されていない。
 	 *
 	 * 操作:
 	 * - 二回目の物理DnDを正常終了する。
 	 *
 	 * 期待結果:
-	 * - 一回目の開始成立情報ではcompleteもcancelも要求されない。
+	 * - 過去の開始成立情報から終了済みSessionを再度確定しない。
+	 * - 行DnDはidleのまま維持される。
 	 */
 	it( 'when a later physical row drag ends before session start, should not reuse the prior attempt state', () => {
-		const { target } = mockResolvedTarget();
-		render( <RowDnd tableIdentity="table-1">{ () => <div /> }</RowDnd> );
-		const props = getProviderProps();
-		props.onBeforeDragStart( {
-			operation: { source: { data: target } },
+		act( () => {
+			reorderMode.select( 'row', 'table-1' );
+		} );
+		const { providerProps, rows } = renderRowDnd();
+		startPhysicalDrag( providerProps, rows[ 0 ] );
+		act( () => {
+			providerProps.onDragEnd( { canceled: false } as DragEndEvent );
+		} );
+
+		providerProps.onBeforeDragStart( {
+			operation: {
+				source: {
+					data: {
+						tableIdentity: 'table-1',
+						sourceRowIndex: 0,
+					},
+				},
+			},
 			preventDefault: jest.fn(),
 		} as unknown as BeforeDragStartEvent );
-		props.onDragStart();
-		props.onDragEnd( { canceled: false } as DragEndEvent );
 
-		jest.clearAllMocks();
-		props.onBeforeDragStart( {
-			operation: { source: { data: target } },
-			preventDefault: jest.fn(),
-		} as unknown as BeforeDragStartEvent );
-		props.onDragEnd( { canceled: false } as DragEndEvent );
-
-		expect( interactionMock.complete ).not.toHaveBeenCalled();
-		expect( interactionMock.cancel ).not.toHaveBeenCalled();
+		expect( () => {
+			providerProps.onDragEnd( { canceled: false } as DragEndEvent );
+		} ).not.toThrow();
+		expect( getRowDndPhase() ).toBe( 'idle' );
 	} );
 } );

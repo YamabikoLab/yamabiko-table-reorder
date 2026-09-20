@@ -2,42 +2,24 @@
  * 行専用DnD Interactionが、候補境界から実際に行順を変更できる移動先だけを公開状態として保持することを確認する。
  */
 
-import { rowReorderMode } from '@/reorder/reorder-mode';
+import { reorderMode } from '@/reorder/reorder-mode';
 
 import {
 	getRowDndDestinationBoundaryIndex,
 	rowDndInteraction,
 } from '@/reorder/row-reorder/responsibilities/dnd-interaction';
-import { rowTableIntegration } from '@/reorder/row-reorder/responsibilities/table-integration';
-import type { RowReorderConstraints } from '@/reorder/row-reorder/responsibilities/table-integration';
+import {
+	createRowReorderTestRow,
+	createRowReorderTestTable,
+	setRowReorderTestTables,
+} from '@/reorder/row-reorder/responsibilities/table-integration.test-utils';
+import { resolveRowReorderTarget } from '@/reorder/row-reorder/responsibilities/target-resolution';
 
-jest.mock( '@/reorder/reorder-mode', () => ( {
-	rowReorderMode: {
-		resolveAfterDnd: jest.fn(),
-	},
+/* Jestで読み込めないBlock Editor Store境界だけを代替し、WordPress DataとTable Integrationは実経路へ接続する。 */
+jest.mock( '@wordpress/block-editor', () => ( {
+	store: jest.requireActual( '@/reorder/row-reorder/responsibilities/table-integration.test-utils' )
+		.rowReorderTestBlockEditorStore,
 } ) );
-
-jest.mock( '@/reorder/row-reorder/responsibilities/table-integration', () => ( {
-	rowTableIntegration: {
-		getConstraints: jest.fn(),
-		applyRowMove: jest.fn(),
-	},
-} ) );
-
-const getConstraintsMock = rowTableIntegration.getConstraints as jest.MockedFunction<
-	typeof rowTableIntegration.getConstraints
->;
-const applyRowMoveMock = rowTableIntegration.applyRowMove as jest.MockedFunction<
-	typeof rowTableIntegration.applyRowMove
->;
-const resolveAfterDndMock = rowReorderMode.resolveAfterDnd as jest.MockedFunction<
-	typeof rowReorderMode.resolveAfterDnd
->;
-
-const constraints: RowReorderConstraints = {
-	rowCount: 5,
-	blockedBoundaries: [],
-};
 
 const target = {
 	tableIdentity: 'table-a',
@@ -46,22 +28,32 @@ const target = {
 
 /** 解決済みTargetからactiveな行DnD Sessionを開始する。 */
 const startSession = (): void => {
-	rowDndInteraction.start( target, constraints );
+	const resolution = resolveRowReorderTarget( target );
+	if ( resolution.status !== 'resolved' ) {
+		throw new Error( 'Row DnD test target must be resolved.' );
+	}
+	rowDndInteraction.start( resolution.target, resolution.initialConstraints );
 };
 
 describe( 'Row DnD destination validity', () => {
 	beforeEach( () => {
 		rowDndInteraction.cancel();
-		jest.clearAllMocks();
-		getConstraintsMock.mockReset();
-		applyRowMoveMock.mockReset();
-		resolveAfterDndMock.mockReset();
-		getConstraintsMock.mockReturnValue( constraints );
-		applyRowMoveMock.mockReturnValue( true );
+		reorderMode.observeTable( '__row-dnd-destination-test-reset__' );
+		reorderMode.select( 'row', 'table-a' );
+		setRowReorderTestTables( [
+			createRowReorderTestTable(
+				'table-a',
+				Array.from( { length: 5 }, ( _value, rowIndex ) =>
+					createRowReorderTestRow( `row-${ rowIndex + 1 }` )
+				)
+			),
+		] );
 	} );
 
 	afterEach( () => {
 		rowDndInteraction.cancel();
+		reorderMode.observeTable( '__row-dnd-destination-test-reset__' );
+		setRowReorderTestTables( [] );
 	} );
 
 	/**
