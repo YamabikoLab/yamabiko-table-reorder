@@ -45,12 +45,15 @@ jest.mock( '@dnd-kit/react', () => ( {
 
 /* Jestで読み込めないBlock Editor Store境界だけを代替し、WordPress DataとRow Reorder責務は実経路へ接続する。 */
 jest.mock( '@wordpress/block-editor', () => ( {
-	store: jest.requireActual(
-		'@/reorder/row-reorder/responsibilities/table-integration.test-utils'
-	).rowReorderTestBlockEditorStore,
+	store: jest.requireActual( '@/reorder/row-reorder/responsibilities/table-integration.test-utils' )
+		.rowReorderTestBlockEditorStore,
 } ) );
 
-/** 現在Tableと対応する最小Table DOMを描画する。 */
+/**
+ * 現在Tableと対応する最小Table DOMを描画する。
+ * @param props
+ * @param props.label
+ */
 const Table = ( props: { label: string } ) => (
 	<table aria-label={ props.label }>
 		<tbody>
@@ -150,13 +153,11 @@ describe( 'Row DnD presentation ownership', () => {
 	 */
 	it( 'when input reports a start rejection, should update only the notice without rerendering the table subtree', () => {
 		reorderMode.select( 'row', 'table-a' );
-		const childrenRender = jest.fn(
-			( onPointerDownCapture ) => (
-				<div onPointerDownCapture={ onPointerDownCapture }>
-					<Table label="table-a" />
-				</div>
-			)
-		);
+		const childrenRender = jest.fn( ( onPointerDownCapture ) => (
+			<div onPointerDownCapture={ onPointerDownCapture }>
+				<Table label="table-a" />
+			</div>
+		) );
 		render(
 			<RowDnd presentationEnabled tableIdentity="table-a">
 				{ childrenRender }

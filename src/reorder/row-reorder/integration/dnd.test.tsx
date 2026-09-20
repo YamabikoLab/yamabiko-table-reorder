@@ -39,9 +39,8 @@ jest.mock( '@wordpress/theme', () => ( {
 
 /* Jestで直接読み込めないBlock Editor Store境界だけを代替し、WordPress DataとRow Reorder責務は実経路へ接続する。 */
 jest.mock( '@wordpress/block-editor', () => ( {
-	store: jest.requireActual(
-		'@/reorder/row-reorder/responsibilities/table-integration.test-utils'
-	).rowReorderTestBlockEditorStore,
+	store: jest.requireActual( '@/reorder/row-reorder/responsibilities/table-integration.test-utils' )
+		.rowReorderTestBlockEditorStore,
 } ) );
 
 /* 物理DnDを実行できないJSDOMでは、dnd-kitのEngine境界だけを決定的なTest Doubleにする。 */
@@ -212,8 +211,8 @@ const firePrimaryMousePointerDown = ( element: Element ): void => {
 /**
  * Production Target Resolutionを通して物理DnD開始を成立させる。
  *
- * @param providerProps DnD Engine境界のcallback群。
- * @param sourceRow     DnD開始元の行DOM。
+ * @param providerProps  DnD Engine境界のcallback群。
+ * @param sourceRow      DnD開始元の行DOM。
  * @param sourceRowIndex tbody内の移動元行位置。
  */
 const startPhysicalDrag = (

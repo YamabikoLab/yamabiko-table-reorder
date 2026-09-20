@@ -24,9 +24,8 @@ import { resolveRowReorderTarget } from '@/reorder/row-reorder/responsibilities/
 
 /* Jestで読み込めないBlock Editor Store境界だけを代替し、WordPress DataとRow Reorder責務は実経路へ接続する。 */
 jest.mock( '@wordpress/block-editor', () => ( {
-	store: jest.requireActual(
-		'@/reorder/row-reorder/responsibilities/table-integration.test-utils'
-	).rowReorderTestBlockEditorStore,
+	store: jest.requireActual( '@/reorder/row-reorder/responsibilities/table-integration.test-utils' )
+		.rowReorderTestBlockEditorStore,
 } ) );
 
 const target = {
@@ -80,9 +79,7 @@ describe( 'Row DnD Interaction lifecycle', () => {
 		setDefaultTable();
 		reorderMode.select( 'row', 'table-a' );
 		terminationNoticeListener = jest.fn();
-		unsubscribeTerminationNotice = subscribeRowDndTerminationNotice(
-			terminationNoticeListener
-		);
+		unsubscribeTerminationNotice = subscribeRowDndTerminationNotice( terminationNoticeListener );
 	} );
 
 	afterEach( () => {

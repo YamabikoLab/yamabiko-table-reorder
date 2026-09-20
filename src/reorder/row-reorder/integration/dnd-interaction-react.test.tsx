@@ -22,9 +22,8 @@ import {
 
 /* Jestで読み込めないBlock Editor Store境界だけを代替し、WordPress DataとDnD Interactionは実経路へ接続する。 */
 jest.mock( '@wordpress/block-editor', () => ( {
-	store: jest.requireActual(
-		'@/reorder/row-reorder/responsibilities/table-integration.test-utils'
-	).rowReorderTestBlockEditorStore,
+	store: jest.requireActual( '@/reorder/row-reorder/responsibilities/table-integration.test-utils' )
+		.rowReorderTestBlockEditorStore,
 } ) );
 
 /** Production Target Resolutionで解決した対象から行DnD Sessionを開始する。 */

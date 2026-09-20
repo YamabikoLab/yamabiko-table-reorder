@@ -17,9 +17,8 @@ import { resolveRowReorderTarget } from '@/reorder/row-reorder/responsibilities/
 
 /* Jestで読み込めないBlock Editor Store境界だけを代替し、WordPress DataとTable Integrationは実経路へ接続する。 */
 jest.mock( '@wordpress/block-editor', () => ( {
-	store: jest.requireActual(
-		'@/reorder/row-reorder/responsibilities/table-integration.test-utils'
-	).rowReorderTestBlockEditorStore,
+	store: jest.requireActual( '@/reorder/row-reorder/responsibilities/table-integration.test-utils' )
+		.rowReorderTestBlockEditorStore,
 } ) );
 
 const target = {
