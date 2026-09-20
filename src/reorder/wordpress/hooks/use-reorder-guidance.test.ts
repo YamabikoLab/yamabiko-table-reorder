@@ -6,46 +6,68 @@
  */
 
 import { act, renderHook, waitFor } from '@testing-library/react';
+import { dispatch, select } from '@wordpress/data';
+import { store as preferencesStore } from '@wordpress/preferences';
 
 import { reorderGuidance } from '@/reorder/reorder-guidance';
 import { reorderMode } from '@/reorder/reorder-mode';
 import { useReorderGuidance } from '@/reorder/wordpress/hooks/use-reorder-guidance';
 
-const mockPreferences = new Map< string, unknown >();
 let mockTouchEnvironment = false;
 
-jest.mock( '@wordpress/preferences', () => ( {
-	store: 'preferences-store',
-} ) );
+/*
+ * @wordpress/preferencesの公開入口はJest変換対象外のuuid ESMを経由するため、この環境では直接読み込めない。
+ * preferences Store境界だけを同じset / get契約の最小Storeへ置き換え、@wordpress/dataの実Store登録・選択・更新経路を検証する。
+ */
+jest.mock( '@wordpress/preferences', () => {
+	const { createReduxStore, register } = jest.requireActual( '@wordpress/data' );
+	const store = createReduxStore( 'test/yamabiko-table-reorder-preferences', {
+		reducer: (
+			state: Record< string, Record< string, unknown > > = {},
+			action: { type: string; scope?: string; key?: string; value?: unknown }
+		) => {
+			if ( action.type !== 'SET_PREFERENCE_VALUE' || ! action.scope || ! action.key ) {
+				return state;
+			}
 
-jest.mock( '@wordpress/data', () => ( {
-	select: ( store: string ) => {
-		if ( store !== 'preferences-store' ) {
-			throw new Error( 'Unexpected store selection.' );
-		}
-		return {
-			get: ( scope: string, key: string ) => mockPreferences.get( `${ scope }:${ key }` ),
-		};
-	},
-	dispatch: ( store: string ) => {
-		if ( store !== 'preferences-store' ) {
-			throw new Error( 'Unexpected store dispatch.' );
-		}
-		return {
-			set: ( scope: string, key: string, value: unknown ) => {
-				mockPreferences.set( `${ scope }:${ key }`, value );
-			},
-		};
-	},
-} ) );
+			return {
+				...state,
+				[ action.scope ]: {
+					...state[ action.scope ],
+					[ action.key ]: action.value,
+				},
+			};
+		},
+		actions: {
+			set: ( scope: string, key: string, value: unknown ) => ( {
+				type: 'SET_PREFERENCE_VALUE',
+				scope,
+				key,
+				value,
+			} ),
+		},
+		selectors: {
+			get: (
+				state: Record< string, Record< string, unknown > >,
+				scope: string,
+				key: string
+			) => state[ scope ]?.[ key ],
+		},
+	} );
+	register( store );
+
+	return { store };
+} );
 
 const RESET_TABLE_IDENTITY = '__reorder-guidance-test-reset__';
-const PC_PREFERENCE = 'yamabiko-table-reorder:initialGuidanceAcknowledgedPc';
-const TOUCH_PREFERENCE = 'yamabiko-table-reorder:initialGuidanceAcknowledgedTouch';
+const PREFERENCE_SCOPE = 'yamabiko-table-reorder';
+const PC_PREFERENCE_KEY = 'initialGuidanceAcknowledgedPc';
+const TOUCH_PREFERENCE_KEY = 'initialGuidanceAcknowledgedTouch';
 
 /** WordPress側の表示済み状態とReorderの一時状態を、各テスト開始前の状態へ戻す。 */
 const resetState = () => {
-	mockPreferences.clear();
+	dispatch( preferencesStore ).set( PREFERENCE_SCOPE, PC_PREFERENCE_KEY, undefined );
+	dispatch( preferencesStore ).set( PREFERENCE_SCOPE, TOUCH_PREFERENCE_KEY, undefined );
 	mockTouchEnvironment = false;
 	reorderGuidance.show( RESET_TABLE_IDENTITY, 'pc' );
 	reorderGuidance.hide( RESET_TABLE_IDENTITY );
@@ -152,7 +174,7 @@ describe( 'Reorder Guidance WordPress integration', () => {
 	 * - 対象Tableの初回案内対象は存在しない。
 	 */
 	it( 'when guidance is already acknowledged for the current environment, should not expose guidance', () => {
-		mockPreferences.set( PC_PREFERENCE, true );
+		dispatch( preferencesStore ).set( PREFERENCE_SCOPE, PC_PREFERENCE_KEY, true );
 		const referenceElement = createReferenceElement();
 		const { result } = renderHook( () => useReorderGuidance( 'table-a', referenceElement ) );
 
@@ -184,8 +206,8 @@ describe( 'Reorder Guidance WordPress integration', () => {
 			result.current.dismiss();
 		} );
 
-		expect( mockPreferences.get( PC_PREFERENCE ) ).toBe( true );
-		expect( mockPreferences.has( TOUCH_PREFERENCE ) ).toBe( false );
+		expect( select( preferencesStore ).get( PREFERENCE_SCOPE, PC_PREFERENCE_KEY ) ).toBe( true );
+		expect( select( preferencesStore ).get( PREFERENCE_SCOPE, TOUCH_PREFERENCE_KEY ) ).toBeUndefined();
 		expect( result.current.guidance ).toBeNull();
 	} );
 
@@ -204,7 +226,7 @@ describe( 'Reorder Guidance WordPress integration', () => {
 	 * - タッチ環境の初回案内対象が公開される。
 	 */
 	it( 'when only PC guidance is acknowledged in a touch environment, should still expose touch guidance', async () => {
-		mockPreferences.set( PC_PREFERENCE, true );
+		dispatch( preferencesStore ).set( PREFERENCE_SCOPE, PC_PREFERENCE_KEY, true );
 		mockTouchEnvironment = true;
 		const referenceElement = createReferenceElement();
 		const { result } = renderHook( () => useReorderGuidance( 'table-a', referenceElement ) );
@@ -242,6 +264,6 @@ describe( 'Reorder Guidance WordPress integration', () => {
 		await waitFor( () => {
 			expect( result.current.guidance ).toBeNull();
 		} );
-		expect( mockPreferences.get( PC_PREFERENCE ) ).toBe( true );
+		expect( select( preferencesStore ).get( PREFERENCE_SCOPE, PC_PREFERENCE_KEY ) ).toBe( true );
 	} );
 } );

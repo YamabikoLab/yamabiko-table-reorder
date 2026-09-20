@@ -6,88 +6,130 @@
  */
 
 import type { BlockEditProps } from '@wordpress/blocks';
+import { store as blockEditorStore } from '@wordpress/block-editor';
+import { dispatch } from '@wordpress/data';
+import { store as preferencesStore } from '@wordpress/preferences';
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 
 import { reorderMode } from '@/reorder/reorder-mode';
+import {
+	clearColumnDndLayoutAvailabilitySnapshot,
+	updateColumnDndLayoutAvailabilitySnapshot,
+} from '@/reorder/wordpress/column-dnd-layout-availability-state';
 import { withReorderMode, withReorderModeBlockListBlock } from '@/reorder/wordpress/integration';
 
-let mockSelectedBlockClientId: string | null = null;
-const mockBlocks = new Map< string, { name: string } >();
 const mockColumnDndPointerDown = jest.fn();
+type MockBlock = {
+	attributes: Record< string, unknown >;
+	clientId: string;
+	innerBlocks: MockBlock[];
+	isValid: boolean;
+	name: string;
+	originalContent: string;
+};
+type MockBlockEditorState = {
+	blocks: Record< string, MockBlock >;
+	selectedBlockClientId: string | null;
+};
 
-jest.mock( '@wordpress/block-editor', () => ( {
-	BlockControls: ( { children }: { children: React.ReactNode } ) => (
-		<div data-testid="block-controls">{ children }</div>
-	),
-	store: Symbol( 'block-editor-store' ),
+/* @wordpress/componentsのuuid / theme ESM境界だけをJestで読める決定的な実装へ置き換える。 */
+jest.mock( 'uuid', () => ( { v4: () => 'reorder-integration-test-uuid' } ) );
+jest.mock( '@wordpress/theme', () => ( {
+	ThemeProvider: ( { children }: { children: React.ReactNode } ) => children,
 } ) );
 
-jest.mock( '@wordpress/preferences', () => ( {
-	store: 'preferences-store',
-} ) );
-
-jest.mock( '@wordpress/data', () => {
-	const actualData = jest.requireActual( '@wordpress/data' );
-	return Object.defineProperties( Object.create( actualData ), {
-		select: {
-			enumerable: true,
-			value: ( store: unknown ) => {
-				if ( store === 'preferences-store' ) {
-					return {
-						get: () => true,
-					};
-				}
+/*
+ * @wordpress/block-editorの公開入口はJest変換対象外のmarked ESMを経由するため、直接読み込めない。
+ * Block Editor Store境界だけを必要な選択契約へ絞り、実@wordpress/dataへ登録して選択・更新経路を通す。
+ * GutenbergのSlotFill配置先もJest DOMに存在しないため、BlockControlsの配置境界だけをDOM化する。
+ */
+jest.mock( '@wordpress/block-editor', () => {
+	const { createReduxStore, register } = jest.requireActual( '@wordpress/data' );
+	const store = createReduxStore( 'test/yamabiko-table-reorder-integration-block-editor', {
+		reducer: (
+			state: MockBlockEditorState = { blocks: {}, selectedBlockClientId: null },
+			action:
+				| { type: 'RESET_BLOCKS'; blocks: MockBlock[] }
+				| { type: 'SELECT_BLOCK'; clientId: string | null }
+		) => {
+			if ( action.type === 'RESET_BLOCKS' ) {
 				return {
-					getBlock: ( clientId: string ) => mockBlocks.get( clientId ) ?? null,
-					getSelectedBlockClientId: () => mockSelectedBlockClientId,
+					...state,
+					blocks: Object.fromEntries( action.blocks.map( ( block ) => [ block.clientId, block ] ) ),
 				};
-			},
+			}
+
+			if ( action.type === 'SELECT_BLOCK' ) {
+				return { ...state, selectedBlockClientId: action.clientId };
+			}
+
+			return state;
 		},
-		dispatch: {
-			enumerable: true,
-			value: () => ( {
-				set: jest.fn(),
-			} ),
+		actions: {
+			clearSelectedBlock: () => ( { type: 'SELECT_BLOCK', clientId: null } ),
+			resetBlocks: ( blocks: MockBlock[] ) => ( { type: 'RESET_BLOCKS', blocks } ),
+			selectBlock: ( clientId: string ) => ( { type: 'SELECT_BLOCK', clientId } ),
+		},
+		selectors: {
+			getBlock: ( state: MockBlockEditorState, clientId: string ) =>
+				state.blocks[ clientId ] ?? null,
+			getSelectedBlockClientId: ( state: MockBlockEditorState ) =>
+				state.selectedBlockClientId,
 		},
 	} );
-} );
+	register( store );
 
-jest.mock( '@wordpress/components', () => {
-	const react = jest.requireActual( 'react' ) as typeof import('react');
 	return {
-		ToolbarButton: react.forwardRef<
-			HTMLButtonElement,
-			{
-				icon: React.ReactNode;
-				isPressed: boolean;
-				label: string;
-				onClick: () => void;
-			}
-		>( ( { icon, isPressed, label, onClick }, ref ) => (
-			<button
-				ref={ ref }
-				aria-label={ label }
-				aria-pressed={ isPressed }
-				onClick={ onClick }
-				type="button"
-			>
-				{ icon }
-				{ label }
-			</button>
-		) ),
-		ToolbarGroup: ( { children }: { children: React.ReactNode } ) => (
-			<div data-testid="toolbar-group">{ children }</div>
+		BlockControls: ( { children }: { children: React.ReactNode } ) => (
+			<div data-testid="block-controls">{ children }</div>
 		),
+		store,
 	};
 } );
 
-jest.mock( '@/reorder/wordpress/column-dnd-layout-availability-state', () => ( {
-	useColumnDndLayoutAvailabilitySnapshot: () => 'available',
-	updateColumnDndLayoutAvailabilitySnapshot: () => undefined,
-	clearColumnDndLayoutAvailabilitySnapshot: () => undefined,
-} ) );
+/* @wordpress/preferencesの公開入口がJest非対応のESMを経由するため、Store境界だけを最小化する。 */
+jest.mock( '@wordpress/preferences', () => {
+	const { createReduxStore, register } = jest.requireActual( '@wordpress/data' );
+	const store = createReduxStore( 'test/yamabiko-table-reorder-integration-preferences', {
+		reducer: (
+			state: Record< string, Record< string, unknown > > = {},
+			action: { type: string; scope?: string; key?: string; value?: unknown }
+		) => {
+			if ( action.type !== 'SET_PREFERENCE_VALUE' || ! action.scope || ! action.key ) {
+				return state;
+			}
 
+			return {
+				...state,
+				[ action.scope ]: { ...state[ action.scope ], [ action.key ]: action.value },
+			};
+		},
+		actions: {
+			set: ( scope: string, key: string, value: unknown ) => ( {
+				type: 'SET_PREFERENCE_VALUE',
+				scope,
+				key,
+				value,
+			} ),
+		},
+		selectors: {
+			get: (
+				state: Record< string, Record< string, unknown > >,
+				scope: string,
+				key: string
+			) => state[ scope ]?.[ key ],
+		},
+	} );
+	register( store );
+
+	return { store };
+} );
+
+/*
+ * JSDOMには物理DnDとlayoutがないため、その入力境界だけを固定する。
+ * Reorder Mode、WordPress Store、Toolbar、messages、guidanceは実実装を通す。
+ */
 jest.mock( '@/reorder/column-reorder/responsibilities/layout-availability', () => ( {
 	resolveColumnDndLayoutAvailability: () => 'available',
 } ) );
@@ -124,11 +166,17 @@ type ReactActGlobal = typeof globalThis & {
 };
 
 const setSelectedBlock = ( clientId: string | null, name?: string ) => {
-	mockSelectedBlockClientId = clientId;
-	mockBlocks.clear();
+	const blockEditor = dispatch( blockEditorStore );
+	blockEditor.resetBlocks(
+		clientId && name
+			? [ { attributes: {}, clientId, innerBlocks: [], isValid: true, name, originalContent: '' } ]
+			: []
+	);
 
-	if ( clientId && name ) {
-		mockBlocks.set( clientId, { name } );
+	if ( clientId ) {
+		blockEditor.selectBlock( clientId );
+	} else {
+		blockEditor.clearSelectedBlock();
 	}
 };
 
@@ -166,6 +214,12 @@ describe( 'Reorder Mode WordPress integration', () => {
 
 	beforeEach( () => {
 		setSelectedBlock( null );
+		updateColumnDndLayoutAvailabilitySnapshot( 'table-a', 'available' );
+		dispatch( preferencesStore ).set(
+			'yamabiko-table-reorder',
+			'initialGuidanceAcknowledgedPc',
+			true
+		);
 		mockColumnDndPointerDown.mockClear();
 		reorderMode.notifyTableInactive( 'table-a' );
 		container = document.createElement( 'div' );
@@ -174,11 +228,12 @@ describe( 'Reorder Mode WordPress integration', () => {
 	} );
 
 	afterEach( () => {
-		setSelectedBlock( null );
 		act( () => {
 			reorderMode.notifyTableInactive( 'table-a' );
 			root.unmount();
+			clearColumnDndLayoutAvailabilitySnapshot( 'table-a' );
 		} );
+		setSelectedBlock( null );
 		container.remove();
 	} );
 
