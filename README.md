@@ -80,9 +80,9 @@ Try Row Reorder, Column Reorder, Reorder Form, Touch interaction, and merged-cel
 
 ## Installation
 
-Install Yamabiko Table Reorder directly from the [WordPress Plugin Directory](https://wordpress.org/plugins/yamabiko-table-reorder/), or in WordPress go to **Plugins → Add New Plugin**, search for **Yamabiko Table Reorder**, and select **Install Now**.
+Install Yamabiko Table Reorder directly from the [WordPress Plugin Directory](https://wordpress.org/plugins/yamabiko-table-reorder/), or in WordPress go to **Plugins → Add Plugin**, search for **Yamabiko Table Reorder**, and select **Install Now**.
 
-For manual installation, download the latest distribution ZIP from [GitHub Releases](https://github.com/YamabikoLab/yamabiko-table-reorder/releases), then install it from **Plugins → Add New Plugin → Upload Plugin**.
+For manual installation, download the latest distribution ZIP from [GitHub Releases](https://github.com/YamabikoLab/yamabiko-table-reorder/releases), then install it from **Plugins → Add Plugin → Upload Plugin**.
 
 ## FAQ
 
