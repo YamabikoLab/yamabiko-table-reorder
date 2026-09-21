@@ -11,7 +11,16 @@ import { render } from '@testing-library/react';
 import type { PointerEvent as ReactPointerEvent } from 'react';
 
 import { ColumnInput, type ColumnDndPointerDownHandler } from './input';
-import { resolveColumnReorderTarget } from './target-resolution';
+import {
+	createColumnReorderTestRow,
+	createColumnReorderTestTable,
+	setColumnReorderTestTables,
+} from './table-integration.test-utils';
+
+/* Jestで読み込めないBlock Editor Store境界だけを代替し、WordPress DataとTarget Resolutionは実経路へ接続する。 */
+jest.mock( '@wordpress/block-editor', () => ( {
+	store: jest.requireActual( './table-integration.test-utils' ).columnReorderTestBlockEditorStore,
+} ) );
 
 jest.mock( '@dnd-kit/dom', () => ( {
 	Draggable: jest.fn(),
@@ -28,10 +37,6 @@ jest.mock( '@dnd-kit/react', () => ( {
 	useDragDropManager: jest.fn(),
 } ) );
 
-jest.mock( './target-resolution', () => ( {
-	resolveColumnReorderTarget: jest.fn(),
-} ) );
-
 const draggableConstructorMock = Draggable as unknown as jest.Mock;
 const distanceConstraintMock = PointerActivationConstraints.Distance as unknown as jest.Mock;
 const delayConstraintMock = PointerActivationConstraints.Delay as unknown as jest.Mock;
@@ -40,9 +45,6 @@ const pointerSensorConfigureMock = PointerSensor.configure as jest.MockedFunctio
 >;
 const useDragDropManagerMock = useDragDropManager as jest.MockedFunction<
 	typeof useDragDropManager
->;
-const resolveColumnReorderTargetMock = resolveColumnReorderTarget as jest.MockedFunction<
-	typeof resolveColumnReorderTarget
 >;
 
 /**
@@ -139,11 +141,13 @@ describe( 'Column DnD input boundary', () => {
 		distanceConstraintMock.mockImplementation( ( options ) => options );
 		delayConstraintMock.mockImplementation( ( options ) => options );
 		useDragDropManagerMock.mockReturnValue( createManager() );
-		resolveColumnReorderTargetMock.mockImplementation( ( currentTarget ) => ( {
-			status: 'resolved',
-			target: currentTarget,
-			initialConstraints: { columnCount: 3, blockedBoundaries: [] },
-		} ) );
+		setColumnReorderTestTables( [
+			createColumnReorderTestTable( 'table-1', [ createColumnReorderTestRow( 'row-1', 3 ) ] ),
+		] );
+	} );
+
+	afterEach( () => {
+		setColumnReorderTestTables( [] );
 	} );
 
 	/**
@@ -167,10 +171,6 @@ describe( 'Column DnD input boundary', () => {
 
 		pointerDownHandler( createPointerEvent( { target, currentTarget } ) );
 		const firstDraggable = activeDraggable.current;
-		expect( resolveColumnReorderTargetMock ).toHaveBeenNthCalledWith( 1, {
-			tableIdentity: 'table-1',
-			sourceColumnIndex: 1,
-		} );
 		expect( draggableConstructorMock ).toHaveBeenNthCalledWith(
 			1,
 			expect.objectContaining( {
@@ -182,10 +182,14 @@ describe( 'Column DnD input boundary', () => {
 
 		pointerDownHandler( createPointerEvent( { target: next, currentTarget } ) );
 		expect( firstDraggable?.destroy ).toHaveBeenCalledTimes( 1 );
-		expect( resolveColumnReorderTargetMock ).toHaveBeenNthCalledWith( 2, {
-			tableIdentity: 'table-1',
-			sourceColumnIndex: 2,
-		} );
+		expect( draggableConstructorMock ).toHaveBeenNthCalledWith(
+			2,
+			expect.objectContaining( {
+				element: next,
+				data: { tableIdentity: 'table-1', sourceColumnIndex: 2 },
+			} ),
+			expect.anything()
+		);
 	} );
 
 	/**
@@ -206,10 +210,13 @@ describe( 'Column DnD input boundary', () => {
 		const { pointerDownHandler } = renderColumnInput();
 		pointerDownHandler( createPointerEvent( { target, currentTarget } ) );
 
-		expect( resolveColumnReorderTargetMock ).toHaveBeenCalledWith( {
-			tableIdentity: 'table-1',
-			sourceColumnIndex: 2,
-		} );
+		expect( draggableConstructorMock ).toHaveBeenCalledWith(
+			expect.objectContaining( {
+				element: target,
+				data: { tableIdentity: 'table-1', sourceColumnIndex: 2 },
+			} ),
+			expect.anything()
+		);
 	} );
 
 	/**
@@ -226,16 +233,11 @@ describe( 'Column DnD input boundary', () => {
 	 * - Draggableは登録されない。
 	 */
 	it( 'when first-stage target resolution rejects the column, should not register a draggable', () => {
-		resolveColumnReorderTargetMock.mockReturnValue( {
-			status: 'rejected',
-			blockingMergedRange: {
-				section: 'body',
-				rowStart: 0,
-				rowEnd: 0,
-				columnStart: 0,
-				columnEnd: 1,
-			},
-		} );
+		setColumnReorderTestTables( [
+			createColumnReorderTestTable( 'table-1', [
+				{ cells: [ { content: 'merged', colspan: 2 }, {} ] },
+			] ),
+		] );
 		const { currentTarget, target } = createTableTarget();
 		const { pointerDownHandler } = renderColumnInput();
 		pointerDownHandler( createPointerEvent( { target, currentTarget } ) );
@@ -270,7 +272,7 @@ describe( 'Column DnD input boundary', () => {
 
 		expect( currentDraggable?.destroy ).not.toHaveBeenCalled();
 		expect( activeDraggable.current ).toBe( currentDraggable );
-		expect( resolveColumnReorderTargetMock ).toHaveBeenCalledTimes( 1 );
+		expect( draggableConstructorMock ).toHaveBeenCalledTimes( 1 );
 	} );
 
 	/**
@@ -294,11 +296,12 @@ describe( 'Column DnD input boundary', () => {
 		const event = createPointerEvent( { target, currentTarget, pointerType: 'touch' } );
 		pointerDownHandler( event );
 
-		expect( resolveColumnReorderTargetMock ).toHaveBeenCalledWith( {
-			tableIdentity: 'table-1',
-			sourceColumnIndex: 1,
-		} );
-		expect( draggableConstructorMock ).toHaveBeenCalledTimes( 1 );
+		expect( draggableConstructorMock ).toHaveBeenCalledWith(
+			expect.objectContaining( {
+				data: { tableIdentity: 'table-1', sourceColumnIndex: 1 },
+			} ),
+			expect.anything()
+		);
 		expect( event.preventDefault ).not.toHaveBeenCalled();
 		const activationConstraints =
 			pointerSensorConfigureMock.mock.calls[ 0 ]?.[ 0 ]?.activationConstraints;
@@ -353,22 +356,16 @@ describe( 'Column DnD input boundary', () => {
 	 * - Draggableは登録されず、pointerdown時点のブラウザー既定動作も抑止しない。
 	 */
 	it( 'when touch target resolution rejects the column, should not register a draggable or prevent the initial browser action', () => {
-		resolveColumnReorderTargetMock.mockReturnValue( {
-			status: 'rejected',
-			blockingMergedRange: {
-				section: 'body',
-				rowStart: 0,
-				rowEnd: 0,
-				columnStart: 0,
-				columnEnd: 1,
-			},
-		} );
+		setColumnReorderTestTables( [
+			createColumnReorderTestTable( 'table-1', [
+				{ cells: [ { content: 'merged', colspan: 2 }, {} ] },
+			] ),
+		] );
 		const { currentTarget, target } = createTableTarget();
 		const { pointerDownHandler } = renderColumnInput();
 		const event = createPointerEvent( { target, currentTarget, pointerType: 'touch' } );
 		pointerDownHandler( event );
 
-		expect( resolveColumnReorderTargetMock ).toHaveBeenCalledTimes( 1 );
 		expect( draggableConstructorMock ).not.toHaveBeenCalled();
 		expect( event.preventDefault ).not.toHaveBeenCalled();
 	} );
@@ -384,7 +381,7 @@ describe( 'Column DnD input boundary', () => {
 	 * - 入れ子Tableのセルへ主タッチ入力を行う。
 	 *
 	 * 期待結果:
-	 * - 第一段階解決もDraggable登録も行われない。
+	 * - Draggable登録は行われない。
 	 */
 	it( 'when touch input targets a nested table cell, should not treat it as a column of the current table', () => {
 		const currentTarget = document.createElement( 'div' );
@@ -402,7 +399,6 @@ describe( 'Column DnD input boundary', () => {
 			createPointerEvent( { target: nested, currentTarget, pointerType: 'touch' } )
 		);
 
-		expect( resolveColumnReorderTargetMock ).not.toHaveBeenCalled();
 		expect( draggableConstructorMock ).not.toHaveBeenCalled();
 	} );
 

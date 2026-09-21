@@ -1,7 +1,7 @@
 /**
- * Column DnD Engine Integrationが、YTR側の水平自動スクロールをDnD Sessionへ正しく接続することを確認する。
+ * Column DnD Engine Integrationが、Production列DnD責務を通して水平自動スクロールをSessionへ接続することを確認する。
  *
- * 水平スクロールそのものの判定や進行は専用責務のテストへ委ね、この境界ではスクロール後の移動先再解決とDnD終了時の破棄だけを検証する。
+ * JSDOMにないscroll・RAFと物理DnD Engineだけを環境境界として代替する。
  */
 
 import {
@@ -11,205 +11,260 @@ import {
 	type DragStartEvent,
 } from '@dnd-kit/dom';
 import { DragDropProvider } from '@dnd-kit/react';
-import { render } from '@testing-library/react';
+import { act, render } from '@testing-library/react';
 import type { ReactNode } from 'react';
 
-import { createColumnDestinationResolver } from '@/reorder/column-reorder/integration/destination-resolution';
 import {
-	createColumnHorizontalAutoScroll,
-	type ColumnPointerPosition,
-} from '@/reorder/column-reorder/integration/horizontal-auto-scroll';
-import { columnDndInteraction } from '@/reorder/column-reorder/responsibilities/dnd-interaction';
-import { resolveColumnReorderTarget } from '@/reorder/column-reorder/responsibilities/target-resolution';
+	columnDndInteraction,
+	getColumnDndDestinationBoundaryIndex,
+	getColumnDndPhase,
+} from '@/reorder/column-reorder/responsibilities/dnd-interaction';
+import {
+	createColumnReorderTestRow,
+	createColumnReorderTestTable,
+	getColumnReorderTestTable,
+	setColumnReorderTestTables,
+} from '@/reorder/column-reorder/responsibilities/table-integration.test-utils';
+import { reorderMode } from '@/reorder/reorder-mode';
+import type { ColumnPointerPosition } from './horizontal-auto-scroll';
 import { ColumnDnd } from './dnd';
 
-jest.mock( '@dnd-kit/dom', () => ( {
-	AutoScroller: { name: 'auto-scroller' },
-	Cursor: { name: 'cursor' },
-	PreventSelection: { name: 'prevent-selection' },
-	Feedback: { name: 'feedback' },
-	Draggable: jest.fn(),
+jest.mock( 'uuid', () => ( { v4: () => 'column-auto-scroll-test-uuid' } ) );
+jest.mock( '@wordpress/theme', () => ( {
+	ThemeProvider: ( { children }: { children: ReactNode } ) => children,
 } ) );
 
+/* Jestで読み込めないBlock Editor Store境界だけを代替し、WordPress DataとColumn Reorder責務は実経路へ接続する。 */
+jest.mock( '@wordpress/block-editor', () => ( {
+	store: jest.requireActual(
+		'@/reorder/column-reorder/responsibilities/table-integration.test-utils'
+	).columnReorderTestBlockEditorStore,
+} ) );
+
+/* 物理DnDを実行できないJSDOMでは、dnd-kitのEngine境界だけを決定的なTest Doubleにする。 */
+jest.mock( '@dnd-kit/dom', () => ( {
+	AutoScroller: {},
+	Cursor: {},
+	PreventSelection: {},
+	Feedback: {},
+	Draggable: jest.fn(),
+	PointerSensor: { configure: jest.fn() },
+	PointerActivationConstraints: { Distance: jest.fn(), Delay: jest.fn() },
+} ) );
+jest.mock( '@dnd-kit/dom/utilities', () => ( { getFrameTransform: jest.fn() } ) );
 jest.mock( '@dnd-kit/react', () => ( {
 	DragDropProvider: jest.fn( ( props: { children: ReactNode } ) => props.children ),
+	useDragDropManager: () => ( { dragOperation: { status: { idle: true } } } ),
+	useDragDropMonitor: () => undefined,
 } ) );
 
-jest.mock( '@/reorder/column-reorder/integration/destination-resolution', () => ( {
-	createColumnDestinationResolver: jest.fn(),
-} ) );
-
-jest.mock( '@/reorder/column-reorder/integration/horizontal-auto-scroll', () => ( {
-	createColumnHorizontalAutoScroll: jest.fn(),
-} ) );
-
-jest.mock( '@/reorder/column-reorder/responsibilities/dnd-interaction', () => ( {
-	columnDndInteraction: {
-		start: jest.fn(),
-		updateDestination: jest.fn(),
-		complete: jest.fn(),
-		cancel: jest.fn(),
+let mockOnAutoScroll: ( position: ColumnPointerPosition ) => void;
+const mockAutoScrollStart = jest.fn();
+const mockAutoScrollUpdatePointer = jest.fn();
+const mockAutoScrollStop = jest.fn();
+jest.mock( './horizontal-auto-scroll', () => ( {
+	createColumnHorizontalAutoScroll: ( onScroll: ( position: ColumnPointerPosition ) => void ) => {
+		mockOnAutoScroll = onScroll;
+		return {
+			start: mockAutoScrollStart,
+			updatePointer: mockAutoScrollUpdatePointer,
+			stop: mockAutoScrollStop,
+		};
 	},
-} ) );
-
-jest.mock( '@/reorder/column-reorder/responsibilities/input', () => ( {
-	ColumnInput: ( props: { children: ( handler: () => void ) => ReactNode } ) =>
-		props.children( () => undefined ),
-} ) );
-
-jest.mock( '@/reorder/column-reorder/responsibilities/layout-availability', () => ( {
-	resolveColumnDndLayoutAvailability: () => 'available',
-} ) );
-
-jest.mock( '@/reorder/column-reorder/responsibilities/presentation/column-presentation', () => ( {
-	ColumnPresentation: () => null,
-} ) );
-
-jest.mock( '@/reorder/column-reorder/responsibilities/target-resolution', () => ( {
-	resolveColumnReorderTarget: jest.fn(),
 } ) );
 
 const dragDropProviderMock = DragDropProvider as unknown as jest.Mock;
-const destinationResolverFactoryMock = createColumnDestinationResolver as jest.MockedFunction<
-	typeof createColumnDestinationResolver
->;
-const autoScrollFactoryMock = createColumnHorizontalAutoScroll as jest.MockedFunction<
-	typeof createColumnHorizontalAutoScroll
->;
-const resolveColumnReorderTargetMock = resolveColumnReorderTarget as jest.MockedFunction<
-	typeof resolveColumnReorderTarget
->;
-const dndInteractionMock = columnDndInteraction as jest.Mocked< typeof columnDndInteraction >;
 
 /** 現在のDragDropProviderへ渡された物理DnD Lifecycle処理を取得する。 */
 const getProviderProps = () => {
-	const call = dragDropProviderMock.mock.calls[ dragDropProviderMock.mock.calls.length - 1 ];
-	const props = call?.[ 0 ];
-
+	const props = dragDropProviderMock.mock.calls.at( -1 )?.[ 0 ];
 	if ( ! props ) {
 		throw new Error( 'ColumnDnd did not render DragDropProvider.' );
 	}
+	return props;
+};
 
-	return props as {
-		plugins: ( defaults: unknown[] ) => unknown[];
-		onBeforeDragStart: ( event: BeforeDragStartEvent ) => void;
-		onDragStart: ( event?: DragStartEvent ) => void;
-		onDragMove: ( event: DragMoveEvent ) => void;
-		onDragEnd: ( event: DragEndEvent ) => void;
+/** 4列TableとColumn DnD境界を描画する。 */
+const renderColumnDnd = () => {
+	const view = render(
+		<ColumnDnd tableIdentity="table-1">
+			{ () => (
+				<table aria-label="Column auto scroll test table">
+					<tbody>
+						<tr>
+							<td>column-1</td>
+							<td>column-2</td>
+							<td>column-3</td>
+							<td>column-4</td>
+						</tr>
+					</tbody>
+				</table>
+			) }
+		</ColumnDnd>
+	);
+	const table = view.getByRole( 'table', {
+		name: 'Column auto scroll test table',
+	} ) as HTMLTableElement;
+	return { table, cells: Array.from( table.rows[ 0 ]?.cells ?? [] ), provider: getProviderProps() };
+};
+
+/**
+ * JSDOMにない列配置を提供し、Tableの現在画面位置だけを後から変更できるようにする。
+ *
+ * @param table 対象Table。
+ * @param cells Table内の4セル。
+ */
+const provideColumnGeometry = (
+	table: HTMLTableElement,
+	cells: HTMLTableCellElement[]
+): { setTableLeft: ( left: number ) => void } => {
+	let tableLeft = 0;
+	jest.spyOn( table, 'getBoundingClientRect' ).mockImplementation( () => ( {
+		top: 0,
+		bottom: 40,
+		left: tableLeft,
+		right: tableLeft + 400,
+		width: 400,
+		height: 40,
+		x: tableLeft,
+		y: 0,
+		toJSON: () => ( {} ),
+	} ) );
+	cells.forEach( ( cell, index ) => {
+		jest.spyOn( cell, 'getBoundingClientRect' ).mockReturnValue( {
+			top: 0,
+			bottom: 40,
+			left: index * 100,
+			right: ( index + 1 ) * 100,
+			width: 100,
+			height: 40,
+			x: index * 100,
+			y: 0,
+			toJSON: () => ( {} ),
+		} );
+	} );
+	return {
+		setTableLeft: ( left ) => {
+			tableLeft = left;
+		},
 	};
 };
 
-const target = {
-	tableIdentity: 'table-1',
-	sourceColumnIndex: 1,
+/**
+ * Production Target ResolutionとLayout Availabilityを通して列DnD Sessionを開始する。
+ *
+ * @param provider   DnD Engine境界のcallback群。
+ * @param sourceCell DnD開始元のセルDOM。
+ */
+const startPhysicalDrag = (
+	provider: ReturnType< typeof getProviderProps >,
+	sourceCell: HTMLTableCellElement
+): void => {
+	provider.onBeforeDragStart( {
+		operation: {
+			source: {
+				data: { tableIdentity: 'table-1', sourceColumnIndex: 0 },
+				element: sourceCell,
+			},
+		},
+		preventDefault: jest.fn(),
+	} as unknown as BeforeDragStartEvent );
+	act( () => {
+		provider.onDragStart( {
+			operation: { source: { element: sourceCell } },
+		} as unknown as DragStartEvent );
+	} );
 };
 
-const resolvedTarget = {
-	status: 'resolved' as const,
-	target,
-	initialConstraints: {
-		columnCount: 4,
-		blockedBoundaries: [],
-	},
+/**
+ * 現在のポインター位置を持つ物理DnD移動通知を作成する。
+ *
+ * @param sourceCell DnD開始元のセルDOM。
+ */
+const createMoveEvent = ( sourceCell: HTMLTableCellElement ): DragMoveEvent =>
+	( {
+		operation: {
+			source: { element: sourceCell },
+			position: { initial: { x: 0, y: 0 }, current: { x: 0, y: 0 } },
+		},
+		nativeEvent: { clientX: 260, clientY: 20 },
+	} ) as unknown as DragMoveEvent;
+
+/** 現在Tableの先頭行にあるセル識別値を表示順で取得する。 */
+const getCurrentColumnLabels = (): unknown[] => {
+	const table = getColumnReorderTestTable( 'table-1' );
+	const body = table?.attributes.body as
+		| Array< { cells: Array< { content?: unknown } > } >
+		| undefined;
+	return body?.[ 0 ]?.cells.map( ( cell ) => cell.content ) ?? [];
 };
 
 describe( 'Column DnD horizontal auto scroll integration', () => {
-	let onAutoScroll: ( position: ColumnPointerPosition ) => void;
-	const autoScrollStart = jest.fn();
-	const autoScrollUpdatePointer = jest.fn();
-	const autoScrollStop = jest.fn();
-
 	beforeEach( () => {
+		columnDndInteraction.cancel();
+		reorderMode.observeTable( '__column-auto-scroll-test-reset__' );
+		setColumnReorderTestTables( [
+			createColumnReorderTestTable( 'table-1', [ createColumnReorderTestRow( 'row-1', 4 ) ] ),
+		] );
+		reorderMode.select( 'column', 'table-1' );
 		jest.clearAllMocks();
-		resolveColumnReorderTargetMock.mockReturnValue( resolvedTarget );
-		autoScrollFactoryMock.mockImplementation( ( onScroll ) => {
-			onAutoScroll = onScroll;
-			return {
-				start: autoScrollStart,
-				updatePointer: autoScrollUpdatePointer,
-				stop: autoScrollStop,
-			};
-		} );
+	} );
+
+	afterEach( () => {
+		columnDndInteraction.cancel();
+		reorderMode.observeTable( '__column-auto-scroll-test-reset__' );
+		setColumnReorderTestTables( [] );
+		jest.restoreAllMocks();
 	} );
 
 	/**
-	 * 概要:
-	 * - 水平自動スクロールでTableの画面位置だけが変化した場合も、現在の移動先を更新できることを確認する。
-	 *
-	 * 事前条件:
-	 * - Column DnD Sessionが開始している。
-	 * - 最新のポインター移動からDestination Resolutionが利用できる。
-	 *
-	 * 操作:
-	 * - 通常のmove通知後、ポインターを動かさずに水平自動スクロール完了を通知する。
+	 * 水平自動スクロールでTableの画面位置だけが変化した場合も、現在の移動先を更新できることを確認する。
 	 *
 	 * 期待結果:
-	 * - 最新の物理入力位置を使ってDestination Resolutionが再実行される。
-	 * - 再解決した論理列間境界がDnD Interactionへ反映される。
+	 * - 最新の物理入力位置をProduction Destination Resolutionで再解決し、境界4へ更新する。
 	 */
 	it( 'when horizontal auto scroll moves the table without a new pointer move, should resolve and update the destination again', () => {
-		const resolver = { resolve: jest.fn().mockReturnValue( 2 ) };
-		destinationResolverFactoryMock.mockReturnValue( resolver );
-		render( <ColumnDnd tableIdentity="table-1">{ () => <div /> }</ColumnDnd> );
-		const provider = getProviderProps();
-		const sourceElement = document.createElement( 'td' );
-		const moveEvent = {
-			nativeEvent: { clientX: 190, clientY: 50 },
-			operation: { source: { element: sourceElement } },
-		} as unknown as DragMoveEvent;
+		const { table, cells, provider } = renderColumnDnd();
+		const geometry = provideColumnGeometry( table, cells );
+		startPhysicalDrag( provider, cells[ 0 ] );
+		const moveEvent = createMoveEvent( cells[ 0 ] );
+		act( () => {
+			provider.onDragMove( moveEvent );
+		} );
+		expect( getColumnDndDestinationBoundaryIndex() ).toBe( 3 );
 
-		provider.onBeforeDragStart( {
-			operation: { source: { data: target } },
-			preventDefault: jest.fn(),
-		} as unknown as BeforeDragStartEvent );
-		provider.onDragStart( {
-			operation: { source: { element: sourceElement } },
-		} as unknown as DragStartEvent );
-		provider.onDragMove( moveEvent );
-		resolver.resolve.mockClear();
-		dndInteractionMock.updateDestination.mockClear();
+		geometry.setTableLeft( -100 );
+		act( () => {
+			mockOnAutoScroll( { clientX: 260, clientY: 20 } );
+		} );
 
-		onAutoScroll( { clientX: 190, clientY: 50 } );
-
-		expect( resolver.resolve ).toHaveBeenCalledTimes( 1 );
-		expect( resolver.resolve ).toHaveBeenCalledWith( moveEvent );
-		expect( dndInteractionMock.updateDestination ).toHaveBeenCalledWith( 2 );
+		expect( getColumnDndDestinationBoundaryIndex() ).toBe( 4 );
 	} );
 
 	/**
-	 * 概要:
-	 * - 物理DnD終了時に水平自動スクロールのSession状態を破棄することを確認する。
-	 *
-	 * 事前条件:
-	 * - Column DnD Session開始時に水平自動スクロールが対象Tableへ接続されている。
-	 *
-	 * 操作:
-	 * - 物理DnDを正常終了する。
-	 *
-	 * 期待結果:
-	 * - 水平自動スクロールの停止が要求される。
-	 * - Column DnD Sessionは通常どおりcompleteされる。
+	 * 物理DnD終了時に水平自動スクロールを停止してからProduction Sessionを確定することを確認する。
 	 */
 	it( 'when the physical column drag ends, should stop horizontal auto scroll before completing the session', () => {
-		destinationResolverFactoryMock.mockReturnValue( {
-			resolve: jest.fn().mockReturnValue( 2 ),
+		const stoppedPhases: string[] = [];
+		mockAutoScrollStop.mockImplementation( () => {
+			stoppedPhases.push( getColumnDndPhase() );
 		} );
-		render( <ColumnDnd tableIdentity="table-1">{ () => <div /> }</ColumnDnd> );
-		const provider = getProviderProps();
-		const sourceElement = document.createElement( 'td' );
+		const { table, cells, provider } = renderColumnDnd();
+		provideColumnGeometry( table, cells );
+		startPhysicalDrag( provider, cells[ 0 ] );
+		act( () => {
+			provider.onDragMove( {
+				...createMoveEvent( cells[ 0 ] ),
+				nativeEvent: { clientX: 390, clientY: 20 },
+			} as unknown as DragMoveEvent );
+		} );
 
-		provider.onBeforeDragStart( {
-			operation: { source: { data: target } },
-			preventDefault: jest.fn(),
-		} as unknown as BeforeDragStartEvent );
-		provider.onDragStart( {
-			operation: { source: { element: sourceElement } },
-		} as unknown as DragStartEvent );
-		autoScrollStop.mockClear();
+		act( () => {
+			provider.onDragEnd( { canceled: false } as DragEndEvent );
+		} );
 
-		provider.onDragEnd( { canceled: false } as unknown as DragEndEvent );
-
-		expect( autoScrollStop ).toHaveBeenCalledTimes( 1 );
-		expect( dndInteractionMock.complete ).toHaveBeenCalledTimes( 1 );
+		expect( stoppedPhases ).toContain( 'active' );
+		expect( getColumnDndPhase() ).toBe( 'idle' );
+		expect( getCurrentColumnLabels() ).toEqual( [ 'row-1-2', 'row-1-3', 'row-1-4', 'row-1-1' ] );
 	} );
 } );
