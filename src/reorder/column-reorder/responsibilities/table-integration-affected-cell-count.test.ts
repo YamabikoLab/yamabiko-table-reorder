@@ -3,26 +3,44 @@
  */
 
 import { columnTableIntegration } from './table-integration';
+import {
+	createColumnReorderTestTable,
+	setColumnReorderTestTables,
+	type ColumnReorderTestTableRow,
+} from './table-integration.test-utils';
 
+/* @wordpress/block-editorはJest非対応のESMを経由するため、Store境界だけを実@wordpress/dataへ登録した最小実装へ置き換える。 */
 jest.mock( '@wordpress/block-editor', () => ( {
-	store: Symbol( 'block-editor-store' ),
+	store: jest.requireActual( './table-integration.test-utils' ).columnReorderTestBlockEditorStore,
 } ) );
 
-jest.mock( '@wordpress/data', () => {
-	const actualData = jest.requireActual( '@wordpress/data' );
-	return Object.defineProperties( Object.create( actualData ), {
-		dispatch: { enumerable: true, value: jest.fn() },
-		select: { enumerable: true, value: jest.fn() },
-	} );
-} );
+type TestTableAttributes = {
+	body: ColumnReorderTestTableRow[];
+	head?: ColumnReorderTestTableRow[];
+	foot?: ColumnReorderTestTableRow[];
+};
 
-const { select: selectMock } = jest.requireMock( '@wordpress/data' ) as {
-	select: jest.Mock;
+/**
+ * 指定したTable sectionを持つ現在Tableを登録する。
+ *
+ * @param attributes 現在Tableへ登録するsection属性。
+ */
+const setCurrentTable = ( attributes: TestTableAttributes ): void => {
+	setColumnReorderTestTables( [
+		{
+			...createColumnReorderTestTable( 'table-a', attributes.body, attributes.head ),
+			attributes,
+		},
+	] );
 };
 
 describe( 'Column Table Integration affected cell count', () => {
 	beforeEach( () => {
-		jest.clearAllMocks();
+		setColumnReorderTestTables( [] );
+	} );
+
+	afterEach( () => {
+		setColumnReorderTestTables( [] );
 	} );
 
 	/**
@@ -39,15 +57,10 @@ describe( 'Column Table Integration affected cell count', () => {
 	 * - headの3物理セル、bodyの4物理セル、footの4物理セルを合計した11が返る。
 	 */
 	it( 'when a column move spans the table width, should count merged cells once as physical cells', () => {
-		selectMock.mockReturnValue( {
-			getBlock: jest.fn().mockReturnValue( {
-				name: 'core/table',
-				attributes: {
-					head: [ { cells: [ {}, { colspan: 2 }, {} ] } ],
-					body: [ { cells: [ {}, {}, {}, {} ] } ],
-					foot: [ { cells: [ {}, {}, {}, {} ] } ],
-				},
-			} ),
+		setCurrentTable( {
+			head: [ { cells: [ {}, { colspan: 2 }, {} ] } ],
+			body: [ { cells: [ {}, {}, {}, {} ] } ],
+			foot: [ { cells: [ {}, {}, {}, {} ] } ],
 		} );
 
 		expect(
@@ -72,13 +85,8 @@ describe( 'Column Table Integration affected cell count', () => {
 	 * - 安全な列移動として解釈できないためnullが返る。
 	 */
 	it( 'when the destination splits a merged cell, should return null', () => {
-		selectMock.mockReturnValue( {
-			getBlock: jest.fn().mockReturnValue( {
-				name: 'core/table',
-				attributes: {
-					body: [ { cells: [ {}, { colspan: 2 }, {} ] } ],
-				},
-			} ),
+		setCurrentTable( {
+			body: [ { cells: [ {}, { colspan: 2 }, {} ] } ],
 		} );
 
 		expect(
