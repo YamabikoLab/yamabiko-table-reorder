@@ -14,7 +14,7 @@ import {
 	createRowReorderTestTable,
 	setRowReorderTestTables,
 } from '@/reorder/row-reorder/responsibilities/table-integration.test-utils';
-import { resolveRowReorderTarget } from '@/reorder/row-reorder/responsibilities/target-resolution';
+import * as targetResolution from '@/reorder/row-reorder/responsibilities/target-resolution';
 
 import { RowHighlight } from './row-highlight';
 
@@ -46,7 +46,7 @@ const setBlockedTable = (): void => {
 
 /** Production Target Resolutionの解決結果から行DnD Sessionを開始する。 */
 const startRowDnd = (): void => {
-	const resolution = resolveRowReorderTarget( {
+	const resolution = targetResolution.resolveRowReorderTarget( {
 		tableIdentity: 'table-a',
 		sourceRowIndex: 0,
 	} );
@@ -112,24 +112,32 @@ describe( 'Row highlight resolution lifecycle', () => {
 		} );
 		setRowReorderTestTables( [] );
 		resetReorderMode();
+		jest.restoreAllMocks();
 	} );
 
 	/**
 	 * Row Highlightを接続しただけではTable全体解析を開始しないことを確認する。
 	 *
 	 * 操作:
-	 * - Row Highlightを描画した後に現在Tableを登録し、行へポインターを移動する。
+	 * - Row Highlightを描画する。
+	 * - その後に現在Tableを登録し、行へポインターを移動する。
 	 *
 	 * 期待結果:
+	 * - 描画だけではTarget Resolutionを実行しない。
 	 * - 描画時点には存在しなかった現在Tableを入力時に解決し、操作可能表示を付ける。
 	 */
 	it( 'when row highlight is rendered, should defer target resolution until a valid highlight request', () => {
+		const resolveTarget = jest.spyOn( targetResolution, 'resolveRowReorderTarget' );
 		const { getByTestId } = render( <TestTable /> );
+
+		expect( resolveTarget ).not.toHaveBeenCalled();
+
 		setMovableTable();
 		activateRowMode();
 
 		fireEvent.pointerOver( getByTestId( 'row-0' ).querySelector( 'td' ) as HTMLTableCellElement );
 
+		expect( resolveTarget ).toHaveBeenCalledTimes( 1 );
 		expect( getByTestId( 'row-0' ).className ).toBe( 'yamabiko-table-reorder-row-highlightable' );
 	} );
 
@@ -177,6 +185,7 @@ describe( 'Row highlight resolution lifecycle', () => {
 	it( 'when row DnD becomes active, should resolve another target only after returning to idle', () => {
 		setMovableTable();
 		activateRowMode();
+		const resolveTarget = jest.spyOn( targetResolution, 'resolveRowReorderTarget' );
 		const { getByTestId } = render( <TestTable /> );
 
 		fireEvent.pointerOver( getByTestId( 'row-0' ).querySelector( 'td' ) as HTMLTableCellElement );
@@ -185,7 +194,9 @@ describe( 'Row highlight resolution lifecycle', () => {
 		act( () => {
 			startRowDnd();
 		} );
+		resolveTarget.mockClear();
 		fireEvent.pointerOver( getByTestId( 'row-1' ).querySelector( 'td' ) as HTMLTableCellElement );
+		expect( resolveTarget ).not.toHaveBeenCalled();
 		expect( getByTestId( 'row-0' ).className ).toBe( '' );
 		expect( getByTestId( 'row-1' ).className ).toBe( '' );
 
@@ -193,6 +204,7 @@ describe( 'Row highlight resolution lifecycle', () => {
 			rowDndInteraction.cancel();
 		} );
 		fireEvent.pointerOver( getByTestId( 'row-1' ).querySelector( 'td' ) as HTMLTableCellElement );
+		expect( resolveTarget ).toHaveBeenCalledTimes( 1 );
 		expect( getByTestId( 'row-1' ).className ).toBe( 'yamabiko-table-reorder-row-highlightable' );
 	} );
 

@@ -7,7 +7,7 @@
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import type { ReactNode } from 'react';
 
-import { rowDndInteraction } from '@/reorder/row-reorder/responsibilities/dnd-interaction';
+import * as dndInteraction from '@/reorder/row-reorder/responsibilities/dnd-interaction';
 import {
 	createRowReorderTestRow,
 	createRowReorderTestTable,
@@ -18,6 +18,7 @@ import { resolveRowReorderTarget } from '@/reorder/row-reorder/responsibilities/
 import { RowTerminationNotice } from './termination-notice';
 
 let snackbarRemove: ( () => void ) | undefined;
+const subscribeRowDndTerminationNotice = dndInteraction.subscribeRowDndTerminationNotice;
 
 /* @wordpress/componentsの公開入口はJest変換対象外のESM-only uuidを読み込むため、Snackbarの表示・dismiss境界だけを代替する。 */
 jest.mock( '@wordpress/components', () => ( {
@@ -56,26 +57,27 @@ const emitTerminationNotice = (): void => {
 		throw new Error( 'Row termination notice test target must be resolved.' );
 	}
 
-	rowDndInteraction.start( resolution.target, resolution.initialConstraints );
-	rowDndInteraction.updateDestination( 3 );
+	dndInteraction.rowDndInteraction.start( resolution.target, resolution.initialConstraints );
+	dndInteraction.rowDndInteraction.updateDestination( 3 );
 	setRowReorderTestTables( [] );
-	rowDndInteraction.complete();
+	dndInteraction.rowDndInteraction.complete();
 };
 
 describe( 'RowTerminationNotice', () => {
 	beforeEach( () => {
 		snackbarRemove = undefined;
 		act( () => {
-			rowDndInteraction.cancel();
+			dndInteraction.rowDndInteraction.cancel();
 		} );
 		setRowReorderTestTables( [] );
 	} );
 
 	afterEach( () => {
 		act( () => {
-			rowDndInteraction.cancel();
+			dndInteraction.rowDndInteraction.cancel();
 		} );
 		setRowReorderTestTables( [] );
+		jest.restoreAllMocks();
 	} );
 
 	/**
@@ -171,13 +173,19 @@ describe( 'RowTerminationNotice', () => {
 	 * - 異常終了通知の購読が残らない。
 	 */
 	it( 'when the presentation unmounts, should unsubscribe from termination notices', () => {
+		let unsubscribeObserver: jest.Mock | undefined;
+		/* 購読解除は公開UIから決定的に観測できないため、この1ケースだけ解除関数を記録し、実Production購読と解除へそのまま委譲する。 */
+		jest
+			.spyOn( dndInteraction, 'subscribeRowDndTerminationNotice' )
+			.mockImplementation( ( listener ) => {
+				const unsubscribe = subscribeRowDndTerminationNotice( listener );
+				unsubscribeObserver = jest.fn( unsubscribe );
+				return unsubscribeObserver;
+			} );
 		const { unmount } = render( <RowTerminationNotice /> );
 
 		unmount();
-		act( () => {
-			emitTerminationNotice();
-		} );
 
-		expect( screen.queryByText( message ) ).toBeNull();
+		expect( unsubscribeObserver ).toHaveBeenCalledTimes( 1 );
 	} );
 } );
