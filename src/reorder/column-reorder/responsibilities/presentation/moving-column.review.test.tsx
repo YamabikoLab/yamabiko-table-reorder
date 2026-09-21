@@ -269,5 +269,4 @@ describe( 'Column moving display snapshot', () => {
 			expect( cell.classList ).not.toContain( 'yamabiko-table-reorder-moving-column-source' );
 		} );
 	} );
-
 } );
