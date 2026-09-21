@@ -8,7 +8,7 @@ Stable tag: 1.0.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
-Reorder rows and columns without rebuilding your WordPress tables.
+Reorder rows and columns directly in WordPress Table blocks with drag-and-drop or a form, including support for merged cells.
 
 == Description ==
 
