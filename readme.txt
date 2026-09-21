@@ -63,12 +63,12 @@ The generated archive is `yamabiko-table-reorder.zip`.
 
 == Installation ==
 
-1. In WordPress, go to Plugins > Add New Plugin.
+1. In WordPress, go to Plugins > Add Plugin.
 2. Search for `Yamabiko Table Reorder`.
 3. Select Install Now.
 4. Activate Yamabiko Table Reorder.
 
-For manual installation, upload a released `yamabiko-table-reorder.zip` from [GitHub Releases](https://github.com/YamabikoLab/yamabiko-table-reorder/releases) using Plugins > Add New Plugin > Upload Plugin.
+For manual installation, upload a released `yamabiko-table-reorder.zip` from [GitHub Releases](https://github.com/YamabikoLab/yamabiko-table-reorder/releases) using Plugins > Add Plugin > Upload Plugin.
 
 == Frequently Asked Questions ==
 
