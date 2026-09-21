@@ -7,16 +7,15 @@
 import { getFrameTransform } from '@dnd-kit/dom/utilities';
 import { act, render } from '@testing-library/react';
 
+import { columnDndInteraction } from '@/reorder/column-reorder/responsibilities/dnd-interaction';
+
 import { ColumnMovingDisplay } from './moving-column';
 
 let mockDragDropMonitor: {
 	onDragStart?: ( event: any ) => void;
 } = {};
 
-jest.mock( '@/reorder/column-reorder/integration/dnd-interaction-react', () => ( {
-	useColumnDndPhase: () => 'active',
-} ) );
-
+/* DnD Engineのframe transformはJSDOMで再現できないため、座標変換境界だけを決定的なTest Doubleとする。 */
 jest.mock( '@dnd-kit/dom/utilities', () => ( {
 	getFrameTransform: jest.fn( () => ( {
 		x: 0,
@@ -26,10 +25,18 @@ jest.mock( '@dnd-kit/dom/utilities', () => ( {
 	} ) ),
 } ) );
 
+/* DnD Engineの物理monitorはJSDOMで実行できないため、その通知境界だけを決定的なTest Doubleとする。 */
 jest.mock( '@dnd-kit/react', () => ( {
 	useDragDropMonitor: ( monitor: typeof mockDragDropMonitor ) => {
 		mockDragDropMonitor = monitor;
 	},
+} ) );
+
+/* Jestで読み込めないBlock Editor Store境界だけを代替し、WordPress DataとDnD Interactionは実経路へ接続する。 */
+jest.mock( '@wordpress/block-editor', () => ( {
+	store: jest.requireActual(
+		'@/reorder/column-reorder/responsibilities/table-integration.test-utils'
+	).columnReorderTestBlockEditorStore,
 } ) );
 
 const mockGetFrameTransform = getFrameTransform as jest.MockedFunction< typeof getFrameTransform >;
@@ -76,6 +83,13 @@ const startDrag = ( sourceCell: HTMLTableCellElement, x: number ): void => {
 
 describe( 'Column moving display snapshot', () => {
 	beforeEach( () => {
+		act( () => {
+			columnDndInteraction.cancel();
+			columnDndInteraction.start(
+				{ tableIdentity: 'table-a', sourceColumnIndex: 0 },
+				{ columnCount: 3, blockedBoundaries: [] }
+			);
+		} );
 		mockDragDropMonitor = {};
 		document.body.replaceChildren();
 		jest.restoreAllMocks();
@@ -88,6 +102,12 @@ describe( 'Column moving display snapshot', () => {
 		Object.defineProperty( window, 'innerHeight', {
 			configurable: true,
 			value: 80,
+		} );
+	} );
+
+	afterEach( () => {
+		act( () => {
+			columnDndInteraction.cancel();
 		} );
 	} );
 
