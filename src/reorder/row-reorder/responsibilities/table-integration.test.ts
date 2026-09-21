@@ -2,10 +2,13 @@
  * 行専用Table Integrationについて、WordPress Store境界の外側から、対応Table Block差を漏らさず現在の行制約取得と確定済み行移動の反映を提供する内部仕様を確認する。
  */
 
+import { subscribe } from '@wordpress/data';
+
 import { rowTableIntegration } from './table-integration';
 import {
 	createRowReorderTestTable,
 	getRowReorderTestTable,
+	rowReorderTestBlockEditorStore,
 	setRowReorderTestTables,
 } from './table-integration.test-utils';
 
@@ -173,14 +176,18 @@ describe( 'Table Integration', () => {
 			cells: [ { content } ],
 		} ) );
 		setRowReorderTestTables( [ createTable( 'table-a', rows ) ] );
+		const storeChangeListener = jest.fn();
+		const unsubscribe = subscribe( storeChangeListener, rowReorderTestBlockEditorStore );
 
-		expect(
-			rowTableIntegration.applyRowMove( {
-				clientId: 'table-a',
-				sourceRowIndex: 1,
-				destinationBoundaryIndex: 4,
-			} )
-		).toBe( true );
+		const applied = rowTableIntegration.applyRowMove( {
+			clientId: 'table-a',
+			sourceRowIndex: 1,
+			destinationBoundaryIndex: 4,
+		} );
+		unsubscribe();
+
+		expect( applied ).toBe( true );
+		expect( storeChangeListener ).toHaveBeenCalledTimes( 1 );
 		expect( getRowReorderTestTable( 'table-a' )?.attributes.body ).toEqual( [
 			rows[ 0 ],
 			rows[ 2 ],
@@ -206,14 +213,18 @@ describe( 'Table Integration', () => {
 	it( 'when the current Table no longer matches the confirmed row range, should not update it', () => {
 		const rows = [ { cells: [] }, { cells: [] } ];
 		setRowReorderTestTables( [ createTable( 'table-a', rows ) ] );
+		const storeChangeListener = jest.fn();
+		const unsubscribe = subscribe( storeChangeListener, rowReorderTestBlockEditorStore );
 
-		expect(
-			rowTableIntegration.applyRowMove( {
-				clientId: 'table-a',
-				sourceRowIndex: 2,
-				destinationBoundaryIndex: 0,
-			} )
-		).toBe( false );
+		const applied = rowTableIntegration.applyRowMove( {
+			clientId: 'table-a',
+			sourceRowIndex: 2,
+			destinationBoundaryIndex: 0,
+		} );
+		unsubscribe();
+
+		expect( applied ).toBe( false );
+		expect( storeChangeListener ).not.toHaveBeenCalled();
 		expect( getRowReorderTestTable( 'table-a' )?.attributes.body ).toEqual( rows );
 	} );
 } );

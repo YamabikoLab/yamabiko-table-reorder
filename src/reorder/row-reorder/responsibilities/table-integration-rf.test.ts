@@ -2,10 +2,13 @@
  * 行専用Table IntegrationがRFへ提供する構造診断、反映前評価、更新直前再照合の契約を確認する。
  */
 
+import { subscribe } from '@wordpress/data';
+
 import { rowTableIntegration } from './table-integration';
 import {
 	createRowReorderTestTable,
 	getRowReorderTestTable,
+	rowReorderTestBlockEditorStore,
 	setRowReorderTestTables,
 } from './table-integration.test-utils';
 
@@ -305,7 +308,14 @@ describe( 'Row Table Integration RF contract', () => {
 		} );
 		const changedBody = [ { cells: [ { rowspan: 2 } ] }, { cells: [ {} ] }, { cells: [ {} ] } ];
 		setCurrentTable( changedBody );
-		expect( rowTableIntegration.applyRowMove( move ) ).toBe( false );
+		const storeChangeListener = jest.fn();
+		const unsubscribe = subscribe( storeChangeListener, rowReorderTestBlockEditorStore );
+
+		const applied = rowTableIntegration.applyRowMove( move );
+		unsubscribe();
+
+		expect( applied ).toBe( false );
+		expect( storeChangeListener ).not.toHaveBeenCalled();
 		expect( getRowReorderTestTable( 'table-a' )?.attributes.body ).toEqual( changedBody );
 	} );
 } );
