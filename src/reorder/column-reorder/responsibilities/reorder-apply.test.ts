@@ -2,6 +2,8 @@
  * 列の確認付き大規模反映Lifecycleが、利用者の選択と反映直前のTable状態に従って安全に進むことを確認する。
  */
 
+import { subscribe } from '@wordpress/data';
+
 import {
 	applyLargeColumnReorder,
 	cancelLargeColumnReorderApply,
@@ -11,25 +13,40 @@ import {
 	getLargeColumnReorderDestinationColumnIndex,
 	requestLargeColumnReorderApply,
 } from './reorder-apply';
-import { columnTableIntegration } from './table-integration';
+import {
+	columnReorderTestBlockEditorStore,
+	createColumnReorderTestTable,
+	getColumnReorderTestTable,
+	setColumnReorderTestTables,
+} from './table-integration.test-utils';
 
-jest.mock( './table-integration', () => ( {
-	columnTableIntegration: {
-		getConstraints: jest.fn(),
-		resolveDestinationColumnIndex: jest.fn(),
-		applyColumnMove: jest.fn(),
-	},
+/* Jestで読み込めないBlock Editor Store境界だけを代替し、WordPress DataとTable Integrationは実経路へ接続する。 */
+jest.mock( '@wordpress/block-editor', () => ( {
+	store: jest.requireActual( './table-integration.test-utils' ).columnReorderTestBlockEditorStore,
 } ) );
-
-const getConstraintsMock = columnTableIntegration.getConstraints as jest.Mock;
-const resolveDestinationColumnIndexMock =
-	columnTableIntegration.resolveDestinationColumnIndex as jest.Mock;
-const applyColumnMoveMock = columnTableIntegration.applyColumnMove as jest.Mock;
 
 const move = {
 	tableIdentity: 'table-a',
 	sourceColumnIndex: 3,
 	destinationBoundaryIndex: 1,
+};
+
+/** 識別可能な5列を持つ現在Tableを登録する。 */
+const setDefaultTable = (): void => {
+	setColumnReorderTestTables( [
+		createColumnReorderTestTable( 'table-a', [
+			{
+				cells: [ 'A', 'B', 'C', 'D', 'E' ].map( ( content ) => ( { content } ) ),
+			},
+		] ),
+	] );
+};
+
+/** 現在Tableの列識別値を表示順で取得する。 */
+const getCurrentColumnLabels = (): unknown[] => {
+	const table = getColumnReorderTestTable( 'table-a' );
+	const body = table?.attributes.body as Array< { cells: Array< { content?: unknown } > } >;
+	return body[ 0 ]?.cells.map( ( cell ) => cell.content ) ?? [];
 };
 
 /** 公開Lifecycle操作だけを使って各テスト開始時に通常状態へ戻す。 */
@@ -40,7 +57,6 @@ const restoreIdleState = (): void => {
 		return;
 	}
 	if ( state.phase === 'applying' ) {
-		getConstraintsMock.mockReturnValue( null );
 		applyLargeColumnReorder();
 		completeLargeColumnReorderApply();
 		return;
@@ -53,14 +69,12 @@ const restoreIdleState = (): void => {
 describe( 'Large Column Reorder apply lifecycle', () => {
 	beforeEach( () => {
 		restoreIdleState();
-		jest.clearAllMocks();
-		getConstraintsMock.mockReturnValue( { columnCount: 5, blockedBoundaries: [] } );
-		resolveDestinationColumnIndexMock.mockReturnValue( 1 );
-		applyColumnMoveMock.mockReturnValue( true );
+		setDefaultTable();
 	} );
 
 	afterEach( () => {
 		restoreIdleState();
+		setColumnReorderTestTables( [] );
 	} );
 
 	/**
@@ -73,20 +87,19 @@ describe( 'Large Column Reorder apply lifecycle', () => {
 	 * - 大規模反映を要求し、利用者が続行した後に反映し、再mount完了を通知する。
 	 *
 	 * 期待結果:
-	 * - 列移動は1回だけ反映される。
+	 * - 現在Tableの列順が1回の属性更新でA、D、B、C、Eになる。
 	 * - 再mount中は反映済みとして扱われ、完了後は通常状態へ戻る。
 	 */
 	it( 'when a confirmed column move is still valid, should apply it once and complete the lifecycle', () => {
+		const storeChangeListener = jest.fn();
+		const unsubscribe = subscribe( storeChangeListener, columnReorderTestBlockEditorStore );
 		expect( requestLargeColumnReorderApply( move ) ).toBe( true );
 		confirmLargeColumnReorderApply();
 		applyLargeColumnReorder();
+		unsubscribe();
 
-		expect( getConstraintsMock ).toHaveBeenCalledWith( 'table-a' );
-		expect( applyColumnMoveMock ).toHaveBeenCalledWith( {
-			clientId: 'table-a',
-			sourceColumnIndex: 3,
-			destinationBoundaryIndex: 1,
-		} );
+		expect( storeChangeListener ).toHaveBeenCalledTimes( 1 );
+		expect( getCurrentColumnLabels() ).toEqual( [ 'A', 'D', 'B', 'C', 'E' ] );
 		expect( getLargeColumnReorderApplyState() ).toMatchObject( {
 			phase: 'remounting',
 			move,
@@ -106,20 +119,18 @@ describe( 'Large Column Reorder apply lifecycle', () => {
 	 *
 	 * 事前条件:
 	 * - 大規模列反映が確認待ちである。
-	 * - Table Integrationは保持中Moveの反映後最終位置として1を返す。
+	 * - 保持中Moveでは4列目を2列目の位置へ移動する。
 	 *
 	 * 操作:
 	 * - 反映後最終論理列位置を取得する。
 	 *
 	 * 期待結果:
-	 * - Table Integrationへ保持中Moveのsourceとdestinationが渡される。
-	 * - Table Integrationが返した0-based最終論理列位置1がそのまま返る。
+	 * - Table Integrationの方向固有解釈による0-based最終論理列位置1が返る。
 	 */
 	it( 'when a column apply holds a move, should provide its final column position from Table Integration', () => {
 		requestLargeColumnReorderApply( move );
 
 		expect( getLargeColumnReorderDestinationColumnIndex() ).toBe( 1 );
-		expect( resolveDestinationColumnIndexMock ).toHaveBeenCalledWith( 3, 1 );
 	} );
 
 	/**
@@ -136,10 +147,11 @@ describe( 'Large Column Reorder apply lifecycle', () => {
 	 * - 確認対象は破棄され通常状態へ戻る。
 	 */
 	it( 'when the user cancels a pending column move, should return to idle without changing the table', () => {
+		const initialColumns = getCurrentColumnLabels();
 		requestLargeColumnReorderApply( move );
 		cancelLargeColumnReorderApply();
 
-		expect( applyColumnMoveMock ).not.toHaveBeenCalled();
+		expect( getCurrentColumnLabels() ).toEqual( initialColumns );
 		expect( getLargeColumnReorderApplyState() ).toMatchObject( {
 			phase: 'idle',
 			move: null,
@@ -152,7 +164,7 @@ describe( 'Large Column Reorder apply lifecycle', () => {
 	 *
 	 * 事前条件:
 	 * - 大規模列反映が確認待ちである。
-	 * - 続行時には対象Tableの現在構造を取得できない。
+	 * - 続行前に対象TableがBlock Editor Storeから消失する。
 	 *
 	 * 操作:
 	 * - 利用者が続行し、反映を開始する。
@@ -162,12 +174,12 @@ describe( 'Large Column Reorder apply lifecycle', () => {
 	 * - 対象Tableを戻すため再mount状態へ進む。
 	 */
 	it( 'when the current table can no longer validate a confirmed column move, should remount without applying it', () => {
-		getConstraintsMock.mockReturnValue( null );
 		requestLargeColumnReorderApply( move );
 		confirmLargeColumnReorderApply();
+		setColumnReorderTestTables( [] );
 		applyLargeColumnReorder();
 
-		expect( applyColumnMoveMock ).not.toHaveBeenCalled();
+		expect( getColumnReorderTestTable( 'table-a' ) ).toBeNull();
 		expect( getLargeColumnReorderApplyState() ).toMatchObject( {
 			phase: 'remounting',
 			move,

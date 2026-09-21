@@ -2,28 +2,53 @@
  * 列専用Table Integrationについて、WordPress Store境界の外側から、対応Table Block差を漏らさず現在の列制約取得とTable全体への確定済み列移動を提供する内部仕様を確認する。
  */
 
-import { columnTableIntegration } from './table-integration';
+import { subscribe } from '@wordpress/data';
 
+import { columnTableIntegration } from './table-integration';
+import {
+	columnReorderTestBlockEditorStore,
+	createColumnReorderTestTable,
+	getColumnReorderTestTable,
+	setColumnReorderTestTables,
+	type ColumnReorderTestTableRow,
+} from './table-integration.test-utils';
+
+/* @wordpress/block-editorはJest非対応のESMを経由するため、Store境界だけを実@wordpress/dataへ登録した最小実装へ置き換える。 */
 jest.mock( '@wordpress/block-editor', () => ( {
-	store: Symbol( 'block-editor-store' ),
+	store: jest.requireActual( './table-integration.test-utils' ).columnReorderTestBlockEditorStore,
 } ) );
 
-jest.mock( '@wordpress/data', () => {
-	const actualData = jest.requireActual( '@wordpress/data' );
-	return Object.defineProperties( Object.create( actualData ), {
-		dispatch: { enumerable: true, value: jest.fn() },
-		select: { enumerable: true, value: jest.fn() },
-	} );
-} );
-
-const { dispatch: dispatchMock, select: selectMock } = jest.requireMock( '@wordpress/data' ) as {
-	dispatch: jest.Mock;
-	select: jest.Mock;
+type TestTableAttributes = {
+	body: ColumnReorderTestTableRow[];
+	head?: ColumnReorderTestTableRow[];
+	foot?: ColumnReorderTestTableRow[];
 };
+
+/**
+ * 任意の対応Block名とTable sectionを持つ現在Tableを作成する。
+ *
+ * @param clientId   Table個体を識別するclientId。
+ * @param attributes 現在Tableへ登録するsection属性。
+ * @param name       Table Integrationへ提示するBlock名。
+ * @return Block Editor Storeへ登録するTable Block。
+ */
+const createTable = (
+	clientId: string,
+	attributes: TestTableAttributes,
+	name = 'core/table'
+) => ( {
+	...createColumnReorderTestTable( clientId, attributes.body, attributes.head ),
+	name,
+	attributes,
+} );
 
 describe( 'Column Table Integration', () => {
 	beforeEach( () => {
-		jest.clearAllMocks();
+		setColumnReorderTestTables( [] );
+	} );
+
+	afterEach( () => {
+		setColumnReorderTestTables( [] );
 	} );
 
 	/**
@@ -43,16 +68,13 @@ describe( 'Column Table Integration', () => {
 	 * - rowspanだけでは列制約を生成しない。
 	 */
 	it( 'when Core Table constraints are requested, should return logical column constraints across all sections', () => {
-		selectMock.mockReturnValue( {
-			getBlock: jest.fn().mockReturnValue( {
-				name: 'core/table',
-				attributes: {
-					head: [ { cells: [ {}, {}, {}, {} ] } ],
-					body: [ { cells: [ { colspan: 2 }, { rowspan: 2 }, {} ] }, { cells: [ {}, {}, {} ] } ],
-					foot: [ { cells: [ {}, {}, {}, {} ] } ],
-				},
+		setColumnReorderTestTables( [
+			createTable( 'table-a', {
+				head: [ { cells: [ {}, {}, {}, {} ] } ],
+				body: [ { cells: [ { colspan: 2 }, { rowspan: 2 }, {} ] }, { cells: [ {}, {}, {} ] } ],
+				foot: [ { cells: [ {}, {}, {}, {} ] } ],
 			} ),
-		} );
+		] );
 
 		expect( columnTableIntegration.getConstraints( 'table-a' ) ).toEqual( {
 			columnCount: 4,
@@ -75,14 +97,15 @@ describe( 'Column Table Integration', () => {
 	 * - 横結合セル内部の境界1だけが列制約になる。
 	 */
 	it( 'when Flexible Table Block constraints are requested, should adapt camel-case merged-cell attributes', () => {
-		selectMock.mockReturnValue( {
-			getBlock: jest.fn().mockReturnValue( {
-				name: 'flexible-table-block/table',
-				attributes: {
+		setColumnReorderTestTables( [
+			createTable(
+				'table-b',
+				{
 					body: [ { cells: [ { colSpan: 2 }, { rowSpan: 2 } ] }, { cells: [ {}, {} ] } ],
 				},
-			} ),
-		} );
+				'flexible-table-block/table'
+			),
+		] );
 
 		expect( columnTableIntegration.getConstraints( 'table-b' ) ).toEqual( {
 			columnCount: 3,
@@ -103,16 +126,13 @@ describe( 'Column Table Integration', () => {
 	 * - 分断不可境界はsectionの出現順や重複に依存せず、境界1、2が一度ずつ昇順で返る。
 	 */
 	it( 'when merged cells block boundaries across sections, should return unique boundaries in ascending order', () => {
-		selectMock.mockReturnValue( {
-			getBlock: jest.fn().mockReturnValue( {
-				name: 'core/table',
-				attributes: {
-					head: [ { cells: [ {}, { colspan: 2 }, {} ] } ],
-					body: [ { cells: [ { colspan: 2 }, {}, {} ] } ],
-					foot: [ { cells: [ {}, { colspan: 2 }, {} ] } ],
-				},
+		setColumnReorderTestTables( [
+			createTable( 'table-a', {
+				head: [ { cells: [ {}, { colspan: 2 }, {} ] } ],
+				body: [ { cells: [ { colspan: 2 }, {}, {} ] } ],
+				foot: [ { cells: [ {}, { colspan: 2 }, {} ] } ],
 			} ),
-		} );
+		] );
 
 		expect( columnTableIntegration.getConstraints( 'table-a' ) ).toEqual( {
 			columnCount: 4,
@@ -134,22 +154,15 @@ describe( 'Column Table Integration', () => {
 	 * - どちらも安全なTable全体の列構造を提供できないためnullになる。
 	 */
 	it( 'when logical column counts do not match, should return null', () => {
-		const getBlock = jest
-			.fn()
-			.mockReturnValueOnce( {
-				name: 'core/table',
-				attributes: {
-					body: [ { cells: [ {}, {}, {} ] }, { cells: [ {}, {} ] } ],
-				},
-			} )
-			.mockReturnValueOnce( {
-				name: 'core/table',
-				attributes: {
-					head: [ { cells: [ {}, {} ] } ],
-					body: [ { cells: [ {}, {}, {} ] } ],
-				},
-			} );
-		selectMock.mockReturnValue( { getBlock } );
+		setColumnReorderTestTables( [
+			createTable( 'row-mismatch', {
+				body: [ { cells: [ {}, {}, {} ] }, { cells: [ {}, {} ] } ],
+			} ),
+			createTable( 'section-mismatch', {
+				head: [ { cells: [ {}, {} ] } ],
+				body: [ { cells: [ {}, {}, {} ] } ],
+			} ),
+		] );
 
 		expect( columnTableIntegration.getConstraints( 'row-mismatch' ) ).toBeNull();
 		expect( columnTableIntegration.getConstraints( 'section-mismatch' ) ).toBeNull();
@@ -168,16 +181,13 @@ describe( 'Column Table Integration', () => {
 	 * - いずれも正常な利用不能としてnullが返る。
 	 */
 	it( 'when the current Table cannot be integrated, should return null', () => {
-		const getBlock = jest
-			.fn()
-			.mockReturnValueOnce( { name: 'core/paragraph', attributes: {} } )
-			.mockReturnValueOnce( null )
-			.mockReturnValueOnce( { name: 'core/table', attributes: {} } )
-			.mockReturnValueOnce( {
-				name: 'core/table',
-				attributes: { body: [ { cells: [ { colspan: 0 } ] } ] },
-			} );
-		selectMock.mockReturnValue( { getBlock } );
+		setColumnReorderTestTables( [
+			{ ...createTable( 'unsupported', { body: [] } ), name: 'core/paragraph' },
+			{ ...createTable( 'missing-body', { body: [] } ), attributes: {} },
+			createTable( 'invalid-span', {
+				body: [ { cells: [ { colspan: 0 } ] } ],
+			} ),
+		] );
 
 		expect( columnTableIntegration.getConstraints( 'unsupported' ) ).toBeNull();
 		expect( columnTableIntegration.getConstraints( 'removed' ) ).toBeNull();
@@ -198,15 +208,12 @@ describe( 'Column Table Integration', () => {
 	 * - 移動先指定を必要とせず、診断順で最初のheader結合セル位置が返る。
 	 */
 	it( 'when a drag source column intersects merged cells, should return the first source blocking range', () => {
-		selectMock.mockReturnValue( {
-			getBlock: jest.fn().mockReturnValue( {
-				name: 'core/table',
-				attributes: {
-					head: [ { cells: [ { colspan: 2 }, {} ] } ],
-					body: [ { cells: [ { colspan: 2 }, {} ] } ],
-				},
+		setColumnReorderTestTables( [
+			createTable( 'table-a', {
+				head: [ { cells: [ { colspan: 2 }, {} ] } ],
+				body: [ { cells: [ { colspan: 2 }, {} ] } ],
 			} ),
-		} );
+		] );
 
 		expect( columnTableIntegration.getSourceBlockingMergedRange( 'table-a', 1 ) ).toEqual( {
 			section: 'head',
@@ -235,7 +242,6 @@ describe( 'Column Table Integration', () => {
 	 * - Table属性は1回だけ更新される。
 	 */
 	it( 'when a confirmed column moves right, should update every section once while preserving cell data', () => {
-		const updateBlockAttributes = jest.fn();
 		const createRow = ( prefix: string ) => {
 			const cells = [ 'A', 'B', 'C', 'D' ].map( ( suffix ) => ( {
 				content: `${ prefix }-${ suffix }`,
@@ -246,28 +252,26 @@ describe( 'Column Table Integration', () => {
 		const head = createRow( 'head' );
 		const body = createRow( 'body' );
 		const foot = createRow( 'foot' );
-		selectMock.mockReturnValue( {
-			getBlock: jest.fn().mockReturnValue( {
-				name: 'core/table',
-				attributes: {
-					head: [ head.row ],
-					body: [ body.row ],
-					foot: [ foot.row ],
-				},
+		setColumnReorderTestTables( [
+			createTable( 'table-a', {
+				head: [ head.row ],
+				body: [ body.row ],
+				foot: [ foot.row ],
 			} ),
+		] );
+		const storeChangeListener = jest.fn();
+		const unsubscribe = subscribe( storeChangeListener, columnReorderTestBlockEditorStore );
+
+		const applied = columnTableIntegration.applyColumnMove( {
+			clientId: 'table-a',
+			sourceColumnIndex: 1,
+			destinationBoundaryIndex: 4,
 		} );
-		dispatchMock.mockReturnValue( { updateBlockAttributes } );
+		unsubscribe();
 
-		expect(
-			columnTableIntegration.applyColumnMove( {
-				clientId: 'table-a',
-				sourceColumnIndex: 1,
-				destinationBoundaryIndex: 4,
-			} )
-		).toBe( true );
-
-		expect( updateBlockAttributes ).toHaveBeenCalledTimes( 1 );
-		expect( updateBlockAttributes ).toHaveBeenCalledWith( 'table-a', {
+		expect( applied ).toBe( true );
+		expect( storeChangeListener ).toHaveBeenCalledTimes( 1 );
+		expect( getColumnReorderTestTable( 'table-a' )?.attributes ).toEqual( {
 			head: [
 				{
 					...head.row,
@@ -305,21 +309,16 @@ describe( 'Column Table Integration', () => {
 	 * - 縦結合属性は変更されない。
 	 */
 	it( 'when a column moves across a rowspan, should preserve the logical grid and omitted physical cells', () => {
-		const updateBlockAttributes = jest.fn();
 		const a = { content: 'A', rowspan: 2 };
 		const b = { content: 'B' };
 		const c = { content: 'C' };
 		const b2 = { content: 'B2' };
 		const c2 = { content: 'C2' };
-		selectMock.mockReturnValue( {
-			getBlock: jest.fn().mockReturnValue( {
-				name: 'core/table',
-				attributes: {
-					body: [ { cells: [ a, b, c ] }, { cells: [ b2, c2 ] } ],
-				},
+		setColumnReorderTestTables( [
+			createTable( 'table-a', {
+				body: [ { cells: [ a, b, c ] }, { cells: [ b2, c2 ] } ],
 			} ),
-		} );
-		dispatchMock.mockReturnValue( { updateBlockAttributes } );
+		] );
 
 		expect(
 			columnTableIntegration.applyColumnMove( {
@@ -328,7 +327,7 @@ describe( 'Column Table Integration', () => {
 				destinationBoundaryIndex: 0,
 			} )
 		).toBe( true );
-		expect( updateBlockAttributes ).toHaveBeenCalledWith( 'table-a', {
+		expect( getColumnReorderTestTable( 'table-a' )?.attributes ).toEqual( {
 			body: [ { cells: [ c, a, b ] }, { cells: [ c2, b2 ] } ],
 		} );
 	} );
@@ -348,19 +347,12 @@ describe( 'Column Table Integration', () => {
 	 * - 横結合セルは一つのセルとして保持され、colspanも変更されない。
 	 */
 	it( 'when a column crosses a merged range without splitting it, should preserve the merged cell as one unit', () => {
-		const updateBlockAttributes = jest.fn();
 		const merged = { content: 'AB', colspan: 2 };
 		const c = { content: 'C' };
 		const d = { content: 'D' };
-		selectMock.mockReturnValue( {
-			getBlock: jest.fn().mockReturnValue( {
-				name: 'core/table',
-				attributes: {
-					body: [ { cells: [ merged, c, d ] } ],
-				},
-			} ),
-		} );
-		dispatchMock.mockReturnValue( { updateBlockAttributes } );
+		setColumnReorderTestTables( [
+			createTable( 'table-a', { body: [ { cells: [ merged, c, d ] } ] } ),
+		] );
 
 		expect(
 			columnTableIntegration.applyColumnMove( {
@@ -369,7 +361,7 @@ describe( 'Column Table Integration', () => {
 				destinationBoundaryIndex: 0,
 			} )
 		).toBe( true );
-		expect( updateBlockAttributes ).toHaveBeenCalledWith( 'table-a', {
+		expect( getColumnReorderTestTable( 'table-a' )?.attributes ).toEqual( {
 			body: [ { cells: [ d, merged, c ] } ],
 		} );
 	} );
@@ -390,16 +382,10 @@ describe( 'Column Table Integration', () => {
 	 * - いずれもfalseになり、属性更新は行われない。
 	 */
 	it( 'when the current merged-cell constraints reject a confirmed move, should not update the Table', () => {
-		const updateBlockAttributes = jest.fn();
-		selectMock.mockReturnValue( {
-			getBlock: jest.fn().mockReturnValue( {
-				name: 'core/table',
-				attributes: {
-					body: [ { cells: [ { colspan: 2 }, {} ] } ],
-				},
-			} ),
-		} );
-		dispatchMock.mockReturnValue( { updateBlockAttributes } );
+		const attributes = { body: [ { cells: [ { colspan: 2 }, {} ] } ] };
+		setColumnReorderTestTables( [ createTable( 'table-a', attributes ) ] );
+		const storeChangeListener = jest.fn();
+		const unsubscribe = subscribe( storeChangeListener, columnReorderTestBlockEditorStore );
 
 		expect(
 			columnTableIntegration.applyColumnMove( {
@@ -422,7 +408,9 @@ describe( 'Column Table Integration', () => {
 				destinationBoundaryIndex: 1,
 			} )
 		).toBe( false );
-		expect( updateBlockAttributes ).not.toHaveBeenCalled();
+		unsubscribe();
+		expect( storeChangeListener ).not.toHaveBeenCalled();
+		expect( getColumnReorderTestTable( 'table-a' )?.attributes ).toBe( attributes );
 	} );
 
 	/**
@@ -440,16 +428,10 @@ describe( 'Column Table Integration', () => {
 	 * - Table属性は更新されない。
 	 */
 	it( 'when the current Table no longer matches the confirmed column range, should not update it', () => {
-		const updateBlockAttributes = jest.fn();
-		selectMock.mockReturnValue( {
-			getBlock: jest.fn().mockReturnValue( {
-				name: 'core/table',
-				attributes: {
-					body: [ { cells: [ {}, {}, {} ] } ],
-				},
-			} ),
-		} );
-		dispatchMock.mockReturnValue( { updateBlockAttributes } );
+		const attributes = { body: [ { cells: [ {}, {}, {} ] } ] };
+		setColumnReorderTestTables( [ createTable( 'table-a', attributes ) ] );
+		const storeChangeListener = jest.fn();
+		const unsubscribe = subscribe( storeChangeListener, columnReorderTestBlockEditorStore );
 
 		expect(
 			columnTableIntegration.applyColumnMove( {
@@ -465,7 +447,9 @@ describe( 'Column Table Integration', () => {
 				destinationBoundaryIndex: 4,
 			} )
 		).toBe( false );
-		expect( updateBlockAttributes ).not.toHaveBeenCalled();
+		unsubscribe();
+		expect( storeChangeListener ).not.toHaveBeenCalled();
+		expect( getColumnReorderTestTable( 'table-a' )?.attributes ).toBe( attributes );
 	} );
 
 	/**
@@ -482,25 +466,23 @@ describe( 'Column Table Integration', () => {
 	 * - falseが返り、bodyを含めて属性更新は一度も行われない。
 	 */
 	it( 'when any section cannot participate in the same logical column move, should not partially update the Table', () => {
-		const updateBlockAttributes = jest.fn();
-		selectMock.mockReturnValue( {
-			getBlock: jest.fn().mockReturnValue( {
-				name: 'core/table',
-				attributes: {
-					body: [ { cells: [ {}, {}, {} ] } ],
-					foot: [ { cells: [ {}, {} ] } ],
-				},
-			} ),
-		} );
-		dispatchMock.mockReturnValue( { updateBlockAttributes } );
+		const attributes = {
+			body: [ { cells: [ {}, {}, {} ] } ],
+			foot: [ { cells: [ {}, {} ] } ],
+		};
+		setColumnReorderTestTables( [ createTable( 'table-a', attributes ) ] );
+		const storeChangeListener = jest.fn();
+		const unsubscribe = subscribe( storeChangeListener, columnReorderTestBlockEditorStore );
 
-		expect(
-			columnTableIntegration.applyColumnMove( {
-				clientId: 'table-a',
-				sourceColumnIndex: 0,
-				destinationBoundaryIndex: 3,
-			} )
-		).toBe( false );
-		expect( updateBlockAttributes ).not.toHaveBeenCalled();
+		const applied = columnTableIntegration.applyColumnMove( {
+			clientId: 'table-a',
+			sourceColumnIndex: 0,
+			destinationBoundaryIndex: 3,
+		} );
+		unsubscribe();
+
+		expect( applied ).toBe( false );
+		expect( storeChangeListener ).not.toHaveBeenCalled();
+		expect( getColumnReorderTestTable( 'table-a' )?.attributes ).toBe( attributes );
 	} );
 } );
