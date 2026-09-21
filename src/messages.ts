@@ -6,9 +6,6 @@
 
 import { __, sprintf } from '@wordpress/i18n';
 
-/** プラグイン名として表示する翻訳済み文言。 */
-export const PLUGIN_NAME = __( 'Yamabiko Table Reorder', 'yamabiko-table-reorder' );
-
 /**
  * 行並び替え入口の表示名を取得する。
  *

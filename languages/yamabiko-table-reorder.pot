@@ -2,226 +2,225 @@
 # This file is distributed under the GPL-2.0-or-later.
 msgid ""
 msgstr ""
-"Project-Id-Version: Yamabiko Table Reorder 0.9.8\n"
+"Project-Id-Version: Yamabiko Table Reorder 1.0.0\n"
 "Report-Msgid-Bugs-To: https://wordpress.org/support/plugin/project\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-09-19T10:37:40+09:00\n"
+"POT-Creation-Date: 2026-09-22T04:41:33+09:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: yamabiko-table-reorder\n"
 
-#. Plugin Name of the plugin
-#: src/messages.ts:10
-#: yamabiko-table-reorder.php
-msgid "Yamabiko Table Reorder"
-msgstr ""
-
-#: src/messages.ts:100
-msgid "Move the column to the left or right of the target column."
-msgstr ""
-
 #. 1: column heading, 2: 1-based column number
-#: src/messages.ts:112
+#: src/messages.ts:109
 msgid "%1$s (Column %2$d)"
 msgstr ""
 
 #. %d: 1-based column number
-#: src/messages.ts:117
+#: src/messages.ts:114
 msgid "Column %d"
 msgstr ""
 
-#: src/messages.ts:123
+#: src/messages.ts:120
 msgid "This selection won't change the order."
 msgstr ""
 
-#: src/messages.ts:127
+#: src/messages.ts:124
 msgid "This reorder can't continue with the current table. Check the table and try again."
 msgstr ""
 
+#: src/messages.ts:14
+msgid "Reorder rows"
+msgstr ""
+
 #. 1: 1-based row number, 2: first 1-based column number, 3: last 1-based column number
-#: src/messages.ts:155
+#: src/messages.ts:152
 msgid "A merged cell in row %1$d spanning columns %2$d–%3$d prevents this move."
 msgstr ""
 
 #. 1: first 1-based row number, 2: last 1-based row number, 3: 1-based column number
-#: src/messages.ts:165
+#: src/messages.ts:162
 msgid "A merged cell spanning rows %1$d–%2$d in column %3$d prevents this move."
 msgstr ""
 
-#: src/messages.ts:17
-msgid "Reorder rows"
-msgstr ""
-
 #. 1: first 1-based row number, 2: last 1-based row number, 3: first 1-based column number, 4: last 1-based column number
-#: src/messages.ts:173
+#: src/messages.ts:170
 msgid "A merged cell spanning rows %1$d–%2$d and columns %3$d–%4$d prevents this move."
 msgstr ""
 
-#: src/messages.ts:207
+#: src/messages.ts:204
 msgid "header"
 msgstr ""
 
-#: src/messages.ts:208
+#: src/messages.ts:205
 msgid "footer"
 msgstr ""
 
+#: src/messages.ts:21
+msgid "Reorder columns"
+msgstr ""
+
 #. 1: table section name, 2: 1-based row number, 3: first 1-based column number, 4: last 1-based column number
-#: src/messages.ts:213
+#: src/messages.ts:210
 msgid "A merged cell in %1$s row %2$d spanning columns %3$d–%4$d prevents this move."
 msgstr ""
 
 #. 1: table section name, 2: first 1-based row number, 3: last 1-based row number, 4: first 1-based column number, 5: last 1-based column number
-#: src/messages.ts:221
+#: src/messages.ts:218
 msgid "A merged cell spanning %1$s rows %2$d–%3$d and columns %4$d–%5$d prevents this move."
 msgstr ""
 
-#: src/messages.ts:232
+#: src/messages.ts:229
 msgid "Reorder"
 msgstr ""
 
-#: src/messages.ts:24
-msgid "Reorder columns"
-msgstr ""
-
-#: src/messages.ts:240
+#: src/messages.ts:237
 msgid "The reorder could not be completed. The table was not changed."
 msgstr ""
 
+#: src/messages.ts:25
+msgid "Column drag reordering is unavailable in the current view. You can reorder columns using the form."
+msgstr ""
+
 #. 1: 1-based source row position, 2: 1-based final row position
-#: src/messages.ts:254
+#: src/messages.ts:251
 msgid "Moved row %1$d to position %2$d."
 msgstr ""
 
 #. 1: 1-based source column position, 2: 1-based final column position
-#: src/messages.ts:270
+#: src/messages.ts:267
 msgid "Moved column %1$d to position %2$d."
 msgstr ""
 
-#: src/messages.ts:28
-msgid "Column drag reordering is unavailable in the current view. You can reorder columns using the form."
-msgstr ""
-
-#: src/messages.ts:280
+#: src/messages.ts:277
 msgid "Reordering could not continue, so the operation was ended."
 msgstr ""
 
-#: src/messages.ts:288
+#: src/messages.ts:285
 msgid "Reorder rows and columns by dragging or using the form."
 msgstr ""
 
-#: src/messages.ts:296
+#: src/messages.ts:293
 msgid "Long press a cell, then drag, or use the form to reorder rows and columns."
 msgstr ""
 
-#: src/messages.ts:307
+#: src/messages.ts:304
 msgid "Close reorder guidance"
 msgstr ""
 
-#: src/messages.ts:311
+#: src/messages.ts:308
 msgid "Apply the new order?"
 msgstr ""
 
-#. 1: 移動元の行番号, 2: 移動先の行番号
-#: src/messages.ts:325
-msgid "Row %1$d → %2$d"
-msgstr ""
-
-#: src/messages.ts:34
+#: src/messages.ts:31
 msgid "Reorder with form"
 msgstr ""
 
+#. 1: 移動元の行番号, 2: 移動先の行番号
+#: src/messages.ts:322
+msgid "Row %1$d → %2$d"
+msgstr ""
+
 #. 1: 移動元の列番号, 2: 移動先の列番号
-#: src/messages.ts:341
+#: src/messages.ts:338
 msgid "Column %1$d → %2$d"
 msgstr ""
 
-#: src/messages.ts:347
+#: src/messages.ts:344
 msgid "Applying this reorder may take some time."
 msgstr ""
 
-#: src/messages.ts:350
+#: src/messages.ts:347
 msgid "Continue"
 msgstr ""
 
-#: src/messages.ts:353
+#: src/messages.ts:350
 msgid "Cancel"
 msgstr ""
 
-#: src/messages.ts:357
+#: src/messages.ts:354
 msgid "Applying the new order…"
 msgstr ""
 
-#: src/messages.ts:361
+#: src/messages.ts:358
 msgid "Please wait until the update is complete."
 msgstr ""
 
-#: src/messages.ts:365
+#: src/messages.ts:362
 msgid "Reordering complete."
 msgstr ""
 
-#: src/messages.ts:40
+#: src/messages.ts:37
 msgid "Rows"
 msgstr ""
 
-#: src/messages.ts:43
+#: src/messages.ts:40
 msgid "Columns"
 msgstr ""
 
-#: src/messages.ts:46
+#: src/messages.ts:43
 msgid "Row to move"
 msgstr ""
 
-#: src/messages.ts:49
+#: src/messages.ts:46
 msgid "Target row"
 msgstr ""
 
-#: src/messages.ts:52
+#: src/messages.ts:49
 msgid "Position"
 msgstr ""
 
-#: src/messages.ts:55
+#: src/messages.ts:52
 msgid "Above"
 msgstr ""
 
-#: src/messages.ts:58
+#: src/messages.ts:55
 msgid "Below"
 msgstr ""
 
 #. %d: current tbody row count
-#: src/messages.ts:68
+#: src/messages.ts:65
 msgid "Enter an integer from 1 to %d."
 msgstr ""
 
-#: src/messages.ts:74
+#: src/messages.ts:71
 msgid "Move the row above or below the target row."
 msgstr ""
 
-#: src/messages.ts:77
+#: src/messages.ts:74
 msgid "Column to move"
 msgstr ""
 
-#: src/messages.ts:80
+#: src/messages.ts:77
 msgid "Target column"
 msgstr ""
 
-#: src/messages.ts:83
+#: src/messages.ts:80
 msgid "Select a column"
 msgstr ""
 
-#: src/messages.ts:87
+#: src/messages.ts:84
 msgid "The selected column is no longer available. Select a column again."
 msgstr ""
 
-#: src/messages.ts:93
+#: src/messages.ts:90
 msgid "Left"
 msgstr ""
 
-#: src/messages.ts:96
+#: src/messages.ts:93
 msgid "Right"
+msgstr ""
+
+#: src/messages.ts:97
+msgid "Move the column to the left or right of the target column."
+msgstr ""
+
+#. Plugin Name of the plugin
+#: yamabiko-table-reorder.php
+msgid "Yamabiko Table Reorder"
 msgstr ""
 
 #. Description of the plugin
