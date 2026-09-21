@@ -4,22 +4,26 @@
 
 import { act, render } from '@testing-library/react';
 
+import { rowDndInteraction } from '@/reorder/row-reorder/responsibilities/dnd-interaction';
+
 import { RowMovingDisplay } from './moving-row';
 
-let mockRowDndPhase: 'idle' | 'active' = 'active';
 let mockDragDropMonitor: {
 	onDragStart?: ( event: any ) => void;
 	onDragMove?: ( event: any ) => void;
 } = {};
 
-jest.mock( '@/reorder/row-reorder/integration/dnd-interaction-react', () => ( {
-	useRowDndPhase: () => mockRowDndPhase,
-} ) );
-
+/* DnD Engineの物理monitorはJSDOMで実行できないため、その通知境界だけを決定的なTest Doubleとする。 */
 jest.mock( '@dnd-kit/react', () => ( {
 	useDragDropMonitor: ( monitor: typeof mockDragDropMonitor ) => {
 		mockDragDropMonitor = monitor;
 	},
+} ) );
+
+/* Jestで読み込めないBlock Editor Store境界だけを代替し、WordPress DataとDnD Interactionは実経路へ接続する。 */
+jest.mock( '@wordpress/block-editor', () => ( {
+	store: jest.requireActual( '@/reorder/row-reorder/responsibilities/table-integration.test-utils' )
+		.rowReorderTestBlockEditorStore,
 } ) );
 
 /**
@@ -78,9 +82,21 @@ const createSourceRow = (): HTMLTableRowElement => {
 
 describe( 'Row moving display horizontal tracking', () => {
 	beforeEach( () => {
-		mockRowDndPhase = 'active';
+		act( () => {
+			rowDndInteraction.cancel();
+			rowDndInteraction.start(
+				{ tableIdentity: 'table-a', sourceRowIndex: 0 },
+				{ rowCount: 2, blockedBoundaries: [] }
+			);
+		} );
 		mockDragDropMonitor = {};
 		document.body.replaceChildren();
+	} );
+
+	afterEach( () => {
+		act( () => {
+			rowDndInteraction.cancel();
+		} );
 	} );
 
 	/**
