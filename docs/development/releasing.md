@@ -72,15 +72,17 @@ The Release workflow does not create GitHub Discussions automatically.
 
 If an announcement is useful, create it manually after the GitHub Release is published and link to the Release page. This keeps release publication independent from community announcement features.
 
-## Future WordPress.org deployment
+## WordPress.org deployment
 
-`readme.txt` follows the WordPress.org plugin readme format so the repository is ready for a future WordPress.org SVN publishing step.
+Yamabiko Table Reorder is published in the [WordPress Plugin Directory](https://wordpress.org/plugins/yamabiko-table-reorder/). WordPress.org SVN deployment remains a manual step after the release source has been reviewed and validated.
 
-When WordPress.org publishing is added, keep the same release contract:
+Keep the same release contract when publishing to WordPress.org:
 
 - the plugin header remains the release-version source of truth;
 - `readme.txt` `Stable tag` and Changelog remain synchronized release metadata;
 - the already validated `main` commit is the source for the release;
 - the distribution contents stay aligned with the GitHub Release ZIP.
+
+Do not make product-code changes only in WordPress.org SVN. Keep repository source authoritative and synchronize the intended release contents from GitHub.
 
 WordPress.org SVN deployment is not automated by the current workflow.
