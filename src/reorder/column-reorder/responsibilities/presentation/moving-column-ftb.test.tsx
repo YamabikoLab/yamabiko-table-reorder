@@ -4,16 +4,15 @@
 
 import { act, render } from '@testing-library/react';
 
+import { columnDndInteraction } from '@/reorder/column-reorder/responsibilities/dnd-interaction';
+
 import { ColumnMovingDisplay } from './moving-column';
 
 let mockDragDropMonitor: {
 	onDragStart?: ( event: any ) => void;
 } = {};
 
-jest.mock( '@/reorder/column-reorder/integration/dnd-interaction-react', () => ( {
-	useColumnDndPhase: () => 'active',
-} ) );
-
+/* DnD Engineのframe transformはJSDOMで再現できないため、座標変換境界だけを決定的なTest Doubleとする。 */
 jest.mock( '@dnd-kit/dom/utilities', () => ( {
 	getFrameTransform: () => ( {
 		x: 0,
@@ -23,10 +22,18 @@ jest.mock( '@dnd-kit/dom/utilities', () => ( {
 	} ),
 } ) );
 
+/* DnD Engineの物理monitorはJSDOMで実行できないため、その通知境界だけを決定的なTest Doubleとする。 */
 jest.mock( '@dnd-kit/react', () => ( {
 	useDragDropMonitor: ( monitor: typeof mockDragDropMonitor ) => {
 		mockDragDropMonitor = monitor;
 	},
+} ) );
+
+/* Jestで読み込めないBlock Editor Store境界だけを代替し、WordPress DataとDnD Interactionは実経路へ接続する。 */
+jest.mock( '@wordpress/block-editor', () => ( {
+	store: jest.requireActual(
+		'@/reorder/column-reorder/responsibilities/table-integration.test-utils'
+	).columnReorderTestBlockEditorStore,
 } ) );
 
 const FTB_EDITOR_CONTROL_CLASSES = [
@@ -59,6 +66,12 @@ const rectangle = ( values: Partial< DOMRect > ): DOMRect =>
 		...values,
 	} ) as DOMRect;
 
+afterEach( () => {
+	act( () => {
+		columnDndInteraction.cancel();
+	} );
+} );
+
 /**
  * FTBのeditor操作要素を含む列でも、移動表示にはTable内容だけが残ることを確認する。
  *
@@ -74,6 +87,13 @@ const rectangle = ( values: Partial< DOMRect > ): DOMRect =>
  * - 元Tableのeditor操作要素は変更されない。
  */
 it( 'when the source column contains FTB editor controls, should keep table content and exclude only the controls from the moving overlay', () => {
+	act( () => {
+		columnDndInteraction.cancel();
+		columnDndInteraction.start(
+			{ tableIdentity: 'table-a', sourceColumnIndex: 0 },
+			{ columnCount: 3, blockedBoundaries: [] }
+		);
+	} );
 	const table = document.createElement( 'table' );
 	const tbody = document.createElement( 'tbody' );
 	const row = document.createElement( 'tr' );

@@ -4,43 +4,54 @@
 
 import { act, createEvent, fireEvent, render } from '@testing-library/react';
 
-import { resolveColumnSourceIndex } from '@/reorder/column-reorder/integration/source-column-resolution';
+import * as sourceResolution from '@/reorder/column-reorder/integration/source-column-resolution';
 import {
+	columnDndInteraction,
 	getColumnDndPhase,
-	subscribeColumnDndState,
 } from '@/reorder/column-reorder/responsibilities/dnd-interaction';
-import { resolveColumnReorderTarget } from '@/reorder/column-reorder/responsibilities/target-resolution';
+import {
+	createColumnReorderTestRow,
+	createColumnReorderTestTable,
+	setColumnReorderTestTables,
+} from '@/reorder/column-reorder/responsibilities/table-integration.test-utils';
+import * as targetResolution from '@/reorder/column-reorder/responsibilities/target-resolution';
 import { reorderMode } from '@/reorder/reorder-mode';
 
 import { ColumnHighlight } from './column-highlight';
 
-let mockColumnDndPhase: 'idle' | 'active' = 'idle';
-let mockColumnDndStateListener: ( () => void ) | null = null;
-
-jest.mock( '@/reorder/column-reorder/responsibilities/dnd-interaction', () => ( {
-	getColumnDndPhase: jest.fn( () => mockColumnDndPhase ),
-	subscribeColumnDndState: jest.fn( ( listener: () => void ) => {
-		mockColumnDndStateListener = listener;
-		return () => {
-			mockColumnDndStateListener = null;
-		};
-	} ),
+/* Jestで読み込めないBlock Editor Store境界だけを代替し、WordPress DataとColumn Reorder責務は実経路へ接続する。 */
+jest.mock( '@wordpress/block-editor', () => ( {
+	store: jest.requireActual(
+		'@/reorder/column-reorder/responsibilities/table-integration.test-utils'
+	).columnReorderTestBlockEditorStore,
 } ) );
 
-jest.mock( '@/reorder/column-reorder/integration/source-column-resolution', () => ( {
-	resolveColumnSourceIndex: jest.fn(),
-} ) );
+/** 結合セル制約のない3列の現在Tableを登録する。 */
+const setMovableTable = (): void => {
+	setColumnReorderTestTables( [
+		createColumnReorderTestTable( 'table-a', [ createColumnReorderTestRow( 'row', 3 ) ] ),
+	] );
+};
 
-jest.mock( '@/reorder/column-reorder/responsibilities/target-resolution', () => ( {
-	resolveColumnReorderTarget: jest.fn(),
-} ) );
+/** 2列目を含む結合セルにより、その列の移動を開始できない現在Tableを登録する。 */
+const setBlockedTable = (): void => {
+	setColumnReorderTestTables( [
+		createColumnReorderTestTable( 'table-a', [ { cells: [ {}, { colspan: 2 } ] } ] ),
+	] );
+};
 
-const resolveColumnSourceIndexMock = resolveColumnSourceIndex as jest.MockedFunction<
-	typeof resolveColumnSourceIndex
->;
-const resolveColumnReorderTargetMock = resolveColumnReorderTarget as jest.MockedFunction<
-	typeof resolveColumnReorderTarget
->;
+/** Production Target Resolutionの解決結果から列DnD Sessionを開始する。 */
+const startColumnDnd = (): void => {
+	const resolution = targetResolution.resolveColumnReorderTarget( {
+		tableIdentity: 'table-a',
+		sourceColumnIndex: 0,
+	} );
+	if ( resolution.status !== 'resolved' ) {
+		throw new Error( 'Column highlight test target must be resolved.' );
+	}
+
+	columnDndInteraction.start( resolution.target, resolution.initialConstraints );
+};
 
 /**
  * ポインター終了入力を明示して通知する。
@@ -119,23 +130,23 @@ const TestTable = ( props: { tableIdentity?: string } ) => (
 
 describe( 'Column highlight', () => {
 	beforeEach( () => {
-		jest.clearAllMocks();
+		act( () => {
+			columnDndInteraction.cancel();
+		} );
+		setMovableTable();
 		resetReorderMode();
 		act( () => {
 			reorderMode.select( 'column', 'table-a' );
 		} );
-		mockColumnDndPhase = 'idle';
-		mockColumnDndStateListener = null;
-		resolveColumnSourceIndexMock.mockImplementation( ( _table, cell ) => cell.cellIndex );
-		resolveColumnReorderTargetMock.mockImplementation( ( target ) => ( {
-			status: 'resolved',
-			target,
-			initialConstraints: { columnCount: 3, blockedBoundaries: [] },
-		} ) );
 	} );
 
 	afterEach( () => {
+		act( () => {
+			columnDndInteraction.cancel();
+		} );
+		setColumnReorderTestTables( [] );
 		resetReorderMode();
+		jest.restoreAllMocks();
 	} );
 
 	/**
@@ -181,16 +192,7 @@ describe( 'Column highlight', () => {
 	 * - Editor Documentは通常cursor状態になる。
 	 */
 	it( 'when target resolution rejects the current column, should show a YTR-owned rejected highlight without changing the cell class', () => {
-		resolveColumnReorderTargetMock.mockReturnValue( {
-			status: 'rejected',
-			blockingMergedRange: {
-				section: 'body',
-				rowStart: 0,
-				rowEnd: 0,
-				columnStart: 0,
-				columnEnd: 1,
-			},
-		} );
+		setBlockedTable();
 		const { getByTestId } = render( <TestTable /> );
 		const currentCell = getByTestId( 'column-1' );
 		fireEvent.pointerOver( currentCell, { pointerType: 'mouse' } );
@@ -212,7 +214,7 @@ describe( 'Column highlight', () => {
 	 * - YTR所有Highlightも開始前cursor状態も生成されない。
 	 */
 	it( 'when target resolution returns unavailable, should not show a highlight or cursor state', () => {
-		resolveColumnReorderTargetMock.mockReturnValue( { status: 'unavailable' } );
+		setColumnReorderTestTables( [] );
 		const { getByTestId } = render( <TestTable /> );
 		fireEvent.pointerOver( getByTestId( 'column-1' ), { pointerType: 'mouse' } );
 
@@ -259,11 +261,13 @@ describe( 'Column highlight', () => {
 	 * - 論理列解決と開始可否判定は1回だけ行われる。
 	 */
 	it( 'when the pointer moves inside the same cell, should not resolve the same preview again', () => {
+		const resolveSourceIndex = jest.spyOn( sourceResolution, 'resolveColumnSourceIndex' );
+		const resolveTarget = jest.spyOn( targetResolution, 'resolveColumnReorderTarget' );
 		const { getByTestId } = render( <TestTable /> );
 		fireEvent.pointerOver( getByTestId( 'column-1' ), { pointerType: 'mouse' } );
 		fireEvent.pointerOver( getByTestId( 'column-1-child' ), { pointerType: 'mouse' } );
-		expect( resolveColumnSourceIndexMock ).toHaveBeenCalledTimes( 1 );
-		expect( resolveColumnReorderTargetMock ).toHaveBeenCalledTimes( 1 );
+		expect( resolveSourceIndex ).toHaveBeenCalledTimes( 1 );
+		expect( resolveTarget ).toHaveBeenCalledTimes( 1 );
 	} );
 
 	/**
@@ -360,15 +364,15 @@ describe( 'Column highlight', () => {
 	it( 'when column DnD starts, should clear the pre-drag highlight and cursor state', () => {
 		const { getByTestId } = render( <TestTable /> );
 		fireEvent.pointerOver( getByTestId( 'column-1' ), { pointerType: 'mouse' } );
-		mockColumnDndPhase = 'active';
-		mockColumnDndStateListener?.();
+		act( () => {
+			startColumnDnd();
+		} );
 
 		expect( document.querySelector( '.yamabiko-table-reorder-column-highlight' ) ).toBeNull();
 		expect( document.body.className ).not.toContain(
 			'yamabiko-table-reorder-column-highlight-cursor-'
 		);
 		expect( getColumnDndPhase() ).toBe( 'active' );
-		expect( subscribeColumnDndState ).toHaveBeenCalled();
 	} );
 
 	/**
@@ -384,6 +388,11 @@ describe( 'Column highlight', () => {
 	 * - Table AのHighlightが解除され、Table Bの現在対象がTarget Resolutionへ渡される。
 	 */
 	it( 'when the target table changes, should clear the previous highlight and resolve the new table target', () => {
+		setColumnReorderTestTables( [
+			createColumnReorderTestTable( 'table-a', [ createColumnReorderTestRow( 'a', 3 ) ] ),
+			createColumnReorderTestTable( 'table-b', [ createColumnReorderTestRow( 'b', 3 ) ] ),
+		] );
+		const resolveTarget = jest.spyOn( targetResolution, 'resolveColumnReorderTarget' );
 		const { getByTestId, rerender } = render( <TestTable tableIdentity="table-a" /> );
 		const currentCell = getByTestId( 'column-1' );
 		fireEvent.pointerOver( currentCell, { pointerType: 'mouse' } );
@@ -396,7 +405,7 @@ describe( 'Column highlight', () => {
 		expect( document.querySelector( '.yamabiko-table-reorder-column-highlight' ) ).toBeNull();
 
 		fireEvent.pointerOver( currentCell, { pointerType: 'mouse' } );
-		expect( resolveColumnReorderTargetMock ).toHaveBeenLastCalledWith( {
+		expect( resolveTarget ).toHaveBeenLastCalledWith( {
 			tableIdentity: 'table-b',
 			sourceColumnIndex: 1,
 		} );
