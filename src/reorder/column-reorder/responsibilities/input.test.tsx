@@ -16,6 +16,7 @@ import {
 	createColumnReorderTestTable,
 	setColumnReorderTestTables,
 } from './table-integration.test-utils';
+import * as targetResolution from './target-resolution';
 
 /* Jestで読み込めないBlock Editor Store境界だけを代替し、WordPress DataとTarget Resolutionは実経路へ接続する。 */
 jest.mock( '@wordpress/block-editor', () => ( {
@@ -148,6 +149,7 @@ describe( 'Column DnD input boundary', () => {
 
 	afterEach( () => {
 		setColumnReorderTestTables( [] );
+		jest.restoreAllMocks();
 	} );
 
 	/**
@@ -259,6 +261,7 @@ describe( 'Column DnD input boundary', () => {
 	 * - 現在のDraggableは破棄されず、新しい解決も行われない。
 	 */
 	it( 'when a physical drag is already active, should preserve the current draggable and ignore additional pointer input', () => {
+		const resolveTarget = jest.spyOn( targetResolution, 'resolveColumnReorderTarget' );
 		const manager = { dragOperation: { status: { idle: true } } };
 		useDragDropManagerMock.mockReturnValue( manager as ReturnType< typeof useDragDropManager > );
 		const { currentTarget, target, next } = createTableTarget();
@@ -273,6 +276,7 @@ describe( 'Column DnD input boundary', () => {
 		expect( currentDraggable?.destroy ).not.toHaveBeenCalled();
 		expect( activeDraggable.current ).toBe( currentDraggable );
 		expect( draggableConstructorMock ).toHaveBeenCalledTimes( 1 );
+		expect( resolveTarget ).toHaveBeenCalledTimes( 1 );
 	} );
 
 	/**

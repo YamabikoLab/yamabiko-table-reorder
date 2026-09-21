@@ -101,17 +101,20 @@ describe( 'Column DnD Interaction lifecycle', () => {
 	 *
 	 * 期待結果:
 	 * - 開始時の解決結果だけでactiveへ遷移する。
+	 * - Session開始では現在Table制約を取得し直さない。
 	 */
 	it( 'when start receives a resolved target, should begin an active session without resolving the table again', () => {
 		const resolution = resolveColumnReorderTarget( target );
 		if ( resolution.status !== 'resolved' ) {
 			throw new Error( 'Column DnD lifecycle test target must be resolved.' );
 		}
+		const getConstraints = jest.spyOn( columnTableIntegration, 'getConstraints' );
 		setColumnReorderTestTables( [] );
 
 		columnDndInteraction.start( resolution.target, resolution.initialConstraints );
 
 		expect( getColumnDndPhase() ).toBe( 'active' );
+		expect( getConstraints ).not.toHaveBeenCalled();
 	} );
 
 	/** active Session中の再開始をLifecycle違反として拒否することを確認する。 */
@@ -132,9 +135,11 @@ describe( 'Column DnD Interaction lifecycle', () => {
 	 *
 	 * 期待結果:
 	 * - 開始時に有効だった境界4と境界3を順に保持できる。
+	 * - 移動先更新中は現在Table制約を取得し直さない。
 	 */
 	it( 'when destinations change during an active session, should validate them against the initial constraints', () => {
 		startActiveSession();
+		const getConstraints = jest.spyOn( columnTableIntegration, 'getConstraints' );
 		setColumnReorderTestTables( [
 			createColumnReorderTestTable( 'table-a', [ { cells: [ {}, {}, {}, { colspan: 2 } ] } ] ),
 		] );
@@ -144,6 +149,7 @@ describe( 'Column DnD Interaction lifecycle', () => {
 		columnDndInteraction.updateDestination( 3 );
 
 		expect( getColumnDndDestinationBoundaryIndex() ).toBe( 3 );
+		expect( getConstraints ).not.toHaveBeenCalled();
 	} );
 
 	/** 列順を変えない位置、範囲外、分断不可境界を移動先として保持しないことを確認する。 */

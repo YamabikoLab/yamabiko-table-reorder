@@ -4,11 +4,7 @@
 
 import { act, render, renderHook } from '@testing-library/react';
 
-import {
-	columnDndInteraction,
-	getColumnDndDestinationBoundaryIndex,
-	getColumnDndPhase,
-} from '@/reorder/column-reorder/responsibilities/dnd-interaction';
+import * as dndInteraction from '@/reorder/column-reorder/responsibilities/dnd-interaction';
 import {
 	createColumnReorderTestRow,
 	createColumnReorderTestTable,
@@ -16,6 +12,8 @@ import {
 } from '@/reorder/column-reorder/responsibilities/table-integration.test-utils';
 import { resolveColumnReorderTarget } from '@/reorder/column-reorder/responsibilities/target-resolution';
 import { useColumnDndDestinationBoundaryIndex, useColumnDndPhase } from './dnd-interaction-react';
+
+const subscribeColumnDndState = dndInteraction.subscribeColumnDndState;
 
 /* Jestで読み込めないBlock Editor Store境界だけを代替し、WordPress DataとDnD Interactionは実経路へ接続する。 */
 jest.mock( '@wordpress/block-editor', () => ( {
@@ -33,13 +31,13 @@ const startSession = (): void => {
 	if ( resolution.status !== 'resolved' ) {
 		throw new Error( 'Column DnD React test target must be resolved.' );
 	}
-	columnDndInteraction.start( resolution.target, resolution.initialConstraints );
+	dndInteraction.columnDndInteraction.start( resolution.target, resolution.initialConstraints );
 };
 
 describe( 'Column DnD React state interface', () => {
 	beforeEach( () => {
 		act( () => {
-			columnDndInteraction.cancel();
+			dndInteraction.columnDndInteraction.cancel();
 		} );
 		setColumnReorderTestTables( [
 			createColumnReorderTestTable( 'table-a', [ createColumnReorderTestRow( 'row-1' ) ] ),
@@ -48,9 +46,10 @@ describe( 'Column DnD React state interface', () => {
 
 	afterEach( () => {
 		act( () => {
-			columnDndInteraction.cancel();
+			dndInteraction.columnDndInteraction.cancel();
 		} );
 		setColumnReorderTestTables( [] );
+		jest.restoreAllMocks();
 	} );
 
 	/**
@@ -68,7 +67,7 @@ describe( 'Column DnD React state interface', () => {
 	it( 'when hooks mount with existing column DnD state, should expose each current public value', () => {
 		act( () => {
 			startSession();
-			columnDndInteraction.updateDestination( 4 );
+			dndInteraction.columnDndInteraction.updateDestination( 4 );
 		} );
 
 		const phase = renderHook( useColumnDndPhase );
@@ -96,7 +95,7 @@ describe( 'Column DnD React state interface', () => {
 
 		act( () => {
 			startSession();
-			columnDndInteraction.updateDestination( 4 );
+			dndInteraction.columnDndInteraction.updateDestination( 4 );
 		} );
 
 		expect( phase.result.current ).toBe( 'active' );
@@ -104,30 +103,39 @@ describe( 'Column DnD React state interface', () => {
 	} );
 
 	/**
-	 * React利用者が終了した後は、Production共有状態の変更で描画されないことを確認する。
+	 * React利用者が終了したとき、Production共有状態の購読を解除することを確認する。
+	 *
+	 * 事前条件:
+	 * - phaseと移動先境界を読むReact利用者がmountされている。
+	 *
+	 * 操作:
+	 * - 利用者をunmountする。
 	 *
 	 * 期待結果:
-	 * - 終了した利用者は再描画されず、Production共有状態自体は通常どおり更新される。
+	 * - 各公開HookがProduction共有状態から受け取った購読解除処理を実行する。
 	 */
 	it( 'when React consumers unmount, should release their column DnD state subscriptions', () => {
-		const renderObserver = jest.fn();
+		const unsubscribeObservers: jest.Mock[] = [];
+		/* 購読解除は公開描画結果から直接観測できないため、この1ケースだけ解除関数を記録し、実Production購読と解除へそのまま委譲する。 */
+		jest.spyOn( dndInteraction, 'subscribeColumnDndState' ).mockImplementation( ( listener ) => {
+			const unsubscribe = subscribeColumnDndState( listener );
+			const unsubscribeObserver = jest.fn( unsubscribe );
+			unsubscribeObservers.push( unsubscribeObserver );
+			return unsubscribeObserver;
+		} );
 		const Consumer = () => {
-			const phase = useColumnDndPhase();
-			const destination = useColumnDndDestinationBoundaryIndex();
-			renderObserver( phase, destination );
+			useColumnDndPhase();
+			useColumnDndDestinationBoundaryIndex();
 			return null;
 		};
 		const consumer = render( <Consumer /> );
-		const renderCountBeforeUnmount = renderObserver.mock.calls.length;
+
+		expect( unsubscribeObservers ).toHaveLength( 2 );
 
 		consumer.unmount();
-		act( () => {
-			startSession();
-			columnDndInteraction.updateDestination( 4 );
-		} );
 
-		expect( renderObserver ).toHaveBeenCalledTimes( renderCountBeforeUnmount );
-		expect( getColumnDndPhase() ).toBe( 'active' );
-		expect( getColumnDndDestinationBoundaryIndex() ).toBe( 4 );
+		for ( const unsubscribeObserver of unsubscribeObservers ) {
+			expect( unsubscribeObserver ).toHaveBeenCalledTimes( 1 );
+		}
 	} );
 } );
