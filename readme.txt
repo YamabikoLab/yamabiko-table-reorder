@@ -36,10 +36,17 @@ Yamabiko Table Reorder supports the WordPress Core Table block and [Flexible Tab
 
 Merged cells are taken into account, and moves that would break the supported Table structure are rejected. For larger changes that may take noticeable time to apply, the plugin asks for confirmation before updating the Table.
 
-A WordPress Playground demo is available from the GitHub repository and uses the current latest stable release.
+= Demo =
 
-Source code and development documentation are available on GitHub:
-https://github.com/YamabikoLab/yamabiko-table-reorder
+Try Yamabiko Table Reorder in WordPress Playground:
+
+[Open the live demo](https://playground.wordpress.net/?blueprint-url=https://raw.githubusercontent.com/YamabikoLab/yamabiko-table-reorder/main/demo/blueprint.json)
+
+The demo uses the latest stable release.
+
+= Source Code =
+
+Source code and development documentation are available on [GitHub](https://github.com/YamabikoLab/yamabiko-table-reorder).
 
 To install dependencies and build a release ZIP from source:
 
