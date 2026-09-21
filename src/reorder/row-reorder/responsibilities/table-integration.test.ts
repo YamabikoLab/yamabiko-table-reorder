@@ -3,24 +3,41 @@
  */
 
 import { rowTableIntegration } from './table-integration';
+import {
+	createRowReorderTestTable,
+	getRowReorderTestTable,
+	setRowReorderTestTables,
+} from './table-integration.test-utils';
 
+/* @wordpress/block-editorはJest非対応のESMを経由するため、Store境界だけを実@wordpress/dataへ登録した最小実装へ置き換える。 */
 jest.mock( '@wordpress/block-editor', () => ( {
-	store: Symbol( 'block-editor-store' ),
+	store: jest.requireActual( './table-integration.test-utils' ).rowReorderTestBlockEditorStore,
 } ) );
 
-jest.mock( '@wordpress/data', () => ( {
-	dispatch: jest.fn(),
-	select: jest.fn(),
-} ) );
-
-const { dispatch: dispatchMock, select: selectMock } = jest.requireMock( '@wordpress/data' ) as {
-	dispatch: jest.Mock;
-	select: jest.Mock;
-};
+/**
+ * 任意の対応Block名とtbodyを持つ現在Tableを作成する。
+ *
+ * @param clientId Table個体を識別するclientId。
+ * @param body     現在Tableへ登録するtbody行集合。
+ * @param name     Table Integrationへ提示するBlock名。
+ * @return Block Editor Storeへ登録するTable Block。
+ */
+const createTable = (
+	clientId: string,
+	body: Parameters< typeof createRowReorderTestTable >[ 1 ],
+	name = 'core/table'
+) => ( {
+	...createRowReorderTestTable( clientId, body ),
+	name,
+} );
 
 describe( 'Table Integration', () => {
 	beforeEach( () => {
-		jest.clearAllMocks();
+		setRowReorderTestTables( [] );
+	} );
+
+	afterEach( () => {
+		setRowReorderTestTables( [] );
 	} );
 
 	/**
@@ -40,19 +57,14 @@ describe( 'Table Integration', () => {
 	 * - colspanは行方向の制約を生成しない。
 	 */
 	it( 'when Core Table constraints are requested, should return row count and blocked row boundaries', () => {
-		selectMock.mockReturnValue( {
-			getBlock: jest.fn().mockReturnValue( {
-				name: 'core/table',
-				attributes: {
-					body: [
-						{ cells: [ { colspan: 2 } ] },
-						{ cells: [ { rowspan: 3 }, { rowspan: 2 } ] },
-						{ cells: [ {} ] },
-						{ cells: [ {} ] },
-					],
-				},
-			} ),
-		} );
+		setRowReorderTestTables( [
+			createTable( 'table-a', [
+				{ cells: [ { colspan: 2 } ] },
+				{ cells: [ { rowspan: 3 }, { rowspan: 2 } ] },
+				{ cells: [ {} ] },
+				{ cells: [ {} ] },
+			] ),
+		] );
 
 		expect( rowTableIntegration.getConstraints( 'table-a' ) ).toEqual( {
 			rowCount: 4,
@@ -74,14 +86,13 @@ describe( 'Table Integration', () => {
 	 * - Flexible Table Block固有のrowSpanが解釈され、境界1、2が返る。
 	 */
 	it( 'when Flexible Table Block constraints are requested, should adapt rowSpan to the same row constraints', () => {
-		selectMock.mockReturnValue( {
-			getBlock: jest.fn().mockReturnValue( {
-				name: 'flexible-table-block/table',
-				attributes: {
-					body: [ { cells: [ { rowSpan: 3 } ] }, { cells: [] }, { cells: [] } ],
-				},
-			} ),
-		} );
+		setRowReorderTestTables( [
+			createTable(
+				'table-b',
+				[ { cells: [ { rowSpan: 3 } ] }, { cells: [] }, { cells: [] } ],
+				'flexible-table-block/table'
+			),
+		] );
 
 		expect( rowTableIntegration.getConstraints( 'table-b' ) ).toEqual( {
 			rowCount: 3,
@@ -103,12 +114,10 @@ describe( 'Table Integration', () => {
 	 * - いずれも正常な不在としてnullが返る。
 	 */
 	it( 'when the current Table cannot be integrated, should return null', () => {
-		const getBlock = jest
-			.fn()
-			.mockReturnValueOnce( { name: 'core/paragraph', attributes: {} } )
-			.mockReturnValueOnce( null )
-			.mockReturnValueOnce( { name: 'core/table', attributes: {} } );
-		selectMock.mockReturnValue( { getBlock } );
+		setRowReorderTestTables( [
+			{ ...createTable( 'unsupported', [] ), name: 'core/paragraph' },
+			{ ...createTable( 'invalid', [] ), attributes: {} },
+		] );
 
 		expect( rowTableIntegration.getConstraints( 'unsupported' ) ).toBeNull();
 		expect( rowTableIntegration.getConstraints( 'removed' ) ).toBeNull();
@@ -128,18 +137,13 @@ describe( 'Table Integration', () => {
 	 * - 移動先指定を必要とせず、原因セルの0-based行・列範囲が返る。
 	 */
 	it( 'when a drag source row intersects a merged cell, should return the source blocking range', () => {
-		selectMock.mockReturnValue( {
-			getBlock: jest.fn().mockReturnValue( {
-				name: 'core/table',
-				attributes: {
-					body: [
-						{ cells: [ {}, { rowspan: 2, colspan: 2 } ] },
-						{ cells: [ {} ] },
-						{ cells: [ {}, {}, {} ] },
-					],
-				},
-			} ),
-		} );
+		setRowReorderTestTables( [
+			createTable( 'table-a', [
+				{ cells: [ {}, { rowspan: 2, colspan: 2 } ] },
+				{ cells: [ {} ] },
+				{ cells: [ {}, {}, {} ] },
+			] ),
+		] );
 
 		expect( rowTableIntegration.getSourceBlockingMergedRange( 'table-a', 1 ) ).toEqual( {
 			rowStart: 0,
@@ -165,17 +169,10 @@ describe( 'Table Integration', () => {
 	 * - bodyはA、C、D、Bの順で1回更新される。
 	 */
 	it( 'when a confirmed row moves downward, should preserve the requested destination after removing the source row', () => {
-		const updateBlockAttributes = jest.fn();
 		const rows = [ 'A', 'B', 'C', 'D' ].map( ( content ) => ( {
 			cells: [ { content } ],
 		} ) );
-		selectMock.mockReturnValue( {
-			getBlock: jest.fn().mockReturnValue( {
-				name: 'core/table',
-				attributes: { body: rows },
-			} ),
-		} );
-		dispatchMock.mockReturnValue( { updateBlockAttributes } );
+		setRowReorderTestTables( [ createTable( 'table-a', rows ) ] );
 
 		expect(
 			rowTableIntegration.applyRowMove( {
@@ -184,9 +181,12 @@ describe( 'Table Integration', () => {
 				destinationBoundaryIndex: 4,
 			} )
 		).toBe( true );
-		expect( updateBlockAttributes ).toHaveBeenCalledWith( 'table-a', {
-			body: [ rows[ 0 ], rows[ 2 ], rows[ 3 ], rows[ 1 ] ],
-		} );
+		expect( getRowReorderTestTable( 'table-a' )?.attributes.body ).toEqual( [
+			rows[ 0 ],
+			rows[ 2 ],
+			rows[ 3 ],
+			rows[ 1 ],
+		] );
 	} );
 
 	/**
@@ -204,14 +204,8 @@ describe( 'Table Integration', () => {
 	 * - falseが返り、属性更新は行われない。
 	 */
 	it( 'when the current Table no longer matches the confirmed row range, should not update it', () => {
-		const updateBlockAttributes = jest.fn();
-		selectMock.mockReturnValue( {
-			getBlock: jest.fn().mockReturnValue( {
-				name: 'core/table',
-				attributes: { body: [ { cells: [] }, { cells: [] } ] },
-			} ),
-		} );
-		dispatchMock.mockReturnValue( { updateBlockAttributes } );
+		const rows = [ { cells: [] }, { cells: [] } ];
+		setRowReorderTestTables( [ createTable( 'table-a', rows ) ] );
 
 		expect(
 			rowTableIntegration.applyRowMove( {
@@ -220,6 +214,6 @@ describe( 'Table Integration', () => {
 				destinationBoundaryIndex: 0,
 			} )
 		).toBe( false );
-		expect( updateBlockAttributes ).not.toHaveBeenCalled();
+		expect( getRowReorderTestTable( 'table-a' )?.attributes.body ).toEqual( rows );
 	} );
 } );

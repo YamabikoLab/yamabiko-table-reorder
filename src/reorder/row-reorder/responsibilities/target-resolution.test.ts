@@ -3,23 +3,17 @@
  */
 
 import { rowTableIntegration } from './table-integration';
+import {
+	createRowReorderTestRow,
+	createRowReorderTestTable,
+	setRowReorderTestTables,
+} from './table-integration.test-utils';
 import { resolveRowReorderTarget } from './target-resolution';
 
-jest.mock( './table-integration', () => ( {
-	rowTableIntegration: {
-		getConstraints: jest.fn(),
-		getSourceBlockingMergedRange: jest.fn(),
-		applyRowMove: jest.fn(),
-	},
+/* Jestで読み込めないBlock Editor Store境界だけを代替し、WordPress DataとTable Integrationは実経路へ接続する。 */
+jest.mock( '@wordpress/block-editor', () => ( {
+	store: jest.requireActual( './table-integration.test-utils' ).rowReorderTestBlockEditorStore,
 } ) );
-
-const getConstraintsMock = rowTableIntegration.getConstraints as jest.MockedFunction<
-	typeof rowTableIntegration.getConstraints
->;
-const getSourceBlockingMergedRangeMock =
-	rowTableIntegration.getSourceBlockingMergedRange as jest.MockedFunction<
-		typeof rowTableIntegration.getSourceBlockingMergedRange
-	>;
 
 const target = {
 	tableIdentity: 'table-a',
@@ -32,11 +26,43 @@ const blockingMergedRange = {
 	columnEnd: 3,
 };
 
+/**
+ * 指定したtbodyを持つ現在Tableを登録する。
+ *
+ * @param body 現在Tableへ登録するtbody行集合。
+ */
+const setCurrentTable = ( body: Parameters< typeof createRowReorderTestTable >[ 1 ] ): void => {
+	setRowReorderTestTables( [ createRowReorderTestTable( 'table-a', body ) ] );
+};
+
+/** 結合セル制約のない5行の現在Tableを登録する。 */
+const setMovableTable = (): void => {
+	setCurrentTable(
+		Array.from( { length: 5 }, ( _value, rowIndex ) =>
+			createRowReorderTestRow( `row-${ rowIndex + 1 }` )
+		)
+	);
+};
+
+/** 移動元行を0〜1行・2〜3列の結合セルが妨げる現在Tableを登録する。 */
+const setBlockedTable = (): void => {
+	setCurrentTable( [
+		{ cells: [ {}, {}, { rowspan: 2, colspan: 2 } ] },
+		{ cells: [ {}, {} ] },
+		{ cells: [ {}, {}, {}, {} ] },
+		{ cells: [ {}, {}, {}, {} ] },
+		{ cells: [ {}, {}, {}, {} ] },
+	] );
+};
+
 describe( 'Row Reorder Target Resolution', () => {
 	beforeEach( () => {
-		jest.clearAllMocks();
-		getConstraintsMock.mockReset();
-		getSourceBlockingMergedRangeMock.mockReset();
+		setRowReorderTestTables( [] );
+	} );
+
+	afterEach( () => {
+		setRowReorderTestTables( [] );
+		jest.restoreAllMocks();
 	} );
 
 	/**
@@ -53,17 +79,15 @@ describe( 'Row Reorder Target Resolution', () => {
 	 * - 結合セル位置の追加診断は行われない。
 	 */
 	it( 'when the target row is movable, should resolve the target with the current constraints', () => {
-		const constraints = { rowCount: 5, blockedBoundaries: [] };
-		getConstraintsMock.mockReturnValue( constraints );
+		setMovableTable();
 
 		const result = resolveRowReorderTarget( target );
 
 		expect( result ).toEqual( {
 			status: 'resolved',
 			target,
-			initialConstraints: constraints,
+			initialConstraints: { rowCount: 5, blockedBoundaries: [] },
 		} );
-		expect( getSourceBlockingMergedRangeMock ).not.toHaveBeenCalled();
 	} );
 
 	/**
@@ -81,15 +105,10 @@ describe( 'Row Reorder Target Resolution', () => {
 	 * - 移動先を必要としない開始対象専用の診断が要求される。
 	 */
 	it( 'when the target row is blocked by a merged range, should reject it with the blocking range', () => {
-		getConstraintsMock.mockReturnValue( {
-			rowCount: 5,
-			blockedBoundaries: [ 2 ],
-		} );
-		getSourceBlockingMergedRangeMock.mockReturnValue( blockingMergedRange );
+		setBlockedTable();
 
 		const result = resolveRowReorderTarget( target );
 
-		expect( getSourceBlockingMergedRangeMock ).toHaveBeenCalledWith( 'table-a', 1 );
 		expect( result ).toEqual( {
 			status: 'rejected',
 			blockingMergedRange,
@@ -110,8 +129,14 @@ describe( 'Row Reorder Target Resolution', () => {
 	 * - unavailableが返る。
 	 */
 	it( 'when the current blocking range cannot be diagnosed, should return unavailable', () => {
-		getConstraintsMock.mockReturnValue( { rowCount: 5, blockedBoundaries: [ 2 ] } );
-		getSourceBlockingMergedRangeMock.mockReturnValue( null );
+		setBlockedTable();
+		const getConstraints = rowTableIntegration.getConstraints;
+		/* 一つの同期的な解決要求内で制約取得と原因診断の間へ外部更新を挿入する公開境界はないため、この失敗注入だけ実制約取得の直後に現在Tableを消失させる。 */
+		jest.spyOn( rowTableIntegration, 'getConstraints' ).mockImplementationOnce( ( clientId ) => {
+			const constraints = getConstraints( clientId );
+			setRowReorderTestTables( [] );
+			return constraints;
+		} );
 
 		expect( resolveRowReorderTarget( target ) ).toEqual( { status: 'unavailable' } );
 	} );
@@ -129,17 +154,14 @@ describe( 'Row Reorder Target Resolution', () => {
 	 * - Table制約を要求ごとに取得し、2回目は現在の原因セル位置を持つ開始拒否になる。
 	 */
 	it( 'when the same target is resolved again, should use the current table for each request', () => {
-		getConstraintsMock
-			.mockReturnValueOnce( { rowCount: 3, blockedBoundaries: [] } )
-			.mockReturnValueOnce( { rowCount: 3, blockedBoundaries: [ 1, 2 ] } );
-		getSourceBlockingMergedRangeMock.mockReturnValue( blockingMergedRange );
+		setMovableTable();
 
 		expect( resolveRowReorderTarget( target ).status ).toBe( 'resolved' );
+		setBlockedTable();
 		expect( resolveRowReorderTarget( target ) ).toEqual( {
 			status: 'rejected',
 			blockingMergedRange,
 		} );
-		expect( getConstraintsMock ).toHaveBeenCalledTimes( 2 );
 	} );
 
 	/**
@@ -149,8 +171,6 @@ describe( 'Row Reorder Target Resolution', () => {
 	 * - unavailableが返る。
 	 */
 	it( 'when current table constraints are unavailable, should return unavailable', () => {
-		getConstraintsMock.mockReturnValue( null );
-
 		expect( resolveRowReorderTarget( target ) ).toEqual( { status: 'unavailable' } );
 	} );
 
@@ -161,7 +181,7 @@ describe( 'Row Reorder Target Resolution', () => {
 	 * - unavailableが返る。
 	 */
 	it( 'when the target row is outside tbody, should return unavailable', () => {
-		getConstraintsMock.mockReturnValue( { rowCount: 5, blockedBoundaries: [] } );
+		setMovableTable();
 
 		expect( resolveRowReorderTarget( { tableIdentity: 'table-a', sourceRowIndex: 5 } ) ).toEqual( {
 			status: 'unavailable',

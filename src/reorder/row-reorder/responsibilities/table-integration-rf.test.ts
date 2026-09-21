@@ -3,24 +3,42 @@
  */
 
 import { rowTableIntegration } from './table-integration';
+import {
+	createRowReorderTestTable,
+	getRowReorderTestTable,
+	setRowReorderTestTables,
+} from './table-integration.test-utils';
 
+/* @wordpress/block-editorはJest非対応のESMを経由するため、Store境界だけを実@wordpress/dataへ登録した最小実装へ置き換える。 */
 jest.mock( '@wordpress/block-editor', () => ( {
-	store: Symbol( 'block-editor-store' ),
+	store: jest.requireActual( './table-integration.test-utils' ).rowReorderTestBlockEditorStore,
 } ) );
 
-jest.mock( '@wordpress/data', () => ( {
-	dispatch: jest.fn(),
-	select: jest.fn(),
-} ) );
-
-const { dispatch: dispatchMock, select: selectMock } = jest.requireMock( '@wordpress/data' ) as {
-	dispatch: jest.Mock;
-	select: jest.Mock;
+/**
+ * 指定したtbodyとBlock名を持つ現在Tableを登録する。
+ *
+ * @param body 現在Tableへ登録するtbody行集合。
+ * @param name Table Integrationへ提示するBlock名。
+ */
+const setCurrentTable = (
+	body: Parameters< typeof createRowReorderTestTable >[ 1 ],
+	name = 'core/table'
+): void => {
+	setRowReorderTestTables( [
+		{
+			...createRowReorderTestTable( 'table-a', body ),
+			name,
+		},
+	] );
 };
 
 describe( 'Row Table Integration RF contract', () => {
 	beforeEach( () => {
-		jest.clearAllMocks();
+		setRowReorderTestTables( [] );
+	} );
+
+	afterEach( () => {
+		setRowReorderTestTables( [] );
 	} );
 
 	/**
@@ -37,20 +55,13 @@ describe( 'Row Table Integration RF contract', () => {
 	 * - 移動先側より移動元側が優先され、2〜4行・0列の0-based・両端を含む範囲が返る。
 	 */
 	it( 'when source and destination are both blocked, should return the source merged range first', () => {
-		selectMock.mockReturnValue( {
-			getBlock: jest.fn().mockReturnValue( {
-				name: 'core/table',
-				attributes: {
-					body: [
-						{ cells: [ { rowspan: 2 } ] },
-						{ cells: [ {} ] },
-						{ cells: [ { rowspan: 3 } ] },
-						{ cells: [ {} ] },
-						{ cells: [ {} ] },
-					],
-				},
-			} ),
-		} );
+		setCurrentTable( [
+			{ cells: [ { rowspan: 2 } ] },
+			{ cells: [ {} ] },
+			{ cells: [ { rowspan: 3 } ] },
+			{ cells: [ {} ] },
+			{ cells: [ {} ] },
+		] );
 
 		expect(
 			rowTableIntegration.getBlockingMergedRange( {
@@ -75,19 +86,12 @@ describe( 'Row Table Integration RF contract', () => {
 	 * - 開始行が小さい0〜2行・0列の範囲が返る。
 	 */
 	it( 'when multiple destination ranges block a move, should return the range with the earliest start', () => {
-		selectMock.mockReturnValue( {
-			getBlock: jest.fn().mockReturnValue( {
-				name: 'core/table',
-				attributes: {
-					body: [
-						{ cells: [ { rowspan: 3 } ] },
-						{ cells: [ { rowspan: 2 } ] },
-						{ cells: [ {} ] },
-						{ cells: [ {} ] },
-					],
-				},
-			} ),
-		} );
+		setCurrentTable( [
+			{ cells: [ { rowspan: 3 } ] },
+			{ cells: [ { rowspan: 2 } ] },
+			{ cells: [ {} ] },
+			{ cells: [ {} ] },
+		] );
 
 		expect(
 			rowTableIntegration.getBlockingMergedRange( {
@@ -112,18 +116,11 @@ describe( 'Row Table Integration RF contract', () => {
 	 * - 同じ行範囲では開始論理列が小さい0列目のセルが返る。
 	 */
 	it( 'when equal row ranges block a move, should prefer the earliest logical column', () => {
-		selectMock.mockReturnValue( {
-			getBlock: jest.fn().mockReturnValue( {
-				name: 'core/table',
-				attributes: {
-					body: [
-						{ cells: [ { rowspan: 2 }, { rowspan: 2, colspan: 2 } ] },
-						{ cells: [ {} ] },
-						{ cells: [ {}, {}, {} ] },
-					],
-				},
-			} ),
-		} );
+		setCurrentTable( [
+			{ cells: [ { rowspan: 2 }, { rowspan: 2, colspan: 2 } ] },
+			{ cells: [ {} ] },
+			{ cells: [ {}, {}, {} ] },
+		] );
 
 		expect(
 			rowTableIntegration.getBlockingMergedRange( {
@@ -149,18 +146,11 @@ describe( 'Row Table Integration RF contract', () => {
 	 * - 物理セル配列上の位置ではなく、1〜2行・3〜4列目の論理位置が返る。
 	 */
 	it( 'when rowspan and colspan shift a blocking cell from its physical index, should return its logical column range', () => {
-		selectMock.mockReturnValue( {
-			getBlock: jest.fn().mockReturnValue( {
-				name: 'core/table',
-				attributes: {
-					body: [
-						{ cells: [ { rowspan: 2 }, {}, {}, {}, {} ] },
-						{ cells: [ { colspan: 2 }, { rowspan: 2, colspan: 2 } ] },
-						{ cells: [ {}, {}, {} ] },
-					],
-				},
-			} ),
-		} );
+		setCurrentTable( [
+			{ cells: [ { rowspan: 2 }, {}, {}, {}, {} ] },
+			{ cells: [ { colspan: 2 }, { rowspan: 2, colspan: 2 } ] },
+			{ cells: [ {}, {}, {} ] },
+		] );
 
 		expect(
 			rowTableIntegration.getBlockingMergedRange( {
@@ -185,18 +175,14 @@ describe( 'Row Table Integration RF contract', () => {
 	 * - Flexible Table Block固有属性を解釈し、0〜1行・0〜1列の論理位置が返る。
 	 */
 	it( 'when a Flexible Table Block cell has rowSpan and colSpan, should return its logical row and column range', () => {
-		selectMock.mockReturnValue( {
-			getBlock: jest.fn().mockReturnValue( {
-				name: 'flexible-table-block/table',
-				attributes: {
-					body: [
-						{ cells: [ { rowSpan: 2, colSpan: 2 }, {} ] },
-						{ cells: [ {} ] },
-						{ cells: [ {}, {}, {} ] },
-					],
-				},
-			} ),
-		} );
+		setCurrentTable(
+			[
+				{ cells: [ { rowSpan: 2, colSpan: 2 }, {} ] },
+				{ cells: [ {} ] },
+				{ cells: [ {}, {}, {} ] },
+			],
+			'flexible-table-block/table'
+		);
 
 		expect(
 			rowTableIntegration.getBlockingMergedRange( {
@@ -222,19 +208,12 @@ describe( 'Row Table Integration RF contract', () => {
 	 * - 移動対象の反映後0-based最終行位置として1が返る。
 	 */
 	it( 'when the current row move is valid, should assess affected cells and the final row position', () => {
-		selectMock.mockReturnValue( {
-			getBlock: jest.fn().mockReturnValue( {
-				name: 'core/table',
-				attributes: {
-					body: [
-						{ cells: [ {} ] },
-						{ cells: [ {}, {} ] },
-						{ cells: [ {}, {}, {} ] },
-						{ cells: [ {}, {}, {}, {} ] },
-					],
-				},
-			} ),
-		} );
+		setCurrentTable( [
+			{ cells: [ {} ] },
+			{ cells: [ {}, {} ] },
+			{ cells: [ {}, {}, {} ] },
+			{ cells: [ {}, {}, {}, {} ] },
+		] );
 
 		expect(
 			rowTableIntegration.assessRowMoveForApply( {
@@ -258,14 +237,12 @@ describe( 'Row Table Integration RF contract', () => {
 	 * - 移動元除去後の0-based最終行位置として3が返る。
 	 */
 	it( 'when a row moves toward a later boundary, should assess the post-removal destination row index', () => {
-		selectMock.mockReturnValue( {
-			getBlock: jest.fn().mockReturnValue( {
-				name: 'core/table',
-				attributes: {
-					body: [ { cells: [ {} ] }, { cells: [ {} ] }, { cells: [ {} ] }, { cells: [ {} ] } ],
-				},
-			} ),
-		} );
+		setCurrentTable( [
+			{ cells: [ {} ] },
+			{ cells: [ {} ] },
+			{ cells: [ {} ] },
+			{ cells: [ {} ] },
+		] );
 
 		expect(
 			rowTableIntegration.assessRowMoveForApply( {
@@ -290,14 +267,7 @@ describe( 'Row Table Integration RF contract', () => {
 	 * - 現在Tableでは候補が成立しないためnullが返る。
 	 */
 	it( 'when the current merged-cell constraints reject a row move, should not return an apply assessment', () => {
-		selectMock.mockReturnValue( {
-			getBlock: jest.fn().mockReturnValue( {
-				name: 'core/table',
-				attributes: {
-					body: [ { cells: [ { rowspan: 2 } ] }, { cells: [ {} ] }, { cells: [ {} ] } ],
-				},
-			} ),
-		} );
+		setCurrentTable( [ { cells: [ { rowspan: 2 } ] }, { cells: [ {} ] }, { cells: [ {} ] } ] );
 
 		expect(
 			rowTableIntegration.assessRowMoveForApply( {
@@ -322,23 +292,7 @@ describe( 'Row Table Integration RF contract', () => {
 	 * - 反映前評価は成功するが、更新直前再照合ではfalseになり、WordPress属性更新は行われない。
 	 */
 	it( 'when merged-cell constraints change after assessment, should reject the final row update', () => {
-		const updateBlockAttributes = jest.fn();
-		const getBlock = jest
-			.fn()
-			.mockReturnValueOnce( {
-				name: 'core/table',
-				attributes: {
-					body: [ { cells: [ {} ] }, { cells: [ {} ] }, { cells: [ {} ] } ],
-				},
-			} )
-			.mockReturnValueOnce( {
-				name: 'core/table',
-				attributes: {
-					body: [ { cells: [ { rowspan: 2 } ] }, { cells: [ {} ] }, { cells: [ {} ] } ],
-				},
-			} );
-		selectMock.mockReturnValue( { getBlock } );
-		dispatchMock.mockReturnValue( { updateBlockAttributes } );
+		setCurrentTable( [ { cells: [ {} ] }, { cells: [ {} ] }, { cells: [ {} ] } ] );
 		const move = {
 			clientId: 'table-a',
 			sourceRowIndex: 1,
@@ -349,7 +303,9 @@ describe( 'Row Table Integration RF contract', () => {
 			affectedCellCount: 2,
 			destinationRowIndex: 2,
 		} );
+		const changedBody = [ { cells: [ { rowspan: 2 } ] }, { cells: [ {} ] }, { cells: [ {} ] } ];
+		setCurrentTable( changedBody );
 		expect( rowTableIntegration.applyRowMove( move ) ).toBe( false );
-		expect( updateBlockAttributes ).not.toHaveBeenCalled();
+		expect( getRowReorderTestTable( 'table-a' )?.attributes.body ).toEqual( changedBody );
 	} );
 } );

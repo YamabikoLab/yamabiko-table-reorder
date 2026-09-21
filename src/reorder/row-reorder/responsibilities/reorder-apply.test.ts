@@ -11,24 +11,39 @@ import {
 	getLargeRowReorderDestinationRowIndex,
 	requestLargeRowReorderApply,
 } from './reorder-apply';
-import { rowTableIntegration } from './table-integration';
+import {
+	createRowReorderTestRow,
+	createRowReorderTestTable,
+	getRowReorderTestTable,
+	setRowReorderTestTables,
+} from './table-integration.test-utils';
 
-jest.mock( './table-integration', () => ( {
-	rowTableIntegration: {
-		getConstraints: jest.fn(),
-		resolveDestinationRowIndex: jest.fn(),
-		applyRowMove: jest.fn(),
-	},
+/* Jestで読み込めないBlock Editor Store境界だけを代替し、WordPress DataとTable Integrationは実経路へ接続する。 */
+jest.mock( '@wordpress/block-editor', () => ( {
+	store: jest.requireActual( './table-integration.test-utils' ).rowReorderTestBlockEditorStore,
 } ) );
-
-const getConstraintsMock = rowTableIntegration.getConstraints as jest.Mock;
-const resolveDestinationRowIndexMock = rowTableIntegration.resolveDestinationRowIndex as jest.Mock;
-const applyRowMoveMock = rowTableIntegration.applyRowMove as jest.Mock;
 
 const move = {
 	tableIdentity: 'table-a',
 	sourceRowIndex: 3,
 	destinationBoundaryIndex: 1,
+};
+
+/** 識別可能な5行を持つ現在Tableを登録する。 */
+const setDefaultTable = (): void => {
+	setRowReorderTestTables( [
+		createRowReorderTestTable(
+			'table-a',
+			[ 'A', 'B', 'C', 'D', 'E' ].map( ( label ) => createRowReorderTestRow( label, 1 ) )
+		),
+	] );
+};
+
+/** 現在Tableの行識別値を表示順で取得する。 */
+const getCurrentRowLabels = (): unknown[] => {
+	const table = getRowReorderTestTable( 'table-a' );
+	const body = table?.attributes.body as Array< { cells: Array< { content?: unknown } > } >;
+	return body.map( ( row ) => row.cells[ 0 ]?.content );
 };
 
 /** 公開Lifecycle操作だけを使って各テスト開始時に通常状態へ戻す。 */
@@ -39,7 +54,6 @@ const restoreIdleState = (): void => {
 		return;
 	}
 	if ( state.phase === 'applying' ) {
-		getConstraintsMock.mockReturnValue( null );
 		applyLargeRowReorder();
 		completeLargeRowReorderApply();
 		return;
@@ -52,14 +66,12 @@ const restoreIdleState = (): void => {
 describe( 'Large Row Reorder apply lifecycle', () => {
 	beforeEach( () => {
 		restoreIdleState();
-		jest.clearAllMocks();
-		getConstraintsMock.mockReturnValue( { rowCount: 5, blockedBoundaries: [] } );
-		resolveDestinationRowIndexMock.mockReturnValue( 1 );
-		applyRowMoveMock.mockReturnValue( true );
+		setDefaultTable();
 	} );
 
 	afterEach( () => {
 		restoreIdleState();
+		setRowReorderTestTables( [] );
 	} );
 
 	/**
@@ -72,7 +84,7 @@ describe( 'Large Row Reorder apply lifecycle', () => {
 	 * - 大規模反映を要求し、利用者が続行した後に反映し、再mount完了を通知する。
 	 *
 	 * 期待結果:
-	 * - 行移動は1回だけ反映される。
+	 * - 現在Tableの行順が1回の属性更新でA、D、B、C、Eになる。
 	 * - 再mount中は反映済みとして扱われ、完了後は通常状態へ戻る。
 	 */
 	it( 'when a confirmed row move is still valid, should apply it once and complete the lifecycle', () => {
@@ -80,12 +92,7 @@ describe( 'Large Row Reorder apply lifecycle', () => {
 		confirmLargeRowReorderApply();
 		applyLargeRowReorder();
 
-		expect( getConstraintsMock ).toHaveBeenCalledWith( 'table-a' );
-		expect( applyRowMoveMock ).toHaveBeenCalledWith( {
-			clientId: 'table-a',
-			sourceRowIndex: 3,
-			destinationBoundaryIndex: 1,
-		} );
+		expect( getCurrentRowLabels() ).toEqual( [ 'A-1', 'D-1', 'B-1', 'C-1', 'E-1' ] );
 		expect( getLargeRowReorderApplyState() ).toMatchObject( {
 			phase: 'remounting',
 			move,
@@ -105,24 +112,18 @@ describe( 'Large Row Reorder apply lifecycle', () => {
 	 *
 	 * 事前条件:
 	 * - 大規模行反映が確認待ちである。
-	 * - Table Integrationは保持中Moveの反映後最終位置として1を返す。
+	 * - 保持中Moveでは4行目を2行目の位置へ移動する。
 	 *
 	 * 操作:
 	 * - 反映後最終行位置を取得する。
 	 *
 	 * 期待結果:
-	 * - Table Integrationへ保持中Moveが渡される。
-	 * - Table Integrationが返した0-based最終行位置1がそのまま返る。
+	 * - Table Integrationの方向固有解釈による0-based最終行位置1が返る。
 	 */
 	it( 'when a row apply holds a move, should provide its final row position from Table Integration', () => {
 		requestLargeRowReorderApply( move );
 
 		expect( getLargeRowReorderDestinationRowIndex() ).toBe( 1 );
-		expect( resolveDestinationRowIndexMock ).toHaveBeenCalledWith( {
-			clientId: 'table-a',
-			sourceRowIndex: 3,
-			destinationBoundaryIndex: 1,
-		} );
 	} );
 
 	/**
@@ -139,10 +140,11 @@ describe( 'Large Row Reorder apply lifecycle', () => {
 	 * - 確認対象は破棄され通常状態へ戻る。
 	 */
 	it( 'when the user cancels a pending row move, should return to idle without changing the table', () => {
+		const initialRows = getCurrentRowLabels();
 		requestLargeRowReorderApply( move );
 		cancelLargeRowReorderApply();
 
-		expect( applyRowMoveMock ).not.toHaveBeenCalled();
+		expect( getCurrentRowLabels() ).toEqual( initialRows );
 		expect( getLargeRowReorderApplyState() ).toMatchObject( {
 			phase: 'idle',
 			move: null,
@@ -155,7 +157,7 @@ describe( 'Large Row Reorder apply lifecycle', () => {
 	 *
 	 * 事前条件:
 	 * - 大規模行反映が確認待ちである。
-	 * - 続行時には対象Tableの現在構造を取得できない。
+	 * - 続行前に対象TableがBlock Editor Storeから消失する。
 	 *
 	 * 操作:
 	 * - 利用者が続行し、反映を開始する。
@@ -165,12 +167,12 @@ describe( 'Large Row Reorder apply lifecycle', () => {
 	 * - 対象Tableを戻すため再mount状態へ進む。
 	 */
 	it( 'when the current table can no longer validate a confirmed row move, should remount without applying it', () => {
-		getConstraintsMock.mockReturnValue( null );
 		requestLargeRowReorderApply( move );
 		confirmLargeRowReorderApply();
+		setRowReorderTestTables( [] );
 		applyLargeRowReorder();
 
-		expect( applyRowMoveMock ).not.toHaveBeenCalled();
+		expect( getRowReorderTestTable( 'table-a' ) ).toBeNull();
 		expect( getLargeRowReorderApplyState() ).toMatchObject( {
 			phase: 'remounting',
 			move,
