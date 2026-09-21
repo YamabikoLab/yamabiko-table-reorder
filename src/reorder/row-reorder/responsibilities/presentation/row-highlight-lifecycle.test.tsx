@@ -7,36 +7,55 @@ import { act, fireEvent, render } from '@testing-library/react';
 import { reorderMode } from '@/reorder/reorder-mode';
 import {
 	getRowDndPhase,
-	subscribeRowDndState,
+	rowDndInteraction,
 } from '@/reorder/row-reorder/responsibilities/dnd-interaction';
+import {
+	createRowReorderTestRow,
+	createRowReorderTestTable,
+	setRowReorderTestTables,
+} from '@/reorder/row-reorder/responsibilities/table-integration.test-utils';
 import { resolveRowReorderTarget } from '@/reorder/row-reorder/responsibilities/target-resolution';
 
 import { RowHighlight } from './row-highlight';
 
-let mockRowDndPhase: 'idle' | 'active' = 'idle';
-let mockRowDndStateListener: ( () => void ) | null = null;
-
-jest.mock( '@/reorder/row-reorder/responsibilities/dnd-interaction', () => ( {
-	getRowDndPhase: jest.fn( () => mockRowDndPhase ),
-	subscribeRowDndState: jest.fn( ( listener: () => void ) => {
-		mockRowDndStateListener = listener;
-		return () => {
-			mockRowDndStateListener = null;
-		};
-	} ),
+/* Jestで読み込めないBlock Editor Store境界だけを代替し、WordPress DataとRow Reorder責務は実経路へ接続する。 */
+jest.mock( '@wordpress/block-editor', () => ( {
+	store: jest.requireActual( '@/reorder/row-reorder/responsibilities/table-integration.test-utils' )
+		.rowReorderTestBlockEditorStore,
 } ) );
 
-jest.mock( '@/reorder/row-reorder/responsibilities/target-resolution', () => ( {
-	resolveRowReorderTarget: jest.fn(),
-} ) );
+/** 結合セル制約のない2行の現在Tableを登録する。 */
+const setMovableTable = (): void => {
+	setRowReorderTestTables( [
+		createRowReorderTestTable( 'table-a', [
+			createRowReorderTestRow( 'row-1' ),
+			createRowReorderTestRow( 'row-2' ),
+		] ),
+	] );
+};
 
-const getRowDndPhaseMock = getRowDndPhase as jest.MockedFunction< typeof getRowDndPhase >;
-const subscribeRowDndStateMock = subscribeRowDndState as jest.MockedFunction<
-	typeof subscribeRowDndState
->;
-const resolveRowReorderTargetMock = resolveRowReorderTarget as jest.MockedFunction<
-	typeof resolveRowReorderTarget
->;
+/** 2行目を含む結合セルにより、その行の移動を開始できない現在Tableを登録する。 */
+const setBlockedTable = (): void => {
+	setRowReorderTestTables( [
+		createRowReorderTestTable( 'table-a', [
+			{ cells: [ {}, {}, { rowspan: 2, colspan: 2 } ] },
+			{ cells: [ {}, {} ] },
+		] ),
+	] );
+};
+
+/** Production Target Resolutionの解決結果から行DnD Sessionを開始する。 */
+const startRowDnd = (): void => {
+	const resolution = resolveRowReorderTarget( {
+		tableIdentity: 'table-a',
+		sourceRowIndex: 0,
+	} );
+	if ( resolution.status !== 'resolved' ) {
+		throw new Error( 'Row highlight lifecycle test target must be resolved.' );
+	}
+
+	rowDndInteraction.start( resolution.target, resolution.initialConstraints );
+};
 
 /**
  * Row HighlightのLifecycleだけを確認するTableを描画する。
@@ -80,18 +99,18 @@ const resetReorderMode = (): void => {
 
 describe( 'Row highlight resolution lifecycle', () => {
 	beforeEach( () => {
-		jest.clearAllMocks();
-		mockRowDndPhase = 'idle';
-		mockRowDndStateListener = null;
+		act( () => {
+			rowDndInteraction.cancel();
+		} );
+		setRowReorderTestTables( [] );
 		resetReorderMode();
-		resolveRowReorderTargetMock.mockImplementation( ( target ) => ( {
-			status: 'resolved',
-			target,
-			initialConstraints: { rowCount: 2, blockedBoundaries: [] },
-		} ) );
 	} );
 
 	afterEach( () => {
+		act( () => {
+			rowDndInteraction.cancel();
+		} );
+		setRowReorderTestTables( [] );
 		resetReorderMode();
 	} );
 
@@ -99,17 +118,19 @@ describe( 'Row highlight resolution lifecycle', () => {
 	 * Row Highlightを接続しただけではTable全体解析を開始しないことを確認する。
 	 *
 	 * 操作:
-	 * - Row Highlightを描画する。
+	 * - Row Highlightを描画した後に現在Tableを登録し、行へポインターを移動する。
 	 *
 	 * 期待結果:
-	 * - Target Resolutionは実行されない。
-	 * - DnD Lifecycle監視だけが接続される。
+	 * - 描画時点には存在しなかった現在Tableを入力時に解決し、操作可能表示を付ける。
 	 */
 	it( 'when row highlight is rendered, should defer target resolution until a valid highlight request', () => {
-		render( <TestTable /> );
+		const { getByTestId } = render( <TestTable /> );
+		setMovableTable();
+		activateRowMode();
 
-		expect( resolveRowReorderTargetMock ).not.toHaveBeenCalled();
-		expect( subscribeRowDndStateMock ).toHaveBeenCalledTimes( 1 );
+		fireEvent.pointerOver( getByTestId( 'row-0' ).querySelector( 'td' ) as HTMLTableCellElement );
+
+		expect( getByTestId( 'row-0' ).className ).toBe( 'yamabiko-table-reorder-row-highlightable' );
 	} );
 
 	/**
@@ -125,20 +146,18 @@ describe( 'Row highlight resolution lifecycle', () => {
 	 * - 各行がそれぞれ現在Tableに対するTargetとして解決される。
 	 */
 	it( 'when multiple rows are highlighted before DnD, should resolve each target directly', () => {
+		setMovableTable();
 		activateRowMode();
 		const { getByTestId } = render( <TestTable /> );
 
 		fireEvent.pointerOver( getByTestId( 'row-0' ).querySelector( 'td' ) as HTMLTableCellElement );
+		expect( getByTestId( 'row-0' ).className ).toBe( 'yamabiko-table-reorder-row-highlightable' );
+
+		setBlockedTable();
 		fireEvent.pointerOver( getByTestId( 'row-1' ).querySelector( 'td' ) as HTMLTableCellElement );
 
-		expect( resolveRowReorderTargetMock ).toHaveBeenNthCalledWith( 1, {
-			tableIdentity: 'table-a',
-			sourceRowIndex: 0,
-		} );
-		expect( resolveRowReorderTargetMock ).toHaveBeenNthCalledWith( 2, {
-			tableIdentity: 'table-a',
-			sourceRowIndex: 1,
-		} );
+		expect( getByTestId( 'row-0' ).className ).toBe( '' );
+		expect( getByTestId( 'row-1' ).className ).toBe( 'yamabiko-table-reorder-row-unavailable' );
 	} );
 
 	/**
@@ -156,21 +175,25 @@ describe( 'Row highlight resolution lifecycle', () => {
 	 * - idle復帰後の最初の有効な判定で現在対象を直接解決する。
 	 */
 	it( 'when row DnD becomes active, should resolve another target only after returning to idle', () => {
+		setMovableTable();
 		activateRowMode();
 		const { getByTestId } = render( <TestTable /> );
 
 		fireEvent.pointerOver( getByTestId( 'row-0' ).querySelector( 'td' ) as HTMLTableCellElement );
-		expect( resolveRowReorderTargetMock ).toHaveBeenCalledTimes( 1 );
+		expect( getByTestId( 'row-0' ).className ).toBe( 'yamabiko-table-reorder-row-highlightable' );
 
-		mockRowDndPhase = 'active';
-		mockRowDndStateListener?.();
+		act( () => {
+			startRowDnd();
+		} );
 		fireEvent.pointerOver( getByTestId( 'row-1' ).querySelector( 'td' ) as HTMLTableCellElement );
-		expect( resolveRowReorderTargetMock ).toHaveBeenCalledTimes( 1 );
+		expect( getByTestId( 'row-0' ).className ).toBe( '' );
+		expect( getByTestId( 'row-1' ).className ).toBe( '' );
 
-		mockRowDndPhase = 'idle';
-		mockRowDndStateListener?.();
+		act( () => {
+			rowDndInteraction.cancel();
+		} );
 		fireEvent.pointerOver( getByTestId( 'row-1' ).querySelector( 'td' ) as HTMLTableCellElement );
-		expect( resolveRowReorderTargetMock ).toHaveBeenCalledTimes( 2 );
+		expect( getByTestId( 'row-1' ).className ).toBe( 'yamabiko-table-reorder-row-highlightable' );
 	} );
 
 	/**
@@ -186,16 +209,17 @@ describe( 'Row highlight resolution lifecycle', () => {
 	 * - children描画処理の実行回数は増えない。
 	 */
 	it( 'when row DnD phase changes, should not rerender the table subtree', () => {
+		setMovableTable();
 		const childrenRender = jest.fn();
 		render( <TestTable childrenRender={ childrenRender } /> );
 		const initialRenderCount = childrenRender.mock.calls.length;
 
-		mockRowDndPhase = 'active';
-		mockRowDndStateListener?.();
-		mockRowDndPhase = 'idle';
-		mockRowDndStateListener?.();
+		act( () => {
+			startRowDnd();
+			rowDndInteraction.cancel();
+		} );
 
 		expect( childrenRender.mock.calls.length ).toBe( initialRenderCount );
-		expect( getRowDndPhaseMock ).toHaveBeenCalled();
+		expect( getRowDndPhase() ).toBe( 'idle' );
 	} );
 } );

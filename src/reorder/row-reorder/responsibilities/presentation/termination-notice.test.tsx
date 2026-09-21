@@ -4,37 +4,78 @@
  * DnD Interactionの終了理由判定は重複して検証せず、通知イベントから表示開始、表示更新、表示終了、購読解除までのPresentationのライフサイクルに限定する。
  */
 
-import { act, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
+import type { ReactNode } from 'react';
+
+import { rowDndInteraction } from '@/reorder/row-reorder/responsibilities/dnd-interaction';
+import {
+	createRowReorderTestRow,
+	createRowReorderTestTable,
+	setRowReorderTestTables,
+} from '@/reorder/row-reorder/responsibilities/table-integration.test-utils';
+import { resolveRowReorderTarget } from '@/reorder/row-reorder/responsibilities/target-resolution';
 
 import { RowTerminationNotice } from './termination-notice';
 
-let terminationListener: ( () => void ) | null = null;
 let snackbarRemove: ( () => void ) | undefined;
 
-jest.mock( '@/messages', () => ( {
-	getDndTerminationMessage: () => 'termination message',
-} ) );
-
-jest.mock( '@/reorder/row-reorder/responsibilities/dnd-interaction', () => ( {
-	subscribeRowDndTerminationNotice: ( listener: () => void ) => {
-		terminationListener = listener;
-		return () => {
-			terminationListener = null;
-		};
-	},
-} ) );
-
+/* @wordpress/componentsの公開入口はJest変換対象外のESM-only uuidを読み込むため、Snackbarの表示・dismiss境界だけを代替する。 */
 jest.mock( '@wordpress/components', () => ( {
-	Snackbar: ( props: { children: React.ReactNode; onRemove?: () => void } ) => {
+	Snackbar: ( props: { children: ReactNode; onRemove?: () => void } ) => {
 		snackbarRemove = props.onRemove;
-		return <div>{ props.children }</div>;
+		return (
+			<button type="button" aria-label="Dismiss this notice" onClick={ props.onRemove }>
+				{ props.children }
+			</button>
+		);
 	},
 } ) );
+
+/* Jestで読み込めないBlock Editor Store境界だけを代替し、WordPress Data・DnD Interaction・通知Presentationは実経路へ接続する。 */
+jest.mock( '@wordpress/block-editor', () => ( {
+	store: jest.requireActual( '@/reorder/row-reorder/responsibilities/table-integration.test-utils' )
+		.rowReorderTestBlockEditorStore,
+} ) );
+
+const message = 'Reordering could not continue, so the operation was ended.';
+
+/** 現在Table消失により確定できなくなった行DnDからProduction異常終了通知を発行する。 */
+const emitTerminationNotice = (): void => {
+	setRowReorderTestTables( [
+		createRowReorderTestTable( 'table-a', [
+			createRowReorderTestRow( 'row-1' ),
+			createRowReorderTestRow( 'row-2' ),
+			createRowReorderTestRow( 'row-3' ),
+		] ),
+	] );
+	const resolution = resolveRowReorderTarget( {
+		tableIdentity: 'table-a',
+		sourceRowIndex: 0,
+	} );
+	if ( resolution.status !== 'resolved' ) {
+		throw new Error( 'Row termination notice test target must be resolved.' );
+	}
+
+	rowDndInteraction.start( resolution.target, resolution.initialConstraints );
+	rowDndInteraction.updateDestination( 3 );
+	setRowReorderTestTables( [] );
+	rowDndInteraction.complete();
+};
 
 describe( 'RowTerminationNotice', () => {
 	beforeEach( () => {
-		terminationListener = null;
 		snackbarRemove = undefined;
+		act( () => {
+			rowDndInteraction.cancel();
+		} );
+		setRowReorderTestTables( [] );
+	} );
+
+	afterEach( () => {
+		act( () => {
+			rowDndInteraction.cancel();
+		} );
+		setRowReorderTestTables( [] );
 	} );
 
 	/**
@@ -53,13 +94,13 @@ describe( 'RowTerminationNotice', () => {
 	it( 'when a termination notice is emitted, should show the termination message', () => {
 		render( <RowTerminationNotice /> );
 
-		expect( screen.queryByText( 'termination message' ) ).toBeNull();
+		expect( screen.queryByText( message ) ).toBeNull();
 
 		act( () => {
-			terminationListener?.();
+			emitTerminationNotice();
 		} );
 
-		expect( screen.queryByText( 'termination message' ) ).not.toBeNull();
+		expect( screen.queryByText( message ) ).not.toBeNull();
 	} );
 
 	/**
@@ -78,15 +119,13 @@ describe( 'RowTerminationNotice', () => {
 		render( <RowTerminationNotice /> );
 
 		act( () => {
-			terminationListener?.();
+			emitTerminationNotice();
 		} );
-		expect( screen.queryByText( 'termination message' ) ).not.toBeNull();
+		expect( screen.queryByText( message ) ).not.toBeNull();
 
-		act( () => {
-			snackbarRemove?.();
-		} );
+		fireEvent.click( screen.getByRole( 'button', { name: 'Dismiss this notice' } ) );
 
-		expect( screen.queryByText( 'termination message' ) ).toBeNull();
+		expect( screen.queryByText( message ) ).toBeNull();
 	} );
 
 	/**
@@ -106,19 +145,17 @@ describe( 'RowTerminationNotice', () => {
 		render( <RowTerminationNotice /> );
 
 		act( () => {
-			terminationListener?.();
+			emitTerminationNotice();
 		} );
 		const removePreviousNotice = snackbarRemove;
 
 		act( () => {
-			terminationListener?.();
+			emitTerminationNotice();
 		} );
+		/* keyによるSnackbar置換後の古いonRemoveは公開操作から決定的に再現できないため、この競合入力だけ保持したコールバックで発生させる。 */
+		act( () => removePreviousNotice?.() );
 
-		act( () => {
-			removePreviousNotice?.();
-		} );
-
-		expect( screen.queryByText( 'termination message' ) ).not.toBeNull();
+		expect( screen.queryByText( message ) ).not.toBeNull();
 	} );
 
 	/**
@@ -135,10 +172,12 @@ describe( 'RowTerminationNotice', () => {
 	 */
 	it( 'when the presentation unmounts, should unsubscribe from termination notices', () => {
 		const { unmount } = render( <RowTerminationNotice /> );
-		expect( terminationListener ).not.toBeNull();
 
 		unmount();
+		act( () => {
+			emitTerminationNotice();
+		} );
 
-		expect( terminationListener ).toBeNull();
+		expect( screen.queryByText( message ) ).toBeNull();
 	} );
 } );
