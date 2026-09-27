@@ -50,7 +50,8 @@
 		"i18n:dev:mo": "mkdir -p dev/i18n/generated && wp i18n make-mo dev/i18n/yamabiko-table-reorder-ja.po dev/i18n/generated/yamabiko-table-reorder-ja.mo",
 		"i18n:dev:artifacts": "npm run i18n:dev:json && npm run i18n:dev:mo",
 		"i18n:dev": "npm run i18n:pot && npm run i18n:dev:po && npm run i18n:dev:artifacts",
-		"i18n:dev:install": "test -n \"$WP_PLUGIN_LANG_DIR\" || (echo \"Set WP_PLUGIN_LANG_DIR to the local WordPress wp-content/languages/plugins directory.\" >&2; exit 1); mkdir -p \"$WP_PLUGIN_LANG_DIR\" && cp dev/i18n/generated/yamabiko-table-reorder-ja.mo dev/i18n/generated/yamabiko-table-reorder-ja-*.json \"$WP_PLUGIN_LANG_DIR\"/"
+		"i18n:dev:install": "bash scripts/i18n-dev-translations.sh install",
+		"i18n:dev:uninstall": "bash scripts/i18n-dev-translations.sh uninstall"
 	},
 	"devDependencies": {
 		"@babel/cli": "^7.29.7",
