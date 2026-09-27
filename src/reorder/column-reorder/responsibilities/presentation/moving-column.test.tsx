@@ -6,18 +6,16 @@
 
 import { act, render } from '@testing-library/react';
 
+import { columnDndInteraction } from '@/reorder/column-reorder/responsibilities/dnd-interaction';
+
 import { ColumnMovingDisplay } from './moving-column';
 
-let mockColumnDndPhase: 'idle' | 'active' = 'active';
 let mockDragDropMonitor: {
 	onDragStart?: ( event: any ) => void;
 	onDragMove?: ( event: any ) => void;
 } = {};
 
-jest.mock( '@/reorder/column-reorder/integration/dnd-interaction-react', () => ( {
-	useColumnDndPhase: () => mockColumnDndPhase,
-} ) );
-
+/* DnD Engineのframe transformはJSDOMで再現できないため、座標変換境界だけを決定的なTest Doubleとする。 */
 jest.mock( '@dnd-kit/dom/utilities', () => ( {
 	getFrameTransform: () => ( {
 		x: 0,
@@ -27,11 +25,36 @@ jest.mock( '@dnd-kit/dom/utilities', () => ( {
 	} ),
 } ) );
 
+/* DnD Engineの物理monitorはJSDOMで実行できないため、その通知境界だけを決定的なTest Doubleとする。 */
 jest.mock( '@dnd-kit/react', () => ( {
 	useDragDropMonitor: ( monitor: typeof mockDragDropMonitor ) => {
 		mockDragDropMonitor = monitor;
 	},
 } ) );
+
+/* Jestで読み込めないBlock Editor Store境界だけを代替し、WordPress DataとDnD Interactionは実経路へ接続する。 */
+jest.mock( '@wordpress/block-editor', () => ( {
+	store: jest.requireActual(
+		'@/reorder/column-reorder/responsibilities/table-integration.test-utils'
+	).columnReorderTestBlockEditorStore,
+} ) );
+
+/** Production DnD Interactionで列DnD Sessionを開始する。 */
+const startColumnDndSession = (): void => {
+	act( () => {
+		columnDndInteraction.start(
+			{ tableIdentity: 'table-a', sourceColumnIndex: 0 },
+			{ columnCount: 3, blockedBoundaries: [] }
+		);
+	} );
+};
+
+/** テスト間でProduction DnD Sessionをidleへ戻す。 */
+const resetColumnDndSession = (): void => {
+	act( () => {
+		columnDndInteraction.cancel();
+	} );
+};
 
 /**
  * 移動表示の配置条件を必要な値だけで表せるDOM矩形を作成する。
@@ -139,10 +162,14 @@ const getMovingSourceCell = (): HTMLTableCellElement | undefined =>
 
 describe( 'Column moving display', () => {
 	beforeEach( () => {
-		mockColumnDndPhase = 'active';
+		resetColumnDndSession();
 		mockDragDropMonitor = {};
 		document.body.replaceChildren();
 		jest.restoreAllMocks();
+	} );
+
+	afterEach( () => {
+		resetColumnDndSession();
 	} );
 
 	/**
@@ -161,9 +188,8 @@ describe( 'Column moving display', () => {
 	 * - activeになった時点で、同じ物理DnDの移動元frameと移動表示を開始する。
 	 */
 	it( 'when physical drag information exists before the column session becomes active, should show the source frame and moving column only after the session is active', () => {
-		mockColumnDndPhase = 'idle';
 		const { sourceCell } = createSourceTable();
-		const { rerender } = render( <ColumnMovingDisplay /> );
+		render( <ColumnMovingDisplay /> );
 
 		startPhysicalDrag( sourceCell );
 		expect(
@@ -171,8 +197,7 @@ describe( 'Column moving display', () => {
 		).toBeNull();
 		expect( document.querySelector( '.yamabiko-table-reorder-moving-column' ) ).toBeNull();
 
-		mockColumnDndPhase = 'active';
-		rerender( <ColumnMovingDisplay /> );
+		startColumnDndSession();
 		expect(
 			document.querySelector( '.yamabiko-table-reorder-moving-column-source-frame' )
 		).not.toBeNull();
@@ -195,6 +220,7 @@ describe( 'Column moving display', () => {
 	 * - 移動表示は入力・フォーカス対象にならない。
 	 */
 	it( 'when a large table extends beyond the editor viewport, should snapshot only cells visible in the editor viewport', () => {
+		startColumnDndSession();
 		const { cells, sourceCell } = createSourceTable();
 		const previousOutsideMeasurement = cells[ 0 ].getBoundingClientRect as jest.Mock;
 		const nextOutsideMeasurement = cells[ 3 ].getBoundingClientRect as jest.Mock;
@@ -226,6 +252,7 @@ describe( 'Column moving display', () => {
 	 * - 結合セルは元DOMと同じ80pxの高さを維持する。
 	 */
 	it( 'when a moving column contains a rowspan cell, should preserve the source column width and the merged cell display height', () => {
+		startColumnDndSession();
 		const { cells, sourceCell } = createSourceTable();
 		sourceCell.rowSpan = 2;
 		( sourceCell.getBoundingClientRect as jest.Mock ).mockReturnValue(
@@ -267,6 +294,7 @@ describe( 'Column moving display', () => {
 	 * - 移動表示内の複製セルと子要素からidが除去される。
 	 */
 	it( 'when source cell content contains DOM ids, should remove the ids only from the moving clone', () => {
+		startColumnDndSession();
 		const { sourceCell } = createSourceTable();
 		sourceCell.id = 'source-cell-id';
 		const child = document.createElement( 'span' );
@@ -299,6 +327,7 @@ describe( 'Column moving display', () => {
 	 * - 移動元列は実Table外の単一frameとして表示される。
 	 */
 	it( 'when the moving display is active, should show one source frame without mutating source cell classes or styles', () => {
+		startColumnDndSession();
 		const { cells, sourceCell } = createSourceTable();
 		cells[ 1 ].className = 'existing-cell';
 		cells[ 1 ].style.textAlign = 'right';
@@ -335,6 +364,7 @@ describe( 'Column moving display', () => {
 	 * - 移動元frameはDnD開始時の位置と寸法を維持する。
 	 */
 	it( 'when the physical drag moves horizontally and vertically, should move only the column overlay and keep the source frame at its initial position', () => {
+		startColumnDndSession();
 		const { sourceCell } = createSourceTable();
 		render( <ColumnMovingDisplay /> );
 		startPhysicalDrag( sourceCell );
@@ -377,13 +407,13 @@ describe( 'Column moving display', () => {
 	 * - 掴んでいるポインター状態の一時classがeditorから除去される。
 	 */
 	it( 'when the column DnD session returns to idle, should remove the source frame, moving display, and temporary editor state', () => {
+		startColumnDndSession();
 		const { sourceCell } = createSourceTable();
-		const { rerender } = render( <ColumnMovingDisplay /> );
+		render( <ColumnMovingDisplay /> );
 		startPhysicalDrag( sourceCell );
 		expect( document.body.classList ).toContain( 'yamabiko-table-reorder-column-dragging' );
 
-		mockColumnDndPhase = 'idle';
-		rerender( <ColumnMovingDisplay /> );
+		resetColumnDndSession();
 
 		expect(
 			document.querySelector( '.yamabiko-table-reorder-moving-column-source-frame' )

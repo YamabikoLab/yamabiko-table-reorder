@@ -62,10 +62,20 @@ setup(
 	async ( { page } ) => {
 		const username = requiredEnvironment( 'WP_USERNAME' );
 		const password = requiredEnvironment( 'WP_PASSWORD' );
+		const passwordInput = page.getByLabel( /^(Password|パスワード)$/i );
 
 		await page.goto( '/wp-login.php' );
 		await page.getByLabel( /username|ユーザー名|メールアドレス/i ).fill( username );
-		await page.getByLabel( /^(Password|パスワード)$/i ).fill( password );
+		await passwordInput.fill( password );
+
+		// Recover only when the login page did not retain the filled password.
+		// eslint-disable-next-line playwright/no-conditional-in-test
+		if ( ( await passwordInput.inputValue() ) !== password ) {
+			await passwordInput.clear();
+			await passwordInput.pressSequentially( password );
+		}
+
+		await expect( passwordInput ).toHaveValue( password );
 		await page.getByRole( 'button', { name: /log in|ログイン/i } ).click();
 
 		await expect( page ).toHaveURL( /\/wp-admin(?:\/|$|\?)/ );

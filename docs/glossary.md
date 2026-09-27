@@ -6,7 +6,7 @@
 
 | # | 用語（英語） | 用語（日本語） | コード上の表記 | 概要 | 備考 |
 | ---: | --- | --- | --- | --- | --- |
-| 1 | Yamabiko Table Reorder | Yamabiko Table Reorder | `PLUGIN_NAME` | プラグイン名。 | `YTR`は文書上の略称として使用する。 |
+| 1 | Yamabiko Table Reorder | Yamabiko Table Reorder | `Plugin Name: Yamabiko Table Reorder` | プラグイン名。 | `YTR`は文書上の略称として使用する。 |
 | 2 | Reorder | 並び替え | `reorder` | 行または列の順序を変更する操作や処理の総称。 | 概念名としては「移動」より「並び替え」を優先する。 |
 | 3 | Reorder Mode | 並び替えモード | `reorderMode`, `rowReorderMode`, `select()`, `observeTable()`, `notifyTableInactive()` | Table編集と行・列の並び替えを排他的に表す現在のモード。 | `edit`、`row`、`column`を持つ状態概念。`Reorder Kind`とは区別する。 |
 | 4 | Edit Mode | 通常編集モード | `edit`, `edit mode` | 通常のTable編集を行うReorder Mode。DnDは開始できない。 | ソース内の「通常編集状態」はこの概念を指す。用語としては「通常編集モード」を推奨する。 |

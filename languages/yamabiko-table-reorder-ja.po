@@ -15,7 +15,6 @@ msgstr ""
 "X-Domain: yamabiko-table-reorder\n"
 
 #. Plugin Name of the plugin
-#: src/messages.ts:10
 #: yamabiko-table-reorder.php
 #: yamabiko-table-reorder.php:66
 msgid "Yamabiko Table Reorder"
@@ -31,11 +30,11 @@ msgstr ""
 msgid "Table reordering for supported blocks in the WordPress block editor."
 msgstr ""
 
-#: src/messages.ts:17
+#: src/messages.ts:14
 msgid "Reorder rows"
 msgstr "行を並び替え"
 
-#: src/messages.ts:24
+#: src/messages.ts:21
 msgid "Reorder columns"
 msgstr "列を並び替え"
 
@@ -135,7 +134,7 @@ msgstr "現在のテーブルでは、この並び替えを続行できません
 msgid "Reorder"
 msgstr "並び替え"
 
-#: src/messages.ts:34
+#: src/messages.ts:31
 msgid "Reorder with form"
 msgstr "フォームで並び替え"
 
@@ -205,7 +204,7 @@ msgstr "移動先の列の左または右へ移動します。"
 msgid "%1$s (Column %2$d)"
 msgstr "%1$s（%2$d列目）"
 
-#: src/messages.ts:28
+#: src/messages.ts:25
 msgid "Column drag reordering is unavailable in the current view. You can reorder columns using the form."
 msgstr "現在の表示では列のドラッグ並び替えを使用できません。列の並び替えはフォームから行えます。"
 

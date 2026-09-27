@@ -11,7 +11,6 @@ import {
 	getRfRowReorderSuccessAnnouncement,
 	getColumnMergedRangeMessage,
 	getRowMergedRangeMessage,
-	PLUGIN_NAME,
 } from './messages';
 
 describe( 'User-facing messages', () => {
@@ -48,16 +47,6 @@ describe( 'User-facing messages', () => {
 		expect( getRfApplyFailureMessage() ).toBe(
 			'The reorder could not be completed. The table was not changed.'
 		);
-	} );
-
-	/**
-	 * プラグイン名が翻訳境界から利用できることを確認する。
-	 *
-	 * 期待結果:
-	 * - プラグイン名が既定の英語表記で取得できる。
-	 */
-	it( 'when the plugin name is loaded, should keep it available to the i18n pipeline', () => {
-		expect( PLUGIN_NAME ).toBe( 'Yamabiko Table Reorder' );
 	} );
 
 	/**

@@ -1,79 +1,74 @@
 /**
- * 列専用DnD InteractionのReact購読境界が、Reorder Presentation向け公開状態をReact描画へ正しく接続することを確認する。
- *
- * DnD Interaction本体のLifecycleや状態遷移は重複して検証せず、各公開Hookが現在状態を取得し、
- * 共有状態の変更通知へ追従し、React利用者の終了時に購読を解除する責務だけを検証する。
+ * 列専用DnD InteractionのReact購読境界が、Production共有状態をReact描画へ正しく接続することを確認する。
  */
 
-import { act, renderHook } from '@testing-library/react';
+import { act, render, renderHook } from '@testing-library/react';
 
+import * as dndInteraction from '@/reorder/column-reorder/responsibilities/dnd-interaction';
 import {
-	getColumnDndDestinationBoundaryIndex,
-	getColumnDndPhase,
-	subscribeColumnDndState,
-} from '@/reorder/column-reorder/responsibilities/dnd-interaction';
-import {
-	useColumnDndDestinationBoundaryIndex,
-	useColumnDndPhase,
-} from '@/reorder/column-reorder/integration/dnd-interaction-react';
+	createColumnReorderTestRow,
+	createColumnReorderTestTable,
+	setColumnReorderTestTables,
+} from '@/reorder/column-reorder/responsibilities/table-integration.test-utils';
+import { resolveColumnReorderTarget } from '@/reorder/column-reorder/responsibilities/target-resolution';
+import { useColumnDndDestinationBoundaryIndex, useColumnDndPhase } from './dnd-interaction-react';
 
-jest.mock( '@/reorder/column-reorder/responsibilities/dnd-interaction', () => ( {
-	getColumnDndDestinationBoundaryIndex: jest.fn(),
-	getColumnDndPhase: jest.fn(),
-	subscribeColumnDndState: jest.fn(),
+const subscribeColumnDndState = dndInteraction.subscribeColumnDndState;
+
+/* Jestで読み込めないBlock Editor Store境界だけを代替し、WordPress DataとDnD Interactionは実経路へ接続する。 */
+jest.mock( '@wordpress/block-editor', () => ( {
+	store: jest.requireActual(
+		'@/reorder/column-reorder/responsibilities/table-integration.test-utils'
+	).columnReorderTestBlockEditorStore,
 } ) );
 
-const getColumnDndPhaseMock = getColumnDndPhase as jest.MockedFunction< typeof getColumnDndPhase >;
-const getColumnDndDestinationBoundaryIndexMock =
-	getColumnDndDestinationBoundaryIndex as jest.MockedFunction<
-		typeof getColumnDndDestinationBoundaryIndex
-	>;
-const subscribeColumnDndStateMock = subscribeColumnDndState as jest.MockedFunction<
-	typeof subscribeColumnDndState
->;
-
-type ColumnDndStateListener = Parameters< typeof subscribeColumnDndState >[ 0 ];
-
-const columnDndStateListeners = new Set< ColumnDndStateListener >();
-
-/** 現在のReact購読者へ列DnD共有状態の変更を通知する。 */
-const notifyColumnDndStateChange = (): void => {
-	columnDndStateListeners.forEach( ( listener ) => {
-		listener();
+/** Production Target Resolutionで解決した対象から列DnD Sessionを開始する。 */
+const startSession = (): void => {
+	const resolution = resolveColumnReorderTarget( {
+		tableIdentity: 'table-a',
+		sourceColumnIndex: 1,
 	} );
+	if ( resolution.status !== 'resolved' ) {
+		throw new Error( 'Column DnD React test target must be resolved.' );
+	}
+	dndInteraction.columnDndInteraction.start( resolution.target, resolution.initialConstraints );
 };
 
 describe( 'Column DnD React state interface', () => {
 	beforeEach( () => {
-		jest.clearAllMocks();
-		columnDndStateListeners.clear();
-		getColumnDndPhaseMock.mockReturnValue( 'idle' );
-		getColumnDndDestinationBoundaryIndexMock.mockReturnValue( null );
-		subscribeColumnDndStateMock.mockImplementation( ( listener ) => {
-			columnDndStateListeners.add( listener );
-
-			return () => {
-				columnDndStateListeners.delete( listener );
-			};
+		act( () => {
+			dndInteraction.columnDndInteraction.cancel();
 		} );
+		setColumnReorderTestTables( [
+			createColumnReorderTestTable( 'table-a', [ createColumnReorderTestRow( 'row-1' ) ] ),
+		] );
+	} );
+
+	afterEach( () => {
+		act( () => {
+			dndInteraction.columnDndInteraction.cancel();
+		} );
+		setColumnReorderTestTables( [] );
+		jest.restoreAllMocks();
 	} );
 
 	/**
-	 * 公開Hookをmountした時点で、現在の列DnD共有状態をReact利用者へ返すことを確認する。
+	 * 各公開Hookが、mount時点のProduction列DnD共有状態を返すことを確認する。
 	 *
 	 * 事前条件:
-	 * - 列DnDはactiveである。
-	 * - 現在の有効な移動先境界は4である。
+	 * - 列DnDはactiveで、現在の有効な移動先境界は4である。
 	 *
 	 * 操作:
-	 * - phaseと移動先境界を公開するHookをmountする。
+	 * - phaseと移動先境界を公開する各Hookをmountする。
 	 *
 	 * 期待結果:
-	 * - 各Hookは現在状態としてactiveと4を返す。
+	 * - 各Hookは対応する現在状態としてactiveと4を返す。
 	 */
 	it( 'when hooks mount with existing column DnD state, should expose each current public value', () => {
-		getColumnDndPhaseMock.mockReturnValue( 'active' );
-		getColumnDndDestinationBoundaryIndexMock.mockReturnValue( 4 );
+		act( () => {
+			startSession();
+			dndInteraction.columnDndInteraction.updateDestination( 4 );
+		} );
 
 		const phase = renderHook( useColumnDndPhase );
 		const destination = renderHook( useColumnDndDestinationBoundaryIndex );
@@ -83,26 +78,24 @@ describe( 'Column DnD React state interface', () => {
 	} );
 
 	/**
-	 * 列DnD共有状態の変更通知を受けたとき、公開Hookが最新状態へ追従することを確認する。
+	 * Production列DnD共有状態が変化したとき、各公開Hookが最新状態へ追従することを確認する。
 	 *
 	 * 事前条件:
 	 * - 各Hookはidleかつ移動先なしの状態を購読している。
 	 *
 	 * 操作:
-	 * - 共有状態をactiveかつ移動先境界4へ変更し、購読者へ変更を通知する。
+	 * - Production操作でSessionを開始し、移動先境界4へ更新する。
 	 *
 	 * 期待結果:
-	 * - React描画結果がactiveと4へ更新される。
+	 * - 各HookのReact描画結果がactiveと4へ更新される。
 	 */
 	it( 'when column DnD state changes, should update every subscribed public value', () => {
 		const phase = renderHook( useColumnDndPhase );
 		const destination = renderHook( useColumnDndDestinationBoundaryIndex );
 
-		getColumnDndPhaseMock.mockReturnValue( 'active' );
-		getColumnDndDestinationBoundaryIndexMock.mockReturnValue( 4 );
-
 		act( () => {
-			notifyColumnDndStateChange();
+			startSession();
+			dndInteraction.columnDndInteraction.updateDestination( 4 );
 		} );
 
 		expect( phase.result.current ).toBe( 'active' );
@@ -110,26 +103,39 @@ describe( 'Column DnD React state interface', () => {
 	} );
 
 	/**
-	 * React利用者が終了したとき、列DnD共有状態への購読を残さないことを確認する。
+	 * React利用者が終了したとき、Production共有状態の購読を解除することを確認する。
 	 *
 	 * 事前条件:
-	 * - phaseと移動先境界のHookが共有状態を購読している。
+	 * - phaseと移動先境界を読むReact利用者がmountされている。
 	 *
 	 * 操作:
-	 * - すべてのHookをunmountする。
+	 * - 利用者をunmountする。
 	 *
 	 * 期待結果:
-	 * - React利用者に対応する購読がすべて解除される。
+	 * - 各公開HookがProduction共有状態から受け取った購読解除処理を実行する。
 	 */
 	it( 'when React consumers unmount, should release their column DnD state subscriptions', () => {
-		const phase = renderHook( useColumnDndPhase );
-		const destination = renderHook( useColumnDndDestinationBoundaryIndex );
+		const unsubscribeObservers: jest.Mock[] = [];
+		/* 購読解除は公開描画結果から直接観測できないため、この1ケースだけ解除関数を記録し、実Production購読と解除へそのまま委譲する。 */
+		jest.spyOn( dndInteraction, 'subscribeColumnDndState' ).mockImplementation( ( listener ) => {
+			const unsubscribe = subscribeColumnDndState( listener );
+			const unsubscribeObserver = jest.fn( unsubscribe );
+			unsubscribeObservers.push( unsubscribeObserver );
+			return unsubscribeObserver;
+		} );
+		const Consumer = () => {
+			useColumnDndPhase();
+			useColumnDndDestinationBoundaryIndex();
+			return null;
+		};
+		const consumer = render( <Consumer /> );
 
-		expect( columnDndStateListeners.size ).toBeGreaterThan( 0 );
+		expect( unsubscribeObservers ).toHaveLength( 2 );
 
-		phase.unmount();
-		destination.unmount();
+		consumer.unmount();
 
-		expect( columnDndStateListeners.size ).toBe( 0 );
+		for ( const unsubscribeObserver of unsubscribeObservers ) {
+			expect( unsubscribeObserver ).toHaveBeenCalledTimes( 1 );
+		}
 	} );
 } );

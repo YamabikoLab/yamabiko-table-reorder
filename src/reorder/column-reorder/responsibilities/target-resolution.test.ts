@@ -3,32 +3,31 @@
  */
 
 import { columnTableIntegration } from './table-integration';
+import {
+	createColumnReorderTestRow,
+	createColumnReorderTestTable,
+	getColumnReorderTestTable,
+	setColumnReorderTestTables,
+} from './table-integration.test-utils';
 import { resolveColumnReorderTarget } from './target-resolution';
 
-jest.mock( './table-integration', () => ( {
-	columnTableIntegration: {
-		getConstraints: jest.fn(),
-		getSourceBlockingMergedRange: jest.fn(),
-		applyColumnMove: jest.fn(),
-	},
+/* Jestで読み込めないBlock Editor Store境界だけを代替し、WordPress DataとTable Integrationは実経路へ接続する。 */
+jest.mock( '@wordpress/block-editor', () => ( {
+	store: jest.requireActual( './table-integration.test-utils' ).columnReorderTestBlockEditorStore,
 } ) );
-
-const getConstraintsMock = columnTableIntegration.getConstraints as jest.MockedFunction<
-	typeof columnTableIntegration.getConstraints
->;
-const getSourceBlockingMergedRangeMock =
-	columnTableIntegration.getSourceBlockingMergedRange as jest.MockedFunction<
-		typeof columnTableIntegration.getSourceBlockingMergedRange
-	>;
-const applyColumnMoveMock = columnTableIntegration.applyColumnMove as jest.MockedFunction<
-	typeof columnTableIntegration.applyColumnMove
->;
 
 const target = {
 	tableIdentity: 'table-a',
 	sourceColumnIndex: 1,
 };
-const blockingMergedRange = {
+const blockingAfterMergedRange = {
+	section: 'body' as const,
+	rowStart: 0,
+	rowEnd: 0,
+	columnStart: 1,
+	columnEnd: 2,
+};
+const blockingBeforeMergedRange = {
 	section: 'body' as const,
 	rowStart: 0,
 	rowEnd: 0,
@@ -36,12 +35,38 @@ const blockingMergedRange = {
 	columnEnd: 1,
 };
 
+/**
+ * 指定したtbodyを持つ現在Tableを登録する。
+ *
+ * @param body 現在Tableへ登録するtbody行集合。
+ */
+const setCurrentTable = ( body: Parameters< typeof createColumnReorderTestTable >[ 1 ] ): void => {
+	setColumnReorderTestTables( [ createColumnReorderTestTable( 'table-a', body ) ] );
+};
+
+/** 結合セル制約のない5列の現在Tableを登録する。 */
+const setMovableTable = (): void => {
+	setCurrentTable( [ createColumnReorderTestRow( 'row' ) ] );
+};
+
+/** 移動元列の直後境界を1〜2列の結合セルが塞ぐ現在Tableを登録する。 */
+const setBlockedAfterTable = (): void => {
+	setCurrentTable( [ { cells: [ {}, { colspan: 2 }, {}, {} ] } ] );
+};
+
+/** 移動元列の直前境界を0〜1列の結合セルが塞ぐ現在Tableを登録する。 */
+const setBlockedBeforeTable = (): void => {
+	setCurrentTable( [ { cells: [ { colspan: 2 }, {}, {}, {} ] } ] );
+};
+
 describe( 'Column Reorder Target Resolution', () => {
 	beforeEach( () => {
-		jest.clearAllMocks();
-		getConstraintsMock.mockReset();
-		getSourceBlockingMergedRangeMock.mockReset();
-		applyColumnMoveMock.mockReset();
+		setColumnReorderTestTables( [] );
+	} );
+
+	afterEach( () => {
+		setColumnReorderTestTables( [] );
+		jest.restoreAllMocks();
 	} );
 
 	/**
@@ -52,15 +77,13 @@ describe( 'Column Reorder Target Resolution', () => {
 	 * - 結合セル位置の追加診断は行われない。
 	 */
 	it( 'when the target column is movable, should resolve the target with the current constraints', () => {
-		const constraints = { columnCount: 5, blockedBoundaries: [] };
-		getConstraintsMock.mockReturnValue( constraints );
+		setMovableTable();
 
 		expect( resolveColumnReorderTarget( target ) ).toEqual( {
 			status: 'resolved',
 			target,
-			initialConstraints: constraints,
+			initialConstraints: { columnCount: 5, blockedBoundaries: [] },
 		} );
-		expect( getSourceBlockingMergedRangeMock ).not.toHaveBeenCalled();
 	} );
 
 	/**
@@ -74,13 +97,14 @@ describe( 'Column Reorder Target Resolution', () => {
 	 * - 移動先を必要としない開始対象専用の診断が要求される。
 	 */
 	it( 'when the target column is blocked by a merged range, should reject it with the blocking range', () => {
-		getConstraintsMock.mockReturnValue( { columnCount: 5, blockedBoundaries: [ 2 ] } );
-		getSourceBlockingMergedRangeMock.mockReturnValue( blockingMergedRange );
+		setBlockedAfterTable();
 
 		const result = resolveColumnReorderTarget( target );
 
-		expect( getSourceBlockingMergedRangeMock ).toHaveBeenCalledWith( 'table-a', 1 );
-		expect( result ).toEqual( { status: 'rejected', blockingMergedRange } );
+		expect( result ).toEqual( {
+			status: 'rejected',
+			blockingMergedRange: blockingAfterMergedRange,
+		} );
 	} );
 
 	/**
@@ -90,12 +114,11 @@ describe( 'Column Reorder Target Resolution', () => {
 	 * - 原因セル位置を持つrejectedが返る。
 	 */
 	it( 'when the boundary before the target column is blocked, should reject it with the blocking range', () => {
-		getConstraintsMock.mockReturnValue( { columnCount: 5, blockedBoundaries: [ 1 ] } );
-		getSourceBlockingMergedRangeMock.mockReturnValue( blockingMergedRange );
+		setBlockedBeforeTable();
 
 		expect( resolveColumnReorderTarget( target ) ).toEqual( {
 			status: 'rejected',
-			blockingMergedRange,
+			blockingMergedRange: blockingBeforeMergedRange,
 		} );
 	} );
 
@@ -106,8 +129,14 @@ describe( 'Column Reorder Target Resolution', () => {
 	 * - unavailableが返る。
 	 */
 	it( 'when the current blocking range cannot be diagnosed, should return unavailable', () => {
-		getConstraintsMock.mockReturnValue( { columnCount: 5, blockedBoundaries: [ 2 ] } );
-		getSourceBlockingMergedRangeMock.mockReturnValue( null );
+		setBlockedAfterTable();
+		const getConstraints = columnTableIntegration.getConstraints;
+		/* 一つの同期的な解決要求内で制約取得と原因診断の間へ外部更新を挿入する公開境界はないため、この失敗注入だけ実制約取得の直後に現在Tableを消失させる。 */
+		jest.spyOn( columnTableIntegration, 'getConstraints' ).mockImplementationOnce( ( clientId ) => {
+			const constraints = getConstraints( clientId );
+			setColumnReorderTestTables( [] );
+			return constraints;
+		} );
 
 		expect( resolveColumnReorderTarget( target ) ).toEqual( { status: 'unavailable' } );
 	} );
@@ -122,17 +151,14 @@ describe( 'Column Reorder Target Resolution', () => {
 	 * - Table制約を要求ごとに取得し、2回目は現在の原因セル位置を持つ開始拒否になる。
 	 */
 	it( 'when the same target is resolved again, should use the current table for each request', () => {
-		getConstraintsMock
-			.mockReturnValueOnce( { columnCount: 3, blockedBoundaries: [] } )
-			.mockReturnValueOnce( { columnCount: 3, blockedBoundaries: [ 1, 2 ] } );
-		getSourceBlockingMergedRangeMock.mockReturnValue( blockingMergedRange );
+		setMovableTable();
 
 		expect( resolveColumnReorderTarget( target ).status ).toBe( 'resolved' );
+		setBlockedAfterTable();
 		expect( resolveColumnReorderTarget( target ) ).toEqual( {
 			status: 'rejected',
-			blockingMergedRange,
+			blockingMergedRange: blockingAfterMergedRange,
 		} );
-		expect( getConstraintsMock ).toHaveBeenCalledTimes( 2 );
 	} );
 
 	/**
@@ -142,7 +168,6 @@ describe( 'Column Reorder Target Resolution', () => {
 	 * - unavailableが返る。
 	 */
 	it( 'when current table constraints are unavailable, should return unavailable', () => {
-		getConstraintsMock.mockReturnValue( null );
 		expect( resolveColumnReorderTarget( target ) ).toEqual( { status: 'unavailable' } );
 	} );
 
@@ -155,7 +180,7 @@ describe( 'Column Reorder Target Resolution', () => {
 	it.each( [ 5, 1.5 ] )(
 		'when target column index %s is invalid, should return unavailable',
 		( sourceColumnIndex ) => {
-			getConstraintsMock.mockReturnValue( { columnCount: 5, blockedBoundaries: [] } );
+			setMovableTable();
 			expect(
 				resolveColumnReorderTarget( { tableIdentity: 'table-a', sourceColumnIndex } )
 			).toEqual( { status: 'unavailable' } );
@@ -172,16 +197,18 @@ describe( 'Column Reorder Target Resolution', () => {
 	 * - いずれの結果でもTableへの列移動は要求されない。
 	 */
 	it( 'when target resolution returns any normal outcome, should not update table data', () => {
-		getConstraintsMock
-			.mockReturnValueOnce( { columnCount: 3, blockedBoundaries: [] } )
-			.mockReturnValueOnce( { columnCount: 3, blockedBoundaries: [ 2 ] } )
-			.mockReturnValueOnce( null );
-		getSourceBlockingMergedRangeMock.mockReturnValue( blockingMergedRange );
+		setMovableTable();
+		const movableAttributes = getColumnReorderTestTable( 'table-a' )?.attributes;
+		resolveColumnReorderTarget( target );
+		expect( getColumnReorderTestTable( 'table-a' )?.attributes ).toBe( movableAttributes );
 
+		setBlockedAfterTable();
+		const blockedAttributes = getColumnReorderTestTable( 'table-a' )?.attributes;
 		resolveColumnReorderTarget( target );
-		resolveColumnReorderTarget( target );
-		resolveColumnReorderTarget( target );
+		expect( getColumnReorderTestTable( 'table-a' )?.attributes ).toBe( blockedAttributes );
 
-		expect( applyColumnMoveMock ).not.toHaveBeenCalled();
+		setColumnReorderTestTables( [] );
+		resolveColumnReorderTarget( target );
+		expect( getColumnReorderTestTable( 'table-a' ) ).toBeNull();
 	} );
 } );

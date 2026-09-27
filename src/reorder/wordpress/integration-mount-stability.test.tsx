@@ -10,26 +10,82 @@ import { useEffect } from 'react';
 
 import { withReorderModeBlockListBlock } from '@/reorder/wordpress/integration';
 
-jest.mock( '@wordpress/block-editor', () => ( {
-	store: Symbol( 'block-editor-store' ),
+/* @wordpress/componentsのuuid / theme ESM境界だけをJestで読める決定的な実装へ置き換える。 */
+jest.mock( 'uuid', () => ( { v4: () => 'reorder-mount-stability-test-uuid' } ) );
+jest.mock( '@wordpress/theme', () => ( {
+	ThemeProvider: ( { children }: { children: React.ReactNode } ) => children,
 } ) );
 
-jest.mock( '@wordpress/data', () => ( {
-	select: jest.fn(),
-} ) );
+/*
+ * @wordpress/block-editorの公開入口はJest変換対象外のmarked ESMを経由するため、直接読み込めない。
+ * Store境界だけを実@wordpress/dataへ登録した最小Storeとし、未描画のSlotFill配置境界をDOM化する。
+ */
+jest.mock( '@wordpress/block-editor', () => {
+	const { createReduxStore, register } = jest.requireActual( '@wordpress/data' );
+	const store = createReduxStore( 'test/yamabiko-table-reorder-mount-stability-block-editor', {
+		reducer: ( state = {} ) => state,
+		actions: {},
+		selectors: {
+			getBlock: () => null,
+			getSelectedBlockClientId: () => null,
+		},
+	} );
+	register( store );
 
-jest.mock( '@/reorder/wordpress/components/edit', () => ( {
-	ReorderModeEdit: () => null,
-} ) );
+	return {
+		BlockControls: ( { children }: { children: React.ReactNode } ) => <div>{ children }</div>,
+		store,
+	};
+} );
 
-jest.mock( '@/reorder/wordpress/components/block-list-block', () => ( {
-	ReorderModeBlockListBlock: ( {
-		BlockListBlock,
-		blockProps,
+/* @wordpress/preferencesの公開入口もJest非対応のESMを経由するため、Store境界だけを最小化する。 */
+jest.mock( '@wordpress/preferences', () => {
+	const { createReduxStore, register } = jest.requireActual( '@wordpress/data' );
+	const store = createReduxStore( 'test/yamabiko-table-reorder-mount-stability-preferences', {
+		reducer: ( state = {} ) => state,
+		actions: { set: () => ( { type: 'NOOP' } ) },
+		selectors: { get: () => true },
+	} );
+	register( store );
+
+	return { store };
+} );
+
+/* JSDOMにない物理DnDとcell geometryの表示境界だけを、子要素を保持する接続へ置き換える。 */
+jest.mock( '@/reorder/row-reorder/integration/dnd', () => ( {
+	RowDnd: ( {
+		children,
 	}: {
-		BlockListBlock: React.ComponentType< BlockListBlockProps >;
-		blockProps: BlockListBlockProps;
-	} ) => <BlockListBlock { ...blockProps } />,
+		children: ( handler: React.PointerEventHandler< Element > ) => React.ReactNode;
+	} ) => children( () => undefined ),
+} ) );
+jest.mock( '@/reorder/column-reorder/integration/dnd', () => ( {
+	ColumnDnd: ( {
+		children,
+	}: {
+		children: ( handler: React.PointerEventHandler< Element > ) => React.ReactNode;
+	} ) => children( () => undefined ),
+} ) );
+jest.mock( '@/reorder/row-reorder/responsibilities/presentation/row-highlight', () => ( {
+	RowHighlight: ( {
+		children,
+	}: {
+		children: ( handler: React.PointerEventHandler< Element > ) => React.ReactNode;
+	} ) => children( () => undefined ),
+} ) );
+jest.mock( '@/reorder/column-reorder/responsibilities/presentation/column-highlight', () => ( {
+	ColumnHighlight: ( {
+		children,
+	}: {
+		children: (
+			pointerOver: React.PointerEventHandler< Element >,
+			pointerOut: React.PointerEventHandler< Element >
+		) => React.ReactNode;
+	} ) =>
+		children(
+			() => undefined,
+			() => undefined
+		),
 } ) );
 
 type BlockListBlockProps = {
@@ -65,7 +121,11 @@ describe( 'Reorder Mode WordPress integration mount stability', () => {
 			}, [] );
 
 			return (
-				<div data-testid="block-wrapper" { ...props.wrapperProps }>
+				<div
+					id={ `block-${ props.clientId }` }
+					data-testid="block-wrapper"
+					{ ...props.wrapperProps }
+				>
 					Block
 				</div>
 			);

@@ -7,16 +7,15 @@
 import { getFrameTransform } from '@dnd-kit/dom/utilities';
 import { act, render } from '@testing-library/react';
 
+import { columnDndInteraction } from '@/reorder/column-reorder/responsibilities/dnd-interaction';
+
 import { ColumnMovingDisplay } from './moving-column';
 
 let mockDragDropMonitor: {
 	onDragStart?: ( event: any ) => void;
 } = {};
 
-jest.mock( '@/reorder/column-reorder/integration/dnd-interaction-react', () => ( {
-	useColumnDndPhase: () => 'active',
-} ) );
-
+/* DnD Engineのframe transformはJSDOMで再現できないため、座標変換境界だけを決定的なTest Doubleとする。 */
 jest.mock( '@dnd-kit/dom/utilities', () => ( {
 	getFrameTransform: jest.fn( () => ( {
 		x: 0,
@@ -26,10 +25,18 @@ jest.mock( '@dnd-kit/dom/utilities', () => ( {
 	} ) ),
 } ) );
 
+/* DnD Engineの物理monitorはJSDOMで実行できないため、その通知境界だけを決定的なTest Doubleとする。 */
 jest.mock( '@dnd-kit/react', () => ( {
 	useDragDropMonitor: ( monitor: typeof mockDragDropMonitor ) => {
 		mockDragDropMonitor = monitor;
 	},
+} ) );
+
+/* Jestで読み込めないBlock Editor Store境界だけを代替し、WordPress DataとDnD Interactionは実経路へ接続する。 */
+jest.mock( '@wordpress/block-editor', () => ( {
+	store: jest.requireActual(
+		'@/reorder/column-reorder/responsibilities/table-integration.test-utils'
+	).columnReorderTestBlockEditorStore,
 } ) );
 
 const mockGetFrameTransform = getFrameTransform as jest.MockedFunction< typeof getFrameTransform >;
@@ -76,6 +83,13 @@ const startDrag = ( sourceCell: HTMLTableCellElement, x: number ): void => {
 
 describe( 'Column moving display snapshot', () => {
 	beforeEach( () => {
+		act( () => {
+			columnDndInteraction.cancel();
+			columnDndInteraction.start(
+				{ tableIdentity: 'table-a', sourceColumnIndex: 0 },
+				{ columnCount: 3, blockedBoundaries: [] }
+			);
+		} );
 		mockDragDropMonitor = {};
 		document.body.replaceChildren();
 		jest.restoreAllMocks();
@@ -88,6 +102,12 @@ describe( 'Column moving display snapshot', () => {
 		Object.defineProperty( window, 'innerHeight', {
 			configurable: true,
 			value: 80,
+		} );
+	} );
+
+	afterEach( () => {
+		act( () => {
+			columnDndInteraction.cancel();
 		} );
 	} );
 
@@ -248,65 +268,5 @@ describe( 'Column moving display snapshot', () => {
 		[ ...sourceCells, ...adjacentCells ].forEach( ( cell ) => {
 			expect( cell.classList ).not.toContain( 'yamabiko-table-reorder-moving-column-source' );
 		} );
-	} );
-
-	/**
-	 * 元Tableに独自背景があっても、移動表示がthemeの忠実な背景snapshotへ依存しないことを確認する。
-	 *
-	 * 事前条件:
-	 * - 元Tableにはインライン指定の非透明な背景色がある。
-	 *
-	 * 操作:
-	 * - 移動対象列のDnDを開始する。
-	 *
-	 * 期待結果:
-	 * - 元Tableの背景指定は変更されない。
-	 * - 再構成した移動表示Tableへ元Table背景色をインライン転写しない。
-	 */
-	it( 'when the source table has a custom background, should not snapshot that background onto the moving display', () => {
-		const table = document.createElement( 'table' );
-		const tbody = document.createElement( 'tbody' );
-		const row = document.createElement( 'tr' );
-		const sourceCell = document.createElement( 'td' );
-		sourceCell.textContent = 'Source';
-		row.appendChild( sourceCell );
-		tbody.appendChild( row );
-		table.appendChild( tbody );
-		table.style.backgroundColor = 'rgb(12, 34, 56)';
-		document.body.appendChild( table );
-		jest.spyOn( sourceCell, 'getBoundingClientRect' ).mockReturnValue(
-			rectangle( {
-				top: 0,
-				bottom: 40,
-				left: 100,
-				right: 200,
-				width: 100,
-				height: 40,
-			} )
-		);
-		jest.spyOn( table, 'getBoundingClientRect' ).mockReturnValue(
-			rectangle( {
-				top: 0,
-				bottom: 40,
-				left: 100,
-				right: 200,
-				width: 100,
-				height: 40,
-			} )
-		);
-		Object.defineProperty( document, 'elementFromPoint', {
-			configurable: true,
-			value: jest.fn( () => sourceCell ),
-		} );
-		render( <ColumnMovingDisplay /> );
-
-		startDrag( sourceCell, 150 );
-
-		const movingCell = document.querySelector(
-			'.yamabiko-table-reorder-moving-column td'
-		) as HTMLTableCellElement | null;
-		const movingTable = movingCell?.closest( 'table' );
-		expect( table.style.backgroundColor ).toBe( 'rgb(12, 34, 56)' );
-		expect( movingTable?.style.backgroundColor ).toBe( '' );
 	} );
 } );

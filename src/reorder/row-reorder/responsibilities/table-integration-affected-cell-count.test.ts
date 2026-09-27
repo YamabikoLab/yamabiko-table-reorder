@@ -3,23 +3,29 @@
  */
 
 import { rowTableIntegration } from './table-integration';
+import { createRowReorderTestTable, setRowReorderTestTables } from './table-integration.test-utils';
 
+/* @wordpress/block-editorはJest非対応のESMを経由するため、Store境界だけを実@wordpress/dataへ登録した最小実装へ置き換える。 */
 jest.mock( '@wordpress/block-editor', () => ( {
-	store: Symbol( 'block-editor-store' ),
+	store: jest.requireActual( './table-integration.test-utils' ).rowReorderTestBlockEditorStore,
 } ) );
 
-jest.mock( '@wordpress/data', () => ( {
-	dispatch: jest.fn(),
-	select: jest.fn(),
-} ) );
-
-const { select: selectMock } = jest.requireMock( '@wordpress/data' ) as {
-	select: jest.Mock;
+/**
+ * 指定したtbodyを持つ現在Tableを登録する。
+ *
+ * @param body 現在Tableへ登録するtbody行集合。
+ */
+const setCurrentTable = ( body: Parameters< typeof createRowReorderTestTable >[ 1 ] ): void => {
+	setRowReorderTestTables( [ createRowReorderTestTable( 'table-a', body ) ] );
 };
 
 describe( 'Row Table Integration affected cell count', () => {
 	beforeEach( () => {
-		jest.clearAllMocks();
+		setRowReorderTestTables( [] );
+	} );
+
+	afterEach( () => {
+		setRowReorderTestTables( [] );
 	} );
 
 	/**
@@ -36,19 +42,12 @@ describe( 'Row Table Integration affected cell count', () => {
 	 * - 表示位置が変わる2〜4行目の物理セル数8が返る。
 	 */
 	it( 'when a row moves across multiple rows, should count physical cells only in the affected range', () => {
-		selectMock.mockReturnValue( {
-			getBlock: jest.fn().mockReturnValue( {
-				name: 'core/table',
-				attributes: {
-					body: [
-						{ cells: [ {}, {} ] },
-						{ cells: [ {}, {}, {} ] },
-						{ cells: [ {} ] },
-						{ cells: [ {}, {}, {}, {} ] },
-					],
-				},
-			} ),
-		} );
+		setCurrentTable( [
+			{ cells: [ {}, {} ] },
+			{ cells: [ {}, {}, {} ] },
+			{ cells: [ {} ] },
+			{ cells: [ {}, {}, {}, {} ] },
+		] );
 
 		expect(
 			rowTableIntegration.getAffectedCellCount( {
@@ -72,12 +71,12 @@ describe( 'Row Table Integration affected cell count', () => {
 	 * - nullが返る。
 	 */
 	it( 'when the affected row range cannot be interpreted safely, should return null', () => {
-		selectMock.mockReturnValue( {
-			getBlock: jest.fn().mockReturnValue( {
-				name: 'core/table',
+		setRowReorderTestTables( [
+			{
+				...createRowReorderTestTable( 'table-a', [ { cells: [ {} ] } ] ),
 				attributes: { body: [ { cells: [ {} ] }, {} ] },
-			} ),
-		} );
+			},
+		] );
 
 		expect(
 			rowTableIntegration.getAffectedCellCount( {

@@ -6,7 +6,7 @@
 
 import { act, render, waitFor } from '@testing-library/react';
 import { useState } from '@wordpress/element';
-import type { DragEventHandler, MouseEventHandler, PointerEventHandler, ReactNode } from 'react';
+import type { DragEventHandler, MouseEventHandler } from 'react';
 
 import { reorderMode } from '@/reorder/reorder-mode';
 import { COLUMN_DND_LAYOUT_AVAILABILITY_DEBOUNCE_MS } from '@/reorder/reorder-tuning';
@@ -19,57 +19,68 @@ import {
 	getColumnDndLayoutAvailabilitySnapshot,
 } from '@/reorder/wordpress/column-dnd-layout-availability-state';
 
-let mockColumnDndLayoutAvailability: 'available' | 'unavailable' = 'available';
-let mockColumnDndLayoutAvailabilityCallCount = 0;
-
-jest.mock( '@/reorder/column-reorder/responsibilities/layout-availability', () => ( {
-	resolveColumnDndLayoutAvailability: () => {
-		mockColumnDndLayoutAvailabilityCallCount += 1;
-		return mockColumnDndLayoutAvailability;
-	},
+/* @wordpress/componentsのuuid / theme ESM境界だけをJestで読める決定的な実装へ置き換える。 */
+jest.mock( 'uuid', () => ( { v4: () => 'block-list-block-test-uuid' } ) );
+jest.mock( '@wordpress/theme', () => ( {
+	ThemeProvider: ( { children }: { children: React.ReactNode } ) => children,
 } ) );
 
-jest.mock( '@/reorder/row-reorder/responsibilities/presentation/row-highlight', () => ( {
-	RowHighlight: ( {
-		children,
-	}: {
-		children: ( handler: PointerEventHandler< Element > ) => ReactNode;
-	} ) => children( () => undefined ),
+/* Jestで読み込めないBlock Editor Storeの環境境界だけを代替し、WordPress Dataは実Storeへ接続する。 */
+jest.mock( '@wordpress/block-editor', () => ( {
+	store: jest.requireActual(
+		'@/reorder/reorder-form/responsibilities/block-editor-store.test-utils'
+	).testBlockEditorStore,
 } ) );
 
-jest.mock( '@/reorder/column-reorder/responsibilities/presentation/column-highlight', () => ( {
-	ColumnHighlight: ( {
-		children,
-	}: {
-		children: (
-			overHandler: PointerEventHandler< Element >,
-			outHandler: PointerEventHandler< Element >
-		) => ReactNode;
-	} ) =>
-		children(
-			() => undefined,
-			() => undefined
-		),
-} ) );
+/*
+ * Jestのbrowser解決が選ぶESMではなく、同じProduction packageが公開するCommonJS入口を使用する。
+ * JSDOMにないResizeObserver境界だけを無処理とし、Row / Column DnD自体はProduction実装を接続する。
+ */
+jest.mock( '@preact/signals-core', () => {
+	class TestResizeObserver {
+		disconnect(): void {}
+		observe(): void {}
+		unobserve(): void {}
+	}
+	global.ResizeObserver = TestResizeObserver;
 
-jest.mock( '@/reorder/row-reorder/integration/dnd', () => ( {
-	RowDnd: ( {
-		children,
-	}: {
-		children: ( handler: PointerEventHandler< Element > ) => ReactNode;
-	} ) => children( () => undefined ),
-} ) );
+	return jest.requireActual(
+		`${ process.cwd() }/node_modules/@preact/signals-core/dist/signals-core.js`
+	);
+} );
 
-jest.mock( '@/reorder/column-reorder/integration/dnd', () => ( {
-	ColumnDnd: ( {
-		children,
-	}: {
-		children: ( handler: PointerEventHandler< Element > ) => ReactNode;
-	} ) => children( () => undefined ),
-} ) );
+let tableGeometryAvailability: 'available' | 'unavailable' = 'available';
+
+/**
+ * JSDOMに実セル配置がないため、Production Layout Availabilityが観測する物理境界だけを与える。
+ *
+ * @param element 観測対象のTableまたはセル。
+ */
+const connectTableGeometry = ( element: HTMLTableElement | HTMLTableCellElement | null ): void => {
+	if ( element === null ) {
+		return;
+	}
+
+	element.getBoundingClientRect = () => {
+		const isCell = element instanceof HTMLTableCellElement;
+		const hasCellBox = ! isCell || tableGeometryAvailability === 'available';
+		return {
+			x: 0,
+			y: 0,
+			left: 0,
+			top: 0,
+			right: hasCellBox ? 100 : 0,
+			bottom: hasCellBox ? 20 : 0,
+			width: hasCellBox ? 100 : 0,
+			height: hasCellBox ? 20 : 0,
+			toJSON: () => ( {} ),
+		} as DOMRect;
+	};
+};
 
 let blockListBlockRenderCount = 0;
 
+/* Gutenbergがfilterで渡すBlockListBlockは公開importできないため、外部component境界だけをwrapper契約を観測できる最小実装にする。 */
 const BlockListBlock = ( props: ReorderModeBlockListBlockProps ) => {
 	blockListBlockRenderCount += 1;
 	const wrapperProps = props.wrapperProps ?? {};
@@ -82,10 +93,10 @@ const BlockListBlock = ( props: ReorderModeBlockListBlockProps ) => {
 			onMouseDownCapture={ wrapperProps.onMouseDownCapture as MouseEventHandler< HTMLDivElement > }
 			onDragStartCapture={ wrapperProps.onDragStartCapture as DragEventHandler< HTMLDivElement > }
 		>
-			<table>
+			<table ref={ connectTableGeometry }>
 				<tbody>
 					<tr>
-						<td>Table</td>
+						<td ref={ connectTableGeometry }>Table</td>
 					</tr>
 				</tbody>
 			</table>
@@ -102,10 +113,10 @@ const ReplacementBlockListBlock = ( props: ReorderModeBlockListBlockProps ) => {
 			data-testid="block-wrapper"
 			draggable={ wrapperProps.draggable as boolean | undefined }
 		>
-			<table>
+			<table ref={ connectTableGeometry }>
 				<tbody>
 					<tr>
-						<td>Table replacement</td>
+						<td ref={ connectTableGeometry }>Table replacement</td>
 					</tr>
 				</tbody>
 			</table>
@@ -119,10 +130,10 @@ const StatefulBlockListBlock = ( props: ReorderModeBlockListBlockProps ) => {
 	if ( replaced ) {
 		return (
 			<section id={ `block-${ props.clientId }` } data-testid="block-wrapper">
-				<table>
+				<table ref={ connectTableGeometry }>
 					<tbody>
 						<tr>
-							<td>Table replacement</td>
+							<td ref={ connectTableGeometry }>Table replacement</td>
 						</tr>
 					</tbody>
 				</table>
@@ -135,10 +146,10 @@ const StatefulBlockListBlock = ( props: ReorderModeBlockListBlockProps ) => {
 			<button type="button" onClick={ () => setReplaced( true ) }>
 				Replace wrapper
 			</button>
-			<table>
+			<table ref={ connectTableGeometry }>
 				<tbody>
 					<tr>
-						<td>Table</td>
+						<td ref={ connectTableGeometry }>Table</td>
 					</tr>
 				</tbody>
 			</table>
@@ -164,8 +175,7 @@ describe( 'Reorder Mode Block wrapper integration', () => {
 	beforeEach( () => {
 		reorderMode.notifyTableInactive( 'table-a' );
 		clearColumnDndLayoutAvailabilitySnapshot( 'table-a' );
-		mockColumnDndLayoutAvailability = 'available';
-		mockColumnDndLayoutAvailabilityCallCount = 0;
+		tableGeometryAvailability = 'available';
 		blockListBlockRenderCount = 0;
 	} );
 
@@ -339,7 +349,7 @@ describe( 'Reorder Mode Block wrapper integration', () => {
 		act( () => reorderMode.select( 'column', 'table-a' ) );
 		expect( reorderMode.getMode( 'table-a' ) ).toBe( 'column' );
 
-		mockColumnDndLayoutAvailability = 'unavailable';
+		tableGeometryAvailability = 'unavailable';
 		blockWrapper.classList.add( 'stacked-layout' );
 
 		await waitFor( () => {
@@ -359,13 +369,14 @@ describe( 'Reorder Mode Block wrapper integration', () => {
 	 *
 	 * 期待結果:
 	 * - 最後の通知から待機時間が経過するまで再評価しない。
-	 * - 変化が落ち着いた後に1回だけ再評価する。
+	 * - 変化が落ち着いた後に現在の利用不可配置が反映される。
 	 */
 	it( 'when layout changes continue within the debounce period, should evaluate toolbar availability once after changes settle', () => {
 		jest.useFakeTimers();
 		const { unmount } = render( renderBlockListBlock() );
 
-		expect( mockColumnDndLayoutAvailabilityCallCount ).toBe( 1 );
+		expect( getColumnDndLayoutAvailabilitySnapshot( 'table-a' ) ).toBe( 'available' );
+		tableGeometryAvailability = 'unavailable';
 
 		act( () => {
 			window.dispatchEvent( new Event( 'resize' ) );
@@ -373,12 +384,12 @@ describe( 'Reorder Mode Block wrapper integration', () => {
 			window.dispatchEvent( new Event( 'resize' ) );
 			jest.advanceTimersByTime( COLUMN_DND_LAYOUT_AVAILABILITY_DEBOUNCE_MS - 1 );
 		} );
-		expect( mockColumnDndLayoutAvailabilityCallCount ).toBe( 1 );
+		expect( getColumnDndLayoutAvailabilitySnapshot( 'table-a' ) ).toBe( 'available' );
 
 		act( () => {
 			jest.advanceTimersByTime( 1 );
 		} );
-		expect( mockColumnDndLayoutAvailabilityCallCount ).toBe( 2 );
+		expect( getColumnDndLayoutAvailabilitySnapshot( 'table-a' ) ).toBe( 'unavailable' );
 
 		unmount();
 		jest.useRealTimers();
@@ -391,25 +402,32 @@ describe( 'Reorder Mode Block wrapper integration', () => {
 	 * - 選択中Tableに対する再評価がdebounce待機中である。
 	 *
 	 * 操作:
-	 * - 対象BlockListBlockをunmountし、その後debounce待機時間を経過させる。
+	 * - 対象BlockListBlockをunmountし、同じTable Identityを利用可能な状態で再接続する。
+	 * - 再接続後に元のdebounce待機時間を経過させる。
 	 *
 	 * 期待結果:
-	 * - unmount後にLayout Availabilityを再評価しない。
+	 * - 再接続したTableのavailable snapshotが維持され、終了済み接続の再評価で上書きされない。
 	 */
 	it( 'when BlockListBlock unmounts during the debounce period, should cancel the pending toolbar reevaluation', () => {
 		jest.useFakeTimers();
-		const { unmount } = render( renderBlockListBlock() );
+		const firstRender = render( renderBlockListBlock() );
 
-		expect( mockColumnDndLayoutAvailabilityCallCount ).toBe( 1 );
+		expect( getColumnDndLayoutAvailabilitySnapshot( 'table-a' ) ).toBe( 'available' );
 		act( () => {
 			window.dispatchEvent( new Event( 'resize' ) );
 		} );
-		unmount();
+		firstRender.unmount();
+		expect( getColumnDndLayoutAvailabilitySnapshot( 'table-a' ) ).toBe( 'unavailable' );
+
+		const secondRender = render( renderBlockListBlock() );
+		expect( getColumnDndLayoutAvailabilitySnapshot( 'table-a' ) ).toBe( 'available' );
 
 		act( () => {
 			jest.advanceTimersByTime( COLUMN_DND_LAYOUT_AVAILABILITY_DEBOUNCE_MS );
 		} );
-		expect( mockColumnDndLayoutAvailabilityCallCount ).toBe( 1 );
+		expect( getColumnDndLayoutAvailabilitySnapshot( 'table-a' ) ).toBe( 'available' );
+
+		secondRender.unmount();
 		jest.useRealTimers();
 	} );
 

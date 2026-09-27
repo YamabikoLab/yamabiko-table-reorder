@@ -7,7 +7,15 @@ import { render } from '@testing-library/react';
 import type { PointerEvent as ReactPointerEvent } from 'react';
 
 import { ColumnInput, type ColumnDndPointerDownHandler } from './input';
-import { resolveColumnReorderTarget } from './target-resolution';
+import {
+	createColumnReorderTestTable,
+	setColumnReorderTestTables,
+} from './table-integration.test-utils';
+
+/* Jestで読み込めないBlock Editor Store境界だけを代替し、WordPress Dataと列解決責務は実経路へ接続する。 */
+jest.mock( '@wordpress/block-editor', () => ( {
+	store: jest.requireActual( './table-integration.test-utils' ).columnReorderTestBlockEditorStore,
+} ) );
 
 jest.mock( '@dnd-kit/dom', () => ( {
 	Draggable: jest.fn(),
@@ -24,19 +32,8 @@ jest.mock( '@dnd-kit/react', () => ( {
 	useDragDropManager: jest.fn(),
 } ) );
 
-jest.mock( '@/reorder/column-reorder/integration/source-column-resolution', () => ( {
-	resolveColumnSourceIndex: jest.fn( () => 1 ),
-} ) );
-
-jest.mock( './target-resolution', () => ( {
-	resolveColumnReorderTarget: jest.fn(),
-} ) );
-
 const useDragDropManagerMock = useDragDropManager as jest.MockedFunction<
 	typeof useDragDropManager
->;
-const resolveColumnReorderTargetMock = resolveColumnReorderTarget as jest.MockedFunction<
-	typeof resolveColumnReorderTarget
 >;
 
 /** Column Inputが公開する開始処理を取得する。 */
@@ -96,6 +93,15 @@ describe( 'Column input start rejection', () => {
 				},
 			},
 		} as ReturnType< typeof useDragDropManager > );
+		setColumnReorderTestTables( [
+			createColumnReorderTestTable( 'table-a', [
+				{ cells: [ { content: 'merged', colspan: 2 } ] },
+			] ),
+		] );
+	} );
+
+	afterEach( () => {
+		setColumnReorderTestTables( [] );
 	} );
 
 	/**
@@ -118,10 +124,6 @@ describe( 'Column input start rejection', () => {
 			columnStart: 0,
 			columnEnd: 1,
 		};
-		resolveColumnReorderTargetMock.mockReturnValue( {
-			status: 'rejected',
-			blockingMergedRange,
-		} );
 		const { pointerDownHandler, onStartRejection } = renderColumnInput();
 
 		pointerDownHandler( createPointerInput() );
@@ -146,7 +148,7 @@ describe( 'Column input start rejection', () => {
 	 * - 開始拒否通知は発生しない。
 	 */
 	it( 'when target resolution returns unavailable, should not notify a start rejection', () => {
-		resolveColumnReorderTargetMock.mockReturnValue( { status: 'unavailable' } );
+		setColumnReorderTestTables( [] );
 		const { pointerDownHandler, onStartRejection } = renderColumnInput();
 
 		pointerDownHandler( createPointerInput() );

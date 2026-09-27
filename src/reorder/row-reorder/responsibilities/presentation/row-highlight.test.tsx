@@ -5,22 +5,43 @@
 import { act, fireEvent, render } from '@testing-library/react';
 
 import { reorderMode } from '@/reorder/reorder-mode';
-import { resolveRowReorderTarget } from '@/reorder/row-reorder/responsibilities/target-resolution';
+import { rowDndInteraction } from '@/reorder/row-reorder/responsibilities/dnd-interaction';
+import {
+	createRowReorderTestRow,
+	createRowReorderTestTable,
+	setRowReorderTestTables,
+} from '@/reorder/row-reorder/responsibilities/table-integration.test-utils';
 
 import { RowHighlight } from './row-highlight';
 
-jest.mock( '@/reorder/row-reorder/responsibilities/dnd-interaction', () => ( {
-	getRowDndPhase: () => 'idle',
-	subscribeRowDndState: () => () => {},
+/* Jestで読み込めないBlock Editor Store境界だけを代替し、WordPress DataとRow Reorder責務は実経路へ接続する。 */
+jest.mock( '@wordpress/block-editor', () => ( {
+	store: jest.requireActual( '@/reorder/row-reorder/responsibilities/table-integration.test-utils' )
+		.rowReorderTestBlockEditorStore,
 } ) );
 
-jest.mock( '@/reorder/row-reorder/responsibilities/target-resolution', () => ( {
-	resolveRowReorderTarget: jest.fn(),
-} ) );
+/** 結合セル制約のない現在Tableを登録する。 */
+const setMovableTable = (): void => {
+	setRowReorderTestTables( [
+		createRowReorderTestTable(
+			'table-a',
+			Array.from( { length: 3 }, ( _value, rowIndex ) =>
+				createRowReorderTestRow( `row-${ rowIndex + 1 }` )
+			)
+		),
+	] );
+};
 
-const resolveRowReorderTargetMock = resolveRowReorderTarget as jest.MockedFunction<
-	typeof resolveRowReorderTarget
->;
+/** 2行目を含む結合セルにより、その行の移動を開始できない現在Tableを登録する。 */
+const setBlockedTable = (): void => {
+	setRowReorderTestTables( [
+		createRowReorderTestTable( 'table-a', [
+			{ cells: [ {}, {}, { rowspan: 2, colspan: 2 } ] },
+			{ cells: [ {}, {} ] },
+			{ cells: [ {}, {}, {}, {} ] },
+		] ),
+	] );
+};
 
 const resetReorderMode = () => {
 	act( () => {
@@ -52,19 +73,21 @@ const TestTable = () => (
 
 describe( 'Row highlight', () => {
 	beforeEach( () => {
-		jest.clearAllMocks();
+		act( () => {
+			rowDndInteraction.cancel();
+		} );
+		setMovableTable();
 		resetReorderMode();
 		act( () => {
 			reorderMode.select( 'row', 'table-a' );
 		} );
-		resolveRowReorderTargetMock.mockImplementation( ( target ) => ( {
-			status: 'resolved',
-			target,
-			initialConstraints: { rowCount: 3, blockedBoundaries: [] },
-		} ) );
 	} );
 
 	afterEach( () => {
+		act( () => {
+			rowDndInteraction.cancel();
+		} );
+		setRowReorderTestTables( [] );
 		resetReorderMode();
 	} );
 
@@ -104,23 +127,7 @@ describe( 'Row highlight', () => {
 	 * - 3行目の操作可能表示が解除され、2行目に移動不可表示が付く。
 	 */
 	it( 'when target resolution rejects the hovered row, should show the row as unavailable', () => {
-		resolveRowReorderTargetMock.mockImplementation( ( target ) =>
-			target.sourceRowIndex === 1
-				? {
-						status: 'rejected',
-						blockingMergedRange: {
-							rowStart: 0,
-							rowEnd: 1,
-							columnStart: 0,
-							columnEnd: 0,
-						},
-				  }
-				: {
-						status: 'resolved',
-						target,
-						initialConstraints: { rowCount: 3, blockedBoundaries: [ 1 ] },
-				  }
-		);
+		setBlockedTable();
 		const { getByTestId } = render( <TestTable /> );
 
 		fireEvent.pointerOver( getByTestId( 'row-2' ).querySelector( 'td' ) as HTMLTableCellElement );
@@ -144,7 +151,7 @@ describe( 'Row highlight', () => {
 	 * - 行に操作可能表示も移動不可表示も付けない。
 	 */
 	it( 'when target resolution returns unavailable, should not mark the hovered row with an availability state', () => {
-		resolveRowReorderTargetMock.mockReturnValue( { status: 'unavailable' } );
+		setRowReorderTestTables( [] );
 		const { getByTestId } = render( <TestTable /> );
 		fireEvent.pointerOver( getByTestId( 'row-2' ).querySelector( 'td' ) as HTMLTableCellElement );
 

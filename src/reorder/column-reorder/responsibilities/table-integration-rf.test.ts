@@ -2,35 +2,52 @@
  * 列専用Table IntegrationがRFへ提供する最小列記述、構造診断、反映前評価、更新直前再照合の契約を確認する。
  */
 
-import { columnTableIntegration } from './table-integration';
+import { subscribe } from '@wordpress/data';
 import { RichTextData } from '@wordpress/rich-text';
 
+import { columnTableIntegration } from './table-integration';
+import {
+	columnReorderTestBlockEditorStore,
+	createColumnReorderTestTable,
+	getColumnReorderTestTable,
+	setColumnReorderTestTables,
+	type ColumnReorderTestTableRow,
+} from './table-integration.test-utils';
+
+/* @wordpress/block-editorはJest非対応のESMを経由するため、Store境界だけを実@wordpress/dataへ登録した最小実装へ置き換える。 */
 jest.mock( '@wordpress/block-editor', () => ( {
-	store: Symbol( 'block-editor-store' ),
+	store: jest.requireActual( './table-integration.test-utils' ).columnReorderTestBlockEditorStore,
 } ) );
 
-jest.mock( '@wordpress/data', () => {
-	const actualData = jest.requireActual( '@wordpress/data' );
-	return Object.defineProperties( Object.create( actualData ), {
-		dispatch: { enumerable: true, value: jest.fn() },
-		select: { enumerable: true, value: jest.fn() },
-	} );
-} );
+type TestTableAttributes = {
+	body: ColumnReorderTestTableRow[];
+	head?: ColumnReorderTestTableRow[];
+	foot?: ColumnReorderTestTableRow[];
+};
 
-const { dispatch: dispatchMock, select: selectMock } = jest.requireMock( '@wordpress/data' ) as {
-	dispatch: jest.Mock;
-	select: jest.Mock;
-};
-const { select: actualSelect } = jest.requireActual( '@wordpress/data' ) as {
-	select: ( store: unknown ) => unknown;
-};
-const { store: blockEditorStore } = jest.requireMock( '@wordpress/block-editor' ) as {
-	store: symbol;
+/**
+ * 指定したTable sectionとBlock名を持つ現在Tableを登録する。
+ *
+ * @param attributes 現在Tableへ登録するsection属性。
+ * @param name       Table Integrationへ提示するBlock名。
+ */
+const setCurrentTable = ( attributes: TestTableAttributes, name = 'core/table' ): void => {
+	setColumnReorderTestTables( [
+		{
+			...createColumnReorderTestTable( 'table-a', attributes.body, attributes.head ),
+			name,
+			attributes,
+		},
+	] );
 };
 
 describe( 'Column Table Integration RF contract', () => {
 	beforeEach( () => {
-		jest.clearAllMocks();
+		setColumnReorderTestTables( [] );
+	} );
+
+	afterEach( () => {
+		setColumnReorderTestTables( [] );
 	} );
 
 	/**
@@ -47,18 +64,13 @@ describe( 'Column Table Integration RF contract', () => {
 	 * - 空見出しだけheadingがnullになる。
 	 */
 	it( 'when a simple head is available, should return minimal column descriptors with usable headings', () => {
-		selectMock.mockReturnValue( {
-			getBlock: jest.fn().mockReturnValue( {
-				name: 'core/table',
-				attributes: {
-					head: [
-						{
-							cells: [ { content: '商品名' }, { content: '価格' }, { content: '   ' } ],
-						},
-					],
-					body: [ { cells: [ {}, {}, {} ] } ],
+		setCurrentTable( {
+			head: [
+				{
+					cells: [ { content: '商品名' }, { content: '価格' }, { content: '   ' } ],
 				},
-			} ),
+			],
+			body: [ { cells: [ {}, {}, {} ] } ],
 		} );
 
 		expect( columnTableIntegration.getColumnInputDescriptors( 'table-a' ) ).toEqual( [
@@ -86,27 +98,17 @@ describe( 'Column Table Integration RF contract', () => {
 	 */
 	it( 'when head content uses RichText or HTML representations, should expose normalized plain-text headings', () => {
 		const richTextHeading = RichTextData.fromPlainText( '商品名' );
-		const getBlock = jest.fn().mockReturnValue( {
-			name: 'core/table',
-			attributes: {
-				head: [
-					{
-						cells: [
-							{ content: richTextHeading },
-							{ content: '<strong>価格</strong>' },
-							{ content: 'A &amp; B' },
-						],
-					},
-				],
-				body: [ { cells: [ {}, {}, {} ] } ],
-			},
-		} );
-		selectMock.mockImplementation( ( store ) => {
-			/* Table参照だけを差し替え、RichText StoreはWordPressの実際の選択処理へ委ねる。 */
-			if ( store === blockEditorStore ) {
-				return { getBlock };
-			}
-			return actualSelect( store );
+		setCurrentTable( {
+			head: [
+				{
+					cells: [
+						{ content: richTextHeading },
+						{ content: '<strong>価格</strong>' },
+						{ content: 'A &amp; B' },
+					],
+				},
+			],
+			body: [ { cells: [ {}, {}, {} ] } ],
 		} );
 
 		expect( columnTableIntegration.getColumnInputDescriptors( 'table-a' ) ).toEqual( [
@@ -129,13 +131,8 @@ describe( 'Column Table Integration RF contract', () => {
 	 * - 論理列Identityと列番号だけが返り、すべてのheadingはnullになる。
 	 */
 	it( 'when head is absent, should not infer headings from the first body row', () => {
-		selectMock.mockReturnValue( {
-			getBlock: jest.fn().mockReturnValue( {
-				name: 'core/table',
-				attributes: {
-					body: [ { cells: [ { content: 'A' }, { content: 'B' } ] } ],
-				},
-			} ),
+		setCurrentTable( {
+			body: [ { cells: [ { content: 'A' }, { content: 'B' } ] } ],
 		} );
 
 		expect( columnTableIntegration.getColumnInputDescriptors( 'table-a' ) ).toEqual( [
@@ -158,17 +155,12 @@ describe( 'Column Table Integration RF contract', () => {
 	 * - 論理列Identityと列番号だけが返り、すべてのheadingはnullになる。
 	 */
 	it( 'when head has multiple rows, should leave every heading unavailable', () => {
-		selectMock.mockReturnValue( {
-			getBlock: jest.fn().mockReturnValue( {
-				name: 'core/table',
-				attributes: {
-					head: [
-						{ cells: [ { content: '上段A' }, { content: '上段B' } ] },
-						{ cells: [ { content: '下段A' }, { content: '下段B' } ] },
-					],
-					body: [ { cells: [ {}, {} ] } ],
-				},
-			} ),
+		setCurrentTable( {
+			head: [
+				{ cells: [ { content: '上段A' }, { content: '上段B' } ] },
+				{ cells: [ { content: '下段A' }, { content: '下段B' } ] },
+			],
+			body: [ { cells: [ {}, {} ] } ],
 		} );
 
 		expect( columnTableIntegration.getColumnInputDescriptors( 'table-a' ) ).toEqual( [
@@ -191,14 +183,9 @@ describe( 'Column Table Integration RF contract', () => {
 	 * - 横結合セルが占有する1・2列目のheadingはnullになり、3列目だけ見出しを利用する。
 	 */
 	it( 'when a head cell spans multiple columns, should not use it as a single-column heading', () => {
-		selectMock.mockReturnValue( {
-			getBlock: jest.fn().mockReturnValue( {
-				name: 'core/table',
-				attributes: {
-					head: [ { cells: [ { content: '商品', colspan: 2 }, { content: '価格' } ] } ],
-					body: [ { cells: [ {}, {}, {} ] } ],
-				},
-			} ),
+		setCurrentTable( {
+			head: [ { cells: [ { content: '商品', colspan: 2 }, { content: '価格' } ] } ],
+			body: [ { cells: [ {}, {}, {} ] } ],
 		} );
 
 		expect( columnTableIntegration.getColumnInputDescriptors( 'table-a' ) ).toEqual( [
@@ -222,13 +209,8 @@ describe( 'Column Table Integration RF contract', () => {
 	 * - 移動先側より移動元側が優先され、bodyの0行・2〜3列の原因セルが返る。
 	 */
 	it( 'when source and destination are both blocked, should return the source merged cell first', () => {
-		selectMock.mockReturnValue( {
-			getBlock: jest.fn().mockReturnValue( {
-				name: 'core/table',
-				attributes: {
-					body: [ { cells: [ { colspan: 2 }, { colspan: 2 } ] } ],
-				},
-			} ),
+		setCurrentTable( {
+			body: [ { cells: [ { colspan: 2 }, { colspan: 2 } ] } ],
 		} );
 
 		expect(
@@ -260,14 +242,9 @@ describe( 'Column Table Integration RF contract', () => {
 	 * - sectionの解析順序ではなく、開始論理列が小さいheadの0〜2列のセルが返る。
 	 */
 	it( 'when multiple destination merged cells block a move, should return the cell with the earliest column range', () => {
-		selectMock.mockReturnValue( {
-			getBlock: jest.fn().mockReturnValue( {
-				name: 'core/table',
-				attributes: {
-					head: [ { cells: [ { colspan: 3 }, {} ] } ],
-					body: [ { cells: [ {}, { colspan: 2 }, {} ] } ],
-				},
-			} ),
+		setCurrentTable( {
+			head: [ { cells: [ { colspan: 3 }, {} ] } ],
+			body: [ { cells: [ {}, { colspan: 2 }, {} ] } ],
 		} );
 
 		expect(
@@ -299,15 +276,10 @@ describe( 'Column Table Integration RF contract', () => {
 	 * - 同じ列範囲では定義済みsection順によりheadのセルが返る。
 	 */
 	it( 'when equal column ranges block a move in multiple sections, should prefer the documented section order', () => {
-		selectMock.mockReturnValue( {
-			getBlock: jest.fn().mockReturnValue( {
-				name: 'core/table',
-				attributes: {
-					head: [ { cells: [ { colspan: 2 }, {} ] } ],
-					body: [ { cells: [ { colspan: 2 }, {} ] } ],
-					foot: [ { cells: [ { colspan: 2 }, {} ] } ],
-				},
-			} ),
+		setCurrentTable( {
+			head: [ { cells: [ { colspan: 2 }, {} ] } ],
+			body: [ { cells: [ { colspan: 2 }, {} ] } ],
+			foot: [ { cells: [ { colspan: 2 }, {} ] } ],
 		} );
 
 		expect(
@@ -339,13 +311,8 @@ describe( 'Column Table Integration RF contract', () => {
 	 * - 原因セルがbodyにあり、0〜1行・0〜1列を占有することが返る。
 	 */
 	it( 'when a blocking cell spans rows and columns, should return its full section-local rectangle', () => {
-		selectMock.mockReturnValue( {
-			getBlock: jest.fn().mockReturnValue( {
-				name: 'core/table',
-				attributes: {
-					body: [ { cells: [ { rowspan: 2, colspan: 2 }, {}, {} ] }, { cells: [ {}, {} ] } ],
-				},
-			} ),
+		setCurrentTable( {
+			body: [ { cells: [ { rowspan: 2, colspan: 2 }, {}, {} ] }, { cells: [ {}, {} ] } ],
 		} );
 
 		expect(
@@ -377,13 +344,8 @@ describe( 'Column Table Integration RF contract', () => {
 	 * - 移動対象の反映後0-based最終列位置として0が返る。
 	 */
 	it( 'when the current column move is valid, should assess affected cells and the final column position', () => {
-		selectMock.mockReturnValue( {
-			getBlock: jest.fn().mockReturnValue( {
-				name: 'core/table',
-				attributes: {
-					body: [ { cells: [ {}, {}, {}, {} ] } ],
-				},
-			} ),
+		setCurrentTable( {
+			body: [ { cells: [ {}, {}, {}, {} ] } ],
 		} );
 
 		expect(
@@ -408,13 +370,8 @@ describe( 'Column Table Integration RF contract', () => {
 	 * - 移動元除去後の0-based最終列位置として3が返る。
 	 */
 	it( 'when a column moves toward a later boundary, should assess the post-removal destination column index', () => {
-		selectMock.mockReturnValue( {
-			getBlock: jest.fn().mockReturnValue( {
-				name: 'core/table',
-				attributes: {
-					body: [ { cells: [ {}, {}, {}, {} ] } ],
-				},
-			} ),
+		setCurrentTable( {
+			body: [ { cells: [ {}, {}, {}, {} ] } ],
 		} );
 
 		expect(
@@ -440,13 +397,8 @@ describe( 'Column Table Integration RF contract', () => {
 	 * - 現在Tableでは候補が成立しないためnullが返る。
 	 */
 	it( 'when the current merged-cell constraints reject a column move, should not return an apply assessment', () => {
-		selectMock.mockReturnValue( {
-			getBlock: jest.fn().mockReturnValue( {
-				name: 'core/table',
-				attributes: {
-					body: [ { cells: [ { colspan: 2 }, {} ] } ],
-				},
-			} ),
+		setCurrentTable( {
+			body: [ { cells: [ { colspan: 2 }, {} ] } ],
 		} );
 
 		expect(
@@ -472,23 +424,7 @@ describe( 'Column Table Integration RF contract', () => {
 	 * - 反映前評価は成功するが、更新直前再照合ではfalseになり、WordPress属性更新は行われない。
 	 */
 	it( 'when merged-cell constraints change after assessment, should reject the final column update', () => {
-		const updateBlockAttributes = jest.fn();
-		const getBlock = jest
-			.fn()
-			.mockReturnValueOnce( {
-				name: 'core/table',
-				attributes: {
-					body: [ { cells: [ {}, {}, {}, {} ] } ],
-				},
-			} )
-			.mockReturnValueOnce( {
-				name: 'core/table',
-				attributes: {
-					body: [ { cells: [ {}, { colspan: 2 }, {} ] } ],
-				},
-			} );
-		selectMock.mockReturnValue( { getBlock } );
-		dispatchMock.mockReturnValue( { updateBlockAttributes } );
+		setCurrentTable( { body: [ { cells: [ {}, {}, {}, {} ] } ] } );
 		const move = {
 			clientId: 'table-a',
 			sourceColumnIndex: 2,
@@ -499,7 +435,13 @@ describe( 'Column Table Integration RF contract', () => {
 			affectedCellCount: 3,
 			destinationColumnIndex: 0,
 		} );
+		const changedAttributes = { body: [ { cells: [ {}, { colspan: 2 }, {} ] } ] };
+		setCurrentTable( changedAttributes );
+		const storeChangeListener = jest.fn();
+		const unsubscribe = subscribe( storeChangeListener, columnReorderTestBlockEditorStore );
 		expect( columnTableIntegration.applyColumnMove( move ) ).toBe( false );
-		expect( updateBlockAttributes ).not.toHaveBeenCalled();
+		unsubscribe();
+		expect( storeChangeListener ).not.toHaveBeenCalled();
+		expect( getColumnReorderTestTable( 'table-a' )?.attributes ).toBe( changedAttributes );
 	} );
 } );

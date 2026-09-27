@@ -7,23 +7,44 @@
 
 import { act, render } from '@testing-library/react';
 
+import { rowDndInteraction } from '@/reorder/row-reorder/responsibilities/dnd-interaction';
+
 import { RowMovingDisplay } from './moving-row';
 
-let mockRowDndPhase: 'idle' | 'active' = 'idle';
 let mockDragDropMonitor: {
 	onDragStart?: ( event: any ) => void;
 	onDragMove?: ( event: any ) => void;
 } = {};
 
-jest.mock( '@/reorder/row-reorder/integration/dnd-interaction-react', () => ( {
-	useRowDndPhase: () => mockRowDndPhase,
-} ) );
-
+/* DnD Engineの物理monitorはJSDOMで実行できないため、その通知境界だけを決定的なTest Doubleとする。 */
 jest.mock( '@dnd-kit/react', () => ( {
 	useDragDropMonitor: ( monitor: typeof mockDragDropMonitor ) => {
 		mockDragDropMonitor = monitor;
 	},
 } ) );
+
+/* Jestで読み込めないBlock Editor Store境界だけを代替し、WordPress DataとDnD Interactionは実経路へ接続する。 */
+jest.mock( '@wordpress/block-editor', () => ( {
+	store: jest.requireActual( '@/reorder/row-reorder/responsibilities/table-integration.test-utils' )
+		.rowReorderTestBlockEditorStore,
+} ) );
+
+/** Production DnD Interactionで行DnD Sessionを開始する。 */
+const startRowDndSession = (): void => {
+	act( () => {
+		rowDndInteraction.start(
+			{ tableIdentity: 'table-a', sourceRowIndex: 0 },
+			{ rowCount: 2, blockedBoundaries: [] }
+		);
+	} );
+};
+
+/** テスト間でProduction DnD Sessionをidleへ戻す。 */
+const resetRowDndSession = (): void => {
+	act( () => {
+		rowDndInteraction.cancel();
+	} );
+};
 
 /**
  * 移動表示の配置条件を必要な値だけで表せるDOM矩形を作成する。
@@ -96,9 +117,13 @@ const startPhysicalDrag = ( row: HTMLTableRowElement ) => {
 
 describe( 'Row moving display', () => {
 	beforeEach( () => {
-		mockRowDndPhase = 'idle';
+		resetRowDndSession();
 		mockDragDropMonitor = {};
 		document.body.replaceChildren();
+	} );
+
+	afterEach( () => {
+		resetRowDndSession();
 	} );
 
 	/**
@@ -119,14 +144,13 @@ describe( 'Row moving display', () => {
 		const { row } = createSourceTable();
 		row.id = 'source-row';
 		row.cells.item( 0 )?.setAttribute( 'id', 'source-cell' );
-		const { rerender } = render( <RowMovingDisplay /> );
+		render( <RowMovingDisplay /> );
 
 		startPhysicalDrag( row );
 		expect( row.classList ).not.toContain( 'yamabiko-table-reorder-moving-row-source' );
 		expect( document.body.querySelectorAll( 'table' ) ).toHaveLength( 1 );
 
-		mockRowDndPhase = 'active';
-		rerender( <RowMovingDisplay /> );
+		startRowDndSession();
 
 		expect( row.classList ).toContain( 'yamabiko-table-reorder-moving-row-source' );
 		expect( document.body.querySelectorAll( 'table' ) ).toHaveLength( 2 );
@@ -168,7 +192,7 @@ describe( 'Row moving display', () => {
 		editable.setAttribute( 'contenteditable', 'true' );
 		editable.textContent = 'Editable';
 		row.cells.item( 0 )?.replaceChildren( editable );
-		mockRowDndPhase = 'active';
+		startRowDndSession();
 		render( <RowMovingDisplay /> );
 
 		startPhysicalDrag( row );
@@ -196,7 +220,7 @@ describe( 'Row moving display', () => {
 	 */
 	it( 'when the physical drag moves vertically, should move the overlay by the same vertical distance', () => {
 		const { row } = createSourceTable();
-		mockRowDndPhase = 'active';
+		startRowDndSession();
 		render( <RowMovingDisplay /> );
 		startPhysicalDrag( row );
 
@@ -231,13 +255,12 @@ describe( 'Row moving display', () => {
 	 */
 	it( 'when the row DnD session becomes idle, should remove the moving display and restore the source row', () => {
 		const { row } = createSourceTable();
-		mockRowDndPhase = 'active';
-		const { rerender } = render( <RowMovingDisplay /> );
+		startRowDndSession();
+		render( <RowMovingDisplay /> );
 		startPhysicalDrag( row );
 		expect( row.classList ).toContain( 'yamabiko-table-reorder-moving-row-source' );
 
-		mockRowDndPhase = 'idle';
-		rerender( <RowMovingDisplay /> );
+		resetRowDndSession();
 
 		expect( row.classList ).not.toContain( 'yamabiko-table-reorder-moving-row-source' );
 		expect( document.body.querySelectorAll( 'table' ) ).toHaveLength( 1 );
@@ -257,7 +280,7 @@ describe( 'Row moving display', () => {
 	 */
 	it( 'when the moving display unmounts during an active row DnD session, should restore the source row and remove the temporary display', () => {
 		const { row } = createSourceTable();
-		mockRowDndPhase = 'active';
+		startRowDndSession();
 		const { unmount } = render( <RowMovingDisplay /> );
 		startPhysicalDrag( row );
 		expect( row.classList ).toContain( 'yamabiko-table-reorder-moving-row-source' );

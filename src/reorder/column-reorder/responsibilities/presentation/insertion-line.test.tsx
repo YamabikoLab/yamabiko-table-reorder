@@ -7,17 +7,12 @@
 
 import { act, render } from '@testing-library/react';
 
-import { resolveColumnSourceIndex } from '@/reorder/column-reorder/integration/source-column-resolution';
-import {
-	measureTableColumnBoundaryGeometry,
-	resolveTableColumnInlineDirection,
-} from '@/reorder/column-reorder/infrastructure/column-geometry';
-import { resolveEditorDomContext } from '@/reorder/editor-dom-context';
+import * as columnGeometry from '@/reorder/column-reorder/infrastructure/column-geometry';
+import { columnDndInteraction } from '@/reorder/column-reorder/responsibilities/dnd-interaction';
 import { DND_POST_DROP_COLUMN_OUTLINE_DURATION_MS } from '@/reorder/reorder-tuning';
 
 import { ColumnInsertionLine } from './insertion-line';
 
-let mockDestinationBoundaryIndex: number | null = null;
 let mockAnimationFrameCallback: FrameRequestCallback | null = null;
 let mockDragDropMonitor: {
 	onDragStart?: ( event: any ) => void;
@@ -31,43 +26,19 @@ const requestAnimationFrameMock = jest.fn( ( callback: FrameRequestCallback ): n
 } );
 const cancelAnimationFrameMock = jest.fn();
 
-jest.mock( '@/reorder/column-reorder/integration/dnd-interaction-react', () => ( {
-	useColumnDndDestinationBoundaryIndex: () => mockDestinationBoundaryIndex,
-} ) );
-
-jest.mock( '@/reorder/column-reorder/integration/source-column-resolution', () => ( {
-	resolveColumnSourceIndex: jest.fn(),
-} ) );
-
-jest.mock( '@/reorder/column-reorder/infrastructure/column-geometry', () => ( {
-	measureTableColumnBoundaryGeometry: jest.fn(),
-	resolveTableColumnInlineDirection: jest.fn(),
-} ) );
-
-jest.mock( '@/reorder/editor-dom-context', () => ( {
-	resolveEditorDomContext: jest.fn(),
-} ) );
-
+/* DnD Engineの物理monitorはJSDOMで実行できないため、その通知境界だけを決定的なTest Doubleとする。 */
 jest.mock( '@dnd-kit/react', () => ( {
 	useDragDropMonitor: ( monitor: typeof mockDragDropMonitor ) => {
 		mockDragDropMonitor = monitor;
 	},
 } ) );
 
-const resolveColumnSourceIndexMock = resolveColumnSourceIndex as jest.MockedFunction<
-	typeof resolveColumnSourceIndex
->;
-const measureTableColumnBoundaryGeometryMock =
-	measureTableColumnBoundaryGeometry as jest.MockedFunction<
-		typeof measureTableColumnBoundaryGeometry
-	>;
-const resolveTableColumnInlineDirectionMock =
-	resolveTableColumnInlineDirection as jest.MockedFunction<
-		typeof resolveTableColumnInlineDirection
-	>;
-const resolveEditorDomContextMock = resolveEditorDomContext as jest.MockedFunction<
-	typeof resolveEditorDomContext
->;
+/* Jestで読み込めないBlock Editor Store境界だけを代替し、WordPress DataとDnD Interactionは実経路へ接続する。 */
+jest.mock( '@wordpress/block-editor', () => ( {
+	store: jest.requireActual(
+		'@/reorder/column-reorder/responsibilities/table-integration.test-utils'
+	).columnReorderTestBlockEditorStore,
+} ) );
 
 /**
  * 挿入位置表示の成立条件を必要な値だけで表せるDOM矩形を作成する。
@@ -92,14 +63,17 @@ const rectangle = ( values: Partial< DOMRect > ): DOMRect =>
 /**
  * Column Reorderの挿入位置表示を成立させる対象Tableを用意する。
  *
- * @return 移動元セルとTableの表示位置を変更できるmock。
+ * @return 移動元セルとTableの表示位置を変更できる計測境界。
  */
 const createSourceTable = () => {
 	const table = document.createElement( 'table' );
 	const tbody = document.createElement( 'tbody' );
 	const row = document.createElement( 'tr' );
-	const sourceCell = document.createElement( 'td' );
-	row.appendChild( sourceCell );
+	const widths = [ 80, 120, 60, 140 ];
+	const offsets = [ 0, 80, 200, 260, 400 ];
+	const cells = widths.map( () => document.createElement( 'td' ) );
+	const sourceCell = cells[ 1 ];
+	row.append( ...cells );
 	tbody.appendChild( row );
 	table.appendChild( tbody );
 	document.body.appendChild( table );
@@ -114,8 +88,56 @@ const createSourceTable = () => {
 			height: 800,
 		} )
 	);
+	cells.forEach( ( cell, index ) => {
+		jest.spyOn( cell, 'getBoundingClientRect' ).mockImplementation( () => {
+			const isRtl = table.style.direction === 'rtl';
+			const tableRectangle = table.getBoundingClientRect();
+			const left = isRtl
+				? tableRectangle.right - offsets[ index + 1 ]
+				: tableRectangle.left + offsets[ index ];
+			const right = isRtl
+				? tableRectangle.right - offsets[ index ]
+				: tableRectangle.left + offsets[ index + 1 ];
+			return rectangle( {
+				top: -100,
+				bottom: 700,
+				left,
+				right,
+				width: widths[ index ],
+				height: 800,
+			} );
+		} );
+	} );
 
 	return { table, sourceCell, tableRectangleMock };
+};
+
+/** Production DnD Interactionで2列目を移動元とするSessionを開始する。 */
+const startColumnDndSession = (): void => {
+	act( () => {
+		columnDndInteraction.start(
+			{ tableIdentity: 'table-a', sourceColumnIndex: 1 },
+			{ columnCount: 4, blockedBoundaries: [] }
+		);
+	} );
+};
+
+/**
+ * Production DnD Interactionへ現在の移動先境界を反映する。
+ *
+ * @param destinationBoundaryIndex 現在の0-based移動先境界。有効な移動先がない場合はnull。
+ */
+const updateDestination = ( destinationBoundaryIndex: number | null ): void => {
+	act( () => {
+		columnDndInteraction.updateDestination( destinationBoundaryIndex );
+	} );
+};
+
+/** テスト間でProduction DnD Sessionをidleへ戻す。 */
+const resetColumnDndSession = (): void => {
+	act( () => {
+		columnDndInteraction.cancel();
+	} );
 };
 
 /**
@@ -153,33 +175,20 @@ const flushAnimationFrame = (): void => {
 describe( 'Column insertion line', () => {
 	beforeEach( () => {
 		jest.useFakeTimers();
-		jest.clearAllMocks();
-		mockDestinationBoundaryIndex = null;
+		resetColumnDndSession();
 		mockAnimationFrameCallback = null;
 		mockDragDropMonitor = {};
 		document.body.replaceChildren();
-		resolveColumnSourceIndexMock.mockReturnValue( 1 );
-		measureTableColumnBoundaryGeometryMock.mockReturnValue( [
-			{ index: 0, offset: 0 },
-			{ index: 1, offset: 80 },
-			{ index: 2, offset: 200 },
-			{ index: 3, offset: 260 },
-			{ index: 4, offset: 400 },
-		] );
-		resolveTableColumnInlineDirectionMock.mockReturnValue( 'ltr' );
-		resolveEditorDomContextMock.mockReturnValue( {
-			document,
-			window: {
-				innerWidth: 500,
-				innerHeight: 600,
-				requestAnimationFrame: requestAnimationFrameMock,
-				cancelAnimationFrame: cancelAnimationFrameMock,
-			} as unknown as NonNullable< Document[ 'defaultView' ] >,
-		} );
+		Object.defineProperty( window, 'innerWidth', { configurable: true, value: 500 } );
+		Object.defineProperty( window, 'innerHeight', { configurable: true, value: 600 } );
+		jest.spyOn( window, 'requestAnimationFrame' ).mockImplementation( requestAnimationFrameMock );
+		jest.spyOn( window, 'cancelAnimationFrame' ).mockImplementation( cancelAnimationFrameMock );
 	} );
 
 	afterEach( () => {
+		resetColumnDndSession();
 		jest.useRealTimers();
+		jest.restoreAllMocks();
 	} );
 
 	/**
@@ -208,26 +217,26 @@ describe( 'Column insertion line', () => {
 	 *
 	 * 事前条件:
 	 * - LTR TableでColumn DnDが開始されている。
-	 * - 境界2が現在の有効な移動先である。
+	 * - 境界3が現在の有効な移動先である。
 	 *
 	 * 操作:
-	 * - 境界2を挿入線表示へ反映する。
+	 * - 境界3を挿入線表示へ反映する。
 	 *
 	 * 期待結果:
-	 * - 開始時に確定した境界2の物理位置へ挿入線を表示する。
+	 * - 開始時に確定した境界3の物理位置へ挿入線を表示する。
 	 * - 表示中のTable縦範囲だけを挿入線の高さとして使用する。
 	 */
 	it( 'when an LTR destination boundary is valid, should show the line directly at that logical boundary', () => {
 		const { sourceCell } = createSourceTable();
-		const { rerender } = render( <ColumnInsertionLine /> );
+		render( <ColumnInsertionLine /> );
 		startPhysicalDrag( sourceCell );
-		mockDestinationBoundaryIndex = 2;
-		rerender( <ColumnInsertionLine /> );
+		startColumnDndSession();
+		updateDestination( 3 );
 
 		const line = document.querySelector(
 			'.yamabiko-table-reorder-column-insertion-line'
 		) as HTMLElement | null;
-		expect( line?.style.left ).toBe( '240px' );
+		expect( line?.style.left ).toBe( '300px' );
 		expect( line?.style.top ).toBe( '0px' );
 		expect( line?.style.height ).toBe( '600px' );
 	} );
@@ -237,26 +246,26 @@ describe( 'Column insertion line', () => {
 	 *
 	 * 事前条件:
 	 * - RTL TableでColumn DnDが開始されている。
-	 * - 境界1が現在の有効な移動先である。
+	 * - 境界3が現在の有効な移動先である。
 	 *
 	 * 操作:
-	 * - 境界1を挿入線表示へ反映する。
+	 * - 境界3を挿入線表示へ反映する。
 	 *
 	 * 期待結果:
-	 * - Table右端を論理開始端として、境界1に対応する物理位置へ挿入線を表示する。
+	 * - Table右端を論理開始端として、境界3に対応する物理位置へ挿入線を表示する。
 	 */
 	it( 'when the table is RTL, should map the logical destination boundary to the corresponding physical position', () => {
-		resolveTableColumnInlineDirectionMock.mockReturnValue( 'rtl' );
-		const { sourceCell } = createSourceTable();
-		const { rerender } = render( <ColumnInsertionLine /> );
+		const { table, sourceCell } = createSourceTable();
+		table.style.direction = 'rtl';
+		render( <ColumnInsertionLine /> );
 		startPhysicalDrag( sourceCell );
-		mockDestinationBoundaryIndex = 1;
-		rerender( <ColumnInsertionLine /> );
+		startColumnDndSession();
+		updateDestination( 3 );
 
 		const line = document.querySelector(
 			'.yamabiko-table-reorder-column-insertion-line'
 		) as HTMLElement | null;
-		expect( line?.style.left ).toBe( '360px' );
+		expect( line?.style.left ).toBe( '180px' );
 	} );
 
 	/**
@@ -277,10 +286,10 @@ describe( 'Column insertion line', () => {
 	 */
 	it( 'when a forward LTR drop completes with a visible insertion line, should show the measured source width before that boundary and then clear it', () => {
 		const { sourceCell } = createSourceTable();
-		const { rerender } = render( <ColumnInsertionLine /> );
+		render( <ColumnInsertionLine /> );
 		startPhysicalDrag( sourceCell );
-		mockDestinationBoundaryIndex = 3;
-		rerender( <ColumnInsertionLine /> );
+		startColumnDndSession();
+		updateDestination( 3 );
 		endPhysicalDrag( false );
 
 		expect( document.querySelector( '.yamabiko-table-reorder-column-insertion-line' ) ).toBeNull();
@@ -321,12 +330,12 @@ describe( 'Column insertion line', () => {
 	 * - 境界0の物理左側へ移動元列幅120pxの枠を表示する。
 	 */
 	it( 'when a backward RTL drop completes with a visible insertion line, should place the outline on the corresponding physical side', () => {
-		resolveTableColumnInlineDirectionMock.mockReturnValue( 'rtl' );
-		const { sourceCell } = createSourceTable();
-		const { rerender } = render( <ColumnInsertionLine /> );
+		const { table, sourceCell } = createSourceTable();
+		table.style.direction = 'rtl';
+		render( <ColumnInsertionLine /> );
 		startPhysicalDrag( sourceCell );
-		mockDestinationBoundaryIndex = 0;
-		rerender( <ColumnInsertionLine /> );
+		startColumnDndSession();
+		updateDestination( 0 );
 		endPhysicalDrag( false );
 
 		const outline = document.querySelector(
@@ -351,10 +360,10 @@ describe( 'Column insertion line', () => {
 	 */
 	it( 'when a backward LTR drop completes with a visible insertion line, should extend the outline to the physical right of that boundary', () => {
 		const { sourceCell } = createSourceTable();
-		const { rerender } = render( <ColumnInsertionLine /> );
+		render( <ColumnInsertionLine /> );
 		startPhysicalDrag( sourceCell );
-		mockDestinationBoundaryIndex = 0;
-		rerender( <ColumnInsertionLine /> );
+		startColumnDndSession();
+		updateDestination( 0 );
 		endPhysicalDrag( false );
 
 		const outline = document.querySelector(
@@ -371,26 +380,28 @@ describe( 'Column insertion line', () => {
 	 * - 有効な挿入線を表示できるColumn DnDである。
 	 *
 	 * 操作:
-	 * - cancel終了と、移動元論理列を解決できない正常終了をそれぞれ通知する。
+	 * - cancel終了と、結合セルにより移動元列幅を実測できない正常終了をそれぞれ通知する。
 	 *
 	 * 期待結果:
 	 * - どちらの終了でもdrop後枠を表示しない。
 	 */
 	it( 'when the drag is canceled or the source width cannot be resolved, should not show a post-drop outline', () => {
 		const first = createSourceTable();
-		const { rerender } = render( <ColumnInsertionLine /> );
+		render( <ColumnInsertionLine /> );
 		startPhysicalDrag( first.sourceCell );
-		mockDestinationBoundaryIndex = 3;
-		rerender( <ColumnInsertionLine /> );
+		startColumnDndSession();
+		updateDestination( 3 );
 		endPhysicalDrag( true );
 		expect(
 			document.querySelector( '.yamabiko-table-reorder-post-drop-column-outline' )
 		).toBeNull();
 
-		resolveColumnSourceIndexMock.mockReturnValue( null );
+		resetColumnDndSession();
 		const second = createSourceTable();
+		second.sourceCell.colSpan = 2;
 		startPhysicalDrag( second.sourceCell );
-		rerender( <ColumnInsertionLine /> );
+		startColumnDndSession();
+		updateDestination( 3 );
 		endPhysicalDrag( false );
 		expect(
 			document.querySelector( '.yamabiko-table-reorder-post-drop-column-outline' )
@@ -412,10 +423,10 @@ describe( 'Column insertion line', () => {
 	 */
 	it( 'when another drag starts or the presentation unmounts, should clear the previous post-drop outline timer', () => {
 		const first = createSourceTable();
-		const { rerender, unmount } = render( <ColumnInsertionLine /> );
+		const { unmount } = render( <ColumnInsertionLine /> );
 		startPhysicalDrag( first.sourceCell );
-		mockDestinationBoundaryIndex = 3;
-		rerender( <ColumnInsertionLine /> );
+		startColumnDndSession();
+		updateDestination( 3 );
 		endPhysicalDrag( false );
 		expect( jest.getTimerCount() ).toBe( 1 );
 
@@ -426,7 +437,9 @@ describe( 'Column insertion line', () => {
 		).toBeNull();
 		expect( jest.getTimerCount() ).toBe( 0 );
 
-		rerender( <ColumnInsertionLine /> );
+		resetColumnDndSession();
+		startColumnDndSession();
+		updateDestination( 3 );
 		endPhysicalDrag( false );
 		expect( jest.getTimerCount() ).toBe( 1 );
 		unmount();
@@ -448,14 +461,15 @@ describe( 'Column insertion line', () => {
 	 * - DnD開始時に確定した論理列境界自体は再計測しない。
 	 */
 	it( 'when an editor descendant scrolls without another drag move, should follow the current table position through the captured scroll event', () => {
+		const measureBoundaries = jest.spyOn( columnGeometry, 'measureTableColumnBoundaryGeometry' );
 		const { table, sourceCell, tableRectangleMock } = createSourceTable();
 		const scrollContainer = document.createElement( 'div' );
 		document.body.appendChild( scrollContainer );
 		scrollContainer.appendChild( table );
-		const { rerender } = render( <ColumnInsertionLine /> );
+		render( <ColumnInsertionLine /> );
 		startPhysicalDrag( sourceCell );
-		mockDestinationBoundaryIndex = 4;
-		rerender( <ColumnInsertionLine /> );
+		startColumnDndSession();
+		updateDestination( 4 );
 
 		tableRectangleMock.mockReturnValue(
 			rectangle( {
@@ -476,7 +490,7 @@ describe( 'Column insertion line', () => {
 			'.yamabiko-table-reorder-column-insertion-line'
 		) as HTMLElement | null;
 		expect( line?.style.left ).toBe( '410px' );
-		expect( measureTableColumnBoundaryGeometryMock ).toHaveBeenCalledTimes( 1 );
+		expect( measureBoundaries ).toHaveBeenCalledTimes( 1 );
 	} );
 
 	/**
@@ -504,10 +518,10 @@ describe( 'Column insertion line', () => {
 				height: 400,
 			} )
 		);
-		const { rerender } = render( <ColumnInsertionLine /> );
+		render( <ColumnInsertionLine /> );
 		startPhysicalDrag( sourceCell );
-		mockDestinationBoundaryIndex = 0;
-		rerender( <ColumnInsertionLine /> );
+		startColumnDndSession();
+		updateDestination( 0 );
 
 		expect( document.querySelector( '.yamabiko-table-reorder-column-insertion-line' ) ).toBeNull();
 	} );
@@ -531,16 +545,15 @@ describe( 'Column insertion line', () => {
 		const scrollContainer = document.createElement( 'div' );
 		document.body.appendChild( scrollContainer );
 		scrollContainer.appendChild( table );
-		const { rerender, unmount } = render( <ColumnInsertionLine /> );
+		const { unmount } = render( <ColumnInsertionLine /> );
 		startPhysicalDrag( sourceCell );
-		mockDestinationBoundaryIndex = 4;
-		rerender( <ColumnInsertionLine /> );
+		startColumnDndSession();
+		updateDestination( 4 );
 
 		endPhysicalDrag( true );
 		expect( document.querySelector( '.yamabiko-table-reorder-column-insertion-line' ) ).toBeNull();
 
 		startPhysicalDrag( sourceCell );
-		rerender( <ColumnInsertionLine /> );
 		act( () => {
 			scrollContainer.dispatchEvent( new Event( 'scroll' ) );
 		} );

@@ -7,24 +7,19 @@
 
 import { act, renderHook } from '@testing-library/react';
 
-import { columnTableIntegration } from '@/reorder/column-reorder/responsibilities/table-integration';
-import { rowTableIntegration } from '@/reorder/row-reorder/responsibilities/table-integration';
-
-import { columnRfResolution } from './column-resolution';
 import { useRfApplyOutcome, useRfInteraction } from './interaction-react';
 import { rfInteraction, rfInteractionStore } from './interaction';
-import { rowRfResolution } from './row-resolution';
+import {
+	createTestTableBlock,
+	createTestTableRow,
+	resetRfInteractionTestState,
+	setTestTableBlocks,
+	updateTestTableAttributes,
+} from './interaction.test-utils';
 
-jest.mock( '@/reorder/row-reorder/responsibilities/table-integration', () => ( {
-	rowTableIntegration: {
-		getConstraints: jest.fn(),
-	},
-} ) );
-
-jest.mock( '@/reorder/column-reorder/responsibilities/table-integration', () => ( {
-	columnTableIntegration: {
-		getColumnInputDescriptors: jest.fn(),
-	},
+/* Jestで読み込めないBlock Editor Storeの環境境界だけを代替し、WordPress Dataは実Storeへ接続する。 */
+jest.mock( '@wordpress/block-editor', () => ( {
+	store: jest.requireActual( './block-editor-store.test-utils' ).testBlockEditorStore,
 } ) );
 
 const ROW_INPUT = {
@@ -43,44 +38,27 @@ const COLUMNS = [
 	{ columnIndex: 2, columnNumber: 3, heading: 'C' },
 ];
 
-const resetInteraction = () => {
-	act( () => {
-		rfInteractionStore.setState( {
-			session: { status: 'closed' },
-			applyOutcome: { status: 'idle' },
-		} );
-	} );
-};
+const createDefaultTable = ( clientId: string ) =>
+	createTestTableBlock(
+		clientId,
+		[
+			createTestTableRow( `${ clientId }-row-a` ),
+			createTestTableRow( `${ clientId }-row-b` ),
+			createTestTableRow( `${ clientId }-row-c` ),
+		],
+		[ { cells: [ { content: 'A' }, { content: 'B' }, { content: 'C' } ] } ]
+	);
 
 describe( 'RF Interaction React connection', () => {
 	beforeEach( () => {
-		resetInteraction();
-		jest.spyOn( rowTableIntegration, 'getConstraints' ).mockReturnValue( {
-			rowCount: 3,
-			blockedBoundaries: [],
-		} );
-		jest.spyOn( columnTableIntegration, 'getColumnInputDescriptors' ).mockReturnValue( COLUMNS );
-		jest.spyOn( rowRfResolution, 'resolve' ).mockReturnValue( {
-			status: 'resolved',
-			candidate: {
-				clientId: 'table-a',
-				sourceRowIndex: 0,
-				destinationBoundaryIndex: 3,
-			},
-		} );
-		jest.spyOn( columnRfResolution, 'resolve' ).mockReturnValue( {
-			status: 'resolved',
-			candidate: {
-				clientId: 'table-a',
-				sourceColumnIndex: 0,
-				destinationBoundaryIndex: 3,
-			},
-		} );
+		resetRfInteractionTestState();
+		setTestTableBlocks( [ createDefaultTable( 'table-a' ), createDefaultTable( 'table-b' ) ] );
 	} );
 
 	afterEach( () => {
-		jest.restoreAllMocks();
-		resetInteraction();
+		act( () => {
+			resetRfInteractionTestState();
+		} );
 	} );
 
 	/**
@@ -136,9 +114,8 @@ describe( 'RF Interaction React connection', () => {
 			rfInteraction.open( 'table-a' );
 			rfInteraction.updateRowInput( 'table-a', ROW_INPUT );
 		} );
-		jest.spyOn( rowTableIntegration, 'getConstraints' ).mockReturnValue( {
-			rowCount: 1,
-			blockedBoundaries: [],
+		updateTestTableAttributes( 'table-a', {
+			body: [ createTestTableRow( 'current-row' ) ],
 		} );
 
 		act( () => {
@@ -177,37 +154,47 @@ describe( 'RF Interaction React connection', () => {
 	 * - Reorder Kind固有結果がそのまま公開され、canApplyはfalseになる。
 	 */
 	it.each( [
-		[ 'no-op', { status: 'no-op' } as const, { status: 'no-op' } as const ],
+		[
+			'no-op',
+			[
+				createTestTableRow( 'row-a' ),
+				createTestTableRow( 'row-b' ),
+				createTestTableRow( 'row-c' ),
+			],
+			{
+				sourceRowNumber: '1',
+				targetRowNumber: '2',
+				position: 'above' as const,
+			},
+			{ status: 'no-op' } as const,
+		],
 		[
 			'rejected',
+			[
+				{ cells: [ { content: 'A', rowspan: 2 }, { content: 'B' } ] },
+				{ cells: [ { content: 'B2' } ] },
+				{ cells: [ { content: 'A3' }, { content: 'B3' } ] },
+			],
+			ROW_INPUT,
 			{
 				status: 'rejected',
 				blockingMergedRange: {
 					rowStart: 0,
-					rowEnd: 2,
-					columnStart: 1,
-					columnEnd: 1,
-				},
-			} as const,
-			{
-				status: 'rejected',
-				blockingMergedRange: {
-					rowStart: 0,
-					rowEnd: 2,
-					columnStart: 1,
-					columnEnd: 1,
+					rowEnd: 1,
+					columnStart: 0,
+					columnEnd: 0,
 				},
 			} as const,
 		],
 	] )(
 		'when row resolution is %s, should publish the result as not applicable',
-		( _status, resolution, expectedResult ) => {
-			jest.spyOn( rowRfResolution, 'resolve' ).mockReturnValue( resolution );
+		( _status, body, input, expectedResult ) => {
+			setTestTableBlocks( [ createTestTableBlock( 'table-a', body ) ] );
 			const tableA = renderHook( () => useRfInteraction( 'table-a' ) );
 
 			act( () => {
 				rfInteraction.open( 'table-a' );
-				rfInteraction.updateRowInput( 'table-a', ROW_INPUT );
+				rfInteraction.updateRowInput( 'table-a', input );
 			} );
 
 			expect( tableA.result.current ).toMatchObject( {
@@ -230,7 +217,7 @@ describe( 'RF Interaction React connection', () => {
 	 * - rowCountはnull、resultはunavailable、canApplyはfalseになる。
 	 */
 	it( 'when the current row table is unavailable, should publish unavailable as not applicable', () => {
-		jest.spyOn( rowTableIntegration, 'getConstraints' ).mockReturnValue( null );
+		setTestTableBlocks( [ createDefaultTable( 'table-b' ) ] );
 		const tableA = renderHook( () => useRfInteraction( 'table-a' ) );
 
 		act( () => {

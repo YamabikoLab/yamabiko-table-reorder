@@ -4,37 +4,75 @@
  * DnD Interactionの終了理由判定は重複して検証せず、通知イベントから表示開始、表示終了、購読解除までのPresentation Lifecycleに限定する。
  */
 
-import { act, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
+import type { ReactNode } from 'react';
+
+import * as dndInteraction from '@/reorder/column-reorder/responsibilities/dnd-interaction';
+import {
+	createColumnReorderTestRow,
+	createColumnReorderTestTable,
+	setColumnReorderTestTables,
+} from '@/reorder/column-reorder/responsibilities/table-integration.test-utils';
+import { resolveColumnReorderTarget } from '@/reorder/column-reorder/responsibilities/target-resolution';
 
 import { ColumnTerminationNotice } from './termination-notice';
 
-let terminationListener: ( () => void ) | null = null;
-let snackbarRemove: ( () => void ) | undefined;
+const subscribeColumnDndTerminationNotice = dndInteraction.subscribeColumnDndTerminationNotice;
 
-jest.mock( '@/messages', () => ( {
-	getDndTerminationMessage: () => 'termination message',
-} ) );
-
-jest.mock( '@/reorder/column-reorder/responsibilities/dnd-interaction', () => ( {
-	subscribeColumnDndTerminationNotice: ( listener: () => void ) => {
-		terminationListener = listener;
-		return () => {
-			terminationListener = null;
-		};
-	},
-} ) );
-
+/* @wordpress/componentsの公開入口はJest変換対象外のESM-only uuidを読み込むため、Snackbarの表示・dismiss境界だけを代替する。 */
 jest.mock( '@wordpress/components', () => ( {
-	Snackbar: ( props: { children: React.ReactNode; onRemove?: () => void } ) => {
-		snackbarRemove = props.onRemove;
-		return <div>{ props.children }</div>;
-	},
+	Snackbar: ( props: { children: ReactNode; onRemove?: () => void } ) => (
+		<button type="button" aria-label="Dismiss this notice" onClick={ props.onRemove }>
+			{ props.children }
+		</button>
+	),
 } ) );
+
+/* Jestで読み込めないBlock Editor Store境界だけを代替し、WordPress Data・DnD Interaction・通知Presentationは実経路へ接続する。 */
+jest.mock( '@wordpress/block-editor', () => ( {
+	store: jest.requireActual(
+		'@/reorder/column-reorder/responsibilities/table-integration.test-utils'
+	).columnReorderTestBlockEditorStore,
+} ) );
+
+const message = 'Reordering could not continue, so the operation was ended.';
+
+/** 現在Table消失により確定できなくなった列DnDからProduction異常終了通知を発行する。 */
+const emitTerminationNotice = (): void => {
+	setColumnReorderTestTables( [
+		createColumnReorderTestTable( 'table-a', [
+			createColumnReorderTestRow( 'row-1', 3 ),
+			createColumnReorderTestRow( 'row-2', 3 ),
+		] ),
+	] );
+	const resolution = resolveColumnReorderTarget( {
+		tableIdentity: 'table-a',
+		sourceColumnIndex: 0,
+	} );
+	if ( resolution.status !== 'resolved' ) {
+		throw new Error( 'Column termination notice test target must be resolved.' );
+	}
+
+	dndInteraction.columnDndInteraction.start( resolution.target, resolution.initialConstraints );
+	dndInteraction.columnDndInteraction.updateDestination( 3 );
+	setColumnReorderTestTables( [] );
+	dndInteraction.columnDndInteraction.complete();
+};
 
 describe( 'ColumnTerminationNotice', () => {
 	beforeEach( () => {
-		terminationListener = null;
-		snackbarRemove = undefined;
+		act( () => {
+			dndInteraction.columnDndInteraction.cancel();
+		} );
+		setColumnReorderTestTables( [] );
+	} );
+
+	afterEach( () => {
+		act( () => {
+			dndInteraction.columnDndInteraction.cancel();
+		} );
+		setColumnReorderTestTables( [] );
+		jest.restoreAllMocks();
 	} );
 
 	/**
@@ -53,13 +91,13 @@ describe( 'ColumnTerminationNotice', () => {
 	it( 'when a termination notice is emitted, should show the termination message', () => {
 		render( <ColumnTerminationNotice /> );
 
-		expect( screen.queryByText( 'termination message' ) ).toBeNull();
+		expect( screen.queryByText( message ) ).toBeNull();
 
 		act( () => {
-			terminationListener?.();
+			emitTerminationNotice();
 		} );
 
-		expect( screen.queryByText( 'termination message' ) ).not.toBeNull();
+		expect( screen.queryByText( message ) ).not.toBeNull();
 	} );
 
 	/**
@@ -78,14 +116,13 @@ describe( 'ColumnTerminationNotice', () => {
 		render( <ColumnTerminationNotice /> );
 
 		act( () => {
-			terminationListener?.();
+			emitTerminationNotice();
 		} );
+		expect( screen.queryByText( message ) ).not.toBeNull();
 
-		act( () => {
-			snackbarRemove?.();
-		} );
+		fireEvent.click( screen.getByRole( 'button', { name: 'Dismiss this notice' } ) );
 
-		expect( screen.queryByText( 'termination message' ) ).toBeNull();
+		expect( screen.queryByText( message ) ).toBeNull();
 	} );
 
 	/**
@@ -101,11 +138,19 @@ describe( 'ColumnTerminationNotice', () => {
 	 * - 終了通知の購読が残らない。
 	 */
 	it( 'when the presentation unmounts, should unsubscribe from termination notices', () => {
+		let unsubscribeObserver: jest.Mock | undefined;
+		/* 購読解除は公開UIから決定的に観測できないため、この1ケースだけ解除関数を記録し、実Production購読と解除へそのまま委譲する。 */
+		jest
+			.spyOn( dndInteraction, 'subscribeColumnDndTerminationNotice' )
+			.mockImplementation( ( listener ) => {
+				const unsubscribe = subscribeColumnDndTerminationNotice( listener );
+				unsubscribeObserver = jest.fn( unsubscribe );
+				return unsubscribeObserver;
+			} );
 		const { unmount } = render( <ColumnTerminationNotice /> );
-		expect( terminationListener ).not.toBeNull();
 
 		unmount();
 
-		expect( terminationListener ).toBeNull();
+		expect( unsubscribeObserver ).toHaveBeenCalledTimes( 1 );
 	} );
 } );

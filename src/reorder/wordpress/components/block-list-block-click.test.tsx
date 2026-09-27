@@ -3,7 +3,7 @@
  */
 
 import { act, fireEvent, render } from '@testing-library/react';
-import type { MouseEventHandler, PointerEventHandler, ReactNode } from 'react';
+import type { MouseEventHandler } from 'react';
 
 import { reorderMode } from '@/reorder/reorder-mode';
 import {
@@ -12,51 +12,39 @@ import {
 } from '@/reorder/wordpress/components/block-list-block';
 import { clearColumnDndLayoutAvailabilitySnapshot } from '@/reorder/wordpress/column-dnd-layout-availability-state';
 
-jest.mock( '@/reorder/column-reorder/responsibilities/layout-availability', () => ( {
-	resolveColumnDndLayoutAvailability: () => 'available',
+/* @wordpress/componentsのuuid / theme ESM境界だけをJestで読める決定的な実装へ置き換える。 */
+jest.mock( 'uuid', () => ( { v4: () => 'block-list-block-click-test-uuid' } ) );
+jest.mock( '@wordpress/theme', () => ( {
+	ThemeProvider: ( { children }: { children: React.ReactNode } ) => children,
 } ) );
 
-jest.mock( '@/reorder/row-reorder/responsibilities/presentation/row-highlight', () => ( {
-	RowHighlight: ( {
-		children,
-	}: {
-		children: ( handler: PointerEventHandler< Element > ) => ReactNode;
-	} ) => children( () => undefined ),
+/* Jestで読み込めないBlock Editor Storeの環境境界だけを代替し、WordPress Dataは実Storeへ接続する。 */
+jest.mock( '@wordpress/block-editor', () => ( {
+	store: jest.requireActual(
+		'@/reorder/reorder-form/responsibilities/block-editor-store.test-utils'
+	).testBlockEditorStore,
 } ) );
 
-jest.mock( '@/reorder/column-reorder/responsibilities/presentation/column-highlight', () => ( {
-	ColumnHighlight: ( {
-		children,
-	}: {
-		children: (
-			overHandler: PointerEventHandler< Element >,
-			outHandler: PointerEventHandler< Element >
-		) => ReactNode;
-	} ) =>
-		children(
-			() => undefined,
-			() => undefined
-		),
-} ) );
+/*
+ * Jestのbrowser解決が選ぶESMではなく、同じProduction packageが公開するCommonJS入口を使用する。
+ * JSDOMにないResizeObserver境界だけを無処理とし、Row / Column DnD自体はProduction実装を接続する。
+ */
+jest.mock( '@preact/signals-core', () => {
+	class TestResizeObserver {
+		disconnect(): void {}
+		observe(): void {}
+		unobserve(): void {}
+	}
+	global.ResizeObserver = TestResizeObserver;
 
-jest.mock( '@/reorder/row-reorder/integration/dnd', () => ( {
-	RowDnd: ( {
-		children,
-	}: {
-		children: ( handler: PointerEventHandler< Element > ) => ReactNode;
-	} ) => children( () => undefined ),
-} ) );
-
-jest.mock( '@/reorder/column-reorder/integration/dnd', () => ( {
-	ColumnDnd: ( {
-		children,
-	}: {
-		children: ( handler: PointerEventHandler< Element > ) => ReactNode;
-	} ) => children( () => undefined ),
-} ) );
+	return jest.requireActual(
+		`${ process.cwd() }/node_modules/@preact/signals-core/dist/signals-core.js`
+	);
+} );
 
 let blockListBlockRenderCount = 0;
 
+/* Gutenbergがfilterで渡すBlockListBlockは公開importできないため、外部component境界だけをclick契約を観測できる最小実装にする。 */
 const BlockListBlock = ( props: ReorderModeBlockListBlockProps ) => {
 	blockListBlockRenderCount += 1;
 	const wrapperProps = props.wrapperProps ?? {};

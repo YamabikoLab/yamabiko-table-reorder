@@ -3,99 +3,69 @@
  */
 
 import { act, fireEvent, render, screen } from '@testing-library/react';
-import type { ReactNode } from 'react';
 
-import { rfInteraction } from '@/reorder/reorder-form/responsibilities/interaction';
+import {
+	rfInteraction,
+	rfInteractionStore,
+} from '@/reorder/reorder-form/responsibilities/interaction';
 import type { RfInteractionReactState } from '@/reorder/reorder-form/responsibilities/interaction-react';
+import {
+	createTestTableBlock,
+	createTestTableRow,
+	resetRfInteractionTestState,
+	setTestTableBlocks,
+} from '@/reorder/reorder-form/responsibilities/interaction.test-utils';
 import { reorderFormCollapse } from '@/reorder/wordpress/components/reorder-form-collapse';
+import { reorderFormPosition } from '@/reorder/wordpress/components/reorder-form-position';
 
 import { ReorderFormPopover } from './reorder-form';
 
-type MockButtonProps = {
-	children: ReactNode;
-	disabled?: boolean;
-	onClick?: () => void;
-	label?: string;
-	'aria-controls'?: string;
-	'aria-expanded'?: boolean;
-};
-
-jest.mock( '@wordpress/components', () => ( {
-	Button: ( props: MockButtonProps ) => (
-		<button
-			aria-controls={ props[ 'aria-controls' ] }
-			aria-expanded={ props[ 'aria-expanded' ] }
-			aria-label={ props.label }
-			disabled={ props.disabled }
-			onClick={ props.onClick }
-			type="button"
-		>
-			{ props.children }
-		</button>
-	),
-	Popover: ( props: { children: ReactNode } ) => <div>{ props.children }</div>,
-	VisuallyHidden: ( props: { children: ReactNode } ) => <span>{ props.children }</span>,
+/* @wordpress/componentsのuuid / theme ESM境界だけをJestで読める決定的な実装へ置き換える。 */
+jest.mock( 'uuid', () => ( { v4: () => 'reorder-form-test-uuid' } ) );
+jest.mock( '@wordpress/theme', () => ( {
+	ThemeProvider: ( { children }: { children: React.ReactNode } ) => children,
 } ) );
 
-jest.mock( '@/messages', () => ( {
-	getRfAboveLabel: () => '上',
-	getRfApplyLabel: () => '並び替え',
-	getRfBelowLabel: () => '下',
-	getRfCancelLabel: () => 'キャンセル',
-	getColumnMergedRangeMessage: (
-		section: string,
-		rowStart: number,
-		rowEnd: number,
-		columnStart: number,
-		columnEnd: number
-	) => `column:${ section }:${ rowStart }-${ rowEnd }:${ columnStart }-${ columnEnd }`,
-	getRfColumnSelectionUnavailableMessage: () => '現在の列から選び直してください',
-	getRfColumnOptionLabel: ( columnNumber: number, heading: string | null ) => {
-		const label =
-			heading === null ? `${ columnNumber }列目` : `${ heading }（${ columnNumber }列目）`;
-		return label;
-	},
-	getRfColumnTargetHelp: () => '対象列の左右へ移動',
-	getRfColumnsLabel: () => '列',
-	getRfKindLegend: () => '並び替え',
-	getRfLeftLabel: () => '左',
-	getRfNoOpMessage: () => '変更なし',
-	getRfPositionLegend: () => '位置',
-	getRfReorderName: () => 'フォームで並び替え',
-	getRfRightLabel: () => '右',
-	getRowMergedRangeMessage: (
-		rowStart: number,
-		rowEnd: number,
-		columnStart: number,
-		columnEnd: number
-	) => `row:${ rowStart }-${ rowEnd }:${ columnStart }-${ columnEnd }`,
-	getRfRowRangeMessage: () => '行範囲',
-	getRfRowsLabel: () => '行',
-	getRfRowTargetHelp: () => '対象行の上下へ移動',
-	getRfSelectColumnLabel: () => '列を選択',
-	getRfSourceColumnLabel: () => '移動する列',
-	getRfSourceRowLabel: () => '移動する行',
-	getRfTargetColumnLabel: () => '移動先の列',
-	getRfTargetRowLabel: () => '移動先の行',
-	getRfUnavailableMessage: () => '利用不可',
-} ) );
+/* JSDOMに実layoutがないため、Popoverの配置計算境界だけを固定座標で代替する。 */
+jest.mock( '@floating-ui/react-dom', () => {
+	const actual = jest.requireActual( '@floating-ui/react-dom' );
+	const React = jest.requireActual( 'react' ) as typeof import('react');
 
-jest.mock( '@/reorder/reorder-form/responsibilities/interaction', () => ( {
-	rfInteraction: {
-		close: jest.fn(),
-		requestApply: jest.fn(),
-		selectKind: jest.fn(),
-		updateColumnInput: jest.fn(),
-		updateRowInput: jest.fn(),
-	},
-} ) );
+	return {
+		...actual,
+		useFloating: ( { placement = 'bottom' }: { placement?: string } ) => {
+			const reference = React.useRef< Element | null >( null );
+			const floating = React.useRef< HTMLElement | null >( null );
+			const setReference = React.useCallback( ( element: Element | null ) => {
+				reference.current = element;
+			}, [] );
+			const setFloating = React.useCallback( ( element: HTMLElement | null ) => {
+				floating.current = element;
+			}, [] );
+			const update = React.useCallback( () => undefined, [] );
+			const refs = React.useMemo(
+				() => ( { reference, floating, setReference, setFloating } ),
+				[ setFloating, setReference ]
+			);
 
-jest.mock( '@/reorder/wordpress/components/reorder-form-position', () => ( {
-	clampReorderFormPosition: jest.fn(),
-	useReorderFormPosition: () => ( {
-		position: null,
-		setPosition: jest.fn(),
-	} ),
+			return {
+				x: 0,
+				y: 0,
+				refs,
+				strategy: 'absolute',
+				update,
+				placement,
+				middlewareData: { arrow: {} },
+			};
+		},
+	};
+} );
+
+/* Jestで読み込めないBlock Editor Storeの環境境界だけを代替し、WordPress Dataは実Storeへ接続する。 */
+jest.mock( '@wordpress/block-editor', () => ( {
+	store: jest.requireActual(
+		'@/reorder/reorder-form/responsibilities/block-editor-store.test-utils'
+	).testBlockEditorStore,
 } ) );
 
 /** Row RFを表示する標準状態を作成する。 */
@@ -146,9 +116,26 @@ const notifyViewportResize = ( view: Window ): void => {
 
 describe( 'Reorder Form presentation', () => {
 	beforeEach( () => {
-		jest.clearAllMocks();
+		resetRfInteractionTestState();
+		setTestTableBlocks( [
+			createTestTableBlock(
+				'table-a',
+				Array.from( { length: 20 }, ( _value, rowIndex ) =>
+					createTestTableRow( `row-${ rowIndex + 1 }`, 3 )
+				),
+				[ { cells: [ { content: '商品名' }, { content: '' }, { content: '' } ] } ]
+			),
+		] );
+		rfInteraction.open( 'table-a' );
 		setViewportWidth( window, 1024 );
 		reorderFormCollapse.beginSession( 'table-a' );
+		reorderFormPosition.beginSession( 'table-a' );
+	} );
+
+	afterEach( () => {
+		resetRfInteractionTestState();
+		document.querySelectorAll( 'iframe' ).forEach( ( iframe ) => iframe.remove() );
+		jest.restoreAllMocks();
 	} );
 
 	/**
@@ -170,7 +157,7 @@ describe( 'Reorder Form presentation', () => {
 			<ReorderFormPopover anchor={ anchor } state={ createRowState() } tableIdentity="table-a" />
 		);
 
-		const direction = screen.getByRole( 'radio', { name: '行' } );
+		const direction = screen.getByRole( 'radio', { name: 'Rows' } );
 		expect( direction.ownerDocument.activeElement ).toBe( direction );
 	} );
 
@@ -197,9 +184,9 @@ describe( 'Reorder Form presentation', () => {
 		render(
 			<ReorderFormPopover anchor={ anchor } state={ createRowState() } tableIdentity="table-a" />
 		);
-		fireEvent.click( screen.getByRole( 'button', { name: 'キャンセル' } ) );
+		fireEvent.click( screen.getByRole( 'button', { name: 'Cancel' } ) );
 
-		expect( rfInteraction.close ).toHaveBeenCalledWith( 'table-a' );
+		expect( rfInteractionStore.getState().session ).toEqual( { status: 'closed' } );
 		expect( anchor.ownerDocument.activeElement ).toBe( anchor );
 	} );
 
@@ -233,8 +220,8 @@ describe( 'Reorder Form presentation', () => {
 
 		render( <ReorderFormPopover anchor={ anchor } state={ state } tableIdentity="table-a" /> );
 
-		const sourceInput = screen.getByRole( 'spinbutton', { name: '移動する行' } );
-		const targetInput = screen.getByRole( 'spinbutton', { name: '移動先の行' } );
+		const sourceInput = screen.getByRole( 'spinbutton', { name: 'Row to move' } );
+		const targetInput = screen.getByRole( 'spinbutton', { name: 'Target row' } );
 
 		expect( sourceInput.getAttribute( 'min' ) ).toBe( '1' );
 		expect( sourceInput.getAttribute( 'max' ) ).toBe( '20' );
@@ -285,9 +272,9 @@ describe( 'Reorder Form presentation', () => {
 
 		render( <ReorderFormPopover anchor={ anchor } state={ state } tableIdentity="table-a" /> );
 
-		const sourceInput = screen.getByRole( 'spinbutton', { name: '移動する行' } );
-		const targetInput = screen.getByRole( 'spinbutton', { name: '移動先の行' } );
-		const range = screen.getByText( '行範囲' );
+		const sourceInput = screen.getByRole( 'spinbutton', { name: 'Row to move' } );
+		const targetInput = screen.getByRole( 'spinbutton', { name: 'Target row' } );
+		const range = screen.getByText( 'Enter an integer from 1 to 20.' );
 
 		expect( sourceInput.getAttribute( 'aria-invalid' ) ).toBe( 'true' );
 		expect( targetInput.getAttribute( 'aria-invalid' ) ).toBeNull();
@@ -329,13 +316,13 @@ describe( 'Reorder Form presentation', () => {
 
 		render( <ReorderFormPopover anchor={ anchor } state={ state } tableIdentity="table-a" /> );
 
-		expect( screen.getAllByRole( 'option', { name: '商品名（1列目）' } ) ).toHaveLength( 2 );
-		expect( screen.getAllByRole( 'option', { name: '2列目' } ) ).toHaveLength( 2 );
+		expect( screen.getAllByRole( 'option', { name: '商品名 (Column 1)' } ) ).toHaveLength( 2 );
+		expect( screen.getAllByRole( 'option', { name: 'Column 2' } ) ).toHaveLength( 2 );
 		expect(
-			screen.getByRole( 'combobox', { name: '移動する列' } ).getAttribute( 'aria-invalid' )
+			screen.getByRole( 'combobox', { name: 'Column to move' } ).getAttribute( 'aria-invalid' )
 		).toBeNull();
 		expect(
-			screen.getByRole( 'combobox', { name: '移動先の列' } ).getAttribute( 'aria-invalid' )
+			screen.getByRole( 'combobox', { name: 'Target column' } ).getAttribute( 'aria-invalid' )
 		).toBeNull();
 	} );
 
@@ -376,9 +363,11 @@ describe( 'Reorder Form presentation', () => {
 
 		render( <ReorderFormPopover anchor={ anchor } state={ state } tableIdentity="table-a" /> );
 
-		const sourceSelect = screen.getByRole( 'combobox', { name: '移動する列' } );
-		const targetSelect = screen.getByRole( 'combobox', { name: '移動先の列' } );
-		const problem = screen.getByText( '現在の列から選び直してください' );
+		const sourceSelect = screen.getByRole( 'combobox', { name: 'Column to move' } );
+		const targetSelect = screen.getByRole( 'combobox', { name: 'Target column' } );
+		const problem = screen.getByText(
+			'The selected column is no longer available. Select a column again.'
+		);
 
 		expect( sourceSelect.getAttribute( 'aria-invalid' ) ).toBeNull();
 		expect( sourceSelect.getAttribute( 'aria-describedby' ) ).toBeNull();
@@ -423,12 +412,14 @@ describe( 'Reorder Form presentation', () => {
 
 		render( <ReorderFormPopover anchor={ anchor } state={ state } tableIdentity="table-a" /> );
 
-		expect( screen.getByText( 'row:1-2:3-4' ) ).toBeTruthy();
 		expect(
-			screen.getByRole( 'spinbutton', { name: '移動する行' } ).getAttribute( 'aria-invalid' )
+			screen.getByText( 'A merged cell spanning rows 1–2 and columns 3–4 prevents this move.' )
+		).toBeTruthy();
+		expect(
+			screen.getByRole( 'spinbutton', { name: 'Row to move' } ).getAttribute( 'aria-invalid' )
 		).toBeNull();
 		expect(
-			screen.getByRole( 'spinbutton', { name: '移動先の行' } ).getAttribute( 'aria-invalid' )
+			screen.getByRole( 'spinbutton', { name: 'Target row' } ).getAttribute( 'aria-invalid' )
 		).toBeNull();
 	} );
 
@@ -463,12 +454,16 @@ describe( 'Reorder Form presentation', () => {
 
 		render( <ReorderFormPopover anchor={ anchor } state={ state } tableIdentity="table-a" /> );
 
-		expect( screen.getByText( '利用不可' ) ).toBeTruthy();
 		expect(
-			screen.getByRole( 'spinbutton', { name: '移動する行' } ).getAttribute( 'aria-invalid' )
+			screen.getByText(
+				"This reorder can't continue with the current table. Check the table and try again."
+			)
+		).toBeTruthy();
+		expect(
+			screen.getByRole( 'spinbutton', { name: 'Row to move' } ).getAttribute( 'aria-invalid' )
 		).toBeNull();
 		expect(
-			screen.getByRole( 'spinbutton', { name: '移動先の行' } ).getAttribute( 'aria-invalid' )
+			screen.getByRole( 'spinbutton', { name: 'Target row' } ).getAttribute( 'aria-invalid' )
 		).toBeNull();
 	} );
 
@@ -504,17 +499,17 @@ describe( 'Reorder Form presentation', () => {
 
 		render( <ReorderFormPopover anchor={ anchor } state={ state } tableIdentity="table-a" /> );
 
-		const noOpMessage = screen.getByText( '変更なし' );
+		const noOpMessage = screen.getByText( "This selection won't change the order." );
 		expect( noOpMessage ).toBeTruthy();
 		expect( noOpMessage.getAttribute( 'role' ) ).toBeNull();
 		expect( screen.getByRole( 'status' ) ).toBeTruthy();
 		expect(
-			screen.getByRole( 'spinbutton', { name: '移動する行' } ).getAttribute( 'aria-invalid' )
+			screen.getByRole( 'spinbutton', { name: 'Row to move' } ).getAttribute( 'aria-invalid' )
 		).toBeNull();
 		expect(
-			screen.getByRole( 'spinbutton', { name: '移動先の行' } ).getAttribute( 'aria-invalid' )
+			screen.getByRole( 'spinbutton', { name: 'Target row' } ).getAttribute( 'aria-invalid' )
 		).toBeNull();
-		expect( screen.getByRole( 'button', { name: '並び替え' } ).hasAttribute( 'disabled' ) ).toBe(
+		expect( screen.getByRole( 'button', { name: 'Reorder' } ).hasAttribute( 'disabled' ) ).toBe(
 			true
 		);
 	} );
@@ -561,7 +556,11 @@ describe( 'Reorder Form presentation', () => {
 
 		render( <ReorderFormPopover anchor={ anchor } state={ state } tableIdentity="table-a" /> );
 
-		expect( screen.getByText( 'column:foot:2-3:4-5' ) ).toBeTruthy();
+		expect(
+			screen.getByText(
+				'A merged cell spanning footer rows 2–3 and columns 4–5 prevents this move.'
+			)
+		).toBeTruthy();
 	} );
 
 	/**
@@ -582,9 +581,13 @@ describe( 'Reorder Form presentation', () => {
 		render(
 			<ReorderFormPopover anchor={ anchor } state={ createRowState() } tableIdentity="table-a" />
 		);
-		fireEvent.click( screen.getByRole( 'radio', { name: '列' } ) );
+		fireEvent.click( screen.getByRole( 'radio', { name: 'Columns' } ) );
 
-		expect( rfInteraction.selectKind ).toHaveBeenCalledWith( 'table-a', 'column' );
+		expect( rfInteractionStore.getState().session ).toMatchObject( {
+			status: 'open',
+			tableIdentity: 'table-a',
+			kind: 'column',
+		} );
 	} );
 
 	/**
@@ -611,7 +614,7 @@ describe( 'Reorder Form presentation', () => {
 			<ReorderFormPopover anchor={ anchor } state={ disabledState } tableIdentity="table-a" />
 		);
 
-		expect( screen.getByRole( 'button', { name: '並び替え' } ).hasAttribute( 'disabled' ) ).toBe(
+		expect( screen.getByRole( 'button', { name: 'Reorder' } ).hasAttribute( 'disabled' ) ).toBe(
 			true
 		);
 
@@ -623,7 +626,7 @@ describe( 'Reorder Form presentation', () => {
 			<ReorderFormPopover anchor={ anchor } state={ enabledState } tableIdentity="table-a" />
 		);
 
-		expect( screen.getByRole( 'button', { name: '並び替え' } ).hasAttribute( 'disabled' ) ).toBe(
+		expect( screen.getByRole( 'button', { name: 'Reorder' } ).hasAttribute( 'disabled' ) ).toBe(
 			false
 		);
 	} );
@@ -663,9 +666,9 @@ describe( 'Reorder Form presentation', () => {
 
 		fireEvent.click( collapseButton );
 
-		expect( screen.queryByRole( 'spinbutton', { name: '移動する行' } ) ).toBeNull();
+		expect( screen.queryByRole( 'spinbutton', { name: 'Row to move' } ) ).toBeNull();
 		expect( controlledContent?.hasAttribute( 'hidden' ) ).toBe( true );
-		expect( screen.getByText( '2 → 5 · 上' ) ).toBeTruthy();
+		expect( screen.getByText( '2 → 5 · Above' ) ).toBeTruthy();
 		const expandButton = screen.getByRole( 'button', { name: 'Expand reorder form' } );
 		expect( expandButton.getAttribute( 'aria-controls' ) ).toBe( controlledId );
 		expect( expandButton.getAttribute( 'aria-expanded' ) ).toBe( 'false' );
@@ -778,12 +781,12 @@ describe( 'Reorder Form presentation', () => {
 		setViewportWidth( window, 1024 );
 		notifyViewportResize( window );
 		expect( screen.queryByRole( 'button', { name: 'Expand reorder form' } ) ).toBeNull();
-		expect( screen.getByRole( 'spinbutton', { name: '移動する行' } ) ).toBeTruthy();
+		expect( screen.getByRole( 'spinbutton', { name: 'Row to move' } ) ).toBeTruthy();
 
 		setViewportWidth( window, 640 );
 		notifyViewportResize( window );
 		expect( screen.getByRole( 'button', { name: 'Expand reorder form' } ) ).toBeTruthy();
-		expect( screen.queryByRole( 'spinbutton', { name: '移動する行' } ) ).toBeNull();
+		expect( screen.queryByRole( 'spinbutton', { name: 'Row to move' } ) ).toBeNull();
 	} );
 
 	/**

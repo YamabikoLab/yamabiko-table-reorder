@@ -3,12 +3,13 @@
  */
 
 import { act, render, screen } from '@testing-library/react';
-import type { ReactNode } from 'react';
 
 import { AnnouncementDelivery } from './delivery';
 
-jest.mock( '@wordpress/components', () => ( {
-	VisuallyHidden: ( props: { children: ReactNode } ) => <span>{ props.children }</span>,
+/* @wordpress/componentsのuuid / theme ESM境界だけをJestで読める決定的な実装へ置き換える。 */
+jest.mock( 'uuid', () => ( { v4: () => 'announcement-delivery-test-uuid' } ) );
+jest.mock( '@wordpress/theme', () => ( {
+	ThemeProvider: ( { children }: { children: React.ReactNode } ) => children,
 } ) );
 
 describe( 'Announcement Delivery', () => {

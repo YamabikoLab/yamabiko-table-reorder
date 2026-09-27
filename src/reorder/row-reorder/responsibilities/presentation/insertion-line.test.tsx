@@ -7,35 +7,64 @@
 
 import { act, render } from '@testing-library/react';
 
-import { resolveEditorDomContext } from '@/reorder/editor-dom-context';
 import { DND_POST_DROP_ROW_OUTLINE_DURATION_MS } from '@/reorder/reorder-tuning';
+import { rowDndInteraction } from '@/reorder/row-reorder/responsibilities/dnd-interaction';
 
 import { RowInsertionLine } from './insertion-line';
 
-let mockDestinationBoundaryIndex: number | null = null;
 let mockDragDropMonitor: {
 	onDragStart?: ( event: any ) => void;
 	onDragMove?: () => void;
 	onDragEnd?: ( event: { canceled: boolean } ) => void;
 } = {};
+const originalWindowInnerWidth = window.innerWidth;
+const originalWindowInnerHeight = window.innerHeight;
 
-jest.mock( '@/reorder/row-reorder/integration/dnd-interaction-react', () => ( {
-	useRowDndDestinationBoundaryIndex: () => mockDestinationBoundaryIndex,
-} ) );
-
-jest.mock( '@/reorder/editor-dom-context', () => ( {
-	resolveEditorDomContext: jest.fn(),
-} ) );
-
+/* DnD Engineの物理monitorはJSDOMで実行できないため、その通知境界だけを決定的なTest Doubleとする。 */
 jest.mock( '@dnd-kit/react', () => ( {
 	useDragDropMonitor: ( monitor: typeof mockDragDropMonitor ) => {
 		mockDragDropMonitor = monitor;
 	},
 } ) );
 
-const resolveEditorDomContextMock = resolveEditorDomContext as jest.MockedFunction<
-	typeof resolveEditorDomContext
->;
+/* Jestで読み込めないBlock Editor Store境界だけを代替し、WordPress DataとDnD Interactionは実経路へ接続する。 */
+jest.mock( '@wordpress/block-editor', () => ( {
+	store: jest.requireActual( '@/reorder/row-reorder/responsibilities/table-integration.test-utils' )
+		.rowReorderTestBlockEditorStore,
+} ) );
+
+/**
+ * Production DnD Interactionで指定行を移動元とするSessionを開始する。
+ *
+ * @param sourceRowIndex 移動元とする0-based行位置。
+ * @param rowCount       Session開始時の行数。
+ */
+const startRowDndSession = ( sourceRowIndex: number, rowCount = 2 ): void => {
+	act( () => {
+		rowDndInteraction.start(
+			{ tableIdentity: 'table-a', sourceRowIndex },
+			{ rowCount, blockedBoundaries: [] }
+		);
+	} );
+};
+
+/**
+ * Production DnD Interactionへ現在の移動先境界を反映する。
+ *
+ * @param destinationBoundaryIndex 現在の0-based移動先境界。有効な移動先がない場合はnull。
+ */
+const updateDestination = ( destinationBoundaryIndex: number | null ): void => {
+	act( () => {
+		rowDndInteraction.updateDestination( destinationBoundaryIndex );
+	} );
+};
+
+/** テスト間でProduction DnD Sessionをidleへ戻す。 */
+const resetRowDndSession = (): void => {
+	act( () => {
+		rowDndInteraction.cancel();
+	} );
+};
 
 /**
  * 挿入位置表示の成立条件を必要な値だけで表せるDOM矩形を作成する。
@@ -58,13 +87,14 @@ const rectangle = ( values: Partial< DOMRect > ): DOMRect =>
 	} ) as DOMRect;
 
 /**
- * 挿入位置表示の成立条件を満たす2行の対象Tableを用意する。
+ * 挿入位置表示の成立条件を満たす対象Tableを用意する。
  *
  * @param firstHeight  先頭行の実測高さとして扱う値。
  * @param secondHeight 2行目の実測高さとして扱う値。
- * @return 対象行とtbodyの表示位置を変更できるmock。
+ * @param thirdHeight  3行目を設ける場合の実測高さとして扱う値。
+ * @return 対象行とtbodyの表示位置を変更できる計測境界。
  */
-const createSourceTable = ( firstHeight = 40, secondHeight = 50 ) => {
+const createSourceTable = ( firstHeight = 40, secondHeight = 50, thirdHeight?: number ) => {
 	const tableTop = 80;
 	const firstBottom = tableTop + firstHeight;
 	const secondBottom = firstBottom + secondHeight;
@@ -72,20 +102,27 @@ const createSourceTable = ( firstHeight = 40, secondHeight = 50 ) => {
 	const tbody = document.createElement( 'tbody' );
 	const first = document.createElement( 'tr' );
 	const second = document.createElement( 'tr' );
+	const third = thirdHeight === undefined ? null : document.createElement( 'tr' );
 	first.appendChild( document.createElement( 'td' ) );
 	second.appendChild( document.createElement( 'td' ) );
+	third?.appendChild( document.createElement( 'td' ) );
 	tbody.append( first, second );
+	if ( third !== null ) {
+		tbody.appendChild( third );
+	}
 	table.appendChild( tbody );
 	document.body.appendChild( table );
 
 	jest
 		.spyOn( table, 'getBoundingClientRect' )
 		.mockReturnValue( rectangle( { left: -20, right: 300, width: 320 } ) );
-	const bodyRectangleMock = jest
-		.spyOn( tbody, 'getBoundingClientRect' )
-		.mockReturnValue(
-			rectangle( { top: tableTop, bottom: secondBottom, height: firstHeight + secondHeight } )
-		);
+	const bodyRectangleMock = jest.spyOn( tbody, 'getBoundingClientRect' ).mockReturnValue(
+		rectangle( {
+			top: tableTop,
+			bottom: secondBottom + ( thirdHeight ?? 0 ),
+			height: firstHeight + secondHeight + ( thirdHeight ?? 0 ),
+		} )
+	);
 	jest.spyOn( first, 'getBoundingClientRect' ).mockReturnValue(
 		rectangle( {
 			top: tableTop,
@@ -100,8 +137,17 @@ const createSourceTable = ( firstHeight = 40, secondHeight = 50 ) => {
 			height: secondHeight,
 		} )
 	);
+	if ( third !== null && thirdHeight !== undefined ) {
+		jest.spyOn( third, 'getBoundingClientRect' ).mockReturnValue(
+			rectangle( {
+				top: secondBottom,
+				bottom: secondBottom + thirdHeight,
+				height: thirdHeight,
+			} )
+		);
+	}
 
-	return { first, second, bodyRectangleMock };
+	return { first, second, third, bodyRectangleMock };
 };
 
 /**
@@ -131,18 +177,23 @@ const endPhysicalDrag = ( canceled: boolean ) => {
 describe( 'Row insertion line', () => {
 	beforeEach( () => {
 		jest.useFakeTimers();
-		mockDestinationBoundaryIndex = null;
+		resetRowDndSession();
 		mockDragDropMonitor = {};
 		document.body.replaceChildren();
-		resolveEditorDomContextMock.mockReturnValue( {
-			document,
-			window: { innerWidth: 240, innerHeight: 600 } as unknown as NonNullable<
-				Document[ 'defaultView' ]
-			>,
-		} );
+		Object.defineProperty( window, 'innerWidth', { configurable: true, value: 240 } );
+		Object.defineProperty( window, 'innerHeight', { configurable: true, value: 600 } );
 	} );
 
 	afterEach( () => {
+		resetRowDndSession();
+		Object.defineProperty( window, 'innerWidth', {
+			configurable: true,
+			value: originalWindowInnerWidth,
+		} );
+		Object.defineProperty( window, 'innerHeight', {
+			configurable: true,
+			value: originalWindowInnerHeight,
+		} );
 		jest.useRealTimers();
 	} );
 
@@ -182,11 +233,11 @@ describe( 'Row insertion line', () => {
 	 * - 先頭行の論理的な上端へ挿入線が表示される。
 	 */
 	it( 'when the destination is before the first row, should show the line at the first logical row top', () => {
-		const { first } = createSourceTable();
-		const { rerender } = render( <RowInsertionLine /> );
-		startPhysicalDrag( first );
-		mockDestinationBoundaryIndex = 0;
-		rerender( <RowInsertionLine /> );
+		const { second } = createSourceTable();
+		render( <RowInsertionLine /> );
+		startPhysicalDrag( second );
+		startRowDndSession( 1 );
+		updateDestination( 0 );
 
 		const line = document.querySelector( '.yamabiko-table-reorder-insertion-line' ) as HTMLElement;
 		expect( line ).not.toBeNull();
@@ -198,25 +249,25 @@ describe( 'Row insertion line', () => {
 	 * - 行間の有効な移動先境界を、その論理境界へ表示することを確認する。
 	 *
 	 * 事前条件:
-	 * - 2行のTableで境界1が有効な移動先である。
+	 * - 3行のTableで境界2が有効な移動先である。
 	 * - Table左端は表示領域外、右端は表示領域より外側にある。
 	 *
 	 * 操作:
-	 * - 物理DnD開始後に境界1を表示する。
+	 * - 物理DnD開始後に境界2を表示する。
 	 *
 	 * 期待結果:
 	 * - 行間の論理境界へ、現在表示領域とTableが重なる横幅だけ挿入線が表示される。
 	 */
 	it( 'when an internal destination boundary is active, should show the line at the logical boundary within the visible table width', () => {
-		const { first } = createSourceTable();
-		const { rerender } = render( <RowInsertionLine /> );
+		const { first } = createSourceTable( 40, 50, 60 );
+		render( <RowInsertionLine /> );
 		startPhysicalDrag( first );
-		mockDestinationBoundaryIndex = 1;
-		rerender( <RowInsertionLine /> );
+		startRowDndSession( 0, 3 );
+		updateDestination( 2 );
 
 		const line = document.querySelector( '.yamabiko-table-reorder-insertion-line' ) as HTMLElement;
 		expect( line ).not.toBeNull();
-		expect( line.style.top ).toBe( '120px' );
+		expect( line.style.top ).toBe( '170px' );
 		expect( line.style.left ).toBe( '0px' );
 		expect( line.style.width ).toBe( '240px' );
 	} );
@@ -236,10 +287,10 @@ describe( 'Row insertion line', () => {
 	 */
 	it( 'when the destination is after the last row, should show the line at the last logical row bottom', () => {
 		const { first } = createSourceTable();
-		const { rerender } = render( <RowInsertionLine /> );
+		render( <RowInsertionLine /> );
 		startPhysicalDrag( first );
-		mockDestinationBoundaryIndex = 2;
-		rerender( <RowInsertionLine /> );
+		startRowDndSession( 0 );
+		updateDestination( 2 );
 
 		const line = document.querySelector( '.yamabiko-table-reorder-insertion-line' ) as HTMLElement;
 		expect( line ).not.toBeNull();
@@ -261,11 +312,11 @@ describe( 'Row insertion line', () => {
 	 * - 移動先境界を変更せず、挿入線がtbody全体の現在位置へ追従する。
 	 */
 	it( 'when the table body moves without changing the destination boundary, should remeasure the current logical boundary position', () => {
-		const { first, bodyRectangleMock } = createSourceTable();
-		const { rerender } = render( <RowInsertionLine /> );
-		startPhysicalDrag( first );
-		mockDestinationBoundaryIndex = 0;
-		rerender( <RowInsertionLine /> );
+		const { second, bodyRectangleMock } = createSourceTable();
+		render( <RowInsertionLine /> );
+		startPhysicalDrag( second );
+		startRowDndSession( 1 );
+		updateDestination( 0 );
 		expect(
 			( document.querySelector( '.yamabiko-table-reorder-insertion-line' ) as HTMLElement ).style
 				.top
@@ -297,10 +348,10 @@ describe( 'Row insertion line', () => {
 	 */
 	it( 'when a row is dropped downward, should outline the measured source-row height above the destination boundary', () => {
 		const { first } = createSourceTable();
-		const { rerender } = render( <RowInsertionLine /> );
+		render( <RowInsertionLine /> );
 		startPhysicalDrag( first );
-		mockDestinationBoundaryIndex = 2;
-		rerender( <RowInsertionLine /> );
+		startRowDndSession( 0 );
+		updateDestination( 2 );
 
 		endPhysicalDrag( false );
 
@@ -330,10 +381,10 @@ describe( 'Row insertion line', () => {
 	 */
 	it( 'when a row is dropped upward, should outline the measured source-row height below the destination boundary', () => {
 		const { second } = createSourceTable();
-		const { rerender } = render( <RowInsertionLine /> );
+		render( <RowInsertionLine /> );
 		startPhysicalDrag( second );
-		mockDestinationBoundaryIndex = 0;
-		rerender( <RowInsertionLine /> );
+		startRowDndSession( 1 );
+		updateDestination( 0 );
 
 		endPhysicalDrag( false );
 
@@ -360,10 +411,10 @@ describe( 'Row insertion line', () => {
 	 */
 	it( 'when the source row has a taller measured height, should preserve that height in the post-drop outline', () => {
 		const { first } = createSourceTable( 90, 50 );
-		const { rerender } = render( <RowInsertionLine /> );
+		render( <RowInsertionLine /> );
 		startPhysicalDrag( first );
-		mockDestinationBoundaryIndex = 2;
-		rerender( <RowInsertionLine /> );
+		startRowDndSession( 0 );
+		updateDestination( 2 );
 
 		endPhysicalDrag( false );
 
@@ -389,10 +440,10 @@ describe( 'Row insertion line', () => {
 	 */
 	it( 'when the post-drop duration elapses, should remove the row outline', () => {
 		const { first } = createSourceTable();
-		const { rerender } = render( <RowInsertionLine /> );
+		render( <RowInsertionLine /> );
 		startPhysicalDrag( first );
-		mockDestinationBoundaryIndex = 2;
-		rerender( <RowInsertionLine /> );
+		startRowDndSession( 0 );
+		updateDestination( 2 );
 		endPhysicalDrag( false );
 
 		act( () => {
@@ -423,10 +474,10 @@ describe( 'Row insertion line', () => {
 	 */
 	it( 'when the physical drag is canceled, should not show a post-drop row outline', () => {
 		const { first } = createSourceTable();
-		const { rerender } = render( <RowInsertionLine /> );
+		render( <RowInsertionLine /> );
 		startPhysicalDrag( first );
-		mockDestinationBoundaryIndex = 2;
-		rerender( <RowInsertionLine /> );
+		startRowDndSession( 0 );
+		updateDestination( 2 );
 
 		endPhysicalDrag( true );
 
@@ -474,14 +525,14 @@ describe( 'Row insertion line', () => {
 	 */
 	it( 'when a new physical drag starts during post-drop display, should clear the previous outline and timer', () => {
 		const { first } = createSourceTable();
-		const { rerender } = render( <RowInsertionLine /> );
+		render( <RowInsertionLine /> );
 		startPhysicalDrag( first );
-		mockDestinationBoundaryIndex = 2;
-		rerender( <RowInsertionLine /> );
+		startRowDndSession( 0 );
+		updateDestination( 2 );
 		endPhysicalDrag( false );
 		expect( jest.getTimerCount() ).toBe( 1 );
 
-		mockDestinationBoundaryIndex = null;
+		updateDestination( null );
 		startPhysicalDrag( first );
 
 		expect( document.querySelector( '.yamabiko-table-reorder-post-drop-row-outline' ) ).toBeNull();
@@ -503,10 +554,10 @@ describe( 'Row insertion line', () => {
 	 */
 	it( 'when the component unmounts during post-drop display, should clear the pending timer', () => {
 		const { first } = createSourceTable();
-		const { rerender, unmount } = render( <RowInsertionLine /> );
+		const { unmount } = render( <RowInsertionLine /> );
 		startPhysicalDrag( first );
-		mockDestinationBoundaryIndex = 2;
-		rerender( <RowInsertionLine /> );
+		startRowDndSession( 0 );
+		updateDestination( 2 );
 		endPhysicalDrag( false );
 		expect( jest.getTimerCount() ).toBe( 1 );
 
