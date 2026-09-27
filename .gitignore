@@ -21,6 +21,7 @@ artifacts/
 
 languages/.yamabiko-table-reorder-js.pot
 languages/.i18n-messages.js
+dev/i18n/generated/
 
 .obsidian/
 YTR/
