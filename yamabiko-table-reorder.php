@@ -80,8 +80,7 @@ final class Plugin {
 
 		wp_set_script_translations(
 			$handle,
-			'yamabiko-table-reorder',
-			__DIR__ . '/languages'
+			'yamabiko-table-reorder'
 		);
 	}
 
