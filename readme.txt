@@ -76,6 +76,10 @@ For manual installation, upload a released `yamabiko-table-reorder.zip` from [Gi
 
 Yamabiko Table Reorder supports the WordPress Core Table block and [Flexible Table Block](https://wordpress.org/plugins/flexible-table-block/).
 
+= Does Yamabiko Table Reorder load assets on the site front end? =
+
+No. Its JavaScript and CSS are added only for the WordPress block editor, not for normal site front-end pages. WordPress still loads active plugin PHP as usual.
+
 = Can I reorder a Table that contains merged cells? =
 
 Yes, when the requested move preserves the supported Table structure. Moves that would break merged-cell constraints are rejected and the Table is left unchanged.
