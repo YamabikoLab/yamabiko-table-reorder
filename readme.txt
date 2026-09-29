@@ -40,7 +40,7 @@ Merged cells are taken into account, and moves that would break the supported Ta
 
 Try Yamabiko Table Reorder in WordPress Playground:
 
-[Open the live demo](https://yamabikolab.github.io/yamabiko-table-reorder/)
+[Open the live demo](https://demo.yamabikolab.com/yamabiko-table-reorder/)
 
 The demo uses the latest stable release.
 
