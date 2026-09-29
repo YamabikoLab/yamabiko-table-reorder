@@ -10,16 +10,7 @@ usage() {
 	exit 2
 }
 
-require_sudo() {
-	if ! command -v sudo >/dev/null 2>&1; then
-		echo "sudo is required to write to ${TARGET_DIR}." >&2
-		exit 1
-	fi
-}
-
 install_translations() {
-	require_sudo
-
 	shopt -s nullglob
 	local json_files=( "${SOURCE_DIR}"/yamabiko-table-reorder-ja-*.json )
 	shopt -u nullglob
@@ -29,16 +20,15 @@ install_translations() {
 		exit 1
 	fi
 
-	sudo mkdir -p "${TARGET_DIR}"
-	sudo cp "${MO_FILE}" "${json_files[@]}" "${TARGET_DIR}/"
+	mkdir -p "${TARGET_DIR}"
+	cp --remove-destination "${MO_FILE}" "${json_files[@]}" "${TARGET_DIR}/"
+	chmod g+w 		"${TARGET_DIR}/yamabiko-table-reorder-ja.mo" 		"${TARGET_DIR}"/yamabiko-table-reorder-ja-*.json
 
 	echo "Installed development translations to ${TARGET_DIR}."
 }
 
 uninstall_translations() {
-	require_sudo
-
-	sudo rm -f 		"${TARGET_DIR}/yamabiko-table-reorder-ja.mo" 		"${TARGET_DIR}"/yamabiko-table-reorder-ja-*.json
+	rm -f 		"${TARGET_DIR}/yamabiko-table-reorder-ja.mo" 		"${TARGET_DIR}"/yamabiko-table-reorder-ja-*.json
 
 	echo "Removed development translations from ${TARGET_DIR}."
 }
