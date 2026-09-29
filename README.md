@@ -17,7 +17,7 @@ Yamabiko Table Reorder adds Row Reorder, Column Reorder, and Reorder Form to Wor
 2. Choose **Reorder rows**, **Reorder columns**, or **Reorder with form** from the Table toolbar.
 3. Move the row or column to its new position.
 
-[▶ Try Yamabiko Table Reorder in WordPress Playground](https://playground.wordpress.net/?blueprint-url=https://raw.githubusercontent.com/YamabikoLab/yamabiko-table-reorder/main/demo/blueprint.json)
+[▶ Try Yamabiko Table Reorder in WordPress Playground](https://yamabikolab.github.io/yamabiko-table-reorder/)
 
 The Playground demo uses the latest stable release and includes WordPress Core Table and [Flexible Table Block](https://wordpress.org/plugins/flexible-table-block/) examples.
 
@@ -71,7 +71,7 @@ Row Reorder, Column Reorder, and Reorder Form share user-facing completion feedb
 
 Try Row Reorder, Column Reorder, Reorder Form, Touch interaction, and merged-cell constraints in WordPress Playground.
 
-[▶ Open the demo](https://playground.wordpress.net/?blueprint-url=https://raw.githubusercontent.com/YamabikoLab/yamabiko-table-reorder/main/demo/blueprint.json)
+[▶ Open the demo](https://yamabikolab.github.io/yamabiko-table-reorder/)
 
 ## Requirements
 
