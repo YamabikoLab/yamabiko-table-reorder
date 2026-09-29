@@ -1,19 +1,12 @@
 {
 	"$schema": "https://unpkg.com/knip@6/schema.json",
-	"project": [
-		"**/*.{js,cjs,mjs,jsx,ts,cts,mts,tsx}",
-		"!scripts/architecture/**"
-	],
+	"project": [ "**/*.{js,cjs,mjs,jsx,ts,cts,mts,tsx}", "!scripts/architecture/**" ],
 	"webpack": true,
 	"jest": {
-		"config": [
-			"jest-unit.config.js"
-		]
+		"config": [ "jest-unit.config.js" ]
 	},
 	"playwright": {
-		"config": [
-			"playwright.config.ts"
-		],
+		"config": [ "playwright.config.ts" ],
 		"entry": [
 			"tests/e2e/**/*.spec.ts",
 			"tests/e2e/**/*.performance.ts",
@@ -21,9 +14,7 @@
 		]
 	},
 	"babel": {
-		"config": [
-			"babel.i18n.config.js"
-		]
+		"config": [ "babel.i18n.config.js" ]
 	},
 	"eslint": true,
 	"ignoreDependencies": [
