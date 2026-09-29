@@ -18,9 +18,9 @@
 	},
 	"eslint": true,
 	"ignoreDependencies": [
+		"@babel/cli",
 		"@wordpress/jest-preset-default",
 		"@redux-devtools/extension",
 		"markdown-it"
-	],
-	"ignoreBinaries": [ "wp" ]
+	]
 }
