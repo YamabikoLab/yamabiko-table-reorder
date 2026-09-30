@@ -4,7 +4,7 @@ Tags: block editor, gutenberg, table
 Requires at least: 6.8
 Tested up to: 7.1
 Requires PHP: 8.1
-Stable tag: 1.0.0
+Stable tag: 1.0.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -105,6 +105,13 @@ Yes. Reorder with form lets you choose the source, destination, and destination 
 For reorders that affect enough cells to take noticeable time, Yamabiko Table Reorder asks for confirmation before applying the change. Only the target Table enters a temporary applying state, and editing resumes when the update is complete.
 
 == Changelog ==
+
+= 1.0.1 =
+
+* Fixed: Corrected the Column Reorder toolbar state while Reorder Form is applying a change.
+* Changed: Switched production Japanese translations to the standard WordPress.org Language Pack workflow instead of bundling plugin-specific translation files.
+* Changed: Improved the WordPress.org documentation, installation guidance, support links, and language-aware Playground demo entry.
+* Changed: Strengthened automated tests and supported WordPress / PHP validation without changing the public reorder behavior.
 
 = 1.0.0 =
 
