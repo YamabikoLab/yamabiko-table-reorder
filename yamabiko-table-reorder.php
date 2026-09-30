@@ -1,11 +1,13 @@
 <?php
 /**
  * Plugin Name: Yamabiko Table Reorder
+ * Plugin URI: https://yamabikolab.com/yamabiko-table-reorder/
  * Description: Table reordering for supported blocks in the WordPress block editor.
  * Version: 1.0.0
  * Requires at least: 6.8
  * Requires PHP: 8.1
  * Author: YamabikoLab
+ * Author URI: https://yamabikolab.com/
  * License: GPL-2.0-or-later
  * License URI: https://www.gnu.org/licenses/gpl-2.0.html
  * Text Domain: yamabiko-table-reorder
