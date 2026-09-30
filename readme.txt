@@ -50,9 +50,7 @@ The demo uses the latest stable release.
 
 = Support =
 
-For questions and general support, use the [WordPress.org support forum](https://wordpress.org/support/plugin/yamabiko-table-reorder/).
-
-For bug reports and technical issues, use [GitHub Issues](https://github.com/YamabikoLab/yamabiko-table-reorder/issues).
+For questions, bug reports, and general support, use the [WordPress.org support forum](https://wordpress.org/support/plugin/yamabiko-table-reorder/).
 
 = Source Code =
 
