@@ -48,11 +48,9 @@ Try Yamabiko Table Reorder in WordPress Playground:
 
 The demo uses the latest stable release.
 
-= Support and Contact =
+= Support =
 
-For detailed usage information, see the [Yamabiko Table Reorder documentation](https://yamabikolab.com/yamabiko-table-reorder/).
-
-For general inquiries, use the [YamabikoLab contact form](https://yamabikolab.com/contact/).
+For questions and general support, use the [WordPress.org support forum](https://wordpress.org/support/plugin/yamabiko-table-reorder/).
 
 For bug reports and technical issues, use [GitHub Issues](https://github.com/YamabikoLab/yamabiko-table-reorder/issues).
 
