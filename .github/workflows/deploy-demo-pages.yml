@@ -44,8 +44,8 @@ jobs:
         run: |
           set -euo pipefail
 
-          mkdir -p _site
-          cp demo/index.html _site/index.html
+          mkdir -p _site/yamabiko-table-reorder
+          cp demo/index.html _site/yamabiko-table-reorder/index.html
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v5
