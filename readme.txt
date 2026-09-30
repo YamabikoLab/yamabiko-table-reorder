@@ -36,6 +36,10 @@ Yamabiko Table Reorder supports the WordPress Core Table block and [Flexible Tab
 
 Merged cells are taken into account, and moves that would break the supported Table structure are rejected. For larger changes that may take noticeable time to apply, the plugin asks for confirmation before updating the Table.
 
+= Documentation =
+
+For detailed instructions and usage information, see the [Yamabiko Table Reorder documentation](https://yamabikolab.com/yamabiko-table-reorder/) on the YamabikoLab website.
+
 = Demo =
 
 Try Yamabiko Table Reorder in WordPress Playground:
@@ -43,6 +47,10 @@ Try Yamabiko Table Reorder in WordPress Playground:
 [Open the live demo](https://demo.yamabikolab.com/yamabiko-table-reorder/)
 
 The demo uses the latest stable release.
+
+= Support =
+
+For questions, bug reports, and general support, use the [WordPress.org support forum](https://wordpress.org/support/plugin/yamabiko-table-reorder/).
 
 = Source Code =
 
