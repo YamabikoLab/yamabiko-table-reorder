@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>Yamabiko Table Reorder Demo</title>
+</head>
+<body>
+	<p>Opening the Yamabiko Table Reorder demo…</p>
+	<noscript>
+		<p>
+			JavaScript is required to select the demo language automatically.
+			<a href="https://playground.wordpress.net/?blueprint-url=https://raw.githubusercontent.com/YamabikoLab/yamabiko-table-reorder/main/demo/blueprint.json">Open the English demo</a>.
+		</p>
+	</noscript>
+	<script>
+		const primaryLanguage =
+			navigator.languages?.[0] ?? navigator.language ?? '';
+
+		const blueprintUrl = primaryLanguage.toLowerCase().startsWith('ja')
+			? 'https://raw.githubusercontent.com/YamabikoLab/yamabiko-table-reorder/main/demo/blueprint-ja.json'
+			: 'https://raw.githubusercontent.com/YamabikoLab/yamabiko-table-reorder/main/demo/blueprint.json';
+
+		const playgroundUrl =
+			'https://playground.wordpress.net/?blueprint-url=' +
+			encodeURIComponent(blueprintUrl);
+
+		location.replace(playgroundUrl);
+	</script>
+</body>
+</html>
