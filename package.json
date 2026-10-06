@@ -59,6 +59,15 @@
 		"@types/react": "18.3.31",
 		"@types/react-dom": "18.3.7",
 		"@types/wordpress__block-editor": "15.0.6",
+		"@wordpress/block-editor": "^16.1.0",
+		"@wordpress/blocks": "^15.25.0",
+		"@wordpress/components": "^38.0.0",
+		"@wordpress/data": "^10.53.0",
+		"@wordpress/element": "^8.4.0",
+		"@wordpress/hooks": "^4.52.0",
+		"@wordpress/i18n": "^6.25.0",
+		"@wordpress/preferences": "^4.54.0",
+		"@wordpress/rich-text": "7.54.0",
 		"@wordpress/babel-plugin-makepot": "^6.53.0",
 		"@wordpress/babel-preset-default": "8.52.0",
 		"@wordpress/e2e-test-utils-playwright": "^1.52.0",
@@ -74,15 +83,6 @@
 	"dependencies": {
 		"@dnd-kit/dom": "^0.5.0",
 		"@dnd-kit/react": "^0.5.0",
-		"@wordpress/block-editor": "^16.1.0",
-		"@wordpress/blocks": "^15.25.0",
-		"@wordpress/components": "^38.0.0",
-		"@wordpress/data": "^10.53.0",
-		"@wordpress/element": "^8.4.0",
-		"@wordpress/hooks": "^4.52.0",
-		"@wordpress/i18n": "^6.25.0",
-		"@wordpress/preferences": "^4.54.0",
-		"@wordpress/rich-text": "7.54.0",
 		"zustand": "^5.0.15"
 	}
 }
