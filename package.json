@@ -84,5 +84,13 @@
 		"@wordpress/preferences": "^4.54.0",
 		"@wordpress/rich-text": "7.54.0",
 		"zustand": "^5.0.15"
+	},
+	"overrides": {
+		"fast-uri": "3.1.8",
+		"moment": "2.31.0",
+		"source-map-js": "1.2.2",
+		"stylelint": {
+			"postcss-selector-parser": "7.1.6"
+		}
 	}
 }
