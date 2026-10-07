@@ -4,6 +4,7 @@ import path from 'node:path';
 
 import webpack, {
 	type Configuration,
+	type Stats,
 	type StatsCompilation,
 	type StatsModule,
 } from 'webpack';
@@ -105,7 +106,7 @@ const compileProductionGraph = async (): Promise<Set<string>> => {
 		},
 	};
 
-	const stats = await new Promise<webpack.Stats>( ( resolve, reject ) => {
+	const stats = await new Promise<Stats>( ( resolve, reject ) => {
 		const compiler = webpack( config );
 
 		compiler.run( ( error, result ) => {
