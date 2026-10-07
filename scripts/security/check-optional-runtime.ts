@@ -84,7 +84,9 @@ const isInsidePackage = ( modulePath: string, packagePath: string ): boolean =>
 	modulePath === packagePath || modulePath.startsWith( packagePath + path.sep );
 
 const compileProductionGraph = async (): Promise< Set< string > > => {
-	const baseConfig = require( path.resolve( repositoryRoot, 'webpack.config.js' ) ) as Configuration;
+	const baseConfig = require(
+		path.resolve( repositoryRoot, 'webpack.config.js' )
+	) as Configuration;
 	const outputPath = path.resolve( repositoryRoot, '.security-build/webpack' );
 
 	const config: Configuration = {
