@@ -84,7 +84,6 @@ const isInsidePackage = ( modulePath: string, packagePath: string ): boolean =>
 	modulePath === packagePath || modulePath.startsWith( packagePath + path.sep );
 
 const compileProductionGraph = async (): Promise< Set< string > > => {
-	// eslint-disable-next-line @typescript-eslint/no-require-imports
 	const baseConfig = require( '../../webpack.config.js' ) as Configuration;
 	const outputPath = path.resolve( repositoryRoot, '.security-build/webpack' );
 
@@ -161,22 +160,26 @@ const main = async (): Promise< void > => {
 	);
 
 	if ( bundledOptionalNodes.length === 0 ) {
-		console.log(
-			`Optional runtime dependency check passed (${ optionalOnlyNodes.length } optional-only nodes checked).`
+		process.stdout.write(
+			`Optional runtime dependency check passed (${ optionalOnlyNodes.length } optional-only nodes checked).\n`
 		);
 		return;
 	}
 
-	console.error( 'Optional-only dependencies are included in the production runtime:' );
+	process.stderr.write(
+		'Optional-only dependencies are included in the production runtime:\n'
+	);
 
 	for ( const node of bundledOptionalNodes ) {
-		console.error( `- ${ node.name }@${ node.version } (${ node.path })` );
+		process.stderr.write( `- ${ node.name }@${ node.version } (${ node.path })\n` );
 	}
 
 	process.exitCode = 1;
 };
 
 void main().catch( ( error: unknown ) => {
-	console.error( error instanceof Error ? error.message : 'Optional runtime check failed.' );
+	process.stderr.write(
+		`${ error instanceof Error ? error.message : 'Optional runtime check failed.' }\n`
+	);
 	process.exitCode = 1;
 } );
