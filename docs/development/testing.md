@@ -243,6 +243,14 @@ npm run audit:security
 composer run audit:security
 ```
 
+The npm blocking audit omits dependencies npm classifies as `dev` or `optional` and uses `high` as the minimum severity that makes the command exit unsuccessfully. This keeps the blocking gate focused on the normal production dependency set without claiming that optional dependencies can never participate in runtime behavior. Peer dependencies are not excluded by these omit flags.
+
+When investigating the full npm advisory set, including optional dependencies, run:
+
+```bash
+npm audit
+```
+
 Run the relevant audit when dependency manifests or lock files change, or when investigating a dependency advisory.
 
 ## Repository checks
