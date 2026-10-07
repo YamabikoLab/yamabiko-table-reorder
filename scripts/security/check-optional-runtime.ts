@@ -1,3 +1,11 @@
+/**
+ * production bundle が optional-only dependency に依存していないことを検証する。
+ *
+ * npm が optional-only と分類する dependency node と production Webpack module graph を
+ * installed package instance 単位で照合し、audit 対象から optional dependency を除外できる
+ * 前提を継続的に保証する責務を持つ。
+ */
+
 import { execFileSync } from 'node:child_process';
 import { existsSync, realpathSync } from 'node:fs';
 import path from 'node:path';
@@ -9,6 +17,12 @@ import webpack, {
 	type StatsModule,
 } from 'webpack';
 
+/**
+ * npm query が返す dependency node の識別情報。
+ *
+ * npm のバージョンや node の状態によって利用可能な path 情報が異なるため、
+ * installed package instance を特定できる候補を保持する。
+ */
 interface NpmQueryNode {
 	location?: string;
 	name?: string;
@@ -17,6 +31,9 @@ interface NpmQueryNode {
 	version?: string;
 }
 
+/**
+ * optional-only dependency として判定対象にする installed package instance。
+ */
 interface OptionalNode {
 	name: string;
 	path: string;
@@ -26,6 +43,13 @@ interface OptionalNode {
 const repositoryRoot = process.cwd();
 const npmCommand = process.platform === 'win32' ? 'npm.cmd' : 'npm';
 
+/**
+ * dependency node と Webpack module を同じ実体パスで比較できるように正規化する。
+ *
+ * @param candidate npm または Webpack が返した path。
+ *
+ * @return 比較に使用する正規化済み path。
+ */
 const normalizeExistingPath = ( candidate: string ): string => {
 	const absolutePath = path.isAbsolute( candidate )
 		? candidate
@@ -34,6 +58,14 @@ const normalizeExistingPath = ( candidate: string ): string => {
 	return path.normalize( existsSync( absolutePath ) ? realpathSync( absolutePath ) : absolutePath );
 };
 
+/**
+ * root から見て optional 経路にしか属さない dependency node を取得する。
+ *
+ * .prod と .optional の両方に属する node は production 必須依存として扱い、
+ * optional-only の判定対象から除外する。
+ *
+ * @return optional-only dependency の installed package instance 一覧。
+ */
 const getOptionalOnlyNodes = (): OptionalNode[] => {
 	const stdout = execFileSync( npmCommand, [ 'query', '.optional:not(.prod)', '--json' ], {
 		cwd: repositoryRoot,
@@ -60,9 +92,23 @@ const getOptionalOnlyNodes = (): OptionalNode[] => {
 	} );
 };
 
+/**
+ * production bundle に含まれた module の実体パスを収集する。
+ *
+ * concatenated module などの入れ子も同じ production module graph の一部として扱う。
+ *
+ * @param compilation production Webpack compile の統計情報。
+ *
+ * @return production bundle に含まれた module path の集合。
+ */
 const getModulePaths = ( compilation: StatsCompilation ): Set< string > => {
 	const modulePaths = new Set< string >();
 
+	/**
+	 * module graph 内の1 module と、その配下の module を同じ判定対象として収集する。
+	 *
+	 * @param module 収集対象の Webpack module。
+	 */
 	const visitModule = ( module: StatsModule ): void => {
 		if ( module.nameForCondition ) {
 			modulePaths.add( normalizeExistingPath( module.nameForCondition ) );
@@ -80,9 +126,24 @@ const getModulePaths = ( compilation: StatsCompilation ): Set< string > => {
 	return modulePaths;
 };
 
+/**
+ * production module が特定の installed package instance に属するかを判定する。
+ *
+ * @param modulePath production bundle 内 module の実体パス。
+ * @param packagePath optional-only dependency node の package root。
+ *
+ * @return 同一 package instance に属する場合は true。
+ */
 const isInsidePackage = ( modulePath: string, packagePath: string ): boolean =>
 	modulePath === packagePath || modulePath.startsWith( packagePath + path.sep );
 
+/**
+ * 通常の build/ を変更せず、production 条件の Webpack module graph を取得する。
+ *
+ * 検査専用出力は .security-build/ 配下に限定し、npm script の後処理で削除する。
+ *
+ * @return production bundle に含まれた module path の集合。
+ */
 const compileProductionGraph = async (): Promise< Set< string > > => {
 	const baseConfig = require(
 		path.resolve( repositoryRoot, 'webpack.config.js' )
@@ -104,6 +165,9 @@ const compileProductionGraph = async (): Promise< Set< string > > => {
 		const compiler = webpack( config );
 
 		compiler.run( ( error, result ) => {
+			/**
+			 * compile 失敗時も Webpack compiler の資源を解放する。
+			 */
 			const closeCompiler = (): void => {
 				compiler.close( ( closeError ) => {
 					if ( closeError ) {
@@ -153,6 +217,12 @@ const compileProductionGraph = async (): Promise< Set< string > > => {
 	return getModulePaths( compilation );
 };
 
+/**
+ * optional-only dependency が production runtime に混入していないことを検証する。
+ *
+ * optional-only package instance が1件でも bundle に含まれる場合は、
+ * CI で検出できるよう終了コードを失敗にする。
+ */
 const main = async (): Promise< void > => {
 	const optionalOnlyNodes = getOptionalOnlyNodes();
 	const modulePaths = await compileProductionGraph();
