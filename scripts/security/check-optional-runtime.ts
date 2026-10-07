@@ -31,21 +31,15 @@ const normalizeExistingPath = ( candidate: string ): string => {
 		? candidate
 		: path.resolve( repositoryRoot, candidate );
 
-	return path.normalize(
-		existsSync( absolutePath ) ? realpathSync( absolutePath ) : absolutePath
-	);
+	return path.normalize( existsSync( absolutePath ) ? realpathSync( absolutePath ) : absolutePath );
 };
 
 const getOptionalOnlyNodes = (): OptionalNode[] => {
-	const stdout = execFileSync(
-		npmCommand,
-		[ 'query', '.optional:not(.prod)', '--json' ],
-		{
-			cwd: repositoryRoot,
-			encoding: 'utf8',
-			stdio: [ 'ignore', 'pipe', 'inherit' ],
-		}
-	);
+	const stdout = execFileSync( npmCommand, [ 'query', '.optional:not(.prod)', '--json' ], {
+		cwd: repositoryRoot,
+		encoding: 'utf8',
+		stdio: [ 'ignore', 'pipe', 'inherit' ],
+	} );
 
 	const nodes = JSON.parse( stdout ) as NpmQueryNode[];
 
@@ -66,8 +60,8 @@ const getOptionalOnlyNodes = (): OptionalNode[] => {
 	} );
 };
 
-const getModulePaths = ( compilation: StatsCompilation ): Set<string> => {
-	const modulePaths = new Set<string>();
+const getModulePaths = ( compilation: StatsCompilation ): Set< string > => {
+	const modulePaths = new Set< string >();
 
 	const visitModule = ( module: StatsModule ): void => {
 		if ( module.nameForCondition ) {
@@ -87,10 +81,9 @@ const getModulePaths = ( compilation: StatsCompilation ): Set<string> => {
 };
 
 const isInsidePackage = ( modulePath: string, packagePath: string ): boolean =>
-	modulePath === packagePath ||
-	modulePath.startsWith( packagePath + path.sep );
+	modulePath === packagePath || modulePath.startsWith( packagePath + path.sep );
 
-const compileProductionGraph = async (): Promise<Set<string>> => {
+const compileProductionGraph = async (): Promise< Set< string > > => {
 	// eslint-disable-next-line @typescript-eslint/no-require-imports
 	const baseConfig = require( '../../webpack.config.js' ) as Configuration;
 	const outputPath = path.resolve( repositoryRoot, '.security-build/webpack' );
@@ -106,7 +99,7 @@ const compileProductionGraph = async (): Promise<Set<string>> => {
 		},
 	};
 
-	const stats = await new Promise<Stats>( ( resolve, reject ) => {
+	const stats = await new Promise< Stats >( ( resolve, reject ) => {
 		const compiler = webpack( config );
 
 		compiler.run( ( error, result ) => {
@@ -150,9 +143,7 @@ const compileProductionGraph = async (): Promise<Set<string>> => {
 
 	if ( stats.hasErrors() ) {
 		const errors = ( compilation.errors ?? [] )
-			.map( ( error ) =>
-				typeof error === 'string' ? error : error.message
-			)
+			.map( ( error ) => ( typeof error === 'string' ? error : error.message ) )
 			.join( '\n' );
 
 		throw new Error( `Production Webpack compilation failed:\n${ errors }` );
@@ -161,14 +152,12 @@ const compileProductionGraph = async (): Promise<Set<string>> => {
 	return getModulePaths( compilation );
 };
 
-const main = async (): Promise<void> => {
+const main = async (): Promise< void > => {
 	const optionalOnlyNodes = getOptionalOnlyNodes();
 	const modulePaths = await compileProductionGraph();
 
 	const bundledOptionalNodes = optionalOnlyNodes.filter( ( node ) =>
-		Array.from( modulePaths ).some( ( modulePath ) =>
-			isInsidePackage( modulePath, node.path )
-		)
+		Array.from( modulePaths ).some( ( modulePath ) => isInsidePackage( modulePath, node.path ) )
 	);
 
 	if ( bundledOptionalNodes.length === 0 ) {
@@ -178,9 +167,7 @@ const main = async (): Promise<void> => {
 		return;
 	}
 
-	console.error(
-		'Optional-only dependencies are included in the production runtime:'
-	);
+	console.error( 'Optional-only dependencies are included in the production runtime:' );
 
 	for ( const node of bundledOptionalNodes ) {
 		console.error( `- ${ node.name }@${ node.version } (${ node.path })` );
@@ -190,8 +177,6 @@ const main = async (): Promise<void> => {
 };
 
 void main().catch( ( error: unknown ) => {
-	console.error(
-		error instanceof Error ? error.message : 'Optional runtime check failed.'
-	);
+	console.error( error instanceof Error ? error.message : 'Optional runtime check failed.' );
 	process.exitCode = 1;
 } );
