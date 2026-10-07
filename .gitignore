@@ -10,6 +10,7 @@ Thumbs.db
 node_modules/
 build/
 .architecture-build/
+.security-build/
 vendor/
 *.zip
 coverage/

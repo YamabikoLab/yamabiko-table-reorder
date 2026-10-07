@@ -34,6 +34,7 @@ npm run lint:js
 npm run lint:css
 npm run typecheck
 npm run test:architecture
+npm run test:optional-runtime
 npm run test:unit:coverage
 ```
 
@@ -56,6 +57,14 @@ Run the architecture parser, validator, and Structurizr DSL generator tests dire
 ```bash
 npm run test:architecture
 ```
+
+Verify that dependencies which are reachable only through optional dependency paths are not included in the production Webpack module graph:
+
+```bash
+npm run test:optional-runtime
+```
+
+The optional-runtime check queries npm for optional-only dependency nodes using `.optional:not(.prod)`, keeps their installed package identity by resolved path, and compares those package instances with the modules emitted by a production Webpack compilation. A package that belongs to both the production and optional groups is not treated as optional-only. The check uses a temporary `.security-build/` output and removes it after the command completes, so it does not replace or modify the normal `build/` output.
 
 Generate Structurizr DSL from an architecture Markdown file:
 
@@ -242,6 +251,8 @@ Run dependency vulnerability checks:
 npm run audit:security
 composer run audit:security
 ```
+
+The npm security gate audits required production dependencies with `--omit=dev --omit=optional`. This exclusion is paired with `npm run test:optional-runtime`, which guards the production bundle against optional-only dependency instances. Use a full `npm audit` separately when investigating advisories outside the blocking production gate.
 
 Run the relevant audit when dependency manifests or lock files change, or when investigating a dependency advisory.
 

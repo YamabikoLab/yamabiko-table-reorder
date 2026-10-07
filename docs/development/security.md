@@ -27,7 +27,11 @@ DOM updates should continue to use React or safe DOM text/property APIs for user
 
 Dependency audit commands and when to run them are documented in `testing.md`, which is the source of truth for validation commands.
 
-The audits fail for high or critical advisories. Lower-severity advisories are intentionally excluded from the blocking threshold so transitive development dependencies do not create excessive PR noise. Composer abandoned-package notices are also excluded from this security failure condition because abandonment is a maintenance concern rather than a vulnerability by itself.
+The audits fail for high or critical advisories. The npm blocking gate is limited to required production dependencies with `--omit=dev --omit=optional`. Optional dependencies are excluded from that audit only because `npm run test:optional-runtime` independently verifies that dependency nodes reachable only through optional paths are absent from the production Webpack module graph. Dependencies that belong to both the production and optional groups are not classified as optional-only.
+
+The optional-runtime guard compares installed dependency node identity by resolved path rather than package name alone. This avoids false positives when the same package name is present through both required and optional paths, while still failing when an optional-only package instance is bundled.
+
+Lower-severity advisories are intentionally excluded from the blocking threshold so transitive development dependencies do not create excessive PR noise. Composer abandoned-package notices are also excluded from this security failure condition because abandonment is a maintenance concern rather than a vulnerability by itself.
 
 PR Validation runs both dependency audits after dependency installation. These checks complement rather than replace the existing quality gates:
 
@@ -35,7 +39,8 @@ PR Validation runs both dependency audits after dependency installation. These c
 - ESLint / Stylelint / TypeScript: JavaScript, TypeScript, and stylesheet quality;
 - WPCS / PHPStan: PHP coding standards and static analysis;
 - Jest / Playwright: behavior and integration coverage;
-- dependency audits: known high or critical advisories in the resolved npm and Composer dependency sets.
+- dependency audits: known high or critical advisories in the blocking npm production set and resolved Composer dependency set;
+- optional-runtime guard: optional-only npm dependency instances are absent from the production Webpack module graph.
 
 Do not add dedicated security tests unless there is concrete product behavior or a regression that such a test can meaningfully protect.
 

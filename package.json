@@ -21,14 +21,14 @@
 		"format:css": "wp-scripts lint-style \"src/**/*.{css,scss}\" --fix --allow-empty-input",
 		"typecheck": "tsc --noEmit",
 		"knip": "knip",
-		"audit:security": "npm audit --omit=dev --audit-level=high",
+		"audit:security": "npm audit --omit=dev --omit=optional --audit-level=high",
 		"architecture:compile": "rm -rf .architecture-build && tsc --project scripts/architecture/tsconfig.json",
 		"prearchitecture:generate": "npm run architecture:compile",
 		"architecture:generate": "node .architecture-build/generate-structurizr.js",
 		"postarchitecture:generate": "rm -rf .architecture-build",
 		"architecture:validate": "npm run architecture:compile && node .architecture-build/validate-structurizr-cli.js",
 		"postarchitecture:validate": "rm -rf .architecture-build",
-		"test": "npm run format:check && npm run lint:js && npm run lint:css && npm run typecheck && npm run test:architecture && npm run test:unit:coverage",
+		"test": "npm run format:check && npm run lint:js && npm run lint:css && npm run typecheck && npm run test:architecture && npm run test:optional-runtime && npm run test:unit:coverage",
 		"test:architecture": "npm run architecture:compile && node --test .architecture-build/*.test.js; status=$?; rm -rf .architecture-build; exit $status",
 		"test:unit": "wp-scripts test-unit-js",
 		"test:unit:coverage": "wp-scripts test-unit-js --coverage",
@@ -46,7 +46,9 @@
 		"i18n:dev:artifacts": "bash scripts/i18n-dev.sh artifacts",
 		"i18n:dev": "bash scripts/i18n-dev.sh",
 		"i18n:dev:install": "bash scripts/i18n-dev-translations.sh install",
-		"i18n:dev:uninstall": "bash scripts/i18n-dev-translations.sh uninstall"
+		"i18n:dev:uninstall": "bash scripts/i18n-dev-translations.sh uninstall",
+		"security:compile": "rm -rf .security-build && tsc --project scripts/security/tsconfig.json",
+		"test:optional-runtime": "npm run security:compile && node .security-build/check-optional-runtime.js; status=$?; rm -rf .security-build; exit $status"
 	},
 	"devDependencies": {
 		"@babel/cli": "^7.29.7",
@@ -69,7 +71,8 @@
 		"knip": "^6.32.2",
 		"markdown-it": "12.3.2",
 		"prettier": "npm:wp-prettier@^3.0.3",
-		"typescript": "^6.0.3"
+		"typescript": "^6.0.3",
+		"webpack": "^5.111.1"
 	},
 	"dependencies": {
 		"@dnd-kit/dom": "^0.5.0",
