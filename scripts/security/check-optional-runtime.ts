@@ -129,7 +129,7 @@ const getModulePaths = ( compilation: StatsCompilation ): Set< string > => {
 /**
  * production module が特定の installed package instance に属するかを判定する。
  *
- * @param modulePath production bundle 内 module の実体パス。
+ * @param modulePath  production bundle 内 module の実体パス。
  * @param packagePath optional-only dependency node の package root。
  *
  * @return 同一 package instance に属する場合は true。
