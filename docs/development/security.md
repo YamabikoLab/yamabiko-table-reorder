@@ -27,7 +27,9 @@ DOM updates should continue to use React or safe DOM text/property APIs for user
 
 Dependency audit commands and when to run them are documented in `testing.md`, which is the source of truth for validation commands.
 
-The audits fail for high or critical advisories. Lower-severity advisories are intentionally excluded from the blocking threshold so transitive development dependencies do not create excessive PR noise. Composer abandoned-package notices are also excluded from this security failure condition because abandonment is a maintenance concern rather than a vulnerability by itself.
+The npm blocking audit omits dependencies npm classifies as `dev` or `optional` and uses `high` as the minimum severity that makes the command exit unsuccessfully. This keeps the blocking gate focused on the normal production dependency set without treating the omit flags as proof that optional dependencies can never participate in runtime behavior. Peer dependencies are not excluded by these omit flags. Run plain `npm audit` when the full npm advisory set, including optional dependencies, needs investigation.
+
+The npm and Composer audits fail the blocking gate for high or critical advisories. Lower-severity advisories are intentionally below the blocking threshold so they do not create excessive PR noise. Composer abandoned-package notices are also excluded from this security failure condition because abandonment is a maintenance concern rather than a vulnerability by itself.
 
 PR Validation runs both dependency audits after dependency installation. These checks complement rather than replace the existing quality gates:
 
