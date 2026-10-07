@@ -21,7 +21,7 @@
 		"format:css": "wp-scripts lint-style \"src/**/*.{css,scss}\" --fix --allow-empty-input",
 		"typecheck": "tsc --noEmit",
 		"knip": "knip",
-		"audit:security": "npm audit --omit=dev --audit-level=high",
+		"audit:security": "npm audit --omit=dev --omit=optional --audit-level=high",
 		"architecture:compile": "rm -rf .architecture-build && tsc --project scripts/architecture/tsconfig.json",
 		"prearchitecture:generate": "npm run architecture:compile",
 		"architecture:generate": "node .architecture-build/generate-structurizr.js",
