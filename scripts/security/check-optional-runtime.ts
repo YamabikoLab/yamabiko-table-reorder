@@ -166,9 +166,7 @@ const main = async (): Promise< void > => {
 		return;
 	}
 
-	process.stderr.write(
-		'Optional-only dependencies are included in the production runtime:\n'
-	);
+	process.stderr.write( 'Optional-only dependencies are included in the production runtime:\n' );
 
 	for ( const node of bundledOptionalNodes ) {
 		process.stderr.write( `- ${ node.name }@${ node.version } (${ node.path })\n` );
